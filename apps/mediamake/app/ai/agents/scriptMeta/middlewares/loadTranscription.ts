@@ -11,7 +11,7 @@ export const loadTranscription: AiMiddleware<any, any, any, any, any> = async (
   props,
   next,
 ) => {
-  const { transcriptionId, userRequest } = props.request.params;
+  const { transcriptionId, userRequest, selectedIndices } = props.request.params;
 
   if (!transcriptionId) {
     throw new Error('transcriptionId is required');
@@ -34,12 +34,31 @@ export const loadTranscription: AiMiddleware<any, any, any, any, any> = async (
     throw new Error('No captions found in transcription');
   }
 
+  // Filter captions if selectedIndices is provided
+  let captionsToProcess = transcription.captions;
+  let indicesToProcess: number[] = transcription.captions.map((_, idx) => idx);
+  
+  if (selectedIndices && Array.isArray(selectedIndices) && selectedIndices.length > 0) {
+    // Validate indices
+    const validIndices = selectedIndices.filter(
+      idx => typeof idx === 'number' && idx >= 0 && idx < transcription.captions.length
+    );
+    
+    if (validIndices.length === 0) {
+      throw new Error('No valid caption indices provided');
+    }
+    
+    captionsToProcess = validIndices.map(idx => transcription.captions[idx]);
+    indicesToProcess = validIndices;
+  }
+
   // Store transcription in context state
   props.state.transcription = transcription;
-  props.state.metadatas = transcription.captions.map(
+  props.state.selectedIndices = indicesToProcess; // Store which indices are being processed
+  props.state.metadatas = captionsToProcess.map(
     caption => caption.metadata,
   );
-  props.state.sentences = transcription.captions.map(caption => caption.text);
+  props.state.sentences = captionsToProcess.map(caption => caption.text);
 
   // Generate transcription info if no title exists
   let transcriptionInfoObject = undefined;

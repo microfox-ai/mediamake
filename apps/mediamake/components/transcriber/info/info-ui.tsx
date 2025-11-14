@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Info, Copy, Download, RefreshCw } from "lucide-react";
+import { Info, Copy, Download, RefreshCw, Files } from "lucide-react";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import { toast } from "sonner";
 
 export function InfoUI() {
-    const { transcriptionData, refreshTranscription } = useTranscriber();
+    const { transcriptionData, refreshTranscription, setCurrentView } = useTranscriber();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +57,34 @@ export function InfoUI() {
         toast.success("Transcription data downloaded");
     };
 
+    const handleDuplicate = async () => {
+        if (!transcriptionData?._id) return;
+
+        try {
+            toast.loading('Duplicating transcription...', { id: 'duplicate' });
+            
+            const response = await fetch(`/api/transcriptions/${transcriptionData._id}/duplicate`, {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast.success('Transcription duplicated successfully', { id: 'duplicate' });
+                
+                // Navigate to explorer view to see the new transcription
+                if (setCurrentView) {
+                    setCurrentView('explorer');
+                }
+            } else {
+                const error = await response.json();
+                toast.error(error.error || 'Failed to duplicate transcription', { id: 'duplicate' });
+            }
+        } catch (error) {
+            console.error('Error duplicating transcription:', error);
+            toast.error('Failed to duplicate transcription', { id: 'duplicate' });
+        }
+    };
+
     if (!transcriptionData) {
         return (
             <div className="flex-1 flex items-center justify-center">
@@ -99,6 +127,14 @@ export function InfoUI() {
                             <RefreshCw className="h-4 w-4 mr-2" />
                         )}
                         Refresh
+                    </Button>
+                    <Button
+                        onClick={handleDuplicate}
+                        variant="outline"
+                        size="sm"
+                    >
+                        <Files className="h-4 w-4 mr-2" />
+                        Duplicate
                     </Button>
                     <Button
                         onClick={handleCopyJson}

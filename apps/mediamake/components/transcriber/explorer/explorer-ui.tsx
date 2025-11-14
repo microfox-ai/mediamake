@@ -14,64 +14,189 @@ import {
     FileAudio,
     Tag,
     Loader2,
-    Copy
+    Copy,
+    Files
 } from "lucide-react";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { Transcription } from "@/app/types/transcription";
 import { toast } from "sonner";
+
+// Pagination component
+interface PaginationProps {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+}
+
+function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: PaginationProps) {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    if (totalPages <= 1) {
+        return null;
+    }
+
+    const handlePrevious = () => {
+        if (currentPage > 1) {
+            onPageChange(currentPage - 1);
+        }
+    };
+
+    const handleNext = () => {
+        if (currentPage < totalPages) {
+            onPageChange(currentPage + 1);
+        }
+    };
+
+    const getPageNumbers = () => {
+        const pageNumbers: (number | string)[] = [];
+        const maxPagesToShow = 5;
+        const halfPagesToShow = Math.floor(maxPagesToShow / 2);
+
+        if (totalPages <= maxPagesToShow + 2) {
+            for (let i = 1; i <= totalPages; i++) {
+                pageNumbers.push(i);
+            }
+        } else {
+            if (currentPage <= halfPagesToShow + 1) {
+                for (let i = 1; i <= maxPagesToShow; i++) {
+                    pageNumbers.push(i);
+                }
+                pageNumbers.push('...');
+                pageNumbers.push(totalPages);
+            } else if (currentPage >= totalPages - halfPagesToShow) {
+                pageNumbers.push(1);
+                pageNumbers.push('...');
+                for (let i = totalPages - maxPagesToShow + 1; i <= totalPages; i++) {
+                    pageNumbers.push(i);
+                }
+            } else {
+                pageNumbers.push(1);
+                pageNumbers.push('...');
+                for (let i = currentPage - halfPagesToShow; i <= currentPage + halfPagesToShow; i++) {
+                    pageNumbers.push(i);
+                }
+                pageNumbers.push('...');
+                pageNumbers.push(totalPages);
+            }
+        }
+        return pageNumbers;
+    };
+
+    const pageNumbers = getPageNumbers();
+
+    return (
+        <div className="flex items-center justify-between mt-4 p-4 border-t">
+            <span className="text-sm text-muted-foreground">
+                Total results: {totalItems}
+            </span>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrevious} disabled={currentPage === 1}>
+                    Previous
+                </Button>
+                {pageNumbers.map((page, index) =>
+                    typeof page === 'number' ? (
+                        <Button
+                            key={index}
+                            variant={currentPage === page ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => onPageChange(page)}
+                        >
+                            {page}
+                        </Button>
+                    ) : (
+                        <span key={index} className="px-2 py-1 text-sm">
+                            {page}
+                        </span>
+                    )
+                )}
+                <Button variant="outline" size="sm" onClick={handleNext} disabled={currentPage === totalPages}>
+                    Next
+                </Button>
+            </div>
+        </div>
+    );
+}
 
 export function ExplorerUI() {
     const { setSelectedTranscription, setCurrentView } = useTranscriber();
     const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
     const [filteredTranscriptions, setFilteredTranscriptions] = useState<Transcription[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const itemsPerPage = 10;
 
-    // Fetch transcriptions
+    // Debounce search query
     useEffect(() => {
-        fetchTranscriptions();
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Fetch all available tags on mount
+    useEffect(() => {
+        fetchAllTags();
     }, []);
 
-    // Filter transcriptions based on search and tags
+    // Fetch transcriptions when page or filters change
     useEffect(() => {
-        let filtered = transcriptions;
+        fetchTranscriptions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, selectedTags, debouncedSearchQuery]);
 
-        if (searchQuery) {
-            filtered = filtered.filter(transcription =>
-                transcription.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                transcription.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                transcription.audioUrl?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                transcription.language?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                transcription.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                transcription.keywords?.some(keyword => keyword.toLowerCase().includes(searchQuery.toLowerCase()))
-            );
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        if (currentPage !== 1) {
+            setCurrentPage(1);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedTags, debouncedSearchQuery]);
 
-        if (selectedTags.length > 0) {
-            filtered = filtered.filter(transcription =>
-                transcription.tags?.some(tag => selectedTags.includes(tag))
-            );
-        }
-
-        setFilteredTranscriptions(filtered);
-    }, [transcriptions, searchQuery, selectedTags]);
-
-    const fetchTranscriptions = async () => {
+    const fetchAllTags = async () => {
         try {
-            setIsLoading(true);
-            const response = await fetch('/api/transcriptions');
+            // Fetch all transcriptions to get all available tags
+            const response = await fetch('/api/transcriptions?limit=1000&fields=tags');
             if (response.ok) {
                 const data = await response.json();
-                setTranscriptions(data.transcriptions || []);
-
-                // Extract unique tags
                 const tags = new Set<string>();
                 data.transcriptions?.forEach((t: Transcription) => {
                     t.tags?.forEach(tag => tags.add(tag));
                 });
                 setAvailableTags(Array.from(tags));
+            }
+        } catch (error) {
+            console.error('Error fetching tags:', error);
+        }
+    };
+
+    const fetchTranscriptions = async () => {
+        try {
+            setIsLoading(true);
+            // Build query parameters
+            const params = new URLSearchParams();
+            params.append('page', currentPage.toString());
+            params.append('limit', itemsPerPage.toString());
+            if (selectedTags.length > 0) {
+                params.append('tags', selectedTags.join(','));
+            }
+            if (debouncedSearchQuery) {
+                params.append('search', debouncedSearchQuery);
+            }
+            
+            const response = await fetch(`/api/transcriptions?${params}`);
+            if (response.ok) {
+                const data = await response.json();
+                const results = data.transcriptions || [];
+                setTranscriptions(results);
+                setFilteredTranscriptions(results); // Set filtered to same as transcriptions (server-side filtering)
+                setTotalCount(data.total || 0);
             }
         } catch (error) {
             console.error('Error fetching transcriptions:', error);
@@ -115,6 +240,32 @@ export function ExplorerUI() {
 
         navigator.clipboard.writeText(audioUrl);
         toast.success('Audio URL copied to clipboard');
+    };
+
+    const duplicateTranscription = async (e: React.MouseEvent, transcriptionId: string) => {
+        e.stopPropagation(); // Prevent card click
+        
+        try {
+            toast.loading('Duplicating transcription...', { id: 'duplicate' });
+            
+            const response = await fetch(`/api/transcriptions/${transcriptionId}/duplicate`, {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast.success('Transcription duplicated successfully', { id: 'duplicate' });
+                
+                // Refresh the transcriptions list
+                fetchTranscriptions();
+            } else {
+                const error = await response.json();
+                toast.error(error.error || 'Failed to duplicate transcription', { id: 'duplicate' });
+            }
+        } catch (error) {
+            console.error('Error duplicating transcription:', error);
+            toast.error('Failed to duplicate transcription', { id: 'duplicate' });
+        }
     };
 
     if (isLoading) {
@@ -166,8 +317,8 @@ export function ExplorerUI() {
             </div>
 
             {/* Transcriptions Grid */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="p-4">
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-4">
                     {filteredTranscriptions.length === 0 ? (
                         <div className="text-center py-12">
                             <FileAudio className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -252,22 +403,43 @@ export function ExplorerUI() {
                                                 {formatDate(transcription.createdAt?.toString() || new Date().toISOString())}
                                             </div>
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={(e) => copyAudioUrl(e, transcription.audioUrl)}
-                                            disabled={!transcription.audioUrl}
-                                            className="h-6 px-2 text-xs"
-                                        >
-                                            <Copy className="h-3 w-3 mr-1" />
-                                            Audio URL
-                                        </Button>
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => duplicateTranscription(e, transcription._id?.toString() || '')}
+                                                className="h-6 px-2 text-xs"
+                                                title="Duplicate transcription"
+                                            >
+                                                <Files className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => copyAudioUrl(e, transcription.audioUrl)}
+                                                disabled={!transcription.audioUrl}
+                                                className="h-6 px-2 text-xs"
+                                                title="Copy audio URL"
+                                            >
+                                                <Copy className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+                
+                {/* Pagination */}
+                {totalCount > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
             </div>
         </div>
     );

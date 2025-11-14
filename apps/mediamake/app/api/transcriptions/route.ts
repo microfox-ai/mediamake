@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
       fields: searchParams.get('fields') || undefined,
     };
 
+    const searchQuery = searchParams.get('search') || undefined;
+
     const db = await getDatabase();
     const collection = db.collection<Transcription>('transcriptions');
 
@@ -38,6 +40,18 @@ export async function GET(req: NextRequest) {
     if (filters.language) query.language = filters.language;
     if (filters.tags && filters.tags.length > 0) {
       query.tags = { $in: filters.tags };
+    }
+    
+    // Add search query to filter by title, description, keywords, or tags
+    if (searchQuery) {
+      query.$or = [
+        { title: { $regex: searchQuery, $options: 'i' } },
+        { description: { $regex: searchQuery, $options: 'i' } },
+        { keywords: { $regex: searchQuery, $options: 'i' } },
+        { tags: { $regex: searchQuery, $options: 'i' } },
+        { audioUrl: { $regex: searchQuery, $options: 'i' } },
+        { language: { $regex: searchQuery, $options: 'i' } },
+      ];
     }
     // Calculate pagination
     const skip = (filters.page! - 1) * filters.limit!;

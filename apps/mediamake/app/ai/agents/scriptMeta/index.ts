@@ -6,8 +6,8 @@ import musicKeywordAgent from './music/keywordAgent';
 import { loadTranscription } from './middlewares/loadTranscription';
 import ragImageAttacherAgent from './music/ragImageAttacher';
 import emptyImageAttacherAgent from './music/emptyImageAttacher';
-import clearMetadataAgent from './clearMetadata';
-import textToImageAgent from './textToImageAgent';
+// import textToImageAgent from './private/textToImageAgent';
+// import clearMetadataAgent from './private/clearMetadata';
 
 const aiRouter = new AiRouter();
 
@@ -22,8 +22,8 @@ export const scriptMetaOrchestor = aiRouter
   .agent('/music/keyword', musicKeywordAgent)
   .agent('/music/rag-image-attacher', ragImageAttacherAgent)
   .agent('/music/empty-image-attacher', emptyImageAttacherAgent)
-  .agent('/clear-metadata', clearMetadataAgent)
-  .agent('/text-to-image', textToImageAgent)
+  // .agent('/text-to-image', textToImageAgent)
+  // .agent('/clear-metadata', clearMetadataAgent)
   .agent('/', async ctx => {
     // TODO: ORchestrator that picks the best analyser as and when needed.
     ctx.response.writeMessageMetadata({

@@ -8,17 +8,22 @@ import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { Input } from "@/components/ui/input";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function MetaDataCard({
     sentenceIndex,
     data,
     isActive,
     onSave,
+    isSelected,
+    onToggleSelect,
 }: {
     sentenceIndex: number;
     data: any;
     isActive: boolean;
     onSave: (updated: any) => Promise<void> | void;
+    isSelected: boolean;
+    onToggleSelect: () => void;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
     const [activeTab, setActiveTab] = useState<"json" | "form">("json");
@@ -113,6 +118,12 @@ export function MetaDataCard({
                 <CardHeader
                     className="px-1 flex flex-row items-center justify-between">
                     <div className="flex items-center gap-1 min-w-0">
+                        <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={onToggleSelect}
+                            className="h-4 w-4 ml-1"
+                            onClick={(e) => e.stopPropagation()}
+                        />
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(v => !v)}>
                             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </Button>

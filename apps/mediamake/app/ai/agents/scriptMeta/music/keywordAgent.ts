@@ -166,6 +166,7 @@ Consider:
           transcription,
           result.sentences,
           ctx.state?.transcriptionInfo,
+          ctx.state?.selectedIndices, // Pass selected indices to update only selected captions
         );
       }
 

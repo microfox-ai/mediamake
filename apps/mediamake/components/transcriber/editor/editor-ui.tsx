@@ -17,7 +17,8 @@ import {
     Loader2,
     Edit2,
     Check,
-    X
+    X,
+    Files
 } from "lucide-react";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { AudioPlayerProvider, useAudioPlayer } from "../audio-player-context";
@@ -36,7 +37,8 @@ function EditorUIInner() {
         setIsLoading,
         isRefreshing,
         error,
-        setError
+        setError,
+        setCurrentView
     } = useTranscriber();
 
     const { currentTime, isPlaying, seekTo, togglePlayPause, setAudioUrl } = useAudioPlayer();
@@ -146,6 +148,34 @@ function EditorUIInner() {
 
         navigator.clipboard.writeText(transcriptionData.audioUrl);
         toast.success('Audio URL copied to clipboard');
+    };
+
+    const handleDuplicate = async () => {
+        if (!transcriptionData?._id) return;
+
+        try {
+            toast.loading('Duplicating transcription...', { id: 'duplicate' });
+            
+            const response = await fetch(`/api/transcriptions/${transcriptionData._id}/duplicate`, {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast.success('Transcription duplicated successfully', { id: 'duplicate' });
+                
+                // Navigate to explorer view to see the new transcription
+                if (setCurrentView) {
+                    setCurrentView('explorer');
+                }
+            } else {
+                const error = await response.json();
+                toast.error(error.error || 'Failed to duplicate transcription', { id: 'duplicate' });
+            }
+        } catch (error) {
+            console.error('Error duplicating transcription:', error);
+            toast.error('Failed to duplicate transcription', { id: 'duplicate' });
+        }
     };
 
     // Show loading state first (even if transcriptionData is null during loading)
@@ -323,6 +353,10 @@ function EditorUIInner() {
                         </div>
                         <div className="flex flex-row items-center gap-2">
                             <span className="max-w-[30ch] truncate"> Audio (URL: {transcriptionData.audioUrl})</span>
+                            <div className="flex flex-row items-center gap-2 cursor-pointer hover:text-primary" onClick={handleDuplicate}>
+                                <Files className="h-4 w-4 mr-2" />
+                                Duplicate
+                            </div>
                             <div className="flex flex-row items-center gap-2 cursor-pointer hover:text-primary" onClick={copyAudioUrl}>
                                 <Copy className="h-4 w-4 mr-2" />
                                 URL
