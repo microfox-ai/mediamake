@@ -2,17 +2,28 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
-import { saveTranscriptionMetadata } from './helpers';
+import { saveTranscriptionMetadata } from '../helpers';
 import {
   ScriptMetaInputSchema,
   ScriptMetaOutputSchema,
   SentenceSchema,
-} from './zod';
+} from '../zod';
 import dedent from 'dedent';
+import {
+  getPromptPreset,
+  getAllPromptPresets,
+  DEFAULT_PRESET_ID,
+} from './imagePromptRegistry';
+import { loadTranscription } from '../middlewares/loadTranscription';
+import crypto from 'crypto';
 
 /**
  * Text-to-Image Agent - /text-to-image
- * Generate images for each caption using AI prompt transformation and KIE AI text-to-image API
+ * 
+ * Simple image generation for transcription captions.
+ * 
+ * Choose from built-in presets or provide your own custom prompt.
+ * Built-in presets: graphic-novel, cinematic-realism, minimalist-flat, watercolor-artistic, abstract-geometric
  */
 
 const aiRouter = new AiRouter();
@@ -22,6 +33,7 @@ const TextToImageMetadataSchema = z.object({
   imagePrompt: z
     .string()
     .describe('The AI-generated image prompt for this caption'),
+  promptPresetId: z.string().optional().describe('The prompt preset ID used'),
   taskId: z.string().optional().describe('The text-to-image task ID'),
   imageUrl: z.string().optional().describe('The generated image URL'),
   imageSize: z.string().optional().describe('The image size used'),
@@ -33,66 +45,33 @@ const TextToImageMetadataSchema = z.object({
   completedAt: z.string().optional().describe('When the image was completed (ISO timestamp)'),
 });
 
-// Image generation system prompt
-const IMAGE_GENERATION_SYSTEM_PROMPT = dedent`
-  You are an AI specialized in creating image generation prompts for a consistent explainer video series. Your task is to take a user-provided sentence and transform it into a detailed, descriptive prompt that strictly adheres to a predefined artistic style.
+// Legacy: IMAGE_GENERATION_SYSTEM_PROMPT moved to imagePromptRegistry.ts
+// Now using dynamic prompt presets from the registry
 
-  The Style Guidelines are:
+/**
+ * Encrypt auth token for webhook authentication
+ * MEDIA_HELPER will decrypt this and send it back as Bearer token
+ */
+function encryptAuthToken(token: string): string {
+  const secret = process.env.MEDIA_HELPER_SECRET;
+  if (!secret) {
+    throw new Error('MEDIA_HELPER_SECRET environment variable not set');
+  }
 
-  Aesthetic: A stylized, hand-drawn illustration that feels like it's from a high-quality graphic novel. The art must be expressive and intentionally non-photorealistic, focusing on simplified forms, heavy ink outlines, and visible texture.
-
-  Texture: The image must have a tactile feel. Use keywords like heavy colored pencil shading, expressive crosshatching, textured paper background, and bold, imperfect ink outlines.
-
-  Color Palette (STRICT): The entire image, including all objects, backgrounds, and text, must exclusively use colors from the following limited palette:
-
-  Dark Indigo/Navy Blue (for shadows, outlines, and text)
-
-  Burnt Orange (as a primary or accent color)
-
-  Muted Tan / Off-White (for backgrounds and highlights)
-
-  A small amount of a fourth color like Muted Teal or Warm Gray is permissible if absolutely necessary for a specific object, but the core palette is paramount.
-
-  Format: Assume a 16:9 aspect ratio suitable for video.
-
-  Text Integration and Layout (CRITICAL):
-
-  The text is a primary design element, not an afterthought.
-
-  Artistic Font Style: The text must be rendered in a bold, blocky, hand-lettered style. It should look like it was drawn with a thick ink pen, having significant width, slight irregularities, and visible texture. It should feel weighty and integrated into the artwork.
-
-  Dynamic Layout: The text must be broken into multiple lines and arranged creatively within the composition. The placement should enhance the visual narrative.
-
-  Text Color: The text color must be drawn from the approved color palette, typically the Dark Indigo.
-
-  Your Process:
-
-  Analyze the user's sentence.
-
-  Devise a simple, stylized visual to represent the core concept.
-
-  Construct a prompt that strictly enforces all guidelines: the non-photorealistic aesthetic, the limited color palette, the bold font, and the dynamic text layout.
-
-  Here are examples of how you should perform this transformation:
-
-  Example 1:
-
-  User Input Sentence: "The power grid's been dark for 72 hours"
-
-  Your Generated Prompt: A stylized graphic novel illustration of a dark suburban street. The forms of houses and power lines are simplified and silhouetted. The entire scene strictly uses a limited color palette of dark indigo, burnt orange for the sunset glow, and muted tan. Across the sky, the text "THE POWER GRID'S BEEN DARK FOR 72 HOURS" is arranged in a bold, blocky, textured hand-lettered font, colored dark indigo. The style is intentionally non-photorealistic with heavy crosshatching.
-
-  Example 2:
-
-  User Input Sentence: "Your smart thermostat can't connect to the internet."
-
-  Your Generated Prompt: A stylized, non-photorealistic illustration of a smart thermostat. The device's form is simplified with bold ink outlines. On its dark screen is a small "no connection" icon in burnt orange. The entire image uses only dark indigo, burnt orange, and an off-white textured paper background. To the right, the text is arranged in three lines: "CAN'T CONNECT", "TO THE", "INTERNET". The font is a heavy, blocky, hand-lettered style with a textured, inky feel.
-
-  Example 3:
-
-  User Input Sentence: "Not because you're hiding—because they can't see"
-
-  Your Generated Prompt: A simple, stylized colored pencil illustration of a window with its curtains drawn shut. The curtains are burnt orange, and the window frame is dark indigo. The background is a clean, off-white textured paper. To the right of the window, the text is arranged dynamically: "NOT BECAUSE", "YOU'RE HIDING—", "BECAUSE", "THEY CAN'T SEE". The text is rendered in a bold, wide, hand-lettered ink font in dark indigo. The artwork is expressive and avoids realism.
-`;
+  // Create key from secret (32 bytes for AES-256)
+  const key = crypto.createHash('sha256').update(secret).digest();
+  
+  // Generate random IV (16 bytes for AES)
+  const iv = crypto.randomBytes(16);
+  
+  // Encrypt
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  let encrypted = cipher.update(token, 'utf8');
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  
+  // Return as iv:encryptedData (both in hex)
+  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+}
 
 // Helper function to call text-to-image API with webhook
 async function generateImageForCaption(
@@ -108,14 +87,32 @@ async function generateImageForCaption(
     throw new Error('MEDIA_HELPER_URL environment variable not set');
   }
 
+  if (!process.env.MEDIA_HELPER_SECRET) {
+    throw new Error('MEDIA_HELPER_SECRET environment variable not set');
+  }
+
   // Construct webhook URL
-  // If running locally, you might need ngrok or similar for testing
   const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 
                          process.env.VERCEL_URL || 
                          'http://localhost:3000';
   const webhookUrl = `${webhookBaseUrl}/api/webhooks/text-to-image`;
 
+  // Use API key from environment as auth token
+  const apiKey = process.env.DEV_API_KEY;
+  if (!apiKey) {
+    throw new Error('DEV_API_KEY environment variable not set');
+  }
+  
+  const encryptedToken = encryptAuthToken(apiKey);
+
+  console.log(`[Image Gen] 🔐 Using API key for webhook authentication`);
+  console.log(`[Image Gen] 🔒 Encrypted token (first 40 chars): ${encryptedToken.substring(0, 40)}...`);
+
   try {
+    console.log(`[Image Gen] 📤 Sending request to ${baseUrl}/api/text-to-image`);
+    console.log(`[Image Gen] Webhook URL: ${webhookUrl}`);
+    console.log(`[Image Gen] Webhook auth token (encrypted): ${encryptedToken.substring(0, 20)}...`);
+
     const response = await fetch(`${baseUrl}/api/text-to-image`, {
       method: 'POST',
       headers: {
@@ -127,6 +124,7 @@ async function generateImageForCaption(
         image_resolution: imageResolution,
         max_images: 1,
         webhook_url: webhookUrl,
+        webhook_auth_token: encryptedToken, // Send encrypted token
         webhook_metadata: {
           transcriptionId,
           captionIndex,
@@ -137,15 +135,25 @@ async function generateImageForCaption(
       }),
     });
 
+    console.log(`[Image Gen] Response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorText = await response.text();
+      console.error(`[Image Gen] ❌ Error response: ${errorText}`);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
       throw new Error(errorData.error || 'Failed to create image generation task');
     }
 
     const data = await response.json();
+    console.log(`[Image Gen] ✅ Task created: ${data.taskId}`);
     return { taskId: data.taskId };
   } catch (error) {
-    console.error('Error calling text-to-image API:', error);
+    console.error('[Image Gen] ❌ Error calling text-to-image API:', error);
     return {
       taskId: '',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -166,6 +174,7 @@ const TextToImageTranscriptionSchema = ScriptMetaOutputSchema.extend({
 });
 
 const textToImageAgent = aiRouter
+  .use('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
@@ -176,11 +185,38 @@ const textToImageAgent = aiRouter
         userRequest,
         imageSize = 'landscape_16_9',
         imageResolution = '1K',
+        promptPresetId = DEFAULT_PRESET_ID,
+        customPrompt,
       } = ctx.request.params as {
         userRequest?: string;
         imageSize?: string;
         imageResolution?: string;
+        promptPresetId?: string;
+        customPrompt?: string;
       };
+
+      // Determine which prompt to use
+      let systemPrompt: string;
+      let selectedPresetId: string | undefined;
+
+      if (customPrompt) {
+        // Use custom prompt if provided
+        systemPrompt = customPrompt;
+        console.log('Using custom prompt for image generation');
+      } else {
+        // Use built-in preset from registry
+        const preset = getPromptPreset(promptPresetId);
+        if (!preset) {
+          throw new Error(
+            `Prompt preset '${promptPresetId}' not found. Available presets: ${getAllPromptPresets()
+              .map(p => p.id)
+              .join(', ')}`
+          );
+        }
+        systemPrompt = preset.systemPrompt;
+        selectedPresetId = preset.id;
+        console.log(`Using preset: ${preset.name} (${preset.id})`);
+      }
 
       // Get sentences from context state (loaded by middleware)
       const sentencesToAnalyze = ctx.state?.sentences || [];
@@ -209,7 +245,7 @@ const textToImageAgent = aiRouter
 
             const promptResult = await generateText({
               model: google('gemini-2.5-pro'),
-              system: IMAGE_GENERATION_SYSTEM_PROMPT,
+              system: systemPrompt,
               prompt: dedent`
                 Transform the following sentence into an image generation prompt following the style guidelines:
 
@@ -248,6 +284,7 @@ const textToImageAgent = aiRouter
                 originalText: sentence,
                 metadata: {
                   imagePrompt,
+                  promptPresetId: selectedPresetId,
                   status: 'failed' as const,
                   error: taskError || 'Failed to create task',
                   imageSize,
@@ -266,6 +303,7 @@ const textToImageAgent = aiRouter
               originalText: sentence,
               metadata: {
                 imagePrompt,
+                promptPresetId: selectedPresetId,
                 taskId,
                 status: 'processing' as const,
                 imageSize,
@@ -280,6 +318,7 @@ const textToImageAgent = aiRouter
               originalText: sentence,
               metadata: {
                 imagePrompt: '',
+                promptPresetId: selectedPresetId,
                 status: 'failed' as const,
                 error:
                   error instanceof Error
@@ -343,7 +382,7 @@ const textToImageAgent = aiRouter
     id: 'generateImagesForTranscription',
     name: 'Generate Images for Transcription',
     description:
-      'Generates images for each caption in a transcription using AI prompt transformation and text-to-image API. Transforms each caption into a stylized graphic novel image prompt and generates the corresponding image.',
+      'Generates images for each caption in a transcription using AI prompt transformation and text-to-image API. Choose from built-in presets or provide a custom prompt. Available presets: graphic-novel (default), cinematic-realism, minimalist-flat, watercolor-artistic, abstract-geometric.',
     inputSchema: ScriptMetaInputSchema.extend({
       imageSize: z
         .enum([
@@ -363,6 +402,24 @@ const textToImageAgent = aiRouter
         .enum(['1K', '2K', '4K'])
         .optional()
         .describe('Image resolution (default: 1K)'),
+      promptPresetId: z
+        .enum([
+          'graphic-novel',
+          'cinematic-realism',
+          'minimalist-flat',
+          'watercolor-artistic',
+          'abstract-geometric',
+        ])
+        .optional()
+        .describe(
+          'Prompt preset to use for image generation. Options: graphic-novel (hand-drawn with limited palette), cinematic-realism (photo-realistic with dramatic lighting), minimalist-flat (clean geometric design), watercolor-artistic (soft painted style), abstract-geometric (bold shapes and colors). Default: graphic-novel'
+        ),
+      customPrompt: z
+        .string()
+        .optional()
+        .describe(
+          'Custom system prompt for image generation. If provided, overrides promptPresetId. Use this to define your own unique visual style and guidelines. You can copy a preset prompt and modify it.'
+        ),
     }),
     outputSchema: TextToImageTranscriptionSchema,
     metadata: {
@@ -376,6 +433,53 @@ const textToImageAgent = aiRouter
         'metadata',
         'database',
       ],
+      hidden: false,
+    },
+  });
+
+// ============================================================================
+// UTILITY ROUTE - Get available presets
+// ============================================================================
+
+// Simple route to list available presets with their prompts
+textToImageAgent
+  .agent('/prompts', async () => {
+    const presets = getAllPromptPresets();
+    
+    return {
+      presets: presets.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        systemPrompt: p.systemPrompt,
+        category: p.category,
+        tags: p.tags,
+      })),
+      count: presets.length,
+      message: 'Use promptPresetId to select a preset, or copy systemPrompt to create your own customPrompt',
+    };
+  })
+  .actAsTool('/prompts', {
+    id: 'listImagePrompts',
+    name: 'List Image Generation Prompts',
+    description:
+      'Lists all available built-in image prompt presets. Each preset includes the full system prompt text that you can copy and modify to create a custom prompt.',
+    inputSchema: z.object({}),
+    outputSchema: z.object({
+      presets: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        systemPrompt: z.string().describe('Full prompt text - copy this to create custom prompt'),
+        category: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      })),
+      count: z.number(),
+      message: z.string(),
+    }),
+    metadata: {
+      category: 'utility',
+      tags: ['prompts', 'list', 'text-to-image'],
       hidden: false,
     },
   });

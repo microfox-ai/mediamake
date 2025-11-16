@@ -9,15 +9,14 @@ const CanvasContentAwareRevealProps = z.object({
   fit: z.enum(['cover', 'contain']).default('cover'),
   backgroundColor: z.string().default('rgba(0,0,0,0)'),
   burnColorOrder: z.enum(['vibgyor', 'luminance', 'random']).default('vibgyor'),
-  zigzagReveal: z.boolean().default(false),
-  zigzagDirection: z
-    .enum(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up'])
-    .default('horizontal'),
-  zigzagLayers: z.number().default(10),
-  combineWithZigzag: z
-    .boolean()
-    .default(false)
-    .describe('Combine color order with zigzag pattern'),
+  revealMode: z
+    .enum(['color', 'direction', 'combined'])
+    .default('combined')
+    .describe('Reveal mode: color-only, direction-only, or combined'),
+  direction: z
+    .enum(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up', 'top-to-bottom'])
+    .default('top-to-bottom'),
+  directionLayers: z.number().default(10).describe('Number of layers for horizontal/vertical patterns'),
 });
 
 type CanvasContentAwareRevealProps = z.infer<
@@ -34,10 +33,9 @@ export const CanvasContentAwareReveal: React.FC<{
     fit,
     backgroundColor,
     burnColorOrder,
-    zigzagReveal,
-    zigzagDirection,
-    zigzagLayers,
-    combineWithZigzag,
+    revealMode,
+    direction,
+    directionLayers,
   } = data;
 
   const frame = useCurrentFrame();
@@ -149,44 +147,57 @@ export const CanvasContentAwareReveal: React.FC<{
           burnMap[idx] = cumulative[bucket] / (image.width * image.height);
         });
 
-        // Apply zigzag pattern
-        if (zigzagReveal) {
+        // Apply directional pattern based on revealMode
+        if (revealMode === 'direction' || revealMode === 'combined') {
           for (let idx = 0; idx < image.width * image.height; idx++) {
             const x = idx % image.width;
             const y = Math.floor(idx / image.width);
-            let zigzagValue = 0;
+            let directionValue = 0;
 
-            if (zigzagDirection === 'horizontal') {
-              const layer = Math.floor(y / (image.height / zigzagLayers));
+            if (direction === 'horizontal') {
+              const layer = Math.floor(y / (image.height / directionLayers));
               const isReverse = layer % 2 === 1;
               const xNorm = isReverse
                 ? (image.width - x) / image.width
                 : x / image.width;
-              zigzagValue = layer / zigzagLayers + xNorm / zigzagLayers;
-            } else if (zigzagDirection === 'vertical') {
-              const layer = Math.floor(x / (image.width / zigzagLayers));
+              directionValue = layer / directionLayers + xNorm / directionLayers;
+            } else if (direction === 'vertical') {
+              const layer = Math.floor(x / (image.width / directionLayers));
               const isReverse = layer % 2 === 1;
               const yNorm = isReverse
                 ? (image.height - y) / image.height
                 : y / image.height;
-              zigzagValue = layer / zigzagLayers + yNorm / zigzagLayers;
-            } else if (zigzagDirection === 'diagonal-down') {
-              zigzagValue = (x + y) / (image.width + image.height);
+              directionValue = layer / directionLayers + yNorm / directionLayers;
+            } else if (direction === 'top-to-bottom') {
+              // Simple top-to-bottom reveal based on Y position
+              directionValue = y / image.height;
+            } else if (direction === 'diagonal-down') {
+              directionValue = (x + y) / (image.width + image.height);
             } else {
-              zigzagValue =
+              // diagonal-up
+              directionValue =
                 (x + (image.height - y)) / (image.width + image.height);
             }
 
-            burnMap[idx] = combineWithZigzag
-              ? burnMap[idx] * 0.6 + zigzagValue * 0.4
-              : zigzagValue;
+            burnMap[idx] = revealMode === 'combined'
+              ? burnMap[idx] * 0.6 + directionValue * 0.4
+              : directionValue;
           }
 
-          // Re-normalize
-          const minVal = Math.min(...Array.from(burnMap));
-          const maxVal = Math.max(...Array.from(burnMap));
-          for (let i = 0; i < burnMap.length; i++) {
-            burnMap[i] = (burnMap[i] - minVal) / (maxVal - minVal);
+          // Re-normalize (find min/max without spreading to avoid stack overflow)
+          let minVal = burnMap[0];
+          let maxVal = burnMap[0];
+          for (let i = 1; i < burnMap.length; i++) {
+            if (burnMap[i] < minVal) minVal = burnMap[i];
+            if (burnMap[i] > maxVal) maxVal = burnMap[i];
+          }
+          
+          // Normalize to 0-1 range
+          const range = maxVal - minVal;
+          if (range > 0) {
+            for (let i = 0; i < burnMap.length; i++) {
+              burnMap[i] = (burnMap[i] - minVal) / range;
+            }
           }
         }
 
@@ -199,10 +210,9 @@ export const CanvasContentAwareReveal: React.FC<{
   }, [
     image,
     burnColorOrder,
-    zigzagReveal,
-    zigzagDirection,
-    zigzagLayers,
-    combineWithZigzag,
+    revealMode,
+    direction,
+    directionLayers,
   ]);
 
   useEffect(() => {

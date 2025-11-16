@@ -8,11 +8,10 @@ const presetParams = z.object({
   start: z.number().min(0).default(0).describe('Start time in seconds.'),
   duration: z.number().min(0).default(5).describe('Total duration.'),
   revealDuration: z.number().min(0).default(3).describe('Reveal animation duration.'),
-  burnColorOrder: z.enum(['vibgyor', 'luminance', 'random']).default('vibgyor'),
-  zigzagReveal: z.boolean().default(false).describe('Use zigzag pattern.'),
-  zigzagDirection: z.enum(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up']).default('horizontal').optional(),
-  zigzagLayers: z.number().default(10).optional(),
-  combineWithZigzag: z.boolean().default(false).optional(),
+  burnColorOrder: z.enum(['vibgyor', 'luminance', 'random']).default('vibgyor').describe('Color analysis method.'),
+  revealMode: z.enum(['color', 'direction', 'combined']).default('combined').describe('Reveal mode: color-only, direction-only, or combined.'),
+  direction: z.enum(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up', 'top-to-bottom']).default('top-to-bottom').describe('Direction of reveal.'),
+  directionLayers: z.number().default(10).describe('Number of layers for horizontal/vertical patterns.'),
   backgroundColor: z.string().default('rgba(0,0,0,0)'),
   fit: z.enum(['cover', 'contain']).default('cover'),
 });
@@ -22,7 +21,7 @@ const presetExecution = async (
   props: { config: InputCompositionProps['config'] }
 ): Promise<Partial<PresetOutput>> => {
   const { trackId, imageUrl, start, duration, revealDuration, burnColorOrder,
-    zigzagReveal, zigzagDirection, zigzagLayers, combineWithZigzag,
+    revealMode, direction, directionLayers,
     backgroundColor, fit } = params;
   const { fps } = props.config ?? { fps: 30 };
 
@@ -35,11 +34,10 @@ const presetExecution = async (
       fit,
       backgroundColor,
       burnColorOrder,
-      zigzagReveal,
+      revealMode,
+      direction,
+      directionLayers,
       revealDurationInFrames: Math.round(revealDuration * (fps ?? 30)),
-      ...(zigzagDirection !== undefined && { zigzagDirection }),
-      ...(zigzagLayers !== undefined && { zigzagLayers }),
-      ...(combineWithZigzag !== undefined && { combineWithZigzag }),
     },
     context: {
       timing: { start, duration },
@@ -79,10 +77,9 @@ const presetMetadata: PresetMetadata = {
     duration: 5,
     revealDuration: 3,
     burnColorOrder: 'vibgyor',
-    zigzagReveal: true,
-    zigzagDirection: 'vertical',
-    zigzagLayers: 20,
-    combineWithZigzag: true,
+    revealMode: 'combined',
+    direction: 'top-to-bottom',
+    directionLayers: 20,
     backgroundColor: 'white',
     fit: 'cover',
   },

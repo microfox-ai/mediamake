@@ -54,6 +54,7 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
     // Audio-to-text states
     const [audioUrl, setAudioUrl] = useState("");
     const [language, setLanguage] = useState("");
+    const [transcriptionProvider, setTranscriptionProvider] = useState<"assembly" | "gemini" | "elevenlabs">("assembly");
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -205,10 +206,23 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
         setProgressMessage("Starting transcription...");
 
         try {
-            console.log('Starting transcription with audio URL:', audioUrl.trim(), 'and language:', language.trim() || undefined);
+            console.log('Starting transcription with audio URL:', audioUrl.trim(), 'language:', language.trim() || undefined, 'provider:', transcriptionProvider);
+
+            // Determine API endpoint based on provider
+            const apiEndpoint = transcriptionProvider === 'gemini'
+                ? '/api/transcribe/gemini'
+                : transcriptionProvider === 'elevenlabs'
+                ? '/api/transcribe/elevenlabs-stt'
+                : '/api/transcribe/assembly';
+
+            setProgressMessage(`Starting transcription with ${
+                transcriptionProvider === 'gemini' ? 'Gemini' : 
+                transcriptionProvider === 'elevenlabs' ? 'ElevenLabs Scribe' :
+                'AssemblyAI'
+            }...`);
 
             // Call the transcription API
-            const response = await fetch('/api/transcribe/assembly', {
+            const response = await fetch(apiEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -306,6 +320,7 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
         // Reset audio-to-text states
         setAudioUrl("");
         setLanguage("");
+        setTranscriptionProvider("assembly");
         setError(null);
         setIsTranscribing(false);
         setIsAutofixing(false);
@@ -432,6 +447,45 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Language code helps improve transcription accuracy. Leave empty for auto-detection.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="transcriptionProvider" className="flex items-center gap-2">
+                                    <Bot className="h-4 w-4" />
+                                    Transcription Provider
+                                </Label>
+                                <Select
+                                    value={transcriptionProvider}
+                                    onValueChange={(value: "assembly" | "gemini" | "elevenlabs") => setTranscriptionProvider(value)}
+                                    disabled={isTranscribing}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="assembly">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">AssemblyAI</span>
+                                                <span className="text-xs text-muted-foreground">High accuracy, word-level timestamps</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="gemini">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Google Gemini</span>
+                                                <span className="text-xs text-muted-foreground">AI-powered transcription with timestamps</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="elevenlabs">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">ElevenLabs Scribe</span>
+                                                <span className="text-xs text-muted-foreground">99 languages, speaker diarization, audio events</span>
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Choose your preferred transcription service provider.
                                 </p>
                             </div>
 

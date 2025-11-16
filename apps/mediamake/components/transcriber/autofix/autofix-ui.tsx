@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Bot,
     Sparkles,
@@ -24,6 +25,7 @@ import { AudioPlayer } from "../audio-player";
 import { Transcription } from "@/app/types/transcription";
 import { toast } from "sonner";
 import { callAgent } from "@/components/agents/agent-helper";
+import { aiRouterRegistry } from "@/app/ai";
 
 // Internal component that uses the audio player context
 function AutofixUIInner() {
@@ -48,6 +50,38 @@ function AutofixUIInner() {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState("");
     const [isSavingTitle, setIsSavingTitle] = useState(false);
+    const [selectedAgentPath, setSelectedAgentPath] = useState<string>("");
+
+    // Build list of autofix agents from aiRouterRegistry
+    const availableAutofixAgents = useMemo(() => {
+        const list: { name: string; path: string; description?: string; icon?: string }[] = [];
+        for (const [path, value] of Object.entries(aiRouterRegistry.map)) {
+            for (const agent of value.agents) {
+                const meta = agent.actAsTool?.metadata as any;
+                const hasAutofixTag = Array.isArray(meta?.tags) && meta.tags.includes('transcription-autofix');
+                const hidden = meta?.hideUI === true;
+                if (agent.actAsTool && hasAutofixTag && !hidden) {
+                    list.push({ 
+                        name: agent.actAsTool.name, 
+                        path,
+                        description: meta.description || agent.actAsTool.description,
+                        icon: meta.icon
+                    });
+                    break;
+                }
+            }
+        }
+        return list.sort((a, b) => a.name.localeCompare(b.name));
+    }, []);
+
+    // Set default agent on load
+    useEffect(() => {
+        if (!selectedAgentPath && availableAutofixAgents.length > 0) {
+            // Default to orchestrator if available
+            const orchestrator = availableAutofixAgents.find(a => a.name.includes('Orchestrator'));
+            setSelectedAgentPath(orchestrator?.path || availableAutofixAgents[0].path);
+        }
+    }, [availableAutofixAgents, selectedAgentPath]);
 
     // Set audio URL when transcription data changes
     useEffect(() => {
@@ -179,15 +213,20 @@ function AutofixUIInner() {
             return;
         }
 
+        if (!selectedAgentPath) {
+            setAutofixError("Please select an autofix agent.");
+            return;
+        }
+
         setIsAIFixing(true);
         setAutofixError(null);
 
         try {
-            const result = await callAgent('/transcription-fixer', {
+            const result = await callAgent(selectedAgentPath, {
                 transcriptionId: transcriptionData._id,
-                assemblyId: transcriptionData.assemblyId, // May be undefined for Gemini, but that's okay
                 userRequest: userRequest.trim() || undefined,
                 userWrittenTranscription: userWrittenTranscription.trim() || undefined,
+                applyToDatabase: true, // Apply directly to database
             })
 
             console.log('AI autofix result:', result);
@@ -372,6 +411,39 @@ function AutofixUIInner() {
                     {/* AI Autofix Section */}
 
                     <div className="space-y-4">
+                        {/* Agent Selector */}
+                        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                            <Label className="text-sm font-semibold whitespace-nowrap">Autofix Agent:</Label>
+                            <Select value={selectedAgentPath} onValueChange={setSelectedAgentPath}>
+                                <SelectTrigger className="w-full max-w-md">
+                                    <SelectValue placeholder="Select an autofix agent" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableAutofixAgents.map((agent) => (
+                                        <SelectItem key={agent.path} value={agent.path}>
+                                            <div className="flex items-center gap-2">
+                                                {agent.icon && <span>{agent.icon}</span>}
+                                                <span>{agent.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {selectedAgentPath && (
+                                <Badge variant="outline" className="ml-auto">
+                                    {availableAutofixAgents.find(a => a.path === selectedAgentPath)?.icon || '🔧'}
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Agent Description */}
+                        {selectedAgentPath && (
+                            <div className="text-sm text-muted-foreground p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <span className="font-semibold">Description: </span>
+                                {availableAutofixAgents.find(a => a.path === selectedAgentPath)?.description || 'No description available'}
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="userRequest">User Request (Optional)</Label>

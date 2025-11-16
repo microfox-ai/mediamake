@@ -78,7 +78,7 @@ export function NewTranscriptionUI() {
     // Audio-to-text states
     const [audioUrl, setAudioUrl] = useState("");
     const [language, setLanguage] = useState("");
-    const [transcriptionProvider, setTranscriptionProvider] = useState<"assembly" | "gemini">("assembly");
+    const [transcriptionProvider, setTranscriptionProvider] = useState<"assembly" | "gemini" | "elevenlabs">("assembly");
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -231,9 +231,15 @@ export function NewTranscriptionUI() {
             // Determine API endpoint based on provider
             const apiEndpoint = transcriptionProvider === 'gemini'
                 ? '/api/transcribe/gemini'
+                : transcriptionProvider === 'elevenlabs'
+                ? '/api/transcribe/elevenlabs-stt'
                 : '/api/transcribe/assembly';
 
-            setProgressMessage(`Starting transcription with ${transcriptionProvider === 'gemini' ? 'Gemini' : 'AssemblyAI'}...`);
+            setProgressMessage(`Starting transcription with ${
+                transcriptionProvider === 'gemini' ? 'Gemini' : 
+                transcriptionProvider === 'elevenlabs' ? 'ElevenLabs Scribe' :
+                'AssemblyAI'
+            }...`);
 
             // Call the transcription API
             const response = await fetch(apiEndpoint, {
@@ -262,7 +268,7 @@ export function NewTranscriptionUI() {
             setProgressMessage("Transcription completed! Processing with AI...");
 
             // If autofix is enabled, trigger it automatically
-            // Autofix works with both AssemblyAI and Gemini transcriptions
+            // Autofix works with all transcription providers (AssemblyAI, Gemini, ElevenLabs)
             if (enableAutofix && result.transcription?._id) {
                 setIsAutofixing(true);
                 setProgressMessage("AI is fixing transcription errors...");
@@ -436,7 +442,7 @@ export function NewTranscriptionUI() {
                                                 </Label>
                                                 <Select
                                                     value={transcriptionProvider}
-                                                    onValueChange={(value: "assembly" | "gemini") => setTranscriptionProvider(value)}
+                                                    onValueChange={(value: "assembly" | "gemini" | "elevenlabs") => setTranscriptionProvider(value)}
                                                     disabled={isTranscribing}
                                                 >
                                                     <SelectTrigger>
@@ -453,6 +459,12 @@ export function NewTranscriptionUI() {
                                                             <div className="flex flex-col">
                                                                 <span className="font-medium">Google Gemini</span>
                                                                 <span className="text-xs text-muted-foreground">AI-powered transcription with timestamps</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                        <SelectItem value="elevenlabs">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium">ElevenLabs Scribe</span>
+                                                                <span className="text-xs text-muted-foreground">99 languages, speaker diarization, audio events</span>
                                                             </div>
                                                         </SelectItem>
                                                     </SelectContent>

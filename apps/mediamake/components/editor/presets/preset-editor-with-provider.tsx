@@ -163,7 +163,10 @@ function PresetEditorContent({ selectedPresets, onPresetsChange, onPresetsProces
             toast.success('Video generated successfully!');
         } catch (error) {
             console.error('Error generating output:', error);
-            toast.error('Failed to generate video. Please try again.');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to generate video. Please try again.';
+            toast.error(errorMessage, {
+                duration: 10000, // Show error for 10 seconds so user can read it
+            });
         } finally {
             setIsGenerating(false);
         }

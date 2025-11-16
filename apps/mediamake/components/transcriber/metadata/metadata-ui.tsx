@@ -380,101 +380,105 @@ function MetadataUIInner() {
                             )}
                         </TabsContent>
                         
-                        <TabsContent value="run-agents" className="flex-1 p-4 overflow-y-auto mt-0">
-                            {/* Run Agent Controls */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <Brain className="h-5 w-5" />
-                                    <h3 className="text-lg font-semibold">Run Metadata Agent</h3>
-                                    {isSaving && (
-                                        <div className="flex items-center gap-2 rounded bg-background/80 px-3 py-1 border ml-auto">
-                                            <svg className="animate-spin h-4 w-4 text-muted-foreground" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                            </svg>
-                                            <span className="text-xs text-muted-foreground">Saving...</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Caption Selection Controls */}
-                                <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
-                                    <Label className="text-sm font-medium">Caption Selection:</Label>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleSelectAll}
-                                        className="h-8 px-3"
-                                    >
-                                        <CheckSquare className="h-3 w-3 mr-2" />
-                                        Select All
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleDeselectAll}
-                                        className="h-8 px-3"
-                                    >
-                                        <Square className="h-3 w-3 mr-2" />
-                                        Clear
-                                    </Button>
-                                    {selectedCaptions.size > 0 && (
-                                        <span className="text-sm text-muted-foreground ml-auto">
-                                            {selectedCaptions.size} caption{selectedCaptions.size !== 1 ? 's' : ''} selected
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Agent Selection */}
-                                <div className="space-y-2">
-                                    <Label>Select Agent</Label>
-                                    <Select value={selectedAgentPath} onValueChange={setSelectedAgentPath}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select an agent" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableAgents.map((a) => (
-                                                <SelectItem key={a.path} value={a.path}>{a.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Agent Parameters Form - Always Visible */}
-                                {selectedAgentPath && jsonSchema && jsonSchema.properties && Object.keys(jsonSchema.properties).length > 0 && (
-                                    <div className="border rounded-lg p-4 bg-muted/30">
-                                        <h4 className="text-sm font-medium mb-3">Agent Parameters</h4>
-                                        <div className="max-h-[400px] overflow-y-auto">
-                                            <SchemaForm
-                                                schema={jsonSchema}
-                                                value={agentFormData}
-                                                onChange={(newData) => {
-                                                    setAgentFormData(newData);
-                                                }}
-                                                onReset={() => {
-                                                    const defaults = getDefaultValues(jsonSchema);
-                                                    setAgentFormData(defaults);
-                                                }}
-                                                title=""
-                                                showTabs={false}
-                                                showResetButton={true}
-                                            />
-                                        </div>
+                        <TabsContent value="run-agents" className="flex-1 flex flex-col mt-0 min-h-0">
+                            {/* Scrollable Content Area */}
+                            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <Brain className="h-5 w-5" />
+                                        <h3 className="text-lg font-semibold">Run Metadata Agent</h3>
+                                        {isSaving && (
+                                            <div className="flex items-center gap-2 rounded bg-background/80 px-3 py-1 border ml-auto">
+                                                <svg className="animate-spin h-4 w-4 text-muted-foreground" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                                </svg>
+                                                <span className="text-xs text-muted-foreground">Saving...</span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
 
-                                {/* User Request */}
-                                <div className="space-y-2">
-                                    <Label>Optional Instructions</Label>
-                                    <Input
-                                        placeholder="Enter any additional instructions for the agent..."
-                                        value={userRequest}
-                                        onChange={(e) => setUserRequest(e.target.value)}
-                                    />
+                                    {/* Caption Selection Controls */}
+                                    <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+                                        <Label className="text-sm font-medium">Caption Selection:</Label>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleSelectAll}
+                                            className="h-8 px-3"
+                                        >
+                                            <CheckSquare className="h-3 w-3 mr-2" />
+                                            Select All
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleDeselectAll}
+                                            className="h-8 px-3"
+                                        >
+                                            <Square className="h-3 w-3 mr-2" />
+                                            Clear
+                                        </Button>
+                                        {selectedCaptions.size > 0 && (
+                                            <span className="text-sm text-muted-foreground ml-auto">
+                                                {selectedCaptions.size} caption{selectedCaptions.size !== 1 ? 's' : ''} selected
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Agent Selection */}
+                                    <div className="space-y-2">
+                                        <Label>Select Agent</Label>
+                                        <Select value={selectedAgentPath} onValueChange={setSelectedAgentPath}>
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select an agent" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableAgents.map((a) => (
+                                                    <SelectItem key={a.path} value={a.path}>{a.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Agent Parameters Form - Always Visible */}
+                                    {selectedAgentPath && jsonSchema && jsonSchema.properties && Object.keys(jsonSchema.properties).length > 0 && (
+                                        <div className="border rounded-lg p-4 bg-muted/30">
+                                            <h4 className="text-sm font-medium mb-3">Agent Parameters</h4>
+                                            <div className="space-y-4">
+                                                <SchemaForm
+                                                    schema={jsonSchema}
+                                                    value={agentFormData}
+                                                    onChange={(newData) => {
+                                                        setAgentFormData(newData);
+                                                    }}
+                                                    onReset={() => {
+                                                        const defaults = getDefaultValues(jsonSchema);
+                                                        setAgentFormData(defaults);
+                                                    }}
+                                                    title=""
+                                                    showTabs={false}
+                                                    showResetButton={true}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* User Request */}
+                                    <div className="space-y-2">
+                                        <Label>Optional Instructions</Label>
+                                        <Input
+                                            placeholder="Enter any additional instructions for the agent..."
+                                            value={userRequest}
+                                            onChange={(e) => setUserRequest(e.target.value)}
+                                        />
+                                    </div>
                                 </div>
+                            </div>
 
-                                {/* Run Button */}
-                                <div className="flex items-center gap-2 pt-2">
+                            {/* Fixed Bottom Buttons */}
+                            <div className="border-t bg-background p-4">
+                                <div className="flex items-center gap-2">
                                     <Button
                                         onClick={runSelectedAgent}
                                         disabled={isRunning || !selectedAgentPath}

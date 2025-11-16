@@ -19,6 +19,7 @@ import { contextLimiter } from './middlewares/contextLimiter';
 import { onlyTextParts } from './middlewares/onlyTextParts';
 import { chatRestoreLocal } from '../api/studio/chat/sessions/chatSessionLocal';
 import transcriptionFixerAgent from './agents/words/transcriptionFixer';
+import autofixOrchestrator from './agents/autofix';
 import { scriptMetaOrchestor } from './agents/scriptMeta';
 import { midjourneyPromptingAgent } from './agents/midjourney';
 import { videoGenerationOrchestrator } from './agents/video';
@@ -35,6 +36,7 @@ const aiMainRouter = aiRouter
   .agent('/summarize', summarizeAgent)
   .agent('/research', braveResearchAgent)
   .agent('/transcription-fixer', transcriptionFixerAgent)
+  .agent('/autofix', autofixOrchestrator)
   .agent('/youtube-metadata', youtubeAgent)
   .agent('/concept-generation', conceptAgent)
   .agent('/video/shorts/music-stitch', musicStitchAgent)
