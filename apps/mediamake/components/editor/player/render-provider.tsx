@@ -12,6 +12,16 @@ export interface RenderSettings {
     inputProps: string;
     outputLocation?: string; // Only used for local rendering
     isDownloadable?: boolean; // Only used for AWS rendering
+    awsRenderPreset?:
+        | 'complex-fast'
+        | 'complex-slow'
+        | 'basic-fast'
+        | 'throttled'
+        | 'classic'; // Only used for AWS rendering
+    concurrencyOverride?: number | 'auto'; // User-defined concurrency
+    isConcurrencyHelperActive?: boolean; // Toggle for calculator UI
+    helperFps?: number; // FPS for calculator
+    helperDuration?: number; // Duration in seconds for calculator
     frameTime?: number; // Frame time in seconds for still image rendering
 }
 
@@ -60,6 +70,11 @@ const defaultSettings: RenderSettings = {
     } as InputCompositionProps, null, 2),
     outputLocation: "./out",
     isDownloadable: false,
+    awsRenderPreset: "classic",
+    concurrencyOverride: 'auto',
+    isConcurrencyHelperActive: false,
+    helperFps: 30,
+    helperDuration: 40,
     frameTime: 0
 };
 
