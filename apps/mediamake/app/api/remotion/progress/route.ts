@@ -3,7 +3,7 @@ import {
   AwsRegion,
   getRenderProgress,
 } from '@remotion/lambda/client';
-import { DISK, RAM, REGION, TIMEOUT } from '../../../../config.mjs';
+import { AWS_RENDER_CONFIGS, REGION } from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { getClientId } from '@/lib/auth-utils';
@@ -23,18 +23,29 @@ export const GET = async (req: NextRequest) => {
       );
     }
 
+    const clientId = getClientId(req);
+    const renderRequest = await renderRequestDB.getById(id, clientId || undefined);
+
+    if (!renderRequest) {
+      return NextResponse.json({ error: 'Render not found' }, { status: 404 });
+    }
+
+    const awsRenderPreset = renderRequest.awsRenderPreset || 'classic';
+    const config =
+      AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] ??
+      AWS_RENDER_CONFIGS['classic'];
+
     const renderProgress = await getRenderProgress({
       bucketName: bucketName,
       functionName: speculateFunctionName({
-        diskSizeInMb: DISK,
-        memorySizeInMb: RAM,
-        timeoutInSeconds: TIMEOUT,
+        diskSizeInMb: config.disk,
+        memorySizeInMb: config.memory,
+        timeoutInSeconds: config.timeout,
       }),
       region: REGION as AwsRegion,
       renderId: id,
     });
 
-    const clientId = getClientId(req);
     if (clientId) {
       await renderRequestDB.update(
         renderProgress.renderId,
