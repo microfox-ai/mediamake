@@ -195,6 +195,14 @@ ${userWrittenTranscription ? `USER'S WRITTEN VERSION: ${userWrittenTranscription
         model: google('gemini-2.5-pro'),
         system: systemPrompt,
         prompt,
+        // providerOptions: {
+        //   google: {
+        //     thinkingConfig: {
+        //       thinkingBudget: 8192,
+        //       includeThoughts: true,
+        //     },
+        //   }
+        // }
         maxRetries: 2,
       });
 

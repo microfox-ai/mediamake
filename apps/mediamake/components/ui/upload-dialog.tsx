@@ -85,12 +85,13 @@ export function UploadDialog({
         }
     }, [isOpen]);
 
-    // Update files when initialFiles prop changes
+    // Update files when initialFiles prop changes, but only if files array is empty
+    // This prevents overwriting files that were added via paste or drop
     useEffect(() => {
-        if (initialFiles.length > 0) {
+        if (initialFiles.length > 0 && files.length === 0) {
             setFiles(initialFiles);
         }
-    }, [initialFiles]);
+    }, [initialFiles, files.length]);
 
     // Initialize upload progress when files change
     useEffect(() => {
@@ -400,6 +401,13 @@ export function UploadDialog({
         onClose();
     };
 
+    const handleOpenChange = (open: boolean) => {
+        // Only reset when dialog is closing, not when opening
+        if (!open) {
+            handleClose();
+        }
+    };
+
     // Reset files when dialog closes (but not when it opens)
     useEffect(() => {
         if (!isOpen) {
@@ -422,6 +430,8 @@ export function UploadDialog({
         if (!isOpen) return;
 
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
 
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -456,14 +466,24 @@ export function UploadDialog({
             }
         }
 
-        // Handle files from clipboard
+        // Handle files from clipboard - append to existing files
         if (files.length > 0) {
             setDownloadStatus("Processing pasted files...");
-            setFiles(prev => [...prev, ...files]);
+            setFiles(prev => {
+                // Check for duplicates by name and size to avoid adding the same file twice
+                const newFiles = files.filter(newFile =>
+                    !prev.some(existingFile =>
+                        existingFile.name === newFile.name &&
+                        existingFile.size === newFile.size &&
+                        existingFile.lastModified === newFile.lastModified
+                    )
+                );
+                return [...prev, ...newFiles];
+            });
             setDownloadStatus("");
         }
 
-        // Handle URLs from clipboard
+        // Handle URLs from clipboard - append to existing files
         if (urls.length > 0) {
             setIsDownloading(true);
             setDownloadStatus(`Downloading from ${urls.length} URL${urls.length > 1 ? 's' : ''}...`);
@@ -496,7 +516,17 @@ export function UploadDialog({
             const validFiles = urlFiles.filter((file): file is File => file !== null);
             if (validFiles.length > 0) {
                 setDownloadStatus("Adding files to upload...");
-                setFiles(prev => [...prev, ...validFiles]);
+                setFiles(prev => {
+                    // Check for duplicates by name and size to avoid adding the same file twice
+                    const newFiles = validFiles.filter(newFile =>
+                        !prev.some(existingFile =>
+                            existingFile.name === newFile.name &&
+                            existingFile.size === newFile.size &&
+                            existingFile.lastModified === newFile.lastModified
+                        )
+                    );
+                    return [...prev, ...newFiles];
+                });
             }
 
             setIsDownloading(false);
@@ -549,7 +579,7 @@ export function UploadDialog({
 
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
