@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface ProgressDetailsProps {
+    awsRenderPreset?: string;
     renderInfo?: {
         framesRendered?: number;
         bucket?: string;
@@ -88,6 +89,7 @@ interface ProgressDetailsProps {
             };
             rendererFunctionName?: string;
             scale?: number;
+            awsRenderPreset?: string;
         };
         timeoutTimestamp?: number;
         compositionValidated?: number;
@@ -120,7 +122,7 @@ const formatFileSize = (bytes?: number) => {
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 };
 
-export function ProgressDetails({ renderInfo, className }: ProgressDetailsProps) {
+export function ProgressDetails({ renderInfo, awsRenderPreset, className }: ProgressDetailsProps) {
     if (!renderInfo) {
         return null;
     }
@@ -331,6 +333,10 @@ export function ProgressDetails({ renderInfo, className }: ProgressDetailsProps)
                             <div className="space-y-1">
                                 <p className="text-xs font-medium text-muted-foreground">Region</p>
                                 <p className="text-sm font-mono">{renderMetadata.region || "N/A"}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground">Render Preset</p>
+                                <p className="text-sm font-mono">{awsRenderPreset || "N/A"}</p>
                             </div>
                         </div>
                     </CardContent>

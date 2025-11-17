@@ -286,7 +286,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             {selectedRequest.progressData.renderInfo.costs && (
                                                 <CostDisplay costs={selectedRequest.progressData.renderInfo.costs} />
                                             )}
-                                            <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo} />
+                                            <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo}  awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
                                         </div>
                                     )}
                                 </div>
@@ -358,7 +358,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
 
                     {/* Progress Details */}
                     {selectedRequest.progressData?.renderInfo && (
-                        <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo} />
+                        <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo} awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
                     )}
 
                     {/* Render Details */}
@@ -384,6 +384,12 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                         <span className="text-sm font-medium">Composition:</span>
                                         <span className="text-sm font-mono">{selectedRequest.composition}</span>
                                     </div>
+                                    {selectedRequest.awsRenderPreset && (
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium">AWS Preset:</span>
+                                            <span className="text-sm font-mono">{selectedRequest.awsRenderPreset}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">

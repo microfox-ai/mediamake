@@ -3,7 +3,7 @@ import {
   renderMediaOnLambda,
   speculateFunctionName,
 } from '@remotion/lambda/client';
-import { DISK, RAM, REGION, SITE_NAME, TIMEOUT } from '../../../../config.mjs';
+import { AWS_RENDER_CONFIGS, REGION, SITE_NAME } from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 
@@ -16,7 +16,9 @@ export const POST = async (req: NextRequest) => {
       fileName,
       codec,
       audioCodec,
-      renderType, // Added for unified interface
+      renderType,
+      awsRenderPreset = 'classic',
+      concurrencyOverride,
     } = await req.json();
 
     if (
@@ -36,27 +38,43 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
+    const config =
+      AWS_RENDER_CONFIGS[
+      awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
+      ] ?? AWS_RENDER_CONFIGS.classic;
+
+    let concurrency: number | undefined;
+
+    if (concurrencyOverride === 'auto') {
+      concurrency = undefined;
+    } else if (typeof concurrencyOverride === 'number') {
+      concurrency = concurrencyOverride;
+    } else {
+      concurrency = config.concurrency;
+    }
+
     console.log(process.env.REMOTION_AWS_REGION || REGION);
     console.log('Composition is', id);
     console.log('Codec is', codec);
     console.log('Audio Codec is', audioCodec);
     console.log('Render Type is', renderType);
+    console.log('AWS Render Preset is', awsRenderPreset);
     console.log(
       'Function name is',
       speculateFunctionName({
-        diskSizeInMb: DISK,
-        memorySizeInMb: RAM,
-        timeoutInSeconds: TIMEOUT,
+        diskSizeInMb: config.disk,
+        memorySizeInMb: config.memory,
+        timeoutInSeconds: config.timeout,
       }),
     );
 
     const result = await renderMediaOnLambda({
       codec: codec ?? 'h264',
       functionName: speculateFunctionName({
-        diskSizeInMb: DISK,
-        memorySizeInMb: RAM,
-        timeoutInSeconds: TIMEOUT,
-      }), //remotion-render-4-0-347-mem3000mb-disk10240mb-240sec
+        diskSizeInMb: config.disk,
+        memorySizeInMb: config.memory,
+        timeoutInSeconds: config.timeout,
+      }),
       region: (process.env.REMOTION_AWS_REGION || REGION) as AwsRegion,
       serveUrl: SITE_NAME, // https://remotionlambda-useast2-xjv1ee2a1g.s3.us-east-2.amazonaws.com/sites/mediamake
       composition: id ?? 'DataMotion',
@@ -64,7 +82,8 @@ export const POST = async (req: NextRequest) => {
       audioCodec: audioCodec ?? 'aac',
       //      framesPerLambda: 10,
       //concurrency: 10,
-      timeoutInMilliseconds: 240 * 1000,
+      ...(concurrency ? { concurrency: concurrency } : {}),
+      timeoutInMilliseconds: config.timeoutInMilliseconds ?? (900 * 1000),
       downloadBehavior: {
         type: isDownloadable ? 'download' : 'play-in-browser',
         fileName: isDownloadable ? fileName || 'video.mp4' : null,
@@ -87,6 +106,8 @@ export const POST = async (req: NextRequest) => {
         bucketName: result.bucketName,
         isDownloadable: isDownloadable,
         renderType: renderType || 'video',
+        awsRenderPreset: awsRenderPreset,
+        concurrencyUsed: concurrency,
       });
     }
     return NextResponse.json(result);
@@ -100,3 +121,4 @@ export const POST = async (req: NextRequest) => {
     );
   }
 };
+
