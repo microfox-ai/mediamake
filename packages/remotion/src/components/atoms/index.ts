@@ -21,6 +21,11 @@ export {
   config as LottieAtomConfig,
   type LottieAtomDataProps,
 } from './LottieAtom';
+export {
+  Atom as CanvasAtom,
+  config as CanvasAtomConfig,
+  type CanvasAtomDataProps,
+} from './CanvasAtom';
 
 // Import registerComponent function
 import { registerComponent } from '../../core/registry';
@@ -32,6 +37,8 @@ import { Atom as TextAtom, config as TextAtomConfig } from './TextAtom';
 import { Atom as VideoAtom, config as VideoAtomConfig } from './VideoAtom';
 import { Atom as AudioAtom, config as AudioAtomConfig } from './AudioAtom';
 import { Atom as LottieAtom, config as LottieAtomConfig } from './LottieAtom';
+import { Atom as CanvasAtom, config as CanvasAtomConfig } from './CanvasAtom';
+
 // Register all atom components using their displayName as the ID
 registerComponent(
   ShapeAtomConfig.displayName,
@@ -63,4 +70,10 @@ registerComponent(
   LottieAtom,
   'atom',
   LottieAtomConfig
+);
+registerComponent(
+  CanvasAtomConfig.displayName,
+  CanvasAtom,
+  'atom',
+  CanvasAtomConfig
 );

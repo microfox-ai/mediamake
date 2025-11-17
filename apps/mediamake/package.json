@@ -64,6 +64,7 @@
     "@remotion/cli": "npm 4.0.355",
     "@remotion/google-fonts": "4.0.355",
     "@remotion/lambda": "4.0.355",
+    "@remotion/noise": "^4.0.372",
     "@remotion/paths": "4.0.355",
     "@remotion/player": "4.0.355",
     "@remotion/shapes": "4.0.355",
