@@ -286,6 +286,7 @@ ${userRequest ? `Please consider the user's specific request: ${userRequest}` : 
           transcription,
           result.sentences,
           ctx.state?.transcriptionInfo,
+          ctx.state?.selectedIndices, // Pass selected indices to update only selected captions
         );
       }
 

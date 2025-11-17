@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Play, Brain, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, Play, Brain, Settings, ChevronDown, ChevronUp, CheckSquare, Square } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { toJSONSchema } from "zod";
 import { useState, useMemo } from "react";
@@ -36,6 +36,10 @@ export function MetaDataList({
     onSaveSentence,
     isSaving,
     onAgentFormDataChange,
+    selectedCaptions,
+    onToggleCaption,
+    onSelectAll,
+    onDeselectAll,
 }: {
     metadata: MetadataShape | null | undefined;
     currentSentenceIndex: number;
@@ -51,6 +55,10 @@ export function MetaDataList({
     onSaveSentence: (sentenceIndex: number, updated: any) => Promise<void> | void;
     isSaving?: boolean;
     onAgentFormDataChange?: (formData: Record<string, any>) => void;
+    selectedCaptions: Set<number>;
+    onToggleCaption: (index: number) => void;
+    onSelectAll: () => void;
+    onDeselectAll: () => void;
 }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [agentFormData, setAgentFormData] = useState<Record<string, any>>({});
@@ -137,6 +145,31 @@ export function MetaDataList({
                                 </svg>
                                 <span className="text-xs text-muted-foreground">Saving...</span>
                             </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 border-l pl-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onSelectAll}
+                            className="h-7 px-2 text-xs"
+                        >
+                            <CheckSquare className="h-3 w-3 mr-1" />
+                            Select All
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onDeselectAll}
+                            className="h-7 px-2 text-xs"
+                        >
+                            <Square className="h-3 w-3 mr-1" />
+                            Clear
+                        </Button>
+                        {selectedCaptions.size > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                                ({selectedCaptions.size} selected)
+                            </span>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -252,6 +285,8 @@ export function MetaDataList({
                                 data={s}
                                 isActive={(s.sentenceIndex ?? idx) === currentSentenceIndex}
                                 onSave={(updated) => onSaveSentence(s.sentenceIndex ?? idx, updated)}
+                                isSelected={selectedCaptions.has(s.sentenceIndex ?? idx)}
+                                onToggleSelect={() => onToggleCaption(s.sentenceIndex ?? idx)}
                             />
                         ))
                     )}

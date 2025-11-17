@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import { aiMainRouter } from '@/app/ai';
 
 /**
- * POST /api/transcriptions/[id]/generate-images
+ * POST /api/ai/generate-images/[id]
  * 
  * Generate stylized graphic novel images for each caption in a transcription
  * 
@@ -187,7 +187,7 @@ export async function POST(
 }
 
 /**
- * GET /api/transcriptions/[id]/generate-images
+ * GET /api/ai/generate-images/[id]
  * 
  * Get the current status of generated images for a transcription
  */
