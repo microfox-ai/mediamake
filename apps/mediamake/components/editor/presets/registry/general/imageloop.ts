@@ -422,9 +422,10 @@ const presetExecution = (
     const imageRange = parseRangeString(image.rangeString);
 
     // Get duration and start time
-    // Priority: rangeString > durationString > duration > default
+    // Priority: rangeString > durationString > duration
+    // If none provided, timing will be empty (no default duration)
     let imageStart: number | undefined;
-    let imageDuration: number;
+    let imageDuration: number | undefined;
 
     if (imageRange) {
       // Use rangeString for both start and duration
@@ -433,11 +434,12 @@ const presetExecution = (
     } else {
       // Fall back to durationString or duration
       const parsedDuration = parseDurationString(image.durationString);
-      imageDuration = parsedDuration ?? image.duration ?? 5; // Default to 5 seconds if neither is provided
+      imageDuration = parsedDuration ?? image.duration;
       imageStart = undefined; // No start time if not using rangeString
     }
 
-    const isDuration = imageDuration > 0;
+    // Only set timing if we have a duration or start time
+    const hasTiming = imageDuration !== undefined || imageStart !== undefined;
 
     return {
       id: `${params.trackName ?? 'imageloop'}-image-${imageIndex}`,
@@ -469,10 +471,12 @@ const presetExecution = (
         },
       },
       context: {
-        timing: isDuration
+        timing: hasTiming
           ? {
               ...(imageStart !== undefined ? { start: imageStart } : {}),
-              duration: imageDuration,
+              ...(imageDuration !== undefined
+                ? { duration: imageDuration }
+                : {}),
             }
           : {},
       },
