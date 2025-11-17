@@ -4,11 +4,9 @@ import {
   speculateFunctionName,
 } from '@remotion/lambda/client';
 import {
-  DISK,
-  RAM,
+  AWS_RENDER_CONFIGS,
   REGION,
   SITE_NAME,
-  TIMEOUT,
 } from '../../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
@@ -46,6 +44,13 @@ interface PresetRenderRequest {
   audioCodec?: string;
   composition?: string; // Optional composition ID, defaults to 'DataMotion'
   baseData?: Record<string, any>; // Base data for data references
+  awsRenderPreset?:
+    | 'complex-fast'
+    | 'complex-slow'
+    | 'basic-fast'
+    | 'throttled'
+    | 'classic';
+  concurrencyOverride?: number | 'auto';
 }
 
 export const POST = async (req: NextRequest) => {
@@ -58,6 +63,8 @@ export const POST = async (req: NextRequest) => {
       audioCodec,
       composition,
       baseData = {},
+      awsRenderPreset = 'classic',
+      concurrencyOverride,
     }: PresetRenderRequest = await req.json();
     const clientId = req.headers.get('x-client-id') || undefined;
 
@@ -213,6 +220,19 @@ export const POST = async (req: NextRequest) => {
 
     console.log('Final composition built, starting render...');
 
+    const config =
+      AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] ??
+      AWS_RENDER_CONFIGS.classic;
+
+    let concurrency: number | undefined;
+    if (concurrencyOverride === 'auto') {
+      concurrency = undefined;
+    } else if (typeof concurrencyOverride === 'number') {
+      concurrency = concurrencyOverride;
+    } else {
+      concurrency = config.concurrency;
+    }
+
     // Use the same render logic as the main route
     const result = await renderMediaOnLambda({
       codec:
@@ -227,9 +247,9 @@ export const POST = async (req: NextRequest) => {
           | 'gif'
           | 'prores') ?? 'h264',
       functionName: speculateFunctionName({
-        diskSizeInMb: DISK,
-        memorySizeInMb: RAM,
-        timeoutInSeconds: TIMEOUT,
+        diskSizeInMb: config.disk,
+        memorySizeInMb: config.memory,
+        timeoutInSeconds: config.timeout,
       }),
       region: (process.env.REMOTION_AWS_REGION || REGION) as AwsRegion,
       serveUrl: SITE_NAME,
@@ -238,7 +258,8 @@ export const POST = async (req: NextRequest) => {
       audioCodec:
         (audioCodec as 'mp3' | 'aac' | 'pcm-16' | 'opus' | null | undefined) ??
         'aac',
-      timeoutInMilliseconds: 280 * 1000,
+      timeoutInMilliseconds: config.timeoutInMilliseconds ?? (240 * 1000),
+      ...(concurrency ? { concurrency: concurrency } : {}),
       downloadBehavior: {
         type: isDownloadable ? 'download' : 'play-in-browser',
         fileName: isDownloadable ? fileName || 'video.mp4' : null,
@@ -257,6 +278,8 @@ export const POST = async (req: NextRequest) => {
         inputProps: finalComposition,
         bucketName: result.bucketName,
         isDownloadable: isDownloadable,
+        awsRenderPreset: awsRenderPreset,
+        concurrencyUsed: concurrency,
       });
     }
 

@@ -249,7 +249,10 @@ function AutofixUIInner() {
                     toast.success(`AI autofix completed! ${result.changes.length} changes made with ${(result.confidence * 100).toFixed(1)}% confidence. Review and apply changes.`);
                 }
             } else {
-                throw new Error('AI autofix failed - no result returned');
+                if (refreshTranscription) {
+                    await refreshTranscription();
+                }
+                throw new Error('AI autofix might have failed - no result returned');
             }
         } catch (err) {
             console.error('AI autofix error:', err);

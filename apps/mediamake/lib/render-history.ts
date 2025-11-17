@@ -1,11 +1,11 @@
-import { InputCompositionProps } from '@microfox/remotion';
+import { InputCompositionProps } from "@microfox/remotion";
 
 export interface RenderRequest {
   id: string;
   fileName: string;
   codec: string;
   composition: string;
-  status: 'pending' | 'rendering' | 'completed' | 'failed';
+  status: "pending" | "rendering" | "completed" | "failed";
   createdAt: string;
   progress?: number;
   error?: string;
@@ -14,9 +14,16 @@ export interface RenderRequest {
   inputProps?: InputCompositionProps;
   bucketName?: string;
   renderId?: string;
-  renderType?: 'video' | 'audio' | 'still';
+  renderType?: "video" | "audio" | "still";
   audioCodec?: string;
   isDownloadable?: boolean;
+  awsRenderPreset?:
+    | 'complex-fast'
+    | 'complex-slow'
+    | 'basic-fast'
+    | 'throttled'
+    | 'classic';
+  concurrencyUsed?: number;
   progressData?: {
     type: string;
     url?: string;
@@ -96,6 +103,7 @@ export interface RenderRequest {
         rendererFunctionName?: string;
         scale?: number;
       };
+      awsRenderPreset?: string;
       timeoutTimestamp?: number;
       compositionValidated?: number;
       functionLaunched?: number;
@@ -104,7 +112,3 @@ export interface RenderRequest {
     };
   };
 }
-
-// All localStorage functionality has been removed.
-// This file now only contains the RenderRequest interface.
-// All render history is now managed through the API.
