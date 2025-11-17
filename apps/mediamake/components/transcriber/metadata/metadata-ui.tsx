@@ -343,9 +343,9 @@ function MetadataUIInner() {
             {/* New Layout: Left Tabs, Right Audio Player + Captions */}
             <div className="flex-1 flex min-h-0 gap-4 p-4">
                 {/* Left - Tabs (Caption Selector / Run Agents) */}
-                <div className="flex-1 flex flex-col border rounded-lg min-w-0">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+                <div className="flex-1 flex flex-col border rounded-lg min-w-0 min-h-0 overflow-hidden">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 h-full gap-0 overflow-hidden">
+                        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 flex-shrink-0">
                             <TabsTrigger 
                                 value="editor" 
                                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
@@ -380,9 +380,9 @@ function MetadataUIInner() {
                             )}
                         </TabsContent>
                         
-                        <TabsContent value="run-agents" className="flex-1 flex flex-col mt-0 min-h-0">
+                        <TabsContent value="run-agents" className="flex-1 flex flex-col mt-0 min-h-0 overflow-hidden">
                             {/* Scrollable Content Area */}
-                            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 min-h-0">
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2">
                                         <Brain className="h-5 w-5" />
@@ -477,7 +477,7 @@ function MetadataUIInner() {
                             </div>
 
                             {/* Fixed Bottom Buttons */}
-                            <div className="border-t bg-background p-4">
+                            <div className="border-t bg-background p-4 flex-shrink-0">
                                 <div className="flex items-center gap-2">
                                     <Button
                                         onClick={runSelectedAgent}

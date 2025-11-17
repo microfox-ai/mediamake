@@ -32,6 +32,7 @@ import { glitchEffectPreset } from '../canvas_experimental/glitch-effect';
 import { particleEffectPreset } from '../canvas_experimental/particle-effect';
 import { captionImageRevealPreset } from '../private/caption-image-reveal';
 import { dynamicImageGridPreset } from '../private/dynamic-image-grid';
+import { videoBlendTransitionPreset } from '../private/video-blend-transition';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
@@ -66,6 +67,7 @@ export const predefinedPresets: Preset[] = [
   particleEffectPreset,
   captionImageRevealPreset,
   dynamicImageGridPreset,
+  videoBlendTransitionPreset,
 ];
 
 export const getPredefinedPresetById = (id: string): Preset | undefined => {
