@@ -136,7 +136,7 @@ async function transcribeAudio(
     const formData = new FormData();
     formData.append('cloud_storage_url', audioUrl);
     formData.append('model_id', 'scribe_v1'); // Using Scribe v1 (most accurate)
-    
+
     // Add language if specified
     if (language && language !== 'auto') {
       formData.append('language_code', language);
@@ -145,25 +145,30 @@ async function transcribeAudio(
     // Configure speaker diarization
     formData.append('speaker_diarization[enabled]', 'true');
     formData.append('speaker_diarization[max_speakers]', '5');
-    
+
     // Enable audio events
     formData.append('audio_events', 'true');
 
     console.log('Sending request to ElevenLabs STT API...');
 
     // Call ElevenLabs STT API
-    const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
+    const response = await fetch(
+      'https://api.elevenlabs.io/v1/speech-to-text',
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+        },
+        body: formData,
       },
-      body: formData,
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs API error:', errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      throw new Error(
+        `ElevenLabs API error: ${response.status} - ${errorText}`,
+      );
     }
 
     const result = await response.json();
@@ -171,7 +176,7 @@ async function transcribeAudio(
 
     // Extract words from the response
     const wordsData = result.words || [];
-    
+
     // Filter out spacing and audio events, keep only words
     const words = wordsData
       .filter((item: any) => item.type === 'word')
@@ -299,4 +304,3 @@ export const POST = async (req: NextRequest) => {
     );
   }
 };
-

@@ -111,6 +111,7 @@ function PresetEditorContent({ selectedPresets, onPresetsChange, onPresetsProces
             // Create base data from references
             const baseData = createBaseDataFromReferences(defaultData.references);
 
+            console.log('appliedPresets.presets', appliedPresets.presets);
             // Apply all presets in sequence (skip disabled presets)
             for (const appliedPreset of appliedPresets.presets) {
                 // Skip disabled presets
