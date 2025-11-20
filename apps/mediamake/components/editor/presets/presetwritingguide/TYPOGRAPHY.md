@@ -502,3 +502,100 @@ wordComponent.effects = allEffects;
 ```
 
 **Advanced use case**: Apply effect at word level with all letter target IDs in `targetIds` array to animate letters simultaneously.
+
+---
+
+## 4. Font Input Format
+
+### Standard Font String Format
+
+Font inputs should use a string format that combines font family, weight, and style:
+
+**Format**: `"FontName:weight:style"` or `"FontName:weight"` or `"FontName"`
+
+**Examples**:
+
+- `"Roboto:600:italic"` - Roboto font, weight 600, italic style
+- `"Inter:700"` - Inter font, weight 700, normal style
+- `"BebasNeue"` - BebasNeue font, default weight, normal style
+
+### Parsing Font Strings
+
+When processing font inputs, parse the string format as follows:
+
+```typescript
+// Parse font string (format: "FontName:weight:style" or "FontName:weight" or "FontName")
+const fontString = font || 'Inter';
+const fontFamily = fontString.includes(':')
+  ? fontString.split(':')[0]
+  : fontString;
+
+// Parse font style from font string
+let fontStyle: React.CSSProperties = {};
+if (fontString.includes(':')) {
+  const fontParts = fontString.split(':');
+  if (fontParts.length > 2) {
+    fontStyle.fontStyle = fontParts[2] as any; // 'normal' | 'italic'
+    fontStyle.fontWeight = parseInt(fontParts[1], 10);
+  } else if (fontParts.length > 1) {
+    fontStyle.fontWeight = parseInt(fontParts[1], 10);
+  }
+}
+
+// Apply to TextAtom
+const textAtomData: TextAtomData = {
+  text: 'Hello',
+  style: {
+    ...fontStyle, // Apply font weight and style to text style
+  },
+  font: {
+    family: fontFamily,
+    ...(fontStyle.fontWeight
+      ? { weights: [fontStyle.fontWeight.toString()] }
+      : {}),
+  },
+};
+```
+
+### Schema Definition
+
+Define font input in preset params as a string:
+
+```typescript
+const presetParams = z.object({
+  font: z
+    .string()
+    .optional()
+    .describe(
+      'Font family with optional weight and style (e.g., "Roboto:600:italic", "Inter:700", "BebasNeue")',
+    ),
+});
+```
+
+**Do NOT** use object format like:
+
+```typescript
+// ❌ WRONG - Don't use object format
+font: z.object({
+  family: z.string(),
+  weight: z.string(),
+  style: z.enum(['normal', 'italic']),
+});
+```
+
+**Use string format instead**:
+
+```typescript
+// ✅ CORRECT - Use string format
+font: z.string()
+  .optional()
+  .describe('Font family with optional weight and style');
+```
+
+### Best Practices
+
+1. **Always use string format** for font inputs in preset schemas
+2. **Parse the string** to extract family, weight, and style
+3. **Apply fontStyle to text style** for CSS properties (fontWeight, fontStyle)
+4. **Use font.weights array** for TextAtom font configuration
+5. **Provide clear examples** in schema descriptions

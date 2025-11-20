@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, Dispatch, SetStateAction } from 'react';
 import { InputCompositionProps } from '@microfox/remotion';
-import { AppliedPresetsState, AppliedPreset, PresetInputData, PresetConfiguration, DefaultPresetData } from './types';
+import { AppliedPresetsState, AppliedPreset, PresetInputData, PresetConfiguration, DefaultPresetData, DatabasePreset } from './types';
 import { useRender } from '../player/render-provider';
 import useLocalState from '../../studio/context/hooks/useLocalState';
 import useIndexedDbState from '@/components/studio/context/hooks/useIndexedDbState';
@@ -154,9 +154,48 @@ export function PresetProvider({ children }: PresetProviderProps) {
                 });
             }
 
-            // For database presets, we would need to fetch from the database
-            // This would require an API call to get the latest version
-            // For now, we'll just return the current state
+            // For database presets, fetch from the database API
+            if (presetToRefresh.preset.metadata.type === 'database' || '_id' in presetToRefresh.preset) {
+                const dbPreset = presetToRefresh.preset as DatabasePreset;
+                const presetDbId = dbPreset._id?.toString();
+
+                if (!presetDbId) {
+                    toast.error('Database preset ID not found');
+                    return prev;
+                }
+
+                // Fetch the latest version from the database
+                fetch(`/api/presets/${presetDbId}`)
+                    .then(async (response) => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch preset: ${response.statusText}`);
+                        }
+                        const data = await response.json();
+                        const refreshedPreset = data.preset;
+
+                        if (refreshedPreset) {
+                            setAppliedPresets((currentPrev: AppliedPresetsState) => ({
+                                ...currentPrev,
+                                presets: currentPrev.presets.map((p: AppliedPreset) =>
+                                    p.id === presetId
+                                        ? {
+                                            ...p,
+                                            preset: refreshedPreset
+                                        }
+                                        : p
+                                )
+                            }));
+                            toast.success('Preset refreshed successfully!');
+                        } else {
+                            toast.error('Failed to refresh preset');
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error refreshing database preset:', error);
+                        toast.error('Failed to refresh preset from database');
+                    });
+            }
+
             return prev;
         });
     }, []);
