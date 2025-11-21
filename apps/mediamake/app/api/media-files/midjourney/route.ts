@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
                 ...aiMetadata,
               };
               console.log('AI analysis completed, metadata updated');
+              console.log('AI metadata:', aiMetadata);
             } else {
               console.log('AI analysis failed or returned no metadata');
             }
@@ -243,8 +244,8 @@ export async function POST(req: NextRequest) {
             console.error('Error during AI analysis:', error);
             // Add basic metadata if AI analysis fails
             finalMetadata = {
-              ...finalMetadata,
               description: `Midjourney generated image`,
+              ...finalMetadata,
               platform: 'midjourney',
               platformUrl: undefined,
               imageLink: fileUrl,
@@ -290,6 +291,7 @@ export async function POST(req: NextRequest) {
           updatedAt: new Date(),
         };
 
+        console.log('Media file updating:', mediaFile);
         const result = await collection.insertOne(mediaFile);
 
         results.push({
