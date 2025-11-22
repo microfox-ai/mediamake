@@ -195,61 +195,87 @@ export function UploadDialog({
             }))
         );
 
+        const uploadedMediaResults: any[] = [];
+
         try {
-            // Simulate progress updates
-            const progressInterval = setInterval(() => {
-                setUploadProgress(prev =>
-                    prev.map(item => {
-                        if (item.status === 'uploading' && item.progress < 90) {
-                            return {
-                                ...item,
-                                progress: Math.min(item.progress + Math.random() * 20, 90),
-                            };
+            // Upload files one by one (or parallel if needed, but sequential is safer for progress tracking simplicity)
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                // 1. Get Presigned URL
+                const presignedResponse = await fetch(`/api/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`, {
+                    signal: abortControllerRef.current.signal
+                });
+
+                if (!presignedResponse.ok) {
+                    throw new Error(`Failed to get upload URL for ${file.name}`);
+                }
+
+                const { uploadUrl, publicUrl, key } = await presignedResponse.json();
+
+                // 2. Upload to S3
+                // Using XMLHttpRequest to track progress
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', uploadUrl);
+                    xhr.setRequestHeader('Content-Type', file.type);
+                    xhr.setRequestHeader('x-amz-acl', 'public-read'); // Ensure ACL matches signature
+
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                            const percentComplete = (event.loaded / event.total) * 100;
+                            setUploadProgress(prev => 
+                                prev.map((item, idx) => 
+                                    idx === i ? { ...item, progress: percentComplete } : item
+                                )
+                            );
                         }
-                        return item;
-                    })
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Upload failed with status ${xhr.status}`));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error('Network error during upload'));
+                    xhr.onabort = () => reject(new Error('Upload aborted'));
+
+                    // Handle cancellation
+                    if (abortControllerRef.current) {
+                        abortControllerRef.current.signal.addEventListener('abort', () => {
+                            xhr.abort();
+                        });
+                    }
+
+                    xhr.send(file);
+                });
+
+                // 3. Collect result
+                uploadedMediaResults.push({
+                    mediaName: file.name,
+                    mediaType: file.type,
+                    mediaFormat: file.name.split('.').pop() || 'file',
+                    mediaUrl: publicUrl,
+                });
+
+                // Mark as completed
+                setUploadProgress(prev =>
+                    prev.map((item, idx) =>
+                        idx === i ? { ...item, status: 'completed' as const, progress: 100, mediaUrl: publicUrl } : item
+                    )
                 );
-            }, 200);
-
-            // Upload files to S3
-            const formData = new FormData();
-            files.forEach(file => {
-                formData.append('file', file);
-            });
-            //formData.append('folderName', 'mediamake/media');
-
-            const uploadResponse = await fetch('/api/db/files', {
-                method: 'POST',
-                body: formData,
-                signal: abortControllerRef.current.signal,
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error('Failed to upload files');
             }
 
-            const uploadData = await uploadResponse.json();
-            const uploadedMedia = uploadData.media;
-
-            clearInterval(progressInterval);
-
-            // Update progress to show completion
-            setUploadProgress(prev =>
-                prev.map((item, index) => ({
-                    ...item,
-                    status: 'completed' as const,
-                    progress: 100,
-                    mediaUrl: uploadedMedia[index]?.mediaUrl,
-                }))
-            );
-
             // Store uploaded media for later use
-            setUploadedMedia(uploadedMedia);
-            return uploadedMedia;
+            setUploadedMedia(uploadedMediaResults);
+            return uploadedMediaResults;
 
         } catch (error) {
             // Don't show error if upload was aborted
-            if (error instanceof Error && error.name === 'AbortError') {
+            if (error instanceof Error && (error.name === 'AbortError' || error.message === 'Upload aborted')) {
                 console.log('Upload cancelled');
                 return;
             }
@@ -371,7 +397,7 @@ export function UploadDialog({
 
             // If files haven't been uploaded to S3 yet, upload them first
             if (uploadedMedia.length === 0) {
-                mediaToUse = await uploadFilesToS3();
+                mediaToUse = await uploadFilesToS3() ?? [];
             }
 
             // Then create database entries
