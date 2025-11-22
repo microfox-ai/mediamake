@@ -27,6 +27,8 @@ import { audioAnalysisAgent } from './agents/analysis/audioAnlysisAgent';
 import { audioTechnicalAnalysisAgent } from './agents/analysis/audioTechnicalAnalysis';
 import { midjourneySimpleAgent } from './agents/midjourney/simple';
 import { zoneInternalOrchestrator } from './agents/zone';
+import { presetAgent } from './agents/preset';
+import { anthropic } from '@ai-sdk/anthropic';
 
 const aiRouter = new AiRouter();
 //aiRouter.setLogger(console);
@@ -47,6 +49,7 @@ const aiMainRouter = aiRouter
   .agent('/script-meta', scriptMetaOrchestor)
   .agent('/audio-analysis', audioAnalysisAgent)
   .agent('/audio-technical-analysis', audioTechnicalAnalysisAgent)
+  .agent('/preset', presetAgent)
   .use('/', contextLimiter(5))
   .use('/', onlyTextParts(100))
   .agent('/', async props => {
@@ -56,24 +59,26 @@ const aiMainRouter = aiRouter
     });
     console.log('REQUEST MESSAGES', props.request.messages.length);
     const stream = streamText({
-      model: google('gemini-2.5-pro'),
+      model: anthropic('claude-sonnet-4-5'),
       system: dedent`
           You are a helpful assistant that can use the following tools to help the user
+          Use the preset tool (/preset) for ANYTHING related to creating, generating, or indexing Remotion presets. This includes prompts like "create a preset", "generate a video style", "index presets", or "update registry".
           Use the summary tool to summarise the research.
           If you do research or websearch, always follow it up with calling the summary tool.
           Use the transcription metadata tool to analyze sentence-split transcripts for lyricography.
-        `,
+          `,
       messages: convertToModelMessages(
         props.state.onlyTextMessages || props.request.messages,
       ),
       tools: {
-        ...props.next.agentAsTool('/research'),
-        ...props.next.agentAsTool('/summarize'),
-        ...props.next.agentAsTool('/transcription-meta'),
-        ...props.next.agentAsTool('/youtube-metadata'),
-        ...props.next.agentAsTool('/concept-generation'),
-        ...props.next.agentAsTool('/music-stitch'),
-        ...props.next.agentAsTool('/audio-analysis'),
+        ...props.next.agentAsTool('/preset'),
+        // ...props.next.agentAsTool('/research'),
+        // ...props.next.agentAsTool('/summarize'),
+        // ...props.next.agentAsTool('/transcription-meta'),
+        // ...props.next.agentAsTool('/youtube-metadata'),
+        // ...props.next.agentAsTool('/concept-generation'),
+        // ...props.next.agentAsTool('/music-stitch'),
+        // ...props.next.agentAsTool('/audio-analysis'),
       },
       toolChoice: 'auto',
       stopWhen: [
