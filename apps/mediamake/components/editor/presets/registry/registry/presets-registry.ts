@@ -26,10 +26,17 @@ import { htmlBlockAtomPreset } from '../general/htmlBlockAtom';
 import { textbasePreset } from '../demo/textbase';
 import { genericOpacityEffectPreset } from '../internalEffects/generic-opacity-effect';
 import { glowPulseTextEffectPreset } from '../internalEffects/glow-pulse-text-effect';
+import { beatZoomEffectPreset } from '../internalEffects/beat-zoom-effect';
+import { beatShakeEffectPreset } from '../internalEffects/beat-shake-effect';
+import { beatExposureEffectPreset } from '../internalEffects/beat-exposure-effect';
 import { wipeRevealPreset } from '../canvas_experimental/wipe-reveal';
 import { contentAwarePreset } from '../canvas_experimental/content-aware-reveal';
 import { glitchEffectPreset } from '../canvas_experimental/glitch-effect';
 import { particleEffectPreset } from '../canvas_experimental/particle-effect';
+import { hipHopScratchWipePreset } from '../private2/hip-hop-scratch-wipe';
+import { beatZoomPreset } from '../complex_untested/beat-zoom';
+import { beatShakePreset } from '../complex_untested/beat-shake';
+import { beatExposurePreset } from '../complex_untested/beat-exposure';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
@@ -58,10 +65,17 @@ export const predefinedPresets: Preset[] = [
   textbasePreset,
   genericOpacityEffectPreset,
   glowPulseTextEffectPreset,
+  beatZoomEffectPreset,
+  beatShakeEffectPreset,
+  beatExposureEffectPreset,
   wipeRevealPreset,
   contentAwarePreset,
   glitchEffectPreset,
   particleEffectPreset,
+  hipHopScratchWipePreset,
+  beatZoomPreset,
+  beatShakePreset,
+  beatExposurePreset,
 ];
 
 export const getPredefinedPresetById = (id: string): Preset | undefined => {

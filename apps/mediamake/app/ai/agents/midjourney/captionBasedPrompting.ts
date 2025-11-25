@@ -294,7 +294,7 @@ export const midjourneyPromptingAgent = aiRouter
     inputSchema: MidjourneyPromptingInputSchema,
     outputSchema: MidjourneyPromptingOutputSchema,
     metadata: {
-      icon: '🎨',
+      icon: 'https://cdn.svglogos.dev/logos/midjourney.svg',
       title: 'Midjourney Prompt Generator',
       hideUI: false,
       category: 'ai-generation',

@@ -161,7 +161,7 @@ export const youtubeAgent = aiRouter
     }) as any,
     outputSchema: YouTubeMetadataSchema as any,
     metadata: {
-      icon: '📺',
+      icon: 'https://cdn.svglogos.dev/logos/youtube-icon.svg',
       title: 'YouTube Metadata Generator',
       hideUI: false,
     },

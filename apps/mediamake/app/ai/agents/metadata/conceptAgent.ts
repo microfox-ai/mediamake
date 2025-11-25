@@ -138,7 +138,7 @@ export const conceptAgent = aiRouter
     }) as any,
     outputSchema: ConceptGenerationSchema as any,
     metadata: {
-      icon: '💡',
+      icon: 'https://cdn.svglogos.dev/logos/youtube-icon.svg',
       title: 'Concept Generator',
       hideUI: false,
     },

@@ -31,7 +31,7 @@ export function NavAgents({
   items: {
     name: string
     url: string
-    icon: Icon
+    icon: Icon | string
   }[]
 }) {
   const { isMobile } = useSidebar()
@@ -44,7 +44,8 @@ export function NavAgents({
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton asChild>
               <a href={item.url}>
-                <item.icon />
+                {typeof item.icon === 'string' ?
+                  item.icon.startsWith('http') ? <img src={item.icon} alt={item.name} className="w-4 h-4" /> : (<span className="text-sidebar-foreground/70">{item.icon}</span>) : <item.icon />}
                 <span>{item.name}</span>
               </a>
             </SidebarMenuButton>
