@@ -141,7 +141,8 @@ export function PresetProvider({ children }: PresetProviderProps) {
                                         preset: {
                                             ...p.preset,
                                             presetFunction: refreshedPreset.presetFunction,
-                                            presetParams: refreshedPreset.presetParams
+                                            presetParams: refreshedPreset.presetParams,
+                                            metadata: refreshedPreset.metadata
                                         }
                                     }
                                     : p
@@ -180,7 +181,12 @@ export function PresetProvider({ children }: PresetProviderProps) {
                                     p.id === presetId
                                         ? {
                                             ...p,
-                                            preset: refreshedPreset
+                                            preset: {
+                                                ...p.preset,
+                                                presetFunction: refreshedPreset.presetFunction,
+                                                presetParams: refreshedPreset.presetParams,
+                                                metadata: refreshedPreset.metadata
+                                            }
                                         }
                                         : p
                                 )
