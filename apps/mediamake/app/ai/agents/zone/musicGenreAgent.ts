@@ -390,7 +390,7 @@ export const musicGenreAgent = aiRouter
     }) as any,
     outputSchema: GenreAnalysisResponseSchema as any,
     metadata: {
-      icon: '🎵',
+      icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTQaL6HQOX4bhpwA8KCfj-th4rxHnXfdggIg&s',
       title: 'Music Genre Analyzer',
       hideUI: false,
     },

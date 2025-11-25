@@ -458,6 +458,7 @@ export const audioAnalysisAgent = aiRouter
     inputSchema: AudioAnalysisInputSchema,
     outputSchema: AudioAnalysisOutputSchema,
     metadata: {
+      icon: '🎵',
       name: 'Audio Analysis Agent',
       description:
         'Analyzes audio files to extract metadata and generate AI-powered insights about content, mood, and characteristics',

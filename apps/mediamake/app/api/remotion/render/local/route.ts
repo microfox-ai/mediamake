@@ -151,6 +151,7 @@ export const POST = async (req: NextRequest) => {
         outputLocation: videoOutputPath,
         inputProps,
         logLevel: 'error',
+        //timeoutInMilliseconds: 300000,
         onProgress: progress => {
           // Clear previous logs and show persistent progress
           console.clear();

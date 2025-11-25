@@ -6,8 +6,8 @@
  */
 
 import { config } from 'dotenv';
-import { resolve, join } from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { resolve, join, dirname } from 'path';
+import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'fs';
 import { execSync } from 'child_process';
 import * as ts from 'typescript';
 
@@ -38,22 +38,325 @@ async function pushPreset(presetName: string) {
       process.exit(1);
     }
 
-    // Read and evaluate the preset file
-    // Since we're running with tsx, we can use dynamic import with the resolved path
-    // Convert to file:// URL for proper module resolution
-    const fileUrl = `file://${resolve(presetPath)}`;
+    // Compile TypeScript to JavaScript first to get clean output without build-time helpers
+    console.log(`🔨 Compiling TypeScript to JavaScript...`);
 
+    const fileContent = readFileSync(presetPath, 'utf-8');
+
+    // Create a temporary output file path
+    const tempJsPath = join(dirname(presetPath), `.${presetName}.temp.js`);
+
+    // Compile TypeScript to JavaScript
+    const compilerOptions: ts.CompilerOptions = {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      esModuleInterop: true,
+      skipLibCheck: true,
+      strict: false,
+      allowJs: true,
+      declaration: false,
+      sourceMap: false,
+    };
+
+    const result = ts.transpileModule(fileContent, {
+      compilerOptions,
+      fileName: presetPath,
+    });
+
+    // Write compiled JavaScript to temp file
+    writeFileSync(tempJsPath, result.outputText, 'utf-8');
+
+    let compiledPresetFunction: string | undefined;
+
+    try {
+      // Read the compiled JavaScript source
+      const compiledJs = readFileSync(tempJsPath, 'utf-8');
+
+      // Extract the presetExecution function definition directly from the compiled source
+      // This avoids any runtime transformations that might add __name() calls
+      // Pattern: const presetExecution = (params, props) => { ... };
+
+      const presetExecutionIdx = compiledJs.indexOf('const presetExecution');
+      if (presetExecutionIdx === -1) {
+        console.warn(`⚠️  Could not find presetExecution in compiled code`);
+      } else {
+        // Find the = sign after presetExecution
+        const equalsIdx = compiledJs.indexOf('=', presetExecutionIdx);
+        if (equalsIdx === -1) {
+          console.warn(`⚠️  Could not find = in presetExecution definition`);
+        } else {
+          // Start after the = sign, skip whitespace
+          let startPos = equalsIdx + 1;
+          while (
+            startPos < compiledJs.length &&
+            /\s/.test(compiledJs[startPos])
+          ) {
+            startPos++;
+          }
+
+          // Now find the end by balancing braces
+          // The function ends when we find the matching closing brace for the function body
+          let pos = startPos;
+          let braceDepth = 0;
+          let parenDepth = 0;
+          let inString = false;
+          let stringChar = '';
+          let foundArrow = false;
+
+          // First, skip to the arrow function body (after =>)
+          while (pos < compiledJs.length) {
+            const char = compiledJs[pos];
+            if (!inString) {
+              if (char === '"' || char === "'" || char === '`') {
+                inString = true;
+                stringChar = char;
+              } else if (char === '(') {
+                parenDepth++;
+              } else if (char === ')') {
+                parenDepth--;
+              } else if (
+                char === '=' &&
+                pos + 1 < compiledJs.length &&
+                compiledJs[pos + 1] === '>'
+              ) {
+                // Found =>
+                foundArrow = true;
+                pos += 2; // Skip =>
+                // Skip whitespace after =>
+                while (pos < compiledJs.length && /\s/.test(compiledJs[pos])) {
+                  pos++;
+                }
+                break;
+              }
+            } else {
+              if (char === stringChar && compiledJs[pos - 1] !== '\\') {
+                inString = false;
+              }
+            }
+            pos++;
+          }
+
+          if (!foundArrow) {
+            console.warn(
+              `⚠️  Could not find arrow function in presetExecution`,
+            );
+          } else {
+            // Now find the matching closing brace
+            braceDepth = 0;
+            inString = false;
+            const bodyStart = pos;
+
+            while (pos < compiledJs.length) {
+              const char = compiledJs[pos];
+              if (!inString) {
+                if (char === '"' || char === "'" || char === '`') {
+                  inString = true;
+                  stringChar = char;
+                } else if (char === '{') {
+                  if (braceDepth === 0) {
+                    // This is the opening brace of the function body
+                  }
+                  braceDepth++;
+                } else if (char === '}') {
+                  braceDepth--;
+                  if (braceDepth === 0) {
+                    // Found the end of the function
+                    const endPos = pos + 1;
+                    compiledPresetFunction = compiledJs
+                      .substring(startPos, endPos)
+                      .trim();
+                    // Remove trailing semicolon if present
+                    compiledPresetFunction = compiledPresetFunction.replace(
+                      /;\s*$/,
+                      '',
+                    );
+                    console.log(
+                      `✅ Extracted compiled function from JavaScript source`,
+                    );
+                    break;
+                  }
+                }
+              } else {
+                if (char === stringChar && compiledJs[pos - 1] !== '\\') {
+                  inString = false;
+                }
+              }
+              pos++;
+            }
+
+            if (!compiledPresetFunction) {
+              console.warn(
+                `⚠️  Could not find end of presetExecution function`,
+              );
+            }
+          }
+        }
+      }
+
+      if (!compiledPresetFunction) {
+        // Fallback: try regex (less reliable for nested functions)
+        const presetExecutionMatch = compiledJs.match(
+          /const\s+presetExecution\s*=\s*((?:async\s+)?\([^)]*\)\s*=>\s*\{[\s\S]*?\});?\s*(?=const\s+presetFunction)/,
+        );
+
+        if (presetExecutionMatch && presetExecutionMatch[1]) {
+          compiledPresetFunction = presetExecutionMatch[1].trim();
+          compiledPresetFunction = compiledPresetFunction.replace(/;\s*$/, '');
+          console.log(`✅ Extracted compiled function using regex fallback`);
+        } else {
+          console.warn(
+            `⚠️  Could not extract presetExecution from compiled code`,
+          );
+          console.warn(`   Falling back to original module`);
+        }
+      }
+
+      // Strip any __name() calls that might still be present
+      // Pattern: __name(functionExpression, "name") -> functionExpression
+      if (compiledPresetFunction) {
+        // Function to strip __name() calls by properly parsing the code
+        function stripNameCalls(code: string): string {
+          let result = code;
+          let changed = true;
+
+          // Keep stripping until no more changes
+          while (changed) {
+            changed = false;
+            const nameCallRegex = /__name\s*\(/g;
+            let match;
+
+            while ((match = nameCallRegex.exec(result)) !== null) {
+              const startPos = match.index;
+              let pos = match.index + match[0].length;
+              let parenDepth = 1;
+              let inString = false;
+              let stringChar = '';
+              let firstArgStart = pos; // Start of first argument (after opening paren)
+              let firstArgEnd = -1;
+
+              // Skip whitespace at start
+              while (pos < result.length && /\s/.test(result[pos])) {
+                pos++;
+                firstArgStart = pos;
+              }
+
+              // Find the end of the first argument (either comma or closing paren at depth 1)
+              while (pos < result.length && parenDepth > 0) {
+                const char = result[pos];
+
+                if (!inString) {
+                  if (char === '"' || char === "'" || char === '`') {
+                    inString = true;
+                    stringChar = char;
+                  } else if (char === '(') {
+                    parenDepth++;
+                  } else if (char === ')') {
+                    parenDepth--;
+                    if (parenDepth === 0 && firstArgEnd === -1) {
+                      // Reached the end of __name() call without finding comma
+                      // This means there's only one argument or malformed
+                      firstArgEnd = pos;
+                    }
+                  } else if (
+                    char === ',' &&
+                    parenDepth === 1 &&
+                    firstArgEnd === -1
+                  ) {
+                    // Found the comma separating first and second argument
+                    firstArgEnd = pos;
+                    break;
+                  } else if (char === '{') {
+                    // Track braces to handle nested functions
+                    let braceDepth = 1;
+                    pos++;
+                    while (pos < result.length && braceDepth > 0) {
+                      if (!inString) {
+                        if (
+                          result[pos] === '"' ||
+                          result[pos] === "'" ||
+                          result[pos] === '`'
+                        ) {
+                          inString = true;
+                          stringChar = result[pos];
+                        } else if (result[pos] === '{') {
+                          braceDepth++;
+                        } else if (result[pos] === '}') {
+                          braceDepth--;
+                        }
+                      } else {
+                        if (
+                          result[pos] === stringChar &&
+                          result[pos - 1] !== '\\'
+                        ) {
+                          inString = false;
+                        }
+                      }
+                      pos++;
+                    }
+                    pos--; // Adjust for the loop increment
+                    continue;
+                  }
+                } else {
+                  if (char === stringChar && result[pos - 1] !== '\\') {
+                    inString = false;
+                  }
+                }
+
+                pos++;
+              }
+
+              // If we found the first argument, replace __name(...) with just the argument
+              if (firstArgEnd !== -1 && firstArgEnd > firstArgStart) {
+                const firstArg = result
+                  .substring(firstArgStart, firstArgEnd)
+                  .trim();
+                // Find the closing paren of __name()
+                let closePos = firstArgEnd;
+                while (closePos < result.length && result[closePos] !== ')') {
+                  closePos++;
+                }
+                if (closePos < result.length) {
+                  closePos++; // Include the closing paren
+                  const before = result.substring(0, startPos);
+                  const after = result.substring(closePos);
+                  result = before + firstArg + after;
+                  changed = true;
+                  // Reset regex to start from beginning since we modified the string
+                  nameCallRegex.lastIndex = 0;
+                  break;
+                }
+              }
+            }
+          }
+
+          return result;
+        }
+
+        compiledPresetFunction = stripNameCalls(compiledPresetFunction);
+        console.log(`🧹 Cleaned any remaining __name() calls from function`);
+      }
+    } catch (compileError: any) {
+      console.warn(
+        `⚠️  Failed to extract function from compiled code: ${compileError.message}`,
+      );
+      console.warn(`   Falling back to original module`);
+    } finally {
+      // Clean up temp file
+      if (existsSync(tempJsPath)) {
+        unlinkSync(tempJsPath);
+      }
+    }
+
+    // Load the original module to get metadata and schema
+    const fileUrl = `file://${resolve(presetPath)}`;
     let presetModule: any;
     try {
-      // Try dynamic import first (works with tsx)
       presetModule = await import(fileUrl);
     } catch (importError: any) {
-      // Fallback to require (tsx supports require for .ts files)
       try {
-        // Clear cache first
         const resolvedPath = resolve(presetPath);
         delete require.cache[resolvedPath];
-        // Use require - tsx will compile TypeScript on the fly
         presetModule = require(resolvedPath);
       } catch (requireError: any) {
         throw new Error(
@@ -68,7 +371,12 @@ async function pushPreset(presetName: string) {
       process.exit(1);
     }
 
-    const presetData = presetModule.presetData;
+    // Use metadata and params from original module, but use compiled function if available
+    const presetData = {
+      ...presetModule.presetData,
+      presetFunction:
+        compiledPresetFunction || presetModule.presetData.presetFunction,
+    };
 
     // Validate presetData structure
     if (
@@ -134,7 +442,7 @@ async function pushPreset(presetName: string) {
 
     // Validate that helper functions are inside presetExecution
     console.log(`🔍 Validating preset structure...`);
-    const fileContent = readFileSync(presetPath, 'utf-8');
+    // Reuse fileContent from earlier
     const sourceFile = ts.createSourceFile(
       presetPath,
       fileContent,

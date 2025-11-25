@@ -44,9 +44,18 @@ const AudioTechnicalAnalysisOutputSchema = z.object({
     .describe('Audio metadata'),
   technicalAnalysis: z
     .object({
-      waveform: z.array(z.number()).optional().describe('Waveform data for visualization'),
-      frequencyData: z.array(z.number()).optional().describe('Frequency analysis data'),
-      beats: z.array(z.number()).optional().describe('Beat detection timestamps'),
+      waveform: z
+        .array(z.number())
+        .optional()
+        .describe('Waveform data for visualization'),
+      frequencyData: z
+        .array(z.number())
+        .optional()
+        .describe('Frequency analysis data'),
+      beats: z
+        .array(z.number())
+        .optional()
+        .describe('Beat detection timestamps'),
       analysis: z.string().describe('Technical analysis summary'),
     })
     .describe('Technical analysis results'),
@@ -126,19 +135,23 @@ export const audioTechnicalAnalysisAgent = aiRouter
         technicalAnalysis: {
           analysis: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
         },
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   })
   .actAsTool('/', {
     id: 'audioTechnicalAnalysis',
     name: 'Audio Technical Analysis Agent',
-    description: 'Performs technical analysis on audio files (waveform, frequency, beats)',
+    description:
+      'Performs technical analysis on audio files (waveform, frequency, beats)',
     inputSchema: AudioTechnicalAnalysisInputSchema,
     outputSchema: AudioTechnicalAnalysisOutputSchema,
     metadata: {
+      icon: '🎵',
       name: 'Audio Technical Analysis Agent',
-      description: 'Extracts technical audio data like waveform, frequency analysis, and beat detection',
+      description:
+        'Extracts technical audio data like waveform, frequency analysis, and beat detection',
       hideUI: false,
       customUI: true,
       customUIType: 'presets',

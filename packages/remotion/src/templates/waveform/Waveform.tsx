@@ -26,6 +26,7 @@ export interface WaveformConfig {
     amplitude?: number; // Amplitude multiplier
     smoothing?: boolean; // Enable smoothing
     posterize?: number; // Posterize effect (round frame to multiple)
+    smoothNormalisation?: number; // Frame-based smoothing control (0 = no smoothing, 1 = default, >1 = more smoothing)
 }
 
 // Waveform context interface
@@ -88,6 +89,7 @@ export const Waveform: React.FC<WaveformProps> = ({
         fps,
         posterize: config.posterize,
         includeFrequencyData: config.useFrequencyData || false,
+        smoothNormalisation: config.smoothNormalisation,
     });
 
     // Calculate dimensions

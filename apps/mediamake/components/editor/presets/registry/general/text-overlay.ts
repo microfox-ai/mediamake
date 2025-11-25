@@ -131,6 +131,13 @@ const presetParams = z.object({
       .optional()
       .describe('Duration of the text overlay in seconds'),
     startOffset: z.number().optional().describe('Start offset in seconds'),
+    range: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        'Time range in format "MM:SS-MM:SS" (e.g., "00:00-00:09"). Overrides startOffset and duration if provided.',
+      ),
     // Animation effects
     fadeInTransition: z
       .enum([
@@ -179,6 +186,45 @@ const presetExecution = (
 
   const generateId = () => {
     return `${Math.random().toString(36).substring(2, 15)}`;
+  };
+
+  // Parse range string (format: "MM:SS-MM:SS") to startOffset and duration
+  const parseRange = (
+    range: string | null | undefined,
+  ): { startOffset?: number; duration?: number } | null => {
+    if (!range || range.trim() === '') {
+      return null;
+    }
+
+    const parts = range.split('-');
+    if (parts.length !== 2) {
+      return null;
+    }
+
+    const parseTime = (timeStr: string): number | null => {
+      const timeParts = timeStr.trim().split(':');
+      if (timeParts.length !== 2) {
+        return null;
+      }
+      const minutes = parseInt(timeParts[0], 10);
+      const seconds = parseInt(timeParts[1], 10);
+      if (isNaN(minutes) || isNaN(seconds)) {
+        return null;
+      }
+      return minutes * 60 + seconds;
+    };
+
+    const startTime = parseTime(parts[0]);
+    const endTime = parseTime(parts[1]);
+
+    if (startTime === null || endTime === null || endTime <= startTime) {
+      return null;
+    }
+
+    return {
+      startOffset: startTime,
+      duration: endTime - startTime,
+    };
   };
   const textAtomId = `text-atom-${generateId()}`;
   const textContainerId = `text-container-${generateId()}`;
@@ -286,7 +332,8 @@ const presetExecution = (
     if (!transition || transition === 'none') return effects;
 
     const transitionDuration = effectDuration || (isFadeIn ? 1.0 : 1.0);
-    const totalDuration = transitions?.duration || 20; // Default duration if not specified
+    const parsedRange = parseRange(transitions?.range);
+    const totalDuration = parsedRange?.duration ?? transitions?.duration ?? 20; // Default duration if not specified
 
     // Effects start times are relative ot the starts of the targeting atom.
     const startTime = isFadeIn
@@ -546,13 +593,18 @@ const presetExecution = (
             },
           },
           context: {
-            timing: {
-              start: transitions?.startOffset,
-              ...(transitions?.duration && transitions?.duration > 0
-                ? { duration: transitions?.duration }
-                : {}),
-              ...(!transitions?.duration ? { fitDurationTo: 'BaseScene' } : {}),
-            },
+            timing: (() => {
+              const parsedRange = parseRange(transitions?.range);
+              const startOffset =
+                parsedRange?.startOffset ?? transitions?.startOffset;
+              const duration = parsedRange?.duration ?? transitions?.duration;
+
+              return {
+                ...(startOffset !== undefined ? { start: startOffset } : {}),
+                ...(duration && duration > 0 ? { duration } : {}),
+                ...(!duration ? { fitDurationTo: 'BaseScene' } : {}),
+              };
+            })(),
           },
           childrenData: [
             {

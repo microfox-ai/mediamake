@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
               ...aiMetadata,
             };
             console.log('AI analysis completed, metadata updated');
+            //console.log('AI metadata:', aiMetadata);
           } else {
             console.log('AI analysis failed or returned no metadata');
           }

@@ -27,6 +27,7 @@ import { audioAnalysisAgent } from './agents/analysis/audioAnlysisAgent';
 import { audioTechnicalAnalysisAgent } from './agents/analysis/audioTechnicalAnalysis';
 import { midjourneySimpleAgent } from './agents/midjourney/simple';
 import { zoneInternalOrchestrator } from './agents/zone';
+import { presetPromptsOrchestrator } from './agents/presetPrompts';
 import { presetAgent } from './agents/preset';
 import { anthropic } from '@ai-sdk/anthropic';
 
@@ -48,6 +49,7 @@ const aiMainRouter = aiRouter
   .agent('/midjourney-simple', midjourneySimpleAgent)
   .agent('/script-meta', scriptMetaOrchestor)
   .agent('/audio-analysis', audioAnalysisAgent)
+  .agent('/preset-prompts', presetPromptsOrchestrator)
   .agent('/audio-technical-analysis', audioTechnicalAnalysisAgent)
   .agent('/preset', presetAgent)
   .use('/', contextLimiter(5))

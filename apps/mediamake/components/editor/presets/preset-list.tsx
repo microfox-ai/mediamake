@@ -436,21 +436,20 @@ export function PresetList({
                 activePresetId: null
             });
 
+            console.log('Saved preset data:', savedPreset);
             // Load the saved preset data
             const newAppliedPresets: AppliedPreset[] = [];
 
             for (const presetItem of savedPreset.presetData.presets) {
                 let actualPreset: Preset | DatabasePreset | null = null;
 
-                // Determine if this is a predefined or database preset based on the presetId format
-                // Database presets have MongoDB ObjectId format, predefined have string IDs
-                const isDatabasePreset = /^[0-9a-fA-F]{24}$/.test(presetItem.presetId);
-
-                if (isDatabasePreset) {
-                    // Fetch from database
-                    console.log(`🔍 Fetching database preset with ID: ${presetItem.presetId}`);
+                const foundPredefinedPreset = getPredefinedPresetById(presetItem.presetId);
+                if (foundPredefinedPreset) {
+                    actualPreset = foundPredefinedPreset;
+                } else {
+                    console.log(`🔍 Fetching database preset with metadata ID: ${presetItem.presetId}`);
                     try {
-                        const response = await fetch(`/api/presets/${presetItem.presetId}`);
+                        const response = await fetch(`/api/presets/by-metadata-id/${presetItem.presetId}`);
                         if (response.ok) {
                             const data = await response.json();
                             actualPreset = data.preset;
@@ -467,14 +466,6 @@ export function PresetList({
                         console.warn(`❌ Failed to fetch database preset ${presetItem.presetId}:`, error);
                         continue;
                     }
-                } else {
-                    // Fetch from local registry
-                    const foundPreset = getPredefinedPresetById(presetItem.presetId);
-                    if (!foundPreset) {
-                        console.warn(`Predefined preset ${presetItem.presetId} not found`);
-                        continue;
-                    }
-                    actualPreset = foundPreset;
                 }
 
                 if (actualPreset) {

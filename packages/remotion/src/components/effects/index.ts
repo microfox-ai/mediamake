@@ -9,6 +9,10 @@ import { ZoomEffect, config as ZoomEffectConfig } from './Zoom';
 import { ShakeEffect, config as ShakeEffectConfig } from './Shake';
 import { StretchEffect, config as StretchEffectConfig } from './StretchEffect';
 import {
+  WaveformEffect,
+  config as WaveformEffectConfig,
+} from './WaveformEffect';
+import {
   UniversalEffect,
   config as UniversalEffectConfig,
   UniversalEffectData,
@@ -30,6 +34,11 @@ registerEffect(
   StretchEffectConfig.displayName,
   StretchEffect,
   StretchEffectConfig
+);
+registerEffect(
+  WaveformEffectConfig.displayName,
+  WaveformEffect,
+  WaveformEffectConfig
 );
 registerEffect('CanvasWipeReveal', CanvasWipeReveal);
 registerEffect('CanvasContentAwareReveal', CanvasContentAwareReveal);
@@ -63,6 +72,13 @@ export {
   config as StretchEffectConfig,
   type StretchEffectData,
 } from './StretchEffect';
+
+// Export Waveform Effect components
+export {
+  WaveformEffect,
+  config as WaveformEffectConfig,
+  type WaveformEffectData,
+} from './WaveformEffect';
 
 // Export Universal Effect components (formerly Generic)
 export {
