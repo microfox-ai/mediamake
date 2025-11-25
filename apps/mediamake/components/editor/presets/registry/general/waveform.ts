@@ -139,6 +139,15 @@ const waveformConfigSchema = z.object({
     .enum(['mirrored', 'normal'])
     .optional()
     .describe('Gradient style (default: mirrored)'),
+  smoothNormalisation: z
+    .number()
+    .min(0)
+    .max(5)
+    .default(1)
+    .optional()
+    .describe(
+      'Frame-based smoothing control (0 = no smoothing, 1 = default, >1 = more smoothing)',
+    ),
 });
 
 // Define the schema for container styling
@@ -222,6 +231,10 @@ const presetExecution = (
 
   // Create waveform configuration based on type
   const createWaveformConfig = (): WaveformConfig => {
+    const baseConfig = {
+      smoothNormalisation: waveform.smoothNormalisation ?? 1,
+    };
+
     if (waveform.type === 'static') {
       return {
         audioSrc: audio?.src ?? '',
@@ -232,6 +245,7 @@ const presetExecution = (
         height: container?.height || 300,
         dataOffsetInSeconds: audio?.start || 0,
         useFrequencyData: waveform.useFrequencyData ?? true,
+        ...baseConfig,
       };
     } else {
       return {
@@ -243,6 +257,7 @@ const presetExecution = (
         height: container?.height || 200,
         dataOffsetInSeconds: audio?.start || -0.1,
         useFrequencyData: waveform.useFrequencyData ?? false,
+        ...baseConfig,
       };
     }
   };
@@ -473,6 +488,7 @@ const presetMetadata: PresetMetadata = {
       gradientDirection: 'vertical',
       gradientStyle: 'mirrored',
       waveDirection: 'right-to-left',
+      smoothNormalisation: 1,
     },
     container: {
       backgroundColor: 'transparent',

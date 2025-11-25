@@ -49,7 +49,7 @@ const aiagents = Object.entries(aiRouterRegistry.map).map(([path, value]) => {
     url: `/agents/${path}`,
     icon: value.agents[0].actAsTool.metadata?.icon,
   }
-}).filter((item): item is NonNullable<typeof item> => item !== null).filter((agent, index, self) =>
+}).filter((item) => !item?.url?.includes("/script-meta") && !item?.url?.includes("/autofix")).filter((item): item is NonNullable<typeof item> => item !== null).filter((agent, index, self) =>
   index === self.findIndex(a => a.name === agent.name)
 )
 
@@ -180,7 +180,7 @@ const data = {
   documents: aiagents.map((agent, index) => ({
     name: agent?.name,
     url: agent?.url ?? '',
-    icon: IconDatabase,
+    icon: agent?.icon ?? IconDatabase,
   })).filter(Boolean),
 }
 
@@ -227,8 +227,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout}>
-                <IconLogout className="w-5 h-5" />
-                Logout
+              <IconLogout className="w-5 h-5" />
+              Logout
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

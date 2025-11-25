@@ -445,7 +445,7 @@ export const midjourneySimpleAgent = aiRouter
     inputSchema: MidjourneyPromptingInputSchema,
     outputSchema: MidjourneyPromptingOutputSchema,
     metadata: {
-      icon: '🎨',
+      icon: 'https://cdn.svglogos.dev/logos/midjourney.svg',
       title: 'Midjourney Prompt Generator (Simple)',
       hideUI: false,
       category: 'ai-generation',

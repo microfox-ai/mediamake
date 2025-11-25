@@ -26,6 +26,11 @@ export {
   config as CanvasAtomConfig,
   type CanvasAtomDataProps,
 } from './CanvasAtom';
+export {
+  Atom as HTMLBlockAtom,
+  config as HTMLBlockAtomConfig,
+  type HTMLBlockAtomData,
+} from './HTMLBlockAtom';
 
 // Import registerComponent function
 import { registerComponent } from '../../core/registry';
@@ -38,6 +43,10 @@ import { Atom as VideoAtom, config as VideoAtomConfig } from './VideoAtom';
 import { Atom as AudioAtom, config as AudioAtomConfig } from './AudioAtom';
 import { Atom as LottieAtom, config as LottieAtomConfig } from './LottieAtom';
 import { Atom as CanvasAtom, config as CanvasAtomConfig } from './CanvasAtom';
+import {
+  Atom as HTMLBlockAtom,
+  config as HTMLBlockAtomConfig,
+} from './HTMLBlockAtom';
 
 // Register all atom components using their displayName as the ID
 registerComponent(
@@ -76,4 +85,10 @@ registerComponent(
   CanvasAtom,
   'atom',
   CanvasAtomConfig
+);
+registerComponent(
+  HTMLBlockAtomConfig.displayName,
+  HTMLBlockAtom,
+  'atom',
+  HTMLBlockAtomConfig
 );

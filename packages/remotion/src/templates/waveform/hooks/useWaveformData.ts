@@ -25,6 +25,8 @@ export interface UseWaveformDataConfig {
   includeFrequencyData?: boolean;
   minDb?: number;
   maxDb?: number;
+  // Smoothing control
+  smoothNormalisation?: number; // 0 = no smoothing, 1 = default smoothing, >1 = more smoothing
 }
 
 // Hook return interface
@@ -79,6 +81,7 @@ export const useWaveformData = (
     includeFrequencyData = false,
     minDb = -100,
     maxDb = -30,
+    smoothNormalisation = 1,
   } = config;
 
   const { root } = useComposition();
@@ -151,22 +154,86 @@ export const useWaveformData = (
     return frame + offset;
   }, [frame, posterize, dataOffsetInSeconds, audioStartsFrom]);
 
-  // Generate waveform data
+  // Generate waveform data with frame-based smoothing
   const waveformData = useMemo(() => {
     if (!audioData) return null;
 
     try {
-      const waveform = visualizeAudioWaveform({
-        fps,
-        frame: adjustedFrame,
-        audioData,
-        numberOfSamples: validatedNumberOfSamples,
-        windowInSeconds,
-        dataOffsetInSeconds: 0,
-        normalize,
-      });
+      // Sample multiple frames around the current frame for smoother transitions
+      // This creates a natural smoothing effect by averaging nearby frames
+      // smoothNormalisation: 0 = no smoothing, 1 = ±3 frames, 2 = ±6 frames, etc.
+      const baseSmoothingFrames = 3;
+      const smoothingFrames =
+        smoothNormalisation > 0
+          ? Math.floor(smoothNormalisation * baseSmoothingFrames)
+          : 0; // 0 means no smoothing
+      const samples: number[][] = [];
 
-      return waveform;
+      // If smoothNormalisation is 0, skip smoothing and use single frame
+      if (smoothingFrames === 0) {
+        const waveform = visualizeAudioWaveform({
+          fps,
+          frame: adjustedFrame,
+          audioData,
+          numberOfSamples: validatedNumberOfSamples,
+          windowInSeconds,
+          dataOffsetInSeconds: 0,
+          normalize,
+        });
+        return waveform;
+      }
+
+      for (let offset = -smoothingFrames; offset <= smoothingFrames; offset++) {
+        const sampleFrame = adjustedFrame + offset;
+        if (sampleFrame >= 0) {
+          try {
+            const waveform = visualizeAudioWaveform({
+              fps,
+              frame: sampleFrame,
+              audioData,
+              numberOfSamples: validatedNumberOfSamples,
+              windowInSeconds,
+              dataOffsetInSeconds: 0,
+              normalize,
+            });
+            if (waveform && waveform.length > 0) {
+              samples.push(waveform);
+            }
+          } catch (e) {
+            // Skip invalid frames
+          }
+        }
+      }
+
+      if (samples.length === 0) {
+        // Fallback to single frame if no samples collected
+        const waveform = visualizeAudioWaveform({
+          fps,
+          frame: adjustedFrame,
+          audioData,
+          numberOfSamples: validatedNumberOfSamples,
+          windowInSeconds,
+          dataOffsetInSeconds: 0,
+          normalize,
+        });
+        return waveform;
+      }
+
+      // Average all samples for smooth transition
+      const averaged = new Array(validatedNumberOfSamples).fill(0);
+      for (let i = 0; i < validatedNumberOfSamples; i++) {
+        let sum = 0;
+        let count = 0;
+        for (const sample of samples) {
+          if (sample[i] !== undefined) {
+            sum += sample[i];
+            count++;
+          }
+        }
+        averaged[i] = count > 0 ? sum / count : 0;
+      }
+
+      return averaged;
     } catch (error) {
       console.error('Error generating waveform:', error);
       return null;
@@ -179,9 +246,10 @@ export const useWaveformData = (
     windowInSeconds,
     dataOffsetInSeconds,
     normalize,
+    smoothNormalisation,
   ]);
 
-  // Generate frequency data and amplitudes
+  // Generate frequency data and amplitudes with frame-based smoothing
   const {
     frequencyData,
     amplitudes,
@@ -207,12 +275,74 @@ export const useWaveformData = (
     }
 
     try {
-      const frequencyData = visualizeAudio({
-        fps,
-        frame: adjustedFrame,
-        audioData,
-        numberOfSamples: validatedNumberOfSamples,
-      });
+      // Sample multiple frames around the current frame for smoother frequency data
+      // smoothNormalisation: 0 = no smoothing, 1 = ±3 frames, 2 = ±6 frames, etc.
+      const baseSmoothingFrames = 3;
+      const smoothingFrames =
+        smoothNormalisation > 0
+          ? Math.floor(smoothNormalisation * baseSmoothingFrames)
+          : 0; // 0 means no smoothing
+      const frequencySamples: number[][] = [];
+
+      // Average frequency samples for smooth transitions
+      let frequencyData: number[];
+
+      // If smoothNormalisation is 0, skip smoothing and use single frame
+      if (smoothingFrames === 0) {
+        frequencyData = visualizeAudio({
+          fps,
+          frame: adjustedFrame,
+          audioData,
+          numberOfSamples: validatedNumberOfSamples,
+        });
+      } else {
+        for (
+          let offset = -smoothingFrames;
+          offset <= smoothingFrames;
+          offset++
+        ) {
+          const sampleFrame = adjustedFrame + offset;
+          if (sampleFrame >= 0) {
+            try {
+              const freqData = visualizeAudio({
+                fps,
+                frame: sampleFrame,
+                audioData,
+                numberOfSamples: validatedNumberOfSamples,
+              });
+              if (freqData && freqData.length > 0) {
+                frequencySamples.push(freqData);
+              }
+            } catch (e) {
+              // Skip invalid frames
+            }
+          }
+        }
+
+        // Average frequency samples for smooth transitions
+        if (frequencySamples.length === 0) {
+          // Fallback to single frame
+          frequencyData = visualizeAudio({
+            fps,
+            frame: adjustedFrame,
+            audioData,
+            numberOfSamples: validatedNumberOfSamples,
+          });
+        } else {
+          frequencyData = new Array(validatedNumberOfSamples).fill(0);
+          for (let i = 0; i < validatedNumberOfSamples; i++) {
+            let sum = 0;
+            let count = 0;
+            for (const sample of frequencySamples) {
+              if (sample[i] !== undefined) {
+                sum += sample[i];
+                count++;
+              }
+            }
+            frequencyData[i] = count > 0 ? sum / count : 0;
+          }
+        }
+      }
 
       // Calculate frequency bands
       const { sampleRate } = audioData;
@@ -287,6 +417,7 @@ export const useWaveformData = (
     dataOffsetInSeconds,
     minDb,
     maxDb,
+    smoothNormalisation,
   ]);
 
   // Determine loading and error states
