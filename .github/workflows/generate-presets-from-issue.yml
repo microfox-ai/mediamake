@@ -1,5 +1,19 @@
 name: Generate Presets from Issue
 
+# This workflow generates MediaMake presets from GitHub issues
+# 
+# Timeout Configuration:
+# - Uses custom server (apps/mediamake/server.js) with 20-minute request timeout
+# - The `maxDuration` export in Next.js routes only works on Vercel deployments
+# - Default `next start` has 5-minute (300s) timeout which is too short
+# - Custom server configures: server.timeout = 20 * 60 * 1000 (20 minutes)
+#
+# Workflow Steps:
+# 1. Parse JSON from issue body
+# 2. Call preset generation API in parallel (up to 10 presets)
+# 3. Create single branch with all generated presets
+# 4. Create PR with validation status and lint results
+
 on:
   issues:
     types: [opened]
@@ -49,12 +63,13 @@ jobs:
           npm run build
           echo "✅ Build complete"
 
-      - name: Start MediaMake Server
+      - name: Start MediaMake Server with Extended Timeouts
         working-directory: apps/mediamake
         run: |
-          npm run start > server.log 2>&1 &
+          echo "🚀 Starting custom Next.js server with extended timeouts..."
+          node server.js > server.log 2>&1 &
           SERVER_PID=$!
-          echo "🚀 Server starting in background (PID: $SERVER_PID)..."
+          echo "✅ Server starting in background (PID: $SERVER_PID)"
           
           # Wait for server to be ready
           echo "⏳ Waiting for server to be ready..."
@@ -74,6 +89,12 @@ jobs:
               # Give server a few more seconds to fully initialize
               echo "⏳ Waiting 5 more seconds for full initialization..."
               sleep 5
+              
+              # Show server timeout configuration
+              echo "📊 Server configuration:"
+              echo "   - Request timeout: 20 minutes (1200s)"
+              echo "   - Headers timeout: 20 minutes + 5s"
+              echo "   - Keep-alive timeout: 65s"
               echo "✅ Server is ready!"
               exit 0
             fi
@@ -704,6 +725,7 @@ jobs:
         if: always()
         run: |
           echo "🛑 Stopping server..."
+          pkill -f "node server.js" || true
           pkill -f "next start" || true
           echo "✅ Server stopped"
 
