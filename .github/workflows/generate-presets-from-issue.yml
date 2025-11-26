@@ -30,6 +30,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel Environment Variables
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd apps/mediamake
+          vercel env pull --environment=production --token=$VERCEL_TOKEN .env.local
+          echo "✅ Environment variables pulled"
+
+      - name: Build MediaMake App
+        run: |
+          cd apps/mediamake
+          npm run build
+          echo "✅ Build complete"
+
+      - name: Start MediaMake Server
+        run: |
+          cd apps/mediamake
+          npm run start &
+          echo "🚀 Server starting in background..."
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to be ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "✅ Server is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+          
+          echo "❌ Server failed to start within 2 minutes"
+          exit 1
+
       - name: Parse and process preset requests
         id: process
         env:
@@ -37,7 +74,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          API_BASE_URL: https://mediamake-mediamake.vercel.app
+          API_BASE_URL: http://localhost:3000
         run: |
           node - <<'EOF'
           const fs = require('fs');
@@ -364,6 +401,13 @@ jobs:
 
           processPresets();
           EOF
+
+      - name: Stop MediaMake Server
+        if: always()
+        run: |
+          echo "🛑 Stopping server..."
+          pkill -f "next start" || true
+          echo "✅ Server stopped"
 
       - name: Comment on failure
         if: failure()
