@@ -7,13 +7,14 @@
  * 3. Tech Lead Review - Validate the architectural plan
  * 4. Coding + Validation Loop (with ESLint integration):
  *    - Coder generates code
- *    - Validator runs comprehensive checks (syntax, structure, ESLint)
+ *    - Validator runs comprehensive checks (creates temp file, validates, cleans up)
  *    - If errors found, feedback is sent back to coder for fixes
  *    - Loop continues up to 3 attempts
  * 5. Save - Write validated preset to filesystem
  * 
  * The validation feedback loop ensures all generated code meets
- * quality standards before being saved, similar to push-preset.ts.
+ * quality standards before being saved. The file is saved by this agent,
+ * and external workflows (like GitHub Actions) just commit the saved file.
  */
 
 import { AiRouter } from '@microfox/ai-router';
@@ -24,7 +25,6 @@ import { architectAgent } from './architect.agent';
 import { techLeadAgent } from './tech-lead.agent';
 import { coderAgent } from './coder.agent';
 import { validatorAgent } from './validator.agent';
-import { savePresetToFile } from './helpers/fs-writer';
 import { generateText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 
@@ -111,7 +111,6 @@ export const generateAgent = aiRouter
     let success = false;
     let generatedMeta = null;
     const presetId = plan.metadata.idProposal || `preset-${Date.now()}`;
-    let savedFilePath = '';
 
     console.log('[GENERATE] Step 4: Coding & Validation Loop started');
     while (codingAttempts < maxCodingAttempts) {
@@ -132,38 +131,25 @@ export const generateAgent = aiRouter
         generatedMeta = output.metadata;
         console.log(`[GENERATE] Code generated (${code.length} chars). Metadata: ${JSON.stringify(generatedMeta)}`);
 
-        // NOTE: File saving is commented out for GitHub workflow integration
-        // The workflow will handle file creation and PR generation
-        // 
-        // // Save to file BEFORE validation
-        // ctx.response.writeMessageMetadata({ text: `💾 Saving preset '${presetId}' to disk...` });
-        // try {
-        //     savedFilePath = await savePresetToFile(presetId, code);
-        //     console.log(`[GENERATE] Saved to ${savedFilePath}`);
-        // } catch (e) {
-        //     console.error('[GENERATE] Save error:', e);
-        //     throw new Error(`Failed to save preset file: ${e}`);
-        // }
-
-        // // Validate the saved file
-        // ctx.response.writeMessageMetadata({ text: '🛡️ Validating file (TypeScript, structure, ESLint)...' });
-        // const validatorResult = await ctx.next.callAgent('/validator', { filePath: savedFilePath });
-        
-        // Skip validation for now when file saving is disabled
-        // Code is returned directly to the GitHub workflow
-        const validatorResult = { ok: true, data: { valid: true, warnings: [] } };
+        // Validate the code (validator will handle temp file creation and cleanup)
+        ctx.response.writeMessageMetadata({ text: '🛡️ Validating code (TypeScript, structure, ESLint)...' });
+        const validatorResult = await ctx.next.callAgent('/validator', { 
+            code, 
+            presetId 
+        });
         
         if ((validatorResult as any).ok && (validatorResult as any).data.valid) {
             success = true;
             const warnings = (validatorResult as any).data.warnings || [];
             console.log('[GENERATE] Validation passed');
+            
             if (warnings.length > 0) {
                 console.log('[GENERATE] Warnings (non-blocking):', warnings);
                 ctx.response.writeMessageMetadata({ text: `✅ Validation passed (${warnings.length} warning${warnings.length > 1 ? 's' : ''})` });
             } else {
                 ctx.response.writeMessageMetadata({ text: '✅ All validation checks passed!' });
             }
-            ctx.response.writeMessageMetadata({ text: '🎉 Preset Saved & Validated!' });
+            ctx.response.writeMessageMetadata({ text: '🎉 Preset Validated!' });
             break;
         }
 
@@ -172,10 +158,8 @@ export const generateAgent = aiRouter
         ctx.response.writeMessageMetadata({ text: `❌ Validation failed (${errors.length} error${errors.length > 1 ? 's' : ''}). Fixing & retrying...` });
         lastErrors = errors;
         codingAttempts++;
-        
-        // File will be overwritten on next iteration
     }
-    console.log(`[GENERATE] Step 4 Complete: Success=${success}, File=${savedFilePath}`);
+    console.log(`[GENERATE] Step 4 Complete: Success=${success}`);
 
     if (!success) {
         const errorSummary = lastErrors.slice(0, 3).join('; ');
@@ -188,13 +172,30 @@ export const generateAgent = aiRouter
         );
     }
     
+    // --- 5. SAVE VALIDATED CODE ---
+    ctx.response.writeMessageMetadata({ text: '💾 Saving validated preset...' });
+    console.log('[GENERATE] Step 5: Saving validated code');
+    
+    let finalFilePath = '';
+    try {
+        const { savePresetToFile } = await import('./helpers/fs-writer');
+        finalFilePath = await savePresetToFile(presetId, code);
+        console.log(`[GENERATE] Saved to: ${finalFilePath}`);
+        ctx.response.writeMessageMetadata({ text: `✅ Saved to ${finalFilePath}` });
+    } catch (e) {
+        console.error('[GENERATE] Save error:', e);
+        throw new Error(`Failed to save validated preset: ${e}`);
+    }
+    console.log('[GENERATE] Step 5 Complete');
+    
+    // Return the validated code and file path
     return {
         code,
         metadata: {
             id: presetId,
             title: generatedMeta?.title || 'Generated Preset',
             description: generatedMeta?.description || 'Preset generated via API',
-            filePath: savedFilePath || `components/editor/presets/registry/generated/${presetId}.ts`,
+            filePath: finalFilePath,
         }
     };
   })
