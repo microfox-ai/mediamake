@@ -14,9 +14,9 @@ export async function GET(req: NextRequest) {
 
   const searchParams = req.nextUrl.searchParams;
   const params: any = {};
-  searchParams.entries().forEach(([key, value]) => {
+  for (const [key, value] of searchParams.entries()) {
     params[key] = value;
-  });
+  }
 
   //const revalidatePath = lastMessage?.metadata?.revalidatePath;
 
@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
 
   const searchParams = req.nextUrl.searchParams;
   const params: any = {};
-  searchParams.entries().forEach(([key, value]) => {
+  for (const [key, value] of searchParams.entries()) {
     params[key] = value;
-  });
+  }
 
   const { messages, ...restOfBody } = body;
 
