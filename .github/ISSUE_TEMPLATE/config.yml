@@ -1,0 +1,15 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Preset Generation Documentation
+    url: https://github.com/moondevs/mediamake/blob/main/.github/PRESET_GENERATION_WORKFLOW.md
+    about: Read the full documentation for the preset generation workflow
+  - name: 💡 Preset Examples
+    url: https://github.com/moondevs/mediamake/blob/main/.github/PRESET_GENERATION_EXAMPLE.md
+    about: View ready-to-use examples and templates
+  - name: 🐛 Report a Bug
+    url: https://github.com/moondevs/mediamake/issues/new
+    about: Report bugs or issues with the preset generation workflow
+  - name: 💬 Discussions
+    url: https://github.com/moondevs/mediamake/discussions
+    about: Ask questions or discuss ideas
+
