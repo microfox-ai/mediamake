@@ -100,12 +100,26 @@ jobs:
               console.log('✅ Issue title validated');
               console.log('📋 Parsing issue body...');
               
-              // Parse the issue body as JSON array
+              // Extract JSON array from the issue body (which may contain markdown formatting)
+              // Look for content between [ and ] brackets
               let presetRequests;
               try {
-                presetRequests = JSON.parse(issueBody);
+                // Find the JSON array in the issue body
+                const jsonMatch = issueBody.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+                
+                if (!jsonMatch) {
+                  console.error('❌ Could not find JSON array in issue body');
+                  console.error('Issue body preview:', issueBody.substring(0, 200));
+                  process.exit(1);
+                }
+                
+                const jsonString = jsonMatch[0];
+                console.log('📄 Extracted JSON:', jsonString.substring(0, 100) + '...');
+                
+                presetRequests = JSON.parse(jsonString);
               } catch (error) {
                 console.error('❌ Failed to parse issue body as JSON:', error.message);
+                console.error('Issue body preview:', issueBody.substring(0, 200));
                 process.exit(1);
               }
 
