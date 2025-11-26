@@ -29,7 +29,7 @@ export const techLeadAgent = aiRouter
     });
 
     const result = await generateObject({
-      model: anthropic('claude-sonnet-4-5'),
+      model: anthropic('claude-opus-4-5'), // Using Opus for critical plan review and validation
       schema: TechLeadOutputSchema,
       system: `
         You are the **Tech Lead** for the Remotion team.

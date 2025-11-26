@@ -49,7 +49,7 @@ export const architectAgent = aiRouter
     `).join('\n---\n');
 
     const result = await generateObject({
-      model: anthropic('claude-sonnet-4-5'),
+      model: anthropic('claude-opus-4-5'), // Using Opus for superior architectural reasoning
       schema: ArchitectOutputSchema,
       prompt: `
         You are the **System Architect** for a Remotion video generation system.
