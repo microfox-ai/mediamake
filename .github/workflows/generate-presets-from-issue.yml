@@ -28,28 +28,27 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
+        working-directory: apps/mediamake
         run: npm i
 
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
       - name: Pull Vercel Environment Variables
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/mediamake
         run: |
-          cd apps/mediamake
-          vercel env pull --environment=production --token=$VERCEL_TOKEN .env
+          vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} .env
           echo "✅ Environment variables pulled"
 
       - name: Build MediaMake App
+        working-directory: apps/mediamake
         run: |
-          cd apps/mediamake
           npm run build
           echo "✅ Build complete"
 
       - name: Start MediaMake Server
+        working-directory: apps/mediamake
         run: |
-          cd apps/mediamake
           npm run start &
           echo "🚀 Server starting in background..."
           
@@ -69,6 +68,7 @@ jobs:
 
       - name: Parse and process preset requests
         id: process
+        working-directory: apps/mediamake
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -199,7 +199,7 @@ jobs:
               console.log('\n🌿 Step 2: Creating branches and committing files...');
               const step2Start = Date.now();
               
-              const generatedDir = path.join(process.cwd(), 'apps/mediamake/components/editor/presets/registry/generated');
+              const generatedDir = path.join(process.cwd(), 'components/editor/presets/registry/generated');
               if (!fs.existsSync(generatedDir)) {
                 fs.mkdirSync(generatedDir, { recursive: true });
               }
@@ -228,7 +228,8 @@ jobs:
                   console.log(`💾 Writing file: ${filename}`);
                   fs.writeFileSync(filepath, generatedCode, 'utf-8');
 
-                  execSync(`git add "${filepath}"`);
+                  // Git add needs relative path from repo root
+                  execSync(`git add "apps/mediamake/${path.relative(process.cwd(), filepath).replace(/\\/g, '/')}`);
                   const commitMessage = `feat: add ${presetId} preset from issue #${issueNumber}`;
                   execSync(`git commit -m "${commitMessage}"`);
 
