@@ -98,31 +98,32 @@ jobs:
               }
               
               console.log('✅ Issue title validated');
-              console.log('📋 Parsing issue body...');
+              console.log('📋 Parsing issue body as JSON...');
               
-              // Extract JSON array from the issue body (which may contain markdown formatting)
-              // Look for content between [ and ] brackets
+              // Parse the issue body directly as JSON (template now only contains JSON)
               let presetRequests;
               try {
-                // Find the JSON array in the issue body
-                // Use greedy matching to capture from first [ to last ]
-                const jsonMatch = issueBody.match(/\[[\s\S]*\]/);
+                // Trim whitespace and parse
+                const trimmedBody = issueBody.trim();
+                console.log('📄 Issue body preview:', trimmedBody.substring(0, 150).replace(/\n/g, ' ') + '...');
+                console.log('📏 Body length:', trimmedBody.length, 'characters');
                 
-                if (!jsonMatch) {
-                  console.error('❌ Could not find JSON array in issue body');
-                  console.error('Issue body preview:', issueBody.substring(0, 200));
+                presetRequests = JSON.parse(trimmedBody);
+                
+                if (!Array.isArray(presetRequests)) {
+                  console.error('❌ Issue body is not a JSON array');
+                  console.error('Received type:', typeof presetRequests);
                   process.exit(1);
                 }
                 
-                const jsonString = jsonMatch[0];
-                console.log('📄 Extracted JSON preview:', jsonString.substring(0, 150) + '...');
-                console.log('📏 JSON length:', jsonString.length, 'characters');
-                
-                presetRequests = JSON.parse(jsonString);
+                console.log('✅ Successfully parsed', presetRequests.length, 'preset request(s)');
               } catch (error) {
                 console.error('❌ Failed to parse issue body as JSON:', error.message);
-                console.error('Issue body preview:', issueBody.substring(0, 200));
-                console.error('Extracted JSON preview:', jsonMatch ? jsonMatch[0].substring(0, 300) : 'N/A');
+                console.error('Issue body preview:', issueBody.substring(0, 300));
+                console.error('');
+                console.error('💡 Tip: The issue body must contain ONLY a JSON array.');
+                console.error('   Format: [{"prompt": "...", "technicalSpecs": "..."}]');
+                console.error('   Validate at: https://jsonlint.com');
                 process.exit(1);
               }
 
