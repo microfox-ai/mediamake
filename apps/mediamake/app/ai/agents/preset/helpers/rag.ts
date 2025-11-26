@@ -6,12 +6,6 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { DatabasePreset } from "@/components/editor/presets/types";
 
-// Initialize RAG SDK
-const ragSDK = new RagUpstashSdk({
-    upstashUrl: process.env.UPSTASH_VECTOR_REST_URL!,
-    upstashToken: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-});
-
 // Metadata type for RAG
 export interface PresetRagMetadata {
     id: string;
@@ -25,6 +19,11 @@ export interface PresetRagMetadata {
 }
 
 export const queryRagPresets = async (query: string, filterString?: string, topK?: number) => {
+    // Initialize RAG SDK
+    const ragSDK = new RagUpstashSdk({
+        upstashUrl: process.env.UPSTASH_VECTOR_REST_URL!,
+        upstashToken: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+    });
     const results = await ragSDK.queryDocsFromRAG<PresetRagMetadata>({
         data: query,
         topK: topK || 5,
@@ -40,6 +39,11 @@ export const addPresetToRag = async (docsToFeed: {
     doc: string;
     metadata: PresetRagMetadata;
 }[]) => {
+    // Initialize RAG SDK
+    const ragSDK = new RagUpstashSdk({
+        upstashUrl: process.env.UPSTASH_VECTOR_REST_URL!,
+        upstashToken: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+    });
     return await ragSDK.feedDocsToRAG(docsToFeed);
 };
 
@@ -159,7 +163,7 @@ export const indexPresetsFunction = async (options: IndexingOptions) => {
 
             let dbPresetsToProcess = presets;
             if (scope === 'db-id' && targetId) {
-                dbPresetsToProcess = presets.filter(p => 
+                dbPresetsToProcess = presets.filter(p =>
                     p._id.toString() === targetId || p.metadata?.id === targetId
                 );
             }
