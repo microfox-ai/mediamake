@@ -6,8 +6,13 @@ on:
 
 jobs:
   process-preset-requests:
-    # Only run if issue title is "New Presets" (case-insensitive)
-    if: ${{ contains(lower(format('{0}', github.event.issue.title)), 'new presets') }}
+    # Only run if issue title contains "new presets" or "New Presets" (case variations)
+    if: |
+      contains(github.event.issue.title, 'New Presets') ||
+      contains(github.event.issue.title, 'new presets') ||
+      contains(github.event.issue.title, 'NEW PRESETS') ||
+      contains(github.event.issue.title, 'New presets') ||
+      contains(github.event.issue.title, 'new Presets')
     runs-on: ubuntu-latest
     
     steps:
@@ -30,6 +35,7 @@ jobs:
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           API_BASE_URL: https://mediamake-mediamake.vercel.app
         run: |
@@ -42,8 +48,16 @@ jobs:
             try {
               const issueBody = process.env.ISSUE_BODY;
               const issueNumber = process.env.ISSUE_NUMBER;
+              const issueTitle = process.env.ISSUE_TITLE;
               const apiBaseUrl = process.env.API_BASE_URL;
               
+              // Validate issue title (case-insensitive)
+              if (!issueTitle || !issueTitle.toLowerCase().includes('new presets')) {
+                console.log('⏭️  Skipping: Issue title does not contain "new presets" (case-insensitive)');
+                process.exit(0);
+              }
+              
+              console.log('✅ Issue title validated');
               console.log('📋 Parsing issue body...');
               
               // Parse the issue body as JSON array
