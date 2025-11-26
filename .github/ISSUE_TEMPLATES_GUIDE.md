@@ -4,14 +4,13 @@ This document explains the issue templates available for preset generation reque
 
 ## 📋 Available Templates
 
-### 1. 🎬 New Presets Request (Recommended)
+### 1. 🎬 New Presets Request
 **File**: `.github/ISSUE_TEMPLATE/new-presets.yml`
 
 **Best for:**
-- First-time users who need guidance
-- Users who want to see examples
+- All users (first-time and experienced)
 - Complex preset requests with multiple presets
-- Users who prefer structured forms
+- Users who want guidance and examples
 
 **Features:**
 - ✅ Structured YAML form with validation
@@ -26,33 +25,11 @@ This document explains the issue templates available for preset generation reque
 1. Go to **Issues** tab
 2. Click **New Issue**
 3. Select **"🎬 New Presets Request"**
-4. Fill in the preset specifications
+4. Fill in the preset specifications (or use one of the built-in examples)
 5. Check the validation boxes
 6. Submit
 
-### 2. 🎬 New Presets (Simple)
-**File**: `.github/ISSUE_TEMPLATE/new-presets-simple.md`
-
-**Best for:**
-- Experienced users who know the format
-- Quick preset requests
-- Single preset submissions
-- Users who prefer markdown
-
-**Features:**
-- ✅ Minimal markdown template
-- ✅ Quick copy-paste workflow
-- ✅ One example included
-- ✅ Basic checklist
-
-**How to use:**
-1. Go to **Issues** tab
-2. Click **New Issue**
-3. Select **"🎬 New Presets (Simple)"**
-4. Replace the JSON with your specifications
-5. Submit
-
-### 3. Template Configuration
+### 2. Template Configuration
 **File**: `.github/ISSUE_TEMPLATE/config.yml`
 
 **Purpose:**
@@ -60,9 +37,9 @@ This document explains the issue templates available for preset generation reque
 - Shows documentation links in the issue creation page
 - Links to bug reporting and discussions
 
-## 🎯 What Each Template Includes
+## 🎯 What the Template Includes
 
-### Comprehensive Template (new-presets.yml)
+### New Presets Request Template (new-presets.yml)
 
 #### Form Fields
 1. **Preset Specifications** (textarea)
@@ -102,30 +79,9 @@ The template includes 4 ready-to-use examples:
 - **For Technical Specs**: How to structure implementation details
 - **Best Practices**: How to get the best results
 
-### Simple Template (new-presets-simple.md)
+## 📝 How to Use the Template
 
-#### Structure
-1. **JSON Input Section**
-   - Comment with instructions
-   - Code block for JSON array
-   - Single example
-
-2. **Quick Example**
-   - Copy-paste ready example
-   - Simple fade-in preset
-
-3. **Checklist**
-   - JSON validation
-   - Required fields check
-   - Description quality check
-
-4. **What Happens Next**
-   - Brief workflow description
-   - Link to detailed examples
-
-## 📝 How to Use the Templates
-
-### Using the Comprehensive Template
+### Using the New Presets Request Template
 
 **Step 1: Select the Template**
 ```
@@ -155,28 +111,6 @@ Issues → New Issue → "🎬 New Presets Request"
 - Click "Submit new issue"
 - Wait 2-5 minutes for results
 - Check for PR links in the comment
-
-### Using the Simple Template
-
-**Step 1: Select the Template**
-```
-Issues → New Issue → "🎬 New Presets (Simple)"
-```
-
-**Step 2: Replace the JSON**
-```json
-[
-  {
-    "prompt": "Your detailed description...",
-    "technicalSpecs": "Your technical details..."
-  }
-]
-```
-
-**Step 3: Submit**
-- Check the boxes
-- Submit the issue
-- Wait for results
 
 ## 🎨 Template Examples
 
@@ -278,18 +212,20 @@ Issues → New Issue → "🎬 New Presets (Simple)"
 3. **Reuse Specs**: Similar technical specs can be abbreviated
 4. **Test Incrementally**: Start with one, add more if successful
 
-## 📊 Template Comparison
+## 📊 Template Features
 
-| Feature | Comprehensive | Simple |
-|---------|--------------|---------|
-| **Form Type** | YAML | Markdown |
-| **Built-in Examples** | 4 detailed | 1 basic |
-| **Tips & Guidance** | Extensive | Minimal |
-| **Validation** | Checkboxes | Manual |
-| **Best For** | First-time users | Experienced users |
-| **Setup Time** | ~5 minutes | ~2 minutes |
-| **Learning Curve** | Easy | Medium |
-| **Customization** | Limited | High |
+The New Presets Request template provides:
+
+| Feature | Details |
+|---------|---------|
+| **Form Type** | YAML (structured form) |
+| **Built-in Examples** | 4 detailed examples |
+| **Tips & Guidance** | Extensive inline help |
+| **Validation** | Required checkboxes |
+| **Best For** | All users |
+| **Setup Time** | ~5 minutes |
+| **Learning Curve** | Easy |
+| **Flexibility** | High (can modify JSON directly) |
 
 ## 🔗 Related Documentation
 
