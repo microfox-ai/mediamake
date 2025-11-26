@@ -43,6 +43,16 @@ jobs:
           vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} .env
           echo "✅ Environment variables pulled"
 
+      - name: Add Additional Environment Variables
+        working-directory: apps/mediamake
+        run: |
+          echo "" >> .env
+          echo "# Additional secrets from GitHub Actions" >> .env
+          echo "NEXT_PUBLIC_DEV_CLIENT_ID=${{ secrets.NEXT_PUBLIC_DEV_CLIENT_ID }}" >> .env
+          echo "DEV_API_KEY=${{ secrets.DEV_API_KEY }}" >> .env
+          echo "NEXT_PUBLIC_DEV_API_KEY=${{ secrets.NEXT_PUBLIC_DEV_API_KEY }}" >> .env
+          echo "✅ Additional environment variables added to .env"
+
       - name: Build MediaMake App
         # working-directory: apps/mediamake
         run: |
@@ -51,10 +61,6 @@ jobs:
 
       - name: Start MediaMake Server
         working-directory: apps/mediamake
-        env:
-          NEXT_PUBLIC_DEV_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_DEV_CLIENT_ID }}
-          DEV_API_KEY: ${{ secrets.DEV_API_KEY }}
-          NEXT_PUBLIC_DEV_API_KEY: ${{ secrets.NEXT_PUBLIC_DEV_API_KEY }}
         run: |
           npm run start &
           echo "🚀 Server starting in background..."
@@ -82,9 +88,6 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           API_BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_DEV_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_DEV_CLIENT_ID }}
-          DEV_API_KEY: ${{ secrets.DEV_API_KEY }}
-          NEXT_PUBLIC_DEV_API_KEY: ${{ secrets.NEXT_PUBLIC_DEV_API_KEY }}
         run: |
           node - <<'EOF'
           const fs = require('fs');
