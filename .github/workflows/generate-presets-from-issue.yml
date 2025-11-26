@@ -105,7 +105,8 @@ jobs:
               let presetRequests;
               try {
                 // Find the JSON array in the issue body
-                const jsonMatch = issueBody.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+                // Use greedy matching to capture from first [ to last ]
+                const jsonMatch = issueBody.match(/\[[\s\S]*\]/);
                 
                 if (!jsonMatch) {
                   console.error('❌ Could not find JSON array in issue body');
@@ -114,12 +115,14 @@ jobs:
                 }
                 
                 const jsonString = jsonMatch[0];
-                console.log('📄 Extracted JSON:', jsonString.substring(0, 100) + '...');
+                console.log('📄 Extracted JSON preview:', jsonString.substring(0, 150) + '...');
+                console.log('📏 JSON length:', jsonString.length, 'characters');
                 
                 presetRequests = JSON.parse(jsonString);
               } catch (error) {
                 console.error('❌ Failed to parse issue body as JSON:', error.message);
                 console.error('Issue body preview:', issueBody.substring(0, 200));
+                console.error('Extracted JSON preview:', jsonMatch ? jsonMatch[0].substring(0, 300) : 'N/A');
                 process.exit(1);
               }
 
