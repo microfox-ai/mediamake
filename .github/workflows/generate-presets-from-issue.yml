@@ -285,6 +285,14 @@ jobs:
                     console.log(`📁 File path extracted: ${savedFilePath}`);
                     console.log(`   Raw metadata.filePath: ${metadata?.filePath}`);
 
+                    // Extract lint/validation info if present
+                    const lintOutput = metadata?.lintOutput || '';
+                    const validationWarnings = metadata?.validationWarnings || [];
+                    const validationErrors = metadata?.validationErrors || [];
+                    const validationFailed = metadata?.validationFailed || false;
+                    const wasAutoFixed = metadata?.wasAutoFixed || false;
+                    const hasLintIssues = lintOutput && (lintOutput.includes('error') || lintOutput.includes('warning'));
+                    
                     return {
                       index,
                       success: true,
@@ -292,6 +300,12 @@ jobs:
                       metadata,
                       savedFilePath,
                       originalRequest: request,
+                      lintOutput,
+                      validationWarnings,
+                      validationErrors,
+                      validationFailed,
+                      hasLintIssues,
+                      wasAutoFixed,
                     };
                   } catch (error) {
                     console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
@@ -464,13 +478,90 @@ jobs:
                   
                   // Build PR body with all presets listed
                   let prBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
+                  
+                  // Check if any presets were auto-fixed, have validation failures, or have lint issues
+                  const presetsAutoFixed = gitResults.filter(r => r.success && r.wasAutoFixed);
+                  const presetsWithValidationFailures = gitResults.filter(r => r.success && r.validationFailed);
+                  const presetsWithLintIssues = gitResults.filter(r => r.success && r.hasLintIssues && !r.validationFailed);
+                  
+                  if (presetsWithValidationFailures.length > 0) {
+                    prBody += `## 🔴 Validation Failed\n\n`;
+                    prBody += `⚠️ **${presetsWithValidationFailures.length} preset(s) failed validation after 3 attempts but were saved for review:**\n`;
+                    presetsWithValidationFailures.forEach(r => {
+                      prBody += `- **${r.metadata?.title || r.presetId}** - ⚠️ **Requires manual fixes**\n`;
+                      if (r.validationErrors && r.validationErrors.length > 0) {
+                        prBody += `  - Errors: ${r.validationErrors[0]}\n`;
+                      }
+                    });
+                    prBody += `\n_❗ These presets have validation errors and should be reviewed and fixed before merging._\n\n`;
+                  }
+                  
+                  if (presetsAutoFixed.length > 0) {
+                    prBody += `## ✨ Auto-Fixed Presets\n\n`;
+                    prBody += `${presetsAutoFixed.length} preset(s) were automatically fixed by ESLint:\n`;
+                    presetsAutoFixed.forEach(r => {
+                      prBody += `- **${r.metadata?.title || r.presetId}** ✅\n`;
+                    });
+                    prBody += `\n`;
+                  }
+                  
+                  if (presetsWithLintIssues.length > 0) {
+                    prBody += `## ⚠️ Lint Check Notice\n\n`;
+                    prBody += `${presetsWithLintIssues.length} preset(s) have lint warnings that may need attention:\n`;
+                    presetsWithLintIssues.forEach(r => {
+                      prBody += `- **${r.metadata?.title || r.presetId}** - Check details below\n`;
+                    });
+                    prBody += `\n_These are informational warnings. ESLint auto-fix was attempted. Please review before merging._\n\n`;
+                  }
+                  
                   prBody += `## Generated Presets (${successfulPresets.length})\n\n`;
                   
                   gitResults.filter(r => r.success).forEach((result, idx) => {
                     prBody += `### ${idx + 1}. ${result.metadata?.title || result.presetId}\n\n`;
                     prBody += `**ID:** \`${result.presetId}\`\n`;
                     prBody += `**Description:** ${result.metadata?.description || 'N/A'}\n`;
-                    prBody += `**File:** \`${result.filepath}\`\n\n`;
+                    prBody += `**File:** \`${result.filepath}\`\n`;
+                    
+                    // Show validation failure status
+                    if (result.validationFailed) {
+                      prBody += `**Status:** 🔴 **Validation Failed - Requires Manual Fixes**\n`;
+                    } else if (result.wasAutoFixed) {
+                      prBody += `**Status:** ✨ Auto-fixed by ESLint\n`;
+                    } else {
+                      prBody += `**Status:** ✅ Validated\n`;
+                    }
+                    prBody += `\n`;
+                    
+                    // Add validation errors if present
+                    if (result.validationFailed && result.validationErrors && result.validationErrors.length > 0) {
+                      prBody += `**❌ Validation Errors (after 3 attempts):**\n`;
+                      result.validationErrors.slice(0, 3).forEach(error => {
+                        prBody += `- ${error}\n`;
+                      });
+                      if (result.validationErrors.length > 3) {
+                        prBody += `- ... and ${result.validationErrors.length - 3} more error(s)\n`;
+                      }
+                      prBody += `\n`;
+                    }
+                    
+                    // Add lint/validation warnings
+                    if (result.validationWarnings && result.validationWarnings.length > 0) {
+                      prBody += `**⚠️ Validation Warnings:**\n`;
+                      result.validationWarnings.forEach(warning => {
+                        prBody += `- ${warning}\n`;
+                      });
+                      prBody += `\n`;
+                    }
+                    
+                    // Add lint output if there are issues
+                    if (result.hasLintIssues && result.lintOutput) {
+                      prBody += `<details>\n<summary>🔍 Lint Check Results (click to expand)</summary>\n\n`;
+                      prBody += `\`\`\`\n${result.lintOutput.substring(0, 2000)}\n\`\`\`\n\n`;
+                      if (result.lintOutput.length > 2000) {
+                        prBody += `_(Output truncated - see full output in workflow logs)_\n\n`;
+                      }
+                      prBody += `</details>\n\n`;
+                    }
                     
                     // Add truncated prompt
                     const prompt = result.originalRequest.prompt;
