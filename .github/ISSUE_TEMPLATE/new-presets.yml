@@ -24,13 +24,13 @@ body:
     attributes:
       label: Preset Specifications
       description: |
-        **⚠️ IMPORTANT:** Paste a JSON array with your preset requests below.
+        **⚠️ IMPORTANT:** Paste ONLY the JSON array below. Do not add any text before or after the JSON.
         
         Each preset must have:
         - `prompt`: A detailed description of what the preset should do
         - `technicalSpecs`: Technical implementation details
         
-        **Format:**
+        **Required Format (must start with [ and end with ]):**
         ```json
         [
           {
@@ -39,6 +39,9 @@ body:
           }
         ]
         ```
+        
+        **✅ Valid:** Starts with `[` and ends with `]`
+        **❌ Invalid:** Adding text like "Here's my request: [...]" or "See below: [...]"
         
         See examples below or check `.github/PRESET_GENERATION_EXAMPLE.md` for more.
       placeholder: |
@@ -154,7 +157,9 @@ body:
         ## ⚠️ Important Notes
         
         - ✅ The issue title must be "New Presets" (this template sets it automatically)
-        - ✅ The body must be valid JSON (use a JSON validator if needed)
+        - ✅ The body must be valid JSON starting with `[` and ending with `]`
+        - ✅ **Do not add any text before or after the JSON array**
+        - ✅ Use a JSON validator like [jsonlint.com](https://jsonlint.com/) to check your JSON
         - ✅ Each preset must have both `prompt` and `technicalSpecs` fields
         - ✅ You can include multiple presets in the array
         - ✅ Each preset will get its own Pull Request
