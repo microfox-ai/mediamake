@@ -6,13 +6,13 @@ on:
 
 jobs:
   process-preset-requests:
-    # Only run if issue title contains "new presets" or "New Presets" (case variations)
+    # Only run if issue title starts with "New Presets" (case variations)
     if: |
-      contains(github.event.issue.title, 'New Presets') ||
-      contains(github.event.issue.title, 'new presets') ||
-      contains(github.event.issue.title, 'NEW PRESETS') ||
-      contains(github.event.issue.title, 'New presets') ||
-      contains(github.event.issue.title, 'new Presets')
+      startsWith(github.event.issue.title, 'New Presets') ||
+      startsWith(github.event.issue.title, 'new presets') ||
+      startsWith(github.event.issue.title, 'NEW PRESETS') ||
+      startsWith(github.event.issue.title, 'New presets') ||
+      startsWith(github.event.issue.title, 'new Presets')
     runs-on: ubuntu-latest
     
     steps:
@@ -61,7 +61,16 @@ jobs:
 
       - name: Start MediaMake Server
         working-directory: apps/mediamake
+        env:
+          NEXT_PUBLIC_DEV_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_DEV_CLIENT_ID }}
+          DEV_API_KEY: ${{ secrets.DEV_API_KEY }}
+          NEXT_PUBLIC_DEV_API_KEY: ${{ secrets.NEXT_PUBLIC_DEV_API_KEY }}
         run: |
+          echo "Starting server with environment variables:"
+          echo "NEXT_PUBLIC_DEV_CLIENT_ID: $NEXT_PUBLIC_DEV_CLIENT_ID"
+          echo "DEV_API_KEY: $DEV_API_KEY"
+          echo "NEXT_PUBLIC_DEV_API_KEY: $NEXT_PUBLIC_DEV_API_KEY"
+          
           npm run start &
           echo "🚀 Server starting in background..."
           
@@ -101,9 +110,9 @@ jobs:
               const issueTitle = process.env.ISSUE_TITLE;
               const apiBaseUrl = process.env.API_BASE_URL;
               
-              // Validate issue title (case-insensitive)
-              if (!issueTitle || !issueTitle.toLowerCase().includes('new presets')) {
-                console.log('⏭️  Skipping: Issue title does not contain "new presets" (case-insensitive)');
+              // Validate issue title (case-insensitive prefix check)
+              if (!issueTitle || !issueTitle.toLowerCase().startsWith('new presets')) {
+                console.log('⏭️  Skipping: Issue title does not start with "new presets" (case-insensitive)');
                 process.exit(0);
               }
               

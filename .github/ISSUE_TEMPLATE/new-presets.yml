@@ -1,8 +1,14 @@
 name: 🎬 New Presets Request
 description: Request automated generation of new MediaMake presets via AI
-title: "New Presets"
+title: "New Presets - [Add description here]"
 labels: ["preset-generation", "automation"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ℹ️ **Tip:** Customize the issue title above to describe your presets (e.g., "New Presets - Typography Effects").
+        The title must start with "New Presets" to trigger the automation workflow.
+
   - type: textarea
     id: presets
     attributes:
