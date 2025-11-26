@@ -52,13 +52,28 @@ jobs:
       - name: Start MediaMake Server
         working-directory: apps/mediamake
         run: |
-          npm run start &
-          echo "🚀 Server starting in background..."
+          npm run start > server.log 2>&1 &
+          SERVER_PID=$!
+          echo "🚀 Server starting in background (PID: $SERVER_PID)..."
           
           # Wait for server to be ready
           echo "⏳ Waiting for server to be ready..."
           for i in {1..60}; do
-            if curl -s http://localhost:3000 > /dev/null; then
+            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+              echo "✅ Server responded to root endpoint!"
+              
+              # Additional check - see if server process is still running
+              if ps -p $SERVER_PID > /dev/null; then
+                echo "✅ Server process is running (PID: $SERVER_PID)"
+              else
+                echo "⚠️  Server process not found - it may have crashed"
+                echo "Last 50 lines of server log:"
+                tail -n 50 server.log
+              fi
+              
+              # Give server a few more seconds to fully initialize
+              echo "⏳ Waiting 5 more seconds for full initialization..."
+              sleep 5
               echo "✅ Server is ready!"
               exit 0
             fi
@@ -67,6 +82,8 @@ jobs:
           done
           
           echo "❌ Server failed to start within 2 minutes"
+          echo "Server log:"
+          cat server.log
           exit 1
 
       - name: Parse and process preset requests
@@ -176,6 +193,10 @@ jobs:
                     const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
                     
                     console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
+                    console.log(`   URL: ${apiBaseUrl}/api/studio/chat/agent/preset/generate`);
+                    console.log(`   Method: POST`);
+                    console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
+                    console.log(`   Prompt length: ${combinedPrompt.length} characters`);
                     
                     const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
                       method: 'POST',
@@ -188,9 +209,14 @@ jobs:
                       }),
                     });
 
+                    console.log(`📥 [${index}/${presetRequests.length}] Response status: ${response.status} ${response.statusText}`);
+                    console.log(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+
                     if (!response.ok) {
                       const errorText = await response.text();
-                      throw new Error(`API returned ${response.status}: ${errorText}`);
+                      console.error(`❌ [${index}/${presetRequests.length}] Error response body:`, errorText || '(empty)');
+                      console.error(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+                      throw new Error(`API returned ${response.status}: ${errorText || '(empty response body)'}`);
                     }
 
                     const result = await response.json();
@@ -257,10 +283,12 @@ jobs:
                     };
                   } catch (error) {
                     console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
+                    console.error(`   Error stack:`, error.stack);
                     return {
                       index,
                       success: false,
                       error: error.message,
+                      errorStack: error.stack,
                     };
                   }
                 })();
@@ -274,6 +302,22 @@ jobs:
               
               const step1Duration = ((Date.now() - step1Start) / 1000).toFixed(2);
               console.log(`\n📊 API Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step1Duration}s)`);
+              
+              // If there were failures, check server logs
+              if (failedPresets.length > 0) {
+                console.log('\n📋 Checking server logs for errors...');
+                try {
+                  const serverLog = fs.readFileSync('server.log', 'utf8');
+                  const lines = serverLog.split('\n');
+                  const lastLines = lines.slice(-100).join('\n');
+                  console.log(`Server log (last 100 of ${lines.length} lines):`);
+                  console.log('-----------------------------------');
+                  console.log(lastLines);
+                  console.log('-----------------------------------');
+                } catch (e) {
+                  console.warn('⚠️  Could not read server log:', e.message);
+                }
+              }
 
               // ==========================================
               // STEP 2: GIT OPERATIONS (SINGLE BRANCH)
