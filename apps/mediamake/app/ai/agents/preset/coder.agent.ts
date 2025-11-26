@@ -32,8 +32,9 @@ export const coderAgent = aiRouter
       .map(
         r => `
       // Ref: ${r.metadata.title}
-      ${r.code.slice(0, 800)}...
-    `
+      ${r.code}
+      `
+      // ${r.code.slice(0, 800)}...
       )
       .join('\n\n');
 
