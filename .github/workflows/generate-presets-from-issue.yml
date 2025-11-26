@@ -179,6 +179,10 @@ jobs:
               console.log('\n🚀 Step 1: Fetching all presets in parallel...');
               const step1Start = Date.now();
               
+              // Configure API timeout (10 minutes per request)
+              const API_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+              console.log(`⏱️  API timeout set to: ${API_TIMEOUT_MS / 1000}s (${API_TIMEOUT_MS / 60000} minutes)`);
+              
               // Create promises for all API calls
               const apiPromises = presetRequests.map((request, i) => {
                 return (async () => {
@@ -197,126 +201,143 @@ jobs:
                     console.log(`   Method: POST`);
                     console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
                     console.log(`   Prompt length: ${combinedPrompt.length} characters`);
+                    console.log(`   Timeout: ${API_TIMEOUT_MS / 1000}s`);
                     
-                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${devApiKey}`,
-                      },
-                      body: JSON.stringify({
-                        prompt: combinedPrompt,
-                      }),
-                    });
-
-                    console.log(`📥 [${index}/${presetRequests.length}] Response status: ${response.status} ${response.statusText}`);
-                    console.log(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
-
-                    if (!response.ok) {
-                      const errorText = await response.text();
-                      console.error(`❌ [${index}/${presetRequests.length}] Error response body:`, errorText || '(empty)');
-                      console.error(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
-                      throw new Error(`API returned ${response.status}: ${errorText || '(empty response body)'}`);
-                    }
-
-                    const result = await response.json();
-                    console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
-
-                    // Parse the nested response structure
-                    // Response format: [{ parts: [{ output: { code, metadata } }] }]
-                    let generatedCode, metadata, savedFilePath;
+                    // Create AbortController for timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
                     
-                    if (Array.isArray(result) && result.length > 0) {
-                      // Nested structure from AI Router
-                      const firstItem = result[0];
-                      if (firstItem.parts && Array.isArray(firstItem.parts) && firstItem.parts.length > 0) {
-                        const output = firstItem.parts[0].output;
-                        generatedCode = output?.code;
-                        metadata = output?.metadata;
-                        
-                        // Extract relative path from absolute Windows path
-                        // Format: "V:\\...\\apps\\mediamake\\components\\..."
-                        // We need: "components\\..."
-                        if (metadata?.filePath) {
-                          const absolutePath = metadata.filePath;
-                          // Find the part after "apps/mediamake" or "apps\\mediamake"
-                          const appsMediamakeIndex = absolutePath.indexOf('apps\\mediamake\\');
-                          if (appsMediamakeIndex !== -1) {
-                            savedFilePath = absolutePath.substring(appsMediamakeIndex + 'apps\\mediamake\\'.length);
-                          } else {
-                            // Try forward slash
-                            const appsMediamakeIndexForward = absolutePath.indexOf('apps/mediamake/');
-                            if (appsMediamakeIndexForward !== -1) {
-                              savedFilePath = absolutePath.substring(appsMediamakeIndexForward + 'apps/mediamake/'.length);
-                            } else {
-                              savedFilePath = metadata.filePath;
-                            }
-                          }
-                          // Normalize to forward slashes
-                          savedFilePath = savedFilePath.replace(/\\/g, '/');
-                        }
-                      }
-                    } else {
-                      // Simple structure (fallback)
-                      generatedCode = result.code || result.data?.code;
-                      metadata = result.metadata || result.data?.metadata;
+                    try {
+                      const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${devApiKey}`,
+                        },
+                        body: JSON.stringify({
+                          prompt: combinedPrompt,
+                        }),
+                        signal: controller.signal,
+                      });
                       
-                      // Extract path from metadata
-                      if (metadata?.filePath) {
-                        const fullPath = metadata.filePath;
-                        // Extract path after 'apps/mediamake/'
-                        const appsMediamakeIndex = fullPath.indexOf('apps/mediamake/');
-                        if (appsMediamakeIndex !== -1) {
-                          savedFilePath = fullPath.substring(appsMediamakeIndex + 'apps/mediamake/'.length);
-                        } else {
-                          savedFilePath = fullPath;
+                      clearTimeout(timeoutId);
+
+                      console.log(`📥 [${index}/${presetRequests.length}] Response status: ${response.status} ${response.statusText}`);
+                      console.log(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`❌ [${index}/${presetRequests.length}] Error response body:`, errorText || '(empty)');
+                        console.error(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
+                        throw new Error(`API returned ${response.status}: ${errorText || '(empty response body)'}`);
+                      }
+
+                      const result = await response.json();
+                      console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
+
+                      // Parse the nested response structure
+                      // Response format: [{ parts: [{ output: { code, metadata } }] }]
+                      let generatedCode, metadata, savedFilePath;
+                      
+                      if (Array.isArray(result) && result.length > 0) {
+                        // Nested structure from AI Router
+                        const firstItem = result[0];
+                        if (firstItem.parts && Array.isArray(firstItem.parts) && firstItem.parts.length > 0) {
+                          const output = firstItem.parts[0].output;
+                          generatedCode = output?.code;
+                          metadata = output?.metadata;
+                          
+                          // Extract relative path from absolute Windows path
+                          // Format: "V:\\...\\apps\\mediamake\\components\\..."
+                          // We need: "components\\..."
+                          if (metadata?.filePath) {
+                            const absolutePath = metadata.filePath;
+                            // Find the part after "apps/mediamake" or "apps\\mediamake"
+                            const appsMediamakeIndex = absolutePath.indexOf('apps\\mediamake\\');
+                            if (appsMediamakeIndex !== -1) {
+                              savedFilePath = absolutePath.substring(appsMediamakeIndex + 'apps\\mediamake\\'.length);
+                            } else {
+                              // Try forward slash
+                              const appsMediamakeIndexForward = absolutePath.indexOf('apps/mediamake/');
+                              if (appsMediamakeIndexForward !== -1) {
+                                savedFilePath = absolutePath.substring(appsMediamakeIndexForward + 'apps/mediamake/'.length);
+                              } else {
+                                savedFilePath = metadata.filePath;
+                              }
+                            }
+                            // Normalize to forward slashes
+                            savedFilePath = savedFilePath.replace(/\\/g, '/');
+                          }
+                        }
+                      } else {
+                        // Simple structure (fallback)
+                        generatedCode = result.code || result.data?.code;
+                        metadata = result.metadata || result.data?.metadata;
+                        
+                        // Extract path from metadata
+                        if (metadata?.filePath) {
+                          const fullPath = metadata.filePath;
+                          // Extract path after 'apps/mediamake/'
+                          const appsMediamakeIndex = fullPath.indexOf('apps/mediamake/');
+                          if (appsMediamakeIndex !== -1) {
+                            savedFilePath = fullPath.substring(appsMediamakeIndex + 'apps/mediamake/'.length);
+                          } else {
+                            savedFilePath = fullPath;
+                          }
                         }
                       }
-                    }
-                    
-                    if (!generatedCode) {
-                      throw new Error('API response missing code field');
-                    }
-                    
-                    if (!savedFilePath) {
-                      throw new Error('API response missing filePath in metadata');
-                    }
-                    
-                    console.log(`📁 File path extracted: ${savedFilePath}`);
-                    console.log(`   Raw metadata.filePath: ${metadata?.filePath}`);
+                      
+                      if (!generatedCode) {
+                        throw new Error('API response missing code field');
+                      }
+                      
+                      if (!savedFilePath) {
+                        throw new Error('API response missing filePath in metadata');
+                      }
+                      
+                      console.log(`📁 File path extracted: ${savedFilePath}`);
+                      console.log(`   Raw metadata.filePath: ${metadata?.filePath}`);
 
-                    // Extract lint/validation info if present
-                    const lintOutput = metadata?.lintOutput || '';
-                    const validationWarnings = metadata?.validationWarnings || [];
-                    const validationErrors = metadata?.validationErrors || [];
-                    const validationFailed = metadata?.validationFailed || false;
-                    const wasAutoFixed = metadata?.wasAutoFixed || false;
-                    const hasLintIssues = lintOutput && (lintOutput.includes('error') || lintOutput.includes('warning'));
-                    
-                    return {
-                      index,
-                      success: true,
-                      generatedCode,
-                      metadata,
-                      savedFilePath,
-                      originalRequest: request,
-                      lintOutput,
-                      validationWarnings,
-                      validationErrors,
-                      validationFailed,
-                      hasLintIssues,
-                      wasAutoFixed,
-                    };
+                      // Extract lint/validation info if present
+                      const lintOutput = metadata?.lintOutput || '';
+                      const validationWarnings = metadata?.validationWarnings || [];
+                      const validationErrors = metadata?.validationErrors || [];
+                      const validationFailed = metadata?.validationFailed || false;
+                      const wasAutoFixed = metadata?.wasAutoFixed || false;
+                      const hasLintIssues = lintOutput && (lintOutput.includes('error') || lintOutput.includes('warning'));
+                      
+                      return {
+                        index,
+                        success: true,
+                        generatedCode,
+                        metadata,
+                        savedFilePath,
+                        originalRequest: request,
+                        lintOutput,
+                        validationWarnings,
+                        validationErrors,
+                        validationFailed,
+                        hasLintIssues,
+                        wasAutoFixed,
+                      };
+                    } catch (fetchError) {
+                      // Handle fetch timeout or abort
+                      if (fetchError.name === 'AbortError') {
+                        throw new Error(`API request timed out after ${API_TIMEOUT_MS / 1000}s (${API_TIMEOUT_MS / 60000} minutes)`);
+                      }
+                      // Re-throw other fetch errors
+                      throw fetchError;
+                    }
                   } catch (error) {
                     console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
                     console.error(`   Error stack:`, error.stack);
                     
-                    // Note: "fetch failed" errors are often due to:
-                    // - Request timeout (API route has maxDuration of 300s)
-                    // - Connection closed by server
-                    // - Network issues
-                    if (error.message.includes('fetch failed')) {
-                      console.error(`   ℹ️  This is likely a timeout or connection issue`);
+                    // Provide helpful context for different error types
+                    if (error.message.includes('timed out')) {
+                      console.error(`   ℹ️  The request exceeded the configured timeout of ${API_TIMEOUT_MS / 1000}s`);
+                      console.error(`   ℹ️  This preset may be too complex or the server is overloaded`);
+                    } else if (error.message.includes('fetch failed')) {
+                      console.error(`   ℹ️  This is likely a connection or server issue`);
                     }
                     
                     return {
