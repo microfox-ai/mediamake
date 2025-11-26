@@ -162,18 +162,63 @@ jobs:
                     const result = await response.json();
                     console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
 
-                    const generatedCode = result.code || result.data?.code;
-                    const metadata = result.metadata || result.data?.metadata;
+                    // Parse the nested response structure
+                    // Response format: [{ parts: [{ output: { code, metadata } }] }]
+                    let generatedCode, metadata, savedFilePath;
+                    
+                    if (Array.isArray(result) && result.length > 0) {
+                      // Nested structure from AI Router
+                      const firstItem = result[0];
+                      if (firstItem.parts && Array.isArray(firstItem.parts) && firstItem.parts.length > 0) {
+                        const output = firstItem.parts[0].output;
+                        generatedCode = output?.code;
+                        metadata = output?.metadata;
+                        
+                        // Extract relative path from absolute Windows path
+                        // Format: "V:\\...\\apps\\mediamake\\components\\..."
+                        // We need: "components\\..."
+                        if (metadata?.filePath) {
+                          const absolutePath = metadata.filePath;
+                          // Find the part after "apps/mediamake" or "apps\\mediamake"
+                          const appsMediamakeIndex = absolutePath.indexOf('apps\\mediamake\\');
+                          if (appsMediamakeIndex !== -1) {
+                            savedFilePath = absolutePath.substring(appsMediamakeIndex + 'apps\\mediamake\\'.length);
+                          } else {
+                            // Try forward slash
+                            const appsMediamakeIndexForward = absolutePath.indexOf('apps/mediamake/');
+                            if (appsMediamakeIndexForward !== -1) {
+                              savedFilePath = absolutePath.substring(appsMediamakeIndexForward + 'apps/mediamake/'.length);
+                            } else {
+                              savedFilePath = metadata.filePath;
+                            }
+                          }
+                          // Normalize to forward slashes
+                          savedFilePath = savedFilePath.replace(/\\/g, '/');
+                        }
+                      }
+                    } else {
+                      // Simple structure (fallback)
+                      generatedCode = result.code || result.data?.code;
+                      metadata = result.metadata || result.data?.metadata;
+                      savedFilePath = metadata?.filePath;
+                    }
                     
                     if (!generatedCode) {
                       throw new Error('API response missing code field');
                     }
+                    
+                    if (!savedFilePath) {
+                      throw new Error('API response missing filePath in metadata');
+                    }
+                    
+                    console.log(`📁 File path extracted: ${savedFilePath}`);
 
                     return {
                       index,
                       success: true,
                       generatedCode,
                       metadata,
+                      savedFilePath,
                       originalRequest: request,
                     };
                   } catch (error) {
@@ -201,11 +246,6 @@ jobs:
               // ==========================================
               console.log('\n🌿 Step 2: Creating branches and committing files...');
               const step2Start = Date.now();
-              
-              const generatedDir = path.join(process.cwd(), 'components/editor/presets/registry/generated');
-              if (!fs.existsSync(generatedDir)) {
-                fs.mkdirSync(generatedDir, { recursive: true });
-              }
 
               const gitResults = [];
               
@@ -216,23 +256,23 @@ jobs:
                 }
 
                 try {
-                  const { index, generatedCode, metadata, originalRequest } = apiResult;
+                  const { index, savedFilePath, metadata, originalRequest } = apiResult;
                   const presetId = metadata?.id || `preset-${Date.now()}-${index}`;
                   const branchName = `preset/${presetId}-${Date.now()}`;
                   
                   console.log(`\n🎬 [${index}/${presetRequests.length}] Processing ${presetId}...`);
+                  console.log(`📁 File already created by agent: ${savedFilePath}`);
                   console.log(`🌿 Creating branch: ${branchName}`);
                   
                   execSync(`git checkout -b ${branchName}`);
 
-                  const filename = `${presetId}.ts`;
-                  const filepath = path.join(generatedDir, filename);
+                  // File was already created by the agent, just commit it
+                  // The savedFilePath is relative to apps/mediamake, we need it relative to repo root
+                  const relativeFilePath = `apps/mediamake/${savedFilePath}`;
                   
-                  console.log(`💾 Writing file: ${filename}`);
-                  fs.writeFileSync(filepath, generatedCode, 'utf-8');
-
-                  // Git add needs relative path from repo root
-                  execSync(`git add "apps/mediamake/${path.relative(process.cwd(), filepath).replace(/\\/g, '/')}`);
+                  console.log(`📝 Adding file to git: ${relativeFilePath}`);
+                  execSync(`git add "${relativeFilePath}"`);
+                  
                   const commitMessage = `feat: add ${presetId} preset from issue #${issueNumber}`;
                   execSync(`git commit -m "${commitMessage}"`);
 
@@ -243,7 +283,7 @@ jobs:
                     ...apiResult,
                     presetId,
                     branchName,
-                    filepath,
+                    filepath: savedFilePath,
                   });
 
                   console.log(`✅ [${index}/${presetRequests.length}] Git operations complete`);
