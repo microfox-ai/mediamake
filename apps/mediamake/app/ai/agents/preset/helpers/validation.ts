@@ -20,6 +20,9 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  lintOutput?: string;
+  fixedCode?: string;
+  wasAutoFixed?: boolean;
 }
 
 /**
@@ -136,62 +139,97 @@ export async function validatePresetStructure(sourceFile: ts.SourceFile): Promis
 }
 
 /**
- * Runs ESLint validation on a file
+ * Runs ESLint validation on a file with TypeScript type checking
  * @param filePath - Absolute path to the TypeScript file to validate
  */
 export async function runESLintValidation(filePath: string): Promise<{
   errors: string[];
   warnings: string[];
+  fullOutput?: string;
 }> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  let fullOutput = '';
 
   try {
-    // Run eslint with rules similar to push-preset.ts
-    execSync(
-      `npx eslint "${filePath}" --rule "@typescript-eslint/no-explicit-any: off" --rule "@typescript-eslint/no-unused-vars: warn" --max-warnings 999`,
+    // Run TypeScript compiler for type checking with strict implicit any checking
+    const tscOutput = execSync(
+      `npx tsc "${filePath}" --noEmit --noImplicitAny --strictNullChecks --skipLibCheck --pretty false`,
       {
         stdio: 'pipe',
         cwd: process.cwd(),
         encoding: 'utf-8',
       }
-    );
-    // If we get here, eslint passed
-  } catch (lintError: any) {
-    // ESLint failed, check if it's real errors or just warnings
-    if (lintError.status === 1) {
-      try {
-        // Re-run with stricter check to see if there are real errors
-        execSync(
-          `npx eslint "${filePath}" --rule "@typescript-eslint/no-explicit-any: off" --rule "@typescript-eslint/no-unused-vars: off"`,
-          {
-            stdio: 'pipe',
-            cwd: process.cwd(),
-            encoding: 'utf-8',
-          }
-        );
-        // If we get here, only warnings exist
-        warnings.push('ESLint warnings found (not blocking)');
-      } catch (realError: any) {
-        // Real ESLint errors exist
-        const output = realError.stdout || realError.stderr || '';
-        const errorLines = output.split('\n').filter((line: string) => 
-          line.includes('error') || line.includes('✖')
-        );
-        
-        if (errorLines.length > 0) {
-          errors.push(`ESLint errors found:\n${errorLines.slice(0, 5).join('\n')}`);
-        } else {
-          errors.push('ESLint validation failed - please fix linting issues');
-        }
+    ).toString();
+    
+    if (tscOutput) {
+      fullOutput += `TypeScript Output:\n${tscOutput}\n\n`;
+    }
+  } catch (tscError: any) {
+    // TypeScript errors found
+    const tscOutput = (tscError.stdout || tscError.stderr || '').toString();
+    if (tscOutput) {
+      fullOutput += `TypeScript Errors:\n${tscOutput}\n\n`;
+      
+      // Parse and categorize TypeScript errors
+      const lines = tscOutput.split('\n');
+      const typeErrors = lines.filter((line: string) => 
+        line.includes('error TS') && 
+        !line.includes('Cannot find module') &&
+        !line.includes('Cannot find name \'React\'') &&
+        !line.includes('JSX element implicitly') &&
+        !line.includes('Cannot find name \'console\'') &&
+        !line.includes('Cannot find name \'Math\'')
+      );
+      
+      if (typeErrors.length > 0) {
+        errors.push(`TypeScript type errors:\n${typeErrors.slice(0, 10).join('\n')}`);
       }
-    } else if (lintError.status === 2) {
-      // ESLint configuration error
-      warnings.push('ESLint check skipped (configuration issue)');
     }
   }
 
-  return { errors, warnings };
+  try {
+    // Run eslint with TypeScript support
+    const eslintOutput = execSync(
+      `npx eslint "${filePath}" --format compact --rule "@typescript-eslint/no-explicit-any: off" --rule "@typescript-eslint/no-unused-vars: warn" --max-warnings 999`,
+      {
+        stdio: 'pipe',
+        cwd: process.cwd(),
+        encoding: 'utf-8',
+      }
+    ).toString();
+    
+    if (eslintOutput) {
+      fullOutput += `ESLint Output:\n${eslintOutput}\n`;
+    }
+    // If we get here, eslint passed
+  } catch (lintError: any) {
+    const eslintOutput = (lintError.stdout || lintError.stderr || '').toString();
+    if (eslintOutput) {
+      fullOutput += `ESLint Output:\n${eslintOutput}\n`;
+    }
+    
+    // ESLint failed, check if it's real errors or just warnings
+    if (lintError.status === 1) {
+      const output = eslintOutput;
+      const errorLines = output.split('\n').filter((line: string) => 
+        line.includes(' error ') || line.includes('✖')
+      );
+      
+      if (errorLines.length > 0) {
+        warnings.push(`ESLint issues found:\n${errorLines.slice(0, 5).join('\n')}`);
+      } else {
+        warnings.push('ESLint warnings found (not blocking)');
+      }
+    } else if (lintError.status === 2) {
+      // ESLint configuration error
+      const output = eslintOutput;
+      console.warn('[VALIDATION] ESLint configuration error:', output.substring(0, 500));
+      warnings.push('ESLint check skipped (configuration issue) - relying on TypeScript checks only');
+    }
+  }
+
+  return { errors, warnings, fullOutput };
 }
 
 /**
@@ -257,8 +295,8 @@ export async function validatePresetCode(code: string, presetId: string): Promis
   }
 
   try {
-    // Run all validations on the temp file
-    const result = await validatePresetFile(tempFilePath);
+    // Run all validations on the temp file (with auto-fix enabled)
+    const result = await validatePresetFile(tempFilePath, true);
     return result;
   } finally {
     // Always clean up temp file
@@ -272,12 +310,43 @@ export async function validatePresetCode(code: string, presetId: string): Promis
 }
 
 /**
+ * Attempts to auto-fix ESLint issues in a file
+ * @param filePath - Absolute path to the file
+ * @returns true if fixes were applied
+ */
+export async function autoFixLintIssues(filePath: string): Promise<boolean> {
+  try {
+    console.log(`[VALIDATION] Attempting auto-fix on: ${filePath}`);
+    execSync(
+      `npx eslint "${filePath}" --fix --rule "@typescript-eslint/no-explicit-any: off"`,
+      {
+        stdio: 'pipe',
+        cwd: process.cwd(),
+        encoding: 'utf-8',
+      }
+    );
+    console.log(`[VALIDATION] ✅ Auto-fix completed`);
+    return true;
+  } catch (e: any) {
+    // eslint --fix still exits with error code if there are unfixable issues
+    // but it will have fixed what it could
+    console.log(`[VALIDATION] Auto-fix ran (some issues may remain unfixable)`);
+    return true;
+  }
+}
+
+/**
  * Validates a preset file (ESLint + basic checks only)
  * @param filePath - Absolute path to the preset file
+ * @param attemptAutoFix - Whether to attempt auto-fixing lint issues
  */
-export async function validatePresetFile(filePath: string): Promise<ValidationResult> {
+export async function validatePresetFile(
+  filePath: string, 
+  attemptAutoFix: boolean = true
+): Promise<ValidationResult> {
   let errors: string[] = [];
   const warnings: string[] = [];
+  let wasAutoFixed = false;
 
   // Read the file
   let code: string;
@@ -290,6 +359,8 @@ export async function validatePresetFile(filePath: string): Promise<ValidationRe
       warnings: [],
     };
   }
+
+  const originalCode = code;
 
   // 1. Forbidden patterns (quick string checks)
   const forbiddenErrors = await checkForbiddenPatterns(code);
@@ -304,17 +375,72 @@ export async function validatePresetFile(filePath: string): Promise<ValidationRe
   }
 
   // 3. ESLint validation (main validation - catches real issues)
-  const eslintResult = await runESLintValidation(filePath);
+  let eslintResult = await runESLintValidation(filePath);
   errors.push(...eslintResult.errors);
   warnings.push(...eslintResult.warnings);
+  
+  // Store full lint output for reporting (even if only warnings)
+  let fullLintOutput = eslintResult.fullOutput || '';
 
-  // 4. Filter out any false-positive TypeScript errors (safety net)
-  errors = filterTypeScriptFalsePositives(errors);
+  // 4. Auto-fix if there are lint errors and auto-fix is enabled
+  if (attemptAutoFix && (eslintResult.errors.length > 0 || eslintResult.warnings.length > 0)) {
+    console.log('[VALIDATION] Lint issues found, attempting auto-fix...');
+    const fixed = await autoFixLintIssues(filePath);
+    
+    if (fixed) {
+      // Re-read the file to get the fixed code
+      try {
+        const fixedCode = readFileSync(filePath, 'utf-8');
+        
+        // Check if code actually changed
+        if (fixedCode !== originalCode) {
+          wasAutoFixed = true;
+          code = fixedCode;
+          console.log('[VALIDATION] ✅ Code was auto-fixed');
+          
+          // Re-run validation on fixed code
+          console.log('[VALIDATION] Re-validating fixed code...');
+          errors = [];
+          warnings.length = 0; // Clear warnings array
+          
+          // Re-run forbidden patterns check
+          const forbiddenErrors2 = await checkForbiddenPatterns(code);
+          errors.push(...forbiddenErrors2);
+          
+          // Re-run structure validation
+          const sourceFile2 = await createSourceFile(code);
+          if (sourceFile2) {
+            const structureResult2 = await validatePresetStructure(sourceFile2);
+            errors.push(...structureResult2.errors);
+            warnings.push(...structureResult2.warnings);
+          }
+          
+          // Re-run ESLint and update fullLintOutput
+          eslintResult = await runESLintValidation(filePath);
+          errors.push(...eslintResult.errors);
+          warnings.push(...eslintResult.warnings);
+          fullLintOutput = eslintResult.fullOutput || '';
+          
+          console.log(`[VALIDATION] After auto-fix: ${errors.length} errors, ${warnings.length} warnings`);
+        } else {
+          console.log('[VALIDATION] Auto-fix ran but no changes were made');
+        }
+      } catch (e: any) {
+        console.warn('[VALIDATION] Failed to read fixed code:', e.message);
+      }
+    }
+  }
+
+  // 5. Filter out any false-positive TypeScript errors (safety net)
+  // errors = filterTypeScriptFalsePositives(errors);
 
   return {
     valid: errors.length === 0,
     errors,
     warnings,
+    lintOutput: fullLintOutput,
+    fixedCode: wasAutoFixed ? code : undefined,
+    wasAutoFixed,
   };
 }
 

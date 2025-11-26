@@ -141,10 +141,30 @@ export const generateAgent = aiRouter
         if ((validatorResult as any).ok && (validatorResult as any).data.valid) {
             success = true;
             const warnings = (validatorResult as any).data.warnings || [];
+            const lintOutput = (validatorResult as any).data.lintOutput || '';
+            const fixedCode = (validatorResult as any).data.fixedCode;
+            const wasAutoFixed = (validatorResult as any).data.wasAutoFixed || false;
+            
             console.log('[GENERATE] Validation passed');
+            
+            // If code was auto-fixed, use the fixed version
+            if (wasAutoFixed && fixedCode) {
+                console.log('[GENERATE] ✨ Code was auto-fixed by ESLint');
+                code = fixedCode;
+                ctx.response.writeMessageMetadata({ text: '✨ Code auto-fixed by ESLint' });
+            }
+            
+            // Store lint output in metadata for PR comments
+            if (lintOutput) {
+                (generatedMeta as any).lintOutput = lintOutput;
+            }
+            if (wasAutoFixed) {
+                (generatedMeta as any).wasAutoFixed = true;
+            }
             
             if (warnings.length > 0) {
                 console.log('[GENERATE] Warnings (non-blocking):', warnings);
+                (generatedMeta as any).validationWarnings = warnings;
                 ctx.response.writeMessageMetadata({ text: `✅ Validation passed (${warnings.length} warning${warnings.length > 1 ? 's' : ''})` });
             } else {
                 ctx.response.writeMessageMetadata({ text: '✅ All validation checks passed!' });
@@ -154,27 +174,36 @@ export const generateAgent = aiRouter
         }
 
         const errors = (validatorResult as any).data.errors || ['Unknown validation error'];
+        const lintOutput = (validatorResult as any).data.lintOutput || '';
         console.warn('[GENERATE] Validation Errors:', errors);
         ctx.response.writeMessageMetadata({ text: `❌ Validation failed (${errors.length} error${errors.length > 1 ? 's' : ''}). Fixing & retrying...` });
         lastErrors = errors;
+        
+        // Store lint output from failed validation for reporting
+        if (lintOutput) {
+            (generatedMeta as any).lintOutput = lintOutput;
+        }
+        
         codingAttempts++;
     }
     console.log(`[GENERATE] Step 4 Complete: Success=${success}`);
 
+    // If validation failed after 3 attempts, still save the file with error metadata
     if (!success) {
         const errorSummary = lastErrors.slice(0, 3).join('; ');
         ctx.response.writeMessageMetadata({ 
-            text: `❌ Failed after ${maxCodingAttempts} attempts. Last errors: ${errorSummary}` 
+            text: `⚠️ Validation failed after ${maxCodingAttempts} attempts. Saving with errors for review...` 
         });
-        throw new Error(
-            `Failed to generate valid code after ${maxCodingAttempts} attempts. ` +
-            `Validation errors: ${lastErrors.join(' | ')}`
-        );
+        console.warn(`[GENERATE] Validation failed after ${maxCodingAttempts} attempts. Saving code with error metadata.`);
+        
+        // Store validation failure info in metadata
+        (generatedMeta as any).validationFailed = true;
+        (generatedMeta as any).validationErrors = lastErrors;
     }
     
-    // --- 5. SAVE VALIDATED CODE ---
-    ctx.response.writeMessageMetadata({ text: '💾 Saving validated preset...' });
-    console.log('[GENERATE] Step 5: Saving validated code');
+    // --- 5. SAVE CODE (even if validation failed) ---
+    ctx.response.writeMessageMetadata({ text: '💾 Saving preset...' });
+    console.log('[GENERATE] Step 5: Saving code');
     
     let finalFilePath = '';
     try {
