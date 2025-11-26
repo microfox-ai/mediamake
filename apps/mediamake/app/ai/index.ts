@@ -21,7 +21,10 @@ import { chatRestoreLocal } from '../api/studio/chat/sessions/chatSessionLocal';
 import transcriptionFixerAgent from './agents/words/transcriptionFixer';
 import autofixOrchestrator from './agents/autofix';
 import { scriptMetaOrchestor } from './agents/scriptMeta';
-import { midjourneyPromptingAgent } from './agents/midjourney';
+import {
+  midjourneyOrchestrator,
+  midjourneyPromptingAgent,
+} from './agents/midjourney';
 import { videoGenerationOrchestrator } from './agents/video';
 import { audioAnalysisAgent } from './agents/analysis/audioAnlysisAgent';
 import { audioTechnicalAnalysisAgent } from './agents/analysis/audioTechnicalAnalysis';
@@ -43,8 +46,7 @@ const aiMainRouter = aiRouter
   .agent('/video/shorts/music-stitch', musicStitchAgent)
   .agent('/video', videoGenerationOrchestrator)
   .agent('/zone-internal', zoneInternalOrchestrator)
-  .agent('/midjourney-prompting', midjourneyPromptingAgent)
-  .agent('/midjourney-simple', midjourneySimpleAgent)
+  .agent('/midjourney', midjourneyOrchestrator)
   .agent('/script-meta', scriptMetaOrchestor)
   .agent('/audio-analysis', audioAnalysisAgent)
   .agent('/preset-prompts', presetPromptsOrchestrator)

@@ -118,10 +118,16 @@ export function AgentOutput({ output, isLoading, customUIType }: AgentOutputProp
         </RenderProvider>
     }
 
+    const copyFullJSON = () => {
+        if (output) {
+            copyToClipboard(JSON.stringify(output, null, 2), "full-json");
+        }
+    };
+
     if (isLoading) {
         return (
             <Card className="h-full">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg font-semibold">Output</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center h-32">
@@ -137,7 +143,7 @@ export function AgentOutput({ output, isLoading, customUIType }: AgentOutputProp
     if (!output) {
         return (
             <Card className="h-full">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg font-semibold">Output</CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center h-32">
@@ -149,8 +155,26 @@ export function AgentOutput({ output, isLoading, customUIType }: AgentOutputProp
 
     return (
         <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-semibold">Output</CardTitle>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={copyFullJSON}
+                    className="h-8 px-2"
+                >
+                    {copiedKeys.has("full-json") ? (
+                        <>
+                            <Check className="h-4 w-4 mr-2 text-green-500" />
+                            <span className="text-sm">Copied</span>
+                        </>
+                    ) : (
+                        <>
+                            <Copy className="h-4 w-4 mr-2" />
+                            <span className="text-sm">Copy JSON</span>
+                        </>
+                    )}
+                </Button>
             </CardHeader>
             <CardContent className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
                 {Object.entries(output).map(([key, value]) => (

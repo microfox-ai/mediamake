@@ -3,6 +3,8 @@ import { z } from 'zod/v4';
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import dedent from 'dedent';
+import { anthropic } from '@ai-sdk/anthropic';
+import { saveMidjourneyPrompts } from './helpers';
 
 const aiRouter = new AiRouter();
 
@@ -38,7 +40,6 @@ const MidjourneyPromptSchema = z.object({
 });
 
 const MidjourneyPromptsWithVariationsSchema = z.object({
-  shots: z.array(z.string().describe('Description of the shot')),
   prompts: z
     .array(
       z.object({
@@ -67,6 +68,7 @@ const ShotGenerationSchema = z.object({
 
 // Input schema for the agent
 const MidjourneyPromptingInputSchema = z.object({
+  title: z.string().optional().describe('The title of this batch'),
   scene: z
     .object({
       shotCount: z.number().describe('The number of shots to generate'),
@@ -99,6 +101,10 @@ const MidjourneyPromptingInputSchema = z.object({
     .string()
     .optional()
     .describe('User request or context for shot generation'),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe('Array of tags for querying and organization'),
 });
 
 // Output schema for the agent
@@ -112,6 +118,7 @@ const MidjourneyPromptingOutputSchema = z.object({
   ),
   processedShots: z.number().describe('Number of shots processed'),
   imageAnalysisUsed: z.boolean().describe('Whether image analysis was used'),
+  _id: z.string().optional().describe('Database ID of the saved prompt record'),
 });
 
 // Helper function to download image and convert to base64
@@ -137,6 +144,9 @@ export const midjourneySimpleAgent = aiRouter
         loader: 'Analyzing images and generating Midjourney prompts...',
       });
 
+      const inputParams = ctx.request.params as z.infer<
+        typeof MidjourneyPromptingInputSchema
+      >;
       const {
         shots: providedShots,
         scene,
@@ -145,7 +155,8 @@ export const midjourneySimpleAgent = aiRouter
         userRequest,
         model,
         predefinedPreferences = [],
-      } = ctx.request.params as z.infer<typeof MidjourneyPromptingInputSchema>;
+        title,
+      } = inputParams;
 
       // Validate that either shots or scene is provided
       if ((!providedShots || providedShots.length === 0) && !scene) {
@@ -163,7 +174,10 @@ export const midjourneySimpleAgent = aiRouter
         });
 
         const shotGenerationResult = await generateObject({
-          model: google(model || 'gemini-2.5-flash'),
+          model:
+            model && model.startsWith('claude')
+              ? anthropic(model)
+              : google(model || 'gemini-2.5-flash'),
           schema: ShotGenerationSchema,
           prompt: dedent`
             Generate ${scene.shotCount} shot descriptions based on the following scene:
@@ -208,7 +222,10 @@ export const midjourneySimpleAgent = aiRouter
         );
 
         const imageAnalysisResult = await generateObject({
-          model: google(model || 'gemini-2.5-flash'),
+          model:
+            model && model.startsWith('claude')
+              ? google('gemini-2.5-flash')
+              : google(model || 'gemini-2.5-flash'),
           schema: ImageAnalysisSchema,
           messages: [
             {
@@ -247,99 +264,17 @@ export const midjourneySimpleAgent = aiRouter
 
       if (shots.length <= 10) {
         // Process all shots at once if 10 or fewer
-        const promptGenerationResult = await generateObject({
-          model: google(model || 'gemini-2.5-pro'),
-          schema:
-            variationCount === 0
-              ? MidjourneyPromptSchema
-              : MidjourneyPromptsWithVariationsSchema,
-          prompt: dedent`
-            Generate Midjourney prompts for these shots based on the user's request: "${userRequest || 'Generate creative Midjourney prompts'}"
-            
-            Shots to process (${shots.length} total):
-            ${shots.map((shot: string, index: number) => `${index}: "${shot}"`).join('\n')}
-            
-            ${
-              imageAnalysis
-                ? `
-            Reference Image Descriptions:
-            ${imageAnalysis.imageDescriptions
-              .map((desc, index) => `Image ${index + 1}: ${desc.description}`)
-              .join('\n')}
-            
-            User Request Alignment: ${imageAnalysis.userRequestAlignment}
-            `
-                : ''
-            }
-            
-            ${
-              predefinedPreferences.length > 0
-                ? `
-            Predefined Preferences to include: ${predefinedPreferences.join(', ')}
-            `
-                : ''
-            }
-            
-            Generate Midjourney prompts that align with the user's request and reference images (if provided).
-            Each prompt should be optimized for Midjourney and be creative and engaging.
-            ${variationCount > 1 ? `Generate ${variationCount} variations for each shot.` : ''}
-            Do not include -ar tags, -v tags, or other Midjourney parameters in the prompts.
-          `,
-          maxOutputTokens: 4000,
-          maxRetries: 2,
-        });
+        let promptGenerationResult: any = null;
+        let generationSucceeded = false;
 
-        console.log('Prompt Generation USAGE', promptGenerationResult.usage);
-
-        // Flatten prompts and variations into a single array
-        allPrompts = [];
-        promptGenerationResult.object.prompts?.forEach(
-          (promptObj: any, index: number) => {
-            const shotIndex = index;
-            const shotDescription = shots[shotIndex] || '';
-
-            // Add the main prompt
-            allPrompts.push({
-              shotIndex,
-              shotDescription,
-              prompt: promptObj.prompt,
-            });
-
-            // Add variations as separate entries if they exist
-            if (promptObj.variations && Array.isArray(promptObj.variations)) {
-              promptObj.variations.forEach((variation: string) => {
-                allPrompts.push({
-                  shotIndex,
-                  shotDescription,
-                  prompt: variation,
-                });
-              });
-            }
-          },
-        );
-      } else {
-        // Process in batches of 10
-        const batchSize = 10;
-        const batches = [];
-
-        for (let i = 0; i < shots.length; i += batchSize) {
-          const batch = shots.slice(i, i + batchSize);
-          batches.push({
-            batch,
-            batchStartIndex: i,
-            batchNumber: Math.floor(i / batchSize) + 1,
-          });
-        }
-
-        ctx.response.writeMessageMetadata({
-          loader: `Processing ${batches.length} batches of shots...`,
-        });
-
-        // Process all batches in parallel
-        const batchResults = await Promise.all(
-          batches.map(async ({ batch, batchStartIndex, batchNumber }) => {
-            const promptGenerationResult = await generateObject({
-              model: google(model || 'gemini-2.5-flash'),
+        // Try with retry logic
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            promptGenerationResult = await generateObject({
+              model:
+                model && model.startsWith('claude')
+                  ? anthropic(model)
+                  : google(model || 'gemini-2.5-flash'),
               schema:
                 variationCount === 0
                   ? MidjourneyPromptSchema
@@ -347,8 +282,8 @@ export const midjourneySimpleAgent = aiRouter
               prompt: dedent`
                 Generate Midjourney prompts for these shots based on the user's request: "${userRequest || 'Generate creative Midjourney prompts'}"
                 
-                Shots to process (Batch ${batchNumber}/${batches.length}, ${batch.length} shots):
-                ${batch.map((shot: string, index: number) => `${batchStartIndex + index}: "${shot}"`).join('\n')}
+                Shots to process (${shots.length} total):
+                ${shots.map((shot: string, index: number) => `${index}: "${shot}"`).join('\n')}
                 
                 ${
                   imageAnalysis
@@ -382,40 +317,244 @@ export const midjourneySimpleAgent = aiRouter
               maxRetries: 2,
             });
 
+            generationSucceeded = true;
             console.log(
-              `Batch ${batchNumber} USAGE`,
+              'Prompt Generation USAGE',
               promptGenerationResult.usage,
             );
+            break;
+          } catch (error) {
+            console.error(
+              `Prompt generation attempt ${attempt + 1} failed:`,
+              error,
+            );
+            if (attempt === 1) {
+              // Second attempt failed, mark all as unknown
+              console.error(
+                'Both attempts failed. Marking all prompts as "unknown"',
+              );
+              generationSucceeded = false;
+            }
+          }
+        }
+
+        // Flatten prompts and variations into a single array
+        allPrompts = [];
+        if (generationSucceeded && promptGenerationResult?.object?.prompts) {
+          promptGenerationResult.object.prompts.forEach(
+            (promptObj: any, index: number) => {
+              const shotIndex = index;
+              const shotDescription = shots[shotIndex] || '';
+
+              // Add the main prompt
+              allPrompts.push({
+                shotIndex,
+                shotDescription,
+                prompt: promptObj.prompt || 'unknown',
+              });
+
+              // Add variations as separate entries if they exist
+              if (promptObj.variations && Array.isArray(promptObj.variations)) {
+                promptObj.variations.forEach((variation: string) => {
+                  allPrompts.push({
+                    shotIndex,
+                    shotDescription,
+                    prompt: variation || 'unknown',
+                  });
+                });
+              } else if (variationCount > 1) {
+                // If variations were expected but not provided, add unknown variations
+                for (let i = 0; i < variationCount; i++) {
+                  allPrompts.push({
+                    shotIndex,
+                    shotDescription,
+                    prompt: 'unknown',
+                  });
+                }
+              }
+            },
+          );
+        } else {
+          // Mark all shots as unknown
+          shots.forEach((shotDescription: string, index: number) => {
+            allPrompts.push({
+              shotIndex: index,
+              shotDescription,
+              prompt: 'unknown',
+            });
+
+            // Add unknown variations if needed
+            if (variationCount > 1) {
+              for (let i = 0; i < variationCount; i++) {
+                allPrompts.push({
+                  shotIndex: index,
+                  shotDescription,
+                  prompt: 'unknown',
+                });
+              }
+            }
+          });
+        }
+      } else {
+        // Process in batches of 5
+        const batchSize = 5;
+        const batches = [];
+
+        for (let i = 0; i < shots.length; i += batchSize) {
+          const batch = shots.slice(i, i + batchSize);
+          batches.push({
+            batch,
+            batchStartIndex: i,
+            batchNumber: Math.floor(i / batchSize) + 1,
+          });
+        }
+
+        ctx.response.writeMessageMetadata({
+          loader: `Processing ${batches.length} batches of shots...`,
+        });
+
+        // Process all batches in parallel
+        const batchResults = await Promise.all(
+          batches.map(async ({ batch, batchStartIndex, batchNumber }) => {
+            let promptGenerationResult: any = null;
+            let generationSucceeded = false;
+
+            // Try with retry logic
+            for (let attempt = 0; attempt < 2; attempt++) {
+              try {
+                promptGenerationResult = await generateObject({
+                  model:
+                    model && model.startsWith('claude')
+                      ? anthropic(model)
+                      : google(model || 'gemini-2.5-flash'),
+                  schema:
+                    variationCount === 0
+                      ? MidjourneyPromptSchema
+                      : MidjourneyPromptsWithVariationsSchema,
+                  prompt: dedent`
+                    Generate Midjourney prompts for these shots based on the user's request: "${userRequest || 'Generate creative Midjourney prompts'}"
+                    
+                    Shots to process (Batch ${batchNumber}/${batches.length}, ${batch.length} shots):
+                    ${batch.map((shot: string, index: number) => `${batchStartIndex + index}: "${shot}"`).join('\n')}
+                    
+                    ${
+                      imageAnalysis
+                        ? `
+                    Reference Image Descriptions:
+                    ${imageAnalysis.imageDescriptions
+                      .map(
+                        (desc, index) =>
+                          `Image ${index + 1}: ${desc.description}`,
+                      )
+                      .join('\n')}
+                    
+                    User Request Alignment: ${imageAnalysis.userRequestAlignment}
+                    `
+                        : ''
+                    }
+                    
+                    ${
+                      predefinedPreferences.length > 0
+                        ? `
+                    Predefined Preferences to include: ${predefinedPreferences.join(', ')}
+                    `
+                        : ''
+                    }
+                    
+                    Generate Midjourney prompts that align with the user's request and reference images (if provided).
+                    Each prompt should be optimized for Midjourney and be creative and engaging.
+                    ${variationCount > 1 ? `Generate ${variationCount} variations for each shot.` : ''}
+                    Do not include -ar tags, -v tags, or other Midjourney parameters in the prompts.
+                  `,
+                  maxOutputTokens: 4000,
+                  maxRetries: 2,
+                });
+
+                generationSucceeded = true;
+                console.log(
+                  `Batch ${batchNumber} USAGE`,
+                  promptGenerationResult.usage,
+                );
+                break;
+              } catch (error) {
+                console.error(
+                  `Batch ${batchNumber} attempt ${attempt + 1} failed:`,
+                  error,
+                );
+                if (attempt === 1) {
+                  // Second attempt failed, mark all in this batch as unknown
+                  console.error(
+                    `Batch ${batchNumber} both attempts failed. Marking all prompts as "unknown"`,
+                  );
+                  generationSucceeded = false;
+                }
+              }
+            }
 
             // Flatten prompts and variations for this batch
             const flattenedBatch: any[] = [];
-            promptGenerationResult.object.prompts?.forEach(
-              (promptObj: any, index: number) => {
-                const shotIndex = batchStartIndex + index;
-                const shotDescription = shots[shotIndex] || '';
+            if (
+              generationSucceeded &&
+              promptGenerationResult?.object?.prompts
+            ) {
+              promptGenerationResult.object.prompts.forEach(
+                (promptObj: any, index: number) => {
+                  const shotIndex = batchStartIndex + index;
+                  const shotDescription = shots[shotIndex] || '';
 
-                // Add the main prompt
+                  // Add the main prompt
+                  flattenedBatch.push({
+                    shotIndex,
+                    shotDescription,
+                    prompt: promptObj.prompt || 'unknown',
+                  });
+
+                  // Add variations as separate entries if they exist
+                  if (
+                    promptObj.variations &&
+                    Array.isArray(promptObj.variations)
+                  ) {
+                    promptObj.variations.forEach((variation: string) => {
+                      flattenedBatch.push({
+                        shotIndex,
+                        shotDescription,
+                        prompt: variation || 'unknown',
+                      });
+                    });
+                  } else if (variationCount > 1) {
+                    // If variations were expected but not provided, add unknown variations
+                    for (let i = 0; i < variationCount; i++) {
+                      flattenedBatch.push({
+                        shotIndex,
+                        shotDescription,
+                        prompt: 'unknown',
+                      });
+                    }
+                  }
+                },
+              );
+            } else {
+              // Mark all shots in this batch as unknown
+              batch.forEach((shotDescription: string, index: number) => {
+                const shotIndex = batchStartIndex + index;
                 flattenedBatch.push({
                   shotIndex,
                   shotDescription,
-                  prompt: promptObj.prompt,
+                  prompt: 'unknown',
                 });
 
-                // Add variations as separate entries if they exist
-                if (
-                  promptObj.variations &&
-                  Array.isArray(promptObj.variations)
-                ) {
-                  promptObj.variations.forEach((variation: string) => {
+                // Add unknown variations if needed
+                if (variationCount > 1) {
+                  for (let i = 0; i < variationCount; i++) {
                     flattenedBatch.push({
                       shotIndex,
                       shotDescription,
-                      prompt: variation,
+                      prompt: 'unknown',
                     });
-                  });
+                  }
                 }
-              },
-            );
+              });
+            }
 
             return flattenedBatch;
           }),
@@ -425,10 +564,27 @@ export const midjourneySimpleAgent = aiRouter
         allPrompts = batchResults.flat();
       }
 
+      // Save prompts to database
+      ctx.response.writeMessageMetadata({
+        loader: 'Saving prompts to database...',
+      });
+
+      const savedRecord = await saveMidjourneyPrompts(
+        allPrompts.map(p => ({
+          shotIndex: p.shotIndex,
+          shotDescription: p.shotDescription,
+          prompt: p.prompt,
+        })),
+        inputParams,
+        inputParams.tags || [],
+        title,
+      );
+
       const result = {
         prompts: allPrompts,
         processedShots: shots.length,
         imageAnalysisUsed: !!imageAnalysis,
+        _id: savedRecord._id?.toString(),
       };
 
       return result;
