@@ -260,7 +260,18 @@ jobs:
                       // Simple structure (fallback)
                       generatedCode = result.code || result.data?.code;
                       metadata = result.metadata || result.data?.metadata;
-                      savedFilePath = metadata?.filePath;
+                      
+                      // Extract path from metadata
+                      if (metadata?.filePath) {
+                        const fullPath = metadata.filePath;
+                        // Extract path after 'apps/mediamake/'
+                        const appsMediamakeIndex = fullPath.indexOf('apps/mediamake/');
+                        if (appsMediamakeIndex !== -1) {
+                          savedFilePath = fullPath.substring(appsMediamakeIndex + 'apps/mediamake/'.length);
+                        } else {
+                          savedFilePath = fullPath;
+                        }
+                      }
                     }
                     
                     if (!generatedCode) {
@@ -272,6 +283,7 @@ jobs:
                     }
                     
                     console.log(`📁 File path extracted: ${savedFilePath}`);
+                    console.log(`   Raw metadata.filePath: ${metadata?.filePath}`);
 
                     return {
                       index,
@@ -284,6 +296,15 @@ jobs:
                   } catch (error) {
                     console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
                     console.error(`   Error stack:`, error.stack);
+                    
+                    // Note: "fetch failed" errors are often due to:
+                    // - Request timeout (API route has maxDuration of 300s)
+                    // - Connection closed by server
+                    // - Network issues
+                    if (error.message.includes('fetch failed')) {
+                      console.error(`   ℹ️  This is likely a timeout or connection issue`);
+                    }
+                    
                     return {
                       index,
                       success: false,
@@ -341,6 +362,15 @@ jobs:
                   const timestamp = Date.now();
                   branchName = `presets/batch-${issueNumber}-${timestamp}`;
                   
+                  // Change to repo root for git operations
+                  // Current dir is apps/mediamake, need to go up one level to repo root
+                  const currentDir = process.cwd();
+                  const repoRoot = path.resolve(currentDir, '..', '..');
+                  console.log(`📁 Current dir: ${currentDir}`);
+                  console.log(`📁 Changing to repo root: ${repoRoot}`);
+                  process.chdir(repoRoot);
+                  console.log(`📁 Now in: ${process.cwd()}`);
+                  
                   console.log(`🌿 Creating branch: ${branchName}`);
                   execSync(`git checkout -b ${branchName}`);
 
@@ -358,9 +388,29 @@ jobs:
                   console.log(`\n📝 Adding ${successfulPresets.length} preset file(s) to git...`);
                   for (const result of gitResults) {
                     // The savedFilePath is relative to apps/mediamake, we need it relative to repo root
-                    const relativeFilePath = `apps/mediamake/${result.savedFilePath}`;
+                    // But if it already starts with 'apps/mediamake/', don't add the prefix again
+                    let relativeFilePath = result.savedFilePath;
+                    if (!relativeFilePath.startsWith('apps/mediamake/')) {
+                      relativeFilePath = `apps/mediamake/${relativeFilePath}`;
+                    }
                     console.log(`   📁 ${relativeFilePath}`);
-                    execSync(`git add "${relativeFilePath}"`);
+                    
+                    // Check if file exists before trying to add it
+                    if (fs.existsSync(relativeFilePath)) {
+                      execSync(`git add "${relativeFilePath}"`);
+                    } else {
+                      console.error(`   ⚠️  File not found: ${relativeFilePath}`);
+                      console.error(`   🔍 Checking alternate paths...`);
+                      
+                      // Try without the prefix
+                      const alternatePath = result.savedFilePath;
+                      if (fs.existsSync(alternatePath)) {
+                        console.log(`   ✅ Found at: ${alternatePath}`);
+                        execSync(`git add "${alternatePath}"`);
+                      } else {
+                        throw new Error(`Generated file not found: ${relativeFilePath} or ${alternatePath}`);
+                      }
+                    }
                   }
 
                   // Create commit message listing all presets
@@ -540,10 +590,14 @@ jobs:
               console.log(`   Step 3 (PR creation): ${step3Duration}s`);
               console.log(`   Total: ${totalDuration}s`);
               
-              // Exit with error if any preset failed
-              if (failureCount > 0) {
-                console.log(`\n⚠️  Some presets failed. Check the logs above for details.`);
+              // Exit with error only if ALL presets failed or no PR was created
+              if (failureCount > 0 && successCount === 0) {
+                console.log(`\n❌ All presets failed. Exiting with error.`);
                 process.exit(1);
+              } else if (failureCount > 0) {
+                console.log(`\n⚠️  ${failureCount} preset(s) failed, but ${successCount} succeeded.`);
+                console.log(`   The workflow will continue with the successful presets.`);
+                // Don't exit with error - partial success is acceptable
               }
 
             } catch (error) {
