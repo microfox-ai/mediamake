@@ -38,7 +38,7 @@ export const coderAgent = aiRouter
       .join('\n\n');
 
     const feedbackPrompt = feedback && feedback.length > 0 
-        ? `\n**PREVIOUS ERRORS (MUST FIX)**:\n${feedback.join('\n')}` 
+        ? `\n**⚠️ CRITICAL: PREVIOUS VALIDATION ERRORS (MUST FIX) ⚠️**:\n${feedback.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\n**INSTRUCTIONS**: Carefully review each error above and fix them in your code. Pay special attention to:\n- ESLint errors: Fix formatting, unused variables, and code style issues\n- Forbidden imports: Remove any 'fs' or 'path' imports\n- Structure issues: Ensure helper functions are inside presetExecution\n- TypeScript errors: Fix type errors and syntax issues` 
         : '';
 
     const result = await generateObject({
@@ -70,8 +70,12 @@ export const coderAgent = aiRouter
               - presetFunction: presetExecution.toString()
               - presetParams: z.toJSONSchema(presetParams)
         3.  **Imports & Types**: 
-            - Use strictly '@microfox/remotion', '../../types' (you may import any exported type, e.g. PresetMetadata, PresetOutput, PresetPassedProps, TranscriptionSentence, TranscriptionWord) and local helpers. 
-            - You may also import 'RenderableComponentData' from '@microfox/remotion' and, when helpful for typing, cast the final childrenData as '[rootContainer] as RenderableComponentData[]' (see 'parallax-depth-image.ts' pattern).
+            - Use strictly '@microfox/remotion', '../../types' (you may import any exported type, e.g. PresetMetadata, PresetOutput, PresetPassedProps, TranscriptionSentence, TranscriptionWord) and local helpers.
+            - **ALWAYS import and use RenderableComponentData from @microfox/datamotion** for typing childrenData arrays and rootContainer.
+            - Import statement: import the RenderableComponentData type from @microfox/datamotion package.
+            - Cast final childrenData arrays using 'as RenderableComponentData[]' pattern.
+            - Cast rootContainer object using 'as RenderableComponentData' pattern.
+            - This ensures proper type safety for the component tree structure.
             - NO 'fs', 'path', or external asset URLs. 
             - The second argument of 'presetExecution' should be typed as 'PresetPassedProps' from '../../types'.
         4.  **Component IDs**: Use unique, descriptive IDs. NEVER use generic 'root' - use '{presetId}-container' or similar.
@@ -84,6 +88,12 @@ export const coderAgent = aiRouter
         6.  **Style**: Prefer Tailwind 'className'. Use inline 'style' only for dynamic/calculated values that Tailwind cannot express.
         7.  **Zod record**: When using Zod's record type, prefer 'z.record(z.string(), z.any())' instead of 'z.record(z.any())'.
         8.  **Advanced patterns**: For analytics/debug overlays, accessibility modes, packs, or platform presets, follow GENERATION_PATTERNS.md rather than inventing new patterns.
+        9.  **Code Quality & ESLint**:
+            - Write clean, production-ready code that passes ESLint validation.
+            - Remove unused variables and imports.
+            - Follow TypeScript best practices and type safety.
+            - All helper functions must be defined INSIDE the presetExecution function body (not at top level).
+            - Ensure proper error handling and edge cases are covered.
 
         **REFERENCE CODE**:
         ${context}
