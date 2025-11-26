@@ -229,6 +229,49 @@ function filterTypeScriptFalsePositives(errors: string[]): string[] {
 }
 
 /**
+ * Validates preset code by creating a temp file, running validations, and cleaning up
+ * @param code - The preset TypeScript code to validate
+ * @param presetId - ID for the preset (used for temp filename)
+ */
+export async function validatePresetCode(code: string, presetId: string): Promise<ValidationResult> {
+  let errors: string[] = [];
+  const warnings: string[] = [];
+  
+  // Create a temp file for validation
+  const { writeFileSync, unlinkSync } = await import('fs');
+  const { join } = await import('path');
+  
+  const tempFileName = `temp-${presetId}-${Date.now()}.ts`;
+  const tempFilePath = join(process.cwd(), 'components', 'editor', 'presets', 'registry', 'generated', tempFileName);
+  
+  try {
+    // Write code to temp file
+    writeFileSync(tempFilePath, code, 'utf-8');
+    console.log(`[VALIDATION] Created temp file: ${tempFilePath}`);
+  } catch (e: any) {
+    return {
+      valid: false,
+      errors: [`Failed to create temp file: ${e.message}`],
+      warnings: [],
+    };
+  }
+
+  try {
+    // Run all validations on the temp file
+    const result = await validatePresetFile(tempFilePath);
+    return result;
+  } finally {
+    // Always clean up temp file
+    try {
+      unlinkSync(tempFilePath);
+      console.log(`[VALIDATION] Cleaned up temp file: ${tempFilePath}`);
+    } catch (e: any) {
+      console.warn(`[VALIDATION] Failed to delete temp file: ${e.message}`);
+    }
+  }
+}
+
+/**
  * Validates a preset file (ESLint + basic checks only)
  * @param filePath - Absolute path to the preset file
  */

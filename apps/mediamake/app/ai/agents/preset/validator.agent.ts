@@ -2,7 +2,7 @@
  * Validator Agent - Enhanced with ESLint Integration
  * 
  * This agent orchestrates preset code validation using server-side helpers.
- * Validates saved preset files (not temporary files) for better integration.
+ * Creates temp files for validation, runs checks, and cleans up automatically.
  * 
  * All heavy validation logic (TypeScript, ESLint, file operations) is in
  * helpers/validation.ts with "use server" directive.
@@ -10,26 +10,26 @@
 
 import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod';
-import { validatePresetFile } from './helpers/validation';
+import { validatePresetCode } from './helpers/validation';
 
 const aiRouter = new AiRouter();
 
 export const validatorAgent = aiRouter
   .agent('/', async (ctx) => {
-    const { filePath } = ctx.request.params as { filePath: string };
+    const { code, presetId } = ctx.request.params as { code: string; presetId: string };
     
     ctx.response.writeMessageMetadata({
-      loader: 'Validating preset file...',
+      loader: 'Validating preset code...',
     });
 
-    console.log('[VALIDATOR] Validating file:', filePath);
+    console.log(`[VALIDATOR] Validating preset: ${presetId}`);
 
-    // Run comprehensive validation on the saved file
+    // Run comprehensive validation (creates temp file, validates, cleans up)
     ctx.response.writeMessageMetadata({
       loader: 'Running structure & ESLint checks...',
     });
 
-    const result = await validatePresetFile(filePath);
+    const result = await validatePresetCode(code, presetId);
 
     if (result.warnings.length > 0 && result.errors.length === 0) {
       console.log('[VALIDATOR] Warnings (non-blocking):', result.warnings);
@@ -46,9 +46,10 @@ export const validatorAgent = aiRouter
   .actAsTool('/', {
     id: 'validator',
     name: 'Validator',
-    description: 'Validates a saved preset file: forbidden patterns (fs/path/external URLs), structure validation (presetExecution), and ESLint (code quality). No TypeScript type checking to avoid false positives.',
+    description: 'Validates preset code: forbidden patterns (fs/path/external URLs), structure validation (presetExecution), and ESLint (code quality). Creates temp file for validation and cleans up automatically.',
     inputSchema: z.object({ 
-      filePath: z.string().describe('Absolute path to the preset file to validate')
+      code: z.string().describe('The preset TypeScript code to validate'),
+      presetId: z.string().describe('ID of the preset (used for temp filename)')
     }),
     outputSchema: z.object({ 
       valid: z.boolean(), 
