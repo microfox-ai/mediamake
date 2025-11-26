@@ -11,7 +11,8 @@
     "render": "remotion render",
     "deploy": "node deploy.mjs",
     "db:optimize": "npx tsx lib/scripts/optimize-database-indexes.ts",
-    "push": "npx tsx scripts/push-preset.ts"
+    "push": "npx tsx scripts/push-preset.ts",
+    "callAgent": "npx tsx scripts/call-agent.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.47",

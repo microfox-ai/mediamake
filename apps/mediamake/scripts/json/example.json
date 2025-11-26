@@ -1,0 +1,101 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 25,
+    "variationCount": 8,
+    "tags": ["dream"]
+  },
+  "queue": [
+    {
+      "userDirective": "Lo-fi anime character, headphones on, watching a rainy cityscape, digital illustration, chill and melancholic vibe."
+    },
+    {
+      "userDirective": "Dynamic anime protagonist, energy crackling from fist, cinematic digital art, mid-battle, intense rock music vibe."
+    },
+    {
+      "userDirective": "Cyberpunk anime character, overlooking a futuristic neon-drenched city, digital painting, atmospheric and synthetic."
+    },
+    {
+      "userDirective": "Anime character silhouette, standing against a vast, colorful sunset sky, digital painting, emotional and atmospheric."
+    },
+    {
+      "userDirective": "90s retro anime style, character driving a sports car, synthwave grid background, digital art, nostalgic and cool."
+    },
+    {
+      "userDirective": "Ethereal anime mage, summoning light particles, magical forest setting, painterly digital art, wondrous and orchestral."
+    },
+    {
+      "userDirective": "Anime-style character, walking through a vibrant Tokyo street at night, bright signage, digital art, J-Pop aesthetic."
+    },
+    {
+      "userDirective": "Soft anime portrait, character with eyes closed, gentle light leak, digital painting, intimate and acoustic feel."
+    },
+    {
+      "userDirective": "Vast anime-style floating islands, bioluminescent plants, concept art, epic fantasy soundtrack cover."
+    },
+    {
+      "userDirective": "Glitch art anime character profile, fragmented and abstract, neon colors, digital, edgy electronic vibe."
+    },
+    {
+      "userDirective": "Anime-style high school rooftop, empty school desk, setting sun, slice-of-life, sentimental and warm."
+    },
+    {
+      "userDirective": "Dark grunge anime character, shattered mirror reflection, high-contrast digital art, unsettling and intense."
+    },
+    {
+      "userDirective": "Anime astronaut, floating in space, looking at a distant nebula, digital art, ambient and spacious vibe."
+    },
+    {
+      "userDirective": "Pixel art anime scene, character on a train, 16-bit, looking out window, chiptune and retro."
+    },
+    {
+      "userDirective": "Clean vector art, anime character profile, minimalist background, bold colors, modern and stylish."
+    },
+    {
+      "userDirective": "Anime protagonist, god mode achieved, swirling golden aura, cinematic digital art, eyes glowing intensely, background shattering."
+    },
+    {
+      "userDirective": "Anime warrior, unleashing full power, crackling crimson energy, high-contrast digital illustration, ground breaking apart."
+    },
+    {
+      "userDirective": "Cyberpunk character, final power-up, neon blue data-stream aura, glitch effects, digital art, abstract code background."
+    },
+    {
+      "userDirective": "Anime mage casting ultimate spell, iridescent mana aura, digital painting, particle effects exploding, cosmic background."
+    },
+    {
+      "userDirective": "Dark anime anti-hero, awakening dark power, shadowy tendril aura, gritty digital art, glowing red eyes, moonlit ruins."
+    },
+    {
+      "userDirective": "Anime fighter mid-transformation, electric blue aura flaring, dynamic pose, digital art, explosive energy background."
+    },
+    {
+      "userDirective": "God-like anime figure, descending from sky, blinding light aura, ethereal digital painting, heavenly clouds parting, powerful vibe."
+    },
+    {
+      "userDirective": "Anime character's eyes glowing pure white, immense psychic energy aura, minimalist digital art, black background, intense focus."
+    },
+    {
+      "userDirective": "Mecha pilot, final sync, mech glowing with green energy, cockpit view, digital illustration, space battle background."
+    },
+    {
+      "userDirective": "Anime samurai unsheathing cursed sword, purple demonic aura, digital ink style, high-speed lines, stormy night."
+    },
+    {
+      "userDirective": "Anime hero charging final attack, bright white energy concentrating, cinematic digital art, debris floating upwards, climactic vibe."
+    },
+    {
+      "userDirective": "Fire-user anime character, fully engulfed in flames, magma-like aura, digital painting, scorched earth background, intense heat."
+    },
+    {
+      "userDirective": "Anime speedster, breaking sound barrier, light trail aura, motion-focused digital art, warped city background, high-energy."
+    },
+    {
+      "userDirective": "Vibrant anime character, aura of musical notes, colorful abstract background, digital illustration, euphoric energy."
+    },
+    {
+      "userDirective": "Anime guardian, divine power unlocked, massive feathered wings of light, concept art, protective and powerful stance."
+    }
+  ]
+}
