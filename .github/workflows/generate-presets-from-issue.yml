@@ -35,9 +35,9 @@ jobs:
         run: npm i -g vercel@latest
 
       - name: Pull Vercel Environment Variables
-        working-directory: apps/mediamake
+        # working-directory: apps/mediamake
         run: |
-          vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} .env
+          vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} apps/mediamake/.env
           echo "✅ Environment variables pulled"
 
       - name: Build MediaMake App
