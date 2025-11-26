@@ -28,7 +28,7 @@ export const presetAgent = aiRouter
         });
 
         const classification = await generateText({
-            model: anthropic('claude-sonnet-4-5'),
+            model: anthropic('claude-opus-4-5'), // Using Opus for accurate intent classification
             prompt: `
             Classify the user intent based on the prompt: "${prompt}"
             
@@ -80,14 +80,15 @@ export const presetAgent = aiRouter
             }
 
         } else {
-            // Route to Generation Agent
-            console.log('[PRESET ROUTER] Routing to /generate');
+            // Route to Generation Agent (with ESLint validation loop)
+            console.log('[PRESET ROUTER] Routing to /generate (includes lint checking and auto-fix)');
             const result = await ctx.next.callAgent('/generate', { prompt, metadata, clientId });
 
             if ((result as any).ok) {
-                console.log('[PRESET ROUTER] Generation complete');
+                console.log('[PRESET ROUTER] Generation complete (all validations passed)');
                 return (result as any).data;
             } else {
+                console.error('[PRESET ROUTER] Generation failed:', (result as any).error);
                 throw new Error('Generation failed');
             }
         }
