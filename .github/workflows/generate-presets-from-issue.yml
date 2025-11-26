@@ -1,0 +1,532 @@
+name: Generate Presets from Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  process-preset-requests:
+    # Only run if issue title starts with "New Presets" (case variations)
+    if: |
+      startsWith(github.event.issue.title, 'New Presets') ||
+      startsWith(github.event.issue.title, 'new presets') ||
+      startsWith(github.event.issue.title, 'NEW PRESETS') ||
+      startsWith(github.event.issue.title, 'New presets') ||
+      startsWith(github.event.issue.title, 'new Presets')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # working-directory: apps/mediamake
+        run: npm i
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel Environment Variables
+        working-directory: apps/mediamake
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} .env
+          echo "✅ Environment variables pulled"
+
+      - name: Build MediaMake App
+        # working-directory: apps/mediamake
+        run: |
+          npm run build
+          echo "✅ Build complete"
+
+      - name: Start MediaMake Server
+        working-directory: apps/mediamake
+        run: |
+          npm run start &
+          echo "🚀 Server starting in background..."
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to be ready..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "✅ Server is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+          
+          echo "❌ Server failed to start within 2 minutes"
+          exit 1
+
+      - name: Parse and process preset requests
+        id: process
+        working-directory: apps/mediamake
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_BASE_URL: http://localhost:3000
+          DEV_API_KEY: ${{ secrets.DEV_API_KEY }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const { execSync } = require('child_process');
+
+          async function processPresets() {
+            try {
+              const issueBody = process.env.ISSUE_BODY;
+              const issueNumber = process.env.ISSUE_NUMBER;
+              const issueTitle = process.env.ISSUE_TITLE;
+              const apiBaseUrl = process.env.API_BASE_URL;
+              const devApiKey = process.env.DEV_API_KEY;
+              
+              // Validate issue title (case-insensitive prefix check)
+              if (!issueTitle || !issueTitle.toLowerCase().startsWith('new presets')) {
+                console.log('⏭️  Skipping: Issue title does not start with "new presets" (case-insensitive)');
+                process.exit(0);
+              }
+              
+              console.log('✅ Issue title validated');
+              console.log('📋 Parsing issue body as JSON...');
+              
+              // Parse the issue body - need to extract JSON from GitHub's markdown formatting
+              let presetRequests;
+              try {
+                let jsonString = issueBody.trim();
+                console.log('📄 Raw issue body preview:', jsonString.substring(0, 150).replace(/\n/g, ' ') + '...');
+                console.log('📏 Body length:', jsonString.length, 'characters');
+                
+                // GitHub issue templates wrap content with markdown headers
+                // Extract just the JSON array part
+                // Look for the first '[' and last ']' to extract the JSON array
+                const firstBracket = jsonString.indexOf('[');
+                const lastBracket = jsonString.lastIndexOf(']');
+                
+                if (firstBracket === -1 || lastBracket === -1 || firstBracket >= lastBracket) {
+                  throw new Error('Could not find JSON array in issue body (missing [ or ])');
+                }
+                
+                // Extract the JSON portion
+                jsonString = jsonString.substring(firstBracket, lastBracket + 1);
+                console.log('📄 Extracted JSON preview:', jsonString.substring(0, 150).replace(/\n/g, ' ') + '...');
+                
+                presetRequests = JSON.parse(jsonString);
+                
+                if (!Array.isArray(presetRequests)) {
+                  console.error('❌ Parsed content is not a JSON array');
+                  console.error('Received type:', typeof presetRequests);
+                  process.exit(1);
+                }
+                
+                console.log('✅ Successfully parsed', presetRequests.length, 'preset request(s)');
+              } catch (error) {
+                console.error('❌ Failed to parse issue body as JSON:', error.message);
+                console.error('Issue body preview:', issueBody.substring(0, 300));
+                console.error('');
+                console.error('💡 Tip: Make sure your issue contains a valid JSON array.');
+                console.error('   Format: [{"prompt": "...", "technicalSpecs": "..."}]');
+                console.error('   Validate at: https://jsonlint.com');
+                process.exit(1);
+              }
+
+              if (!Array.isArray(presetRequests)) {
+                console.error('❌ Issue body is not an array');
+                process.exit(1);
+              }
+
+              console.log(`✅ Found ${presetRequests.length} preset request(s)`);
+
+              // Configure git
+              execSync('git config user.name "github-actions[bot]"');
+              execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+              // Start timing
+              const startTime = Date.now();
+
+              // ==========================================
+              // STEP 1: PARALLEL API CALLS
+              // ==========================================
+              console.log('\n🚀 Step 1: Fetching all presets in parallel...');
+              const step1Start = Date.now();
+              
+              // Create promises for all API calls
+              const apiPromises = presetRequests.map((request, i) => {
+                return (async () => {
+                  const index = i + 1;
+                  
+                  if (!request.prompt || !request.technicalSpecs) {
+                    console.error(`❌ Preset ${index} missing required fields (prompt, technicalSpecs)`);
+                    return { index, success: false, error: 'Missing required fields' };
+                  }
+
+                  try {
+                    const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
+                    
+                    console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
+                    
+                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${devApiKey}`,
+                      },
+                      body: JSON.stringify({
+                        prompt: combinedPrompt,
+                      }),
+                    });
+
+                    if (!response.ok) {
+                      const errorText = await response.text();
+                      throw new Error(`API returned ${response.status}: ${errorText}`);
+                    }
+
+                    const result = await response.json();
+                    console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
+
+                    // Parse the nested response structure
+                    // Response format: [{ parts: [{ output: { code, metadata } }] }]
+                    let generatedCode, metadata, savedFilePath;
+                    
+                    if (Array.isArray(result) && result.length > 0) {
+                      // Nested structure from AI Router
+                      const firstItem = result[0];
+                      if (firstItem.parts && Array.isArray(firstItem.parts) && firstItem.parts.length > 0) {
+                        const output = firstItem.parts[0].output;
+                        generatedCode = output?.code;
+                        metadata = output?.metadata;
+                        
+                        // Extract relative path from absolute Windows path
+                        // Format: "V:\\...\\apps\\mediamake\\components\\..."
+                        // We need: "components\\..."
+                        if (metadata?.filePath) {
+                          const absolutePath = metadata.filePath;
+                          // Find the part after "apps/mediamake" or "apps\\mediamake"
+                          const appsMediamakeIndex = absolutePath.indexOf('apps\\mediamake\\');
+                          if (appsMediamakeIndex !== -1) {
+                            savedFilePath = absolutePath.substring(appsMediamakeIndex + 'apps\\mediamake\\'.length);
+                          } else {
+                            // Try forward slash
+                            const appsMediamakeIndexForward = absolutePath.indexOf('apps/mediamake/');
+                            if (appsMediamakeIndexForward !== -1) {
+                              savedFilePath = absolutePath.substring(appsMediamakeIndexForward + 'apps/mediamake/'.length);
+                            } else {
+                              savedFilePath = metadata.filePath;
+                            }
+                          }
+                          // Normalize to forward slashes
+                          savedFilePath = savedFilePath.replace(/\\/g, '/');
+                        }
+                      }
+                    } else {
+                      // Simple structure (fallback)
+                      generatedCode = result.code || result.data?.code;
+                      metadata = result.metadata || result.data?.metadata;
+                      savedFilePath = metadata?.filePath;
+                    }
+                    
+                    if (!generatedCode) {
+                      throw new Error('API response missing code field');
+                    }
+                    
+                    if (!savedFilePath) {
+                      throw new Error('API response missing filePath in metadata');
+                    }
+                    
+                    console.log(`📁 File path extracted: ${savedFilePath}`);
+
+                    return {
+                      index,
+                      success: true,
+                      generatedCode,
+                      metadata,
+                      savedFilePath,
+                      originalRequest: request,
+                    };
+                  } catch (error) {
+                    console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
+                    return {
+                      index,
+                      success: false,
+                      error: error.message,
+                    };
+                  }
+                })();
+              });
+
+              // Wait for all API calls to complete
+              const apiResults = await Promise.all(apiPromises);
+              
+              const successfulPresets = apiResults.filter(r => r.success);
+              const failedPresets = apiResults.filter(r => !r.success);
+              
+              const step1Duration = ((Date.now() - step1Start) / 1000).toFixed(2);
+              console.log(`\n📊 API Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step1Duration}s)`);
+
+              // ==========================================
+              // STEP 2: GIT OPERATIONS (SINGLE BRANCH)
+              // ==========================================
+              console.log('\n🌿 Step 2: Creating single branch with all presets...');
+              const step2Start = Date.now();
+
+              if (successfulPresets.length === 0) {
+                console.log('⏭️  No successful presets to commit, skipping git operations');
+                const step2Duration = ((Date.now() - step2Start) / 1000).toFixed(2);
+                console.log(`\n⏭️  Git operations skipped (${step2Duration}s)`);
+              }
+
+              let branchName = null;
+              let gitSuccess = false;
+              const gitResults = [];
+              
+              if (successfulPresets.length > 0) {
+                try {
+                  // Create a single branch for all presets
+                  const timestamp = Date.now();
+                  branchName = `presets/batch-${issueNumber}-${timestamp}`;
+                  
+                  console.log(`🌿 Creating branch: ${branchName}`);
+                  execSync(`git checkout -b ${branchName}`);
+
+                  // Add metadata to each successful result
+                  for (const apiResult of successfulPresets) {
+                    const presetId = apiResult.metadata?.id || `preset-${timestamp}-${apiResult.index}`;
+                    gitResults.push({
+                      ...apiResult,
+                      presetId,
+                      filepath: apiResult.savedFilePath,
+                    });
+                  }
+
+                  // Add all preset files to git
+                  console.log(`\n📝 Adding ${successfulPresets.length} preset file(s) to git...`);
+                  for (const result of gitResults) {
+                    // The savedFilePath is relative to apps/mediamake, we need it relative to repo root
+                    const relativeFilePath = `apps/mediamake/${result.savedFilePath}`;
+                    console.log(`   📁 ${relativeFilePath}`);
+                    execSync(`git add "${relativeFilePath}"`);
+                  }
+
+                  // Create commit message listing all presets
+                  const presetIds = gitResults.map(r => r.presetId).join(', ');
+                  const commitMessage = `feat: add ${successfulPresets.length} preset(s) from issue #${issueNumber}\n\nPresets: ${presetIds}`;
+                  
+                  console.log(`💾 Creating commit...`);
+                  execSync(`git commit -m "${commitMessage}"`);
+
+                  console.log(`📤 Pushing branch: ${branchName}`);
+                  execSync(`git push -u origin ${branchName}`);
+
+                  gitSuccess = true;
+                  console.log(`✅ Git operations complete - all ${successfulPresets.length} preset(s) committed to ${branchName}`);
+
+                } catch (error) {
+                  console.error(`❌ Git operations failed:`, error.message);
+                  gitSuccess = false;
+                  
+                  try {
+                    execSync('git checkout main');
+                  } catch (e) {
+                    console.error('Failed to switch back to main branch:', e.message);
+                  }
+                }
+                
+                // Add failed presets to results
+                for (const apiResult of failedPresets) {
+                  gitResults.push(apiResult);
+                }
+              }
+
+              const step2Duration = ((Date.now() - step2Start) / 1000).toFixed(2);
+              console.log(`\n✅ Git operations complete (${step2Duration}s)`);
+
+              // ==========================================
+              // STEP 3: CREATE SINGLE PR
+              // ==========================================
+              console.log('\n📝 Step 3: Creating Pull Request...');
+              const step3Start = Date.now();
+              
+              let prUrl = null;
+              let prNumber = null;
+              
+              if (gitSuccess && branchName) {
+                try {
+                  // Build PR title
+                  const prTitle = successfulPresets.length === 1 
+                    ? `Add ${gitResults[0].metadata?.title || gitResults[0].presetId} preset`
+                    : `Add ${successfulPresets.length} presets from issue #${issueNumber}`;
+                  
+                  // Build PR body with all presets listed
+                  let prBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
+                  prBody += `## Generated Presets (${successfulPresets.length})\n\n`;
+                  
+                  gitResults.filter(r => r.success).forEach((result, idx) => {
+                    prBody += `### ${idx + 1}. ${result.metadata?.title || result.presetId}\n\n`;
+                    prBody += `**ID:** \`${result.presetId}\`\n`;
+                    prBody += `**Description:** ${result.metadata?.description || 'N/A'}\n`;
+                    prBody += `**File:** \`${result.filepath}\`\n\n`;
+                    
+                    // Add truncated prompt
+                    const prompt = result.originalRequest.prompt;
+                    if (prompt) {
+                      const truncatedPrompt = prompt.length > 200 
+                        ? prompt.substring(0, 200) + '...' 
+                        : prompt;
+                      prBody += `**Original Prompt:** ${truncatedPrompt}\n\n`;
+                    }
+                    
+                    prBody += `---\n\n`;
+                  });
+                  
+                  prBody += `\nCloses #${issueNumber}`;
+
+                  console.log(`📝 Creating PR: ${prTitle}`);
+                  
+                  const prResponse = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/pulls`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/vnd.github.v3+json',
+                    },
+                    body: JSON.stringify({
+                      title: prTitle,
+                      body: prBody,
+                      head: branchName,
+                      base: 'main',
+                    }),
+                  });
+
+                  if (!prResponse.ok) {
+                    const prError = await prResponse.text();
+                    throw new Error(`Failed to create PR: ${prResponse.status} ${prError}`);
+                  }
+
+                  const prData = await prResponse.json();
+                  prUrl = prData.html_url;
+                  prNumber = prData.number;
+                  
+                  console.log(`✅ PR created: ${prUrl}`);
+
+                } catch (error) {
+                  console.error(`❌ PR creation failed:`, error.message);
+                }
+              } else {
+                console.log('⏭️  Skipping PR creation (no successful presets or git operations failed)');
+              }
+              
+              const step3Duration = ((Date.now() - step3Start) / 1000).toFixed(2);
+              console.log(`\n✅ PR creation complete (${step3Duration}s)`);
+              
+              // Prepare results
+              const results = gitResults;
+
+              // ==========================================
+              // STEP 4: SUMMARY & REPORTING
+              // ==========================================
+              console.log('\n📊 Step 4: Creating summary comment...');
+              
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.length - successCount;
+              
+              let commentBody = `## 🤖 Preset Generation Results\n\n`;
+              commentBody += `**Total Requests:** ${results.length}\n`;
+              commentBody += `**Successful:** ${successCount}\n`;
+              commentBody += `**Failed:** ${failureCount}\n\n`;
+              
+              if (successCount > 0 && prUrl) {
+                commentBody += `### ✅ Successfully Generated\n\n`;
+                commentBody += `**Pull Request:** [#${prNumber}](${prUrl})\n\n`;
+                commentBody += `**Presets included:**\n`;
+                results.filter(r => r.success).forEach(r => {
+                  commentBody += `- **Preset ${r.index}** (\`${r.presetId}\`) - ${r.metadata?.title || 'Untitled'}\n`;
+                  commentBody += `  - File: \`${r.filepath}\`\n`;
+                });
+              } else if (successCount > 0 && !prUrl) {
+                commentBody += `### ⚠️ Partially Successful\n\n`;
+                commentBody += `${successCount} preset(s) were generated but PR creation failed.\n\n`;
+                results.filter(r => r.success).forEach(r => {
+                  commentBody += `- **Preset ${r.index}** (\`${r.presetId}\`) - ${r.metadata?.title || 'Untitled'}\n`;
+                });
+              }
+              
+              if (failureCount > 0) {
+                commentBody += `\n### ❌ Failed\n\n`;
+                results.filter(r => !r.success).forEach(r => {
+                  commentBody += `- **Preset ${r.index}** - Error: ${r.error}\n`;
+                });
+              }
+
+              // Post comment to issue
+              await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/issues/${issueNumber}/comments`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/vnd.github.v3+json',
+                },
+                body: JSON.stringify({ body: commentBody }),
+              });
+
+              const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+              
+              console.log('\n✨ All done!');
+              console.log(`\n📊 Final Results:`);
+              console.log(`   Total: ${results.length}`);
+              console.log(`   ✅ Successful: ${successCount}`);
+              console.log(`   ❌ Failed: ${failureCount}`);
+              if (prUrl) {
+                console.log(`   🔗 PR: ${prUrl}`);
+              }
+              console.log(`\n⏱️  Timing:`);
+              console.log(`   Step 1 (Parallel API calls): ${step1Duration}s`);
+              console.log(`   Step 2 (Git operations): ${step2Duration}s`);
+              console.log(`   Step 3 (PR creation): ${step3Duration}s`);
+              console.log(`   Total: ${totalDuration}s`);
+              
+              // Exit with error if any preset failed
+              if (failureCount > 0) {
+                console.log(`\n⚠️  Some presets failed. Check the logs above for details.`);
+                process.exit(1);
+              }
+
+            } catch (error) {
+              console.error('❌ Fatal error:', error);
+              process.exit(1);
+            }
+          }
+
+          processPresets();
+          EOF
+
+      - name: Stop MediaMake Server
+        if: always()
+        run: |
+          echo "🛑 Stopping server..."
+          pkill -f "next start" || true
+          echo "✅ Server stopped"
+
+      - name: Comment on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Failed to process preset generation requests. Please check the workflow logs for details.'
+            });
+
