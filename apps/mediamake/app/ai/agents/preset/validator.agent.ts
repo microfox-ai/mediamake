@@ -1,54 +1,59 @@
+/**
+ * Validator Agent - Enhanced with ESLint Integration
+ * 
+ * This agent orchestrates preset code validation using server-side helpers.
+ * Validates saved preset files (not temporary files) for better integration.
+ * 
+ * All heavy validation logic (TypeScript, ESLint, file operations) is in
+ * helpers/validation.ts with "use server" directive.
+ */
+
 import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod';
-import ts from 'typescript';
+import { validatePresetFile } from './helpers/validation';
 
 const aiRouter = new AiRouter();
 
 export const validatorAgent = aiRouter
   .agent('/', async (ctx) => {
-    const { code } = ctx.request.params as { code: string };
-    const errors: string[] = [];
+    const { filePath } = ctx.request.params as { filePath: string };
     
     ctx.response.writeMessageMetadata({
-      loader: 'Validating code...',
+      loader: 'Validating preset file...',
     });
 
-    // 1. Syntax Check
-    try {
-      const sourceFile = ts.createSourceFile('temp.ts', code, ts.ScriptTarget.Latest, true);
-      // (Basic check)
-    } catch (e) {
-      errors.push(`Syntax Error: ${e}`);
+    console.log('[VALIDATOR] Validating file:', filePath);
+
+    // Run comprehensive validation on the saved file
+    ctx.response.writeMessageMetadata({
+      loader: 'Running structure & ESLint checks...',
+    });
+
+    const result = await validatePresetFile(filePath);
+
+    if (result.warnings.length > 0 && result.errors.length === 0) {
+      console.log('[VALIDATOR] Warnings (non-blocking):', result.warnings);
     }
 
-    // 2. Forbidden Patterns
-    if (code.includes('from "fs"') || code.includes("from 'fs'")) errors.push("Forbidden import: 'fs'");
-    if (code.includes('from "path"') || code.includes("from 'path'")) errors.push("Forbidden import: 'path'");
-    if (code.match(/https?:\/\/(?!localhost|127\.0\.0\.1)/)) {
-         // Warning or Error for external links? Tech Lead said NO external URLs.
-         // Let's flag it if it looks like an asset import, but allow metadata links/comments.
-         // Simplified check:
-         if (code.includes('src: "http')) errors.push("Forbidden external asset URL found.");
+    if (result.errors.length > 0) {
+      console.warn('[VALIDATOR] Validation errors:', result.errors);
+    } else {
+      console.log('[VALIDATOR] ✅ All validation checks passed');
     }
 
-    // // 3. Required Exports
-    // if (!code.includes('export const presetMetadata')) errors.push("Missing 'export const presetMetadata'");
-    
-    // // 4. Remotion Specifics
-    // if (!code.includes('BaseLayout') && !code.includes('type: "layout"')) {
-    //     // Weak check, but Tech Lead enforces this mostly.
-    // }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
+    return result;
   })
   .actAsTool('/', {
     id: 'validator',
     name: 'Validator',
-    description: 'Validates the generated code.',
-    inputSchema: z.object({ code: z.string() }),
-    outputSchema: z.object({ valid: z.boolean(), errors: z.array(z.string()) }),
+    description: 'Validates a saved preset file: forbidden patterns (fs/path/external URLs), structure validation (presetExecution), and ESLint (code quality). No TypeScript type checking to avoid false positives.',
+    inputSchema: z.object({ 
+      filePath: z.string().describe('Absolute path to the preset file to validate')
+    }),
+    outputSchema: z.object({ 
+      valid: z.boolean(), 
+      errors: z.array(z.string()),
+      warnings: z.array(z.string()),
+    }),
     metadata: { title: 'Validator', icon: 'shield-check' },
   });
