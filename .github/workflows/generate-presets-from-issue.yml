@@ -28,7 +28,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        working-directory: apps/mediamake
+        # working-directory: apps/mediamake
         run: npm i
 
       - name: Install Vercel CLI
@@ -44,7 +44,7 @@ jobs:
           echo "✅ Environment variables pulled"
 
       - name: Build MediaMake App
-        working-directory: apps/mediamake
+        # working-directory: apps/mediamake
         run: |
           npm run build
           echo "✅ Build complete"
