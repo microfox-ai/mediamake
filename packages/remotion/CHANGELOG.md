@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.3
+
+### Patch Changes
+
+- fcbdf2f: Changes from PR #38: editor
+- c735283: Changes from PR #32: pg_transcription_upgrades
+- 7ebd522: Changes from PR #25: pg_importablepreset_0111
+
 ## 1.2.2
 
 ### Patch Changes
