@@ -24,8 +24,12 @@ export async function callAgent(
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const result = (await response.json()) as UIMessage<any, any, any>[];
+    console.log('result', result);
     if (result.length > 0) {
-      const outputParts = result[0].parts.find(p => p.type.startsWith('tool-'));
+      const lastResult = result[result.length - 1];
+      const outputParts = lastResult.parts.findLast(p =>
+        p.type.startsWith('tool-'),
+      );
       if (outputParts && isToolUIPart(outputParts)) {
         return outputParts.output as any;
       }

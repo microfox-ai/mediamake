@@ -5,6 +5,8 @@ import { google } from '@ai-sdk/google';
 import { loadTranscription } from '../scriptMeta/middlewares/loadTranscription';
 import { ScriptMetaInputSchema } from '../scriptMeta/zod';
 import dedent from 'dedent';
+import { anthropic } from '@ai-sdk/anthropic';
+import { saveMidjourneyPrompts } from './helpers';
 
 // TODO: create a storyline so that each image promtp makes sense.
 
@@ -60,6 +62,10 @@ const MidjourneyPromptingInputSchema = ScriptMetaInputSchema.extend({
     .min(0)
     .describe('Ending index of captions to process (inclusive)'),
   model: z.string().optional().describe('AI model to use for generation'),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe('Array of tags for querying and organization'),
 });
 
 // Output schema for the agent
@@ -73,6 +79,7 @@ const MidjourneyPromptingOutputSchema = z.object({
   ),
   processedCaptions: z.number().describe('Number of captions processed'),
   imageAnalysisUsed: z.boolean().describe('Whether image analysis was used'),
+  _id: z.string().optional().describe('Database ID of the saved prompt record'),
 });
 
 // Helper function to download image and convert to base64
@@ -99,8 +106,11 @@ export const midjourneyPromptingAgent = aiRouter
         loader: 'Analyzing images and generating Midjourney prompts...',
       });
 
-      const { mediaUrls, startIndex, endIndex, userRequest, model } = ctx
-        .request.params as z.infer<typeof MidjourneyPromptingInputSchema>;
+      const inputParams = ctx.request.params as z.infer<
+        typeof MidjourneyPromptingInputSchema
+      >;
+      const { mediaUrls, startIndex, endIndex, userRequest, model } =
+        inputParams;
 
       // Get captions from context state (loaded by middleware)
       const captions = ctx.state?.transcription?.captions || [];
@@ -140,7 +150,10 @@ export const midjourneyPromptingAgent = aiRouter
         );
 
         const imageAnalysisResult = await generateObject({
-          model: google(model || 'gemini-2.5-flash'),
+          model:
+            model && model.startsWith('claude')
+              ? anthropic('gemini-2.5-flash')
+              : google(model || 'gemini-2.5-flash'),
           schema: ImageAnalysisSchema,
           messages: [
             {
@@ -179,7 +192,10 @@ export const midjourneyPromptingAgent = aiRouter
       if (captionsToProcess.length <= 10) {
         // Process all captions at once if 10 or fewer
         const promptGenerationResult = await generateObject({
-          model: google(model || 'gemini-2.5-pro'),
+          model:
+            model && model.startsWith('claude')
+              ? anthropic(model)
+              : google(model || 'gemini-2.5-flash'),
           schema: MidjourneyPromptSchema,
           prompt: dedent`
             Generate Midjourney prompts for these captions based on the user's request: "${userRequest}"
@@ -231,7 +247,10 @@ export const midjourneyPromptingAgent = aiRouter
         const batchResults = await Promise.all(
           batches.map(async ({ batch, batchStartIndex, batchNumber }) => {
             const promptGenerationResult = await generateObject({
-              model: google(model || 'gemini-2.5-flash'),
+              model:
+                model && model.startsWith('claude')
+                  ? anthropic(model)
+                  : google(model || 'gemini-2.5-flash'),
               schema: MidjourneyPromptSchema,
               prompt: dedent`
                 Generate Midjourney prompts for these captions based on the user's request: "${userRequest}"
@@ -274,10 +293,27 @@ export const midjourneyPromptingAgent = aiRouter
         allPrompts = batchResults.flat();
       }
 
+      // Save prompts to database
+      ctx.response.writeMessageMetadata({
+        loader: 'Saving prompts to database...',
+      });
+
+      const savedRecord = await saveMidjourneyPrompts(
+        allPrompts.map(p => ({
+          captionIndex: p.captionIndex,
+          captionText: p.captionText,
+          prompt: p.prompt,
+        })),
+        inputParams,
+        inputParams.tags || [],
+        undefined,
+      );
+
       const result = {
         prompts: allPrompts,
         processedCaptions: captionsToProcess.length,
         imageAnalysisUsed: !!imageAnalysis,
+        _id: savedRecord._id?.toString(),
       };
 
       return result;
