@@ -11,7 +11,7 @@ body:
         Paste your JSON array of preset requests below.
         Format: [{"prompt": "...", "technicalSpecs": "..."}]
         
-        ⚠️ Do NOT add any text before or after the JSON array.
+        ℹ️ Just paste the JSON array - the workflow will extract it automatically.
         ⚠️ Validate your JSON at https://jsonlint.com before submitting.
       placeholder: |
         [

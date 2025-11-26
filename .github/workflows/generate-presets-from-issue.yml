@@ -100,18 +100,31 @@ jobs:
               console.log('✅ Issue title validated');
               console.log('📋 Parsing issue body as JSON...');
               
-              // Parse the issue body directly as JSON (template now only contains JSON)
+              // Parse the issue body - need to extract JSON from GitHub's markdown formatting
               let presetRequests;
               try {
-                // Trim whitespace and parse
-                const trimmedBody = issueBody.trim();
-                console.log('📄 Issue body preview:', trimmedBody.substring(0, 150).replace(/\n/g, ' ') + '...');
-                console.log('📏 Body length:', trimmedBody.length, 'characters');
+                let jsonString = issueBody.trim();
+                console.log('📄 Raw issue body preview:', jsonString.substring(0, 150).replace(/\n/g, ' ') + '...');
+                console.log('📏 Body length:', jsonString.length, 'characters');
                 
-                presetRequests = JSON.parse(trimmedBody);
+                // GitHub issue templates wrap content with markdown headers
+                // Extract just the JSON array part
+                // Look for the first '[' and last ']' to extract the JSON array
+                const firstBracket = jsonString.indexOf('[');
+                const lastBracket = jsonString.lastIndexOf(']');
+                
+                if (firstBracket === -1 || lastBracket === -1 || firstBracket >= lastBracket) {
+                  throw new Error('Could not find JSON array in issue body (missing [ or ])');
+                }
+                
+                // Extract the JSON portion
+                jsonString = jsonString.substring(firstBracket, lastBracket + 1);
+                console.log('📄 Extracted JSON preview:', jsonString.substring(0, 150).replace(/\n/g, ' ') + '...');
+                
+                presetRequests = JSON.parse(jsonString);
                 
                 if (!Array.isArray(presetRequests)) {
-                  console.error('❌ Issue body is not a JSON array');
+                  console.error('❌ Parsed content is not a JSON array');
                   console.error('Received type:', typeof presetRequests);
                   process.exit(1);
                 }
@@ -121,7 +134,7 @@ jobs:
                 console.error('❌ Failed to parse issue body as JSON:', error.message);
                 console.error('Issue body preview:', issueBody.substring(0, 300));
                 console.error('');
-                console.error('💡 Tip: The issue body must contain ONLY a JSON array.');
+                console.error('💡 Tip: Make sure your issue contains a valid JSON array.');
                 console.error('   Format: [{"prompt": "...", "technicalSpecs": "..."}]');
                 console.error('   Validate at: https://jsonlint.com');
                 process.exit(1);
