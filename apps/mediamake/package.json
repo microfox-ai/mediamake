@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:extended": "node server.js",
     "lint": "eslint",
     "remotion": "remotion studio components/remotion/index.ts",
     "render": "remotion render",
