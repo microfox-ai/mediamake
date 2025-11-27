@@ -84,6 +84,12 @@ function saveResult(
   mergedParams: Record<string, any>,
   result: any,
 ): string {
+  // Ensure output directory exists
+  if (!existsSync(outputDir)) {
+    mkdirSync(outputDir, { recursive: true });
+    console.log(`📁 Created output directory: ${outputDir}`);
+  }
+
   const filename = generateUniqueFilename();
   const filePath = join(outputDir, filename);
   const data = {
@@ -91,8 +97,14 @@ function saveResult(
     result,
     timestamp: new Date().toISOString(),
   };
-  writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  return filename;
+
+  try {
+    writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    return filename;
+  } catch (error: any) {
+    console.error(`❌ Failed to save result to ${filePath}:`, error.message);
+    throw error;
+  }
 }
 
 async function callAgentAPI(
@@ -216,8 +228,14 @@ async function processQueue(queName: string, shouldSave: boolean = false) {
 
         // Save result if --save flag is specified
         if (shouldSave) {
-          const savedFilename = saveResult(outputDir, mergedParams, result);
-          console.log(`   💾 Saved result to: ${savedFilename}`);
+          try {
+            const savedFilename = saveResult(outputDir, mergedParams, result);
+            console.log(`   💾 Saved result to: ${savedFilename}`);
+            console.log(`   📂 Full path: ${join(outputDir, savedFilename)}`);
+          } catch (error: any) {
+            console.error(`   ⚠️  Failed to save result: ${error.message}`);
+            // Continue processing even if save fails
+          }
         }
 
         processed.push(item);
@@ -283,11 +301,20 @@ const shouldSave = args.includes('--save');
 
 if (!queName) {
   console.error('❌ Error: queue name is required');
-  console.error('   Usage: npm run callAgent <que_name> [--save]');
-  console.error('   Example: npm run callAgent midjourney-batch-1');
-  console.error('   Example: npm run callAgent all --save');
-  console.error('   Or: npm run callAgent all (processes all JSON files)');
+  console.error('   Usage: npm run callAgent -- <que_name> [--save]');
+  console.error('   Note: Use -- to pass arguments to the script');
+  console.error('   Example: npm run callAgent -- midjourney-batch-1');
+  console.error('   Example: npm run callAgent -- all --save');
+  console.error('   Or: npm run callAgent -- all (processes all JSON files)');
   process.exit(1);
+}
+
+// Warn if --save might not have been passed correctly
+if (!shouldSave && args.length > 0) {
+  console.warn(
+    '⚠️  Note: If you intended to use --save, make sure to use: npm run callAgent -- <que_name> --save',
+  );
+  console.warn('   (The -- is required to pass arguments to npm scripts)\n');
 }
 
 async function processAllQueues(shouldSave: boolean = false) {
@@ -302,12 +329,12 @@ async function processAllQueues(shouldSave: boolean = false) {
 
   // Read all JSON files from the directory
   const files = readdirSync(jsonDir).filter(
-    file => file.endsWith('.json') && file !== 'example.json',
+    file => file.endsWith('.json') && !file.startsWith('example'),
   );
 
   if (files.length === 0) {
     console.log(
-      `✅ No queue files found in ${jsonDir} (excluding example.json)`,
+      `✅ No queue files found in ${jsonDir} (excluding files starting with 'example')`,
     );
     return;
   }
