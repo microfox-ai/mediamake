@@ -1,0 +1,15 @@
+diff --git a/node_modules/next/dist/server/lib/start-server.js b/node_modules/next/dist/server/lib/start-server.js
+index fa63a2d..41b16b0 100644
+--- a/node_modules/next/dist/server/lib/start-server.js
++++ b/node_modules/next/dist/server/lib/start-server.js
+@@ -250,6 +250,10 @@ async function startServer(serverOptions) {
+     if (keepAliveTimeout) {
+         server.keepAliveTimeout = keepAliveTimeout;
+     }
++    // Update requestTimeout to allow for long lasting requests (i.e. preset generation)
++    // https://github.com/vercel/next.js/discussions/71651
++    // This patch is applied only in GitHub Actions via patch-package
++    server.requestTimeout = 3600000; // 1 hour
+     server.on('upgrade', async (req, socket, head)=>{
+         try {
+             await upgradeHandler(req, socket, head);
