@@ -24,7 +24,6 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import path from 'path';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
