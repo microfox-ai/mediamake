@@ -30,6 +30,7 @@ interface QueueConfig {
 }
 
 const BASE_URL = 'http://localhost:3000';
+const BATCH_SIZE = 5;
 
 // Generate a random word-like string for filename prefix
 function generateRandomPrefix(): string {
@@ -193,56 +194,92 @@ async function processQueue(queName: string, shouldSave: boolean = false) {
       JSON.stringify(config.defaultParams, null, 2),
     );
     console.log(`   Queue Items: ${config.queue.length}`);
+    console.log(`   Batch Size: ${BATCH_SIZE}`);
     console.log(``);
 
     const processed: QueueItem[] = [];
     const failed: QueueItem[] = [];
-    let currentIndex = 0;
     let remainingQueue = [...config.queue];
 
-    // Process each item sequentially
-    for (const item of config.queue) {
-      currentIndex++;
+    // Process items in batches
+    const totalItems = config.queue.length;
+    const totalBatches = Math.ceil(totalItems / BATCH_SIZE);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalItems);
+      const batch = config.queue.slice(batchStart, batchEnd);
+      const batchNumber = batchIndex + 1;
+
       console.log(
-        `[${currentIndex}/${config.queue.length}] Processing item...`,
+        `📦 Batch ${batchNumber}/${totalBatches} (items ${batchStart + 1}-${batchEnd} of ${totalItems})`,
       );
-      console.log(`   Params:`, JSON.stringify(item, null, 2));
+      console.log(``);
 
-      try {
-        // Merge defaultParams with item params
-        const mergedParams = {
-          ...config.defaultParams,
-          ...item,
-        };
+      // Process batch concurrently
+      const batchPromises = batch.map(async (item, itemIndexInBatch) => {
+        const globalIndex = batchStart + itemIndexInBatch + 1;
+        console.log(`[${globalIndex}/${totalItems}] Processing item...`);
+        console.log(`   Params:`, JSON.stringify(item, null, 2));
 
-        console.log(`   Calling agent API...`);
-        const result = await callAgentAPI(config.agentPath, mergedParams);
-        console.log(`   ✅ Success!`);
-        const resultPreview = JSON.stringify(result, null, 2);
-        console.log(
-          `   Result:`,
-          resultPreview.length > 200
-            ? resultPreview.substring(0, 200) + '...'
-            : resultPreview,
-        );
+        try {
+          // Merge defaultParams with item params
+          const mergedParams = {
+            ...config.defaultParams,
+            ...item,
+          };
 
-        // Save result if --save flag is specified
-        if (shouldSave) {
-          try {
-            const savedFilename = saveResult(outputDir, mergedParams, result);
-            console.log(`   💾 Saved result to: ${savedFilename}`);
-            console.log(`   📂 Full path: ${join(outputDir, savedFilename)}`);
-          } catch (error: any) {
-            console.error(`   ⚠️  Failed to save result: ${error.message}`);
-            // Continue processing even if save fails
+          console.log(`   Calling agent API...`);
+          const result = await callAgentAPI(config.agentPath, mergedParams);
+          console.log(`   ✅ Success!`);
+          const resultPreview = JSON.stringify(result, null, 2);
+          console.log(
+            `   Result:`,
+            resultPreview.length > 200
+              ? resultPreview.substring(0, 200) + '...'
+              : resultPreview,
+          );
+
+          // Save result if --save flag is specified
+          if (shouldSave) {
+            try {
+              const savedFilename = saveResult(outputDir, mergedParams, result);
+              console.log(`   💾 Saved result to: ${savedFilename}`);
+              console.log(`   📂 Full path: ${join(outputDir, savedFilename)}`);
+            } catch (error: any) {
+              console.error(`   ⚠️  Failed to save result: ${error.message}`);
+              // Continue processing even if save fails
+            }
           }
+
+          return { success: true, item, result };
+        } catch (error: any) {
+          console.error(`   ❌ Failed: ${error.message}`);
+          return { success: false, item, error: error.message };
         }
+      });
 
-        processed.push(item);
-        // Remove from remaining queue
-        remainingQueue = remainingQueue.filter(q => q !== item);
+      // Wait for all items in batch to complete
+      const batchResults = await Promise.all(batchPromises);
 
-        // Update JSON file after each successful call
+      // Process batch results
+      const batchProcessed: QueueItem[] = [];
+      const batchFailed: QueueItem[] = [];
+
+      for (const result of batchResults) {
+        if (result.success) {
+          batchProcessed.push(result.item);
+          processed.push(result.item);
+          // Remove from remaining queue
+          remainingQueue = remainingQueue.filter(q => q !== result.item);
+        } else {
+          batchFailed.push(result.item);
+          failed.push(result.item);
+        }
+      }
+
+      // Update JSON file after batch completes (remove successfully processed items)
+      if (batchProcessed.length > 0) {
         const updatedConfig: QueueConfig = {
           ...config,
           queue: remainingQueue,
@@ -252,13 +289,14 @@ async function processQueue(queName: string, shouldSave: boolean = false) {
           JSON.stringify(updatedConfig, null, 2),
           'utf-8',
         );
-        console.log(`   💾 Updated queue file (removed processed item)`);
-      } catch (error: any) {
-        console.error(`   ❌ Failed: ${error.message}`);
-        failed.push(item);
-        // Keep failed items in queue (don't update file)
+        console.log(
+          `   💾 Updated queue file (removed ${batchProcessed.length} processed item(s))`,
+        );
       }
 
+      console.log(
+        `   ✅ Batch ${batchNumber} completed: ${batchProcessed.length} succeeded, ${batchFailed.length} failed`,
+      );
       console.log(``);
     }
 
