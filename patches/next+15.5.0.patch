@@ -1,0 +1,36 @@
+diff --git a/node_modules/next/dist/server/lib/start-server.js b/node_modules/next/dist/server/lib/start-server.js
+index fa63a2d..5969749 100644
+--- a/node_modules/next/dist/server/lib/start-server.js
++++ b/node_modules/next/dist/server/lib/start-server.js
+@@ -243,13 +243,29 @@ async function startServer(serverOptions) {
+             }
+         }
+     }
++    const ONE_HOUR = 3600000;
+     const server = selfSignedCertificate ? _https.default.createServer({
+         key: _fs.default.readFileSync(selfSignedCertificate.key),
+-        cert: _fs.default.readFileSync(selfSignedCertificate.cert)
+-    }, requestListener) : _http.default.createServer(requestListener);
++        cert: _fs.default.readFileSync(selfSignedCertificate.cert),
++        requestTimeout: ONE_HOUR
++    }, requestListener) : _http.default.createServer({requestTimeout: ONE_HOUR}, requestListener);
++    // Update requestTimeout to allow for long lasting requests (i.e. preset generation)
++    // https://github.com/vercel/next.js/discussions/71651
++    // This patch is applied only in GitHub Actions via patch-package
++    server.requestTimeout = ONE_HOUR; // 1 hour
++    
++    // Set keepAliveTimeout for long-running connections
++    // Default is 5 seconds, which is too short for preset generation
++    // Must be higher than headersTimeout to prevent premature connection closure
+     if (keepAliveTimeout) {
+         server.keepAliveTimeout = keepAliveTimeout;
++    } else {
++        server.keepAliveTimeout = 120000; // 2 minutes (default for load balancers)
+     }
++    
++    // Headers timeout should be slightly higher than keepAliveTimeout
++    // to ensure headers are sent before connection times out
++    server.headersTimeout = 125000; // 2 minutes + 5 seconds
+     server.on('upgrade', async (req, socket, head)=>{
+         try {
+             await upgradeHandler(req, socket, head);
