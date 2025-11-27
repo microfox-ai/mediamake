@@ -6,7 +6,13 @@
  */
 
 import { config } from 'dotenv';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+} from 'fs';
 import { join, resolve } from 'path';
 
 // Load environment variables
@@ -67,14 +73,15 @@ async function processQueue(queName: string) {
     console.log(`📂 Reading queue file: ${jsonPath}`);
 
     if (!existsSync(jsonPath)) {
-      console.error(`❌ Error: Queue file not found at ${jsonPath}`);
+      const error = new Error(`Queue file not found at ${jsonPath}`);
+      console.error(`❌ Error: ${error.message}`);
       console.error(`   Create a JSON file with the following structure:`);
       console.error(`   {`);
       console.error(`     "agentPath": "/midjourney/pipeline1",`);
       console.error(`     "defaultParams": {},`);
       console.error(`     "queue": [{ ...inputParams }, ...]`);
       console.error(`   }`);
-      process.exit(1);
+      throw error;
     }
 
     // Read and parse JSON
@@ -82,13 +89,11 @@ async function processQueue(queName: string) {
     const config: QueueConfig = JSON.parse(fileContent);
 
     if (!config.agentPath) {
-      console.error(`❌ Error: Missing 'agentPath' in JSON file`);
-      process.exit(1);
+      throw new Error(`Missing 'agentPath' in JSON file`);
     }
 
     if (!config.queue || !Array.isArray(config.queue)) {
-      console.error(`❌ Error: Missing or invalid 'queue' array in JSON file`);
-      process.exit(1);
+      throw new Error(`Missing or invalid 'queue' array in JSON file`);
     }
 
     if (config.queue.length === 0) {
@@ -170,7 +175,9 @@ async function processQueue(queName: string) {
     if (failed.length > 0) {
       console.log(``);
       console.log(`⚠️  Failed items remain in the queue for retry.`);
-      process.exit(1);
+      throw new Error(
+        `Queue processing completed with ${failed.length} failed item(s)`,
+      );
     }
   } catch (error: any) {
     console.error(`❌ Failed to process queue:`, error.message);
@@ -185,7 +192,7 @@ async function processQueue(queName: string) {
         `   Make sure the Next.js server is running at ${BASE_URL}`,
       );
     }
-    process.exit(1);
+    throw error;
   }
 }
 
@@ -196,7 +203,80 @@ if (!queName) {
   console.error('❌ Error: queue name is required');
   console.error('   Usage: npm run callAgent <que_name>');
   console.error('   Example: npm run callAgent midjourney-batch-1');
+  console.error('   Or: npm run callAgent all (processes all JSON files)');
   process.exit(1);
 }
 
-processQueue(queName);
+async function processAllQueues() {
+  const scriptsDir = resolve(process.cwd(), 'scripts');
+  const jsonDir = join(scriptsDir, 'json');
+
+  // Ensure json directory exists
+  if (!existsSync(jsonDir)) {
+    mkdirSync(jsonDir, { recursive: true });
+    console.log(`📁 Created json directory: ${jsonDir}`);
+  }
+
+  // Read all JSON files from the directory
+  const files = readdirSync(jsonDir).filter(
+    file => file.endsWith('.json') && file !== 'example.json',
+  );
+
+  if (files.length === 0) {
+    console.log(
+      `✅ No queue files found in ${jsonDir} (excluding example.json)`,
+    );
+    return;
+  }
+
+  console.log(`🚀 Processing ${files.length} queue file(s)...`);
+  console.log(`   Files: ${files.join(', ')}`);
+  console.log(``);
+
+  let totalProcessed = 0;
+  let totalFailed = 0;
+  const failedFiles: string[] = [];
+
+  // Process each file sequentially
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const queName = file.replace('.json', '');
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📄 [${i + 1}/${files.length}] Processing file: ${file}`);
+    console.log(`${'='.repeat(60)}\n`);
+
+    try {
+      await processQueue(queName);
+      totalProcessed++;
+    } catch (error: any) {
+      console.error(`❌ Failed to process ${file}:`, error.message);
+      totalFailed++;
+      failedFiles.push(file);
+    }
+  }
+
+  // Final summary
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📊 Overall Summary:`);
+  console.log(`   ✅ Successfully processed: ${totalProcessed} file(s)`);
+  console.log(`   ❌ Failed: ${totalFailed} file(s)`);
+  if (failedFiles.length > 0) {
+    console.log(`   Failed files: ${failedFiles.join(', ')}`);
+  }
+  console.log(`${'='.repeat(60)}\n`);
+
+  if (totalFailed > 0) {
+    process.exit(1);
+  }
+}
+
+if (queName === 'all') {
+  processAllQueues().catch(error => {
+    console.error('❌ Fatal error processing all queues:', error.message);
+    process.exit(1);
+  });
+} else {
+  processQueue(queName).catch(error => {
+    process.exit(1);
+  });
+}
