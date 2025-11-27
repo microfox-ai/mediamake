@@ -15,12 +15,15 @@
  *   GITHUB_TOKEN="..." npx tsx scripts/github-workflow-preset-generator.ts
  */
 
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
+import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // TYPES
@@ -59,6 +62,7 @@ interface PresetResult {
 const BATCH_SIZE = 3; // Process 3 presets at a time
 const MAX_RETRIES = 3; // Retry up to 3 times for failures
 const RETRY_DELAY_BASE = 5000; // Base delay for exponential backoff (5s, 10s, 20s)
+const GENERATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes timeout per preset
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -331,6 +335,7 @@ async function generatePreset(
     
     const retryInfo = retryCount > 0 ? ` (Retry ${retryCount}/${MAX_RETRIES})` : '';
     console.log(`\n📤 [${index}/${totalCount}] Generating preset...${retryInfo}`);
+    console.log(`   Prompt: ${request.prompt.substring(0, 80)}...`);
     console.log(`   Prompt length: ${combinedPrompt.length} characters`);
     
     // Call the standalone script
@@ -340,13 +345,30 @@ async function generatePreset(
     const command = `npx tsx "${scriptPath}" "${combinedPrompt.replace(/"/g, '\\"')}"`;
     
     console.log(`   🔧 Running: npx tsx generate-preset.ts`);
+    console.log(`   ⏱️  Timeout: ${GENERATION_TIMEOUT / 1000 / 60} minutes`);
     
-    // Execute script and capture output
-    const output = execSync(command, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-    });
+    // Execute script with timeout and capture output
+    let output: string;
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        timeout: GENERATION_TIMEOUT, // 10 minute timeout
+      });
+      
+      output = stdout;
+      
+      if (stderr && stderr.length > 0) {
+        console.log(`   ⚠️  stderr output: ${stderr.substring(0, 200)}`);
+      }
+    } catch (execError: any) {
+      // Check if it's a timeout error
+      if (execError.killed || execError.signal === 'SIGTERM') {
+        throw new Error(`Generation timed out after ${GENERATION_TIMEOUT / 1000 / 60} minutes`);
+      }
+      // Re-throw other errors
+      throw execError;
+    }
     
     console.log(`✅ [${index}/${totalCount}] Script completed successfully`);
     
@@ -615,6 +637,7 @@ async function main() {
     const totalBatches = Math.ceil(presetRequests.length / BATCH_SIZE);
     
     console.log(`\n📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} presets)...`);
+    console.log(`   Running ${batch.length} preset generations in parallel...`);
     
     const batchPromises = batch.map((request, batchIndex) => {
       const index = i + batchIndex + 1;
