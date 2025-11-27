@@ -1,0 +1,132 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 10,
+    "variationCount": 8,
+    "tags": ["kidtales"],
+    "predefinedPreferences": ["--sref 4286000636"]
+  },
+  "queue": [
+    {
+      "userDirective": "Soft watercolor wash, gentle creatures, cozy burrows, sleepy afternoon mist."
+    },
+    {
+      "userDirective": "Bold geometric shapes, primary colors, friendly robots, minimalist city park."
+    },
+    {
+      "userDirective": "Whimsical fantasy, floating islands, glowing mushrooms, talking animals, sparkling light."
+    },
+    {
+      "userDirective": "Kid-friendly spooky, friendly shadows, curious monsters, haunted attic, flashlight beam."
+    },
+    {
+      "userDirective": "Textured collage, cut paper, fabric scraps, layered patterns, mixed-media feel."
+    },
+    {
+      "userDirective": "Bouncy cartoon style, exaggerated expressions, silly inventions, bright, saturated colors."
+    },
+    {
+      "userDirective": "Warm knitted textures, cozy fireplace, sleepy bears, story time, soft lighting."
+    },
+    {
+      "userDirective": "Tiny heroes, giant garden, rickety bridges, bug companions, adventure map."
+    },
+    {
+      "userDirective": "Dreamlike surrealism, fish flying in the sky, candy clouds, upside-down world."
+    },
+    {
+      "userDirective": "Kid-friendly sci-fi, bubble helmets, gummy aliens, crystal planets, friendly android."
+    },
+    {
+      "userDirective": "Simple line art, limited color palette, negative space, clean, quiet, modern."
+    },
+    {
+      "userDirective": "Enchanted forest, mossy stones, sunbeams through leaves, hidden pathways."
+    },
+    {
+      "userDirective": "Underwater kingdom, bioluminescent coral, friendly octopus, muted blues, sunken treasure."
+    },
+    {
+      "userDirective": "Classic ink drawing, cross-hatching, vintage feel, sepia tones, nostalgic characters."
+    },
+    {
+      "userDirective": "Soft chalk pastel, pavement drawings, smudged edges, gentle colors, innocent."
+    },
+    {
+      "userDirective": "Folk art style, flat perspective, decorative patterns, woodland creatures, stylized."
+    },
+    {
+      "userDirective": "Magical night, starry sky, glowing moon, nocturnal animals, quiet wonder."
+    },
+    {
+      "userDirective": "Playful chaos, crayon scribbles, paint splatters, creative mess, child's perspective."
+    },
+    {
+      "userDirective": "Cozy autumn, crunchy leaves, pumpkin patch, warm scarves, harvest, orange hues."
+    },
+    {
+      "userDirective": "Miniature world, living in a teapot, acorn cups, small adventures, tiny details."
+    },
+    {
+      "userDirective": "Bright whitewashed walls, blue-domed roofs, stone pathways, sunny Greek isle, sparkling sea."
+    },
+    {
+      "userDirective": "Soft ink wash, shoji screens, peaceful rock garden, koi pond, cherry blossom petals."
+    },
+    {
+      "userDirective": "Colorful mosaic tiles, sunny courtyard, arched doorways, spice market, hidden Moroccan riad."
+    },
+    {
+      "userDirective": "Narrow gabled houses, winding canal, cheerful tulips, bicycles, simple Dutch charm."
+    },
+    {
+      "userDirective": "Earthen adobe walls, flat roofs, wooden ladders, vast desert sky, warm terracotta hues."
+    },
+    {
+      "userDirective": "Thatched roof cottage, low stone walls, green misty hills, peat smoke, cozy Irish hearth."
+    },
+    {
+      "userDirective": "Painted onion domes, whimsical folk art, snowy birch trees, cozy wooden izba."
+    },
+    {
+      "userDirective": "Thatched roof hut, stilts over water, woven walls, dense jungle, bright parrots, Amazonian."
+    },
+    {
+      "userDirective": "Minimalist wood cabin, large windows, cozy 'hygge' feeling, Scandinavian pine forest."
+    },
+    {
+      "userDirective": "Woven palm roof, open-air living, sandy floors, turquoise lagoon, Polynesian island."
+    },
+    {
+      "userDirective": "Warm stone farmhouse, terracotta tiles, rolling green hills, cypress trees, Tuscan afternoon."
+    },
+    {
+      "userDirective": "Gray tiled roofs, hidden courtyard, glowing red lanterns, bamboo shadows, Chinese moon gate."
+    },
+    {
+      "userDirective": "Ornate Victorian house, bay windows, steep gables, foggy cobblestone street, gas lamp glow."
+    },
+    {
+      "userDirective": "Curved snow blocks, icy dome, glowing aurora, cozy furs inside, arctic twilight."
+    },
+    {
+      "userDirective": "Round felt yurt, colorful patterns, wide open steppe, big sky, nomadic Mongolian feel."
+    },
+    {
+      "userDirective": "Vibrant painted walls, terracotta patio, cacti garden, Mexican folk art, festive."
+    },
+    {
+      "userDirective": "Mansard roofs, wrought-iron balconies, Parisian chimney pots, cozy attic window, flower boxes."
+    },
+    {
+      "userDirective": "Houses on stilts, winding river market, colorful boats, Thai floating village, tropical."
+    },
+    {
+      "userDirective": "Painted half-timbered houses, steep roofs, alpine village, German storybook, window boxes."
+    },
+    {
+      "userDirective": "Saturated colors, block print patterns, ornate archways, Indian desert palace, hidden gardens."
+    }
+  ]
+}

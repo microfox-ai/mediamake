@@ -1,0 +1,222 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 25,
+    "variationCount": 8,
+    "tags": ["women"],
+    "predefinedPreferences": []
+  },
+  "queue": [
+    {
+      "userDirective": "Roaring twenties, woman in sequined dress, smoky jazz club, defiant glance, bobbed hair."
+    },
+    {
+      "userDirective": "Victorian era, lady in high-collar blouse, spectacles, dusty library, examining a globe."
+    },
+    {
+      "userDirective": "Far future, woman in sleek exploration suit, red desert planet, helmet off, gazing at two suns."
+    },
+    {
+      "userDirective": "1960s mod fashion, girl in A-line dress, geometric patterns, vintage scooter, bustling London street."
+    },
+    {
+      "userDirective": "Ancient Egypt, woman in white linen, intricate gold collar, standing by the Nile, pyramids in the distance."
+    },
+    {
+      "userDirective": "1980s punk, girl in ripped shirt, leather jacket, graffiti-covered alley, defiant pose."
+    },
+    {
+      "userDirective": "Renaissance Italy, lady in velvet gown, intricate braid, holding a lute on a stone balcony."
+    },
+    {
+      "userDirective": "1950s diner, girl in poodle skirt, jukebox reflection, chrome and neon, sharing a milkshake."
+    },
+    {
+      "userDirective": "Medieval peasant, woman in simple tunic, carrying a basket, dirt path, thatched-roof village."
+    },
+    {
+      "userDirective": "Cyberpunk future, woman in holographic jacket, noodle shop, neon signs reflected in rain puddles."
+    },
+    {
+      "userDirective": "1970s disco, girl in bell bottoms, platform shoes, mirror ball reflections, vibrant dance floor."
+    },
+    {
+      "userDirective": "Steampunk variant, lady in corset and goggles, brass contraptions, airship deck, cloudy sky."
+    },
+    {
+      "userDirective": "Ancient Rome, woman in flowing toga, gold laurels, standing on senate steps, overlooking a forum."
+    },
+    {
+      "userDirective": "1990s grunge, girl in flannel shirt, ripped jeans, listening to music on a city bus, staring out the window."
+    },
+    {
+      "userDirective": "1940s war era, woman in factory overalls, hair in a headscarf, working on machinery, determined expression."
+    },
+    {
+      "userDirective": "Prehistoric, woman in fur-lined tunic, spear in hand, cave paintings in the background, icy landscape."
+    },
+    {
+      "userDirective": "Space opera royalty, lady in elaborate gown, alien architecture, looking out a massive starship viewport."
+    },
+    {
+      "userDirective": "Wild West, woman in duster coat, holding reins of a horse, dusty main street, sunset."
+    },
+    {
+      "userDirective": "Fantasy knight, woman in polished plate armor, sword sheathed, atop a castle wall, surveying a valley."
+    },
+    {
+      "userDirective": "Y2K era, girl in low-rise jeans, bright metallic top, holding a flip phone, abstract bright background."
+    },
+    {
+      "userDirective": "1960s hippie, girl in fringe vest, bell-bottoms, flower crown, sitting in a field."
+    },
+    {
+      "userDirective": "Viking shieldmaiden, woman in fur cloak, leather armor, braided hair, standing on a cliff overlooking fjords."
+    },
+    {
+      "userDirective": "1930s film noir, woman in trench coat, fedora, shadows from window blinds, city street at night."
+    },
+    {
+      "userDirective": "Ancient Greek, lady in simple chiton, olive wreath, reading a scroll near a marble temple."
+    },
+    {
+      "userDirective": "1920s aviator, woman in leather flight cap, goggles, bomber jacket, standing by a biplane."
+    },
+    {
+      "userDirective": "Renaissance noblewoman, lady in heavy velvet gown, pearl snood, castle interior, tapestry background."
+    },
+    {
+      "userDirective": "1980s neon workout, girl in leotard, leg warmers, sweatband, bright colors."
+    },
+    {
+      "userDirective": "Dystopian survivor, woman in ragged layers, utility belt, goggles, ruins of a metropolis."
+    },
+    {
+      "userDirective": "1950s rockabilly, girl in polka dot dress, neck scarf, leaning against a vintage car."
+    },
+    {
+      "userDirective": "Medieval fantasy rogue, woman in dark leather, hood, daggers, cobblestone alley, moonlight."
+    },
+    {
+      "userDirective": "1970s roller disco, girl in satin shorts, striped socks, roller skates, shimmering lights."
+    },
+    {
+      "userDirective": "Old West pioneer, woman in calico dress, sunbonnet, covered wagon, dusty plains."
+    },
+    {
+      "userDirective": "Regency era, lady in empire-waist dress, bonnet, walking through a manicured English garden."
+    },
+    {
+      "userDirective": "Futuristic soldier, woman in sleek white armor, energy rifle, alien jungle planet."
+    },
+    {
+      "userDirective": "1990s raver, girl in baggy pants, platform sneakers, candy bracelets, warehouse party."
+    },
+    {
+      "userDirective": "Japanese Heian period, lady in multi-layered kimono (jūnihitoe), long hair, wooden palace."
+    },
+    {
+      "userDirective": "Steampunk inventor, woman in corset, top hat, brass goggles, workshop filled with gears."
+    },
+    {
+      "userDirective": "1940s swing dancer, girl in A-line skirt, saddle shoes, crowded dance hall, live band."
+    },
+    {
+      "userDirective": "Aztec warrior, woman in feather headdress, obsidian weapon, temple pyramid, dense jungle."
+    },
+    {
+      "userDirective": "Space colonist, woman in practical jumpsuit, terraforming equipment, glass biodome, red planet."
+    },
+    {
+      "userDirective": "1910s Suffragette, woman in long skirt, 'Votes for Women' sash, marching in a city street."
+    },
+    {
+      "userDirective": "Forest elf, woman in armor made of leaves and wood, longbow, mystical glowing forest."
+    },
+    {
+      "userDirective": "1960s Space Age, girl in silver minidress, white boots, bubble helmet, retro-futuristic room."
+    },
+    {
+      "userDirective": "Pirate captain, woman in tricorne hat, weathered coat, on deck of a ship, stormy sea."
+    },
+    {
+      "userDirective": "Victorian explorer, lady in pith helmet, khaki suit, examining ruins in a dense jungle."
+    },
+    {
+      "userDirective": "1950s beatnik, girl in black turtleneck, beret, playing bongos in a smoky cafe."
+    },
+    {
+      "userDirective": "French Revolution, woman in simple peasant dress, red cap, standing on a street barricade."
+    },
+    {
+      "userDirective": "Cyberpunk runner, woman in holographic visor, augmented reality jacket, data streams, server room."
+    },
+    {
+      "userDirective": "Gilded Age ball, lady in opulent gown, diamond tiara, feathered fan, grand marble staircase."
+    },
+    {
+      "userDirective": "Arctic researcher, woman in heavy parka, thermal suit, ice cave, aurora borealis."
+    },
+    {
+      "userDirective": "Mongolian archer, woman in layered robes, fur hat, riding a horse across the steppe."
+    },
+    {
+      "userDirective": "1930s Dust Bowl, woman in worn cotton dress, apron, standing by a dry, cracked field."
+    },
+    {
+      "userDirective": "Royal court musician, 18th century, lady in powdered wig, brocade coat, holding a violin."
+    },
+    {
+      "userDirective": "Post-apocalyptic nomad, woman in desert robes, sand goggles, walking alongside a giant creature."
+    },
+    {
+      "userDirective": "1990s high school, girl in plaid skirt, sweater vest, locker-lined hallway, holding books."
+    },
+    {
+      "userDirective": "Celtic druid, woman in woven cloak, sickle, standing inside a circle of ancient stones."
+    },
+    {
+      "userDirective": "Space opera diplomat, lady in flowing alien silks, intricate facial markings, futuristic embassy."
+    },
+    {
+      "userDirective": "1920s beachgoer, woman in striped bathing costume, parasol, old wooden boardwalk."
+    },
+    {
+      "userDirective": "Fantasy sorceress, woman in robes embroidered with runes, staff, library of floating books."
+    },
+    {
+      "userDirective": "1980s Wall Street, woman in power suit, shoulder pads, brick-sized cell phone, busy office."
+    },
+    {
+      "userDirective": "Traditional Indian wedding, woman in red and gold sari, heavy jewelry, ornate mandap."
+    },
+    {
+      "userDirective": "1960s airline stewardess, lady in pillbox hat, neat uniform, retro airplane cabin."
+    },
+    {
+      "userDirective": "Bedouin traveler, woman in black robes, veil, leading a camel through the desert, sunset."
+    },
+    {
+      "userDirective": "Wartime factory worker, woman in overalls, headscarf, working on heavy machinery, 1940s."
+    },
+    {
+      "userDirective": "Solar punk, woman in white and green clothes, woven natural fibers, futuristic city with waterfalls."
+    },
+    {
+      "userDirective": "Minoan Priestess, woman in exposed-bodice dress, flounced skirt, frescoed palace, ancient Crete."
+    },
+    {
+      "userDirective": "1970s skateboarder, girl in tube socks, shorts, board with retro graphics, empty swimming pool."
+    },
+    {
+      "userDirective": "Elizabethan alchemist, woman in apron, vials, dusty laboratory, mystical symbols."
+    },
+    {
+      "userDirective": "Deep sea explorer, woman in futuristic dive suit, bioluminescent creatures, ocean trench."
+    },
+    {
+      "userDirective": "1900s Belle Époque, lady in feathered hat, S-curve dress, walking in a Parisian park."
+    }
+  ]
+}

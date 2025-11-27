@@ -1,0 +1,162 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 25,
+    "variationCount": 8,
+    "tags": ["men"],
+    "predefinedPreferences": []
+  },
+  "queue": [
+    {
+      "userDirective": "man or young man or young teen or boy, silk kimono, katana at his side, serene bamboo forest."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, biomechanical arm, torn jacket, neon alley, acid rain."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, embroidered robes, ancient library, floating books, glowing symbols."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, white t-shirt, cuffed jeans, retro diner, jukebox reflection."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, top hat, cravat, opera house, velvet seats, chandelier."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, boater hat, striped blazer, vintage car, garden party."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, asymmetrical haircut, angular suit, synthesizers, grid background."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, centurion armor, plumed helmet, roman road, marching."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, leather apron, simple tunic, blacksmith's forge, sparks."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, pressure suit, helmet reflection, mars colony, red dust storm."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, tie-dye shirt, round glasses, festival field, acoustic guitar."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, ornate tunic, pointed ears, mystical forest, bioluminescence."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, worn overalls, flat cap, barren field, dusty porch."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, paint-smeared smock, beret, standing before a large canvas."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, tricorn hat, loose shirt, treasure map, tropical beach."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, hoodie, baggy jeans, skateboard, concrete park, graffiti."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, linen kohl, gold jewelry, temple columns, hieroglyphs."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, gas mask, patched scavenger gear, desolate highway, rusty signs."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, oversized sweater, headphones, messy bedroom, band posters."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, small crown, ermine cape, throne room, stained glass window."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, trench coat, fedora, foggy street, single lamppost, mystery."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, tweed jacket, elbow patches, old books, university hall, candlelight."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, platform shoes, vibrant suit, cityscape background, disco lights."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, chainmail, holding a helmet, castle courtyard, training."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, white flowing robes, clean futuristic architecture, floating gardens."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, popped collar, pastel sweater, tennis court, racket."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, braided hair, leather armor, drinking horn, mead hall, fire."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, musket, colonial uniform, muddy field, campfire smoke."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, clean hoodie, glasses, laptop, minimalist office, city view."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, black turtleneck, smoky cafe, bongo drums, poetry."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, soot-stained clothes, cap, factory, towering chimneys."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, colorful attire, lute, tavern, telling a story."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, flight suit, complex cockpit, star map, nebula outside window."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, simple tunic, olive wreath, ancient stadium, discus."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, parka, tailored suit, scooter, bright target symbol."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, pith helmet, khaki shorts, jungle ruins, hanging vines."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, bandana, dusty coat, leaning on a horse, desert canyon."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, simple brown robe, tonsure haircut, scriptorium, illuminated manuscript."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, baggy pants, bright colors, warehouse, strobe lights."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, lab coat, glowing vials, futuristic laboratory, DNA helix."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, leather vest, band t-shirt, long hair, concert crowd."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, high collar, waistcoat, regency ballroom, dancing."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, dark cloak, hood up, perched on a rooftop, moonlit city."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, swim trunks, surfboard, sunset, ocean waves."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, leather cap, goggles, aviator scarf, biplane wing."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, VR goggles, data gloves, wires, abstract data space."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, war paint, fur loincloth, massive axe, snowy mountain peak."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, double-breasted suit, violin case, brick wall, vintage car."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, apron, holding a coffee cup, cafe interior, morning light."
+    },
+    {
+      "userDirective": "man or young man or young teen or boy, powdered wig, silk suit, formal garden, marble statues."
+    }
+  ]
+}
