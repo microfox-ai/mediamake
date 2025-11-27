@@ -31,6 +31,70 @@ interface QueueConfig {
 
 const BASE_URL = 'http://localhost:3000';
 
+// Generate a random word-like string for filename prefix
+function generateRandomPrefix(): string {
+  const words = [
+    'but',
+    'cut',
+    'ion',
+    'run',
+    'fly',
+    'sky',
+    'sea',
+    'sun',
+    'moon',
+    'star',
+    'art',
+    'code',
+    'data',
+    'file',
+    'task',
+    'work',
+    'play',
+    'game',
+    'time',
+    'path',
+    'node',
+    'edge',
+    'flow',
+    'wave',
+    'line',
+    'point',
+    'mark',
+    'spot',
+  ];
+  const randomWords = [
+    words[Math.floor(Math.random() * words.length)],
+    words[Math.floor(Math.random() * words.length)],
+    words[Math.floor(Math.random() * words.length)],
+  ];
+  return randomWords.join('_');
+}
+
+// Generate unique filename based on timestamp
+function generateUniqueFilename(): string {
+  const prefix = generateRandomPrefix();
+  const timestamp = Date.now();
+  return `${prefix}-${timestamp}.json`;
+}
+
+// Save API call result to output folder
+function saveResult(
+  outputDir: string,
+  mergedParams: Record<string, any>,
+  result: any,
+): string {
+  const filename = generateUniqueFilename();
+  const filePath = join(outputDir, filename);
+  const data = {
+    mergedParams,
+    result,
+    timestamp: new Date().toISOString(),
+  };
+  writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  return filename;
+}
+
 async function callAgentAPI(
   agentPath: string,
   params: Record<string, any>,
@@ -58,16 +122,25 @@ async function callAgentAPI(
   return await response.json();
 }
 
-async function processQueue(queName: string) {
+async function processQueue(queName: string, shouldSave: boolean = false) {
   try {
     const scriptsDir = resolve(process.cwd(), 'scripts');
     const jsonDir = join(scriptsDir, 'json');
     const jsonPath = join(jsonDir, `${queName}.json`);
+    const outputDir = join(scriptsDir, 'output');
 
     // Ensure json directory exists
     if (!existsSync(jsonDir)) {
       mkdirSync(jsonDir, { recursive: true });
       console.log(`📁 Created json directory: ${jsonDir}`);
+    }
+
+    // Ensure output directory exists if saving is enabled
+    if (shouldSave) {
+      if (!existsSync(outputDir)) {
+        mkdirSync(outputDir, { recursive: true });
+        console.log(`📁 Created output directory: ${outputDir}`);
+      }
     }
 
     console.log(`📂 Reading queue file: ${jsonPath}`);
@@ -140,6 +213,13 @@ async function processQueue(queName: string) {
             ? resultPreview.substring(0, 200) + '...'
             : resultPreview,
         );
+
+        // Save result if --save flag is specified
+        if (shouldSave) {
+          const savedFilename = saveResult(outputDir, mergedParams, result);
+          console.log(`   💾 Saved result to: ${savedFilename}`);
+        }
+
         processed.push(item);
         // Remove from remaining queue
         remainingQueue = remainingQueue.filter(q => q !== item);
@@ -196,18 +276,21 @@ async function processQueue(queName: string) {
   }
 }
 
-// Get queue name from command line arguments
-const queName = process.argv[2];
+// Parse command line arguments
+const args = process.argv.slice(2);
+const queName = args[0];
+const shouldSave = args.includes('--save');
 
 if (!queName) {
   console.error('❌ Error: queue name is required');
-  console.error('   Usage: npm run callAgent <que_name>');
+  console.error('   Usage: npm run callAgent <que_name> [--save]');
   console.error('   Example: npm run callAgent midjourney-batch-1');
+  console.error('   Example: npm run callAgent all --save');
   console.error('   Or: npm run callAgent all (processes all JSON files)');
   process.exit(1);
 }
 
-async function processAllQueues() {
+async function processAllQueues(shouldSave: boolean = false) {
   const scriptsDir = resolve(process.cwd(), 'scripts');
   const jsonDir = join(scriptsDir, 'json');
 
@@ -246,7 +329,7 @@ async function processAllQueues() {
     console.log(`${'='.repeat(60)}\n`);
 
     try {
-      await processQueue(queName);
+      await processQueue(queName, shouldSave);
       totalProcessed++;
     } catch (error: any) {
       console.error(`❌ Failed to process ${file}:`, error.message);
@@ -271,12 +354,24 @@ async function processAllQueues() {
 }
 
 if (queName === 'all') {
-  processAllQueues().catch(error => {
+  if (shouldSave) {
+    console.log(
+      '💾 Save mode enabled - results will be saved to scripts/output/',
+    );
+    console.log('');
+  }
+  processAllQueues(shouldSave).catch(error => {
     console.error('❌ Fatal error processing all queues:', error.message);
     process.exit(1);
   });
 } else {
-  processQueue(queName).catch(error => {
+  if (shouldSave) {
+    console.log(
+      '💾 Save mode enabled - results will be saved to scripts/output/',
+    );
+    console.log('');
+  }
+  processQueue(queName, shouldSave).catch(error => {
     process.exit(1);
   });
 }
