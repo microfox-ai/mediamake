@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Dynamic tile mosaic mask reveal multi-clip transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "HzXpptBE553mYwpe",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-qYNeDmqYKAfBPpuo",
+          "state": "output-available",
+          "output": {
+            "title": "Dynamic Tile Mosaic Mask Reveal Multi-Clip Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a dynamic tile mosaic mask reveal transition preset that splits the outgoing video into a grid of tiles that randomly flip and fade to reveal the incoming video underneath. The transition should use a 3x3 grid where each tile has staggered timing - tiles flip out with a 3D rotation effect while simultaneously fading, creating a mosaic-like reveal pattern. The outgoing video should be divided into 9 VideoAtom instances (each showing a cropped section via clipPath), while the incoming video sits as a single VideoAtom underneath. During the 2-second overlap period, tiles randomly rotate on Y-axis from 0 to 90 degrees while fading out, creating a dynamic reveal effect. Use transform3d for GPU acceleration and stagger the tile animations by 100-200ms for organic movement.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 2s overlap. Create 9 VideoAtom instances for outgoing video tiles using absolute positioning and clipPath (e.g., 'polygon(0% 0%, 33.33% 0%, 33.33% 33.33%, 0% 33.33%)' for top-left tile). Each tile VideoAtom has identical source but different clipPath regions. Incoming VideoAtom positioned absolutely with 'inset-0 object-cover' and z-index: 0. Outgoing tiles have z-index: 10. Apply generic opacity and transform effects in provider mode targeting each tile's ID. Transform effects use rotateY (0deg to 90deg) with perspective(1000px). Stagger start times: tile1 at overlap start, tile2 at +100ms, etc. Use 'ease-in-out' easing for smooth rotation."
+              },
+              {
+                "prompt": "Design a multi-clip sequential cascade transition where multiple video clips slide in from different directions creating a dynamic collage before settling into the final incoming video. The transition handles 4-5 video sources that slide in like cards being dealt - first from left, then right, then top, then bottom - each overlapping the previous by 500ms. Each video plays for 1-2 seconds while sliding in, creating a fast-paced montage effect. The final video remains as the main content. Use scale and blur effects during the slide animations to add depth and motion blur. Videos should have different aspect ratios and sizes, creating an asymmetric, editorial layout during the transition phase.",
+                "technicalSpecs": "BaseLayout with calculated duration based on all video segments plus overlaps. Create 5 VideoAtom instances with staggered start times. Video1: translateX(-100%) to 0, top-left position (top-0 left-0 w-2/3 h-2/3). Video2: translateX(100%) to 0, starts at +1.5s, bottom-right (bottom-0 right-0 w-1/2 h-1/2). Video3: translateY(-100%) to 0, starts at +3s, top-right (top-0 right-0 w-1/3 h-full). Apply motion blur using filter: blur(4px) during movement, clearing to blur(0) on settle. Scale from 0.8 to 1 during slide-in. Z-index increases with each video (1, 2, 3, 4, 5). Use 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' for bounce easing."
+              },
+              {
+                "prompt": "Build a hexagonal honeycomb mask transition where the outgoing video is masked by animated hexagon shapes that shrink and disappear to reveal the incoming video. Create a honeycomb grid of 12-15 hexagonal masks using ShapeAtom components overlaid on the outgoing video. During the 1.5s transition, hexagons scale down from 100% to 0% with staggered timing creating a dissolve pattern from center outward. The incoming video sits behind with a subtle zoom-in effect (scale 1.1 to 1) during the reveal. Add a warm color overlay that fades during transition to enhance the honeycomb aesthetic. Hexagons should have slight rotation during scaling for organic movement.",
+                "technicalSpecs": "BaseLayout container with blend-mode multiply for overlay effects. Incoming VideoAtom at z-index: 1 with scale transform (1.1 to 1 over 1.5s). Outgoing VideoAtom at z-index: 2. Create 15 ShapeAtom hexagons positioned in honeycomb grid pattern using absolute positioning and SVG paths. Hexagons have z-index: 3 with mix-blend-mode: multiply and initial fill: black. Apply scale (1 to 0) and rotate (0deg to 30deg) transforms to each hexagon. Center hexagons animate first (at overlap start), then radiate outward with 50ms delays. Add semi-transparent orange overlay div (bg-orange-500/20) that fades from opacity-100 to opacity-0 during transition."
+              },
+              {
+                "prompt": "Create a glitch-style datamosh transition that simulates video compression artifacts and pixel sorting effects between clips. The outgoing video breaks into horizontal scan lines that randomly offset and distort while the incoming video phases in through digital noise patterns. Use multiple VideoAtom instances of the same source with different blend modes (screen, overlay, difference) and opacity values to create the glitch effect. Add RGB channel splitting by offsetting red, green, and blue tinted versions of the video. During the 800ms transition, rapidly toggle visibility and positions of glitch layers while crossfading the main videos underneath.",
+                "technicalSpecs": "BaseLayout with overflow-hidden. Main outgoing VideoAtom with opacity fade (1 to 0 over 800ms). Main incoming VideoAtom with opacity fade (0 to 1 over 800ms), z-index: 1. Create 3 glitch layers for outgoing video: VideoAtom with mix-blend-mode-screen, translateX animations (-5px to 5px, 100ms intervals), opacity flicker (1, 0, 0.5 pattern). Add RGB split: 3 VideoAtoms with filters (hue-rotate-120, hue-rotate-240, normal) and slight position offsets (translateX: -2px, 0, 2px). Use requestAnimationFrame-style rapid updates via multiple keyframe points. Apply scanline effect with repeating linear gradient overlay."
+              },
+              {
+                "prompt": "Design a circular iris wipe transition that uses an expanding circle mask to reveal the incoming video, reminiscent of classic film transitions. The mask starts as a small circle in the center and expands outward to reveal the full frame. Enhance this with multiple concentric circles that expand at different rates, creating a ripple effect. The outgoing video should subtly zoom in (scale 1 to 1.05) while the incoming video has a counter-zoom (scale 1.1 to 1) for a parallax effect. Add a slight rotation to both videos in opposite directions during the transition for dynamic movement.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden'. Outgoing VideoAtom with scale (1 to 1.05) and rotate (-2deg) transforms over 1.2s. Incoming VideoAtom with scale (1.1 to 1) and rotate (2deg), z-index: 0. Create expanding circle mask using div with 'absolute inset-0 bg-black' and radial-gradient mask-image. Animate mask-size from 0% to 150% over 1.2s. Add 3 concentric circle divs with border-white/20 expanding at different rates (0 to 100vw, 0 to 120vw, 0 to 140vw) with staggered delays (0ms, 100ms, 200ms). Use 'ease-out' easing for expansion. Apply pointer-events-none to mask elements."
+              },
+              {
+                "prompt": "Build a split-screen sliding panel transition where the screen divides into vertical panels that slide in opposite directions revealing the new video. Create 5 vertical slices where odd panels slide up and even panels slide down, creating a venetian blind effect. Each panel shows a portion of the outgoing video using clipPath, while the incoming video is revealed behind. Panels should have different slide speeds and distances for an asymmetric, dynamic effect. Add subtle shadows between panels and a brief 'squeeze' effect (scaleX: 0.95) before the slide begins for anticipation.",
+                "technicalSpecs": "BaseLayout with 'relative h-full w-full'. Incoming VideoAtom with 'absolute inset-0 object-cover' at z-index: 0. Create 5 panel VideoAtoms for outgoing video, each with width-1/5 and clipPath for vertical slices. Panel positioning: left-0, left-[20%], left-[40%], left-[60%], left-[80%]. Apply scaleX (1 to 0.95 to 1) for squeeze, then translateY for slides. Odd panels: translateY(0 to -120%), even panels: translateY(0 to 120%). Stagger timing: panel1 at 0ms, panel2 at 50ms, etc. Add box-shadow (shadow-xl) to panels. Use 'cubic-bezier(0.77, 0, 0.175, 1)' for smooth acceleration."
+              },
+              {
+                "prompt": "Create a particle dissolution transition where the outgoing video breaks apart into small square particles that scatter and fade while revealing the incoming video. Generate a grid of 8x8 small video tiles (64 total) that each show a portion of the outgoing video. During transition, particles gain physics-like properties - floating upward with varying speeds, rotating randomly, and fading out. Some particles should drift left/right for organic movement. The incoming video simultaneously fades in with a subtle vignette effect that clears as particles disappear. Add motion blur to fast-moving particles.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-visible' to allow particles to float outside. Incoming VideoAtom with opacity (0 to 1) and vignette overlay that fades out. Create 64 VideoAtom tiles in 8x8 grid, each 12.5% width/height with corresponding clipPath regions. Each particle gets unique animation: translateY (0 to -100px to -300px range), translateX (random -50px to 50px), rotate (random -180deg to 180deg), opacity (1 to 0). Apply filter blur based on velocity (faster = more blur, 0-4px range). Use random delays (0-400ms) and durations (800-1400ms) per particle. Z-index: incoming=1, particles=10-74 (random). Include 'will-change-transform' for performance."
+              },
+              {
+                "prompt": "Design a liquid morph transition that simulates fluid dynamics between video clips. The outgoing video warps and liquifies using wave distortions while the incoming video emerges through the distortion. Create multiple layers with different wave patterns - the main videos plus 2-3 semi-transparent overlay copies with varying blend modes and distortion amounts. Use CSS filters and transforms to create the warping effect, with sin/cos wave functions translated to keyframe animations. The distortion should peak at the midpoint of the transition then settle to reveal the clean incoming video.",
+                "technicalSpecs": "BaseLayout with mix-blend-mode-normal. Base incoming VideoAtom with scale animation (0.9 to 1). Outgoing VideoAtom with opacity fade (1 to 0). Create 3 distortion layers: VideoAtom with filter url(#displacement) using SVG turbulence filter, opacity-60, mix-blend-mode-overlay. Apply transform animations simulating waves: scaleX oscillating 1-1.1-1, skewY oscillating 0-5deg-0deg, multiple keyframes creating wave motion. Use CSS custom properties for wave parameters: --wave-amplitude: 20px, --wave-frequency: 2. Animate custom props and apply via calc(). Add backdrop-filter-blur(2px) overlay that fades out. Duration: 1.5s with ease-in-out-sine easing."
+              },
+              {
+                "prompt": "Build a kaleidoscope crystal shatter transition where the outgoing video fragments into triangular crystal shards that rotate and refract before revealing the incoming video. Create 16-20 triangular segments using clipPath polygons arranged in a crystalline pattern radiating from center. Each shard should have different rotation axes (rotateX, rotateY, rotateZ combinations) and catch light with brief opacity flashes during rotation. The incoming video has a complementary 'assembly' effect where it appears to crystallize into focus from a blurred, fragmented state.",
+                "technicalSpecs": "BaseLayout with perspective(1000px) transform-style-preserve-3d. Incoming VideoAtom starts with filter blur(8px) and scale(1.2), animating to blur(0) and scale(1). Create 20 triangular VideoAtom shards using clipPath polygon() with vertices calculated for crystalline pattern. Each shard has unique 3D rotation: rotateX(random -90 to 90deg) rotateY(random -90 to 90deg) rotateZ(random -45 to 45deg). Add opacity flicker keyframes (1-0.3-1) at 30% and 70% progress to simulate light refraction. Stagger animations from center outward with 25ms delays. Apply box-shadow with rgba(255,255,255,0.5) for light catching effect. Use cubic-bezier(0.68, -0.55, 0.265, 1.55) for slight bounce."
+              },
+              {
+                "prompt": "Create a DNA helix spiral transition where video strips spiral and twist between clips like a double helix unwinding and rewinding. Split the frame into horizontal strips that rotate around a central axis while transitioning. The outgoing video strips spiral outward (increasing radius) while fading, as incoming video strips spiral inward from the edges. Create 10 horizontal strips that follow helical paths using combined translateX, translateZ, and rotateY transforms. Add subtle color shifts and gaussian blur during the spiral motion to enhance the biological, organic feel of the transition.",
+                "technicalSpecs": "BaseLayout with transform-style-preserve-3d and perspective(800px). Create 10 horizontal strip VideoAtoms for each video (20 total), height-[10%] each with clipPath for horizontal sections. Outgoing strips: animate along helix path using keyframes - translateX(sin(t)*radius), translateZ(cos(t)*radius), rotateY(t*360deg) where t goes 0-1 over transition. Radius expands from 0 to 200px for outgoing, contracts from 200px to 0 for incoming. Add hue-rotate filter animation (0 to 30deg) for color shift. Apply blur filter (0 to 2px to 0) at midpoint. Stagger strip animations by 50ms top-to-bottom. Z-index alternates between strips for proper helix overlap. Use ease-in-out-quad for smooth acceleration."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 3663,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6105
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:35:46.141Z"
+}

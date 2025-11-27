@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "3D room perspective push through doorway transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "v661JYHKMg7VhzNw",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-uBTFOQ0Yq6YbR8gz",
+          "state": "output-available",
+          "output": {
+            "title": "3D Room Push Through Doorway Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a 3D room perspective push transition where the camera appears to move through a doorway from one video scene to another. The transition should simulate depth by scaling the outgoing video down while revealing the incoming video behind it, as if passing through a portal. During the 1.5-second overlap period, the outgoing video should scale down from 100% to 0% with a custom ease-out curve while simultaneously applying a subtle vignette effect that darkens the edges. The incoming video starts at 120% scale and animates to 100% as if the viewer is pushing through the doorway into the new room. Add a subtle shake effect during the middle of the transition (0.5s-1s) to simulate the physical movement through the threshold. Both videos should have a slight perspective transform applied using CSS 3D transforms to enhance the depth illusion.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-hidden' and style={{ perspective: '1000px' }}. Two VideoAtom components positioned absolutely with 'absolute inset-0'. Outgoing video uses transform effect with AnimationRange from scale(1) rotateY(0deg) to scale(0) rotateY(-5deg) over 0-1.5s with easeOutQuart. Incoming video uses transform effect from scale(1.2) rotateY(5deg) translateZ(100px) to scale(1) rotateY(0deg) translateZ(0px) over 0-1.5s. Add filter effect for vignette using radial-gradient overlay. Shake effect using transform translate with random values between 0.5-1s. Calculate BaseLayout duration as video1.duration + video2.duration - 1.5s overlap. Use provider mode effects with targetIds for each video atom."
+              },
+              {
+                "prompt": "Design a doorway wipe transition that creates the illusion of sliding through multiple connected rooms. The transition uses a three-layer approach: the outgoing video slides left revealing a dark doorway frame (using a ShapeAtom), then the incoming video slides in from the right through the doorway opening. The doorway frame should be a rectangular shape with rounded corners that stays in place for 0.5 seconds during the transition, creating a momentary 'threshold' effect. The outgoing video should accelerate its slide using an ease-in curve, while the incoming video decelerates with an ease-out curve, creating a natural motion flow. Add motion blur to both videos during their movement phases to enhance the speed sensation.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-black'. Three elements: outgoing VideoAtom, ShapeAtom for doorway, incoming VideoAtom. Outgoing video uses transform effect translateX(0) to translateX(-100%) over 0-1.2s with easeInQuad. ShapeAtom positioned at 'absolute inset-y-0 left-1/2 -translate-x-1/2 w-32 bg-gray-900' with rounded corners, opacity 0-1-0 over 0.5s-1s-1.5s. Incoming video uses transform effect translateX(100%) to translateX(0) over 0.8s-2s with easeOutQuad. Apply filter blur(0px) to blur(4px) to blur(0px) during movement phases. BaseLayout duration = video1.duration + video2.duration - 1.2s overlap."
+              },
+              {
+                "prompt": "Construct a zoom-through-keyhole transition where the view zooms into a keyhole shape on the outgoing video, passes through darkness, then emerges from another keyhole revealing the incoming video. The keyhole effect is achieved using CSS clip-path that animates from a full rectangle to a small circle, then back to a rectangle. During the 2-second transition, there's a 0.3-second period of complete darkness in the middle to simulate passing through the door. The outgoing video should also rotate slightly clockwise while zooming in, and the incoming video rotates counter-clockwise while zooming out, creating a spiraling motion through the doorway.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black overflow-hidden'. Outgoing VideoAtom with clip-path animation from polygon(0 0, 100% 0, 100% 100%, 0 100%) to circle(5% at 50% 50%) over 0-1s. Transform effect scale(1) rotate(0deg) to scale(3) rotate(15deg) over 0-1s. Opacity 1 to 0 at 1s. Incoming VideoAtom starts at 1s with clip-path circle(5% at 50% 50%) to polygon(0 0, 100% 0, 100% 100%, 0 100%) over 1s-2s. Transform scale(3) rotate(-15deg) to scale(1) rotate(0deg). Both videos positioned 'absolute inset-0'. BaseLayout duration = video1.duration + video2.duration - 1.7s (accounting for 0.3s darkness)."
+              },
+              {
+                "prompt": "Create a parallax doorway transition where multiple layers move at different speeds to simulate depth as the viewer moves through a room. The outgoing video is split into three depth layers using multiple VideoAtom instances with the same source but different masks: foreground (furniture), midground (walls), and background (far wall). Each layer slides and scales at different rates during the 1.8-second transition. The incoming video similarly has three layers that slide in from the opposite direction. Add a subtle focus blur that shifts from background to foreground during the transition to enhance the depth perception.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden'. Six VideoAtom components total (3 outgoing, 3 incoming). Outgoing layers: background VideoAtom with transform translateX(0) scale(1) to translateX(-30%) scale(0.8), midground translateX(0) to translateX(-60%) scale(0.9), foreground translateX(0) to translateX(-100%) scale(1). All over 0-1.8s with different easing. Incoming layers start at 0.3s with opposite transforms. Apply CSS masks using linear-gradient for layer separation. Filter blur effects: background blur(2px) to blur(0), foreground blur(0) to blur(2px) during transition. Z-index ordering for proper layering. BaseLayout duration = video1.duration + video2.duration - 1.5s."
+              },
+              {
+                "prompt": "Develop a hinged door swing transition where the outgoing video appears to be on a door that swings open to reveal the incoming video behind it. The door swing uses CSS 3D transforms with transform-origin set to the left edge, rotating on the Y-axis from 0 to -90 degrees. During the 1.6-second transition, add realistic shadows that move across the incoming video as the door swings open. The incoming video starts slightly darker and brightens as the door opens fully. Include a subtle door creak sound effect (AudioAtom) timed with the swing motion for added realism.",
+                "technicalSpecs": "BaseLayout with style={{ perspective: '1200px', transformStyle: 'preserve-3d' }} and 'relative w-full h-full'. Outgoing VideoAtom with 'absolute inset-0 origin-left' and transform rotateY(0deg) to rotateY(-90deg) over 0-1.6s with easeInOutCubic. Incoming VideoAtom at 'absolute inset-0' with filter brightness(0.6) to brightness(1) over 0-1.6s. Shadow overlay using ShapeAtom with gradient opacity animation. AudioAtom with door creak sound, volume 0.3, playing from 0-1.6s. BaseLayout duration = video1.duration + video2.duration - 1.6s. Add backface-visibility: hidden to prevent flickering."
+              },
+              {
+                "prompt": "Build a portal ripple transition that simulates stepping through a liquid doorway between dimensions. The transition creates a ripple effect emanating from the center where the viewer 'touches' the portal surface. The outgoing video distorts with a ripple shader effect (using CSS filters and transforms) while fading out, and the incoming video ripples in from the center point. The ripple should have multiple concentric waves that propagate outward with decreasing amplitude. Add a ethereal glow effect around the edges during the transition and a subtle chromatic aberration to enhance the otherworldly feel.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-gradient-radial from-purple-900/20 to-black'. Outgoing VideoAtom with complex filter animation: blur(0px) contrast(100%) to blur(8px) contrast(150%) over 0-1.5s. Transform with custom keyframes for ripple: scale(1) to scale(1.1) to scale(0.9) to scale(0) with alternating rotations. Incoming VideoAtom starts at 0.5s with reverse ripple animation. Add multiple ShapeAtom circles for ripple waves with opacity and scale animations, positioned 'absolute inset-0 rounded-full border-2 border-cyan-400/30'. Chromatic aberration using RGB channel splits with translateX offsets. BaseLayout duration = video1.duration + video2.duration - 1s."
+              },
+              {
+                "prompt": "Design a sliding panel door transition where the screen splits into multiple vertical panels that slide apart like elevator doors, revealing the new scene. The outgoing video is divided into 5 vertical strips using clip-path, with odd panels sliding up and even panels sliding down at different speeds. The incoming video is revealed behind as the panels separate. Add mechanical sound effects and subtle metallic shine effects on the panel edges. Include a brief 'lock release' animation at the start where panels slightly compress before sliding.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-gray-800'. Five VideoAtom instances for outgoing video, each with clip-path for 20% width strips: polygon(0% 0, 20% 0, 20% 100%, 0% 100%), etc. Initial compression: scale(1) to scale(0.95) over 0-0.2s. Then odd panels transform translateY(0) to translateY(-100%) and even panels translateY(0) to translateY(100%) over 0.2s-1.5s with staggered delays. Incoming VideoAtom at 'absolute inset-0' with z-index-0. Add ShapeAtom overlays for metallic edges with gradient and opacity animations. AudioAtom with mechanical sounds at 0s and 0.2s. BaseLayout duration = video1.duration + video2.duration - 1.3s."
+              },
+              {
+                "prompt": "Create a perspective corridor transition that simulates running through a long hallway with doors on both sides. The outgoing video becomes the far end of the corridor, shrinking into the distance with perspective distortion. Side 'door' panels (using ShapeAtoms) slide past the viewer with motion blur, creating a sense of forward movement. The incoming video starts as a tiny point in the distance and rapidly approaches, expanding to fill the frame. Add dynamic lighting effects with alternating light and shadow bands that move across the scene to simulate passing under corridor lights.",
+                "technicalSpecs": "BaseLayout with perspective: 800px and 'relative w-full h-full overflow-hidden bg-gray-900'. Outgoing VideoAtom with transform scale(1) translateZ(0) to scale(0.1) translateZ(-500px) over 0-1.8s with easeInQuart. Multiple ShapeAtom 'doors' positioned on sides with translateZ animations from 200px to -300px at different start times. Incoming VideoAtom starts at 0.8s with transform scale(0.1) translateZ(-500px) to scale(1) translateZ(0) over 0.8s-1.8s. Light bands using ShapeAtoms with 'absolute w-full h-20 bg-gradient-to-b from-white/10 to-transparent' and translateY animations. Motion blur via filter blur during rapid movement phases. BaseLayout duration = video1.duration + video2.duration - 1s."
+              },
+              {
+                "prompt": "Develop a revolving door transition where both videos are visible simultaneously on different panels of a rotating door structure. The transition simulates walking through a 4-panel revolving door, with the outgoing video on the departing panels and incoming video on the approaching panels. The door rotates 90 degrees during the transition, with realistic perspective and reflection effects. Add subtle glass refraction effects on the door panels and ambient lobby sounds for atmosphere.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px, transformStyle: preserve-3d, and 'relative w-full h-full overflow-hidden'. Create door structure with 4 panels at 90-degree intervals using positioned divs with 'absolute w-full h-full origin-center'. Panel 1&2 show outgoing VideoAtom, Panel 3&4 show incoming VideoAtom. Entire structure rotates with transform rotateY(0deg) to rotateY(90deg) over 0-2s with easeInOutSine. Apply opacity gradient masks to panels for glass effect. Add filter for subtle refraction: blur(0.5px) and brightness(1.1). Reflection using duplicated VideoAtoms with scaleY(-1) and opacity(0.3). AudioAtom with ambient lobby sounds, volume 0.2. BaseLayout duration = video1.duration + video2.duration - 2s."
+              },
+              {
+                "prompt": "Construct a quantum tunnel transition that warps space-time as the viewer passes through an interdimensional doorway. The outgoing video stretches and distorts into a spiral vortex pattern while being pulled into a central point. The incoming video emerges from the same point but in reverse, unspiraling and stabilizing. During the peak of the transition, both videos briefly exist in a superposition state with quantum interference patterns. Add particle effects and electric arc animations around the doorway edges for a sci-fi aesthetic.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-black'. Outgoing VideoAtom with complex transform animation: rotate(0deg) scale(1) to rotate(720deg) scale(0) over 0-1.5s with custom bezier curve. Apply spiral distortion using multiple CSS transforms and clip-path animations. Incoming VideoAtom starts at 0.7s with reverse spiral: rotate(-720deg) scale(0) to rotate(0deg) scale(1). Superposition effect at 0.7s-1.0s using blend-mode: screen and opacity: 0.5 on both videos. Particle effects using multiple small ShapeAtoms with random trajectories and opacity animations. Electric arcs using SVG paths in ShapeAtoms with stroke-dasharray animations. Add filter: hue-rotate animation for color shifting. BaseLayout duration = video1.duration + video2.duration - 0.8s."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2440,
+              "outputTokens": 3651,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6091
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:22:10.916Z"
+}

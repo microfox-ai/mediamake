@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Flat long shadow projection. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "kt4uwI1dNNLMjJBl",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-ur6oEYLb9DhK6j4e",
+          "state": "output-available",
+          "output": {
+            "title": "Flat Long Shadow Effects for Text, Video & Images",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset that generates a dynamic flat long shadow projection using multiple stacked text-shadow layers. The effect should animate the shadow length and angle over time, creating a dramatic 'stretching' motion as if the light source is moving. Use generic AnimationRange effects targeting text elements via targetIds. The shadow should start short and subtle, then extend dramatically to create depth. Include parameters for shadow color (default semi-transparent black), maximum length (default 50px), angle (default 45deg), and layer count (default 10 layers for smooth gradation). The animation should use ease-in-out easing for natural motion.",
+                "technicalSpecs": "Effect type: Generic AnimationRange. Properties: textShadow with dynamic calculation for each layer position. Structure: { type: 'textShadow', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 2, ranges: [{ key: 'textShadow', val: calculateShadowLayers(prog), prog: [0, 0.5, 1] }] }. Input schema: z.object({ targetIds: z.array(z.string()), duration: z.number().optional(), shadowColor: z.string().optional(), maxLength: z.number().optional(), angle: z.number().optional() }). Return format: { effects: [shadowEffect] }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }"
+              },
+              {
+                "prompt": "Build an internal effect preset that creates a flat long shadow using CSS filter drop-shadow with multiple layers for smooth gradation. The effect should be audio-reactive, pulsing the shadow length based on bass frequencies. Implement as a waveform effect that responds to beat detection, extending the shadow on each beat and smoothly retracting. The shadow should maintain its flat, geometric aesthetic while dynamically responding to audio. Include sensitivity controls and threshold parameters to fine-tune the audio reactivity.",
+                "technicalSpecs": "Effect type: Waveform (audio-reactive). Configuration: { type: 'custom', audioProperty: 'bass', sensitivity: input.sensitivity || 0.8, threshold: input.threshold || 0.6, effectFunction: (audioValue) => generateDropShadowFilter(audioValue) }. Structure: { type: 'filter', mode: 'provider', targetIds: input.targetIds, waveform: { type: 'custom', props: { filter: dropShadowLayers } } }. Input schema: z.object({ targetIds: z.array(z.string()), sensitivity: z.number().min(0).max(1).optional(), threshold: z.number().min(0).max(1).optional(), baseLength: z.number().optional() }). Return format: { effects: [waveformShadowEffect] }"
+              },
+              {
+                "prompt": "Design an internal effect preset that creates flat long shadows using transform skewX/skewY combined with scaleY to simulate perspective projection. The shadow should appear as a stretched, flattened duplicate behind the target element. Animate the shadow's length and distortion through keyframes, creating a time-of-day effect where shadows grow longer and more dramatic. Use opacity gradients to fade the shadow edges for realism while maintaining the flat design aesthetic.",
+                "technicalSpecs": "Effect type: Generic AnimationRange (combined transforms). Properties: transform (skewX, skewY, scaleY), opacity. Structure: { type: 'transform', mode: 'provider', targetIds: input.shadowTargetIds, start: 0, duration: input.duration || 3, ranges: [{ key: 'transform', val: `skewX(${45*prog}deg) scaleY(${1+2*prog})`, prog: [0, 0.6, 1] }, { key: 'opacity', val: 0.3*(1-prog*0.5), prog: [0, 1] }] }. Input schema: z.object({ targetIds: z.array(z.string()), shadowTargetIds: z.array(z.string()), duration: z.number().optional(), skewAngle: z.number().optional() }). PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }"
+              },
+              {
+                "prompt": "Create an internal effect preset that generates directional flat long shadows using box-shadow with color gradients. The effect should support multiple shadow directions simultaneously (multi-light source), each with different colors and lengths. Implement smooth transitions between shadow states using spring easing for organic motion. The shadows should maintain crisp, geometric edges characteristic of flat design while allowing for creative color combinations like gradient shadows transitioning from one color to another along their length.",
+                "technicalSpecs": "Effect type: Generic AnimationRange. Properties: boxShadow with multiple shadow values. Structure: { type: 'boxShadow', mode: 'provider', targetIds: input.targetIds, start: input.start || 0, duration: input.duration || 2.5, easing: 'spring', ranges: [{ key: 'boxShadow', val: generateMultiShadows(prog, input.shadows), prog: [0, 0.3, 0.7, 1] }] }. Input schema: z.object({ targetIds: z.array(z.string()), shadows: z.array(z.object({ color: z.string(), angle: z.number(), maxLength: z.number() })), duration: z.number().optional() }). Helper function generates comma-separated shadow values. Return format: { effects: [multiShadowEffect] }"
+              },
+              {
+                "prompt": "Build an internal effect preset for flat long shadows that morphs between different shadow states based on scroll or time progression. The shadow should smoothly transition from a short noon shadow to a long dramatic evening shadow, changing both angle and color temperature (from cool blue-gray to warm orange-red). Use CSS custom properties for dynamic shadow calculation, allowing real-time updates without re-rendering. Include parallax-like behavior where shadow length responds to element position.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with CSS variables. Properties: CSS custom properties (--shadow-angle, --shadow-length, --shadow-color). Structure: { type: 'cssVariable', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 4, ranges: [{ key: '--shadow-angle', val: 90 - (45 * prog), prog: [0, 1] }, { key: '--shadow-length', val: 10 + (40 * prog), prog: [0, 1] }, { key: '--shadow-color', val: interpolateColor(prog), prog: [0, 0.5, 1] }] }. CSS applies: filter: drop-shadow(var(--shadow-length) var(--shadow-angle) var(--shadow-color)). Input schema: z.object({ targetIds: z.array(z.string()), startAngle: z.number().optional(), endAngle: z.number().optional() })"
+              },
+              {
+                "prompt": "Design an internal effect preset that creates retro-style flat long shadows with distinct color bands, similar to vintage poster design. Each band should be a discrete shadow layer with slightly different offsets and colors, creating a stepped shadow effect. Animate the bands sequentially with staggered timing for a cascading reveal. Support both monochromatic and multicolor shadow schemes. The effect should work equally well on text, images, and video elements.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with staggered animations. Properties: Multiple boxShadow or filter layers. Structure: Array of effects with staggered starts: bands.map((band, i) => ({ type: 'filter', mode: 'provider', targetIds: input.targetIds, start: i * 0.1, duration: 0.5, ranges: [{ key: 'filter', val: `drop-shadow(${band.x}px ${band.y}px 0 ${band.color})`, prog: [0, 1] }] })). Input schema: z.object({ targetIds: z.array(z.string()), bandCount: z.number().min(2).max(10), colorScheme: z.enum(['mono', 'gradient', 'custom']), colors: z.array(z.string()).optional() }). Return format: { effects: [...bandEffects] }"
+              },
+              {
+                "prompt": "Create an internal effect preset for flat long shadows that responds to mouse/touch position or device orientation. The shadow should dynamically adjust its angle and length based on input position, simulating a movable light source. Implement smooth interpolation between shadow states using requestAnimationFrame for 60fps updates. Include options for shadow behavior: 'follow' (tracks position), 'inverse' (opposite direction), or 'radial' (away from center). Perfect for interactive UI elements.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with dynamic calculation. Properties: transform and filter for shadow projection. Structure: { type: 'dynamic', mode: 'provider', targetIds: input.targetIds, updateFunction: (position) => calculateShadowFromPosition(position), ranges: [{ key: 'filter', val: (prog, dynData) => `drop-shadow(${dynData.x}px ${dynData.y}px 0 rgba(0,0,0,0.3))`, prog: 'dynamic' }] }. Input schema: z.object({ targetIds: z.array(z.string()), behavior: z.enum(['follow', 'inverse', 'radial']), maxLength: z.number().optional(), responsiveness: z.number().min(0).max(1) }). Requires position data passed via context."
+              },
+              {
+                "prompt": "Build an internal effect preset that creates glitch-style flat long shadows with digital artifacts. The shadow should periodically 'glitch' with RGB channel separation, creating red/green/blue shadow splits that quickly snap back together. Combine this with occasional shadow displacement and pixelation effects. Use rapid keyframe sequences for glitch moments interspersed with stable shadow states. Include parameters for glitch frequency, intensity, and color channel offsets.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with glitch sequences. Properties: Multiple filter effects combined. Structure: { type: 'filter', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 3, ranges: generateGlitchKeyframes(input.glitchPoints) }. Glitch keyframes: rapid prog values like [0, 0.2, 0.201, 0.202, 0.21, 0.4, ...] with RGB split shadows. Input schema: z.object({ targetIds: z.array(z.string()), glitchFrequency: z.number().min(0).max(10), glitchIntensity: z.number().min(0).max(1), channelOffset: z.number().optional() }). Return format: { effects: [glitchShadowEffect] }"
+              },
+              {
+                "prompt": "Design an internal effect preset for flat long shadows that creates a 'light painting' effect, where the shadow draws itself progressively like a brush stroke. The shadow should start from the element and extend outward, revealing itself segment by segment. Use clip-path or mask animations to control the reveal, maintaining the flat design aesthetic. Include options for draw direction, speed curves, and whether the shadow persists or fades after drawing. Support both linear and curved shadow paths.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with clip-path. Properties: clipPath and filter/boxShadow. Structure: { type: 'clipPath', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 2, ranges: [{ key: 'clipPath', val: `polygon(0 0, ${100*prog}% 0, ${100*prog}% 100%, 0 100%)`, prog: [0, 1] }] }, combined with shadow effect. Input schema: z.object({ targetIds: z.array(z.string()), drawDirection: z.enum(['left', 'right', 'top', 'bottom', 'radial']), duration: z.number().optional(), persistence: z.boolean().optional() }). Return format: { effects: [clipEffect, shadowEffect] }"
+              },
+              {
+                "prompt": "Create an internal effect preset that generates flat long shadows with material design elevation behaviors. The shadow should respond to 'elevation' changes, growing longer and softer as elements appear to lift off the page. Implement multiple shadow layers: a sharp close shadow and a soft distant shadow, both extending as flat projections. Include automatic shadow direction based on a global 'light source' position. Support elevation levels from 0-24 following material design specifications, with smooth transitions between levels.",
+                "technicalSpecs": "Effect type: Generic AnimationRange with elevation mapping. Properties: boxShadow with dual-layer shadows. Structure: { type: 'boxShadow', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 1.5, easing: 'ease-out', ranges: [{ key: 'boxShadow', val: generateElevationShadow(prog * input.targetElevation), prog: [0, 0.6, 1] }] }. Elevation calculation: combines sharp shadow (2px * elevation) and soft shadow (4px * elevation). Input schema: z.object({ targetIds: z.array(z.string()), startElevation: z.number().min(0).max(24), targetElevation: z.number().min(0).max(24), lightAngle: z.number().optional() }). Return format: { effects: [elevationShadowEffect] }"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2551,
+              "outputTokens": 3372,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5923
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:26:52.809Z"
+}

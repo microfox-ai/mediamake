@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Scribble handmade marker doodle animation transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "EVpwPcHweYqJ6f1v",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-M3ItOGAxhYJjQUH3",
+          "state": "output-available",
+          "output": {
+            "title": "Scribble Marker Doodle Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a hand-drawn scribble reveal transition preset where the incoming video appears through animated marker strokes that gradually 'draw' the new scene into view. The transition should feel like someone is rapidly sketching the new video with a thick black marker, starting from random points and expanding outward with organic, hand-drawn line animations. Use SVG masks or clip-path animations to reveal the incoming video through these scribble patterns, while the outgoing video fades out underneath. The scribble lines should have a rough, imperfect quality with varying stroke widths and slightly shaky movement to simulate hand-drawn animation. Include subtle paper texture overlay during the transition period for authenticity.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 1.5s overlap. Outgoing VideoAtom at z-10 with fade-out effect (opacity 1→0) during overlap. Incoming VideoAtom at z-20 with custom SVG mask animation revealing through scribble patterns. Add ShapeAtom overlays at z-30 for animated scribble strokes using path animations with rough, hand-drawn bezier curves. Use filter effects with turbulence for organic line quality. Apply slight rotation jitter (±2deg) and scale variation (0.98-1.02) on incoming video for hand-drawn feel. Container uses 'relative overflow-hidden' with all media atoms positioned 'absolute inset-0'."
+              },
+              {
+                "prompt": "Design a chaotic marker splash transition where videos switch through explosive doodle animations that burst across the screen. The transition begins with the outgoing video getting 'crossed out' with aggressive marker scribbles, then the incoming video bursts through with energetic splatter effects. Implement rapid shake effects synchronized with the scribble animations, creating a dynamic, almost violent transition that feels like someone is frantically switching between scenes with a marker. The scribbles should vary in thickness and opacity, with some areas more heavily marked than others, creating an uneven, artistic transition.",
+                "technicalSpecs": "BaseLayout with 0.8s overlap period, total duration = media1.duration + media2.duration - 0.8s. Outgoing VideoAtom with combined shake + fade effect: transform translateX/Y ±15px random oscillation at 12fps, opacity 1→0.3→0. Incoming VideoAtom starts at scale(0.8) expanding to scale(1.1) then settling at scale(1.0) with spring easing. Multiple ShapeAtom overlays for scribble animations using strokeDasharray animations with random dash patterns. Apply blur(0→3px→0) on outgoing video synchronized with shake. Use mix-blend-mode: multiply on scribble overlays. Position all atoms with 'absolute inset-0', container with 'relative bg-white'."
+              },
+              {
+                "prompt": "Build a circular doodle wipe transition where hand-drawn circles expand from multiple points to reveal the incoming video. The circles should look like they're being quickly drawn with a marker, with imperfect roundness and varying line weights. Start with 3-5 small doodle circles appearing at random positions, each expanding at slightly different speeds with a hand-drawn wobble effect. As they grow and overlap, they reveal more of the incoming video while the outgoing video dims behind them. Add small decorative doodles (stars, squiggles, arrows) that appear briefly during the transition for extra hand-made character.",
+                "technicalSpecs": "BaseLayout duration = video1.duration + video2.duration - 1.2s. Outgoing VideoAtom at z-10 with opacity fade 1→0.5→0 over 1.2s. Incoming VideoAtom at z-20 with circular clip-path animations expanding from multiple origins (use CSS custom properties for dynamic positions). Create 3-5 clip-path circles with initial radius 0% expanding to 150% with slight path deformation using polygon approximation for hand-drawn feel. Add decorative ShapeAtom elements at z-30 with opacity 0→1→0 animations, positioned randomly. Apply subtle hue-rotate(0→15deg) on transition period. Use 'absolute inset-0' positioning within 'relative overflow-hidden' container."
+              },
+              {
+                "prompt": "Develop a zigzag scribble slide transition where videos change through aggressive back-and-forth marker strokes that push the old scene out while pulling the new one in. The transition should feel like someone is vigorously scribbling side-to-side to erase the current video and reveal the next one. Implement horizontal zigzag patterns that move across the screen with varying speeds and intensities, creating a dynamic wipe effect. The marker strokes should have organic variation in pressure and speed, sometimes leaving gaps or overlapping areas for a realistic hand-drawn appearance.",
+                "technicalSpecs": "BaseLayout with 1.0s overlap, duration = media1.duration + media2.duration - 1.0s. Outgoing VideoAtom slides translateX(0→-30%) with easing-in-out while fading opacity 1→0. Incoming VideoAtom slides translateX(30%→0) synchronized. Add animated SVG zigzag mask on incoming video using strokeDashoffset animation creating progressive reveal. ShapeAtom overlays for zigzag strokes with path animations, stroke-width varying 3-8px, opacity 0.7-1.0. Apply motion blur filter during slide: blur(0→4px→0) horizontal only. Stack with z-10 (outgoing), z-20 (incoming), z-30 (scribbles). Container uses 'relative w-full h-full overflow-hidden'."
+              },
+              {
+                "prompt": "Create a sketchy spiral transition where the videos switch through a hand-drawn spiral animation that twists the outgoing video away while spiraling in the incoming video. The spiral should look roughly drawn with a marker, with uneven line thickness and slight wobbles. As the spiral animates, it should create a vortex effect where the outgoing video shrinks and rotates into the center while the incoming video expands from the same point. Add random ink splatter effects around the spiral edges for extra artistic flair, making it feel like the marker is bleeding slightly on the paper.",
+                "technicalSpecs": "BaseLayout duration = video1.duration + video2.duration - 1.3s overlap. Outgoing VideoAtom with combined transform: scale(1→0) rotate(0→720deg) translate to center point, opacity 1→0 over 1.3s. Incoming VideoAtom with inverse: scale(0→1) rotate(-720deg→0deg) from center, opacity 0→1. Add SVG spiral mask animation on both videos using stroke-dasharray with animated dashoffset. ShapeAtom for spiral path with stroke-width animation 2→6→2px, slight path jitter using SVG filters. Splatter effects using multiple small ShapeAtoms with random positions, scale(0→1→0.8) animations. Use transform-origin: center for rotation. Apply blur(0→2px) on spiral edges."
+              },
+              {
+                "prompt": "Design a crosshatch doodle transition where overlapping marker strokes create a textured grid pattern that transitions between videos. The effect should simulate rapid cross-hatching with a marker, building up density in the middle of the transition. Start with diagonal lines going one direction over the outgoing video, then add perpendicular lines that reveal the incoming video through the gaps. The line thickness and spacing should vary organically, with some areas more densely hatched than others, creating an artistic sketch-like transition between scenes.",
+                "technicalSpecs": "BaseLayout with 1.1s overlap period. Outgoing VideoAtom fades opacity 1→0.3 while adding grayscale(0→100%) filter. Incoming VideoAtom revealed through animated SVG crosshatch mask pattern. Create two sets of diagonal lines: first set at 45deg, second at -45deg, each with strokeDasharray animations staggered by 0.3s. Line spacing varies 8-15px, stroke-width 2-5px with opacity 0.6-0.9. Use multiple ShapeAtom elements for individual hatch lines with slight rotation variance (±5deg) and position offset for hand-drawn irregularity. Apply mix-blend-mode: multiply on hatch overlays. Container with 'relative bg-gray-100' for paper-like background during transition."
+              },
+              {
+                "prompt": "Build a doodle frame transition where hand-drawn rectangular frames animate to create a picture-in-picture effect before fully transitioning. The incoming video appears first in a small sketchy frame that expands with wobbly edges while the outgoing video shrinks into another frame that eventually disappears. The frames should look hand-drawn with uneven corners, slightly curved sides, and varying line thickness. Add small doodle annotations (arrows, exclamation marks, underlines) that point to or highlight the transitioning videos for a playful, annotated feel.",
+                "technicalSpecs": "BaseLayout duration = video1.duration + video2.duration - 1.5s. Outgoing VideoAtom with clip-path animation: initial full rect shrinking to 30% size rect at position (10%, 10%), then scale(0). Incoming VideoAtom with inverse: starts at 30% rect at (60%, 60%), expands to full. Both use polygon clip-paths with 8-12 points for wobbly rectangle edges. ShapeAtom overlays for frame borders using animated stroke paths with variable stroke-width 3-6px. Add annotation ShapeAtoms with opacity 0→1→0 animations, positioned relative to frame positions. Apply drop-shadow(2px 2px 4px rgba(0,0,0,0.3)) on frames. Use transform transitions with spring easing for organic movement."
+              },
+              {
+                "prompt": "Develop a scribble dissolve transition where the outgoing video gets progressively covered with chaotic marker scribbles that eventually clear to reveal the incoming video. The scribbles should start sparse and become increasingly dense, like someone is frantically coloring over the video with a marker. The incoming video should be revealed through gaps in the scribbles that gradually widen as the marker strokes fade away. Include varying stroke directions, pressures, and speeds to create a truly organic, hand-made transition effect.",
+                "technicalSpecs": "BaseLayout with 1.4s overlap duration. Outgoing VideoAtom remains static with decreasing brightness(100%→50%). Incoming VideoAtom at higher z-index revealed through animated scribble mask. Create 15-20 ShapeAtom scribble overlays with staggered animations: each path animates strokeDashoffset for draw-on effect, then opacity 1→0 for fade-out. Vary stroke-width 2-8px, use random bezier curves for paths. Apply turbulence filter to paths for hand-drawn wobble. Scribbles animate in waves: 0-0.4s (light coverage), 0.4-0.8s (heavy coverage), 0.8-1.4s (fade out). Use mix-blend-mode: darken on scribble layers. Container with 'relative overflow-visible' to allow scribbles to extend slightly beyond bounds."
+              },
+              {
+                "prompt": "Create a marker streak transition where bold, gestural marker strokes swipe across the screen in multiple passes to transition between videos. Each stroke should feel like a confident, quick swipe with a broad marker, leaving streaky trails with varying opacity. The strokes move in different directions (horizontal, vertical, diagonal) creating a dynamic crosshatch effect during the transition. The incoming video is revealed through the gaps between strokes, while the outgoing video fades behind them. Add subtle ink bleed effects at the edges of strokes for authenticity.",
+                "technicalSpecs": "BaseLayout duration = video1.duration + video2.duration - 0.9s overlap. Outgoing VideoAtom with opacity 1→0 and slight blur(0→2px). Incoming VideoAtom revealed through animated stroke masks. Create 6-8 ShapeAtom strokes with broad paths (20-40px width), each animating across screen with different directions and timing. Use CSS transforms: translateX(-120%→120%) for horizontal, translateY(-120%→120%) for vertical, with varying speeds 0.3-0.6s. Apply gradient opacity along stroke length using SVG gradients. Add feGaussianBlur filter to stroke edges for ink bleed effect. Strokes have opacity 0.7-0.9 with mix-blend-mode: multiply. Stagger animations with 0.1s delays. Use 'absolute inset-0' positioning."
+              },
+              {
+                "prompt": "Design an erratic doodle glitch transition where marker scribbles create a chaotic, glitchy effect between videos. The transition should feel like someone is rapidly sketching and erasing, creating a flickering, unstable effect. Implement quick, jagged scribble animations that appear and disappear rapidly, combined with position shifts and brief moments where both videos are visible through the chaotic marks. The scribbles should have a nervous, energetic quality with sharp angles and sudden direction changes, creating an almost digital-glitch aesthetic with analog marker strokes.",
+                "technicalSpecs": "BaseLayout with 0.7s overlap period for rapid transition. Both VideoAtoms flicker visibility using opacity keyframes: [1,0,1,0.5,1,0,1] at 15fps intervals. Add position jitter with transform: translate(random(-10px, 10px)) on both videos, synchronized with opacity flickers. Create 10-12 ShapeAtom scribbles with jagged, angular paths using sharp bezier curves. Animate strokeDasharray with rapid random values creating broken line effects. Apply hue-rotate animation -30deg→30deg on entire container during transition for color distortion. Use pointer-events: none on all overlays. Scribbles have very short lifespans: opacity 0→1→0 over 0.1-0.2s, appearing at random times. Add CSS filter: contrast(150%) saturate(120%) during peak transition moment."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2448,
+              "outputTokens": 3374,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5822
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:21:16.369Z"
+}

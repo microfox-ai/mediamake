@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Pixel stretch pixel sorting data corruption transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "7P7LehAF0Yxj5q76",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-RkM6XhFbXxR9b891",
+          "state": "output-available",
+          "output": {
+            "title": "Pixel Stretch & Sort Glitch Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a pixel stretch corruption transition preset that simulates data corruption through horizontal pixel stretching. The transition should use a 1.5-second overlap period where the outgoing video progressively stretches its pixels horizontally while fading out, creating a smeared data corruption effect. Meanwhile, the incoming video starts with compressed pixels that gradually normalize while fading in. Use CSS transform scaleX animations combined with custom filter effects to achieve the pixel stretching. The outgoing video should stretch from scaleX(1) to scaleX(8) while its opacity goes from 1 to 0. The incoming video should animate from scaleX(0.2) to scaleX(1) while fading in from 0 to 1. Add a subtle RGB channel split effect using CSS filters during the peak corruption moment (halfway through the transition). The BaseLayout should calculate its duration as the sum of both video durations minus the 1.5-second overlap.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-hidden bg-black' classes. Two VideoAtom components positioned absolutely with 'absolute inset-0 w-full h-full object-cover'. Outgoing video uses generic effect with transform AnimationRange from 'scale(1, 1)' to 'scale(8, 1)' and opacity from 1 to 0 over 1.5 seconds starting at its end minus 1.5s. Incoming video starts at outgoing duration minus 1.5s, with transform AnimationRange from 'scale(0.2, 1)' to 'scale(1, 1)' and opacity from 0 to 1 over 1.5 seconds. Add filter effect with 'hue-rotate(10deg) saturate(1.5)' during transition peak. Use provider mode with targetIds for effect application."
+              },
+              {
+                "prompt": "Design a glitch-style pixel sorting transition that creates vertical scan lines of corrupted data between videos. The transition uses a 2-second overlap where the outgoing video breaks into vertical strips that sort and displace randomly, simulating a digital malfunction. Create multiple thin vertical slices (using CSS clip-path polygons) that animate independently with different timing offsets. Each slice should have random vertical displacement and opacity fluctuations. The incoming video emerges through these corrupted strips with an inverse sorting pattern. Add a digital noise overlay during the transition using a semi-transparent noise texture or CSS gradient pattern. Include brief moments of color inversion and brightness spikes to enhance the data corruption aesthetic.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black overflow-hidden'. Create 10-15 vertical slice containers using absolute positioning with calculated left positions and clip-path polygons. Each slice contains a portion of the video using transform translateX to show correct segment. Outgoing video slices animate with staggered delays: transform translateY with random values between -50px and 50px, opacity flickering between 0.3 and 1. Incoming video uses similar slice structure but inverse animation. Add overlay div with 'absolute inset-0 pointer-events-none mix-blend-screen opacity-30' containing CSS noise gradient. Duration calculation: video1 + video2 - 2 seconds overlap."
+              },
+              {
+                "prompt": "Build a data moshing pixel corruption transition that simulates codec errors and compression artifacts. During the 1-second overlap, the outgoing video progressively loses visual information through simulated macro-blocking and color channel separation. Create a mosaic effect using CSS backdrop-filter blur combined with pixelation through image-rendering properties. The outgoing video transitions from crisp to heavily pixelated (using transform scale down then up technique) while color channels shift and separate. The incoming video reconstructs from corrupted data blocks that gradually resolve into clear imagery. Add intermittent frame freezing effects where the video briefly holds a corrupted frame before continuing.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full bg-gray-900'. Outgoing VideoAtom with nested div wrapper using 'image-rendering: pixelated' style. Apply transform scale(0.1) then scale(10) for pixelation effect. Use filter effects: 'blur(0px) contrast(1)' to 'blur(2px) contrast(2) saturate(0.5)'. Color channel separation via three absolutely positioned copies with mix-blend-mode and slight transform translateX offsets. Incoming video reverses the process. Add freeze frame effect by briefly pausing playback rate at corruption peak. Overlap timing at end of first video minus 1 second."
+              },
+              {
+                "prompt": "Develop a horizontal scan line corruption transition reminiscent of analog TV interference and digital streaming errors. The 1.8-second transition features horizontal bands of the outgoing video that corrupt and slide out of sync, creating a shearing effect. Implement this using multiple horizontal strips with independent transform and opacity animations. Each strip should have slightly different timing and displacement values to create an organic corruption pattern. The incoming video appears through these corrupted scan lines with a reverse reconstruction effect. Add chromatic aberration by slightly offsetting RGB channels horizontally during peak corruption.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-black'. Create 20-30 horizontal strips using divs with calculated top positions and heights. Each strip contains video segment via overflow hidden and transform translateY for correct positioning. Outgoing strips animate with: transform translateX (random -100px to 100px), skewX (random -5deg to 5deg), opacity (flicker between 0.5-1). Stagger animations with incremental delays. Incoming video uses similar structure with inverse animations. RGB split via three video copies with 'mix-blend-mode: screen' and translateX offsets of -2px, 0, 2px. Provider mode effects with targetIds for each strip."
+              },
+              {
+                "prompt": "Create a matrix-style digital rain pixel corruption transition where the videos dissolve into cascading data streams. During the 2.5-second overlap, the outgoing video breaks apart into falling pixel columns that cascade downward like corrupted data packets. Implement vertical columns that fragment and fall at different rates, with brightness variations suggesting data decay. The incoming video materializes from rising data streams that construct from bottom to top. Add a subtle green tint and terminal-style monospace number overlays during peak corruption to enhance the digital aesthetic.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black overflow-hidden'. Grid of 40-50 vertical columns, each containing video segments. Outgoing columns use staggered animations: transform translateY from 0 to 100vh with varying durations (1.5-2.5s), opacity from 1 to 0, brightness filter from 100% to 50%. Incoming video columns animate translateY from -100vh to 0, opacity 0 to 1. Add absolutely positioned div overlay with 'text-green-400 font-mono' containing random numbers/characters with opacity animation. Apply 'filter: hue-rotate(120deg) brightness(1.2)' during transition. Calculate overlap start time and adjust BaseLayout duration accordingly."
+              },
+              {
+                "prompt": "Design a compression artifact block glitch transition that simulates heavy video compression errors and data packet loss. The 1.2-second transition shows the outgoing video deteriorating into large macro blocks that flicker and disappear randomly, revealing the incoming video underneath. Create a grid of rectangular blocks that independently corrupt, showing compression artifacts like color banding and block boundaries. Some blocks should freeze, others should show incorrect color data, and some should disappear entirely. The incoming video appears as these corrupted blocks clear up in a scattered pattern.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-gray-800'. Create 8x6 grid of divs as block containers. Each block shows video portion using absolute positioning and overflow hidden. Outgoing blocks: random effects including opacity (0-1 flicker), filter 'contrast(3) saturate(0.2)', transform scale(0.95) creating gaps, backgroundColor overlays with low opacity. Apply effects with random delays and durations. Incoming video positioned below (z-index), revealed as blocks corrupt. Some blocks briefly show solid colors (corruption). Use mix-blend-mode: difference on random blocks. Provider mode with unique targetIds per block."
+              },
+              {
+                "prompt": "Build a spiral pixel vortex corruption transition where videos twist into a data corruption spiral. During the 2-second overlap, the outgoing video spirals outward while pixels stretch and distort along the spiral path, creating a vortex of corrupted data. Implement using CSS transforms with rotation and scale, combined with radial positioning of video segments. The center of the spiral shows maximum corruption with pixel stretching and color separation. The incoming video spirals inward from the edges with inverse corruption that resolves as it reaches the center. Add datamoshing-style frame blending during the spiral motion.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full overflow-hidden bg-black'. Create circular/spiral segments using clip-path and transform-origin center. Outgoing video: animate transform rotate(720deg) scale(2) over 2s with opacity fade. Apply spiral distortion using multiple divs with incremental rotation offsets. Each segment has different animation timing for organic spiral. Incoming video: rotate(-720deg) scale(0.5) to rotate(0) scale(1). Add filter effects: blur and contrast variations along spiral radius. Create frame blending effect with multiple video copies at low opacity with slight time offsets. Use mix-blend-mode: screen for glow effect at spiral edges."
+              },
+              {
+                "prompt": "Develop a bit-shift corruption transition that simulates binary data shifting and byte-level corruption. The 1.6-second transition shows the outgoing video's pixel data shifting horizontally in binary patterns, creating a stepped corruption effect. Implement horizontal bit-shifting where different rows of pixels shift by powers of 2 (1px, 2px, 4px, 8px, etc.). Add binary noise patterns and momentary color channel bit-flipping. The incoming video reconstructs from shifted bits that align into proper position. Include brief moments where the image appears as corrupted color bars or test patterns.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black'. Create horizontal rows (40-50) with varying heights. Each row contains video segment with overflow hidden. Outgoing rows: animate translateX by powers of 2 (-128px to 128px) based on row index modulo. Apply stepped timing functions for digital feel. Add filter invert() to random rows briefly. Create test pattern overlay: div with linear-gradient creating color bars, opacity animation 0 to 0.8 to 0. Incoming video rows animate from opposite shift values to 0. Use 'image-rendering: pixelated' on every other row. RGB channel shift via duplicate videos with blend modes."
+              },
+              {
+                "prompt": "Create a recursive fractal corruption transition where videos fragment into smaller corrupted copies of themselves. During the 2.2-second overlap, the outgoing video splits into a fractal pattern of smaller versions that corrupt and fade individually. Each fractal segment shows different types of corruption: some pixelate, some color-shift, some freeze-frame. The incoming video emerges from these fractal fragments reforming and scaling up. Implement a quad-tree subdivision where each section can further subdivide into corrupted segments. Add digital interference patterns between fractal boundaries.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full overflow-hidden bg-gray-900'. Implement recursive subdivision: start with 2x2 grid, subdivide corrupted sections into 2x2 sub-grids (3 levels deep). Each cell contains scaled video with transform scale and translate for positioning. Outgoing cells: random corruption effects - pixelate via scale(0.1) then scale(10), color shift via hue-rotate, brightness variations, some cells freeze (playbackRate: 0). Stagger corruption onset by distance from center. Incoming video uses inverse fractal assembly. Add border decorations with 'border border-cyan-500 opacity-50' showing fractal structure. Mix-blend-mode: difference on alternate cells."
+              },
+              {
+                "prompt": "Design a temporal displacement glitch transition that creates time-shifted pixel corruption between videos. The 1.4-second transition displays multiple time-offset versions of the outgoing video layered with varying opacity, creating a motion trail corruption effect. Each layer shows the video at different time points (past frames bleeding into present), with increasing corruption and displacement. The incoming video emerges through temporal reconstruction, where future frames preview before resolving to the present. Add scan line refreshing effects and temporal color bleeding between frames.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black overflow-hidden'. Create 5-7 VideoAtom copies of outgoing video, each with different startFrom offsets (-0.5s to +0.5s from current time). Stack with absolute positioning, decreasing opacity (1, 0.7, 0.5, 0.3, 0.1) and increasing blur. Apply transform: translateX and translateY with time-based offsets. Add scan lines: horizontal divs with 'h-px bg-white opacity-20' animated top position. Incoming video: similar structure but inverse time offsets (future to present). Use mix-blend-mode variations (screen, multiply, overlay) for ghost frame effects. Add chromatic aberration to time-displaced layers."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2438,
+              "outputTokens": 3207,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5645
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:18:39.693Z"
+}

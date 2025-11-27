@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Extreme motion blur and speed ramps. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "DmY1s3cRRAvdKU0j",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-DpOeolaj1ks6HGH6",
+          "state": "output-available",
+          "output": {
+            "title": "Extreme Motion Blur & Speed Ramps with Built-in Effects",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset called 'velocityBlur' that simulates extreme motion blur through progressive blur and opacity ramping. The effect should accept parameters for blur intensity (0-20px), speed ramp curve type ('accelerate', 'decelerate', 'whiplash'), and duration. Implement using generic AnimationRange effects with multiple blur keyframes that create a sense of speed through directional motion blur simulation. The effect should target any component by ID and create the illusion of rapid movement by combining blur increase with subtle opacity reduction during peak velocity moments. Include a 'direction' parameter to control whether the blur suggests horizontal, vertical, or radial motion.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties animated: filter (blur), opacity, transform (subtle scale). AnimationRange structure: Multiple keyframes with prog 0-1, blur values 0-20px based on intensity param, opacity dips to 0.7 at peak blur. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 1000, ranges: [blur, opacity, scale arrays] }. Input params: Zod schema with intensity (number 0-20), curve (enum), duration (number), direction (enum). PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return format: { effects: [effectData] }."
+              },
+              {
+                "prompt": "Build a 'speedRampText' internal effect preset that creates extreme speed ramping specifically for text elements using letter-spacing, scale, and motion blur. The effect should create a 'whoosh' sensation where text appears to accelerate rapidly then decelerate with elastic bounce. Accept parameters for ramp intensity, elastic strength, and whether to include chromatic aberration during peak speed. Use generic effects with sophisticated easing curves that mimic professional video editing speed ramps. The effect should make text feel like it's breaking the speed barrier with extreme stretching and compression.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: letterSpacing (-10px to 30px), scaleX (0.5 to 1.5), filter (blur + hue-rotate for chromatic), opacity. AnimationRange: Complex keyframes with spring easing at deceleration, ease-in for acceleration. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 1500, ranges: [letterSpacing, scaleX, filter, opacity] }. Input params: { intensity: z.number().min(0).max(2), elasticBounce: z.boolean(), chromaticAberration: z.boolean(), duration: z.number() }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [effectData] }."
+              },
+              {
+                "prompt": "Design a 'turbulenceWarp' waveform effect preset that creates extreme motion blur synchronized to audio beats. The effect should react to bass frequencies by applying directional blur that increases with beat intensity, creating a strobe-like motion blur effect. Include parameters for sensitivity threshold, max blur amount, and warp direction. The effect should feel like the visual is being pulled through space at light speed during bass drops, with the blur pulsing and warping in sync with the music's energy.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Waveform config: { type: 'blur', audioProperty: 'bass', sensitivity: params.sensitivity || 0.7, threshold: params.threshold || 0.3, maxValue: params.maxBlur || 15 }. Additional effects: Combined with scale waveform for warping. Effect data: { type: 'waveform', mode: 'provider', targetIds, start: 0, duration: params.duration || 5000, props: waveformConfig }. Input params: { sensitivity: z.number().min(0).max(1), threshold: z.number(), maxBlur: z.number(), warpAxis: z.enum(['x', 'y', 'both']) }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [blurEffect, scaleEffect] }."
+              },
+              {
+                "prompt": "Create a 'cinematicSpeedRamp' internal effect that mimics high-end film editing techniques with multi-stage speed ramping. The effect should have three phases: slow anticipation (time stretch feel), explosive acceleration (extreme blur and scale), and dramatic deceleration (with overshoot and settle). Accept parameters for each phase's intensity and timing ratio. Use generic effects with custom easing curves that recreate the feeling of time manipulation in action sequences. Include subtle rotation during acceleration for dynamic motion.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: filter (blur 0-25px), scale (0.95-1.2), rotate (-5 to 5deg), opacity (0.9-1). Three-phase AnimationRange: Anticipation (prog 0-0.3), acceleration (prog 0.3-0.7), deceleration (prog 0.7-1). Custom easing per phase. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.totalDuration || 2000, ranges: [multi-phase arrays] }. Input params: { anticipationIntensity: z.number(), accelerationIntensity: z.number(), decelerationOvershoot: z.number(), phaseRatios: z.array(z.number()) }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [effectData] }."
+              },
+              {
+                "prompt": "Build a 'hyperDrive' internal effect preset that creates an extreme motion blur tunnel effect for images and videos. The effect should simulate traveling at hyperspeed by combining radial blur, scale pulsing, and edge vignetting. Accept parameters for drive intensity, tunnel depth, and whether to include light streaks. Use multiple generic effects layered together to create the sensation of warping through space. The blur should emanate from the center outward, creating speed lines that suggest incredible velocity.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: filter (radial blur via multiple blur + transform combo), scale (1.0-1.3 pulsing), brightness (0.8-1.2), custom CSS filter for vignette. AnimationRange: Progressive blur increase with scale pulse at prog 0.5. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 1800, ranges: [blur, scale, brightness, filter arrays] }. Input params: { intensity: z.number().min(0).max(3), tunnelDepth: z.number(), lightStreaks: z.boolean(), centerPoint: z.object({ x: z.number(), y: z.number() }) }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [mainEffect, vignetteEffect] }."
+              },
+              {
+                "prompt": "Design a 'glitchSpeed' internal effect that combines motion blur with digital glitch artifacts during speed transitions. The effect should create corrupted motion blur that suggests data streaming at impossible speeds. Include RGB channel separation during peak velocity, pixelation bursts, and frame ghosting effects. Accept parameters for glitch frequency, channel separation amount, and blur decay rate. The effect should feel like watching a video file being corrupted by extreme playback speed.",
+                "technicalSpecs": "Effect type: combined (generic + custom). Properties: filter (blur + custom RGB split via text-shadow/box-shadow), transform (translateX/Y for channel offset), opacity (flicker pattern). AnimationRange: Irregular keyframes for glitch feel, blur 0-30px with sudden drops. RGB split via color filters. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 1200, ranges: [blur, transform, opacity, custom filter] }. Input params: { glitchFrequency: z.number(), rgbSeparation: z.number(), blurDecay: z.enum(['linear', 'exponential', 'stepped']), corruption: z.number() }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [blurEffect, glitchEffect, rgbEffect] }."
+              },
+              {
+                "prompt": "Create a 'beatDrivenBlur' waveform effect preset that applies extreme motion blur synchronized to multiple audio frequencies. The effect should layer bass-driven directional blur, mid-frequency rotation blur, and treble-triggered strobe blur. Accept parameters for each frequency band's sensitivity and blur style. The combined effect should create a complex, music-driven motion blur that makes content feel like it's moving through different dimensional speeds based on the audio spectrum.",
+                "technicalSpecs": "Effect type: waveform (multi-frequency). Three waveform configs: bass blur (directional), mid rotate (spin blur), treble shake (strobe blur). Effect data: [{ type: 'waveform', mode: 'provider', targetIds, props: { type: 'blur', audioProperty: 'bass' }}, { type: 'waveform', props: { type: 'rotate', audioProperty: 'mid' }}, { type: 'waveform', props: { type: 'shake', audioProperty: 'treble' }}]. Input params: { bassSensitivity: z.number(), midSensitivity: z.number(), trebleSensitivity: z.number(), maxBlur: z.number(), blurStyle: z.enum(['directional', 'radial', 'zoom']) }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [...waveformEffects] }."
+              },
+              {
+                "prompt": "Build an 'inertiaBlur' internal effect preset that simulates physics-based motion blur with momentum and drag. The effect should create realistic motion blur that responds to virtual acceleration and deceleration forces, including overshoot and elastic settling. Accept parameters for mass, drag coefficient, and initial velocity. Use generic effects with spring physics calculations to create natural-feeling motion blur that builds and dissipates based on simulated inertia. Include subtle distortion during direction changes.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: filter (blur with physics-based values), scaleX/Y (slight stretch with velocity), rotate (lean into motion), skewX (distortion on direction change). Spring physics easing throughout. AnimationRange: Calculated based on velocity curve from physics simulation. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 2500, ranges: [physics-based arrays], easing: 'spring' }. Input params: { mass: z.number().min(0.1).max(10), drag: z.number().min(0).max(1), initialVelocity: z.number(), elasticity: z.number(), distortionAmount: z.number() }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [inertiaEffect] }."
+              },
+              {
+                "prompt": "Design a 'temporalSmear' internal effect that creates extreme motion blur by simulating frame blending and temporal interpolation. The effect should create ghost trails and motion echoes that suggest multiple time slices compressed into one moment. Accept parameters for trail count, fade decay, and temporal offset. Use multiple overlapping generic effects to create the illusion of time-smeared motion, where past positions leave decaying blur trails. Perfect for creating supernatural speed effects.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Multiple effect layers for trail simulation. Properties: opacity (staggered fade), filter (accumulated blur), transform (offset positions for trails). AnimationRange: Each trail has offset timing and decay curve. Effect data: Array of effects, each representing a trail with different start times and fade patterns. { type: 'generic', mode: 'provider', targetIds, start: staggered, duration: params.duration, ranges: [trail-specific arrays] }. Input params: { trailCount: z.number().min(2).max(10), fadeDecay: z.enum(['linear', 'exponential']), temporalOffset: z.number(), blurAccumulation: z.boolean() }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [...trailEffects] }."
+              },
+              {
+                "prompt": "Create a 'velocityField' internal effect preset that applies motion blur based on a simulated vector field, creating swirling, turbulent motion blur patterns. The effect should make content appear to be caught in a high-speed vortex or wind tunnel. Accept parameters for field type (linear, radial, spiral), field strength, and turbulence amount. Use complex generic effects that calculate blur direction and intensity based on position within the field. Include options for adding chromatic distortion and heat shimmer effects during peak velocity.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: filter (directional blur calculated per field vector), transform (subtle position drift following field), custom filter (heat shimmer via SVG turbulence). Complex AnimationRange with position-dependent values. Effect data: { type: 'generic', mode: 'provider', targetIds, start: 0, duration: params.duration || 3000, ranges: [field-calculated arrays] }. Input params: { fieldType: z.enum(['linear', 'radial', 'spiral', 'turbulent']), fieldStrength: z.number(), turbulence: z.number(), chromaticDistortion: z.boolean(), heatShimmer: z.boolean(), fieldCenter: z.object({ x: z.number(), y: z.number() }) }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }. Return: { effects: [fieldEffect, shimmerEffect] }."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2557,
+              "outputTokens": 3513,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6070
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T14:27:10.868Z"
+}

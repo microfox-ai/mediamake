@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Overlapping video layers slide swap replace transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "MX3OYa1xLQEVoRVA",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-PRf6TvLWrHktNMv1",
+          "state": "output-available",
+          "output": {
+            "title": "Sliding Overlap Transitions - Video Layer Swap Effects",
+            "prompts": [
+              {
+                "prompt": "Create a dynamic slide-swap transition preset where two video layers slide horizontally past each other in opposite directions during a 1-second overlap period. The outgoing video slides left off-screen while the incoming video slides right into view from the opposite side, creating a 'passing by' effect. Both videos should maintain full opacity throughout the transition, relying purely on transform positioning. The BaseLayout container should calculate its total duration as the sum of both video durations minus the 1-second overlap. Use transform translateX animations with ease-out timing for smooth motion. Position videos absolutely with 'inset-0 object-cover' for full frame coverage.",
+                "technicalSpecs": "BaseLayout container with calculated duration (video1.duration + video2.duration - 1s). Two VideoAtom components positioned absolutely with 'absolute inset-0'. Outgoing video: generic transform effect with AnimationRange from translateX(0%) to translateX(-100%) over 1s starting at (video1.duration - 1s). Incoming video: starts at video1.duration - 1s, initial transform translateX(100%), animates to translateX(0%) over 1s. Both videos use 'w-full h-full object-cover'. Provider mode effects targeting specific video IDs. Z-index management with incoming video at z-10."
+              },
+              {
+                "prompt": "Design a cinematic cross-fade transition with blur enhancement where videos overlap for 2 seconds. During the transition, the outgoing video gradually blurs from sharp to 8px blur while fading to 0 opacity, as the incoming video simultaneously unblurs from 8px to sharp while fading in from 0 to full opacity. This creates a dreamy, focus-shift effect between scenes. The blur and opacity animations should be perfectly synchronized, creating a smooth handoff between the two video layers. Include subtle scale animations where outgoing video scales down to 0.95 and incoming scales up from 1.05 for added depth.",
+                "technicalSpecs": "BaseLayout with duration calculation accounting for 2s overlap. Outgoing VideoAtom: opacity AnimationRange [1 to 0] and filter blur AnimationRange [0px to 8px] and transform scale AnimationRange [1 to 0.95], all over 2s starting at (video1.duration - 2s). Incoming VideoAtom: startAt (video1.duration - 2s), opacity [0 to 1], filter blur [8px to 0px], transform scale [1.05 to 1] over 2s. Both videos absolutely positioned with 'absolute inset-0 w-full h-full object-cover'. Provider mode with targetIds for each video."
+              },
+              {
+                "prompt": "Build a glitch-style swap transition where videos rapidly shake and flicker during a 0.5-second overlap. The outgoing video shakes horizontally with increasing intensity while its opacity flickers between 1 and 0.3 in quick bursts (5 keyframes). Meanwhile, the incoming video shakes vertically with decreasing intensity while flickering in from 0 opacity. Add RGB channel split effect using red/cyan color overlays that pulse during the transition for a digital corruption aesthetic. The short overlap creates an abrupt, energetic transition perfect for action sequences or music videos.",
+                "technicalSpecs": "BaseLayout with 0.5s overlap calculation. Outgoing video: opacity keyframes [1, 0.3, 1, 0.3, 0] at 0.1s intervals, transform translateX with random values [-5px, 5px, -8px, 8px, 0], filter hue-rotate animation. Incoming video: starts at (video1.duration - 0.5s), opacity keyframes [0, 0.7, 0, 0.7, 1], transform translateY random values [8px, -8px, 5px, -5px, 0]. Additional color overlay divs with 'mix-blend-screen' and animated opacity for RGB split effect. All animations over 0.5s with linear easing for sharp movements."
+              },
+              {
+                "prompt": "Create a vertical curtain wipe transition where the incoming video is revealed through expanding vertical strips during a 1.5-second overlap. Use CSS clip-path to create 5 vertical strips that expand from thin lines to full width, creating a venetian blind effect. The outgoing video remains static but fades to 50% opacity to show through the gaps initially. Each strip should have a slightly staggered timing (0.1s offset) creating a wave-like reveal pattern from left to right. This architectural transition style works well for documentary or corporate content.",
+                "technicalSpecs": "BaseLayout with 1.5s overlap. Incoming video split into 5 divs, each with VideoAtom and clip-path polygon animations. Strip 1: clip-path from polygon(0% 0%, 2% 0%, 2% 100%, 0% 100%) to polygon(0% 0%, 20% 0%, 20% 100%, 0% 100%), delay 0s. Each subsequent strip: 20% width, 0.1s staggered delay. Outgoing video: opacity [1 to 0.5 to 0] over 1.5s. All strips positioned absolutely with calculated left positions (0%, 20%, 40%, 60%, 80%). Z-index layering with incoming strips at z-20."
+              },
+              {
+                "prompt": "Design a spiral zoom transition where videos swap through a rotating zoom effect over 1.8 seconds. The outgoing video zooms in to 2x scale while rotating clockwise 180 degrees and fading out, as the incoming video starts at 0.5x scale, rotates counter-clockwise 180 degrees while zooming to 1x scale and fading in. The spiral motion creates a vortex effect at the center of the frame. Add a subtle radial blur that peaks at the midpoint of the transition for enhanced motion blur. Perfect for creative content or transition between contrasting scenes.",
+                "technicalSpecs": "BaseLayout with 1.8s overlap duration. Outgoing video: transform scale [1 to 2] + rotate [0deg to 180deg], opacity [1 to 0], filter blur radial gradient simulation using multiple blur keyframes [0px, 4px, 0px]. Incoming video: startAt (video1.duration - 1.8s), transform scale [0.5 to 1] + rotate [-180deg to 0deg], opacity [0 to 1]. Both videos with 'absolute inset-0' and transform-origin center. Ease-in-out timing for smooth acceleration. GPU acceleration with will-change: transform."
+              },
+              {
+                "prompt": "Implement a split-screen slide transition where the screen divides into two halves that slide apart revealing the new video underneath. During the 1.2-second overlap, the outgoing video splits at the center - left half slides left, right half slides right, both fading out. The incoming video is already positioned underneath and scales up from 0.9 to 1 as it's revealed. Add a thin white line (2px) at the split point that glows and fades during the transition for a polished effect. This editorial-style transition works well for comparison or before/after scenarios.",
+                "technicalSpecs": "BaseLayout with 1.2s overlap. Outgoing video duplicated into two divs with clip-path: left half polygon(0 0, 50% 0, 50% 100%, 0 100%), right half polygon(50% 0, 100% 0, 100% 100%, 50% 100%). Left half: transform translateX from 0 to -50%, opacity 1 to 0. Right half: translateX 0 to 50%, opacity 1 to 0. Incoming video: z-index 0, transform scale [0.9 to 1], already at full opacity. White line div: 2px width, absolute left-1/2, opacity [0 to 1 to 0], box-shadow for glow effect. All animations over 1.2s."
+              },
+              {
+                "prompt": "Create a liquid morph transition using scale and border-radius animations to simulate fluid motion between videos. Over a 2.2-second overlap, the outgoing video's border-radius animates from 0 to 50% while scaling down to 0.3, creating a shrinking bubble effect. Simultaneously, the incoming video starts as a small circle (scale 0.3, border-radius 50%) positioned at center and expands to full frame (scale 1, border-radius 0). Both videos should have synchronized opacity fades. Add subtle position drift where both videos slowly move in opposite directions during scaling for organic movement.",
+                "technicalSpecs": "BaseLayout with 2.2s overlap. Outgoing video: border-radius [0% to 50%], transform scale [1 to 0.3] + translateX [0 to 10%] + translateY [0 to -10%], opacity [1 to 0]. Incoming video: startAt (video1.duration - 2.2s), border-radius [50% to 0%], transform scale [0.3 to 1] + translateX [0 to -10%] + translateY [0 to 10%], opacity [0 to 1]. Both videos with 'absolute inset-0 overflow-hidden'. Cubic-bezier(0.4, 0, 0.2, 1) easing for organic motion. Z-index: incoming at z-10."
+              },
+              {
+                "prompt": "Design a fragmented glass shatter transition where the outgoing video appears to break into triangular shards that fall away revealing the incoming video. Use CSS clip-path to create 12 triangular fragments from the outgoing video during a 1.6-second overlap. Each fragment has individual transform animations - rotating, scaling down, and translating in different directions with gravity-like acceleration. The incoming video fades in behind with a subtle scale-up from 0.95 to 1. Add motion blur to falling fragments using filter blur that increases as they fall.",
+                "technicalSpecs": "BaseLayout with 1.6s overlap. Outgoing video split into 12 divs with triangular clip-paths. Each fragment: unique clip-path polygon, transform with rotate (random -45deg to 45deg) + scale (1 to 0) + translateY (0 to 150%) + translateX (random -50% to 50%), opacity [1 to 0], filter blur [0 to 6px]. Staggered animation start times (0 to 0.3s delays). Incoming video: startAt (video1.duration - 1.6s), opacity [0 to 1] over 0.8s, transform scale [0.95 to 1]. Cubic-bezier(0.55, 0, 1, 0.45) for gravity acceleration."
+              },
+              {
+                "prompt": "Build a page-turn transition that simulates a 3D page flip between videos. During a 2-second overlap, the outgoing video appears to fold along a vertical axis at 40% from the left, with the right portion rotating on the Y-axis from 0 to -90 degrees while fading out. The incoming video's left 60% starts visible while its right 40% rotates in from 90 to 0 degrees on the Y-axis. Use perspective transforms and gradient shadows to enhance the 3D effect. The fold line should have a moving shadow gradient that travels across the frame during the turn.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px and 2s overlap. Outgoing video split: left 40% static with slight darkening, right 60% with transform rotateY [0deg to -90deg] + transform-origin left, opacity [1 to 0]. Incoming video split: left 60% visible from start, right 40% with rotateY [90deg to 0deg] + transform-origin left, opacity [0 to 1]. Shadow gradient div: linear-gradient moving from left-40% to left-100% using transform translateX. Both videos with preserve-3d transform-style. Ease-in-out timing for realistic page physics."
+              },
+              {
+                "prompt": "Create a kaleidoscope transition where both videos are duplicated into 6 triangular segments that rotate around the center point during a 1.5-second overlap. The outgoing video's segments rotate outward (each segment rotating 60 degrees more) while scaling down and fading. The incoming video's segments start scaled at 0 and rotated inward, then rotate to their correct positions while scaling up. Each segment uses clip-path to create triangular shapes radiating from center. Add a color shift effect where segments briefly shift hue during peak rotation for a prismatic effect.",
+                "technicalSpecs": "BaseLayout with 1.5s overlap. Both videos duplicated into 6 segments with clip-path triangles (60-degree wedges from center). Outgoing segments: transform rotate [0deg, 60deg, 120deg, 180deg, 240deg, 300deg] to each +360deg + scale [1 to 0], opacity [1 to 0], filter hue-rotate [0deg to 30deg to 0deg]. Incoming segments: startAt (video1.duration - 1.5s), reverse rotation from -360deg to final positions + scale [0 to 1], opacity [0 to 1]. All segments absolute positioned with transform-origin center. Staggered timing with 0.05s delays between segments."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2440,
+              "outputTokens": 3266,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5706
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:37:23.424Z"
+}

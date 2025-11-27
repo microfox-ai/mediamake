@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "3D page turn corner peel fold-over transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "UwdD9hSUesoSiluW",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-IGX4o7OSumQnZ8Ei",
+          "state": "output-available",
+          "output": {
+            "title": "3D Page Turn & Corner Peel Video Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a realistic 3D page turn transition preset where videos appear to be on physical pages that curl and flip over. The outgoing video should appear on a page that starts peeling from the top-right corner, gradually curling to reveal the incoming video underneath. Use CSS 3D transforms with perspective and rotate3d to create the page curl effect. The curl should follow a bezier curve path, starting slow, accelerating through the middle, and settling at the end. Apply a subtle shadow that follows the curling edge to enhance the 3D illusion. The page should appear to have thickness with a slight gradient on the curling edge. Duration should be 1.5 seconds with the incoming video fully revealed at 70% of the transition.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-hidden' and perspective style. Two VideoAtom elements positioned absolutely. Outgoing video uses transform effect with rotate3d animations creating the curl (0deg to -180deg on Y-axis), combined with translateZ for depth. Apply clip-path polygon animation to mask the curling portion. Incoming video starts with brightness filter at 0.7, animating to 1.0 as page turns. Use cubic-bezier(0.68, -0.55, 0.265, 1.55) for organic curl motion. Add drop-shadow filter following the curl edge. Calculate overlap as 1.5 seconds, with BaseLayout duration = video1.duration + video2.duration - 1.5."
+              },
+              {
+                "prompt": "Design a corner peel transition where the video appears printed on a sticker that peels away from the bottom-left corner diagonally toward the top-right. The peel should reveal the next video with a realistic adhesive texture effect at the peeling edge. Implement a two-stage animation: first, the corner lifts slightly with a subtle bounce, then the full peel motion accelerates. Add a white paper backing texture that's briefly visible during the peel. The peeling video should cast a realistic shadow that changes angle as it lifts. Include a slight warping effect on the peeling portion to simulate flexible material.",
+                "technicalSpecs": "Single BaseLayout with 'absolute inset-0 overflow-hidden'. Outgoing VideoAtom with complex transform animation: initial scale(1) rotate(0deg), then scale(0.98) rotate(-2deg) for corner lift, finally translateX(150%) translateY(-150%) rotate(-45deg) scale(0.7). Use multiple clip-path keyframes to create diagonal peel shape. Add ::before pseudo-element via style prop for white backing layer. Apply drop-shadow with blur increasing from 4px to 20px. Incoming video has initial scale(0.95) with spring animation to scale(1). Overlap duration 1.2 seconds with staggered effect timing."
+              },
+              {
+                "prompt": "Build a book page flip transition where videos are displayed on opposing pages of an open book. The right page flips to the left, revealing a new video on the fresh right page. Create the illusion of page thickness with a subtle 3D extrusion effect. The flipping page should bend realistically in the middle, not remain flat. Add a paper texture overlay that's semi-transparent. Include ambient lighting changes - the flipping page should catch highlights as it moves. The spine of the book should remain visible as a central dividing line throughout the transition.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px and transform-style: preserve-3d. Three VideoAtom elements: outgoing (right page), incoming (new right page), and static left page. Outgoing video animates rotateY from 0deg to -180deg with transform-origin: left center. Apply custom bezier curve for page weight. Use filter brightness animation synced with rotation angle. Add thin divider element for book spine at left: 50% translateX(-50%). Incoming video starts with rotateY(180deg) opacity(0), animating to rotateY(0deg) opacity(1). Calculate 2-second overlap with natural page flip timing."
+              },
+              {
+                "prompt": "Create a spiral page peel effect where the video corner starts peeling from the top-left and spirals inward toward the center before disappearing. The peel should follow a logarithmic spiral path with increasing rotation speed. As it peels, the video should appear to have a papery texture with visible fibers at the torn edge. The incoming video should be revealed in a spiral pattern matching the peel. Add particle effects of paper fragments that break off during the dramatic peel. Include a subtle paper crinkle sound visualization through opacity pulses.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-visible' for particle overflow. Outgoing VideoAtom with combined animations: rotate(0deg to 720deg), scale(1 to 0), and custom spiral path using translateX/Y with sin/cos calculations. Apply SVG filter for rough torn edge effect. Use mask-image with radial-gradient for spiral reveal. Incoming video uses matching inverse spiral mask. Add multiple small divs via React.createElement for particle fragments with random trajectories. Implement opacity pulse effect at 0.1s intervals during peel. 1.8-second overlap with exponential acceleration."
+              },
+              {
+                "prompt": "Design a multi-corner peel where all four corners of the video simultaneously curl inward like an old photograph being removed from an album. Each corner should peel at slightly different rates for organic movement. The video should appear to have photo paper thickness with a glossy finish that reflects light differently as corners curl. Behind the peeling video, show vintage album page texture before the new video fades in. Add subtle yellowing at the edges as if the photo is aging during removal.",
+                "technicalSpecs": "BaseLayout with 'absolute inset-0 overflow-hidden bg-amber-50/20'. Four separate div overlays for corner masks using clip-path polygons, each with unique animation timing. Outgoing VideoAtom with complex transform combining four rotation origins. Apply sepia filter increasing from 0 to 0.3 at edges. Use mix-blend-mode: multiply for vintage feel. Incoming video has initial opacity(0) scale(0.9), animating to opacity(1) scale(1) with 0.3s delay. Add texture overlay div with 'absolute inset-0 bg-gradient-radial opacity-40'. 2.2-second overlap with staggered corner animations offset by 0.1s each."
+              },
+              {
+                "prompt": "Implement a venetian blind style page transition where the video appears printed on vertical strips that fold over one by one from left to right. Each strip should have a realistic 3D fold animation with proper shadows and highlights. The strips should have slightly different timing for a wave-like effect. As strips fold, they should briefly show their reverse side with inverted colors. The incoming video should be revealed strip by strip in sync with the folding motion. Add metallic edges to strips for a premium feel.",
+                "technicalSpecs": "BaseLayout with display: grid and grid-template-columns: repeat(12, 1fr). Create 12 child divs each containing sliced portions of VideoAtoms using object-position. Each strip div has unique animation delay: index * 0.05s. Apply rotateY(0deg to 180deg) with transform-origin based on strip position. Use backface-visibility: hidden and a ::before element for reverse side. Add box-shadow for depth and inset shadow for metallic edge. Incoming video strips start at rotateY(-180deg). Calculate 1.6-second total overlap with wave propagation timing."
+              },
+              {
+                "prompt": "Create an origami-inspired fold transition where the video appears to fold into a paper crane shape before unfolding to reveal the new video. Start with corner folds that create triangular segments, then complex valley and mountain folds. The folding should cast realistic shadows between layers. Add a paper texture that becomes more visible as the video folds smaller. During the peak fold moment, rotate the entire origami shape 360 degrees. The unfolding should happen in reverse order with the new video. Include subtle paper crinkling effects at fold lines.",
+                "technicalSpecs": "BaseLayout with perspective: 800px and preserve-3d. Use CSS clip-path with multiple polygons to create folded segments. Outgoing VideoAtom split into 8 triangular sections via mask-image. Each section has unique transform with rotateX, rotateY, and translateZ. Apply filter: brightness() based on fold angle for shading. Center fold state includes full rotate3d(1, 1, 0, 360deg). Incoming video uses reverse animation sequence. Add noise texture overlay with mix-blend-mode: soft-light. 2.5-second overlap with complex keyframe timing for origami sequence."
+              },
+              {
+                "prompt": "Design a page burn transition where the video appears to burn away from the edges inward, with realistic fire effects at the burning border. The burn should progress irregularly, not in straight lines. As areas burn, they should briefly glow orange before turning to ash that falls away. The incoming video should be revealed through the burnt areas with heat distortion at the edges. Add smoke particles rising from the burning edges. Include a subtle heat shimmer effect across the entire frame during the burn.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black overflow-visible'. Outgoing VideoAtom with animated SVG turbulence filter for burn edge distortion. Use mask-image with custom gradient animation for irregular burn pattern. Apply CSS filter: contrast(1.5) brightness(1.2) hue-rotate(-20deg) at burn edges. Create particle divs for ash with gravity animation translateY and opacity fade. Incoming video has filter: blur(2px) transitioning to blur(0) for heat distortion. Add shimmer overlay with @keyframes animation using transform: translateX with wave pattern. 2-second overlap with organic burn progression."
+              },
+              {
+                "prompt": "Build a mechanical page flip with visible gears and hinges, like a steampunk book mechanism. The page should flip with precise mechanical motion, including acceleration and deceleration phases. Add brass hinges at the fold line that rotate realistically. Include gear wheels at corners that spin during the flip. The page should have a metallic sheen that catches light differently at various angles. Steam effects should puff out at the midpoint of the flip. The incoming video should appear etched or printed on aged metal with patina effects.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-gradient-to-br from-amber-900 to-zinc-800'. Outgoing VideoAtom with rotateY animation using steps(60) for mechanical motion. Add decorative elements: gear SVGs with rotate animation at corners, hinge rectangles with metallic gradient. Apply CSS filter: contrast(1.1) sepia(0.2) for aged metal look. Use ::after pseudo-element for metallic sheen gradient that shifts with rotation angle. Create steam puff divs with scale and opacity animation at flip midpoint. Incoming video has initial filter: brightness(0.8) blur(1px). 1.8-second overlap with precise mechanical timing curve."
+              },
+              {
+                "prompt": "Create a liquid page melt transition where the video appears to liquefy and drip away from top to bottom, revealing the next video underneath. The melting should happen in waves with varying viscosity - some parts dripping faster than others. Add glossy reflections on the liquid surface. The drips should pool at the bottom before disappearing. Include surface tension effects where the liquid tries to hold together before breaking. The revealed video should appear wet initially, with water droplets that evaporate. Add subtle splashing when large drips hit the bottom.",
+                "technicalSpecs": "BaseLayout with 'absolute inset-0 overflow-hidden' and clipPath for bottom pooling. Outgoing VideoAtom with CSS mask using multiple linear-gradients animated at different speeds for drip effect. Apply filter: blur() increasing from 0 to 3px for liquification. Use transform: scaleY() with transform-origin: bottom for stretching drips. Add multiple absolute divs for individual drips with bezier curves for physics. Incoming video starts with filter: brightness(1.3) blur(1px) for wet look. Create droplet overlays with radial-gradient and scale animation. Add splash divs triggered at specific timestamps. 2.3-second overlap with viscous flow timing."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 2953,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5397
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:15:18.250Z"
+}

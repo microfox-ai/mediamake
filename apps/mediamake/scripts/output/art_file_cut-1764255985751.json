@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Flat shape cutout layer. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "ZeBmu7Xhx3kMZWew",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-cobWZS5tJKYQ1GIa",
+          "state": "output-available",
+          "output": {
+            "title": "Flat Cutout with Internal Effects for Text & Media",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset called 'flatCutoutReveal' that animates flat shape cutout layers to reveal content underneath. The effect should use clip-path animations to create geometric reveals - think paper cutouts being lifted away. The effect takes parameters for shape type (circle, rect, polygon), reveal direction (top, bottom, left, right, center), and timing. It returns generic effects that animate clip-path from full coverage to no coverage, creating a clean cutout reveal. The animation should feel like paper being peeled away or cut out with scissors. Include easing options that mimic physical paper movement.",
+                "technicalSpecs": "Effect type: generic. AnimationRange structure: clip-path animations with prog 0-1, using polygon points for smooth transitions. Effect data: type='generic', mode='provider', targetIds from params, duration and start from params. Input params: Zod schema with shape (enum), direction (enum), duration (number), delay (number), easing (string), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start, duration, ranges: [{ key: 'clipPath', val: polygonPoints, prog: 0-1 }] }] }. Use CSS clip-path with polygon() for maximum flexibility."
+              },
+              {
+                "prompt": "Build a 'beatPulseCutout' waveform effect preset that makes flat cutout shapes pulse and breathe with the music's bass frequencies. The effect should make elements scale and rotate slightly on each beat, creating a paper-craft stop-motion feel. Think of construction paper animations where each beat makes the cutouts 'pop' forward. The effect accepts sensitivity controls for how much the cutouts react to bass hits, with options for scale intensity, rotation amount, and whether to add a subtle shadow that grows on beats. The cutout elements should feel tactile and handmade.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Waveform configuration: type='zoom' combined with 'rotate', reacting to bass frequencies, sensitivity 0.3-0.8 from params. Effect data: type='waveform', mode='provider', targetIds from params, props include zoom intensity, rotation range, optional shadow. Input params: bassSensitivity (number 0-1), scaleIntensity (number 1-2), rotationDegrees (number 0-45), addShadow (boolean), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'waveform', mode: 'provider', targetIds, effect: 'zoom', audioProperty: 'bass', sensitivity, threshold }] }. Consider GPU acceleration with transform3d."
+              },
+              {
+                "prompt": "Design a 'layeredPeelTransition' effect that simulates multiple layers of flat cutouts peeling away sequentially. Each layer should animate with a different delay, creating a cascading reveal effect. The animation should include subtle 3D rotation on the Y-axis as layers peel, making it feel like paper sheets being turned. Parameters include number of layers, peel direction, stagger timing between layers, and whether to add drop shadows during the peel. The effect should feel like flipping through a paper flipbook or removing masking tape layers.",
+                "technicalSpecs": "Effect type: generic (combined). AnimationRange: Multiple effects with staggered delays, using rotateY (0 to 90deg), translateZ for depth, opacity (1 to 0). Effect data: Array of effects, one per layer, each with incremented start times. Input params: layerCount (number 2-10), peelDirection (enum: left/right), staggerDelay (number ms), addShadows (boolean), baseDuration (number), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: layerArray.map((i) => ({ type: 'generic', mode: 'provider', targetIds: [`${targetId}-layer-${i}`], start: i * staggerDelay, duration, ranges: [rotateY, translateZ, opacity animations] })) }."
+              },
+              {
+                "prompt": "Create a 'scissorCutPath' effect preset that animates elements as if they're being cut out by invisible scissors in real-time. The effect should use SVG mask or clip-path animations that follow a defined cutting path, progressively revealing or hiding content. Include parameters for cut pattern (straight, zigzag, wave, torn), cut speed, and whether to add paper texture edges. The animation should include subtle rotation and translation to simulate the paper moving as it's being cut. Perfect for text reveals or image transitions with a crafty, handmade aesthetic.",
+                "technicalSpecs": "Effect type: generic. AnimationRange: clip-path with custom path coordinates, slight rotation (-2 to 2deg), translateY for paper drift. Effect data: type='generic', mode='provider', complex clip-path animations using SVG path data. Input params: cutPattern (enum: straight/zigzag/wave/torn), cutDuration (number), addPaperEdge (boolean), driftAmount (number pixels), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration, ranges: [{ key: 'clipPath', val: generateCutPath(pattern, prog), prog: 0-1 }, { key: 'rotate', val: rotation, prog: 0-1 }] }] }. Use path() for complex shapes."
+              },
+              {
+                "prompt": "Build a 'flatShadowLift' effect that makes flat cutout elements appear to lift off the page by animating shadows and subtle transforms. The effect should create the illusion of paper elements floating up, with shadows growing and becoming more diffuse as they 'rise'. Include parameters for lift height, shadow intensity, and whether to add a subtle rotation during lift. The animation should feel like paper crafts coming to life, with realistic shadow behavior that suggests depth without actual 3D transforms.",
+                "technicalSpecs": "Effect type: generic. AnimationRange: translateY for lift (-20 to 0px), multiple box-shadow values for depth, scale (1.0 to 1.05) for subtle growth. Effect data: type='generic', mode='provider', focusing on shadow and transform properties. Input params: liftHeight (number px), shadowIntensity (number 0-1), liftDuration (number), addRotation (boolean), shadowColor (string hex), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration, ranges: [{ key: 'transform', val: `translateY(${y}px) scale(${scale})`, prog }, { key: 'boxShadow', val: shadowValues, prog }] }] }. Optimize with will-change: transform."
+              },
+              {
+                "prompt": "Design a 'frequencyColorShift' waveform effect that changes the color/tint of flat cutout shapes based on audio frequencies. High frequencies shift toward warm colors (reds/yellows), while low frequencies shift toward cool colors (blues/purples). The effect should feel like colored paper changing under different stage lights. Parameters include color range, frequency band selection, and whether to affect background color, border color, or apply as a filter. Perfect for creating synesthetic visual experiences where color responds to sound.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Waveform configuration: custom frequency analysis, mapping frequency bands to HSL color values. Effect data: type='waveform', mode='provider', using filter or backgroundColor depending on params. Input params: colorMode (enum: background/border/filter), baseColor (string hex), warmColor (string), coolColor (string), frequencyBand (enum: bass/mid/treble/full), sensitivity (number), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'waveform', mode: 'provider', targetIds, effect: 'custom', audioProperty: frequencyBand, props: { filter: `hue-rotate(${hueShift}deg) saturate(${saturation})` } }] }. Use HSL for smooth transitions."
+              },
+              {
+                "prompt": "Create a 'paperFoldReveal' effect that simulates flat cutouts folding like origami to reveal content. The effect should use 3D transforms to create realistic paper folding animations, with multiple fold points creating accordion or fan effects. Include parameters for fold count, fold direction, fold angle, and whether to add shadows between folds. The animation should progress from completely folded (hidden) to fully unfolded (revealed), with each fold segment animating in sequence for a smooth, mechanical feel.",
+                "technicalSpecs": "Effect type: generic (combined). AnimationRange: Multiple transform3d animations per fold segment, using rotateX/Y, perspective, transform-origin adjustments. Effect data: Array of effects for each fold segment with calculated delays and transforms. Input params: foldCount (number 2-8), foldDirection (enum: horizontal/vertical/diagonal), maxFoldAngle (number 0-180), unfoldDuration (number), staggerAmount (number 0-1), addCreaseShadows (boolean), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: foldSegments.map((segment, i) => ({ type: 'generic', mode: 'provider', targetIds: [`${targetId}-fold-${i}`], start: i * stagger, duration: segmentDuration, ranges: [{ key: 'transform', val: `rotateX(${angle}deg)`, prog: 0-1 }] })) }. Use perspective for depth."
+              },
+              {
+                "prompt": "Build a 'cutoutGlitchStack' effect that makes flat shapes glitch and separate into offset color channels (RGB split). The effect should simulate misaligned paper cutouts or printing registration errors, with each color channel slightly offset and potentially rotating independently. Parameters control glitch intensity, color channel separation distance, and whether to add digital noise or maintain the clean paper aesthetic. The animation can be triggered by beats or run continuously with varying intensity.",
+                "technicalSpecs": "Effect type: generic or waveform hybrid. AnimationRange: Multiple duplicate elements with different blend modes, transform offsets for each channel. Effect data: Creates 3 effects (R, G, B channels) with calculated offsets and blend modes. Input params: glitchIntensity (number 0-1), separationDistance (number px), rotationVariance (number deg), triggerMode (enum: continuous/beat/manual), addNoise (boolean), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: ['red', 'green', 'blue'].map(channel => ({ type: 'generic', mode: 'provider', targetIds: [`${targetId}-${channel}`], start: 0, duration, ranges: [{ key: 'transform', val: channelTransform, prog }, { key: 'mixBlendMode', val: 'screen' }] })) }. Use mix-blend-mode for color effects."
+              },
+              {
+                "prompt": "Design a 'paperTextureWave' effect that adds animated paper grain and texture overlays to flat elements. The effect creates subtle surface animations that make elements feel more tactile and handcrafted, like light playing across textured paper. Include wave patterns that move across the surface, fiber-like noise that shifts, and optional embossing effects. Parameters control texture intensity, wave speed, grain density, and whether to add subtle color variations that suggest recycled or handmade paper.",
+                "technicalSpecs": "Effect type: generic. AnimationRange: CSS filter combinations, background-position for texture movement, subtle opacity shifts. Effect data: type='generic', mode='provider', using filter and background properties. Input params: textureType (enum: grain/fiber/wave/crumpled), textureIntensity (number 0-1), animationSpeed (number), addColorVariation (boolean), embossEffect (boolean), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration: 'infinite', ranges: [{ key: 'filter', val: `url(#paperTexture) contrast(${contrast})`, prog }, { key: 'backgroundPosition', val: position, prog: 0-1 }] }] }. Use SVG filters for texture."
+              },
+              {
+                "prompt": "Create a 'magneticAssemble' effect where flat cutout pieces appear to magnetically snap together from scattered positions. Each piece should have physics-inspired motion with acceleration, deceleration, and a satisfying 'snap' at the end. The effect includes parameters for piece count, scatter radius, assembly pattern (grid, circle, custom shape), and whether to add rotation during assembly. Pieces should feel like magnetized paper elements finding their final positions, with optional shadows that suggest they're floating before snapping down.",
+                "technicalSpecs": "Effect type: generic (combined). AnimationRange: Complex bezier curves for physics-based motion, translate X/Y from random positions to final, scale for snap effect. Effect data: Array of effects per piece with calculated start positions and timing. Input params: pieceCount (number), scatterRadius (number px), assemblyPattern (enum: grid/circle/line/custom), snapDuration (number), rotateWhileMoving (boolean), magnetStrength (number 0-1), targetIds (array). PresetMetadata: _internalPreset=true, _internalPresetOutput='effects'. Return format: { effects: pieces.map((piece, i) => ({ type: 'generic', mode: 'provider', targetIds: [`${targetId}-piece-${i}`], start: i * 50, duration, ranges: [{ key: 'transform', val: calculateMagneticPath(piece, prog), prog: 0-1, easing: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' }] })) }. Use spring physics for natural motion."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2553,
+              "outputTokens": 3546,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6099
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:06:25.751Z"
+}

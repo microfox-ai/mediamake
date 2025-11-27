@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Bad signal and VHS tracking errors. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "FqrZaitdMOcpie59",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-ELdVqjgO7IuMAmgQ",
+          "state": "output-available",
+          "output": {
+            "title": "VHS Tracking Errors & Bad Signal Glitch Effects",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset called 'vhsGlitchDistortion' that simulates VHS tracking errors through a combination of horizontal displacement glitches and RGB channel separation. The effect should use generic AnimationRange keyframes to create sudden horizontal shifts with chromatic aberration. Include parameters for glitch intensity (0-1), frequency (how often glitches occur), and color separation distance. The effect should animate translateX with sudden jumps, combined with CSS filters for RGB splitting using drop-shadow. Use random-looking but deterministic keyframe progressions (e.g., prog: 0, 0.15, 0.16, 0.35, 0.36, 0.8, 0.81, 1) to simulate unpredictable tracking errors. Include a subtle constant horizontal jitter throughout.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: translateX (range: -50px to 50px for glitches), filter (multiple drop-shadows for RGB split). Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 2000, easing: 'linear', ranges: [{ key: 'translateX', val: [...], prog: [...] }, { key: 'filter', val: [...], prog: [...] }] }. Input params: { targetIds: z.array(z.string()), intensity: z.number().min(0).max(1), frequency: z.number(), colorSeparation: z.number() }. Return: { effects: [glitchEffect] }"
+              },
+              {
+                "prompt": "Build a 'scanlineInterference' internal effect preset that recreates the horizontal scan lines and interference patterns of degraded VHS tapes. This should be a waveform-based effect that reacts to audio, causing the scan lines to intensify and distort with bass frequencies. The effect should overlay animated linear gradients that move vertically to simulate scan lines, while using brightness and contrast filters that pulse with the audio. Include parameters for scan line thickness, speed, and audio sensitivity. The scan lines should be created using CSS repeating-linear-gradient as a pseudo-element or background, animated with translateY.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Properties: brightness, contrast, custom CSS for scan line overlay. Structure: { type: 'waveform', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 5000, waveformType: 'exposure', audioProperty: 'bass', sensitivity: input.sensitivity || 0.7, threshold: 0.3 }. Additional generic effect for scan line animation: { type: 'generic', ranges: [{ key: 'backgroundImage', val: ['repeating-linear-gradient(...)'], prog: [0, 1] }] }. Input params: { targetIds: z.array(z.string()), scanlineThickness: z.number(), speed: z.number(), sensitivity: z.number() }. Return: { effects: [waveformEffect, scanlineEffect] }"
+              },
+              {
+                "prompt": "Design a 'magneticDistortion' internal effect that simulates the warping caused by magnetic interference on VHS tapes. Create a complex generic effect that combines scale distortion, rotation wobble, and color hue shifts. The effect should create a 'breathing' distortion where the content appears to warp in and out like it's being affected by a magnetic field. Use spring easing for organic movement. Include keyframes that create asymmetric scaling (scaleX different from scaleY), subtle rotation oscillation, and hue-rotate filter animation. Parameters should include distortion strength, wobble speed, and color shift amount.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: scaleX, scaleY, rotate, filter (hue-rotate). Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: input.delay || 0, duration: input.duration || 3000, easing: 'spring', ranges: [{ key: 'scaleX', val: [1, 1.05, 0.98, 1.02, 1], prog: [0, 0.25, 0.5, 0.75, 1] }, { key: 'scaleY', val: [1, 0.97, 1.03, 0.99, 1], prog: [0, 0.25, 0.5, 0.75, 1] }, { key: 'rotate', val: [0, -2, 3, -1, 0], prog: [0, 0.2, 0.5, 0.8, 1] }, { key: 'filter', val: ['hue-rotate(0deg)', 'hue-rotate(15deg)', 'hue-rotate(-10deg)', 'hue-rotate(0deg)'], prog: [0, 0.33, 0.66, 1] }] }. Input params: { targetIds: z.array(z.string()), strength: z.number(), wobbleSpeed: z.number(), colorShift: z.number() }. Return: { effects: [distortionEffect] }"
+              },
+              {
+                "prompt": "Create a 'staticNoise' internal effect preset that overlays animated TV static/noise on any content. This should be a combination effect using both generic animations for the noise pattern movement and opacity flickering, plus an optional waveform component that intensifies the static based on audio peaks. The static should be generated using CSS noise patterns (via SVG filters or gradient noise), with rapid opacity changes and slight position shifts to create the flickering effect. Include parameters for noise density, flicker rate, and whether to enable audio reactivity.",
+                "technicalSpecs": "Effect type: combined (generic + optional waveform). Generic properties: opacity, backgroundImage (noise pattern), backgroundPosition. Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, ranges: [{ key: 'opacity', val: [0.8, 0.3, 0.9, 0.2, 0.7, 1], prog: [0, 0.1, 0.3, 0.5, 0.7, 1] }, { key: 'backgroundPosition', val: ['0% 0%', '50% 50%', '25% 75%', '75% 25%', '0% 0%'], prog: [0, 0.25, 0.5, 0.75, 1] }] }. Optional waveform: { type: 'waveform', waveformType: 'blur', audioProperty: 'treble', sensitivity: 0.8 }. Input params: { targetIds: z.array(z.string()), noiseDensity: z.number(), flickerRate: z.number(), audioReactive: z.boolean() }. Return: { effects: audioReactive ? [genericEffect, waveformEffect] : [genericEffect] }"
+              },
+              {
+                "prompt": "Build a 'trackingLineGlitch' internal effect that creates the classic VHS tracking line that moves vertically across the screen, distorting everything it passes through. This should be a generic effect that animates a distortion zone using clip-path or mask, combined with transform effects within that zone. The tracking line should move from bottom to top (or configurable direction), and as it passes through content, it should apply horizontal displacement, brightness changes, and slight scaling. Use multiple synchronized AnimationRanges to coordinate the clip-path movement with the distortion effects.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: clipPath, translateX (within clip zone), brightness, scaleX. Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 1500, easing: 'linear', ranges: [{ key: 'clipPath', val: ['inset(100% 0 0 0)', 'inset(90% 0 5% 0)', 'inset(50% 0 45% 0)', 'inset(5% 0 90% 0)', 'inset(0 0 100% 0)'], prog: [0, 0.1, 0.5, 0.9, 1] }, { key: 'translateX', val: [0, 20, -15, 25, 0], prog: [0, 0.1, 0.5, 0.9, 1] }, { key: 'brightness', val: [1, 1.5, 0.7, 1.3, 1], prog: [0, 0.25, 0.5, 0.75, 1] }] }. Input params: { targetIds: z.array(z.string()), direction: z.enum(['up', 'down', 'left', 'right']), speed: z.number(), distortionAmount: z.number() }. Return: { effects: [trackingEffect] }"
+              },
+              {
+                "prompt": "Design a 'colorBleed' internal effect preset that simulates the color bleeding and saturation issues common in degraded VHS tapes. Create a generic effect that animates CSS filters including saturate, contrast, and custom color matrix filters. The effect should create areas of oversaturation that 'bleed' into neighboring areas using blur and blend modes. Include subtle color channel shifts that vary over time, creating a unstable color reproduction effect. Parameters should control bleed intensity, color shift range, and saturation levels.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: filter (saturate, contrast, blur, custom SVG color matrix). Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 4000, easing: 'ease-in-out', ranges: [{ key: 'filter', val: ['saturate(100%) contrast(100%)', 'saturate(150%) contrast(110%) blur(1px)', 'saturate(80%) contrast(120%) blur(2px)', 'saturate(130%) contrast(90%)', 'saturate(100%) contrast(100%)'], prog: [0, 0.25, 0.5, 0.75, 1] }] }. Additional color matrix effect for RGB shifts. Input params: { targetIds: z.array(z.string()), bleedIntensity: z.number(), colorShiftRange: z.number(), saturationLevels: { min: z.number(), max: z.number() } }. Return: { effects: [colorBleedEffect] }"
+              },
+              {
+                "prompt": "Create a 'signalLoss' internal effect that simulates complete signal dropout and recovery, like when a VHS tape has damaged sections. This should be a complex generic effect that combines multiple stages: normal → interference → complete loss → static recovery → normal. Use opacity, grayscale filters, and noise overlays. During signal loss, content should fade to black/white noise, then gradually recover with distortion artifacts. Include parameters for dropout duration, recovery time, and severity of signal loss.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: opacity, filter (grayscale, contrast, brightness), backgroundColor. Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.totalDuration || 3000, ranges: [{ key: 'opacity', val: [1, 0.8, 0.2, 0, 0.3, 0.9, 1], prog: [0, 0.15, 0.3, 0.4, 0.6, 0.85, 1] }, { key: 'filter', val: ['grayscale(0%)', 'grayscale(30%)', 'grayscale(100%) contrast(200%)', 'brightness(0)', 'grayscale(100%) contrast(50%)', 'grayscale(20%)', 'grayscale(0%)'], prog: [0, 0.15, 0.3, 0.4, 0.6, 0.85, 1] }] }. Input params: { targetIds: z.array(z.string()), dropoutDuration: z.number(), recoveryTime: z.number(), severity: z.number().min(0).max(1) }. Return: { effects: [signalLossEffect] }"
+              },
+              {
+                "prompt": "Build a 'phosphorPersistence' internal effect that recreates the ghosting/persistence effect of old CRT phosphor displays often recorded on VHS. This should be a waveform effect that creates trailing afterimages based on audio rhythm. The effect should use multiple semi-transparent copies of the content with slight delays and offsets, creating a motion trail effect. The intensity and number of trails should react to audio beats. Include parameters for trail count, fade rate, and audio sensitivity for dynamic ghosting effects.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Properties: custom trail generation using pseudo-elements or shadows. Primary structure: { type: 'waveform', mode: 'provider', targetIds: input.targetIds, waveformType: 'translate', audioProperty: 'waveform', sensitivity: input.sensitivity || 0.6, translateX: { min: -5, max: 5 }, translateY: { min: -5, max: 5 } }. Additional generic effect for trail opacity: { type: 'generic', ranges: [{ key: 'textShadow', val: ['1px 1px 2px rgba(0,255,0,0.3)', '2px 2px 4px rgba(0,255,0,0.5), 4px 4px 8px rgba(0,255,0,0.2)'], prog: [0, 1] }] }. Input params: { targetIds: z.array(z.string()), trailCount: z.number(), fadeRate: z.number(), sensitivity: z.number() }. Return: { effects: [waveformEffect, trailEffect] }"
+              },
+              {
+                "prompt": "Design a 'horizontalTear' internal effect preset that simulates the horizontal tearing and frame sync issues in bad VHS playback. Create a generic effect that splits content into horizontal segments that shift independently, creating a torn/displaced appearance. Use clip-path to create multiple horizontal bands, each with different translateX values that change over time. The effect should create a stuttering, misaligned look as if the video sync is failing. Include parameters for tear count, displacement range, and animation speed.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: clipPath (for segmentation), translateX (per segment), skewX. Structure: Multiple effects array, one per segment. Each segment: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.duration || 2000, easing: 'steps(5)', ranges: [{ key: 'clipPath', val: [segmentClipPath], prog: [0, 1] }, { key: 'translateX', val: [0, random(-30, 30), random(-30, 30), 0], prog: [0, 0.33, 0.66, 1] }] }. Input params: { targetIds: z.array(z.string()), tearCount: z.number().min(2).max(10), displacementRange: z.number(), animationSpeed: z.number() }. Return: { effects: segmentEffects } where segmentEffects is array of effects for each tear segment"
+              },
+              {
+                "prompt": "Create a 'degaussing' internal effect that simulates the magnetic degaussing/demagnetization effect seen when CRT monitors are affected by magnetic fields. This should be a complex generic effect combining radial distortion, color shifts, and a ripple-like warping pattern. The effect should start with extreme distortion that gradually normalizes, like a degaussing cycle. Use scale transforms from the center point, rotating hue values, and wave-like displacement patterns. Include parameters for distortion intensity, cycle duration, and ripple frequency.",
+                "technicalSpecs": "Effect type: generic (AnimationRange[]). Properties: scale, rotate, filter (hue-rotate, blur), transform-origin. Structure: { type: 'generic', mode: 'provider', targetIds: input.targetIds, start: 0, duration: input.cycleDuration || 3000, easing: 'ease-out', ranges: [{ key: 'scale', val: [1, 0.7, 1.3, 0.9, 1.1, 1], prog: [0, 0.1, 0.2, 0.4, 0.7, 1] }, { key: 'rotate', val: [0, 15, -20, 10, -5, 0], prog: [0, 0.15, 0.3, 0.5, 0.75, 1] }, { key: 'filter', val: ['hue-rotate(0deg) blur(0px)', 'hue-rotate(180deg) blur(3px)', 'hue-rotate(-90deg) blur(2px)', 'hue-rotate(45deg) blur(1px)', 'hue-rotate(0deg) blur(0px)'], prog: [0, 0.2, 0.4, 0.7, 1] }] }. Input params: { targetIds: z.array(z.string()), intensity: z.number(), cycleDuration: z.number(), rippleFrequency: z.number() }. Return: { effects: [degaussingEffect] }"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2555,
+              "outputTokens": 4355,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6910
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T14:23:42.293Z"
+}

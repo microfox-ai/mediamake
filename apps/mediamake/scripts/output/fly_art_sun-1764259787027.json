@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Paper tear rip fold or crumble reveal transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "kGGkiwILeFj7kJQf",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-rQMF0v7wKvlkrrQ7",
+          "state": "output-available",
+          "output": {
+            "title": "Paper Tear & Crumble Video Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a paper tear transition preset where the outgoing video appears to be torn away like ripping paper, revealing the incoming video underneath. The transition should simulate the jagged, irregular edge of torn paper moving across the screen horizontally. Use a custom SVG mask or clip-path that animates from left to right with a torn paper edge pattern. The outgoing video should have a subtle paper texture overlay that becomes more prominent as the tear progresses, with slight curl effects at the torn edge using 3D transforms. Add a subtle paper ripping sound effect during the transition. The incoming video should have a slight shadow where it meets the torn edge to create depth. Duration should be 1.5 seconds of overlap between the two videos.",
+                "technicalSpecs": "BaseLayout container with relative positioning and overflow-hidden. Two VideoAtom components positioned absolutely (inset-0). Create a moving mask effect using clip-path polygon animation or SVG mask. Outgoing video: z-10, with paper texture overlay image (mix-blend-mode: multiply, opacity animating 0->0.3). Apply rotateY transform (0deg -> -15deg) at tear edge using transform-origin. Incoming video: z-0, with drop-shadow filter at tear edge. Use generic effects in provider mode: clipPath animation for tear progression, transform for curl effect, opacity for texture overlay. Overlap period: 1.5s. BaseLayout duration = video1.duration + video2.duration - 1.5s."
+              },
+              {
+                "prompt": "Design a crumpled paper ball transition where the outgoing video appears to crumple into a ball that shrinks and fades while the incoming video unfolds from a crumpled state. The crumpling effect should use multiple scale and rotation transforms applied to different quadrants of the video to simulate the irregular folding of paper. Add noise/grain texture that increases during the crumple animation. The incoming video should start as a small crumpled ball in the center and expand outward with reverse crumpling animation. Include subtle shadow effects that change based on the crumple state. Transition duration of 2 seconds with smooth easing curves.",
+                "technicalSpecs": "Single BaseLayout with 'relative w-full h-full overflow-hidden'. Outgoing VideoAtom: absolute positioning, z-20. Apply multiple transform effects using transform3d with scale3d(1,1,1) -> scale3d(0.1,0.1,1), rotateX/Y/Z for crumple simulation. Add grayscale and brightness filters (0->0.5, 1->0.7). Incoming VideoAtom: z-10, starting with scale3d(0,0,1) -> scale3d(1,1,1), rotate3d animations in reverse. Both videos use cubic-bezier(0.4,0,0.2,1) easing. Paper texture overlay as ImageAtom with mix-blend-mode:overlay. Shadow effects using box-shadow animation. Overlap: 2s. Provider mode effects with targetIds for each video."
+              },
+              {
+                "prompt": "Build a vertical paper fold transition that simulates an accordion-style fold revealing the next video. The outgoing video should appear to fold into multiple horizontal segments that compress vertically, while the incoming video unfolds from similar segments. Each fold should have alternating light/dark shading to simulate the 3D depth of paper folds. The folds should animate sequentially from top to bottom with a slight stagger effect. Add a paper texture overlay that becomes visible during the folding animation. The transition should feel like turning a page in a pop-up book with 1.8 seconds overlap.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-gray-100'. Create fold effect using multiple div segments with transform-origin and scaleY animations. Outgoing VideoAtom split into 6-8 horizontal strips using clip-path rectangles, each with staggered timing (0.1s delays). Apply alternating brightness filters (1.1, 0.9) for fold depth. Transform: scaleY(1) -> scaleY(0) with perspective(1000px). Incoming video uses reverse animation: scaleY(0) -> scaleY(1). Add subtle rotateX transforms (-2deg, 2deg) for fold angle. Paper texture ImageAtom overlay with opacity 0->0.2->0. Stagger delay using dynamic delay calculation. Overlap: 1.8s."
+              },
+              {
+                "prompt": "Create a paper rip diagonal transition where the video tears diagonally from top-left to bottom-right with realistic torn edge details. The tear should progress gradually with the torn pieces slightly separating and floating apart. The outgoing video splits into two pieces along the tear line, with each piece drifting in opposite directions while fading out. The incoming video is revealed through the growing gap. Add paper fiber texture along the torn edges and subtle particle effects of paper fragments. Include slight rotation on the torn pieces as they separate. 1.6 second transition with dynamic easing.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-visible'. Outgoing video duplicated into two VideoAtom components with complementary clip-path polygons for diagonal split. Top-left piece: translate(-10%, -10%) rotate(-3deg), bottom-right: translate(10%, 10%) rotate(3deg). Both fade opacity 1->0. Incoming VideoAtom at z-0 with full coverage. Paper edge texture using CSS border-image or pseudo-elements with jagged SVG pattern. Particle effects using multiple small divs with paper texture, animated with transform and opacity. Use transform3d for GPU acceleration. Custom ease-out timing function. Overlap duration: 1.6s."
+              },
+              {
+                "prompt": "Design a spiral paper curl transition where the outgoing video curls up like a rolled piece of paper from the bottom corner, spiraling inward while revealing the incoming video. The curl should have realistic 3D perspective with the curled portion showing the 'back' of the paper with a slightly different tint. The spiral motion should accelerate as it progresses, with the curl getting tighter. Add drop shadow that follows the curl edge for depth. The incoming video should have a subtle unfurl animation from the opposite corner. 2.2 second overlap with smooth physics-based easing.",
+                "technicalSpecs": "BaseLayout with 'relative preserve-3d perspective-1000'. Outgoing VideoAtom with transform-origin: bottom right, using rotate3d and translate3d for spiral effect. Apply CSS mask with radial-gradient for curl progression. Transform sequence: rotateY(0deg) -> rotateY(720deg) combined with scale(1) -> scale(0) and translateZ for depth. Back-face styling with brightness(0.8) filter. Dynamic box-shadow following curl edge using CSS variables. Incoming video with subtle rotateY(-10deg -> 0deg) from top-left. Use will-change: transform for optimization. Overlap: 2.2s. Spring-based easing with cubic-bezier(0.68, -0.55, 0.265, 1.55)."
+              },
+              {
+                "prompt": "Build a paper shred transition where the outgoing video appears to be fed through a paper shredder, splitting into multiple vertical strips that fall away at different speeds. Each strip should have slight rotation and physics-based falling motion. The incoming video is revealed as the strips fall away. Add subtle paper texture and torn edges to each strip. Include parallax effect where strips closer to viewer fall faster. The shredding should start from top and progress downward with mechanical precision. 1.4 second transition with staggered timing.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden'. Outgoing video split into 12-15 vertical strips using multiple VideoAtom clones with clip-path rectangles. Each strip: absolute positioning with calculated left offset, width: 8-10%. Apply staggered animations: translateY(0) -> translateY(120%) with varying durations (0.8s-1.2s), rotate(random -5deg to 5deg), scale(1) -> scale(0.95). Use CSS custom properties for strip index calculations. Gravity acceleration using cubic-bezier(0.55, 0.055, 0.675, 0.19). Incoming VideoAtom at z-0. Paper texture overlay on strips with mix-blend-mode: multiply. Overlap: 1.4s."
+              },
+              {
+                "prompt": "Create a origami fold transition where the outgoing video folds into an origami shape (like a crane or airplane) that flies off screen while the incoming video unfolds from a similar origami form flying in. The folding should show multiple creases and geometric transforms that simulate real paper folding techniques. Each fold should cast shadows on other parts for realism. The origami shape should have a flight path with rotation during movement. Add subtle paper grain texture during the folding process. 2.5 second elaborate transition.",
+                "technicalSpecs": "Complex BaseLayout with nested divs for fold segments. Outgoing video split into triangular segments using clip-path polygons matching origami fold pattern. Each segment: different transform-origin, rotateX/Y/Z combinations for fold angles. Coordinate transforms: fold sequence (1s) then flight path using translateX/Y and rotate3d (1.5s). Shadow effects using filter: drop-shadow with varying opacity/blur based on fold state. Incoming video reverses the process with different entry angle. Use CSS variables for fold angle coordination. Paper texture ImageAtom overlay fading in/out. Overlap: 2.5s. Ease-in-out-cubic for fold, ease-out for flight."
+              },
+              {
+                "prompt": "Design a paper burn transition where the outgoing video appears to burn away from the edges inward, with the burnt edges turning to black char before disintegrating to reveal the incoming video. The burn effect should progress organically with flickering orange/red glow along the active burn edge. Add smoke particle effects rising from the burn line. The paper should curl slightly at the burn edges from heat. Include crackling sound effect timing. The incoming video should emerge from behind with a subtle heat wave distortion that settles as the burn completes. 2 second dramatic transition.",
+                "technicalSpecs": "BaseLayout with 'relative bg-black overflow-visible'. Outgoing VideoAtom with animated SVG mask for organic burn progression. Apply multiple filters: brightness for char effect (1 -> 0.2), sepia for burn color (0 -> 0.8), contrast (1 -> 1.5). Burn edge glow using box-shadow with orange/red gradients, animated opacity for flicker. Transform for edge curl: rotateX at burn line with dynamic transform-origin. Smoke particles as semi-transparent divs with blur filter, translateY and opacity animations. Incoming video with turbulence filter (SVG feTurbulence) for heat distortion, reducing over time. Overlap: 2s. Variable timing for organic feel."
+              },
+              {
+                "prompt": "Build a paper airplane throw transition where the outgoing video folds into a paper airplane shape that flies across and off screen while the incoming video arrives as another paper airplane that unfolds. The folding should show the classic airplane fold sequence in reverse. The flight should include realistic arc trajectory with rotation and slight wobble. Add motion blur during fast movement and depth of field blur based on z-distance. The airplanes should cast moving shadows. Include swoosh sound effect synchronized with the flight. 1.7 second playful transition.",
+                "technicalSpecs": "BaseLayout with perspective-1500 for 3D depth. Outgoing video morphs using multiple clip-path keyframes to simulate airplane folding (5 steps). Flight path using translateX (-100vw), translateY (parabolic arc), translateZ for depth, rotateZ for banking. Motion blur via filter: blur based on velocity (0-3px). Incoming airplane enters from opposite side with mirrored trajectory. Shadow element using transformed duplicate with opacity/blur based on altitude (translateZ value). Use requestAnimationFrame for smooth trajectory calculation. Paper texture overlay during fold state. Overlap: 1.7s. Physics-based easing for natural flight."
+              },
+              {
+                "prompt": "Create a confetti paper explosion transition where the outgoing video shatters into hundreds of small paper pieces that scatter in all directions while spinning and floating down. Each piece should have randomized size, rotation speed, and trajectory for organic movement. The pieces should have two-sided rendering showing video content on one side and paper texture on back. Incoming video is revealed as pieces clear. Add subtle wind effect causing pieces to drift sideways. Some pieces should float longer than others for depth. 2.3 second celebratory transition with particle physics.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-visible' for particles to escape bounds. Fragment outgoing video into grid of 20x20 small VideoAtom pieces using calculated clip-paths. Each piece: random initial velocity vector, rotation (rotateX/Y/Z with random speeds), gravity acceleration (translateY), wind drift (translateX sine wave). Size variation using scale(0.5-1.2). Two-sided rendering with backface-visibility and alternate ImageAtom for paper texture back. Stagger explosion timing from center outward (radial delay). Z-index based on size for depth sorting. Incoming video at z-0. Use CSS custom properties for per-piece randomization. Overlap: 2.3s. Spring physics for initial explosion, ease-out for settling."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3194,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5638
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:09:47.027Z"
+}

@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "3D spatial cube rotation perspective shift transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "epH9LhKQPzDqavg4",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-FO0Ql56T5aFOgYs7",
+          "state": "output-available",
+          "output": {
+            "title": "3D Cube Rotation Perspective Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a 3D cube rotation transition preset where videos are mapped onto the faces of a rotating cube. The outgoing video is on the front face of the cube, and as it rotates 90 degrees on the Y-axis, the incoming video appears on the adjacent face. Use CSS 3D transforms with perspective to create the spatial depth effect. The transition should last 1.5 seconds with both videos playing simultaneously during the rotation. Apply a subtle shadow effect that moves as the cube rotates to enhance the 3D illusion. The cube should have a slight ease-in-out motion curve for smooth acceleration and deceleration.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full' and style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}. Two VideoAtom components positioned absolutely with transform3d for cube face positioning. Outgoing video: transform: rotateY(0deg) translateZ(50vw) initially, animating to rotateY(-90deg). Incoming video: transform: rotateY(90deg) translateZ(50vw) initially, animating to rotateY(0deg). Use generic effects with AnimationRange for transform animations over 1.5s overlap period. Apply box-shadow animation synchronized with rotation. Calculate BaseLayout duration as video1.duration + video2.duration - 1.5s overlap."
+              },
+              {
+                "prompt": "Design a perspective shift transition that simulates a camera moving through 3D space between two video planes. The outgoing video starts at normal scale and position, then scales down and shifts to the left with perspective distortion as if the camera is moving past it. Simultaneously, the incoming video starts small and offset to the right with perspective skew, then scales up and centers as the camera 'arrives' at it. Add motion blur during the fastest part of the movement to enhance the sense of speed. The transition should feel like flying through a 3D environment.",
+                "technicalSpecs": "BaseLayout with perspective: 800px and overflow-hidden. Outgoing VideoAtom: initial transform 'scale(1) translateZ(0)', animating to 'scale(0.3) translateX(-150%) rotateY(45deg) translateZ(-500px)'. Incoming VideoAtom: initial transform 'scale(0.3) translateX(150%) rotateY(-45deg) translateZ(-500px)', animating to 'scale(1) translateZ(0)'. Apply blur filter animation peaking at 4px midway through transition. Use 2s overlap with ease-in-out-cubic timing. Both videos play during transition with z-index management."
+              },
+              {
+                "prompt": "Implement a multi-face 3D prism rotation transition where videos are mapped onto a hexagonal prism that rotates to reveal the next video. The prism should rotate on multiple axes simultaneously (Y and Z) creating a complex tumbling motion. Add a glass-like refraction effect using CSS filters during rotation to make it feel like looking through a crystal. The incoming video should gradually become clearer as the prism settles into its final position. Include subtle light reflections that move across the surfaces during rotation.",
+                "technicalSpecs": "BaseLayout with transformStyle: preserve-3d, perspective: 1000px. Create hexagonal prism using multiple positioned divs with VideoAtom children. Outgoing video on front face, incoming on next face. Animate container with rotateY(0) rotateZ(0) to rotateY(60deg) rotateZ(15deg). Apply backdrop-filter: blur() and brightness() animations for refraction effect. Use mix-blend-mode: screen for light reflection overlays. 1.8s transition with spring easing. Calculate overlap based on rotation duration."
+              },
+              {
+                "prompt": "Create a spatial card flip transition where videos exist on opposite sides of a 3D card that flips in perspective space. The flip should include a realistic shadow that changes based on the card's angle, and a subtle scaling effect that makes the card appear to move closer to the camera at the midpoint of the flip. Add a brief 'hang time' at the 90-degree point where both videos are edge-on, creating suspense before revealing the incoming video. The card should have rounded corners and a slight border glow during the flip.",
+                "technicalSpecs": "BaseLayout container with perspective: 1200px. Inner div with transformStyle: preserve-3d for card. Outgoing VideoAtom: position absolute with backface-visibility: hidden, transform: rotateY(0). Incoming VideoAtom: transform: rotateY(180deg) with backface-visibility: hidden. Animate container rotateY from 0 to 180deg with custom cubic-bezier for hang time effect. Add scale animation peaking at 1.1 at midpoint. Dynamic box-shadow based on rotation angle. 1.2s transition duration with calculated overlap."
+              },
+              {
+                "prompt": "Design a 3D tunnel zoom transition where the outgoing video appears to recede into a tunnel while the incoming video emerges from the vanishing point. Create multiple layers of frames that scale and fade to enhance the tunnel depth effect. Each frame should have a slightly different animation timing to create a ripple effect through the tunnel. Add a vortex-like rotation to the tunnel walls and a chromatic aberration effect at the transition point for a sci-fi portal feeling.",
+                "technicalSpecs": "BaseLayout with perspective: 600px and radial-gradient background. Multiple nested divs creating tunnel layers with decreasing opacity. Outgoing VideoAtom scales from 1 to 0 with translateZ(-1000px). Incoming VideoAtom scales from 0 to 1 with translateZ(1000px to 0). Add rotate animation to tunnel frame divs. Apply CSS filter for RGB channel splitting during peak transition. Use staggered animation delays for ripple effect. 2.5s total transition with 1s overlap period."
+              },
+              {
+                "prompt": "Implement a 3D book page turn transition where videos are displayed on pages that flip with realistic physics. The page should curve and bend as it turns, with the video distorting to follow the page geometry. Add a paper texture overlay and subtle shadows that change based on the page position. The incoming video should be slightly visible through the semi-transparent page as it turns, creating anticipation. Include a slight bounce effect when the page settles into place.",
+                "technicalSpecs": "BaseLayout with perspective: 1500px. Use clip-path and transform-origin for page curl effect. Outgoing VideoAtom with initial clip-path: polygon() for page shape, animating with 3D rotation and custom bezier curves. Apply CSS filter: brightness() and contrast() for paper texture. Incoming video with reduced opacity initially, increasing as page turns. Use transform: rotate3d() for complex rotation. Add box-shadow with blur and spread animations. 1.6s transition with ease-out-back for bounce."
+              },
+              {
+                "prompt": "Create a perspective grid transition where videos exist in a 3D grid space that rotates and shifts perspective. The outgoing video breaks apart into grid cells that rotate and fly away in 3D space, while incoming video cells assemble from different directions. Each cell should have slightly randomized timing and rotation values for an organic feel. Add a depth-of-field effect where cells further from the camera appear blurred. The transition should feel like navigating through a 3D data visualization.",
+                "technicalSpecs": "BaseLayout with display: grid, grid-template: repeat(4, 1fr) / repeat(4, 1fr). Create 16 cell divs each containing clipped portions of VideoAtoms. Each cell gets unique transform animations with rotateX, rotateY, translateZ values. Use CSS custom properties for randomized delays and rotations. Apply blur filter based on translateZ value for depth-of-field. Stagger animations with calc() and CSS variables. 2s transition with 0.8s overlap. Z-index management for proper layering."
+              },
+              {
+                "prompt": "Design a 3D helix spiral transition where videos wrap around a DNA-like double helix structure that rotates to transition between them. The videos should be segmented into strips that follow the helical path, creating a twisted ribbon effect. As the helix rotates, the strips should have a wave-like undulation. Add a holographic shimmer effect and particle trails that follow the helix rotation path. The transition should feel like moving through a futuristic bio-digital interface.",
+                "technicalSpecs": "BaseLayout with transformStyle: preserve-3d, perspective: 1000px. Create helix using multiple strip divs with VideoAtom segments. Each strip positioned with transform: rotateY(calc(index * 30deg)) translateZ(200px) translateY(calc(index * 20px)). Animate container rotation and individual strip undulation. Apply iridescent gradient overlay with mix-blend-mode. Use CSS animations for particle effects with absolute positioned elements. 2.2s transition with sine wave easing for organic motion."
+              },
+              {
+                "prompt": "Implement a 3D origami fold transition where the video surface appears to fold like paper along multiple creases, transforming from one video to another. The fold should create realistic shadows in the creases and maintain video continuity across fold lines. Start with simple folds that become increasingly complex, culminating in a complete transformation. Add a paper grain texture that becomes visible during the folding process. The transition should feel tactile and physical, like watching paper art in motion.",
+                "technicalSpecs": "BaseLayout with perspective: 1400px. Divide videos into triangular segments using clip-path. Each segment as a div with VideoAtom, positioned to maintain video continuity. Animate transform-origin and rotate3d for each segment to create fold effect. Use linear gradients for crease shadows. Apply CSS filter: brightness() variations for fold depth. Stagger fold animations with calculated delays. Add subtle texture overlay with ::before pseudo-element. 1.8s transition with custom timing for each fold sequence."
+              },
+              {
+                "prompt": "Create a 3D sphere morph transition where videos are mapped onto a sphere that morphs and rotates to reveal different content. The sphere should distort into various geometric shapes during the transition - stretching into an ellipsoid, compressing into a disc, then reforming as a sphere with the new video. Add environmental reflections and refractions that react to the sphere's shape changes. Include a gravitational lensing effect where the video content appears to bend around the sphere's curvature.",
+                "technicalSpecs": "BaseLayout with perspective: 900px, position relative. Use CSS 3D transforms and border-radius for sphere creation. VideoAtoms with object-fit: cover and transform: rotateY() rotateX() for spherical mapping. Animate border-radius from 50% to various values for shape morphing. Apply CSS filters for refraction: blur() and brightness() combinations. Use mask-image: radial-gradient() for spherical masking. Add animated box-shadow for depth. 2s transition with physics-based easing. Calculate video timing for seamless playback during morph."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2438,
+              "outputTokens": 2632,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5070
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:46:23.099Z"
+}

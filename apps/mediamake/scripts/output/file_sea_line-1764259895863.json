@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Smooth pixelation mosaic block dissolve transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "1tFCxDHDmr3dM4kH",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-ZSJHCihanrgoNiwp",
+          "state": "output-available",
+          "output": {
+            "title": "Smooth Pixelated Mosaic Block Dissolve Video Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a pixelation mosaic block dissolve transition preset where the outgoing video breaks apart into increasingly larger pixel blocks that fade out while the incoming video simultaneously assembles from scattered pixel blocks. Use a CSS grid-based approach with multiple div overlays that simulate pixelation through background-position manipulation. The transition should have a 1.5-second overlap where both videos are visible through the mosaic effect. Apply a staggered timing pattern where blocks dissolve from the center outward in a radial pattern. Use filter effects to add blur and brightness variations to each block during the transition phase.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-hidden' and duration calculated as video1.duration + video2.duration - 1.5s overlap. Two VideoAtom elements positioned absolutely with full coverage. Create a grid of 8x8 BaseLayout blocks overlaying the videos, each with 'absolute w-[12.5%] h-[12.5%]' positioning. Apply generic opacity effects to each block with staggered delays based on distance from center (0-0.3s increments). Use filter effects with pixelate and blur combinations: 'blur(0px) → blur(8px)' for outgoing, 'blur(8px) → blur(0px)' for incoming. Add brightness filter animation '100% → 0%' for outgoing blocks, '0% → 100%' for incoming. Z-index layering: outgoing video z-10, mosaic grid z-20, incoming video z-0."
+              },
+              {
+                "prompt": "Design a smooth diagonal wipe transition with pixelated edge treatment where videos transition through a 45-degree angled sweep with the leading edge dissolving into pixel blocks. The transition edge should have a feathered pixelation effect that's 200px wide, creating a soft dissolve between the two videos. Implement this using SVG clip-path animations combined with CSS backdrop filters for the pixelation effect. The sweep should move from top-left to bottom-right over a 2-second overlap period with easing that accelerates through the middle.",
+                "technicalSpecs": "Single BaseLayout with 'relative w-full h-full' containing two VideoAtom elements. Apply SVG clipPath with animated polygon points creating diagonal wipe. Use transform translateX and translateY for the wipe movement: 'translate(-150%, -150%) → translate(150%, 150%)'. Add multiple div overlays along the transition edge with 'absolute h-full w-[200px]' using backdrop-filter for pixelation: 'blur(0px) contrast(100%) → blur(4px) contrast(200%)'. Stagger the pixel block opacity from 1 to 0 across the edge width. Duration calculation: total = video1.duration + video2.duration - 2s. Apply ease-in-out timing function to the main wipe animation."
+              },
+              {
+                "prompt": "Build a crystalline shatter transition where the outgoing video fragments into triangular mosaic pieces that rotate and fade while revealing the incoming video underneath. Each shard should have subtle color shifts and light refraction effects during the transition. The shatter pattern should originate from a focal point (following rule of thirds) and expand outward with physics-based motion. Include particle effects at shard edges for added dynamism during the 1.8-second transition overlap.",
+                "technicalSpecs": "BaseLayout container with two VideoAtom layers and an overlay grid of triangular shaped divs created using clip-path polygons. Generate 24 triangle shards with varying sizes using 'absolute' positioning and clip-path values. Apply transform animations to each shard: 'rotate(0deg) scale(1) → rotate(${random(-45, 45)}deg) scale(0)' with translateX/Y based on explosion physics from focal point. Add filter effects: 'hue-rotate(0deg) brightness(100%) → hue-rotate(${random(-30, 30)}deg) brightness(150%)' during transition. Use opacity keyframes: '1 → 0' staggered by distance from origin (0-0.5s delays). Include subtle box-shadow animations for depth. Total duration: video1.duration + video2.duration - 1.8s."
+              },
+              {
+                "prompt": "Develop a liquid pixel flow transition where pixels from the outgoing video appear to melt and flow downward like digital rain, revealing the incoming video behind. The pixels should have varying fall speeds and slight horizontal drift, creating an organic flowing motion. Add color bleeding effects where falling pixels temporarily tint the incoming video. Implement this using canvas-style rendering with multiple animated div elements representing pixel groups.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-black'. Two VideoAtom elements with incoming video at z-0, outgoing at z-10. Create 60 vertical pixel strips as BaseLayout children with 'absolute w-[2%] h-full' positioning. Apply transform animations: 'translateY(0) → translateY(120vh)' with varying durations (0.8-1.5s) and delays (0-0.6s). Add scaleY animations: '1 → random(0.5, 1.5)' for stretching effect. Include opacity fade: '1 → 0' in final 30% of each strip's animation. Apply filter mix-blend-mode 'color-dodge' to strips for color bleeding. Add subtle translateX drift: '0 → random(-20px, 20px)'. Calculate total duration as video1.duration + video2.duration - 1.2s overlap."
+              },
+              {
+                "prompt": "Create a hexagonal honeycomb transition where the screen fills with hexagonal cells that flip to reveal the new video. Each hexagon should have a 3D rotation effect with the outgoing video on one side and incoming on the other. The flip propagates from a chosen origin point in a wave pattern with subtle scaling and glow effects during rotation. Include a brief moment where hexagons show edge-on for dramatic effect.",
+                "technicalSpecs": "BaseLayout container with CSS custom properties for hexagon grid. Generate 35 hexagonal cells using clip-path: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'. Each hexagon is a BaseLayout with 'absolute w-[120px] h-[104px]' containing two divs with video backgrounds via CSS. Apply transform rotateY animation: '0deg → 180deg' with perspective(1000px). Stagger delays based on distance from origin (0-0.8s). Add scale animation: '1 → 1.1 → 1' at flip midpoint. Include box-shadow glow: '0 0 0 → 0 0 20px rgba(255,255,255,0.5) → 0 0 0'. Set backface-visibility: hidden for proper 3D effect. Duration: video1.duration + video2.duration - 2s."
+              },
+              {
+                "prompt": "Design a glitch mosaic transition combining digital artifacts with pixelation. The outgoing video should corrupt into RGB channel splits, data moshing blocks, and scan lines before reassembling as the incoming video. Include random noise patterns, color inversions, and frame displacement effects. The glitch intensity should peak at the transition midpoint with chaotic block movements and color shifts.",
+                "technicalSpecs": "BaseLayout with three VideoAtom layers for RGB channel splitting. Apply CSS filters to each: red channel 'sepia(1) hue-rotate(300deg) saturate(10)', green 'sepia(1) hue-rotate(100deg) saturate(10)', blue 'sepia(1) hue-rotate(200deg) saturate(10)'. Add transform offsets: translateX/Y with random jitter animations (±10px at 60fps). Create scan line overlays with repeating linear-gradient backgrounds animating translateY. Add 20 glitch blocks with 'absolute' positioning, random sizes, applying mix-blend-mode 'difference' with rapid opacity flicker (0-1 at 24fps). Include random invert() filter triggers. Peak glitch at 50% transition with all effects maximum. Duration: video1.duration + video2.duration - 1.5s."
+              },
+              {
+                "prompt": "Build a spiral pixel vortex transition where the outgoing video's pixels get pulled into a central vortex while spinning, simultaneously as the incoming video's pixels emerge from the same vortex. The pixels should follow a fibonacci spiral pattern with size variations based on distance from center. Add motion blur and chromatic aberration effects to enhance the spinning sensation. Include subtle particle trails for pixels in motion.",
+                "technicalSpecs": "BaseLayout with radial positioning system using CSS custom properties for polar coordinates. Create 80 pixel blocks with sizes from 10px to 40px based on spiral distance. Apply transform animations combining: 'rotate(0deg) → rotate(720deg)' and translateX/Y following spiral path equations. Use scale animations: outgoing '1 → 0', incoming '0 → 1'. Add filter blur based on velocity: 'blur(0px) → blur(${velocity * 0.5}px)'. Include RGB offset for chromatic aberration using multiple box-shadows. Implement opacity trails using ::after pseudo-elements with animation delays. Timing uses ease-in for spiral entry, ease-out for exit. Duration: video1.duration + video2.duration - 2.5s for extended vortex effect."
+              },
+              {
+                "prompt": "Develop a checkerboard blinds transition where alternating rectangular blocks flip like window blinds with pixelated edges. Every other row flips in opposite directions creating a complex interwoven pattern. The flip reveals the incoming video while the edges dissolve into pixel particles. Add subtle light leak effects between the blinds during transition for enhanced depth.",
+                "technicalSpecs": "BaseLayout with CSS grid 8x6 for 48 blind segments. Each blind is 'relative w-full h-full' with transform-origin set to center for even rows, top for odd rows. Apply rotateX animations: even rows '0deg → 90deg → 0deg', odd rows '0deg → -90deg → 0deg'. Add perspective(800px) to container for 3D depth. Create pixelated edges using border-image with gradient + step function. Include light leak divs between blinds with 'absolute h-full w-[2px]' using gradient backgrounds with opacity animation. Stagger animations with 0.1s delays creating wave effect. Add subtle box-shadow for blind depth. Duration: video1.duration + video2.duration - 1.8s."
+              },
+              {
+                "prompt": "Create a particle disintegration transition where the outgoing video breaks apart into thousands of tiny pixel particles that scatter with physics-based motion, while the incoming video assembles from particles converging from screen edges. Particles should have varying sizes, speeds, and subtle color variations. Include gravitational effects and air resistance simulation for realistic motion paths.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full' containing particle system. Generate 200 particle divs with 'absolute w-[4px] h-[4px] to w-[8px] h-[8px]' sizes. Apply physics-based animations: translateX using cubic-bezier for air resistance, translateY with acceleration for gravity. Outgoing particles: initial velocity vectors based on position, deceleration over time. Incoming particles: reverse trajectories converging to final positions. Add rotation animations: 'rotate(0deg) → rotate(${random(180, 540)}deg)'. Include opacity: outgoing '1 → 0', incoming '0 → 1'. Apply filter for motion blur based on velocity. Use CSS will-change for GPU optimization. Stagger particle generation over 0.3s. Duration: video1.duration + video2.duration - 2s."
+              },
+              {
+                "prompt": "Design a matrix rain code transition where the outgoing video transforms into falling green digital characters (like Matrix movie) that gradually morph to reveal the incoming video. The characters should fall at different speeds with occasional glitch effects and brightness variations. Include horizontal scanning effects and code character mutations during the transition phase.",
+                "technicalSpecs": "BaseLayout with black background containing two VideoAtom layers. Create 40 vertical code columns with 'absolute w-[2.5%] h-[200%] top-[-100%]' positioning. Each column contains 30 span elements with random characters, styled with 'text-green-400 font-mono text-xs'. Apply translateY animation: '0 → 200%' with varying speeds (2-4s). Add text-shadow for glow: '0 0 10px rgba(0, 255, 0, 0.8)'. Include opacity gradient using linear-gradient mask-image from top to bottom. Apply filter animations: 'brightness(100%) → brightness(200%) → brightness(100%)' for flicker. Add mix-blend-mode 'screen' for overlay effect. Random character mutation using CSS counter and content property. Include horizontal scan line with 'absolute w-full h-[2px]' animating top position. Duration: video1.duration + video2.duration - 1.6s."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3181,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5625
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:11:35.863Z"
+}

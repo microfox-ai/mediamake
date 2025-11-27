@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Displacement map liquid ripple wave warp transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "rs0zy0PbxNN5WSgN",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-t6CahVudCzUsGlgz",
+          "state": "output-available",
+          "output": {
+            "title": "Liquid Ripple Wave Displacement Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a liquid displacement ripple transition preset that simulates water surface distortion between two videos. The transition should use a 1.5 second overlap period where the outgoing video appears to be disturbed by ripples emanating from the center, while the incoming video emerges through the liquid distortion. Use CSS filter blur and transform scale animations to simulate the displacement effect. The outgoing video should have increasing blur (0 to 8px) and subtle scale pulsing (1.0 to 1.05 to 0.95) during the transition, while the incoming video starts with heavy blur (12px) and scales from 1.2 to 1.0 with decreasing blur. Add a subtle rotation effect (-2deg to 2deg) to enhance the liquid feel. Both videos should use 'cover' object-fit and the container should have 'overflow-hidden' to contain the displacement effects.",
+                "technicalSpecs": "BaseLayout with duration = video1.duration + video2.duration - 1.5s overlap. Video1 at startTime 0 with fade out from 0.5s before end. Video2 at startTime = video1.duration - 1.5s with fade in over 1.5s. Use generic effects in provider mode: opacity AnimationRange for cross-fade, filter AnimationRange for blur progression (blur(0px) to blur(8px) for outgoing, blur(12px) to blur(0px) for incoming), transform AnimationRange for scale and rotation (scale(1) rotate(0deg) to scale(1.05) rotate(-2deg) to scale(0.95) rotate(2deg) for ripple effect). Container uses 'relative w-full h-full overflow-hidden', videos use 'absolute inset-0 object-cover'."
+              },
+              {
+                "prompt": "Design a wave warp transition that creates horizontal wave distortions moving from left to right across the screen. The transition uses a 2-second overlap where the outgoing video appears to be warped by sine wave distortions that increase in amplitude, while the incoming video slides in from the right with complementary wave motion. Implement this using multiple transform translateX and skewY animations at different vertical positions to simulate wave propagation. The outgoing video should split into 3 horizontal bands (using clip-path) that animate with different phase offsets, creating a wave-like displacement. The incoming video uses inverse wave motion, starting highly distorted and settling into place.",
+                "technicalSpecs": "BaseLayout duration = video1.duration + video2.duration - 2s. Create 3 VideoAtom instances for outgoing video (same source, different clip-paths: top third, middle third, bottom third) with staggered transform animations. Each band uses transform: translateX with sine-wave keyframes (0px, 30px, -30px, 0px) and skewY (-3deg to 3deg). Incoming video starts at translateX(100%) and animates to translateX(0) with decreasing skewY distortion (5deg to 0deg). Use provider mode effects targeting specific atom IDs. Container: 'relative w-full h-full', video atoms: 'absolute inset-0' with clip-path for bands."
+              },
+              {
+                "prompt": "Develop a spiral vortex displacement transition where videos appear to be sucked into and expelled from a central whirlpool. During the 1.8-second transition, the outgoing video rotates clockwise while scaling down into the center with increasing blur, simulating being pulled into a vortex. Simultaneously, the incoming video emerges from the center, rotating counter-clockwise and scaling up from 0 to full size. Add radial gradient overlays to enhance the vortex effect. The rotation should accelerate (ease-in) for the outgoing and decelerate (ease-out) for the incoming video.",
+                "technicalSpecs": "BaseLayout with calculated duration. Outgoing video: transform AnimationRange with rotate(0deg) scale(1) to rotate(720deg) scale(0) using ease-in-cubic, opacity 1 to 0 over final 0.5s, filter blur(0px) to blur(20px). Incoming video: startTime at video1.duration - 1.8s, transform rotate(-720deg) scale(0) to rotate(0deg) scale(1) using ease-out-cubic, opacity 0 to 1 over first 0.5s. Add ShapeAtom overlay with radial-gradient for vortex visualization. Container: 'relative w-full h-full overflow-hidden', videos: 'absolute inset-0 object-cover origin-center'."
+              },
+              {
+                "prompt": "Create a glass shatter displacement transition that simulates the outgoing video breaking into liquid glass fragments. The 1.2-second transition uses a mosaic of small video segments (created with multiple VideoAtom instances of the same source) that disperse outward with different velocities and rotations, while the incoming video reconstructs from scattered pieces. Each fragment should have randomized transform animations for realistic liquid glass physics. Add subtle refraction effects using brightness and contrast filters.",
+                "technicalSpecs": "Create 9 VideoAtom instances for outgoing video (3x3 grid) using clip-path to create fragments. Each fragment has unique transform AnimationRange: translate to random directions (-200px to 200px), rotate (random -45deg to 45deg), scale (1 to 0.7). Add filter animations for brightness(1.2) contrast(1.1) to simulate glass refraction. Incoming video uses inverse animation: 9 fragments start scattered and converge to form complete video. BaseLayout duration accounts for 1.2s overlap. Use z-index layering for proper fragment stacking. Container: 'relative w-full h-full overflow-visible', fragments: 'absolute' with calculated positions."
+              },
+              {
+                "prompt": "Design an underwater bubble displacement transition where videos transition through a bubble-filled aquatic environment. The 2.5-second overlap features the outgoing video distorting with undulating wave effects while fading behind rising bubble overlays. The incoming video emerges through the bubbles with complementary wave distortion. Use multiple circular mask shapes animated at different speeds to create bubble effects, combined with sinusoidal transform animations for underwater movement.",
+                "technicalSpecs": "BaseLayout with extended duration for smooth transition. Outgoing video: transform translateY with sine wave pattern (0px to -10px to 10px), filter blur progressing 0 to 6px, opacity 1 to 0.3. Add 5-7 ShapeAtom circles as bubbles with translateY(-100px) animations at different speeds, opacity 0.6, mix-blend-mode: screen. Incoming video: starts with translateY(20px) blur(8px), animates to translateY(0) blur(0px). Use custom timing functions for organic movement. Container: 'relative w-full h-full overflow-hidden bg-blue-950/20', videos: 'absolute inset-0 object-cover'."
+              },
+              {
+                "prompt": "Build a heat mirage displacement transition that simulates desert heat wave distortions. During the 1.6-second transition, the outgoing video wavers with increasing horizontal distortion resembling heat shimmer, while the incoming video materializes through the mirage with decreasing distortion. Implement using rapid oscillating skew and translate transforms combined with subtle blur variations to achieve the heat wave effect. Add a warm color overlay that peaks during maximum distortion.",
+                "technicalSpecs": "Outgoing video: transform AnimationRange with rapid oscillations - translateX alternating between -5px and 5px every 0.1s, skewX oscillating -2deg to 2deg, combined with scale(1) to scale(1.02). Filter animations: blur(0px) to blur(3px) with sepia(0) to sepia(0.3). Incoming video: reverse pattern starting with heavy distortion. Add ShapeAtom overlay with linear-gradient(orange to transparent) opacity 0 to 0.4 to 0. BaseLayout duration calculation with 1.6s overlap. Container: 'relative w-full h-full', videos: 'absolute inset-0 object-cover will-change-transform'."
+              },
+              {
+                "prompt": "Create a magnetic field displacement transition where videos appear to be pulled apart and reassembled by magnetic forces. The 2-second transition splits each video into vertical strips that bend and curve following magnetic field lines. The outgoing strips are pulled to the edges with S-curve deformations, while incoming strips converge from the edges with inverse curves. Add electromagnetic glow effects using CSS filters and color overlays.",
+                "technicalSpecs": "Create 5 vertical strip VideoAtoms for each video using clip-path (20% width each). Outgoing strips: transform AnimationRange with translateX based on position (center strips move less, edge strips more), plus rotateY creating 3D curve effect (-30deg to 30deg based on position). Add filter: brightness(1.5) hue-rotate(180deg) during peak distortion. Incoming strips start at extreme positions and converge. Use cubic-bezier(0.68, -0.55, 0.265, 1.55) for elastic magnetic effect. Container: 'relative w-full h-full perspective-1000', strips: 'absolute h-full preserve-3d'."
+              },
+              {
+                "prompt": "Design a liquid metal morphing transition that simulates mercury-like fluid transformation between videos. The 1.4-second transition features the outgoing video liquefying into metallic droplets that coalesce to form the incoming video. Use multiple circular masked segments with elastic scaling and position animations to create the liquid metal effect. Add metallic sheen using CSS filters for brightness, contrast, and grayscale effects during transformation.",
+                "technicalSpecs": "Create 6 circular VideoAtom instances using clip-path: circle() at different positions. Outgoing video circles: scale from 1 to 1.3 to 0 with elastic easing, positions animate outward from center. Apply filter: grayscale(0) to grayscale(1) brightness(1.3) contrast(1.2) for metallic look. Incoming video circles: reverse animation, starting scaled down and scattered, coalescing to form complete image. Use drop-shadow filter for depth. BaseLayout with 1.4s overlap. Container: 'relative w-full h-full bg-gray-900', circles: 'absolute mix-blend-mode-screen'."
+              },
+              {
+                "prompt": "Build a plasma energy displacement transition where videos transform through an energized plasma field. During the 1.7-second transition, the outgoing video fractures into energized particles with electric distortion effects, while the incoming video crystallizes from the plasma field. Implement using rapidly changing transform-origin points with rotation and scale animations, combined with color-shifting filters to simulate plasma energy.",
+                "technicalSpecs": "Outgoing video split into 4 quadrants (VideoAtom with clip-path). Each quadrant: transform-origin at different corners, rotate (0 to 180deg) scale(1 to 0.3), with staggered timing. Filter animations: hue-rotate(0deg to 360deg) saturate(1 to 2) brightness(1 to 1.8). Add ShapeAtom overlays with radial-gradients (purple/cyan) using mix-blend-mode: color-dodge. Incoming video: 4 quadrants start rotated/scaled down, animate to normal. BaseLayout with 1.7s overlap. Container: 'relative w-full h-full bg-black', quadrants: 'absolute will-change-transform'."
+              },
+              {
+                "prompt": "Create a dimensional rift displacement transition that tears space between videos. The 2.2-second transition creates a rippling tear effect where the outgoing video is pulled into a dimensional rift with extreme perspective distortion, while the incoming video emerges from the opposite side. Use 3D transforms with perspective to create the spatial distortion, combined with animated clip-paths to create the irregular rift shape. Add glitch-style color channel separation during peak distortion.",
+                "technicalSpecs": "Outgoing video: transform rotateY(0deg) to rotateY(90deg) with perspective(600px), translateZ animating to -200px for depth. Clip-path animates from rectangle to irregular polygon creating torn edge. Filter: blur increases to 4px, add RGB channel split using multiple shadows (red -5px, blue 5px). Incoming video: reverse 3D transform from rotateY(-90deg) translateZ(-200px) to normal. Add ShapeAtom for rift edge with animated path, gradient fill. BaseLayout with 2.2s overlap. Container: 'relative w-full h-full perspective-1000 preserve-3d', videos: 'absolute inset-0 backface-hidden'."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 3092,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5534
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:20:19.389Z"
+}

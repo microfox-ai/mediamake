@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Scrapbook page turn paper curl reveal transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "C6GMXAYdtObYlt7t",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-V2gOJjo6OXEFBbsT",
+          "state": "output-available",
+          "output": {
+            "title": "Scrapbook Paper Curl Page Turn Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a scrapbook page turn transition preset that simulates a paper page curling from bottom-right corner to reveal the next video. The outgoing video should appear to be printed on paper that curls up with a 3D perspective transform, while the incoming video is revealed underneath. Use a 1.5-second overlap period where the page curl animation happens. Apply a paper texture overlay to the outgoing video and add a subtle drop shadow that follows the curl. The curl should use cubic-bezier easing for a realistic paper physics feel.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 1.5s overlap. Outgoing VideoAtom with id='page-out' starts at 0s, incoming VideoAtom with id='page-in' starts at video1.duration - 1.5s. Use generic transform effect on outgoing video with rotateY and perspective for 3D curl, combined with clip-path polygon animation to create curl shape. Add filter effect for drop-shadow that animates with the curl. Apply mix-blend-mode: multiply with semi-transparent white overlay div for paper texture. Z-index: page-in at z-10, page-out at z-20. Container uses 'relative overflow-hidden' with aspect-ratio-16/9."
+              },
+              {
+                "prompt": "Design a torn paper scrapbook transition where the current video appears to be ripped away in jagged pieces to reveal the next video underneath. Create 4-5 irregular torn paper shapes using clip-path polygons that animate outward from the center with different timing offsets. Each piece should have a slight rotation and scale animation as it tears away. Add a paper fiber texture along the torn edges using CSS filters.",
+                "technicalSpecs": "BaseLayout with 2s overlap period. Create 5 div overlays with clip-path polygons shaped like torn paper pieces, positioned absolutely over the outgoing VideoAtom. Each div has a unique clip-path and staggered animation delay (0ms, 200ms, 400ms, 600ms, 800ms). Use transform effects with translateX/Y, rotate, and scale animations. Apply filter: drop-shadow and brightness adjustments to create depth. Incoming VideoAtom starts at video1.duration - 2s with fade-in opacity. Container className='relative w-full h-full bg-amber-50' for scrapbook background."
+              },
+              {
+                "prompt": "Build a vintage photo album flip transition where videos are treated like photographs being flipped in a physical album. The outgoing video scales down slightly and slides left while rotating on Y-axis like a page flip. Simultaneously, the incoming video slides in from the right with a complementary rotation. Add sepia tone filters during transition and decorative corner holders that remain static.",
+                "technicalSpecs": "BaseLayout duration with 1.2s overlap. Outgoing VideoAtom uses transform effect: scale(0.95) translateX(-100%) rotateY(-25deg) with perspective(1000px). Incoming VideoAtom: translateX(100%) to translateX(0) with rotateY(25deg) to rotateY(0). Both videos use filter effects transitioning sepia(0) to sepia(0.3) during overlap. Add 4 absolutely positioned divs for corner holders using 'absolute w-8 h-8 bg-amber-700' with triangle clip-paths at corners. Use ease-in-out timing for authentic page flip physics."
+              },
+              {
+                "prompt": "Create a scrapbook collage transition where the outgoing video breaks into multiple Polaroid-style frames that scatter and fade out while new Polaroid frames containing the incoming video assemble into place. Each frame should have a white border, slight rotation, and drop shadow. Include handwritten labels that fade in/out with the frames.",
+                "technicalSpecs": "BaseLayout with 2.5s overlap. Create 6 div containers as Polaroid frames with 'absolute bg-white p-2 shadow-xl' styling. Each frame contains a cropped portion of the video using overflow-hidden and specific width/height. Outgoing frames use transform effects: random rotations (-15deg to 15deg), translations, and scale(0.8) with opacity fade. Incoming frames start scattered and animate to grid positions. Add TextAtom elements for labels with handwriting fonts (font-family: 'Kalam'). Stagger all animations with 100ms delays between frames."
+              },
+              {
+                "prompt": "Implement a paper accordion fold transition where the screen appears to fold into vertical strips like an accordion, compressing the outgoing video while simultaneously unfolding to reveal the incoming video. Each fold should have alternating light/shadow to create depth. The folds should animate with a wave-like pattern from left to right.",
+                "technicalSpecs": "BaseLayout with 1.8s overlap. Divide screen into 8 vertical strips using absolutely positioned divs with width: 12.5%. Each strip contains both videos with overflow-hidden. Use transform: scaleX() animations on strips, alternating between scaleX(0) and scaleX(1) with staggered delays (i * 100ms). Apply alternating brightness filters: even strips brightness(0.9), odd strips brightness(1.1). Add skewY transforms during compression for 3D fold effect. Incoming video opacity animates from 0 to 1 per strip in sync with unfold."
+              },
+              {
+                "prompt": "Design a crafty paper slide transition where videos appear as scrapbook cutouts sliding across a textured paper background. The outgoing video slides diagonally up-left with a paper curl effect on the trailing edge, while the incoming video slides in from bottom-right with decorative washi tape borders. Add subtle paper grain texture and shadowing.",
+                "technicalSpecs": "BaseLayout with 1.6s overlap, className='relative bg-gradient-to-br from-amber-50 to-orange-50'. Outgoing VideoAtom: transform effect translateX(-120%) translateY(-120%) rotate(-5deg) with clip-path for curl effect on bottom-right. Incoming VideoAtom: translateX(120%) translateY(120%) to center with rotate(3deg). Add decorative div borders with striped linear-gradients for washi tape effect. Apply CSS filter: contrast(0.95) brightness(1.05) for paper texture. Use cubic-bezier(0.68, -0.55, 0.265, 1.55) for bouncy slide motion."
+              },
+              {
+                "prompt": "Create a vintage scrapbook page peel transition where the corner of the current video page peels back progressively to reveal the next video underneath. The peeling corner should cast a realistic shadow and show the backside of the 'paper' with a different tint. Include decorative stamps and stickers that remain in place during the transition.",
+                "technicalSpecs": "BaseLayout with 2s overlap. Use CSS 3D transforms with two divs: front page and back page. Front page (outgoing video) uses transform-origin: bottom-right with rotateY animation from 0 to -180deg. Create triangular clip-path that expands during peel. Back page div shows tinted version of outgoing video with filter: sepia(0.5) brightness(0.8). Shadow element follows peel using skew and translate transforms. Add static decorative ImageAtom elements for stamps/stickers with z-index: 30. Incoming video has z-index: 5, gradually revealed by the peel."
+              },
+              {
+                "prompt": "Build a handmade paper mosaic transition where both videos are divided into hexagonal pieces like a crafted mosaic. Pieces from the outgoing video randomly flutter away like falling paper scraps while pieces of the incoming video assemble from scattered positions. Each piece should have unique rotation and timing for an organic, handcrafted feel.",
+                "technicalSpecs": "BaseLayout with 3s overlap. Create hexagonal grid using 20 div containers with clip-path: polygon() for hexagon shapes. Each piece is 10% width/height with specific positioning. Outgoing pieces use transform effects with random end values: translateY(150vh) rotate(random(-360deg, 360deg)) scale(0). Incoming pieces start with random transforms and animate to position. Use staggered delays with Math.random() * 500ms per piece. Add filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2)) on each piece. Container has 'relative overflow-visible' to allow pieces to flutter outside bounds."
+              },
+              {
+                "prompt": "Design a spiral notebook page flip transition where videos appear as pages in a spiral-bound notebook. The outgoing video rotates around the spiral binding axis (left edge) while showing spiral wire holes, and the incoming video flips in from behind. Include realistic spiral binding graphics and lined paper overlay effects during the transition.",
+                "technicalSpecs": "BaseLayout with 1.4s overlap. Add spiral binding div on left with 'absolute left-0 w-12 h-full z-40' containing repeated circular elements for spiral wire. Outgoing VideoAtom uses transform-origin: left center with rotateY(0deg) to rotateY(-170deg) and slight translateZ for 3D depth. Incoming video starts at rotateY(170deg) and animates to 0deg. Add hole punch marks using absolute positioned circular divs with shadows. Apply subtle linear-gradient overlay for lined paper effect. Use perspective(1200px) on container for realistic 3D rotation."
+              },
+              {
+                "prompt": "Create a paper quilt patchwork transition where videos transition through a quilted pattern effect. The screen divides into diamond-shaped patches that flip individually in a ripple pattern from center outward. Each patch shows the outgoing video on one side and incoming video on the other, creating a beautiful tessellated transition with fabric-like textures.",
+                "technicalSpecs": "BaseLayout with 2.2s overlap. Create 24 diamond-shaped divs using transform: rotate(45deg) with overflow-hidden, arranged in 6x4 grid. Each diamond contains both videos absolutely positioned. Use transform: rotateY() with backface-visibility: hidden for flip effect. Calculate ripple delay based on distance from center: delay = distance * 50ms. Add texture overlay with mix-blend-mode: multiply using subtle fabric pattern image. Apply box-shadow inset for stitching effect on diamond edges. Videos use object-fit: cover to fill diamonds properly."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 2501,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 4943
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:46:44.640Z"
+}

@@ -1,0 +1,8 @@
+{
+  "agentPath": "/preset-prompts/generate-prompt",
+  "defaultParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10
+  },
+  "queue": []
+}

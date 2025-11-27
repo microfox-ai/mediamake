@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Ken Burns effect zoom into blurred focus rack transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "jEZlksC47FW2sp9y",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-CLsCA4ShGKw0MuRE",
+          "state": "output-available",
+          "output": {
+            "title": "Ken Burns Zoom & Focus Rack Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a Ken Burns zoom-and-blur transition preset that implements a cinematic focus rack effect between two video sources. Start with the first video at 100% scale, then smoothly zoom to 140% scale over 2 seconds while gradually increasing blur from 0 to 8px. During the final 0.5 seconds of the outgoing video, begin cross-fading to the incoming video which starts at 160% scale with 8px blur, then reverse-animates to 100% scale and 0px blur over 2 seconds. Use a 1-second overlap period where both videos are visible. The outgoing video should fade from opacity 1 to 0 using an ease-in-out curve, while the incoming video fades from 0 to 1. Position both videos absolutely with 'inset-0 object-cover' to fill the container. Apply the Ken Burns effect using transform scale animations, and the focus rack using filter blur animations.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 1s overlap. Two VideoAtom components positioned absolutely with 'absolute inset-0'. Outgoing video: generic opacity effect from 1→0 during last 1s, transform scale from 100%→140% over last 2s, filter blur from 0→8px over last 2s. Incoming video: starts at video1.duration - 1s, generic opacity effect from 0→1 during first 1s, transform scale from 160%→100% over first 2s, filter blur from 8px→0 over first 2s. Use provider mode effects with targetIds. Tailwind: 'relative w-full h-full overflow-hidden' for container."
+              },
+              {
+                "prompt": "Design a dramatic diagonal slide transition with Ken Burns zoom that creates a parallax-like effect between videos. The outgoing video starts at 100% scale and zooms to 120% while sliding diagonally to the bottom-right (-translate-x-full translate-y-full). Simultaneously apply a subtle blur that increases from 0 to 3px during the slide. The incoming video enters from top-left (starting at translate-x-full -translate-y-full) at 130% scale with 3px blur, sliding to center while zooming out to 100% and removing blur. Use a 1.5-second overlap with staggered timing - the incoming video begins moving 0.3s before the outgoing starts its exit. Add a subtle rotation during transition (outgoing rotates -5deg, incoming rotates from 5deg to 0).",
+                "technicalSpecs": "BaseLayout with calculated duration. Outgoing VideoAtom: transform animations for translateX (0→100%), translateY (0→100%), scale (100%→120%), rotate (0→-5deg) over 1.5s ease-in. Filter blur 0→3px. Incoming VideoAtom: starts at video1.duration - 1.8s, transform animations for translateX (-100%→0), translateY (-100%→0), scale (130%→100%), rotate (5deg→0) over 1.8s ease-out. Both videos use 'absolute inset-0 object-cover'. Container needs 'overflow-hidden' to clip sliding videos."
+              },
+              {
+                "prompt": "Build a multi-stage Ken Burns transition that mimics a camera rack focus between depths. First video starts wide (100% scale) and zooms to extreme close-up (180% scale) over 3 seconds, with blur ramping from 0 to 12px in the final second to simulate losing focus. The incoming video appears already at 200% scale with 12px blur (simulating background bokeh), then pulls focus over 2 seconds - blur drops to 0 while scale reduces to 110% for a medium shot. Include a 0.8s overlap where both videos are visible but heavily blurred, creating a dreamy transition moment. Add slight vignetting that intensifies during the blur phase.",
+                "technicalSpecs": "BaseLayout duration calculation with 0.8s overlap. Outgoing VideoAtom: scale transform 100%→180% over 3s cubic-bezier(0.4,0,0.2,1), blur filter 0→12px in final 1s, opacity 1→0 in final 0.8s. Incoming VideoAtom: begins at video1.duration - 0.8s, scale 200%→110% over 2s, blur 12px→0 over 2s, opacity 0→1 in first 0.8s. Add vignette using gradient overlay div: 'absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/40'. Vignette opacity animates 0→0.6→0.3 synchronized with blur peak."
+              },
+              {
+                "prompt": "Create a whip-pan style transition with Ken Burns that simulates a fast camera movement between scenes. Outgoing video accelerates its zoom from 100% to 150% scale while applying motion blur (horizontal blur increasing to 20px) and rapid horizontal translation (0 to -200% over 0.3s). The incoming video whips in from the opposite direction (200% to 0 translateX) at 150% scale, decelerating as it settles to 105% scale. The transition happens in just 0.4s overlap, creating a kinetic energy burst. Add camera shake effect during the whip moment using small, rapid transform translations. Include subtle chromatic aberration effect at peak motion.",
+                "technicalSpecs": "Short 0.4s overlap transition. Outgoing video: scale 100%→150% over 1s with final 0.3s acceleration, translateX 0→-200% in final 0.3s with ease-in, horizontal motion blur via filter blur(20px) + custom CSS. Incoming video: starts at video1.duration - 0.4s, translateX 200%→0 over 0.4s ease-out, scale 150%→105% over 1s. Shake effect: rapid translateY oscillation ±10px at 60fps during transition. Chromatic aberration: RGB channel splits using multiple divs with mix-blend-mode and slight offsets."
+              },
+              {
+                "prompt": "Develop a lens-focusing transition that combines Ken Burns zoom with realistic depth-of-field changes. Start with the first video in sharp focus at 100% scale, then zoom to 125% while the center stays sharp but edges progressively blur (radial blur gradient). During the 1.2s overlap, both videos exist in a 'focus searching' state with oscillating blur values (3px to 8px to 5px), simulating autofocus hunting. The incoming video starts at 140% scale with uneven blur, then snaps into focus while pulling back to 100% scale. Add subtle lens breathing effect (slight scale pulse) when focus locks.",
+                "technicalSpecs": "BaseLayout with 1.2s overlap. Outgoing video: scale 100%→125% over 2s, apply radial blur using SVG filter or CSS backdrop-filter on overlay div. Focus hunting: blur oscillates 0→3→8→5px over final 1.2s. Incoming video: starts at video1.duration - 1.2s, scale 140%→100% over 1.5s with ease-out-back for lens breathing, blur 8→5→3→0 with snap at 0.8s. Radial blur overlay: 'absolute inset-0 backdrop-blur-[var(--blur-amount)]' with CSS variable animation."
+              },
+              {
+                "prompt": "Design a split-screen Ken Burns transition where videos divide and recombine with differential zoom rates. Outgoing video splits into two halves - left half zooms to 110% while sliding left, right half zooms to 130% while sliding right, both blurring to 6px. The incoming video enters as two halves from opposite edges - left from right edge at 140% scale, right from left edge at 120% scale, both with 6px blur. Halves converge at center while focusing and settling to 100% scale. Use a 1.8s overlap for the complete split-and-merge sequence. Add subtle rotation to each half during movement.",
+                "technicalSpecs": "Complex multi-element transition. Outgoing video rendered twice with clip-path: polygon() for left/right halves. Left half: scale 100%→110%, translateX 0→-50%, rotate 0→-3deg. Right half: scale 100%→130%, translateX 0→50%, rotate 0→3deg. Both blur 0→6px over 1.8s. Incoming video also split with clip-paths, inverse movements, starts at video1.duration - 1.8s. Container needs 'overflow-hidden'. Z-index management for proper layering during crossover."
+              },
+              {
+                "prompt": "Create a dolly zoom (vertigo effect) transition that combines Ken Burns with counter-zoom movement. Outgoing video zooms in from 100% to 160% scale while simultaneously applying a reverse perspective transform that maintains subject size but warps the background. Add progressive blur from 0 to 10px focusing on the edges first. During the 1s overlap, both videos exist in a disorienting state with opposing perspective transforms. Incoming video starts at 80% scale with inverted perspective, then normalizes to 100% scale with standard perspective. Include subtle color desaturation during the vertigo peak.",
+                "technicalSpecs": "BaseLayout with 1s overlap. Outgoing video: scale 100%→160% over 2.5s, perspective transform via CSS transform: perspective(1000px) rotateY(0deg→15deg), edge blur using radial gradient mask. Incoming video: starts at video1.duration - 1s, scale 80%→100%, perspective transform rotateY(-15deg→0deg). Desaturation: CSS filter saturate(100%→60%→100%) synchronized with overlap. Both videos need 'transform-style: preserve-3d' for proper 3D transforms."
+              },
+              {
+                "prompt": "Build a tilt-shift style transition where Ken Burns zoom creates miniature-effect focus bands. First video starts normal at 100% scale, then zooms to 135% while applying horizontal blur bands (sharp center strip, blurred top/bottom). The blur increases from 0 to 15px at edges, creating a toy-camera effect. During 1.4s overlap, focus band rotates 90 degrees, transitioning from horizontal to vertical. Incoming video enters at 145% scale with vertical blur bands, then zooms out to 95% while blur bands fade to full focus. Add subtle vignetting and saturation boost for miniature aesthetic.",
+                "technicalSpecs": "Tilt-shift blur using multiple overlay divs with gradient masks. Outgoing video: scale 100%→135%, three blur zones via absolutely positioned divs with backdrop-filter and mask-image linear-gradients. Top/bottom zones blur 0→15px. Rotation via transform rotate(0→90deg) on blur overlay container during overlap. Incoming video: starts at video1.duration - 1.4s with vertical blur zones, scale 145%→95%. Vignetting: radial-gradient overlay, opacity 0→0.4. Saturation: filter saturate(100%→130%) during zoom."
+              },
+              {
+                "prompt": "Design a crash zoom transition that aggressively combines Ken Burns with impact effects. Outgoing video rapidly accelerates zoom from 100% to 200% scale in final 0.5s with exponential easing, while blur rockets from 0 to 25px. At impact moment (overlap start), add violent shake effect and brief white flash. Incoming video crashes in from 250% scale with 25px blur, decelerating hard to 100% scale over 0.8s with bounce-back easing. During the 0.6s overlap, both videos shake with decreasing amplitude. Add motion trail effect using duplicated, offset, semi-transparent video layers.",
+                "technicalSpecs": "Aggressive 0.6s overlap. Outgoing video: scale 100%→200% in final 0.5s using cubic-bezier(0.7,0,0.9,0.1), blur 0→25px exponential. Flash: white div overlay, opacity 0→1→0 over 0.1s at overlap start. Shake: random translateX/Y ±20px→±5px over 0.6s. Incoming video: scale 250%→100% over 0.8s with ease-out-bounce, blur 25px→0. Motion trails: 3 duplicate video layers at 0.3/0.2/0.1 opacity with 2/4/6 frame delays via animation-delay."
+              },
+              {
+                "prompt": "Create a focus-pull transition that mimics professional cinematography with Ken Burns refinement. Start with first video at 100% scale in perfect focus, then execute a slow zoom to 115% while pulling focus to simulate following a subject - center stays sharp while creating beautiful bokeh blur (0 to 18px) in the background areas using depth maps. During the 2s overlap, perform a focus handoff where the blur transfers between videos like passing focus between foreground and background subjects. Incoming video starts at 125% scale with inverse blur pattern, then settles to 102% scale with crisp focus. Add realistic lens characteristics including slight chromatic aberration at blur edges.",
+                "technicalSpecs": "Cinematic 2s overlap. Outgoing video: scale 100%→115% over 3s with ease-in-out, depth-based blur using multiple masked layers - center circle sharp, mid-ground 8px blur, background 18px blur via radial-gradient masks. Incoming video: starts at video1.duration - 2s, scale 125%→102%, inverse blur pattern (edges sharp→center sharp). Chromatic aberration: slight RGB channel separation at blur boundaries using mix-blend-mode layers with 1-2px offsets. Smooth focus transfer using coordinated blur animations."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 3381,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5823
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:45:13.690Z"
+}

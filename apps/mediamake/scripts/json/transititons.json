@@ -1,0 +1,21 @@
+{
+  "agentPath": "/preset-prompts/generate-prompt",
+  "defaultParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10
+  },
+  "queue": [
+    {
+      "userDescription": "Photo negative inverse color flash solarize transition effects between videos"
+    },
+    {
+      "userDescription": "Masking tape piece stick-on layer cover-up transition effects between videos"
+    },
+    {
+      "userDescription": "Flickering light bulb moody shadow play transition effects between videos"
+    },
+    {
+      "userDescription": "Swiping photos digital UI gallery scroll transition effects between videos"
+    }
+  ]
+}

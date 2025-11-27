@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Simple alpha matte reveal. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "x74h2TlxnVM5tAvf",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-IRNEJ0vUBcj50KkL",
+          "state": "output-available",
+          "output": {
+            "title": "Alpha Matte Reveal - Text, Video & Image Internal Effects",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset called 'alphaMatteReveal' that implements a smooth alpha matte reveal effect using opacity masking. The effect should animate opacity from 0 to 1 with a customizable reveal direction (top, bottom, left, right, center). Use generic AnimationRange[] with multiple keyframes to create a progressive reveal that follows a wave-like pattern across the target element. The effect should accept parameters for duration (default 1500ms), direction ('top' | 'bottom' | 'left' | 'right' | 'center'), and easing type. Implement a staggered reveal by splitting the animation into segments, each with slightly offset timing to create a flowing reveal effect. The preset should work with any component type (text, video, image) by targeting via targetIds in provider mode.",
+                "technicalSpecs": "Effect type: generic AnimationRange[]. Properties: opacity with gradient-like progression using multiple keyframes (prog: 0, 0.2, 0.4, 0.6, 0.8, 1.0). Use clipPath animation alongside opacity for true matte effect. Input params: { duration: number, direction: string, easing: string, stagger: number }. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration, ranges: AnimationRange[] }] }. PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }"
+              },
+              {
+                "prompt": "Build an internal effect preset 'audioAlphaPulse' that creates an audio-reactive alpha matte reveal synchronized with bass frequencies. The effect should use waveform data to modulate opacity in real-time, creating a pulsing reveal that responds to music beats. Implement a threshold system where opacity increases permanently with each bass hit above the threshold, gradually revealing the content. Include a decay parameter that allows the reveal to partially fade back if no beats are detected. The effect should support multiple target components simultaneously and include visual feedback through subtle scale animations on beat hits. Add parameters for sensitivity, threshold, decay rate, and whether the reveal is cumulative or resetting.",
+                "technicalSpecs": "Effect type: waveform (audio-reactive). Audio properties: bass frequency analysis with beat detection. Waveform config: { type: 'opacity', audioProperty: 'bass', sensitivity: 0.8, threshold: 0.6 }. Additional scale effect on beats: { type: 'scale', audioProperty: 'bass', sensitivity: 0.3 }. Input params: { sensitivity: number, threshold: number, decayRate: number, cumulative: boolean }. Return format: { effects: [opacityEffect, scaleEffect] }. Mode: provider with targetIds array"
+              },
+              {
+                "prompt": "Design an internal effect preset 'gradientAlphaMatte' that creates a gradient-based alpha reveal using CSS linear-gradient masks. The effect should animate a gradient mask position to reveal content smoothly. Implement multiple gradient stops that can be customized via parameters, allowing for soft or hard edge reveals. The gradient should support radial and linear modes, with angle control for linear gradients. Include keyframes that animate the gradient stops' positions to create flowing reveal effects. Support color-based masking where specific color values determine transparency levels. The preset should handle both simple two-stop gradients and complex multi-stop configurations.",
+                "technicalSpecs": "Effect type: generic with CSS mask-image animation. Properties: maskImage with gradient values, maskPosition for movement. AnimationRange: [{ key: 'maskPosition', val: '0% 50%', prog: 0 }, { key: 'maskPosition', val: '100% 50%', prog: 1 }]. Input params: { gradientType: 'linear' | 'radial', angle: number, stops: Array<{color: string, position: number}>, duration: number, hardness: number }. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges }] }"
+              },
+              {
+                "prompt": "Create an internal effect preset 'splitAlphaReveal' that divides the target into multiple segments and reveals each with different timing and easing. The effect should support horizontal and vertical splits, creating a venetian blind or panel reveal effect. Each segment should have its own opacity animation with configurable overlap and stagger. Implement a wave pattern where segments reveal in sequence but with overlapping animations for smooth transitions. Include parameters for number of segments, stagger amount, wave direction, and whether segments should reveal simultaneously or sequentially. The effect should calculate segment positions dynamically based on the target's dimensions.",
+                "technicalSpecs": "Effect type: generic with multiple AnimationRange[] arrays for each segment. Properties: opacity and transform for each segment. Segment calculation: divide target into n parts, apply staggered animations. Input params: { segments: number, stagger: number, direction: 'horizontal' | 'vertical', wavePattern: boolean, overlap: number }. Return format: { effects: segmentEffects.map(seg => ({ type: 'generic', targetIds: [seg.id], ranges: seg.ranges })) }. Use transform: scaleX/Y for segment reveals"
+              },
+              {
+                "prompt": "Develop an internal effect preset 'noiseAlphaMatte' that uses noise patterns to create organic, random reveal effects. The effect should generate Perlin noise or simplex noise patterns that control opacity values over time. Implement threshold-based revealing where areas above the noise threshold become visible. The noise should animate by shifting its offset values, creating flowing, organic reveal patterns. Include parameters for noise scale, animation speed, threshold, and smoothness. Support both 2D and 3D noise for different complexity levels. The effect should blend multiple noise octaves for more natural-looking reveals.",
+                "technicalSpecs": "Effect type: generic with calculated noise values. Properties: opacity controlled by noise function output. AnimationRange: dynamically generated based on noise calculations at each prog step. Input params: { noiseScale: number, speed: number, threshold: number, octaves: number, persistence: number }. Noise implementation: use simplified Perlin noise algorithm. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges: generateNoiseRanges() }] }"
+              },
+              {
+                "prompt": "Build an internal effect preset 'typewriterAlphaMatte' specifically optimized for text reveals that mimics typewriter or terminal effects. The effect should reveal characters, words, or lines progressively with customizable timing curves. Implement a smart text parsing system that understands word boundaries and can reveal by character, word, or line. Include cursor animation effects and optional typing sounds triggered at reveal points. Support both forward typing and deletion effects for dynamic text changes. The preset should handle different text alignments and support RTL languages. Add parameters for typing speed, variation, cursor style, and whether to include typing mistakes and corrections.",
+                "technicalSpecs": "Effect type: generic with text-specific handling. Properties: opacity per character/word, optional textDecoration for cursor. Character timing: calculate based on text length and speed parameter. Input params: { speed: number, unit: 'char' | 'word' | 'line', cursorStyle: string, variation: number, mistakes: boolean }. Return format: { effects: characterEffects } with staggered start times. Use letter-spacing and word-spacing for smooth reveals"
+              },
+              {
+                "prompt": "Create an internal effect preset 'lottieAlphaMask' that uses Lottie animation shapes as alpha masks for reveal effects. The effect should sync with a Lottie animation's progress, using its shapes as dynamic masks. Implement frame-by-frame mask updates that follow the Lottie animation's morphing shapes. Support both additive and subtractive masking modes. Include parameters for Lottie playback speed, mask inversion, and feather amount for soft edges. The preset should handle complex Lottie compositions with multiple layers and support using specific Lottie layers as mask sources. Add blend mode options for creative masking effects.",
+                "technicalSpecs": "Effect type: combined (generic + data-driven). Properties: mask-image with SVG path data from Lottie frames. Lottie integration: extract path data per frame, apply as CSS mask. Input params: { lottieData: object, playbackSpeed: number, maskLayer: string, invert: boolean, feather: number }. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges: lottieFrameRanges }] }. Sync with Lottie progress values"
+              },
+              {
+                "prompt": "Design an internal effect preset 'particleAlphaReveal' that reveals content through expanding particle systems. The effect should spawn particles that grow and merge to reveal the underlying content. Implement physics-based particle movement with gravity, wind, and turbulence forces. Particles should have individual opacity and scale animations, creating a pointillistic reveal effect. Support different particle shapes (circles, squares, custom shapes) and emission patterns (point, line, area). Include parameters for particle count, size, speed, lifespan, and force strengths. The preset should optimize performance by batching particle updates and using transform3d for GPU acceleration.",
+                "technicalSpecs": "Effect type: generic with particle system simulation. Properties: opacity and transform per particle, combined into mask. Particle engine: calculate positions, apply forces, update opacity based on age. Input params: { particleCount: number, emissionRate: number, forces: {gravity: number, wind: vec2, turbulence: number}, particleSize: number }. Return format: { effects: particleEffects } with batched updates. Use CSS custom properties for efficient updates"
+              },
+              {
+                "prompt": "Develop an internal effect preset 'depthAlphaMatte' that creates pseudo-3D reveal effects using depth maps and parallax. The effect should simulate depth-based revealing where closer elements appear first. Implement z-depth calculations that control opacity based on simulated distance from camera. Include fog effects where distant elements fade in gradually. Support mouse/device orientation parallax for interactive reveals. The preset should handle multiple depth layers with different reveal speeds and include parameters for depth range, parallax intensity, and fog density. Add cinematic focus effects where specific depth ranges come into focus.",
+                "technicalSpecs": "Effect type: generic with depth calculations. Properties: opacity based on z-depth, transform3d for parallax. Depth mapping: assign z-values to elements, calculate opacity from depth. Input params: { depthLayers: number, parallaxIntensity: number, fogStart: number, fogEnd: number, focusDepth: number, focusRange: number }. Return format: { effects: layerEffects } with depth-sorted animations. Use perspective and translateZ for true 3D effects"
+              },
+              {
+                "prompt": "Create an internal effect preset 'dataAlphaMatte' that reveals content based on external data streams or real-time inputs. The effect should support JSON data feeds, API responses, or user interactions as reveal triggers. Implement a mapping system that converts data values to opacity levels. Support time-series data for animated reveals that follow data trends. Include interpolation for smooth transitions between data points. The preset should handle missing data gracefully and support multiple data sources for complex reveal patterns. Add parameters for data source URL, update frequency, interpolation method, and value mapping functions.",
+                "technicalSpecs": "Effect type: combined (generic + data-driven). Properties: opacity mapped from data values. Data integration: fetch/receive data, map to opacity range [0,1]. Input params: { dataSource: string, updateInterval: number, valueMapper: (data) => number, interpolation: 'linear' | 'cubic' | 'step', fallbackValue: number }. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges: dataToRanges(data) }] }. Support WebSocket for real-time updates"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2551,
+              "outputTokens": 2867,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5418
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:22:17.017Z"
+}

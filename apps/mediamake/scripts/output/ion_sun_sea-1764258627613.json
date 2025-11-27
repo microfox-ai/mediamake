@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Prismatic chromatic aberration RGB split prism transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "iFQZDh7iWHpLFObb",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-4AYxce7y0hj5wAs0",
+          "state": "output-available",
+          "output": {
+            "title": "Prismatic RGB Split Transition Effects",
+            "prompts": [
+              {
+                "prompt": "Create a prismatic RGB split transition effect where the outgoing video breaks apart into separate red, green, and blue color channels that drift apart with chromatic aberration, while the incoming video's RGB channels converge from different directions to form the complete image. Use three duplicated VideoAtom instances per video (6 total) with CSS mix-blend-mode filters to isolate color channels. During the 1-second overlap period, animate the outgoing video's RGB layers to translate in different directions (red: translateX(-50px), green: translateY(-30px), blue: translateX(50px)) while fading out, and the incoming video's RGB layers converging from opposite positions. Add a subtle scale animation (0.95 to 1.05) and blur filter that peaks during the midpoint of the transition for a lens refraction effect.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 1s overlap. Six VideoAtom instances total (3 for outgoing, 3 for incoming). Each set of 3 atoms uses mix-blend-mode: screen with filter: hue-rotate() to isolate RGB channels (0deg for red, 120deg for green, 240deg for blue). Generic effects in provider mode targeting each atom with AnimationRange[] for transform (translate + scale), opacity (1 to 0 for outgoing, 0 to 1 for incoming), and filter (blur 0px to 4px to 0px). Outgoing atoms start at 0ms, incoming atoms start at (video1.duration - 1000)ms. Use z-index layering: outgoing RGB (1-3), incoming RGB (4-6)."
+              },
+              {
+                "prompt": "Design a glitch-style prismatic transition where the video appears to hit a prism and shatter into rainbow-colored fragments that scatter and reassemble into the next video. Create multiple thin vertical slices (10-15 VideoAtom instances per video) with each slice having a different hue-rotate filter value creating a rainbow spectrum. During the 0.8-second transition, animate each slice with randomized translateX values and staggered timing to create a scattered prism effect. Add rapid opacity flickering (using multiple keyframes) to simulate digital glitching, and apply a wave-like distortion using scaleY animations that ripple across the slices.",
+                "technicalSpecs": "BaseLayout with calculated duration for 0.8s overlap. 20-30 VideoAtom instances (10-15 per video), each with width: 10% and overflow: hidden, positioned with incremental left values. Apply filter: hue-rotate() with values from 0deg to 360deg distributed across slices. Generic effects with AnimationRange[] for each slice: transform (translateX with random values -100px to 100px), opacity (flickering pattern: [1, 0.3, 1, 0.5, 1, 0]), scaleY (1 to 1.2 to 0.8 to 1). Stagger animation start times by 50ms per slice. Incoming slices have reversed animation direction."
+              },
+              {
+                "prompt": "Build a crystal prism refraction transition where the outgoing video appears to pass through a triangular prism, splitting into a spectrum of colors that bend and refract before reforming as the incoming video. Use CSS clip-path to create triangular sections that animate their vertices during transition. Apply increasing chromatic aberration by duplicating the video into RGB layers with progressive offset positioning. Add a glass-like refraction effect using backdrop-filter: blur() and transform: skew() animations that create the illusion of light bending through crystal.",
+                "technicalSpecs": "BaseLayout container with 1.2s overlap period. 6 VideoAtom instances (3 per video) for RGB separation, plus 3 additional atoms per video with clip-path: polygon() for triangular prism shapes. RGB atoms use mix-blend-mode: lighten with filter combinations. Animate clip-path vertices from triangle to rectangle shapes. Generic effects: transform (skewX from 0deg to 15deg to 0deg, translateX/Y for RGB offset), opacity transitions, backdrop-filter (blur 0px to 8px to 0px). Position RGB layers with 2-4px offsets that increase during transition peak."
+              },
+              {
+                "prompt": "Create a spinning prism cube transition where videos appear mapped onto the faces of a rotating 3D cube with prismatic light dispersion effects. The outgoing video is on the front face while the incoming video appears on the back face, revealed as the cube rotates. Add chromatic aberration by creating ghost copies of each video face with RGB channel isolation that lag behind the main rotation. Include light ray effects using gradient overlays that sweep across during rotation, simulating prism light refraction.",
+                "technicalSpecs": "BaseLayout with transform-style: preserve-3d and perspective: 1000px. 8 VideoAtom instances (4 per video including RGB ghosts). Main atoms use transform: rotateY() animation from 0deg to 180deg over 1.5s overlap. RGB ghost atoms have delayed transform animations by 100ms, 200ms, 300ms with reduced opacity (0.3). Add ShapeAtom overlays with linear-gradient for light ray effects, animated with translateX. Generic effects target all atoms with coordinated timing. Z-index management for proper 3D layering during rotation."
+              },
+              {
+                "prompt": "Design a liquid prism transition where videos appear to melt into prismatic liquid drops that separate into rainbow colors before reforming. Create a morphing effect using multiple circular VideoAtom instances with varying sizes that animate their border-radius and scale properties. Apply different hue-rotate values to each drop to create a spectrum effect. Add a physics-based animation where drops appear to fall and bounce with easing curves, while their colors shift and blend using mix-blend-modes.",
+                "technicalSpecs": "BaseLayout with 1.3s overlap. 12-16 VideoAtom instances per video with border-radius: 50% and varying dimensions (50px to 150px). Each atom has unique hue-rotate filter (0deg to 360deg range). Generic effects with custom easing: transform (translateY with bounce easing, scale from 1 to 0.5 to 1.2 to 1), border-radius (50% to 20% to 70% to 50%), opacity with staggered fade timing. Mix-blend-mode: screen for color blending. Position atoms in grid pattern that disperses during transition."
+              },
+              {
+                "prompt": "Implement a holographic prism transition with interference patterns where videos transition through a holographic prism effect with rainbow light interference. Create thin horizontal bands (20+ VideoAtom slices) that phase shift with different delays, simulating light wave interference. Apply animated hue-rotate filters that cycle through the spectrum at different rates per band. Add a shimmer effect using opacity oscillation and subtle scaleX stretching that creates the illusion of holographic depth.",
+                "technicalSpecs": "BaseLayout with 1s overlap period. 40+ VideoAtom instances (20+ per video) with height: 5% each. Apply filter: hue-rotate() with animation from 0deg to 360deg at different animation-duration per slice (0.5s to 2s). Generic effects: opacity (sine wave pattern oscillating 0.7 to 1), scaleX (0.98 to 1.02 oscillation), translateX (small random offsets -5px to 5px). Stagger all animations by slice index * 25ms. Add brightness filter animation for shimmer effect."
+              },
+              {
+                "prompt": "Create a kaleidoscope prism transition where videos fragment into triangular pieces that rotate and reflect like looking through a kaleidoscope, with prismatic color shifts at the edges. Use clip-path to create triangular segments that rotate around their center points while duplicating and mirroring. Apply progressive chromatic aberration toward triangle edges using multiple layered copies with slight position offsets and color channel isolation.",
+                "technicalSpecs": "BaseLayout with 1.4s overlap. 8-12 VideoAtom instances per video using clip-path: polygon() for triangular shapes. Each triangle has 3 RGB-separated duplicate layers (24-36 atoms total). Transform animations: rotate (0deg to 120deg) with transform-origin at triangle center, scale (1 to 0.5 to 1). RGB copies offset by 1-3px with mix-blend-mode: screen. Add filter: contrast() and brightness() animations for edge enhancement. Mirror some triangles using scaleX(-1) for kaleidoscope effect."
+              },
+              {
+                "prompt": "Design a prism light burst transition where the video appears to explode into prismatic light rays that scatter outward before converging to form the next video. Create radial video strips using clip-path that animate from center to edges. Each strip has a different color temperature and hue shift to simulate light spectrum dispersion. Add lens flare-style glow effects using blurred duplicate layers and animated gradients that sweep across during the burst.",
+                "technicalSpecs": "BaseLayout with radial-gradient background for light burst effect. 16-20 VideoAtom instances per video with clip-path creating pie-slice shapes. Transform animations: scale from 0 (center) to 1.5 (burst) to 1 (settle), rotate for spiral effect. Each slice has filter: hue-rotate() from 0deg to 360deg distributed evenly. Add 2-3 duplicate atoms with blur(10px) and reduced opacity for glow. Generic effects with ease-out for burst, ease-in for convergence. Overlap duration: 0.9s with peak burst at 50% mark."
+              },
+              {
+                "prompt": "Build a chromatic wave transition where videos transition through a wave of prismatic distortion that rolls across the screen like light through a moving prism. Create vertical video strips that undulate with sine wave animations at different phases. Apply progressive RGB channel separation that peaks as the wave passes through each strip. Add refraction distortion using skew transforms and varying blur levels that follow the wave propagation.",
+                "technicalSpecs": "BaseLayout with 1.1s overlap. 15-20 vertical VideoAtom strips per video (width: 6.67% to 5%). Each strip has animation-delay based on position for wave effect. Generic effects: transform (translateY using sine wave function, skewY -10deg to 10deg), filter (blur 0 to 5px to 0, hue-rotate cycling). RGB channel separation using 3 copies per strip with translateX/Y offsets that animate. Wave propagation speed: 1100ms from left to right. Mix-blend-mode: lighten for RGB copies."
+              },
+              {
+                "prompt": "Create a diamond prism transition where videos appear to pass through a multifaceted diamond, creating rainbow reflections and refractions. Use CSS transforms to create a 3D diamond shape with videos mapped to different facets. As the diamond rotates, it reveals the incoming video while the outgoing video fragments into prismatic reflections. Add sparkle effects using small animated shapes with high brightness that simulate light catching the diamond edges.",
+                "technicalSpecs": "BaseLayout with perspective: 1200px and transform-style: preserve-3d. 8 VideoAtom instances per video mapped to diamond facets using transform: rotateX() rotateY() translateZ(). Facets created with clip-path: polygon(). RGB separation on each facet using filter and mix-blend-mode. Diamond rotation: rotateY(0deg to 360deg) rotateX(0deg to 45deg) over 1.6s. Add 10-15 small ShapeAtom elements for sparkles with opacity and scale animations. Generic effects coordinate facet reveals with staggered timing based on rotation angle."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2446,
+              "outputTokens": 2824,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5270
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:50:27.613Z"
+}

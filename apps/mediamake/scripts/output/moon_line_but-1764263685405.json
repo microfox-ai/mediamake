@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Magnifying glass focus sweep lens distortion transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "yJO5tKZTkOqSvnSv",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-xueEwDqVN1WCvmxg",
+          "state": "output-available",
+          "output": {
+            "title": "Magnifying Glass Focus Sweep Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a magnifying glass lens distortion transition preset that simulates a detective's magnifying glass sweeping across the screen to reveal the next video. The transition should use a circular reveal pattern with lens distortion effects. Structure: Single BaseLayout container with two VideoAtom elements. The outgoing video should have a bulge distortion effect that intensifies as the 'magnifying glass' passes over it, while the incoming video reveals through a circular mask that follows the lens path. Use a 2-second overlap period where the lens sweeps diagonally from top-left to bottom-right. Apply chromatic aberration and slight blur to the edges of the lens area. The outgoing video should have subtle scale-up distortion in the lens area before transitioning out.",
+                "technicalSpecs": "BaseLayout with duration = video1.duration + video2.duration - 2s overlap. VideoAtom1 (outgoing) at startTime: 0, duration: video1.duration. VideoAtom2 (incoming) at startTime: video1.duration - 2s. Use generic filter effects with AnimationRange[] for lens distortion: apply custom CSS filters including blur(0px to 2px) for edges, contrast(100% to 110%) for lens area. Transform effects for bulge simulation using scale3d. Mask the incoming video with clipPath animation from circle(0% at var(--x) var(--y)) to circle(150%). Use CSS custom properties for dynamic positioning. Provider mode effects with targetIds for each video. Tailwind: 'absolute inset-0' for both videos, z-10 for incoming."
+              },
+              {
+                "prompt": "Design a CSI-style forensic magnifying glass transition where the lens creates a ripple distortion effect as it scans across the frame, transitioning between crime scene videos. The magnifying glass should pause at key moments creating a freeze-frame effect with enhanced detail before continuing the sweep. Implement a horizontal scanning motion from left to right with variable speed - slower over important areas, faster over transitions. Add a subtle vignette around the lens perimeter and increase sharpness/clarity within the lens area while slightly desaturating the surrounding areas.",
+                "technicalSpecs": "BaseLayout container with calculated duration. Two VideoAtom components with 3-second overlap. Outgoing video uses transform: scale(1) to scale(1.1) within lens area using CSS custom properties for dynamic positioning. Incoming video reveals through animated mask-image with radial-gradient. Apply filter effects: brightness(100% to 120%), saturate(100% to 80%) outside lens, contrast(100% to 115%) inside lens. Use multiple AnimationRange keyframes for variable speed sweep: 0-30% slow, 30-70% fast, 70-100% slow. Add pause effects at 25% and 75% with 0.3s hold. Z-index: 20 for incoming video. Container className: 'relative overflow-hidden bg-black'."
+              },
+              {
+                "prompt": "Build a detective noir magnifying glass transition with dramatic lighting effects. The lens should create a film noir spotlight effect that reveals hidden details in the incoming video while the outgoing video fades to high-contrast black and white. Implement a spiral motion path for the magnifying glass, starting from the center and spiraling outward. The lens area should have increased brightness and warm color temperature while areas outside become progressively darker with cool tones. Add subtle film grain and vintage filter effects during the transition period.",
+                "technicalSpecs": "Single BaseLayout with 2.5s overlap transition. VideoAtom positioning: both absolute inset-0. Spiral motion using transform: rotate() combined with translateX/Y animations. CSS custom properties for spiral coordinates calculation. Filter chain for outgoing: grayscale(0 to 100%), brightness(100% to 40%), contrast(100% to 150%). Incoming video mask: radial-gradient with feather edge, animated size from 0% to 200%. Lens area filters: sepia(10%), brightness(130%), saturate(110%). Add noise texture overlay using pseudo-element with opacity animation. Provider effects targeting video IDs. Duration: BaseLayout = sum of videos - 2.5s."
+              },
+              {
+                "prompt": "Create a scientific microscope lens transition that simulates focusing through different magnification levels. The transition should show the outgoing video becoming increasingly blurry and distorted as if going out of focus, while the incoming video sharpens into view through circular lens aberrations. Implement three distinct focus pulls during the transition - each with different magnification scales (1x, 2x, 4x). Add chromatic aberration effects at the lens edges with red/blue color shifts. Include subtle lens flare and light refraction effects as the 'microscope' adjusts focus.",
+                "technicalSpecs": "BaseLayout with 4s overlap for extended focus effect. Three-stage transform animation: scale(1) -> scale(1.5) -> scale(2) -> scale(1) for focus pulls. Outgoing VideoAtom: blur filter animated 0 -> 8px -> 4px -> 12px. Incoming VideoAtom: blur 12px -> 4px -> 0. Chromatic aberration using CSS: drop-shadow with offset red/blue channels. Clip-path for circular viewport: circle(30% at center) expanding to circle(100%). Add brightness peaks at focus transitions (100% -> 140% -> 100%). Z-layering: incoming z-20, outgoing z-10. Tailwind: 'absolute inset-0 will-change-transform' for GPU optimization."
+              },
+              {
+                "prompt": "Design a surveillance camera lens zoom transition with glitch distortion effects. The magnifying lens should simulate a security camera zooming in on suspicious activity, with digital interference and pixelation effects during the transition. Create a staggered zoom effect with quick snap-zooms followed by slow drift. Add scan lines, RGB splitting, and digital noise that intensifies during zoom movements. The incoming video should appear through a hexagonal iris pattern reminiscent of camera aperture blades.",
+                "technicalSpecs": "BaseLayout duration calculation with 3.5s overlap. Snap-zoom keyframes: 0%, 20% (2x zoom), 21% (1.8x), 50% (3x), 51% (2.7x), 100% (1x). RGB split using multiple drop-shadows with red/green/blue offsets. Glitch effect: transform skewX() with random values at specific keyframes. Hexagonal mask using clip-path: polygon() with 6 points, animated from center. Add CSS scan lines using repeating-linear-gradient overlay. Digital noise via SVG filter with feTurbulence. Provider mode targeting both videos. Outgoing: opacity 1 to 0.3 during overlap. Incoming: opacity 0 to 1. Container: 'relative bg-gray-900'."
+              },
+              {
+                "prompt": "Build a vintage detective magnifying glass transition with sepia-toned distortion and old film effects. The lens should create a warped, antique glass effect with visible imperfections and bubbles. Implement a slow, methodical sweep pattern that pauses to 'examine' specific areas. The lens should reveal the incoming video in full color while the surrounding area remains in aged sepia tones. Add dust particles, scratches, and film burn effects that intensify during the transition. Include a subtle wobble to simulate hand-held magnifying glass movement.",
+                "technicalSpecs": "BaseLayout with 5s overlap for deliberate pacing. VideoAtom setup with extended durations. Wobble effect: transform rotate(-2deg to 2deg) with sin-wave timing. Sepia filter gradient: sepia(0%) in lens center to sepia(80%) at edges. Lens distortion: transform scale3d with barrel distortion simulation. Multiple pause points using step-end timing at 20%, 45%, 70% positions. Film effects: overlay with animated opacity scratches, grain texture using CSS filters. Dust particles as absolutely positioned divs with float animation. Incoming video mask: radial-gradient with soft feather (20px blur). Z-index management: effects z-30, incoming z-20, outgoing z-10."
+              },
+              {
+                "prompt": "Create a thermal imaging magnifying lens transition that reveals heat signatures. The outgoing video should transition to a blue-cold thermal view while the incoming video appears through the lens in red-hot thermal imaging before normalizing to regular video. The lens should pulse with energy readings and include data overlay effects like temperature readings and grid patterns. Implement a robotic, precise scanning pattern with mechanical stops and starts. Add digital readout animations and targeting reticles that lock onto points of interest.",
+                "technicalSpecs": "BaseLayout with 4s overlap, calculated duration. Thermal color mapping using CSS filters: hue-rotate() animation for thermal effect. Outgoing: hue-rotate(0deg to 240deg) for cold blue. Incoming: hue-rotate(0deg to -60deg to 0deg) for hot-to-normal. Grid overlay: repeating-linear-gradient with opacity animation. Mechanical movement: cubic-bezier(0.45, 0, 0.55, 1) with distinct stop points. Pulse effect: box-shadow with animated spread and opacity. Reticle targeting using absolutely positioned SVGs with stroke-dasharray animation. Data readouts as TextAtom overlays with typewriter effect. Provider effects with precise timing arrays. Container: 'relative bg-gray-950 overflow-hidden'."
+              },
+              {
+                "prompt": "Design a crystal ball fortune-teller lens transition with mystical distortion effects. The magnifying glass should create swirling, dreamlike distortions that peer into the future (incoming video) while the past (outgoing video) dissolves in smoky wisps. Implement a floating, ethereal motion path with the lens drifting across the screen. Add prismatic light refraction creating rainbow edges around the lens perimeter. Include particle effects that swirl around the lens boundary and mystical fog that obscures the transition edges.",
+                "technicalSpecs": "BaseLayout with 3s overlap, floating motion timing. Swirl distortion using CSS transform: rotate() combined with scale() in opposing directions. Prismatic edges: multiple box-shadows with rainbow colors at different blur radii. Float path: translateX/Y with sin/cos calculations for smooth curves. Outgoing video: opacity with exponential-out easing, blur(0 to 6px). Incoming reveal: mask-image with radial-gradient, feather edge 30%. Particle system: absolute divs with animation-delay stagger, rotate and translate animations. Fog effect: gradient overlays with animated opacity. Provider mode for coordinated effects. Z-layers: particles z-40, lens z-30, videos z-10/20."
+              },
+              {
+                "prompt": "Build a submarine periscope lens transition with underwater distortion effects. The lens should simulate looking through a periscope with water droplets, pressure distortion, and murky visibility. Create a rotating scan pattern as if the periscope is turning to survey the area. The incoming video should appear with underwater caustic light patterns while the outgoing video gets increasingly murky with depth pressure effects. Add bubble particles that rise during the transition and condensation that forms on the lens edges.",
+                "technicalSpecs": "BaseLayout with 4.5s overlap for underwater feel. Periscope rotation: transform rotateZ(0deg to 360deg) with linear timing. Water caustics: animated SVG filter with feTurbulence and feDisplacementMap. Pressure distortion: scale(1 to 0.95 to 1.05) with depth simulation. Murky fade: brightness and contrast filters decreasing over time. Bubble particles: absolute positioned with translateY animation, varied sizes and speeds. Condensation effect: blur filter on lens edges with animated intensity. Circular viewport: clip-path circle with slight rectangular crop for periscope shape. Provider effects coordinating all elements. Tailwind: 'bg-blue-900/20' for underwater ambiance."
+              },
+              {
+                "prompt": "Create a jeweler's loupe extreme magnification transition with prismatic lens effects. The transition should simulate examining fine details through a high-powered magnifying loupe, with extreme zoom capabilities and crystal-clear focus areas surrounded by spherical aberration. Implement a precise grid-scanning pattern that methodically covers the frame. The lens should reveal microscopic details in the incoming video with enhanced sharpness and clarity while the outgoing video develops rainbow prismatic distortions at the edges. Add lens flares and light refractions that create spectacular rainbow patterns during the transition.",
+                "technicalSpecs": "BaseLayout with 3.5s overlap, grid-based timing. Grid scan: translateX/Y with steps(8, end) for precise movements. Extreme zoom: scale(1 to 5 to 1) with focus breathing effect. Spherical aberration: radial-gradient masks with varying blur intensities from center to edge. Prismatic effects: CSS conic-gradient overlays with hue-rotate animation. Enhanced sharpness: contrast(150%) and brightness(110%) in focus area. Rainbow refraction: multiple colored drop-shadows with animated offsets. Lens flare: radial-gradient with animated opacity and position. Focus area: 20% center with 0 blur expanding to full frame. Provider mode with synchronized timing arrays. GPU optimization: 'transform-gpu will-change-transform'."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 3167,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5609
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:14:45.405Z"
+}

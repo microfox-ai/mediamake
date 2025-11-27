@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Glass shatter break shards reform mosaic transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "kfZJrArcgcxcgAO8",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-oXjBw4sXGuSR5qxK",
+          "state": "output-available",
+          "output": {
+            "title": "Glass Shatter & Mosaic Reform Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a glass shatter transition preset where the outgoing video appears to shatter into crystalline shards that scatter outward, then reform as a mosaic that reveals the incoming video. Use a 2-second overlap period where the shatter effect happens in the first half (0-1s) and the mosaic reformation in the second half (1-2s). The outgoing video should have a custom CSS clip-path animation that creates triangular shard shapes, combined with transform scale and rotate effects on individual shard layers. The incoming video starts as fragmented pieces using multiple masked layers that animate together to form the complete image. Use blur and opacity transitions to enhance the glass-like quality of the shards.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 2s overlap. Create 12-16 duplicate VideoAtom layers for outgoing video, each with unique clip-path polygons and staggered animation timing. Use provider mode effects with targetIds for each shard. Outgoing shards: opacity 1→0, transform scale(1)→scale(0.3) rotate(0deg)→rotate(45deg) translateX/Y to scatter positions, filter blur(0px)→blur(2px). Incoming video: 12-16 VideoAtom layers with inverse clip-paths, opacity 0→1, transform from scattered positions to origin, blur(4px)→blur(0px). Position all atoms with 'absolute inset-0 object-cover'. Use z-index layering: outgoing shards z-10 to z-20, incoming pieces z-30 to z-40."
+              },
+              {
+                "prompt": "Design a cinematic glass break transition where the screen appears to crack in a spider-web pattern from the center, then the pieces fall away with physics-based motion to reveal the next video underneath. Implement a 1.5-second overlap where the crack appears instantly (at overlap start), pieces begin falling after 0.3s with varying speeds based on their distance from center, creating a natural shatter cascade. Add subtle screen shake during the initial crack moment for impact. The incoming video should be visible through the cracks with a slight refraction effect using CSS filters.",
+                "technicalSpecs": "BaseLayout with calculated duration and a subtle shake effect (transform: translate with random values for 0.2s). Create a crack overlay using ShapeAtom with SVG path for spider-web pattern, opacity 0→1 in 0.1s. Generate 20-30 VideoAtom fragments for outgoing video using CSS clip-path. Each fragment has gravity-based animation: transform translateY(0)→translateY(120vh) with acceleration curve, rotate based on position, opacity 1→0.7. Incoming video as single VideoAtom with z-index 0, visible through gaps. Add CSS backdrop-filter: blur(2px) brightness(1.1) on fragments for glass refraction. Stagger fragment animations based on radial distance from center point."
+              },
+              {
+                "prompt": "Build a mosaic tessellation transition where both videos are simultaneously visible as interlocking geometric tiles that shift and reorganize. During the 2.5s overlap, tiles from the outgoing video shrink and move to form one half of a mosaic pattern while tiles from the incoming video expand from the other half, creating a dynamic puzzle-like transition. Use hexagonal or triangular tile shapes that fit together perfectly. Add subtle 3D rotation on tiles as they move for depth.",
+                "technicalSpecs": "BaseLayout container with extended overlap calculation. Create matching tile grids for both videos: 8x6 hexagonal tiles using clip-path for each VideoAtom. Outgoing tiles: 24 VideoAtom instances with hexagonal clip-paths, transform from original positions to mosaic pattern positions on left side, scale(1)→scale(0.7), rotateY(0deg)→rotateY(15deg). Incoming tiles: 24 VideoAtom instances starting from right-side mosaic positions, scale(0.7)→scale(1), rotateY(-15deg)→rotateY(0deg). Use CSS grid or calculated absolute positions for precise tile placement. Add drop-shadow filter for tile depth. Synchronize all tile movements with cubic-bezier easing."
+              },
+              {
+                "prompt": "Develop a crystalline prism transition where the outgoing video refracts through an animated prism effect, splitting into rainbow-colored fragments that spiral outward, while the incoming video assembles from similar prismatic shards spiraling inward. Create a 1.8s overlap with counter-rotating spiral motions. Each shard should have chromatic aberration effects using RGB channel separation. The transition point should feature a bright flash of white light as the prisms converge.",
+                "technicalSpecs": "BaseLayout with flash overlay effect at midpoint. Outgoing video: 18 VideoAtom shards with triangular clip-paths arranged in circular pattern. Apply CSS filters for RGB split: filter: drop-shadow with red/blue offsets. Animate: transform rotate(0deg)→rotate(360deg) scale(1)→scale(0) + spiral path using translateX/Y with sin/cos calculations. Incoming video: 18 shards with opposite rotation, scale(0)→scale(1), spiral inward. Add white flash: ShapeAtom overlay with opacity 0→1→0 at transition midpoint (0.9s mark). Use mix-blend-mode: screen on shards for light interaction. Z-index: outgoing 10-30, flash 50, incoming 31-49."
+              },
+              {
+                "prompt": "Create a liquid glass transition where the outgoing video appears to melt and flow downward like molten glass, while the incoming video crystallizes upward from the bottom. Use SVG filters for the liquid distortion effect during the 2.2s overlap. The transition should have three phases: solid to liquid (0.7s), flow (0.8s), and crystallization (0.7s). Add heat shimmer distortion and color temperature shifts to enhance the molten glass effect.",
+                "technicalSpecs": "BaseLayout with full-height container. Outgoing video: VideoAtom with animated SVG filter using feTurbulence and feDisplacementMap for liquid distortion. Animate filter baseFrequency 0→0.02→0 and scale displacement. Add CSS transform: scaleY(1)→scaleY(1.2) translateY(0)→translateY(100%) for downward flow. Apply color filter: sepia(0)→sepia(0.4) brightness(1)→brightness(1.3) for heat effect. Incoming video: starts at translateY(100%), animates to translateY(0) with inverse crystallization effect. Use feGaussianBlur SVG filter animating from 10→0 for focus transition. Add shimmer overlay: animated gradient background with opacity 0.3."
+              },
+              {
+                "prompt": "Design a shattered mirror transition where multiple reflected fragments of both videos exist simultaneously, creating a kaleidoscope effect. The fragments should rotate and flip to transition from showing the outgoing video to revealing the incoming video on their reverse sides. Use a 2s overlap with fragments performing synchronized 180-degree flips at staggered intervals. Add metallic shine effects as fragments rotate to simulate mirror surfaces catching light.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px for 3D space. Create 16 fragment containers (4x4 grid) using BaseLayout divs with transform-style: preserve-3d. Each fragment contains two VideoAtom children (front/back) with position absolute and backface-visibility: hidden. Front shows outgoing video, back shows incoming video with rotateY(180deg) initial state. Animate container rotateY(0deg)→rotateY(180deg) with staggered delays based on grid position. Add shine effect: ::after pseudo-element with linear-gradient animated across fragment during rotation. Use box-shadow for depth and metallic edges. Clip-path on each fragment for irregular mirror shard shapes."
+              },
+              {
+                "prompt": "Build a particle disintegration transition where the outgoing video breaks apart into thousands of tiny glass particles that swirl in a vortex pattern before reassembling as the incoming video. Use a 3s overlap for the complete particle animation cycle. Particles should vary in size and opacity, with those at the edges breaking away first. Add motion blur and glow effects to particles in motion for a magical quality.",
+                "technicalSpecs": "BaseLayout with overflow hidden. Due to performance, use 50-80 larger particles instead of thousands. Outgoing video: Create VideoAtom particles using small clip-path rectangles (10x10px to 30x30px). Animate each particle along bezier curve paths using transform: translate with calculated vortex coordinates. Add filter: blur based on velocity (0px→4px→0px) and opacity 1→0.6→0. Incoming particles: Start from vortex positions, animate to grid positions forming complete video. Use requestAnimationFrame for smooth paths or CSS animation with multiple keyframe percentages. Add glow: drop-shadow(0 0 10px rgba(255,255,255,0.5)) on moving particles. Stagger animations from edges to center."
+              },
+              {
+                "prompt": "Develop a frosted glass reveal transition where the outgoing video gradually becomes frosted and opaque while the incoming video emerges through clearing sections of glass, like breath fogging and clearing on a window. Create organic, irregular clearing patterns using noise-based masks. The 2.5s overlap should show both videos through varying levels of frost opacity and blur, with condensation droplet effects at the edges of clear areas.",
+                "technicalSpecs": "BaseLayout with layered structure. Outgoing video: VideoAtom with increasing backdrop-filter: blur(0px)→blur(15px) and overlay div with opacity 0→0.7 (white frost). Incoming video: Initially fully blurred blur(20px)→blur(0px). Create organic reveal using multiple circular gradient masks animated from opacity 0→1 at random positions. Add SVG filter with feTurbulence for organic edge shapes. Condensation effect: Multiple small ShapeAtom circles with opacity 0.3 and blur(1px) positioned at mask edges. Use CSS radial-gradient masks with animation for expanding clear areas. Z-index: outgoing 10, frost overlay 20, incoming 5, condensation 25."
+              },
+              {
+                "prompt": "Create a geometric crystal formation transition where triangular crystal shards grow from the edges of the frame toward the center, replacing the outgoing video with the incoming one. Each crystal should have prismatic light refraction creating rainbow edges. Use a 2s overlap where crystals grow progressively with a crystallization wave effect. Add subtle audio-reactive scaling to make crystals pulse with the beat if audio is present.",
+                "technicalSpecs": "BaseLayout with radial layout calculation. Generate 32 triangular crystals pointing toward center using clip-path: polygon(). Each crystal is a container with both VideoAtom versions. Outgoing video in crystal: opacity 1→0 with scale(1)→scale(0.8). Incoming video in crystal: opacity 0→1 with scale(1.2)→scale(1). Crystal growth: transform scale(0)→scale(1) with transform-origin at base. Add prismatic edges: box-shadow with multiple colored shadows offset by 2px. Stagger animations based on radial position (edge crystals grow first). Optional audio reaction: Add data-audio-reactive attribute and scale animation tied to audio amplitude. Use CSS custom properties for dynamic sizing."
+              },
+              {
+                "prompt": "Design a shattered hourglass transition where the outgoing video appears contained in the top half of an hourglass that breaks, with the video fragments falling and reforming as the incoming video in the bottom half. Use realistic glass physics with fragments that tumble, rotate, and collect. The 2.8s overlap should include the shatter (0.5s), fall (1.8s), and reform (0.5s) phases. Add sand particle effects flowing between the video fragments for enhanced hourglass metaphor.",
+                "technicalSpecs": "BaseLayout with hourglass mask shape using clip-path or SVG. Top half: Outgoing VideoAtom with initial hourglass-top clip. Create 25 fragments with irregular polygonal clip-paths after shatter. Animate fragments: translateY with acceleration (gravity), rotate with tumble physics, opacity 1→0.8. Bottom half: Fragments transform into incoming video pieces, collecting at bottom with physics-based stacking. Reform: Fragments merge with scale and opacity transitions to reveal complete incoming video. Sand effect: 30-40 small ShapeAtom particles (2x2px) with translateY animation and slight translateX wobble, opacity 0.6, z-index between video layers. Use CSS animations with calculated keyframes for realistic physics motion."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2442,
+              "outputTokens": 3058,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5500
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:50:21.158Z"
+}

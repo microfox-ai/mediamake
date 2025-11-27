@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Hand-drawn sketch or cartoon outlines. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "goaUWWV1g0zGuFqI",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-HoIWXSs3yEMB4oJ3",
+          "state": "output-available",
+          "output": {
+            "title": "Hand-Drawn Sketch & Cartoon Outlines with Internal Effects",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset called 'SketchReveal' that simulates a hand-drawn sketch being drawn in real-time. The effect should use a combination of stroke-dasharray and stroke-dashoffset animations for SVG filter overlays, combined with opacity reveals. The effect accepts parameters for draw duration (default 2s), stroke style ('pencil', 'pen', 'marker'), and reveal direction ('ltr', 'rtl', 'outward', 'inward'). The animation should have a slightly irregular timing to mimic human drawing speed variations, using custom easing with micro-pauses. Return a generic effect that can be applied to any text, image, or video element by wrapping it with an SVG filter that creates the sketch outline appearance.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties animated: opacity (0 to 1), custom CSS filter with SVG stroke-dasharray. AnimationRange structure: Multiple keyframes with prog values [0, 0.15, 0.3, 0.5, 0.7, 0.85, 1] for irregular reveal timing. Easing: Custom cubic-bezier for hand-drawn feel. Input params: duration (number), strokeStyle (enum), direction (enum), strokeWidth (number, default 2). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration, ranges: [opacity, filter] }] }"
+              },
+              {
+                "prompt": "Design a 'CartoonBounce' internal waveform effect preset that makes elements bounce and squash/stretch in sync with audio beats, mimicking classic cartoon animation principles. The effect should react to bass frequencies for the main bounce, with secondary motion on mid frequencies for subtle wobbles. Include parameters for bounce intensity (0.1 to 2.0 multiplier), squash factor (how much to compress on impact), and cartoon style ('rubberhose', 'squash-stretch', 'jelly'). The effect should combine scale transformations with slight rotation for more dynamic movement, creating that exaggerated cartoon physics feel.",
+                "technicalSpecs": "Effect type: Waveform (audio-reactive). Properties: scaleX, scaleY (inverse relationship for squash/stretch), translateY (bounce height), rotate (slight wobble). Audio properties: bass (primary), mid (secondary wobble). Sensitivity: 0.8 for bass, 0.4 for mid. Threshold: 0.3. Input params: intensity (number 0.1-2.0), squashFactor (number 0.5-1.5), style (enum), enableWobble (boolean). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects', dependencies: { presets: [] }. Return format: { effects: [{ type: 'waveform', mode: 'provider', targetIds, effectType: 'scale', audioProperty: 'bass', sensitivity, threshold }] }"
+              },
+              {
+                "prompt": "Build a 'PencilScribble' internal effect preset that adds animated scribble overlays around text or images, creating a hand-drawn annotation effect. The effect generates multiple semi-transparent scribble layers with different animation timings, using CSS custom properties for dynamic stroke paths. Parameters include scribble density (1-5 layers), animation speed, color palette ('graphite', 'colored-pencil', 'crayon'), and scribble pattern ('circles', 'underlines', 'arrows', 'random'). Each scribble layer should have slightly offset timing and different opacity values to create depth.",
+                "technicalSpecs": "Effect type: Combined (multiple generic effects). Properties: opacity (per layer), transform (translate and rotate for each scribble), filter (blur for depth). AnimationRange: Staggered keyframes for each layer, prog [0, 0.3, 0.6, 1] with different values per layer. Input params: density (number 1-5), speed (number), palette (enum), pattern (enum), seed (number for randomization). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: Array of generic effects, one per scribble layer, each with unique timing offsets }"
+              },
+              {
+                "prompt": "Create a 'ChalkDust' internal effect preset that simulates chalk drawing on a blackboard, complete with dust particles and texture fade-in. The effect uses a combination of opacity animation with a grainy filter overlay that gradually reveals the content. Include parameters for chalk color (white, yellow, pink, blue), dust amount (subtle to heavy), and reveal pattern ('write', 'dust-off', 'appear'). The animation should include subtle particle effects using CSS animations on pseudo-elements for falling chalk dust.",
+                "technicalSpecs": "Effect type: Generic with complex filter animations. Properties: opacity, filter (contrast, brightness, custom SVG turbulence filter), textShadow (for chalk glow). AnimationRange: Non-linear progression [0, 0.1, 0.4, 0.7, 0.9, 1] for realistic chalk appearance. Easing: ease-out with acceleration. Input params: chalkColor (enum/hex), dustAmount (number 0-1), revealPattern (enum), duration (number). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges: [opacity, filter, textShadow] }] }"
+              },
+              {
+                "prompt": "Design an 'InkBleed' internal effect preset that creates an ink bleeding/spreading effect, perfect for artistic text reveals or image transitions. The effect starts from a point or edge and spreads organically using animated clip-path and filter combinations. Parameters include bleed origin ('center', 'top', 'bottom', 'left', 'right', 'random-points'), ink color, spread speed, and bleed pattern ('organic', 'splatter', 'drip'). The animation should feel fluid and natural, like real ink spreading on paper.",
+                "technicalSpecs": "Effect type: Generic with clip-path animation. Properties: clipPath (complex polygon animation), filter (blur and contrast for ink edges), opacity. AnimationRange: Multiple keyframes [0, 0.2, 0.4, 0.6, 0.8, 1] with expanding clip-path coordinates. Input params: origin (enum), inkColor (hex), speed (number), pattern (enum), viscosity (number for spread behavior). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, start: 0, duration, ranges: [clipPath, filter, opacity] }] }"
+              },
+              {
+                "prompt": "Build a 'ComicPanel' internal waveform effect preset that creates comic book-style impact effects synchronized with audio. On bass hits, add halftone dot overlays, speed lines, and 'POW!' style emphasis. The effect should include parameters for comic style ('manga', 'western', 'retro'), impact words (array of strings like 'BAM!', 'ZOOM!'), and visual intensity. Use CSS filters for halftone effects and transform animations for speed lines that radiate from the element.",
+                "technicalSpecs": "Effect type: Waveform with overlay elements. Properties: scale (impact zoom), filter (halftone via SVG), ::before/::after pseudo-elements for speed lines. Audio: bass for main impacts, treble for sparkle effects. Sensitivity: 0.9 for dramatic hits. Input params: style (enum), impactWords (string[]), intensity (number), colorScheme (enum). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects', dependencies: { presets: [] }. Return format: { effects: [waveform effect for scale, generic effect for overlays] }"
+              },
+              {
+                "prompt": "Create a 'WatercolorWash' internal effect preset that simulates watercolor paint washing across elements. The effect uses gradient animations with varying opacity and blur to create the flowing, translucent quality of watercolors. Parameters include wash direction ('horizontal', 'vertical', 'radial'), color palette (array of hex colors), wetness level (affects blur and blend), and paper texture overlay. The animation should have organic timing with color bleeding effects.",
+                "technicalSpecs": "Effect type: Generic with gradient and filter animations. Properties: background (gradient animation), filter (blur varies by wetness), opacity (varies across gradient), mix-blend-mode. AnimationRange: Smooth progression [0, 0.25, 0.5, 0.75, 1] with different gradient stops. Input params: direction (enum), colors (hex[]), wetness (number 0-1), textureOpacity (number), blendMode (enum). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges: [gradient, filter, opacity] }] }"
+              },
+              {
+                "prompt": "Design a 'StopMotion' internal effect preset that creates a choppy, frame-by-frame animation style like stop-motion or claymation. The effect reduces framerate, adds subtle position jitter, and includes slight scale variations to mimic the imperfections of physical animation. Parameters include fps (4-12 for authentic stop-motion feel), jitter amount, style ('claymation', 'paper-cutout', 'lego'), and whether to include motion blur between frames.",
+                "technicalSpecs": "Effect type: Generic with stepped animations. Properties: transform (discrete translate/rotate steps), scale (micro variations), filter (optional motion blur). AnimationRange: Stepped keyframes based on fps parameter, prog values calculated from frame count. Animation-timing-function: steps(n, end). Input params: fps (number 4-12), jitterAmount (number), style (enum), motionBlur (boolean). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [{ type: 'generic', mode: 'provider', targetIds, ranges with steps() timing }] }"
+              },
+              {
+                "prompt": "Build a 'CrosshatchShade' internal effect preset that adds animated crosshatching patterns for shading, creating a hand-drawn illustration effect. The shading builds up progressively with different line angles and densities. Parameters include shade levels (1-5 for darkness), hatch style ('pen', 'pencil', 'etching'), animation pattern ('fade', 'draw', 'build'), and line spacing. The effect uses repeating linear gradients or SVG patterns that animate their opacity and size.",
+                "technicalSpecs": "Effect type: Generic with pattern overlay. Properties: background (repeating-linear-gradient layers), opacity (per layer), transform (slight rotation for each hatch layer). AnimationRange: Staggered reveals [0, 0.2, 0.4, 0.6, 0.8, 1] for each crosshatch layer. Input params: shadeLevels (number 1-5), style (enum), pattern (enum), lineSpacing (number), lineColor (hex). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: Array of generic effects for each hatch layer }"
+              },
+              {
+                "prompt": "Create a 'NeonOutline' internal waveform effect preset that creates glowing, flickering neon-style outlines around elements, pulsing with music. The effect should react to different frequency bands - bass for main glow intensity, mids for color shifts, and treble for flicker effects. Parameters include neon color (with automatic complementary colors), tube style ('classic', 'modern', 'broken'), flicker pattern, and glow radius. The outline should use multiple text-shadow or box-shadow layers for realistic neon depth.",
+                "technicalSpecs": "Effect type: Waveform with multi-layer shadows. Properties: textShadow/boxShadow (multiple layers), filter (blur for glow), color (hue rotation on mids). Audio: bass (glow intensity), mid (color shift), treble (flicker). Sensitivity varies by frequency. Input params: baseColor (hex), tubeStyle (enum), flickerIntensity (number), glowRadius (number), enableColorShift (boolean). PresetMetadata: _internalPreset: true, _internalPresetOutput: 'effects'. Return format: { effects: [waveform for glow, waveform for color, generic for base outline] }"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2557,
+              "outputTokens": 3135,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5692
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T14:13:19.174Z"
+}
