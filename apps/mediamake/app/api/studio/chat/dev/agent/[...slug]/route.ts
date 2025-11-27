@@ -3,6 +3,8 @@ import { getClientId } from '@/lib/auth-utils';
 import { UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 
+export const maxDuration = 30 * 60; // 30 minutes
+
 export async function GET(req: NextRequest) {
   //const body = req.body;
   const agentFullPath = req.nextUrl.href.split('/api/studio/chat/dev/agent')[1];
