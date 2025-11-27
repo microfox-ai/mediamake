@@ -471,10 +471,27 @@ jobs:
               
               if (gitSuccess && branchName) {
                 try {
-                  // Build PR title
-                  const prTitle = successfulPresets.length === 1 
-                    ? `Add ${gitResults[0].metadata?.title || gitResults[0].presetId} preset`
-                    : `Add ${successfulPresets.length} presets from issue #${issueNumber}`;
+                  // Extract descriptive title from issue title
+                  // Format: "New Presets - [Descriptive Title]" or "new presets - [title]"
+                  let descriptiveTitle = 'Preset Request';
+                  if (issueTitle) {
+                    // Find the position after "new presets" (case-insensitive) and optional dash/colon
+                    const match = issueTitle.match(/new\s+presets?\s*[-:]\s*(.+)/i);
+                    if (match && match[1]) {
+                      descriptiveTitle = match[1].trim();
+                    } else {
+                      // If no separator found, use everything after "new presets"
+                      const simpleMatch = issueTitle.match(/new\s+presets?\s+(.+)/i);
+                      if (simpleMatch && simpleMatch[1]) {
+                        descriptiveTitle = simpleMatch[1].trim();
+                      }
+                    }
+                  }
+                  
+                  // Build PR title with strict format
+                  const presetCount = successfulPresets.length;
+                  const presetWord = presetCount === 1 ? 'preset' : 'presets';
+                  const prTitle = `add ${presetCount} ${presetWord} from issue #${issueNumber} - ${descriptiveTitle}`;
                   
                   // Build PR body with all presets listed
                   let prBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
