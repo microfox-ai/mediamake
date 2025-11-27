@@ -14,7 +14,6 @@ jobs:
       startsWith(github.event.issue.title, 'New presets') ||
       startsWith(github.event.issue.title, 'new Presets')
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,6 +28,18 @@ jobs:
 
       - name: Install dependencies
         run: npm i
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel Environment Variables
+        working-directory: apps/mediamake
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel env pull --environment=production --token=${{ secrets.VERCEL_TOKEN }} .env
+          echo "✅ Environment variables pulled"
 
       - name: Generate presets using standalone script
         id: process
