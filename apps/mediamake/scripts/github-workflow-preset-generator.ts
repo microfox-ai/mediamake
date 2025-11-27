@@ -331,7 +331,9 @@ async function generatePreset(
     console.log(`   Prompt length: ${combinedPrompt.length} characters`);
     
     // Call the standalone script
-    const scriptPath = path.join(process.cwd(), 'apps/mediamake/scripts/generate-preset.ts');
+    // Note: Since the workflow runs with working-directory: apps/mediamake,
+    // process.cwd() is already in apps/mediamake, so use relative path
+    const scriptPath = path.join(process.cwd(), 'scripts/generate-preset.ts');
     const command = `npx tsx "${scriptPath}" "${combinedPrompt.replace(/"/g, '\\"')}"`;
     
     console.log(`   🔧 Running: npx tsx generate-preset.ts`);
