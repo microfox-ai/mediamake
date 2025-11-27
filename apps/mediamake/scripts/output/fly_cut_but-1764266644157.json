@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Masking text elements with video footage inside."
+  },
+  "result": [
+    {
+      "id": "3dI64dpuUdbYBCZ8",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-XMvxWjYAcsaL3W2q",
+          "state": "output-available",
+          "output": {
+            "title": "Text Mask with Video Fill Effect",
+            "prompts": [
+              {
+                "prompt": "Create a cinematic text reveal preset where the text is filled with video footage using CSS mask-image technique. Think of this as a title sequence where the text acts as a window into dynamic video content behind it. The text should fade in with a subtle scale animation (0.9 to 1) over 0.5s, while the video inside plays continuously. Use a bold, impactful font that creates strong negative space for the video to show through. The video should have a slight zoom effect (1.0 to 1.1 scale) over the entire duration to add dynamism. Add a subtle text-shadow glow that pulses to draw attention to the edges of the letterforms.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full overflow-hidden' as container. Place VideoAtom with 'absolute inset-0 w-full h-full object-cover' behind TextAtom. TextAtom should use 'absolute inset-0 flex items-center justify-center text-8xl font-black' with style={{ WebkitTextFillColor: 'transparent', WebkitBackgroundClip: 'text', backgroundImage: 'inherit' }}. Apply mix-blend-mode: 'screen' on the text layer. Use generic effects for opacity (0 to 1) and scale (0.9 to 1) with ease-out over 500ms. Video should have continuous scale effect from 1.0 to 1.1 over fitDurationTo: 'self'. Add internal 'glow-pulse' effect preset for text-shadow animation. Consider using 'will-change-transform' for GPU acceleration."
+              },
+              {
+                "prompt": "Design a kinetic typography preset where individual words from caption data are masked with different video clips, creating a collage effect. Each word should animate in sequentially with a stagger delay, sliding up from below while fading in. The video inside each word should play at slightly different playback rates (0.8x to 1.2x) to create visual interest. Words marked as 'keyword' in caption metadata should be larger and have a stronger glow effect. Think of this as a music video lyric display where each word is a portal to different visual content.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-wrap items-center justify-center gap-4 p-8'. Map through captionData.words array, creating individual BaseLayout containers for each word with 'relative inline-block'. Each word container should have VideoAtom with 'absolute inset-0 w-full h-full object-cover -z-10' and TextAtom with 'relative text-6xl font-bold' and CSS mask properties. Use childrenProps with staggered timing based on word.relativeStart. Apply translateY effect from 20px to 0px and opacity from 0 to 1 with spring easing. Keywords get 'text-7xl' and enhanced glow effect. Set different playbackRate values for each VideoAtom using Math.random() * 0.4 + 0.8. Use fitDurationTo: 'parent' for proper timing inheritance."
+              },
+              {
+                "prompt": "Build a glitch-style text masking preset where the video inside the text occasionally 'breaks through' with displacement effects. The text should have a static base state, but every 2-3 seconds, trigger a glitch animation where the mask boundaries distort, the video brightness flashes, and the text splits into RGB channels momentarily. This mimics video editing software's channel separation effects. The glitch should feel organic and unpredictable, using random timing variations.",
+                "technicalSpecs": "Create BaseLayout with 'relative w-full h-full bg-black'. Use three overlapping TextAtom layers for RGB channel splitting during glitch: 'absolute inset-0 text-9xl font-black mix-blend-screen'. Apply CSS filters for channel isolation (red: 'sepia(1) saturate(10) hue-rotate(-50deg)', green: 'sepia(1) saturate(10) hue-rotate(90deg)', blue: 'sepia(1) saturate(10) hue-rotate(200deg)'). Use AnimationRange arrays with random keyframes for translateX (-5 to 5), translateY (-3 to 3), and opacity flickers. VideoAtom uses 'absolute inset-0 object-cover' with brightness filter animations (100% to 150% during glitch). Implement custom glitch timing using modulo operator on timestamp for periodic triggers. Add 'transform-gpu' for hardware acceleration."
+              },
+              {
+                "prompt": "Create an audio-reactive text mask preset where the video visibility inside the text responds to music beats. During low-intensity moments, the video is barely visible through the text (10% opacity). On beat hits, the video bursts through with full opacity and a slight scale pulse. The text outline should glow in sync with the audio frequency - warm colors for bass, cool colors for treble. This creates a visualization effect similar to audio spectrum displays in video editing software.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full flex items-center justify-center bg-gray-900'. VideoAtom with 'absolute inset-0 w-full h-full object-cover' uses waveform effects with bass sensitivity 0.8 for opacity (0.1 to 1.0) and scale (1.0 to 1.05). TextAtom with 'relative text-8xl font-black' uses mask-image gradient and varying text-shadow based on audio frequency. Implement audio analysis fetcher to get beat data. Use generic effects with AnimationRange for text-shadow color transitions: bass (0-250Hz) triggers warm glow (#ff6b6b), mid (250-4000Hz) neutral (#ffffff), treble (4000Hz+) cool glow (#4ecdc4). Add threshold: 0.6 for beat detection. Consider using internal 'beat-zoom' effect preset."
+              },
+              {
+                "prompt": "Develop a parallax text masking preset where the video inside moves at a different speed than the text container, creating depth. As the text slowly drifts horizontally across the screen, the video inside pans in the opposite direction at 1.5x speed, creating a window effect. Add subtle 3D perspective transformation to the text to enhance the depth illusion. Think of this as a title card that reveals different parts of a landscape or scene as it moves.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden perspective-1000'. TextAtom container with 'absolute inset-0 flex items-center justify-center' and transform3d for perspective. Apply continuous translateX animation on text from -20% to 20% over full duration. VideoAtom with 'absolute w-[150%] h-[150%] object-cover' and counter-translateX from 30% to -30% at 1.5x speed. Use style={{ maskImage: 'text', WebkitMaskImage: 'text' }} for masking. Add transform: 'rotateY(5deg)' for 3D effect. Generic effects for smooth linear translation. Set fitDurationTo: 'parent' and use easing: 'linear' for consistent motion. Include 'transform-style-preserve-3d' for proper 3D rendering."
+              },
+              {
+                "prompt": "Design a liquid morphing text mask where the video inside appears to flow like water. The text should have a wave distortion effect applied to its mask boundaries, making the video appear to ripple through the letterforms. Start with sharp, clear text that gradually becomes more fluid and distorted over time, as if the text is melting or becoming liquid. This effect is similar to displacement mapping in After Effects but achieved with CSS animations.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full'. Create SVG filter for turbulence distortion with feTurbulence and feDisplacementMap. TextAtom with 'text-9xl font-bold' and dynamic SVG filter reference. Animate turbulence baseFrequency from 0.01 to 0.05 over duration for increasing distortion. VideoAtom positioned absolutely with mask-composite. Use generic effects to animate filter parameters: start with url(#turbulence) scale(1) blur(0px), end with scale(1.1) blur(2px). Add CSS custom properties for dynamic SVG filter values. Implement requestAnimationFrame for smooth morphing. Consider using 'will-change: filter' for optimization. Add subtle color correction with 'contrast(1.2) saturate(1.1)' on video."
+              },
+              {
+                "prompt": "Create a split-screen text mask preset where the text is divided horizontally or vertically, with different video sources in each half. The split line should animate with a wipe transition, revealing different footage as it moves. Add a slight offset timing between the two halves for a dynamic feel. Think of this as a comparison or versus screen where the text itself becomes the canvas for showing two different perspectives or moments.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden'. Create two TextAtom instances with 'absolute inset-0 text-9xl font-black', each with clip-path for top/bottom or left/right masking. First TextAtom uses 'clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%)', second uses 'clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%)'. Each has its own VideoAtom with different source URLs. Animate clip-path values using generic effects with AnimationRange for wipe reveal. Add 'transform: translateY(-2px)' to top half and 'translateY(2px)' to bottom for separation. Use staggered timing with 200ms delay between halves. Include 'backface-visibility: hidden' for smoother animations."
+              },
+              {
+                "prompt": "Build a particle dissolution text mask where the video inside appears to break apart into particles that drift away. Start with solid text filled with video, then gradually have pieces of the mask dissolve from the edges inward, revealing the background. The particles should follow physics-like motion with varying speeds and directions. This mimics particle systems in video compositing but uses CSS mask gradients and transforms.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black'. Main TextAtom with 'text-8xl font-black'. Create multiple mask layers using radial-gradient masks at different positions. Use Array.from({length: 20}) to generate particle divs with 'absolute w-4 h-4 rounded-full' positioned at text boundaries. Each particle has VideoAtom clipped to small circle. Animate particles with generic effects: translateX/Y with random values (-100 to 100), opacity (1 to 0), scale (1 to 0). Main text mask uses linear-gradient animation from 'transparent 0%, black 100%' to 'transparent 100%, transparent 100%'. Stagger particle animations using index * 50ms delays. Add 'pointer-events: none' to prevent interaction issues."
+              },
+              {
+                "prompt": "Design a retro CRT-style text mask where the video inside has scanlines, chromatic aberration, and phosphor glow effects. The text should flicker occasionally like old television sets, with the video inside showing static interference patterns during transitions. Add a curved screen distortion to the entire composition for authenticity. Think of this as recreating the aesthetic of 80s music videos or vintage broadcast graphics.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black overflow-hidden'. Apply CSS filter for CRT curve: 'transform: scale(1.05)' with 'border-radius: 20px'. TextAtom with 'text-7xl font-mono font-bold tracking-wider'. Create pseudo-elements for scanlines using 'before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:via-black/20 before:to-transparent before:animate-scan'. VideoAtom with chromatic aberration using three layers offset by 1-2px with RGB channel filters. Add random opacity flickers using AnimationRange with random keyframes between 0.8 and 1.0. Include CSS animation for phosphor glow: 'text-shadow: 0 0 10px rgba(0,255,0,0.5)'. Static effect using noise.png overlay with 'mix-blend-mode: overlay' animated opacity."
+              },
+              {
+                "prompt": "Create an environmental text mask preset where the video inside reacts to the text's semantic meaning. For words about 'fire', the video shows flames; for 'water', flowing liquid; for 'earth', landscapes. Use caption metadata keywords to determine which video source to display. The transitions between different videos should be smooth crossfades that happen as the text animates in. This creates a dynamic, context-aware visual narrative.",
+                "technicalSpecs": "BaseLayout with 'flex flex-wrap gap-6 p-8 items-center justify-center'. Parse captionData.words for keywords using metadata.keyword field. Create map of keyword-to-video-URL associations (fire: 'flames.mp4', water: 'ocean.mp4', etc.). For each word, create BaseLayout with conditional VideoAtom source based on keyword match. TextAtom with 'text-6xl font-bold' and mask properties. Use opacity effects for crossfade: previous video fades out (1 to 0) while new video fades in (0 to 1) over 300ms overlap. Apply different blend modes based on content type: 'screen' for fire, 'multiply' for earth, 'overlay' for water. Include fallback video for non-keyword words. Use fitDurationTo: 'parent' for synchronized timing. Add 'transition-opacity duration-300' for smooth fades."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3432,
+              "outputTokens": 3345,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6777
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:04:04.157Z"
+}

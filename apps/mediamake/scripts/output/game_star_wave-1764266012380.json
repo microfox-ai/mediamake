@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Text following a smooth, curved motion path with inertia. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "9X0cNskkpU5M0fRE",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-TZNgDj9itqGiX2In",
+          "state": "output-available",
+          "output": {
+            "title": "Smooth Curved Text Motion with Inertia - Typokinetics",
+            "prompts": [
+              {
+                "prompt": "Create a Typography Kinetics preset where text flows along an invisible Bézier curve path with physics-based momentum. Think of it like a marble rolling through a curved track - the text accelerates down slopes and decelerates up hills. As a video editor would layer text on a motion path in After Effects, structure multiple TextAtom components positioned along calculated curve points. Each word should have a slight delay creating a 'follow-the-leader' effect. The curve should feel organic and hand-drawn, not mathematically perfect. Add subtle rotation that follows the tangent of the curve, like how a car leans into turns. Include a gentle bounce at the end as if the text settles into place with residual energy.",
+                "technicalSpecs": "Use BaseLayout with absolute positioning and transform-origin adjustments. Calculate Bézier curve points using cubic-bezier math in presetExecution. Position each TextAtom with absolute positioning and animate using generic effects with translateX/Y following the curve coordinates. Apply rotation effects matching the curve tangent angle. Use 'absolute inset-0' for container, individual words with 'absolute' positioning. Implement spring easing for the final bounce. Add will-change: transform for GPU acceleration. Use staggered timing with 0.05s delays between words. Consider fitDurationTo: 'children' for proper timing inheritance. Add subtle scale effects (0.95 to 1.05) synchronized with velocity changes for momentum feel."
+              },
+              {
+                "prompt": "Design a Circular Typography Carousel preset where caption text orbits around an invisible center point with gravitational pull dynamics. Visualize planets orbiting a sun - text elements maintain their rotation while revolving around the center. Words should have different orbital speeds based on their distance from center (inner words faster, outer slower). As they rotate, apply a subtle 3D perspective tilt that makes them appear to move through Z-space. Include a magnetic 'snap' effect where words briefly pause at cardinal positions (top, right, bottom, left) before continuing their orbit, like a clock mechanism.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative w-full h-full' container. Create concentric circular paths at different radii using CSS custom properties. Each TextAtom gets 'absolute' positioning with transform-origin set to a distant point. Implement continuous rotation using generic effects with rotate property and linear easing for smooth motion. Add perspective: 1000px to container for 3D depth. Use modulo timing calculations to create the snap effect at 0°, 90°, 180°, 270°. Apply translateZ transforms for depth variation. Implement word-level timing from caption data if available. Consider using internal effect presets for the orbital motion that can be reused. Add 'pointer-events-none' to prevent interaction issues."
+              },
+              {
+                "prompt": "Build a Wave Typography preset where text undulates like ocean waves with realistic fluid dynamics. Picture text floating on water - each word bobs up and down with a sine wave motion, but with phase offsets creating a ripple effect across the sentence. Add horizontal drift like a gentle current pulling the text. Include 'splash' moments where certain impactful words (detected from caption metadata) create larger amplitude waves that affect nearby words. The wave should respond to the text's emotional content - calm for neutral text, choppy for intense moments.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-wrap items-center justify-center gap-2' for initial positioning. Apply generic effects to each TextAtom with translateY following sine wave calculations. Implement phase offsets based on word index (index * Math.PI / 4). Add subtle translateX for drift effect. Use caption metadata (impact, sentiment) to modulate wave amplitude. Create splash effects using scale and blur transitions triggered by keyword metadata. Implement with requestAnimationFrame-friendly timing using CSS animations. Add 'transform-gpu' class for hardware acceleration. Consider audio-reactive waveform effects if audio is present - map bass frequencies to wave amplitude. Use fitDurationTo: 'scene' to match overall scene duration."
+              },
+              {
+                "prompt": "Develop an Elastic String Typography preset where text behaves like it's attached to rubber bands. When text enters, it overshoots its target position then springs back with decreasing oscillations, like plucking a guitar string. Each word is connected to its neighbors with invisible elastic connections - moving one word creates a chain reaction of movements. Add tension effects where pulling words apart makes them snap back together. Include a 'release' animation where all constraints break and words float freely before reassembling.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative overflow-hidden' container. Position TextAtoms with 'absolute' and calculate spring physics in presetExecution. Implement custom spring easing using damped harmonic oscillator equations. Create neighbor relationships using index-based calculations. Apply generic effects with complex translateX/Y keyframes mimicking spring behavior. Use CSS custom properties for spring constants (--spring-stiffness, --spring-damping). Add scale effects (0.8 to 1.2) during tension moments. Implement the release phase using multiple effect ranges with different timing functions. Consider using sub-presets for individual spring animations that can be composed. Add 'will-change: transform' and limit to 60fps for smooth performance."
+              },
+              {
+                "prompt": "Create a Spirograph Typography preset where text traces complex geometric patterns like a spirograph drawing. Words orbit around moving center points that themselves orbit around other centers, creating intricate looping paths. Think of it as a mechanical drawing machine where each gear rotation creates beautiful mathematical curves. Add pen-like trailing effects where previous positions leave a fading trace. Include speed variations where text speeds up at curve peaks and slows in valleys, like a roller coaster.",
+                "technicalSpecs": "Use BaseLayout with 'absolute inset-0 overflow-visible' for full canvas. Calculate hypotrochoid or epitrochoid curves using parametric equations. Position TextAtoms using calculated curve points with 'absolute' positioning. Implement multi-level rotation using nested transform origins. Create trailing effects using multiple semi-transparent clones with decreasing opacity. Apply generic effects with complex translateX/Y and rotate keyframes. Use CSS variables for curve parameters (--inner-radius, --outer-radius, --distance). Add velocity-based scale adjustments. Consider creating internal effect presets for different curve types (rose curves, Lissajous curves). Implement easing variations based on curve tangent velocity. Use 'mix-blend-mode: screen' for overlapping text."
+              },
+              {
+                "prompt": "Design a Magnetic Field Typography preset where text particles are influenced by invisible magnetic poles. Words behave like iron filings around magnets - they align along field lines and cluster around attraction points. Create repulsion zones where text actively avoids certain areas, and attraction zones that pull text in. Add a demagnetization effect where text briefly ignores all forces and scatters randomly before being pulled back into formation. Include polarity flips where attraction becomes repulsion suddenly.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative w-full h-full' container. Calculate magnetic field vectors using inverse square law in presetExecution. Position TextAtoms with 'absolute' and apply force-based movements. Implement attraction using exponential easing toward poles, repulsion using inverse exponential away. Create field line alignment using rotation effects matching field direction. Use generic effects with complex translateX/Y and rotate animations. Add 'transition-all duration-300' for smooth force changes. Implement scattering using random number generation with seed for reproducibility. Consider audio-reactive effects where beat detection creates temporary magnetic poles. Use caption metadata to assign magnetic 'charge' to words (keywords = stronger charge)."
+              },
+              {
+                "prompt": "Build a Pendulum Typography preset where text swings like clock pendulums with realistic physics. Each word hangs from an invisible pivot point and swings with gravity-based acceleration. Create different pendulum lengths for varied swing periods - longer words have longer strings and slower swings. Add a Newton's Cradle effect where words transfer momentum to each other on collision. Include damping where swings gradually decrease unless 'pushed' by new words entering. The entire system should feel hypnotic and meditative.",
+                "technicalSpecs": "Use BaseLayout with 'relative h-full' container. Create pivot points above viewport using negative top values. Position TextAtoms with 'absolute' and transform-origin set to pivot. Calculate pendulum motion using sine functions with gravity constant. Implement generic effects with rotate animations following pendulum equations. Add subtle translateY for string stretch effect at swing extremes. Use word length to determine pendulum length (longer string = slower period). Create momentum transfer using collision detection and velocity calculations. Apply ease-in-out timing for natural deceleration. Consider using internal effect presets for pendulum motion with parameters. Add 'transform-style: preserve-3d' for depth. Implement damping using decreasing amplitude over time."
+              },
+              {
+                "prompt": "Develop a Vortex Typography preset where text spirals into or out of a central whirlpool point. Think of water going down a drain - text accelerates as it approaches the center, with increasing rotation speed and decreasing scale. Create a time-delay effect where words at different distances reach the vortex at different times. Add a reversal mode where text erupts from the center like a geyser. Include turbulence where some words briefly escape the vortex pull before being recaptured.",
+                "technicalSpecs": "Structure with BaseLayout using 'absolute inset-0 flex items-center justify-center'. Calculate spiral paths using Archimedean or logarithmic spiral equations. Position TextAtoms along spiral with 'absolute' positioning. Apply generic effects with translateX/Y following spiral coordinates, rotate increasing with proximity to center, scale decreasing toward vortex. Use exponential easing for acceleration effect. Implement time-based radius calculations for smooth spiral motion. Add opacity fade as text approaches center (1 to 0). Create turbulence using noise functions for position perturbation. Consider fitDurationTo: 'children' with staggered word timing. Use 'transform-origin: center' for proper rotation. Add blur effect increasing toward center for depth perception."
+              },
+              {
+                "prompt": "Create a Ribbon Typography preset where text flows like a silk ribbon in the wind. Words connect to form a continuous ribbon that ripples and folds through 3D space. The ribbon should have physics-based properties - weight that causes sagging, air resistance that creates flutter, and elasticity that maintains connections between words. Add wind gust effects where sudden forces create dramatic waves through the ribbon. Include moments where the ribbon loops back on itself creating elegant knots or bows.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full preserve-3d' for 3D context. Chain TextAtoms with calculated bezier connections between words. Apply perspective: 1200px for depth. Implement ribbon physics using spring-damper model between word anchors. Use generic effects with complex translateX/Y/Z and rotateX/Y for 3D motion. Add skew transforms for ribbon twist effect. Create wind forces using Perlin noise for natural randomness. Implement ribbon width using scaleY based on word importance from caption metadata. Use 'backface-visibility: hidden' for clean 3D rendering. Consider sub-presets for ribbon segment animations. Add gradient opacity along ribbon length. Use staggered timing with overlap for smooth flow (each word starts before previous ends)."
+              },
+              {
+                "prompt": "Design a Orbital Slingshot Typography preset where text uses gravitational assists to gain momentum. Like spacecraft using planetary flybys, words approach massive invisible objects, whip around them gaining speed, then launch toward the next gravity well. Create a multi-body system where text navigates through several gravity sources. Add comet-like tails that stretch based on velocity. Include critical moments where text must achieve 'escape velocity' to break free from orbits.",
+                "technicalSpecs": "Structure with BaseLayout using 'absolute inset-0' for full trajectory space. Calculate n-body gravity simulation in presetExecution with multiple mass points. Position TextAtoms with 'absolute' and update positions based on force calculations. Implement hyperbolic trajectory math for slingshot mechanics. Apply generic effects with translateX/Y following computed paths. Add scale effects based on velocity (faster = stretched). Create tail effects using ::after pseudo-elements with gradient opacity. Use variable timing based on trajectory segment (slow near gravity wells, fast in open space). Consider audio-reactive gravity where beat intensity affects gravitational pull. Implement escape velocity visualization using color transitions or glow effects. Add 'will-change: transform' and use CSS containment for performance."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3468,
+              "outputTokens": 2975,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6443
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:53:32.380Z"
+}

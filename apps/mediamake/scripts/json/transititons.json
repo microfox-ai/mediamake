@@ -4,9 +4,5 @@
     "presetStyle": "transitions",
     "promptsCount": 10
   },
-  "queue": [
-    {
-      "userDescription": "Photo negative inverse color flash solarize transition effects between videos"
-    }
-  ]
+  "queue": []
 }

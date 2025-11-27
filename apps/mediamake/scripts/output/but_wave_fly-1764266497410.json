@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Words smoothly rotating into view from a 90-degree angle. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "3jjbjJVIYHadRR9z",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-r8hdvElBdYOnJbTR",
+          "state": "output-available",
+          "output": {
+            "title": "Smooth 90° Text Rotation - Kinetic Typography for Titles",
+            "prompts": [
+              {
+                "prompt": "Create a 3D rotation typography preset where each word smoothly rotates in from a 90-degree angle along the X-axis, simulating a page-flip effect. Think of it like cards flipping over one by one on a table - each word starts completely edge-on (invisible due to perspective), then rotates smoothly to face the viewer. The animation should have a cinematic quality with subtle depth perception. Words should rotate in sequence with a slight overlap, creating a cascading effect similar to dominoes falling. Use perspective transforms to enhance the 3D feel, and consider adding a subtle shadow that appears as the text rotates into view, grounding it in the composition.",
+                "technicalSpecs": "Structure: Use BaseLayout with 'relative w-full h-full flex items-center justify-center' for the main container. Each word gets its own BaseLayout wrapper with 'inline-block' positioning. Apply containerProps.style with perspective: '1000px' on the parent for 3D depth. Use TextAtom for each word with transform effects. Animation: Create keyframe effects with rotateX from 90deg to 0deg over 0.6s per word with 'ease-out' easing. Stagger each word's startOffset by 0.15s for cascade timing. Add opacity from 0 to 1 synchronized with rotation. Include a subtle translateZ effect from -50px to 0px for depth movement. Performance: Use transform-style: preserve-3d and backface-visibility: hidden. Add will-change: transform to word containers. Consider using internal effect presets for the rotation sequence that can be reused across words."
+              },
+              {
+                "prompt": "Design a spiral unwinding text animation where words rotate into view from multiple angles simultaneously, like a helix unwinding. Picture text elements spinning in from off-screen positions around an invisible cylinder - some rotate from top-right, others from bottom-left, creating a dynamic vortex effect. This mimics advanced motion graphics where text elements have individual rotation origins and paths. The rotation should combine X, Y, and Z axes for a true 3D spin, with faster rotation at the beginning that slows down as text settles into place, similar to a spinning coin coming to rest.",
+                "technicalSpecs": "Structure: BaseLayout with 'absolute inset-0 overflow-hidden' as main container. Create a sub-preset for individual word animations. Each word uses BaseLayout with 'absolute' positioning and calculated left/top values based on word index. Typography: Use TextAtom with caption data for word-level timing. Effects: Generic keyframe effects with combined rotateX (90deg to 0), rotateY (180deg to 0), and rotateZ (45deg to 0) over 0.8s. Use 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' for bounce easing. Add scale from 0.3 to 1 and opacity from 0 to 1. Stagger using word.relativeStart from caption data. Performance: Group transforms in a single transform property. Use translateZ(0) for hardware acceleration. Consider fitDurationTo: 'children' for dynamic timing adjustment."
+              },
+              {
+                "prompt": "Build a typewriter-style rotation reveal where each character rotates in individually from a 90-degree angle, creating a mechanical typing effect with 3D flair. Imagine an old typewriter where instead of keys stamping down, each letter rotates into place from the side. Letters should rotate quickly with a sharp, snappy motion that mimics the mechanical precision of typewriter keys. Add a subtle bounce at the end of each rotation to simulate the key settling into place. This creates a rhythmic, staccato animation perfect for impactful titles.",
+                "technicalSpecs": "Structure: BaseLayout with 'flex flex-wrap items-baseline justify-center px-4' for word wrapping. Split text into individual characters using a helper function. Each character gets BaseLayout with 'inline-block' wrapper. TextAtom for each character with 'font-mono' for typewriter aesthetic. Effects: Create rapid rotateY from -90deg to 0deg over 0.15s per character with 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' for snappy bounce. Add micro-delay between characters (0.03s) for machine-gun effect. Include subtle translateX from -10px to 0px. Optional: Add brightness filter pulse on appear. Timing: Use repeatChildrenProps for consistent character timing. Consider audio analysis for beat-synchronized typing if audio is present."
+              },
+              {
+                "prompt": "Create a pendulum swing rotation where words swing into view from a 90-degree angle like hanging signs. Visualize text suspended from invisible strings, swinging in from the side with natural physics. The rotation should follow a pendulum motion - starting fast, slowing at the peak, then settling with diminishing oscillations. Each word has its own swing timing, creating an organic, wind-blown effect. Add subtle secondary motion where text continues to sway slightly after landing, like shop signs in a breeze.",
+                "technicalSpecs": "Structure: BaseLayout container with 'relative w-full h-full'. Words use BaseLayout with 'absolute' positioning and transform-origin: 'top center'. Use containerProps.style to set custom transform origins. TextAtom with word-level caption data. Effects: Primary rotation using rotateX from -90deg through 0deg to 5deg (overshoot) then back to 0deg over 1.2s. Use 'cubic-bezier(0.36, 0, 0.66, -0.56)' for pendulum physics. Add secondary oscillation effect with smaller rotateX values (-2deg to 2deg) looping for 2s after main animation. Include subtle translateY for vertical swing motion. Stagger words by 0.2s offset. Performance: Use internal effect preset 'pendulum-swing' for reusability. Batch animations using CSS custom properties for timing values."
+              },
+              {
+                "prompt": "Develop a card-flip gallery effect where words rotate in from 90 degrees like trading cards being revealed. Think of a dealer flipping cards on a table - each word is a card that starts face-down (rotated 90 degrees) and flips to reveal itself. Cards should have a satisfying flip with acceleration in the middle of the rotation. Layer multiple words like overlapping cards in a hand, each rotating at slightly different speeds. Add a glossy sheen effect that moves across the text during rotation to simulate light catching the surface.",
+                "technicalSpecs": "Structure: BaseLayout with 'grid grid-cols-auto gap-2 place-items-center' for card layout. Each word wrapped in BaseLayout with 'relative preserve-3d' style. TextAtom with 'px-4 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold'. Effects: RotateY from -90deg to 0deg over 0.5s with 'cubic-bezier(0.455, 0.03, 0.515, 0.955)'. Add perspective of 600px to parent. Create sheen effect using linear-gradient animated via background-position. Scale from 0.8 to 1 during flip. Shadow effect using filter: drop-shadow that intensifies during rotation. Timing: Use word index for staggered delays (index * 0.1s). Consider waveform effects if audio is present for beat-synchronized flips."
+              },
+              {
+                "prompt": "Design a corkscrew spiral entrance where text rotates in from 90 degrees while also spinning around its center axis. Picture text drilling into view like a corkscrew - combining rotation along multiple axes with forward motion. The animation should feel dynamic and energetic, with text spinning rapidly at first then decelerating into position. Each word follows a helical path, creating interesting overlaps and depth. Add motion blur during the fastest rotation parts to enhance the sense of speed.",
+                "technicalSpecs": "Structure: BaseLayout with 'absolute inset-0 flex items-center justify-center' container. Words positioned using calculated polar coordinates. Each word in BaseLayout with 'absolute' and custom top/left values. TextAtom for rendering. Effects: Combine rotateX (90deg to 0), rotateZ (720deg to 0) for corkscrew motion. Add translateZ from -200px to 0px for forward drilling motion. Duration: 1s with 'cubic-bezier(0.22, 1, 0.36, 1)' easing. Apply blur filter from 4px to 0px during first 50% of animation for motion blur. Scale from 0.5 to 1. Opacity from 0 to 1. Performance: Use transform3d() for better GPU optimization. Stagger based on spiral position (inner words first). Consider sub-preset for spiral path calculation."
+              },
+              {
+                "prompt": "Create a book page turn effect where words rotate in from 90 degrees as if printed on turning pages. Imagine opening a book where each word is on a different page - pages turn one by one, revealing text. The rotation should mimic real paper physics with slight curve and shadow. Start with fast page turns that gradually slow down, like flipping through to find the right page. Add paper texture shadows and subtle page flutter at the rotation edges for realism.",
+                "technicalSpecs": "Structure: BaseLayout with 'relative w-full h-full overflow-hidden' container. Create page containers using BaseLayout with 'absolute inset-0'. Each word on its own 'page' div. TextAtom with 'text-center' positioning. Effects: RotateY from -90deg to 0deg with bezier curve mimicking page weight (0.265, 0.26, 0.995, 0.38). Duration: 0.7s per page. Add skewY from 5deg to 0deg for page curve. Apply box-shadow that changes during rotation for depth. Include subtle translateX for page shift. Use clip-path for page edge effect. Timing: Exponential slowdown - early pages turn faster (0.3s gaps) to slower (0.8s gaps). Performance: Use will-change: transform on active pages only. Cleanup after animation completes."
+              },
+              {
+                "prompt": "Build a slot machine tumbler effect where characters rotate into view from 90 degrees like spinning reels. Visualize a slot machine where each character position is a reel that spins vertically before landing on the correct letter. Characters should spin past their final position then snap back, creating anticipation. Add mechanical clicking feel with stepped rotation rather than smooth, and slight vibration when letters lock into place. Include speed variations where some reels stop before others.",
+                "technicalSpecs": "Structure: BaseLayout with 'flex items-center justify-center gap-1' for character row. Each character in BaseLayout with 'relative overflow-hidden h-12 w-8'. Create multiple TextAtom instances for tumbling effect. Effects: RotateX from -90deg through -360deg to 0deg (multiple rotations). Use steps(12, end) easing for mechanical feel. Duration varies by character position (0.8s to 1.4s). Add translateY animation for vertical tumbling. Vibration effect using translateX with random small values at end. Scale from 1 to 1.1 back to 1 on lock. Performance: Use CSS animations with animation-fill-mode: both. Consider audio integration for mechanical sound sync. Random duration offsets using Math.random() in presetExecution."
+              },
+              {
+                "prompt": "Design a venetian blind effect where each line of text rotates in from 90 degrees like horizontal blinds opening. Picture window blinds where each text line is a slat that rotates from edge-on to face-forward. Lines should rotate in sequence from top to bottom (or bottom to top), creating a wave-like reveal. The rotation should be uniform and synchronized, like all blinds connected to the same mechanism. Add subtle light/shadow effects that change as the 'blinds' rotate to catch light differently.",
+                "technicalSpecs": "Structure: BaseLayout with 'flex flex-col w-full' for vertical stacking. Each line in BaseLayout with 'w-full overflow-hidden'. Split text into lines based on caption sentences. TextAtom per line with 'w-full text-center py-2'. Effects: RotateX from 90deg to 0deg uniformly across all lines. Duration: 0.4s per line with linear easing for mechanical feel. Add brightness filter animating from 0.7 to 1 as blinds 'catch light'. Include translateZ for slight forward motion. Box-shadow from none to subtle shadow. Timing: Sequential delay based on line index (index * 0.08s). Use fitDurationTo: 'children' for adaptive timing. Performance: Transform-origin: center center for pivot point. Batch paint operations using contain: layout style paint."
+              },
+              {
+                "prompt": "Create a DNA helix rotation where words spiral into view from 90-degree angles in a double-helix pattern. Imagine text arranged along the strands of DNA, rotating into readability as the helix unwinds. Words on opposite strands rotate in opposite directions, creating a mesmerizing twisted rope effect. The rotation should follow a sinusoidal path for smooth, organic motion. Add subtle color shifts or glow effects to emphasize the scientific, futuristic feel. Connect related words with invisible bonds that become visible as they rotate into place.",
+                "technicalSpecs": "Structure: BaseLayout with 'relative w-full h-full' container. Calculate helix positions using sine/cosine functions in presetExecution. Two groups of words for double helix using separate BaseLayout divs. Position words using absolute with calculated top/left. TextAtom with science-themed styling. Effects: RotateY from 90deg and -90deg (opposite strands) to 0deg. Combine with rotateZ based on helix position. Add translateX/Y following sinusoidal path. Duration: 1.5s with 'ease-in-out'. Glow effect using text-shadow animation. Scale oscillation from 0.8 to 1.2 based on helix position. Opacity fade from 0 to 1. Performance: Use transform3d() for complex transforms. Stagger based on helix position (t = index * 0.1 + Math.sin(index * 0.5) * 0.05). Consider sub-preset for helix math calculations."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3470,
+              "outputTokens": 3457,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6927
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:01:37.410Z"
+}

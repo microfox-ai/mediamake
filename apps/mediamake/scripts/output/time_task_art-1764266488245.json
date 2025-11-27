@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Text smoothly 'stretching' vertically or horizontally before settling. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "xgGPDE7om9bUTX4S",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-mrrFjITIyEEVmLRH",
+          "state": "output-available",
+          "output": {
+            "title": "Stretching Text Animation - Smooth Elastic Typography",
+            "prompts": [
+              {
+                "prompt": "Create a typokinetics preset that simulates elastic text stretching, like pulling rubber bands. The text should stretch horizontally first (expanding letter-spacing and width), creating tension, then snap back with a subtle overshoot before settling. Think of it like the bounce easing in After Effects but applied to text dimensions. Use a two-phase animation: stretch phase (70% of duration) with exponential ease-out, and settle phase (30%) with spring physics. For captions, apply the effect word-by-word with staggered delays based on word position, creating a wave-like stretch across the sentence.",
+                "technicalSpecs": "Structure: BaseLayout container with 'flex flex-wrap items-center justify-center gap-2' for word layout. Use TextAtom for each word with individual effect timing. CSS approach: Apply scaleX transforms (1.0 → 1.8 → 0.9 → 1.0) combined with letterSpacing animation (0 → 0.3em → -0.05em → 0). Use 'will-change-transform' for GPU acceleration. Timing: Total duration 1.2s per word, with 50ms stagger between words. Effects array with keyframes at [0, 0.7, 0.85, 1] using 'ease-out' for stretch and 'spring' easing for settle. Consider using internal effect preset 'elastic-stretch' if creating reusable component. For caption data, use word.relativeStart for stagger calculation."
+              },
+              {
+                "prompt": "Design a vertical accordion-style text reveal where text starts extremely compressed vertically (like looking at text edge-on), then expands to full height with a smooth deceleration curve. Imagine editing a title sequence where text unfolds from a flat line - similar to the classic 'text on a rotating plane' effect but using scale transforms. The compression should be so extreme initially that the text appears as just a horizontal line, then gracefully opens up like venetian blinds. Add a subtle brightness pulse at the moment of full expansion for impact.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden' container. TextAtom with initial scaleY(0.01) transforming to scaleY(1). Apply perspective(1000px) to container for depth. Use 'transform-origin-center' for scaling pivot. Combine with opacity (0 → 1) and brightness filter (1 → 1.4 → 1). Timing: 0.8s duration with cubic-bezier(0.34, 1.56, 0.64, 1) for bounce effect. Effects: Generic keyframe animation with ranges at [0, 0.6, 0.8, 1] for multi-property animation. Add 'backdrop-blur-sm' during transition for production value. If using caption data, process entire sentence as single unit for cohesive reveal."
+              },
+              {
+                "prompt": "Build a liquid morph text animation where characters stretch like viscous fluid being pulled. The text should first expand horizontally with non-uniform distortion (center stretches more than edges), creating a lens distortion effect, then contract vertically slightly before normalizing. Think of it as text going through a funhouse mirror - the kind of warping effect you'd create with mesh deformation in video editing software. Include subtle color shift during maximum stretch for psychedelic feel.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full flex items-center justify-center'. Use TextAtom with complex transform matrix combining scaleX, scaleY, and skew. Apply CSS variables for dynamic control: --stretch-x (1 → 2.5 → 1), --stretch-y (1 → 0.8 → 1), --skew (0 → 5deg → 0). Use filter for color shifting: hue-rotate(0deg → 30deg → 0deg). Performance: Use transform3d() for hardware acceleration. Timing: 1.5s total, with asymmetric timing (slow stretch 60%, quick recovery 40%). Create internal effect preset 'liquid-morph' with AnimationRange[] for reusability. For word-level animation, calculate stretch intensity based on word position from center."
+              },
+              {
+                "prompt": "Develop a typewriter-style stretch reveal where each letter stretches into place sequentially from extreme compression. Picture a vintage typewriter mechanism but instead of letters stamping, they elastically stretch from nothing to their final form. Each character should stretch from width:0 to width:200% then settle at 100%, creating a rhythmic typing cadence. The stretching should feel mechanical yet organic, like springs being released one by one.",
+                "technicalSpecs": "BaseLayout with 'inline-flex' for character wrapping. Split text into individual spans/TextAtoms per character. Use scaleX animation (0 → 2 → 1) with translateX to maintain spacing. Apply 'transform-origin-left' for typewriter direction. Stagger delay: 50ms per character. Each character animation: 400ms duration with ease-out curve. Add subtle translateY bounce (-2px → 0) for mechanical feel. Performance: Batch DOM updates, use CSS containment. For caption integration, use word.text.split('') for character access, maintain word boundaries with 'mr-2' spacing between words. Consider audio sync for 'typing' sound effects if AudioAtom is included."
+              },
+              {
+                "prompt": "Create a gravity-defying vertical stretch where text appears to be pulled upward by invisible force, stretching tall before compressing back down like a bungee jump in reverse. The animation should feel like text is fighting against gravity - starting normal, stretching to 3x height while getting thinner (conservation of volume), then bouncing back with decreasing oscillations. Add motion blur during peak velocity for cinematic quality.",
+                "technicalSpecs": "BaseLayout with 'flex flex-col items-center justify-center min-h-screen'. TextAtom with combined scaleY (1 → 3 → 0.7 → 1.1 → 1) and scaleX (1 → 0.6 → 1.3 → 0.95 → 1) for volume conservation. Apply custom SVG filter for motion blur using feGaussianBlur with stdDeviation animated (0 → 8 → 0). Use transform-origin-bottom for ground anchor point. Timing: 2s total with physics-based easing using spring(1, 100, 10, 0). Create oscillation with multiple keyframes [0, 0.3, 0.5, 0.7, 0.85, 1]. Add 'drop-shadow-2xl' during stretch for depth. If processing captions, apply to entire phrase for unified motion, use sentence.duration for timing calculation."
+              },
+              {
+                "prompt": "Design a radial stretch explosion where text stretches outward from center point like shockwave ripples. Imagine dropping text into water - it stretches concentrically outward, creating waves of distortion that gradually settle. The stretch should be non-uniform: maximum at center, decreasing toward edges. Include subtle rotation during stretch for dynamic spiral effect. This mimics radial blur effects from video post-production.",
+                "technicalSpecs": "BaseLayout with 'absolute inset-0 flex items-center justify-center'. Use CSS radial-gradient masks for non-uniform scaling. TextAtom with transform: scale() + rotate(). Calculate scale factor based on distance from center using CSS calc() and custom properties. Animation: scale(1) → scale(1.8) → scale(0.95) → scale(1), rotate(0) → rotate(15deg) → rotate(-5deg) → rotate(0). Apply backdrop-filter during animation for glass morphism. Timing: 1.8s with cubic-bezier timing. Use clip-path: circle() for radial reveal. For multi-word captions, position words in circular layout using trigonometric calculations, animate each based on radial distance."
+              },
+              {
+                "prompt": "Build a glitch-stretch animation where text rapidly stretches and compresses in random directions, simulating digital interference. Think of corrupted video frames where text gets pulled and distorted by data errors. Include RGB channel splitting during stretches, creating chromatic aberration. The stretching should be jittery, unpredictable, with varying intensities - sometimes subtle, sometimes extreme. Perfect for edgy, modern title sequences.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-black'. Create 3 TextAtom layers for RGB splitting with mix-blend-mode: screen. Apply random transform sequences using Math.random() in presetExecution. Generate 8-10 keyframes with random scaleX (0.8-2.0) and scaleY (0.9-1.5) values. Add translateX/Y jitter (±10px). Use CSS filters: contrast(200%) brightness(150%) for digital look. Timing: 100-200ms per glitch, total 2s. Create data-driven animation using internal effect preset with random seed parameter. For captions, apply word-level glitching with different intensities based on word.metadata.impact scores."
+              },
+              {
+                "prompt": "Develop a breathing text animation where text organically stretches and contracts like it's inhaling and exhaling. The stretch should be smooth, continuous, and hypnotic - expanding gently in all directions during 'inhale', contracting during 'exhale'. Add subtle opacity pulsing synchronized with the breathing rhythm. This creates meditative, calming title animations perfect for wellness or mindfulness content.",
+                "technicalSpecs": "BaseLayout with 'w-full h-full flex items-center justify-center'. TextAtom with continuous animation loop. Use scale transform with different X/Y ratios: scaleX follows sin wave (1 → 1.3 → 1), scaleY follows offset sin wave (1 → 1.2 → 1). Apply opacity oscillation (0.7 → 1 → 0.7). Use animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1) for natural breathing curve. Duration: 4s per cycle, infinite loop. Add text-shadow with animated blur radius for glow effect. Performance: Use CSS animations instead of JS for efficiency. For caption data, sync breathing cycles to sentence.duration, use word.relativeStart to offset individual word phases."
+              },
+              {
+                "prompt": "Create a magnetic attraction stretch where text appears to be pulled by invisible magnets from multiple directions. Text should stretch toward attraction points, creating elongated distortions, then snap back when 'released'. Imagine multiple hands pulling taffy - the text deforms based on force vectors. Include warping that follows magnetic field lines for scientific visualization aesthetic. Perfect for dynamic, attention-grabbing transitions.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full' container. Use CSS custom properties for attraction points (--magnet-x, --magnet-y). TextAtom with transform matrix calculations based on distance/direction to magnets. Apply skew and scale based on force vectors: closer = stronger pull. Use perspective(800px) for 3D deformation. Animation sequence: neutral → stretch toward point 1 → stretch toward point 2 → elastic snapback. Timing: 2.5s total, with hold periods at maximum stretch. Create internal effect 'magnetic-pull' with configurable attraction points array. For word-level effects, calculate individual word deformation based on position relative to magnetic centers."
+              },
+              {
+                "prompt": "Design an audio-reactive stretch where text expands and contracts synchronized with music beats or speech rhythm. Text should pulse-stretch on bass hits, with vertical stretch on high frequencies and horizontal on lows. Like a visual equalizer but using text deformation instead of bars. The stretching intensity should match audio amplitude, creating living, breathing typography that dances with sound. Include color shifts mapped to frequency ranges.",
+                "technicalSpecs": "BaseLayout with 'flex items-center justify-center bg-gradient-to-b from-black to-gray-900'. TextAtom with waveform effects configuration. Use audio analysis API to fetch beat data and frequency spectrum. Apply scaleX based on bass (20-250Hz), scaleY based on treble (4kHz+). Map color/hue to spectral centroid. Waveform effect config: {property: 'scale', intensity: 1.5, sensitivity: 0.8, frequency: 'bass'}. Add threshold to prevent over-stretching. Timing: Match audio BPM, typically 100-200ms per beat. Use AudioAtom for soundtrack reference. For captions with audio, sync word emphasis to beat timing using word.absoluteStart alignment with audio timestamps. Create 'audio-stretch' internal effect preset with customizable frequency bands."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3474,
+              "outputTokens": 3057,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6531
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:01:28.245Z"
+}

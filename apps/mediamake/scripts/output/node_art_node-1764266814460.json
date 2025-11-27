@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Text filling up with color like a progress bar."
+  },
+  "result": [
+    {
+      "id": "qMmN4Suv5ccJ8zZb",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-i75fDHSZSR6nhEFJ",
+          "state": "output-available",
+          "output": {
+            "title": "Text Fill Animation - Progress Bar Color Effect",
+            "prompts": [
+              {
+                "prompt": "Create a horizontal text progress bar fill animation where text gradually fills with color from left to right, like liquid pouring into transparent glass letters. Think of it as a video editor would: a mask wipe transition applied to text, where the colored version of the text is revealed progressively. The effect should feel smooth and satisfying, like watching a loading bar complete but applied to typography. Use a two-layer approach with an overlay that slides across to reveal the filled text beneath, creating a clean edge between filled and unfilled portions. Consider adding a subtle glow or highlight at the fill edge to enhance the liquid effect.",
+                "technicalSpecs": "Structure: BaseLayout container with 'relative overflow-hidden' containing two TextAtom components absolutely positioned. Bottom layer: fully colored text. Top layer: outline/transparent text with a sliding mask. Use containerProps.className 'relative h-20 flex items-center justify-center'. Create a generic keyframe effect animating a clip-path or translateX on an overlay div from -100% to 0%. Timing: Use full parent duration with ease-out easing for natural deceleration. Add a subtle glow effect at the fill edge using a gradient mask or box-shadow. Performance: Use transform and will-change for GPU acceleration. Consider using an internal effect preset for reusability across multiple text elements."
+              },
+              {
+                "prompt": "Design a vertical bottom-to-top text fill animation that simulates water rising inside hollow letter shapes. From a video editing perspective, this is like using a gradient wipe with a soft edge, creating an organic fill pattern. The fill should have slight wave motion at the top edge, like liquid settling. Include subtle bubbling or shimmer effects within the filled portion to enhance the liquid metaphor. The animation should feel weighty and physical, as if gravity affects the fill speed.",
+                "technicalSpecs": "Use BaseLayout with 'relative inline-block' containing a TextAtom with gradient background. Apply a CSS linear-gradient with animated background-position from bottom to top. Use containerProps.className 'relative inline-flex items-end'. Create a generic effect animating backgroundPosition from '0 100%' to '0 0%' with spring easing for natural motion. Add a second effect for subtle scale oscillation (0.98 to 1.02) on the Y-axis to simulate liquid movement. Include a ::before pseudo-element via style prop for wave animation at the fill line using SVG filters or clip-path. Timing: 80% for main fill, 20% for settle animation. Use fitDurationTo: 'parent' for responsive timing."
+              },
+              {
+                "prompt": "Implement a radial/circular text fill that expands from the center of each letter outward, like dropping ink into water. Picture this in a video timeline as multiple circular mask reveals synchronized across each character. The fill should start as a small dot in the geometric center of each letter and expand outward in a perfect circle, eventually flooding the entire letter shape. Add subtle color variations or gradients within the fill for depth.",
+                "technicalSpecs": "Structure: BaseLayout with 'flex gap-1' containing multiple TextAtom components (one per character). Use word-level caption data if available for precise character timing. Apply radial-gradient backgrounds with animated size/position. containerProps.className: 'flex items-center justify-center gap-0.5'. Create generic effects animating background-size from '0% 0%' to '200% 200%' with background-position at 'center'. Use staggered timing via repeatChildrenProps with offset delays for wave effect across letters. Consider using an internal 'radial-fill' effect preset. Add subtle hue-rotate filter animation for color variation. Performance: Composite layers for each character, use transform: translateZ(0) for GPU promotion."
+              },
+              {
+                "prompt": "Create a typewriter-style progressive fill where text fills character by character from left to right, but instead of appearing, each letter transitions from hollow/outline to filled. Think of this as a video editor combining a typewriter preset with a fill transition. Each letter should have a quick fill animation (like a rapid flood) when its turn comes. Include a cursor or highlight that moves along with the fill progression for added visual interest.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-wrap' containing TextAtom components for each character. If using caption data, leverage word.relativeStart for precise timing. containerProps.className: 'flex items-baseline'. Create a sequence of generic effects with staggered AnimationRanges for each character's opacity and background fill. Use a rapid ease-in-out over 200ms per character. Add a trailing BaseLayout div with 'absolute w-0.5 h-full bg-current animate-pulse' as a cursor. Calculate total duration based on character count * 200ms. Consider using a sub-preset for the individual character fill animation. Add subtle scale (0.8 to 1) and brightness effects during each character's fill moment."
+              },
+              {
+                "prompt": "Design a gradient sweep fill that moves diagonally across the text from top-left to bottom-right, like a scanner beam passing over and energizing the letters. From a video editing standpoint, this is a diagonal wipe with a glowing edge effect. The fill should leave a brief trail of enhanced brightness that fades back to normal, creating a scanning effect. Include subtle particle effects or sparkles at the sweep edge.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden' containing a TextAtom with animated linear-gradient. Use containerProps.className 'relative inline-block'. Apply a complex linear-gradient with multiple color stops: transparent, edge glow, main color. Animate the gradient angle and position using generic effects on backgroundImage property. Create a sweeping animation from '-45deg, transparent 0%, transparent 40%, [glow] 50%, [color] 60%, [color] 100%' with animated stop positions. Add a secondary filter effect for brightness boost that follows the sweep with a slight delay. Include ::after pseudo-element for particle effects using CSS animations. Timing: ease-in-out over full duration. Consider audio-reactive waveform effects if audio is present to modulate sweep speed."
+              },
+              {
+                "prompt": "Implement a pressure-sensitive fill animation where text fills based on simulated pressure or weight, starting with thin strokes that gradually thicken and fill completely. Think of this as animating from a light pencil sketch to a heavy marker fill in video editing terms. The animation should feel organic and hand-drawn, with slight variations in fill speed across different parts of each letter.",
+                "technicalSpecs": "Use BaseLayout with TextAtom utilizing SVG text with animated stroke-width and fill-opacity. containerProps.className: 'flex items-center justify-center'. Start with stroke-only text (stroke-width: 1, fill-opacity: 0), animate to thick stroke (stroke-width: 20) while simultaneously fading in fill (fill-opacity: 1). Create generic effects with multiple keyframes for non-linear progression. Add slight rotation wiggle (-1deg to 1deg) and scale variation (0.98 to 1.02) for hand-drawn feel. Use variable timing with random offsets via presetExecution logic for organic variation. If using caption data, apply higher pressure/faster fill to words with higher impact scores. Performance: SVG animations are GPU-accelerated, use transform-origin: center for rotations."
+              },
+              {
+                "prompt": "Create a liquid metal or mercury fill effect where text appears to be filled with a reflective, flowing substance. The fill should have a morphing, blob-like quality as it spreads through the letters, with highlights that shift and move. From a video editor's perspective, combine a luma matte fill with animated displacement maps for the liquid effect. Include reflection highlights that move across the surface.",
+                "technicalSpecs": "BaseLayout with TextAtom using CSS filters and blend modes. containerProps.className: 'relative isolate'. Apply a combination of: 1) Animated gradient background with multiple metallic color stops, 2) CSS filter with contrast(2) brightness(1.5) for metallic sheen, 3) Mix-blend-mode: 'screen' or 'overlay'. Create generic effects animating background-position for flowing liquid motion. Add a second TextAtom layer with 'absolute inset-0 opacity-50' for highlights, using a different gradient animation speed. Include subtle hue-rotate animation for color shifting. Use clip-path with animated path for blob-like fill progression. Consider using an internal 'liquid-metal' effect preset. Add transform: scale3d() for subtle breathing effect."
+              },
+              {
+                "prompt": "Design a data-driven fill animation that visualizes loading or processing, where text fills in segments like a segmented display or LED matrix. Think of it as a video editor using a step-based transition rather than smooth interpolation. The fill should happen in discrete chunks, with each segment lighting up sequentially or based on percentage thresholds. Include subtle flicker or pulse effects for digital authenticity.",
+                "technicalSpecs": "BaseLayout with 'grid grid-cols-10' containing multiple segment divs. Use TextAtom with 'absolute inset-0 z-10' for text overlay. containerProps.className: 'relative grid grid-cols-10 gap-0.5'. Create child BaseLayout segments with 'bg-gray-200' default and 'bg-blue-500' when active. Use repeatChildrenProps with staggered timing for sequential activation. Apply generic effects with stepped easing (steps(1)) for instant on/off transitions. Add random flicker using opacity variations (0.8 to 1) with very short durations. If audio is present, use waveform effects to trigger segment activation based on beat detection. Include a glow filter during activation moments. Consider using fetcher for real data if available."
+              },
+              {
+                "prompt": "Implement a 3D flip fill where each letter appears to rotate on its Y-axis, starting as an outline and flipping to reveal the filled version on the reverse side. From a video editing perspective, this is like a card flip transition applied to individual characters. The flip should have proper depth and perspective, with a slight bounce at the end. Include shadow effects that change based on the rotation angle.",
+                "technicalSpecs": "BaseLayout with 'flex perspective-1000' containing TextAtom components with 3D transforms. containerProps.className: 'flex items-center gap-1 perspective-1000'. Each character uses two TextAtom layers in a BaseLayout with 'relative preserve-3d'. Front face: outline text with 'absolute inset-0 backface-hidden'. Back face: filled text with 'absolute inset-0 backface-hidden rotate-y-180'. Animate parent rotateY from 0 to 180deg using generic effects with spring easing. Add dynamic shadow using filter: drop-shadow() that changes based on rotation progress. Stagger timing across characters using repeatChildrenProps. Include subtle scale bounce (1 to 1.1 to 1) at flip completion. Performance: Use will-change: transform and transform-style: preserve-3d."
+              },
+              {
+                "prompt": "Create an audio-reactive fill animation where text fills based on audio intensity or beat detection, like a VU meter embedded in typography. Think of this as a video editor linking audio levels to a fill mask parameter. The fill should pulse and respond to music, with different frequency ranges affecting different parts of the text. Include visual feedback like glow intensity that matches audio energy.",
+                "technicalSpecs": "BaseLayout with TextAtom using waveform effects for audio synchronization. containerProps.className: 'relative flex items-center'. Use fetcher to analyze audio data for beat detection and frequency analysis. Apply waveform effects with type: 'scale' and 'opacity' linked to audio intensity. Create a gradient fill that responds to frequency: low frequencies fill from bottom, high frequencies from top. Use multiple TextAtom layers: base outline, low-freq fill (red), mid-freq fill (green), high-freq fill (blue) with mix-blend-mode: 'screen'. Set sensitivity and threshold based on audio analysis results. Add glow effect using text-shadow that intensifies with beat impacts. If no audio, fallback to a simple progressive fill. Consider using impactfulBeats selection for dramatic fill moments. Include fitDurationTo: 'audio' for perfect sync."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3432,
+              "outputTokens": 2903,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6335
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:06:54.460Z"
+}

@@ -1,0 +1,18 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Liquid motion transition, blob wipe effect."
+  },
+  "result": [
+    {
+      "id": "9eIB3toPEPwEcTpV",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": []
+    }
+  ],
+  "timestamp": "2025-11-27T18:05:03.275Z"
+}

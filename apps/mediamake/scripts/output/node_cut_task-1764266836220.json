@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Stop motion style text animation, letter by letter."
+  },
+  "result": [
+    {
+      "id": "m04HiqwSyl4mt6e9",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-XRG5if5Somur2Iva",
+          "state": "output-available",
+          "output": {
+            "title": "Stop Motion Letter-by-Letter Text Animation",
+            "prompts": [
+              {
+                "prompt": "Create a choppy, film-strip style stop motion text animation that mimics classic claymation titles. Each letter should 'pop' into existence with an abrupt, mechanical feel - like someone is physically placing letter tiles one by one on a table. Add a subtle shake/jitter to each letter after it appears to simulate the imperfect, handmade quality of stop motion. The animation should have irregular timing between letters (not perfectly uniform) to enhance the manual, frame-by-frame aesthetic. Include a slight scale overshoot when each letter appears, as if the 'camera' is slightly zooming in with each placement.",
+                "technicalSpecs": "Use a BaseLayout container with 'flex flex-wrap items-baseline gap-1' for horizontal text flow. Each letter should be wrapped in its own BaseLayout with TextAtom inside. Apply a custom effect array with three keyframes per letter: 1) Initial state at opacity:0, scale:0.8, rotate:random(-5,5)deg 2) Overshoot at 40% with scale:1.15, opacity:1 3) Settle at 100% with scale:1, slight translateY jitter using Math.random(). Stagger letter animations with increasing startOffset (index * 0.08 seconds) but add random variation (±0.02s) to break uniformity. Use 'steps(3)' easing to create the choppy, frame-skipping effect. Add a continuous subtle shake effect post-animation using a looped keyframe animation on translateX/Y with small random values. Consider using repeatChildrenProps to efficiently apply the stop-motion effect pattern to all letters."
+              },
+              {
+                "prompt": "Design a typewriter-inspired stop motion text reveal where each letter 'stamps' into place with mechanical precision. Think of an old typewriter mechanism - the letter appears instantly (no fade), accompanied by a subtle bounce-back motion like the typewriter hammer hitting paper. Add a slight rotation wobble to simulate the mechanical imperfection of vintage typewriters. The baseline should shift slightly with each letter to mimic paper feed inconsistencies. Consider adding a 'carriage return' effect if the text wraps to multiple lines.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative inline-block' for the container. Create individual BaseLayout components for each letter with 'inline-block' positioning. Use TextAtom with immediate opacity change (0 to 1 in one frame) at each letter's start time. Implement a two-part effect: 1) Instant appear with translateY:-5px 2) Bounce settle over 0.15s with spring easing back to translateY:0. Add a subtle rotateZ effect alternating between -1deg and 1deg for mechanical wobble. For baseline shift, apply a small random translateY offset (±2px) to each letter's final position. Use fitDurationTo:'children' on the parent to ensure proper timing inheritance. Consider using an internal effect preset for the 'typewriter-stamp' effect that can be reused across letters. Timing should be index * 0.05s with no variation for that mechanical rhythm."
+              },
+              {
+                "prompt": "Create a paper cutout stop motion effect where letters appear to be cut from paper and placed down one by one. Each letter should 'drop' from above with a paper-like flutter, landing with a soft bounce. Add subtle shadows that appear just before each letter lands to enhance the layered paper aesthetic. Include slight z-rotation as if someone is manually placing paper cutouts with their hands. The animation should feel tactile and crafted.",
+                "technicalSpecs": "Use BaseLayout with 'relative flex items-end gap-2 px-4 py-2' for spacing. Each letter in its own BaseLayout with 'relative' positioning. Apply a complex effect array: Start with translateY:-100px, opacity:0, rotate:random(-15,15)deg. Animate over 0.3s with three phases using AnimationRange: 1) Drop phase (0-70%) with ease-in, reducing translateY 2) Flutter phase (70-85%) adding small rotateZ oscillation 3) Land phase (85-100%) with bounce easing. Add CSS filter for drop-shadow that fades in 50ms before the letter lands using a separate opacity effect. Use TextAtom with font-weight:700 for paper cutout boldness. Stagger with index * 0.12s for deliberate placement feel. Consider adding a subtle scale effect (0.95 to 1) during landing for depth. Use containerProps.style for custom CSS variables if needed for shadow coordination."
+              },
+              {
+                "prompt": "Build a retro video game style stop motion text where letters 'glitch' into existence pixel by pixel. Each letter should appear in 3-4 discrete steps, simulating low frame rate animation. Add pixelated scaling effects - letters should snap between 2-3 different sizes before settling. Include occasional 'frame drops' where a letter might disappear for one frame before reappearing. Channel the aesthetic of 8-bit game titles with harsh, stepped animations.",
+                "technicalSpecs": "Structure with BaseLayout using 'font-mono tracking-wider' for retro spacing. Use TextAtom with a custom pixel font or 'font-mono text-2xl'. Create a stepped animation using 'steps(4, jump-start)' easing exclusively. Build effect array with discrete opacity values: [0, 0.3, 0.6, 1] over 4 keyframes. Add scale snapping effect: alternate between scale:0.5, scale:1.5, scale:0.8, scale:1 using steps() easing. For frame drops, add a brief opacity:0 keyframe at random positions (use Math.random() > 0.7 condition). Apply CSS image-rendering:pixelated via containerProps.style. Use very short, uniform timing (index * 0.033s) to simulate low framerate. Consider adding a subtle color shift effect using CSS filters (hue-rotate) for that CRT monitor feel. Layer multiple effects using the effects array pattern for complex glitch behaviors."
+              },
+              {
+                "prompt": "Develop a clay animation inspired stop motion where letters seem to be molded from clay and squash into place. Each letter should 'grow' from a blob shape, with exaggerated squash and stretch principles. The animation should feel malleable and organic - letters compress when they 'land' and stretch when they 'jump'. Add subtle deformation effects where letters appear slightly misshapen before settling into their final form.",
+                "technicalSpecs": "Use BaseLayout with 'flex items-center gap-3' and apply transform-style:preserve-3d for depth. Each letter wrapped in BaseLayout with perspective:200px. Create morphing effect using scaleY animations: start with scaleY:0.3, scaleX:1.5 (squashed blob), animate through scaleY:1.8, scaleX:0.7 (stretched), then settle at scale:1. Use cubic-bezier(0.68,-0.55,0.265,1.55) for elastic easing. Add slight rotateX effect (-5deg to 5deg) for 3D clay depth. Apply blur filter that reduces from 2px to 0 as the letter forms. Stagger with index * 0.15s for deliberate molding speed. Use TextAtom with rounded, bold font (font-weight:800) to enhance clay aesthetic. Consider adding a subtle brightness filter animation to simulate lighting changes as clay forms. Use containerProps.className to add 'transform-gpu' for performance."
+              },
+              {
+                "prompt": "Create a ransom note style stop motion where letters appear to be cut from different magazines and pasted down individually. Each letter should have unique characteristics - different sizes, rotations, and positions. The animation should feel chaotic yet deliberate, with letters 'slapping' down onto the surface with paper-like physics. Add subtle curling effects on the edges as if the paper letters are slightly lifted from the surface.",
+                "technicalSpecs": "BaseLayout container with 'relative flex flex-wrap items-baseline gap-0'. Each letter in absolutely positioned BaseLayout with random offsets. Generate unique properties per letter: random fontSize (0.8rem to 1.4rem), random rotate (-12deg to 12deg), random translateY (-5px to 5px). Use TextAtom with varying font-weight (400/600/800) per letter. Create 'slap down' effect: start with scale:1.2, rotate:random(-30,30)deg, opacity:0. Animate to final position with overshoot using spring physics. Add perspective transform with rotateY for slight 3D curl: alternate between -3deg and 3deg. Apply drop-shadow filter with varying opacity (0.2 to 0.5) per letter. Use very irregular timing: index * random(0.05, 0.2)s for chaotic rhythm. Consider using childrenProps with unique seeds for randomization. Add slight continuous hover effect post-animation using transform:translateZ for paper lift feeling."
+              },
+              {
+                "prompt": "Design a cinematic freeze-frame stop motion where letters appear as if captured in high-speed photography. Each letter should 'freeze' mid-motion - some rotating, some scaling, some translating - creating a dynamic composition frozen in time. After the initial freeze, add subtle continued motion as if time is slowly resuming. The effect should feel like bullet-time typography with dramatic, suspended animation.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full flex items-center justify-center overflow-hidden'. Position letters absolutely with calculated positions for dynamic scatter. Create freeze-frame effect with two-phase animation: 1) Instant appearance with dramatic initial state - each letter with unique transform: rotate:random(-180,180)deg, translateX:random(-100,100)px, scale:random(0.5,2) 2) Slow-motion settle over 2-3s with ease-out-cubic. Add motion blur using CSS filter during fast phase, removing during settle. Use TextAtom with mix-blend-mode:screen for cinematic light interaction. Implement staggered timing but very close together (index * 0.02s) for simultaneous feel. After main animation, add subtle continuous drift using infinite animation with very slow translateX/Y. Consider adding opacity fade from 0.7 to 1 for depth of field effect. Use will-change:transform and transform:translateZ(0) for GPU optimization."
+              },
+              {
+                "prompt": "Build a construction/assembly stop motion where letters appear to be built piece by piece like LEGO blocks. Each letter should assemble from 2-3 geometric pieces that slide or snap together. The animation should have clear mechanical stages - pieces appear, align, then lock together with a satisfying snap. Add subtle shadows and depth to enhance the 3D building block aesthetic.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative flex items-end gap-4'. Each letter container as BaseLayout with 'relative' and multiple child elements. Split each letter into 2-3 parts using clip-path or separate TextAtom instances with overflow:hidden. Animate parts sequentially: 1) Top piece slides down from translateY:-30px 2) Bottom piece slides up from translateY:30px 3) Middle piece (if needed) fades in with scale effect. Use steps(8) easing for mechanical movement. Add 'snap' effect at connection points using scale:1.1 for 1 frame then back to scale:1. Apply box-shadow for 3D depth, animating shadow opacity as pieces connect. Timing: each letter starts at index * 0.2s, with internal part animations offset by 0.05s. Consider using sub-presets for individual letter assembly patterns. Add subtle rotateX:2deg on parent for isometric view. Use Tailwind 'shadow-lg' with custom shadow color for depth."
+              },
+              {
+                "prompt": "Create a horror-inspired stop motion where letters appear to 'glitch' into existence through static and distortion. Each letter should flicker through multiple distorted states before solidifying - think creepy VHS tape or corrupted video feed. Add chromatic aberration effects, random position jumps, and occasional complete disappearance. The timing should be erratic and unsettling.",
+                "technicalSpecs": "BaseLayout with 'relative bg-black text-white font-mono overflow-hidden'. Each letter in BaseLayout with position:relative. Create multi-stage glitch effect using rapid keyframe changes: 1) Flicker phase with opacity rapidly alternating [0,1,0.3,1,0,0.8,1] over 0.3s 2) Distortion phase with random translateX/Y jumps (±10px) every 0.05s 3) Chromatic aberration using text-shadow with red/blue offsets. Use CSS filters for additional effects: contrast(2) brightness(1.5) during flickers. Add random 'data corruption' where letter might show different character briefly (swap TextAtom content temporarily). Timing should be chaotic: index * random(0.02, 0.3)s with some letters appearing simultaneously. Consider adding scanlines using ::before pseudo-element with repeating linear gradient. Use animation-timing-function:steps(2) for harsh transitions. Add continuous subtle shake post-reveal using infinite animation with small translate values."
+              },
+              {
+                "prompt": "Develop a nature-inspired stop motion where letters grow like plants in time-lapse photography. Each letter should 'sprout' from the bottom, unfurling and expanding organically. Add slight swaying motion as if affected by wind, and vary the growth speeds to feel natural. The animation should capture that time-lapse photography aesthetic where growth appears sudden yet smooth.",
+                "technicalSpecs": "BaseLayout container with 'flex items-end gap-2 px-6'. Each letter in BaseLayout with transform-origin:bottom. Create organic growth using combined effects: 1) ScaleY animation from 0 to 1 with transform-origin at bottom 2) Slight scaleX pulse (0.8 to 1.1 to 1) for organic expansion 3) Gentle rotate oscillation (-2deg to 2deg) for sway. Use cubic-bezier(0.4,0,0.2,1) for natural growth curve. Add opacity fade from 0.3 to 1 during growth for depth. Implement slight translateY from 10px to 0 to simulate rising. Vary timing per letter: index * random(0.08, 0.18)s for natural stagger. After growth, add infinite subtle sway animation using sin wave pattern for translateX and rotate. Consider adding green-tinted glow using text-shadow for bioluminescent effect. Use filter:blur during early growth phase (2px to 0) for focus pull effect. Apply Tailwind 'text-green-500' with opacity transitions for color evolution."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3432,
+              "outputTokens": 3521,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6953
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:07:16.220Z"
+}

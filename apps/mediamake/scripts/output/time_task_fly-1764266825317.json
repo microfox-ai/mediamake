@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Text outlines animating, then filling with color."
+  },
+  "result": [
+    {
+      "id": "4KW8Mw4sOaMacPii",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-Uc3La8SeldCg40YR",
+          "state": "output-available",
+          "output": {
+            "title": "Animated Text Outlines with Color Fill",
+            "prompts": [
+              {
+                "prompt": "Create a dramatic text reveal preset where text starts as pure outlines (stroked text with no fill) that progressively fill with a gradient color from left to right, like paint flowing through letterforms. Think of this as a 'liquid fill' effect commonly used in title sequences. The outline should be visible first for about 30% of the animation duration, then the fill should sweep across horizontally over the remaining 70%, with each word slightly staggered in timing for a cascading effect. Use a smooth ease-in-out curve for the fill progression to create a natural, fluid motion.",
+                "technicalSpecs": "Structure: Use BaseLayout with 'flex flex-wrap items-center justify-center gap-2' for word layout. Each word should be a separate TextAtom wrapped in its own BaseLayout container. For the outline effect, use CSS text-stroke (via style prop) with transparent fill initially. Implement the fill animation using a clip-path rectangle that expands from left to right (clip-path: inset(0 100% 0 0) to inset(0 0 0 0)). Apply effects array with opacity keyframes for the outline appearance (0 to 1 over first 30%), and a separate effect for the clip-path animation. Use 'will-change-transform' class and transform: translateZ(0) for GPU acceleration. Stagger each word's animation start by 0.1s using relative timing offsets. Consider using an internal effect preset for the fill sweep that can be reused across words."
+              },
+              {
+                "prompt": "Design a kinetic typography preset where outlined text morphs into filled text through a 'sketch-to-solid' animation. Imagine hand-drawn text being sketched with quick, energetic strokes that then solidify into bold, filled letters. The outline should have a rough, animated quality (subtle jitter/shake) before stabilizing and filling with color from the center outward in a radial pattern. This creates an organic, artistic feel perfect for creative brand videos or animated logos.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full flex items-center justify-center' as container. Implement TextAtom with SVG filter for the sketch effect during outline phase. Create a subtle shake effect using translateX and translateY in the effects array with rapid keyframe changes (every 0.05s) for the first 40% of duration. For the radial fill, use a radial-gradient mask that scales from 0% to 150% from the center point. Apply two concurrent effects: one for the shake animation (with spring easing), another for the gradient mask expansion (ease-out for natural deceleration). Use 'pointer-events-none select-none' classes for non-interactive text. Consider creating this as a reusable internal effect preset called 'sketch-to-solid' that accepts intensity parameters for shake amplitude."
+              },
+              {
+                "prompt": "Build a neon sign animation preset where text appears as dim outlines that suddenly illuminate and fill with vibrant glowing color, mimicking vintage neon signs powering on. The animation should include a subtle flicker effect as the fill 'charges up', with the glow intensity pulsing before stabilizing. Think of the classic neon sign startup sequence seen in noir films - outline visible in darkness, then electric color flooding through the tubes with characteristic flicker.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative bg-black w-full h-full flex items-center justify-center'. Use TextAtom with text-shadow for glow effect. Start with text-stroke (2px width) and transparent fill. Implement fill animation with color transitioning from transparent to final color over multiple keyframes to create flicker: [0%, 40%, 45%, 50%, 100%] with values [transparent, color, transparent, color, color]. Add multiple text-shadows for glow layers: inner glow (0 0 10px), medium glow (0 0 20px), outer glow (0 0 40px) with varying opacity. Use effects array with custom easing for each flicker keyframe. Apply 'mix-blend-mode-screen' class for luminous blending. Consider using waveform effects if audio is present to sync flicker with beats."
+              },
+              {
+                "prompt": "Create a minimalist Swiss design-inspired preset where text outlines draw themselves on screen using animated stroke-dasharray, then elegantly fill with solid color using a vertical wipe effect. This should feel clean, precise, and sophisticated - like watching a designer's pen sketch that magically colors itself. The stroke drawing should follow the natural path of each letter, creating a satisfying 'writing' effect before the fill slides down from top.",
+                "technicalSpecs": "Use BaseLayout with 'grid place-items-center min-h-screen' for centered alignment. Implement each character as a separate TextAtom to enable per-letter animation control. Use stroke-dasharray and stroke-dashoffset animation for the drawing effect (calculate path length dynamically or use fixed value like 1000). Apply effects with linear easing for stroke animation (0-50% of duration), then use clip-path: polygon for vertical fill wipe (50-100% of duration) with ease-in-out timing. Set 'font-mono tracking-wider' classes for clean typography. Use containerProps.style for stroke properties. Timeline: outline draws (0-50%), pause (50-60%), fill wipes down (60-100%). Consider fitDurationTo: 'children' to adapt to text length."
+              },
+              {
+                "prompt": "Develop an explosive comic book style preset where outlined text appears to be 'charged up' with energy before bursting into full color. Think of superhero title cards - the outline trembles with increasing intensity, small particles or sparks emit from the edges, then BAM! - the color explodes inward filling the text with a shockwave effect. This should feel dynamic and impactful, perfect for action-oriented content.",
+                "technicalSpecs": "Structure: BaseLayout with 'relative overflow-hidden w-full h-full flex items-center justify-center'. Use TextAtom with bold weight and 'uppercase font-black' classes. Implement increasing shake amplitude using transform effects with accelerating frequency: translateX/Y with random values increasing from ±2px to ±10px. Create particle effects using absolutely positioned ShapeAtom elements (small circles) that spawn around text edges with 'absolute' positioning and animate outward using translateX/Y and opacity effects. For the fill explosion, use scale transform on a duplicate filled text layer that scales from 0 to 1.2 then back to 1 (overshoot for impact). Layer structure: outline text (z-10), particles (z-20), filled text (z-30). Use 'drop-shadow-2xl' for depth. Consider audio analysis for beat-synchronized explosion timing if audio is present."
+              },
+              {
+                "prompt": "Design a sophisticated reveal where text outlines appear as if drawn by an invisible calligrapher, with elegant stroke variation suggesting pen pressure, before ink bleeds into the letters creating an organic fill effect. The fill should spread irregularly like watercolor on paper, with subtle color variations and soft edges. This creates an artistic, handcrafted feeling suitable for luxury brands or artistic presentations.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-col items-center justify-center gap-4 p-8'. Implement variable stroke width using SVG filters or multiple text-shadow layers with slight offsets. Create stroke animation using clip-path with a custom polygon path that follows a calligraphic pattern (not just linear). For the watercolor fill, use multiple overlapping gradients with different opacity levels and slight transform variations. Apply turbulence filter (SVG filter) for organic edge distortion. Effects timeline: stroke appears with variable speed (ease-in-out-cubic), pause, then multiple fill layers fade in with staggered timing and slight scale animations (0.95 to 1.05). Use 'font-serif italic' for elegant typography. Consider using internal effect presets for 'calligraphic-stroke' and 'watercolor-fill' that can accept customization parameters."
+              },
+              {
+                "prompt": "Build a retro 80s wireframe-to-solid animation where text starts as geometric outlines in cyan/magenta, then fills with a gradient chrome effect while rotating in 3D space. Think of classic 80s computer graphics and synthwave aesthetics - the outline should have a digital grid feel, and the fill should sweep across with a metallic sheen as the text rotates to reveal its depth.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative bg-gradient-to-br from-purple-900 to-blue-900 w-full h-full flex items-center justify-center perspective-1000'. Use TextAtom with 'font-bold tracking-widest uppercase' classes. Apply stroke with neon colors using text-stroke. Implement 3D rotation using rotateY transform in effects array (0deg to 360deg) with linear easing. For chrome fill, use linear-gradient with multiple color stops (silver, white, gray, silver) and animate background-position to create moving sheen effect. Add scanline overlay using ::before pseudo-element with repeating linear gradient. Use 'transform-style-preserve-3d' for proper 3D rendering. Timeline: outline visible with glow (0-30%), begin rotation (30%), start fill sweep (40-70%), complete rotation (100%). Consider adding glitch effects using translateX with random values at specific keyframes."
+              },
+              {
+                "prompt": "Create a nature-inspired organic growth preset where text outlines appear like dried branches that suddenly bloom with color spreading through them like sap or life force. The fill should grow from multiple seed points within each letter, spreading organically with varying speeds, creating a living, breathing text effect. Perfect for environmental, wellness, or organic brand content.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full flex items-center justify-center bg-gradient-to-b from-green-50 to-green-100'. Implement TextAtom with organic font choice ('font-serif'). Create multiple radial-gradient masks at different positions within the text bounds, each animating from 0% to 100% size with different timing offsets. Use SVG filters for organic texture: feTurbulence for natural variation, feDisplacementMap for slight distortion. Apply multiple effects: scale for each gradient mask (spring easing for organic motion), opacity for gentle fade-in, slight rotateZ (-2deg to 2deg) for subtle sway. Add particle ShapeAtoms as 'leaves' or 'petals' that spawn and float away. Timeline: outline fades in (0-20%), growth points begin expanding (20-80%) with staggered starts, gentle pulse at completion (80-100%). Consider using fitDurationTo: 'audio' if available to sync growth with audio intensity."
+              },
+              {
+                "prompt": "Develop a glitch-art preset where outlined text corrupts and repairs itself while filling with color through digital artifacts and data moshing effects. The outline should break apart into segments, shift with RGB channel separation, then reassemble as the fill materializes through pixelated transitions. This creates a contemporary digital art aesthetic perfect for tech, gaming, or experimental content.",
+                "technicalSpecs": "Structure: BaseLayout with 'relative bg-black overflow-hidden w-full h-full flex items-center justify-center'. Create three TextAtom layers for RGB channel separation, each with 'absolute inset-0' positioning. Use mix-blend-mode (screen for R, multiply for G/B) and color filters. Implement glitch effects using rapid transform changes: translateX with random values, scaleX for horizontal stretching, skewX for distortion. Apply clip-path with random rectangle cutouts that change every few frames. For fill transition, use pixelated effect by scaling text down then up with 'image-rendering-pixelated' style. Effects timeline: stable outline (0-20%), glitch corruption with RGB split (20-50%), gradual repair with fill appearing through pixel blocks (50-80%), final stabilization (80-100%). Use random seed for reproducible randomness. Consider audio-reactive glitch intensity if audio present using waveform effects."
+              },
+              {
+                "prompt": "Design a cinematic reveal where text outlines materialize as if traced by light beams in darkness, then fill with a rich color that flows through the letterforms like liquid metal. The animation should feel premium and weighty - imagine molten gold being poured into a mold. The outline should have a laser-etched quality with sharp precision, while the fill has viscous, physical properties with realistic flow dynamics.",
+                "technicalSpecs": "Use BaseLayout with 'relative bg-black w-full h-full flex items-center justify-center'. Implement TextAtom with 'font-bold text-6xl' classes. Create laser outline effect using animated box-shadow with multiple layers: thin bright core (0 0 2px), medium glow (0 0 10px), wide aura (0 0 30px). Use stroke-dasharray animation for progressive outline reveal with cubic-bezier(0.4, 0, 0.2, 1) easing. For liquid metal fill, implement custom gradient animation that moves from bottom to top with physics-based easing (gravity simulation). Add specular highlights using additional gradient layers that shift based on 'light position'. Apply subtle transform: rotateX(5deg) for depth perception. Use multiple effects: outline reveal (0-40%), fill flow with ease-in start and ease-out end (40-90%), final highlight sweep (90-100%). Consider adding reflection using scaleY(-1) duplicate with opacity gradient mask. Use 'will-change-transform will-change-opacity' for optimization."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3434,
+              "outputTokens": 3241,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6675
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:07:05.317Z"
+}

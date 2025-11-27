@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Very slow dissolve, text lingering and then fading out gently. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "LKgy9VHpLxP17tLp",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-J4DXLej8Wod8UjuJ",
+          "state": "output-available",
+          "output": {
+            "title": "Slow Dissolve Typokinetic Text with Gentle Fade Out",
+            "prompts": [
+              {
+                "prompt": "Create a 'typokinetics' preset that implements an ethereal text dissolve effect with extreme lingering. Think of this as a classic film dissolve technique where text hangs in the air like smoke before dissipating. The text should appear with a gentle fade-in over 1-2 seconds, remain fully visible for 60-70% of its duration (the 'linger' phase), then dissolve extremely slowly over the remaining 30-40% with a non-linear decay. Each word should have slightly staggered timing, creating a cascade effect. The dissolve should use both opacity and a subtle blur filter that increases as the text fades, mimicking depth of field. Consider adding a very subtle scale reduction (1.0 to 0.95) during the fade-out to enhance the feeling of the text receding into space. Use caption data to animate word-by-word with individual timing offsets.",
+                "technicalSpecs": "Structure: BaseLayout container with 'relative w-full h-full' classes containing individual TextAtom components per word from caption data. Use containerProps.className='flex flex-wrap items-center justify-center gap-2' for word layout. Apply generic keyframe effects to each TextAtom with AnimationRange arrays for opacity (1.0 to 0), blur (0px to 8px), and scale (1.0 to 0.95). Timing: Use word.relativeStart for stagger, with fade-in from 0-15%, hold at 15-75%, fade-out 75-100% of word duration. Easing: 'ease-in' for fade-in, 'ease-out' for dissolve. Performance: Use transform: scale() and filter: blur() with will-change: transform, opacity, filter. Consider creating an internal effect preset 'ethereal-dissolve' for reusability across multiple text elements."
+              },
+              {
+                "prompt": "Design a 'typokinetics' preset inspired by analog video editing crossfades where text layers dissolve through luminance keying. The text should materialize from overexposure (pure white with glow), stabilize into readable form, then slowly burn out through increasing brightness until it disappears into white. This mimics the classic video effect of dissolving through brightness rather than opacity. Add a subtle pulsing glow during the stable phase to maintain visual interest. The entire sequence should feel like looking at text through an old CRT monitor with phosphor persistence. Typography should leverage caption metadata - keywords get stronger glow, high-impact words pulse more intensely.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black' containing TextAtom components. Use containerProps.style for mix-blend-mode: 'screen'. Apply combined effects: brightness (2.0 to 1.0 to 3.0), textShadow for glow ('0 0 20px rgba(255,255,255,1)' to '0 0 60px rgba(255,255,255,0)'), opacity (0 to 1 to 0). Timing phases: materialize 0-20%, stable 20-70%, burn-out 70-100%. For pulsing, add secondary effect with shorter AnimationRange cycles during stable phase. Use caption.metadata.impact to modulate glow intensity multiplier. Tailwind: 'text-white font-bold text-4xl'. Performance: GPU-accelerated filters, consider backdrop-filter for additional depth."
+              },
+              {
+                "prompt": "Build a 'typokinetics' preset that treats text like particles in a fluid simulation. Text should coalesce from scattered, barely visible fragments, hold its form briefly, then disperse as if dissolving in water. Each letter should have micro-movements during the stable phase (subtle float animation). The dissolution should feel organic - letters don't just fade but seem to break apart and drift away. This references particle-based dissolve effects from high-end video editing software. The lingering phase should have a 'breathing' quality with very subtle scale oscillation. Use word-level timing from captions to create waves of dissolution across sentences.",
+                "technicalSpecs": "BaseLayout 'relative overflow-hidden' with individual BaseLayout wrappers per word, each containing letter-level TextAtom components split from word text. Initial state: translateX/Y random(-20px, 20px), opacity 0.1, scale 0.8. Coalesce phase (0-25%): animate to translateX/Y 0, opacity 1, scale 1. Stable phase (25-75%): add subtle float effect with translateY sin wave (-2px to 2px), scale oscillation (0.98 to 1.02). Dissolve phase (75-100%): translateX/Y random(-30px, 30px), opacity 0, scale 0.7, blur increasing to 4px. Use spring easing for coalesce, linear for float, ease-in for dissolve. Create helper function to split words into letters with timing calculations."
+              },
+              {
+                "prompt": "Develop a 'typokinetics' preset mimicking film optical printer techniques where text dissolves through multiple exposure passes. Text should fade in through 'double exposure' (two offset copies merging into one), remain stable with subtle chromatic aberration, then dissolve by splitting into RGB channels that fade at different rates. This creates the vintage film dissolve aesthetic. The lingering phase should have film grain texture overlay. Caption-based implementation should respect sentence-level timing while applying word-level stagger effects. High-impact words should have stronger channel separation during dissolve.",
+                "technicalSpecs": "BaseLayout with three overlapping TextAtom layers per word using absolute positioning. Initial: Layer 1 'text-red-500' translateX(-2px), Layer 2 'text-green-500', Layer 3 'text-blue-500' translateX(2px), all opacity 0.5. Merge phase (0-20%): translateX to 0, opacity to 0.33 each, creating white text. Stable (20-80%): subtle translateX oscillation ±0.5px for chromatic aberration. Dissolve (80-100%): Stagger fadeout - red at 80%, green at 85%, blue at 90%. Add noise texture with CSS: '::after' pseudo-element with opacity 0.1 animated grain pattern. Use mix-blend-mode: 'screen' for RGB layers. Performance: transform-only animations, composite layers for each color channel."
+              },
+              {
+                "prompt": "Create a 'typokinetics' preset inspired by slow-motion ink dissolving in water. Text materializes like ink drops forming letters, holds with subtle undulation, then disperses as if diluting into the medium. The key is ultra-slow, non-linear timing - the dissolve should feel like it's fighting against surface tension before finally breaking apart. Include turbulence effects during dissolution where letters seem to swirl before disappearing. This should feel meditative and hypnotic. Use caption word timing to create a 'dropping ink' sequence where words appear to fall into place.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full' with TextAtom components using SVG filters for distortion. Initial: scale(0.3) at word baseline, opacity 0. Growth phase (0-30%): scale to 1.1 then settle to 1.0 with bounce easing, opacity to 1. Hold phase (30-85%): apply subtle SVG turbulence filter with animated baseFrequency (0.01 to 0.02), slight translateY wave ±3px. Dissolve (85-100%): increase turbulence to 0.1, scale to 1.3, opacity to 0 with exponential easing. Use filter: url(#turbulence) with inline SVG feTurbulence. Each word gets randomized turbulence seed. Tailwind: 'text-6xl font-light tracking-wide'. Consider sub-preset for SVG filter generation."
+              },
+              {
+                "prompt": "Design a 'typokinetics' preset that emulates professional broadcast graphics with ultra-smooth hold-and-release timing. Text should fade in with broadcast-standard ease (S-curve), hold rock-steady for extended duration, then fade out with an even slower decay that feels like it's reluctant to leave. Add subtle drop shadow that increases during fade-out, creating depth. The preset should handle both titles and captions, with titles getting longer hold times. Include optional background blur panel that appears/disappears with text. This is about precision timing and broadcast-quality smoothness.",
+                "technicalSpecs": "BaseLayout with optional blur panel (BaseLayout with 'absolute inset-0 bg-black/30 backdrop-blur-md') and text container. TextAtom with 'relative z-10 text-white font-semibold'. Effects: opacity (0 to 1 to 0) with custom cubic-bezier(0.25, 0.46, 0.45, 0.94) for fade-in, cubic-bezier(0.55, 0.055, 0.675, 0.19) for fade-out. Drop shadow via filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' to 'drop-shadow(0 8px 16px rgba(0,0,0,0.8))'. Timing: fade-in 0-10%, hold 10-80%, fade-out 80-100%. For captions, use fitDurationTo: 'children' with minimum 3s duration. Panel animations offset by -0.2s for lead-in, +0.2s for lead-out."
+              },
+              {
+                "prompt": "Build a 'typokinetics' preset with quantum physics-inspired dissolution - text exists in superposition before collapsing into view, maintains stability with quantum jitter, then dissolves through probability decay. Text should flicker into existence (rapid opacity oscillation), stabilize with micro-vibrations, then fade through decreasing probability of existence (stochastic fade with random opacity spikes). This creates an otherworldly, glitchy aesthetic. Use caption metadata to influence 'quantum stability' - keywords are more stable, regular words jitter more.",
+                "technicalSpecs": "TextAtom components with complex effect chains. Materialization (0-15%): Rapid opacity oscillation between 0 and 1 at 24fps using stepped easing, settling to 1. Stable phase (15-75%): Continuous micro-jitter with translateX/Y random ±1px at 60fps, scale 0.99-1.01. Decay phase (75-100%): Base opacity curve to 0 with superimposed random spikes - use custom helper function for stochastic opacity array generation. Apply glitch effect via CSS: 'animation: glitch 0.1s infinite' with clip-path polygons. Use caption.metadata.keyword boolean to reduce jitter amplitude by 50%. Performance: Use CSS animations for high-frequency effects, JS for stochastic calculations."
+              },
+              {
+                "prompt": "Create a 'typokinetics' preset mimicking time-lapse photography of text weathering and erosion. Text appears solid and sharp, then over an extended hold period shows signs of 'aging' (slight blur increase, contrast decrease), before finally eroding away like sandstone in wind. The dissolution should be granular - edges become rough, pieces seem to blow away. Include subtle color shift from pure white to off-white/beige during aging. This creates a poetic, contemplative feeling. Word-level timing should create erosion patterns that follow reading flow.",
+                "technicalSpecs": "BaseLayout with TextAtom using CSS filters and mask techniques. Initial: filter brightness(1.2) contrast(1.2), text pure white. Aging phase (0-70%): Gradually adjust to brightness(1.0) contrast(0.9), color transitions to #FAF7F0. Add increasing textShadow blur from 0 to 2px. Erosion phase (70-100%): Apply SVG filter with feTurbulence + feDisplacementMap for edge roughness, increasing displacement from 0 to 10. Combine with decreasing opacity and mask-image: linear-gradient for bottom-up erosion effect. Use multiple keyframe animations: 'age', 'erode', 'colorshift'. Tailwind: 'text-7xl font-thin tracking-wider'. Consider audio-reactive erosion speed if audio source available."
+              },
+              {
+                "prompt": "Design a 'typokinetics' preset inspired by consciousness and dream states - text emerges from subconscious fog, crystallizes into clear thought, then dissolves back into the dream realm. Include depth layers where background text hints appear before main text, and ghost echoes linger after dissolution. The hold phase should have a 'lucid' quality with perfect clarity. Multi-layered approach with different timing for each consciousness level. Caption sentiment data should influence the dream-like quality of transitions.",
+                "technicalSpecs": "Three-layer BaseLayout structure: background hints (opacity 0.1-0.2), main text (opacity 0-1-0), echo layer (delayed fade). Background: BaseLayout with 'absolute inset-0' containing preview TextAtoms, blur(8px), 500ms lead. Main: TextAtom with standard positioning, effects for opacity, blur (6px to 0 to 10px), scale (0.9 to 1.0 to 0.85). Echo: Duplicate TextAtom with 'absolute' positioning, 1s delay, opacity 0.3 to 0 fade. Use caption.metadata.sentiment to adjust blur ranges - positive sentiment = less blur, negative = more dream-like. Timing: hint appears at -10%, main 0-100%, echo persists to 110%. Spring easing for crystallization, ease-out for dissolution."
+              },
+              {
+                "prompt": "Build a 'typokinetics' preset that treats text as calligraphy being written and then absorbed by paper. Text should 'write on' with brush stroke dynamics (fast start, slow finish), remain with subtle paper texture animation, then slowly absorb/bleed into the background as if ink soaking into paper fibers. The dissolution should spread from letter edges inward. Include optional paper texture overlay. This creates an artistic, literary feeling perfect for quotes or poetry. Use word-by-word reveal following natural reading cadence from caption timing.",
+                "technicalSpecs": "BaseLayout with paper texture background (optional ::before with noise texture). TextAtom with mask-image for write-on effect: linear-gradient(to right, black var(--progress), transparent var(--progress)). Write phase (0-25%): Animate --progress from 0% to 100% with ease-out. Hold phase (25-75%): Subtle opacity fluctuation 0.95-1.0 simulating paper grain. Absorb phase (75-100%): Combine opacity fade with filter: blur() increasing 0-6px and contrast() decreasing 1.0-0.5, creating ink bleed effect. Add text-shadow with increasing blur and decreasing opacity for edge bleeding. Use stroke-dasharray animation for calligraphy feel. Tailwind: 'font-serif italic text-5xl'. Create internal effect preset 'ink-absorb' for the bleed effect."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3474,
+              "outputTokens": 3650,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 7124
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:51:35.886Z"
+}
