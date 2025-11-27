@@ -193,12 +193,12 @@ jobs:
                     const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
                     
                     console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
-                    console.log(`   URL: ${apiBaseUrl}/api/studio/chat/agent/preset/generate`);
+                    console.log(`   URL: ${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`);
                     console.log(`   Method: POST`);
                     console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
                     console.log(`   Prompt length: ${combinedPrompt.length} characters`);
                     
-                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
+                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
