@@ -13,7 +13,8 @@
     "deploy": "node deploy.mjs",
     "db:optimize": "npx tsx lib/scripts/optimize-database-indexes.ts",
     "push": "npx tsx scripts/push-preset.ts",
-    "callAgent": "npx tsx scripts/call-agent.ts"
+    "callAgent": "npx tsx scripts/call-agent.ts",
+    "batch-create-issues": "npx tsx scripts/batch-create-issues.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.47",
@@ -39,6 +40,7 @@
     "@microfox/s3-space": "^1.1.1",
     "@microfox/types": "^1.1.0",
     "@monaco-editor/react": "^4.7.0",
+    "@octokit/rest": "^22.0.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
