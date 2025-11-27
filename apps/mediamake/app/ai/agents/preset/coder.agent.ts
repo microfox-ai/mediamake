@@ -17,11 +17,43 @@ export const coderAgent = aiRouter
       feedback?: string[];
     };
 
-    // Load Guides
-    const basicsGuide = await readGuide('BASICS.md');
-    const typographyGuide = await readGuide('TYPOGRAPHY.md');
+    // Load CRITICAL "0_" Guides (ALWAYS IN CONTEXT - FOUNDATIONAL RULES)
+    const negativesGuide = await readGuide('0_NEGATIVES.md');
+    const basicsGuide = await readGuide('0_BASICS.md');
+    const layoutGuide = await readGuide('0_LAYOUT.md');
+    const atomsGuide = await readGuide('0_ATOMS.md');
+    
+    // Load Generation Guides
     const singlePresetGuide = await readGuide('GENERATION_SINGLE_PRESET.md');
     const patternsGuide = await readGuide('GENERATION_PATTERNS.md');
+    const timingGuide = await readGuide('GENERATION_TIMING.md');
+    
+    // Load conditional guides based on plan/prompt needs
+    const needsTransitions = prompt.toLowerCase().includes('transition') || 
+                            plan.structure?.some((s: any) => s.type?.includes('transition')) ||
+                            JSON.stringify(plan).toLowerCase().includes('transition');
+    
+    const needsTypography = prompt.toLowerCase().includes('caption') || 
+                           prompt.toLowerCase().includes('text') || 
+                           prompt.toLowerCase().includes('typography') ||
+                           plan.structure?.some((s: any) => s.type === 'TextAtom' || s.componentId === 'TextAtom');
+    
+    const needsEffects = prompt.toLowerCase().includes('effect') || 
+                        prompt.toLowerCase().includes('animation') ||
+                        prompt.toLowerCase().includes('fade') ||
+                        prompt.toLowerCase().includes('zoom') ||
+                        JSON.stringify(plan).toLowerCase().includes('effect');
+    
+    const needsAudioData = prompt.toLowerCase().includes('audio') || 
+                          prompt.toLowerCase().includes('beat') || 
+                          prompt.toLowerCase().includes('sync') ||
+                          plan.structure?.some((s: any) => s.type === 'AudioAtom' || s.componentId === 'AudioAtom');
+    
+    const transitionsGuide = needsTransitions ? await readGuide('TRANSITIONS.md') : '';
+    const typographyGuide = needsTypography ? await readGuide('TYPOGRAPHY.md') : '';
+    const effectsGuide = needsEffects ? await readGuide('EFFECTS.md') : '';
+    const audioDataGuide = needsAudioData ? await readGuide('AUDIO_DATA.md') : '';
+    
     const typesFile = await readTypesFile(1000);
 
     ctx.response.writeMessageMetadata({
@@ -55,6 +87,31 @@ export const coderAgent = aiRouter
 
         ${feedbackPrompt}
 
+        **⚠️⚠️⚠️ CRITICAL FOUNDATIONAL RULES - VIOLATING THESE WILL BREAK THE PRESET ⚠️⚠️⚠️**:
+
+        **🚨🚨🚨 GENERATION_TIMING.md - CRITICAL TIMING RULES (READ COMPLETELY) 🚨🚨🚨**:
+        ${timingGuide}
+
+        **0_NEGATIVES.md - ANTI-PATTERNS (NEVER DO THESE)**:
+        ${negativesGuide}
+        
+        Key points from NEGATIVES:
+        - ❌ NEVER use CSS @keyframes
+        - ❌ NEVER use dangerouslySetInnerHTML on BaseLayout
+        - ❌ NEVER use CSS animation property
+        - ❌ NEVER use mode: 'wrapper' for effects (creates unwanted wrapper divs)
+        - ✅ ALWAYS use effects with mode: 'provider' and targetIds
+        - ✅ ALWAYS use the effects system for animations
+
+        **0_BASICS.md - CORE ARCHITECTURE**:
+        ${basicsGuide}
+
+        **0_LAYOUT.md - LAYOUT & TIMING FUNDAMENTALS**:
+        ${layoutGuide}
+
+        **0_ATOMS.md - AVAILABLE BUILDING BLOCKS**:
+        ${atomsGuide}
+
         **CODING RULES (HARD CONSTRAINTS)**:
         1.  **Single preset per file** (see GENERATION_SINGLE_PRESET.md):
             - Exactly ONE preset metadata object, ONE execution function, and ONE exported preset object.
@@ -86,6 +143,7 @@ export const coderAgent = aiRouter
             - Extract effects via '_extractedEffects' or nested 'childrenData[0].effects[0]' as needed.
             - Effects attached directly to components must be full effect nodes shaped like BaseEffect: '{ id, componentId, data: { type, start, duration, mode, targetIds, ranges } }', not just the inner data object.
             - Do NOT redefine other presets' code inside this file.
+            - **CRITICAL**: Effect start times are RELATIVE to the parent component's timeline (see GENERATION_TIMING.md).
         6.  **Style**: Prefer Tailwind 'className'. Use inline 'style' only for dynamic/calculated values that Tailwind cannot express.
         7.  **Zod record**: When using Zod's record type, prefer 'z.record(z.string(), z.any())' instead of 'z.record(z.any())'.
         8.  **Advanced patterns**: For analytics/debug overlays, accessibility modes, packs, or platform presets, follow GENERATION_PATTERNS.md rather than inventing new patterns.
@@ -95,13 +153,16 @@ export const coderAgent = aiRouter
             - Follow TypeScript best practices and type safety.
             - All helper functions must be defined INSIDE the presetExecution function body (not at top level).
             - Ensure proper error handling and edge cases are covered.
+        10. **Effects Mode**: ALWAYS use mode: 'provider' with targetIds. NEVER use mode: 'wrapper'.
 
         **REFERENCE CODE**:
         ${context}
 
-        **GUIDES (CORE)**:
-        ${basicsGuide}
-        ${typographyGuide}
+        **CONDITIONAL GUIDES (Based on Your Plan)**:
+        ${transitionsGuide ? `**TRANSITIONS.md**:\n${transitionsGuide}\n\n` : ''}
+        ${typographyGuide ? `**TYPOGRAPHY.md**:\n${typographyGuide}\n\n` : ''}
+        ${effectsGuide ? `**EFFECTS.md**:\n${effectsGuide}\n\n` : ''}
+        ${audioDataGuide ? `**AUDIO_DATA.md**:\n${audioDataGuide}\n\n` : ''}
 
         **GUIDES (GENERATION)**:
         ${singlePresetGuide}
@@ -109,6 +170,12 @@ export const coderAgent = aiRouter
 
         **TYPES FROM "../../types.ts" (REFERENCE ONLY, DO NOT REDEFINE):**
         ${typesFile}
+
+        **FINAL REMINDER BEFORE YOU CODE**:
+        - All context.timing values are RELATIVE to parent, not absolute to video start
+        - NEVER use mode: 'wrapper' - always use mode: 'provider' with targetIds
+        - NEVER use dangerouslySetInnerHTML or CSS animations
+        - Follow the 0_ guides strictly - they are the foundation
 
         Generate the full file content.
       `,

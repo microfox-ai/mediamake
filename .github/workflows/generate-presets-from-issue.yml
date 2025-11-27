@@ -31,6 +31,11 @@ jobs:
         # working-directory: apps/mediamake
         run: npm i
 
+      - name: Apply Next.js requestTimeout patch
+        run: |
+          npx patch-package
+          echo "✅ Applied Next.js patch for extended requestTimeout (1 hour)"
+
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
@@ -49,7 +54,7 @@ jobs:
           npm run build
           echo "✅ Build complete"
 
-      - name: Start MediaMake Server
+      - name: Start MediaMake Server (with patched requestTimeout)
         working-directory: apps/mediamake
         run: |
           npm run start > server.log 2>&1 &
@@ -165,6 +170,7 @@ jobs:
               }
 
               console.log(`✅ Found ${presetRequests.length} preset request(s)`);
+              console.log(`📦 Will process in batches of 3 to avoid server overload`);
 
               // Configure git
               execSync('git config user.name "github-actions[bot]"');
@@ -174,31 +180,186 @@ jobs:
               const startTime = Date.now();
 
               // ==========================================
-              // STEP 1: PARALLEL API CALLS
+              // STEP 1: CREATE PR AND BRANCH FIRST
               // ==========================================
-              console.log('\n🚀 Step 1: Fetching all presets in parallel...');
+              console.log('\n🌿 Step 1: Creating branch and PR first (for progressive commits)...');
               const step1Start = Date.now();
               
-              // Create promises for all API calls
-              const apiPromises = presetRequests.map((request, i) => {
-                return (async () => {
-                  const index = i + 1;
-                  
-                  if (!request.prompt || !request.technicalSpecs) {
-                    console.error(`❌ Preset ${index} missing required fields (prompt, technicalSpecs)`);
-                    return { index, success: false, error: 'Missing required fields' };
+              // Configure git
+              execSync('git config user.name "github-actions[bot]"');
+              execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+              
+              // Change to repo root for git operations
+              const currentDir = process.cwd();
+              const repoRoot = path.resolve(currentDir, '..', '..');
+              console.log(`📁 Current dir: ${currentDir}`);
+              console.log(`📁 Changing to repo root: ${repoRoot}`);
+              process.chdir(repoRoot);
+              console.log(`📁 Now in: ${process.cwd()}`);
+              
+              // Create branch
+              const timestamp = Date.now();
+              const branchName = `presets/batch-${issueNumber}-${timestamp}`;
+              console.log(`🌿 Creating branch: ${branchName}`);
+              execSync(`git checkout -b ${branchName}`);
+              
+              // Extract descriptive title from issue title
+              let descriptiveTitle = 'Preset Request';
+              if (issueTitle) {
+                const match = issueTitle.match(/new\s+presets?\s*[-:]\s*(.+)/i);
+                if (match && match[1]) {
+                  descriptiveTitle = match[1].trim();
+                } else {
+                  const simpleMatch = issueTitle.match(/new\s+presets?\s+(.+)/i);
+                  if (simpleMatch && simpleMatch[1]) {
+                    descriptiveTitle = simpleMatch[1].trim();
                   }
+                }
+              }
+              
+              // Create initial PR
+              const presetCount = presetRequests.length;
+              const presetWord = presetCount === 1 ? 'preset' : 'presets';
+              const prTitle = `add ${presetCount} ${presetWord} from issue #${issueNumber} - ${descriptiveTitle}`;
+              
+              let initialPrBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
+              initialPrBody += `## 🚀 Generation In Progress\n\n`;
+              initialPrBody += `Generating ${presetCount} preset(s)...\n\n`;
+              initialPrBody += `**Status:** Starting generation process\n\n`;
+              initialPrBody += `_This PR will be updated as each preset is generated and committed._\n\n`;
+              initialPrBody += `Closes #${issueNumber}`;
+              
+              console.log(`📝 Creating initial PR: ${prTitle}`);
+              
+              let prUrl = null;
+              let prNumber = null;
+              
+              try {
+                // Create empty initial commit
+                execSync('git commit --allow-empty -m "chore: initialize preset generation"');
+                execSync(`git push -u origin ${branchName}`);
+                
+                const prResponse = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/pulls`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json',
+                  },
+                  body: JSON.stringify({
+                    title: prTitle,
+                    body: initialPrBody,
+                    head: branchName,
+                    base: 'main',
+                  }),
+                });
 
+                if (!prResponse.ok) {
+                  const prError = await prResponse.text();
+                  throw new Error(`Failed to create PR: ${prResponse.status} ${prError}`);
+                }
+
+                const prData = await prResponse.json();
+                prUrl = prData.html_url;
+                prNumber = prData.number;
+                
+                console.log(`✅ PR created: ${prUrl}`);
+              } catch (error) {
+                console.error(`❌ Failed to create PR:`, error.message);
+                process.exit(1);
+              }
+              
+              const step1Duration = ((Date.now() - step1Start) / 1000).toFixed(2);
+              console.log(`\n✅ Branch and PR created (${step1Duration}s)`);
+
+              // ==========================================
+              // STEP 2: GENERATE AND COMMIT PRESETS ONE BY ONE
+              // ==========================================
+              console.log('\n🚀 Step 2: Generating presets one by one with immediate commits...');
+              const step2Start = Date.now();
+              
+              // Process in batches of 3, but commit after each batch
+              const BATCH_SIZE = 3; // Process 3 presets at a time
+              const REQUEST_TIMEOUT = 20 * 60 * 1000; // 20 minutes per request
+              const MAX_RETRIES = 3; // Retry up to 3 times
+              
+              // Track all results across batches
+              const allResults = [];
+              
+              // Helper function to update PR description
+              async function updatePRDescription(successCount, totalCount, results) {
+                try {
+                  let prBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
+                  prBody += `## 🚀 Generation Progress\n\n`;
+                  prBody += `**Status:** ${successCount}/${totalCount} presets generated\n\n`;
+                  
+                  if (successCount > 0) {
+                    prBody += `### ✅ Completed Presets\n\n`;
+                    results.filter(r => r.success).forEach((r, idx) => {
+                      prBody += `${idx + 1}. **${r.metadata?.title || r.presetId}**\n`;
+                      prBody += `   - File: \`${r.filepath}\`\n`;
+                      if (r.retries > 0) {
+                        prBody += `   - 🔄 Succeeded after ${r.retries} ${r.retries === 1 ? 'retry' : 'retries'}\n`;
+                      }
+                    });
+                    prBody += `\n`;
+                  }
+                  
+                  const failedCount = results.filter(r => !r.success).length;
+                  if (failedCount > 0) {
+                    prBody += `### ❌ Failed Presets (${failedCount})\n\n`;
+                    results.filter(r => !r.success).forEach((r, idx) => {
+                      prBody += `${idx + 1}. **Preset ${r.index}** - ${r.error}\n`;
+                    });
+                    prBody += `\n`;
+                  }
+                  
+                  if (successCount < totalCount) {
+                    prBody += `_Generation in progress... This description will be updated as more presets complete._\n\n`;
+                  }
+                  
+                  prBody += `Closes #${issueNumber}`;
+                  
+                  await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/pulls/${prNumber}`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/vnd.github.v3+json',
+                    },
+                    body: JSON.stringify({ body: prBody }),
+                  });
+                  
+                  console.log(`✅ Updated PR description: ${successCount}/${totalCount} complete`);
+                } catch (error) {
+                  console.warn(`⚠️  Failed to update PR description:`, error.message);
+                }
+              }
+              
+              // Create API call function with timeout, retry logic, and immediate commit
+              async function callPresetAPI(request, index, retryCount = 0) {
+                if (!request.prompt || !request.technicalSpecs) {
+                  console.error(`❌ Preset ${index} missing required fields (prompt, technicalSpecs)`);
+                  return { index, success: false, error: 'Missing required fields' };
+                }
+
+                try {
+                  const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
+                  
+                  const retryInfo = retryCount > 0 ? ` (Retry ${retryCount}/${MAX_RETRIES})` : '';
+                  console.log(`📤 [${index}/${presetRequests.length}] Calling API...${retryInfo}`);
+                  console.log(`   URL: ${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`);
+                  console.log(`   Method: POST`);
+                  console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
+                  console.log(`   Prompt length: ${combinedPrompt.length} characters`);
+                  
+                  // Create AbortController for timeout
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+                  
+                  let result;
                   try {
-                    const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
-                    
-                    console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
-                    console.log(`   URL: ${apiBaseUrl}/api/studio/chat/agent/preset/generate`);
-                    console.log(`   Method: POST`);
-                    console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
-                    console.log(`   Prompt length: ${combinedPrompt.length} characters`);
-                    
-                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/agent/preset/generate`, {
+                    const response = await fetch(`${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -207,7 +368,10 @@ jobs:
                       body: JSON.stringify({
                         prompt: combinedPrompt,
                       }),
+                      signal: controller.signal,
                     });
+                    
+                    clearTimeout(timeoutId);
 
                     console.log(`📥 [${index}/${presetRequests.length}] Response status: ${response.status} ${response.statusText}`);
                     console.log(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
@@ -219,8 +383,15 @@ jobs:
                       throw new Error(`API returned ${response.status}: ${errorText || '(empty response body)'}`);
                     }
 
-                    const result = await response.json();
+                    result = await response.json();
                     console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
+                  } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    if (fetchError.name === 'AbortError') {
+                      throw new Error(`Request timed out after ${REQUEST_TIMEOUT / 1000 / 60} minutes`);
+                    }
+                    throw fetchError;
+                  }
 
                     // Parse the nested response structure
                     // Response format: [{ parts: [{ output: { code, metadata } }] }]
@@ -293,12 +464,89 @@ jobs:
                     const wasAutoFixed = metadata?.wasAutoFixed || false;
                     const hasLintIssues = lintOutput && (lintOutput.includes('error') || lintOutput.includes('warning'));
                     
+                    const presetId = metadata?.id || `preset-${timestamp}-${index}`;
+                    const presetTitle = metadata?.title || presetId;
+                    
+                    // ==========================================
+                    // IMMEDIATE COMMIT - Right after generation!
+                    // ==========================================
+                    console.log(`💾 [${index}/${presetRequests.length}] Committing preset immediately...`);
+                    
+                    try {
+                      // Determine correct file path
+                      let relativeFilePath = savedFilePath;
+                      if (!relativeFilePath.startsWith('apps/mediamake/')) {
+                        relativeFilePath = `apps/mediamake/${relativeFilePath}`;
+                      }
+                      
+                      console.log(`   📁 Adding file: ${relativeFilePath}`);
+                      
+                      // Check if file exists and add it
+                      if (fs.existsSync(relativeFilePath)) {
+                        execSync(`git add "${relativeFilePath}"`);
+                      } else {
+                        // Try alternate path
+                        const alternatePath = savedFilePath;
+                        if (fs.existsSync(alternatePath)) {
+                          console.log(`   ✅ Found at alternate path: ${alternatePath}`);
+                          execSync(`git add "${alternatePath}"`);
+                          relativeFilePath = alternatePath;
+                        } else {
+                          throw new Error(`File not found: ${relativeFilePath} or ${alternatePath}`);
+                        }
+                      }
+                      
+                      // Create commit message
+                      let commitMsg = `feat: add ${presetTitle}`;
+                      if (validationFailed) {
+                        commitMsg += ' (validation failed - needs review)';
+                      } else if (wasAutoFixed) {
+                        commitMsg += ' (auto-fixed)';
+                      }
+                      if (retryCount > 0) {
+                        commitMsg += `\n\nSucceeded after ${retryCount} ${retryCount === 1 ? 'retry' : 'retries'}`;
+                      }
+                      commitMsg += `\n\nGenerated from issue #${issueNumber}`;
+                      
+                      // Commit
+                      execSync(`git commit -m "${commitMsg}"`);
+                      console.log(`   ✅ [${index}/${presetRequests.length}] Committed: ${presetTitle}`);
+                      
+                      // Push immediately to save progress
+                      execSync(`git push origin ${branchName}`);
+                      console.log(`   🚀 [${index}/${presetRequests.length}] Pushed - progress saved!`);
+                      
+                      // Update PR description after each commit
+                      allResults.push({
+                        index,
+                        success: true,
+                        presetId,
+                        filepath: savedFilePath,
+                        metadata,
+                        validationFailed,
+                        wasAutoFixed,
+                        hasLintIssues,
+                        retries: retryCount,
+                        originalRequest: request,
+                      });
+                      
+                      const totalSuccessful = allResults.filter(r => r.success).length;
+                      await updatePRDescription(totalSuccessful, presetRequests.length, allResults);
+                      
+                    } catch (gitError) {
+                      console.error(`   ❌ [${index}/${presetRequests.length}] Git commit/push failed:`, gitError.message);
+                      console.error(`   ⚠️  Preset was generated but not committed. Continuing...`);
+                      // Don't fail the whole process, just log it
+                    }
+                    
                     return {
                       index,
                       success: true,
                       generatedCode,
                       metadata,
                       savedFilePath,
+                      presetId,
+                      filepath: savedFilePath,
                       originalRequest: request,
                       lintOutput,
                       validationWarnings,
@@ -306,17 +554,41 @@ jobs:
                       validationFailed,
                       hasLintIssues,
                       wasAutoFixed,
+                      retries: retryCount,
                     };
                   } catch (error) {
                     console.error(`❌ [${index}/${presetRequests.length}] API call failed:`, error.message);
                     console.error(`   Error stack:`, error.stack);
                     
-                    // Note: "fetch failed" errors are often due to:
-                    // - Request timeout (API route has maxDuration of 300s)
-                    // - Connection closed by server
-                    // - Network issues
+                    // Check if error is retryable
+                    const isRetryableError = 
+                      error.message.includes('fetch failed') ||
+                      error.message.includes('timed out') ||
+                      error.message.includes('ECONNRESET') ||
+                      error.message.includes('ETIMEDOUT') ||
+                      error.message.includes('ENOTFOUND') ||
+                      error.message.includes('socket hang up');
+                    
                     if (error.message.includes('fetch failed')) {
                       console.error(`   ℹ️  This is likely a timeout or connection issue`);
+                    } else if (error.message.includes('timed out')) {
+                      console.error(`   ℹ️  Request exceeded ${REQUEST_TIMEOUT / 1000 / 60} minute timeout`);
+                    }
+                    
+                    // Retry if possible
+                    if (isRetryableError && retryCount < MAX_RETRIES) {
+                      const waitTime = Math.pow(2, retryCount) * 5000; // Exponential backoff: 5s, 10s, 20s
+                      console.log(`🔄 Retrying in ${waitTime / 1000} seconds... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                      
+                      await new Promise(resolve => setTimeout(resolve, waitTime));
+                      
+                      // Recursive retry
+                      return callPresetAPI(request, index, retryCount + 1);
+                    }
+                    
+                    // Max retries exceeded or non-retryable error
+                    if (retryCount >= MAX_RETRIES) {
+                      console.error(`   ❌ Max retries (${MAX_RETRIES}) exceeded`);
                     }
                     
                     return {
@@ -324,19 +596,51 @@ jobs:
                       success: false,
                       error: error.message,
                       errorStack: error.stack,
+                      retries: retryCount,
                     };
                   }
-                })();
-              });
+              }
 
-              // Wait for all API calls to complete
-              const apiResults = await Promise.all(apiPromises);
+              // Process requests in batches (3 at a time), each commits immediately upon completion
+              for (let i = 0; i < presetRequests.length; i += BATCH_SIZE) {
+                const batch = presetRequests.slice(i, i + BATCH_SIZE);
+                const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+                const totalBatches = Math.ceil(presetRequests.length / BATCH_SIZE);
+                
+                console.log(`\n📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} presets)...`);
+                console.log(`   Note: Each preset will commit & push immediately upon completion`);
+                
+                const batchPromises = batch.map((request, batchIndex) => {
+                  const index = i + batchIndex + 1;
+                  return callPresetAPI(request, index);
+                });
+                
+                // Process all 3 in parallel, each will commit independently as it completes
+                const batchResults = await Promise.all(batchPromises);
+                
+                const batchSuccesses = batchResults.filter(r => r.success);
+                const batchFailures = batchResults.filter(r => !r.success);
+                
+                console.log(`\n✅ Batch ${batchNumber} complete: ${batchSuccesses.length}/${batch.length} successful`);
+                
+                // Track failures (successes already tracked in callPresetAPI)
+                batchFailures.forEach(failure => {
+                  allResults.push(failure);
+                });
+                
+                // Small delay between batches to avoid overwhelming the server
+                if (i + BATCH_SIZE < presetRequests.length) {
+                  console.log(`⏳ Waiting 5 seconds before next batch...`);
+                  await new Promise(resolve => setTimeout(resolve, 5000));
+                }
+              }
               
-              const successfulPresets = apiResults.filter(r => r.success);
-              const failedPresets = apiResults.filter(r => !r.success);
+              const successfulPresets = allResults.filter(r => r.success);
+              const failedPresets = allResults.filter(r => !r.success);
               
-              const step1Duration = ((Date.now() - step1Start) / 1000).toFixed(2);
-              console.log(`\n📊 API Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step1Duration}s)`);
+              const step2Duration = ((Date.now() - step2Start) / 1000).toFixed(2);
+              console.log(`\n📊 All presets processed!`);
+              console.log(`📊 Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step2Duration}s)`);
               
               // If there were failures, check server logs
               if (failedPresets.length > 0) {
@@ -355,134 +659,31 @@ jobs:
               }
 
               // ==========================================
-              // STEP 2: GIT OPERATIONS (SINGLE BRANCH)
+              // STEP 3: FINAL PR UPDATE
               // ==========================================
-              console.log('\n🌿 Step 2: Creating single branch with all presets...');
-              const step2Start = Date.now();
-
-              if (successfulPresets.length === 0) {
-                console.log('⏭️  No successful presets to commit, skipping git operations');
-                const step2Duration = ((Date.now() - step2Start) / 1000).toFixed(2);
-                console.log(`\n⏭️  Git operations skipped (${step2Duration}s)`);
-              }
-
-              let branchName = null;
-              let gitSuccess = false;
-              const gitResults = [];
-              
-              if (successfulPresets.length > 0) {
-                try {
-                  // Create a single branch for all presets
-                  const timestamp = Date.now();
-                  branchName = `presets/batch-${issueNumber}-${timestamp}`;
-                  
-                  // Change to repo root for git operations
-                  // Current dir is apps/mediamake, need to go up one level to repo root
-                  const currentDir = process.cwd();
-                  const repoRoot = path.resolve(currentDir, '..', '..');
-                  console.log(`📁 Current dir: ${currentDir}`);
-                  console.log(`📁 Changing to repo root: ${repoRoot}`);
-                  process.chdir(repoRoot);
-                  console.log(`📁 Now in: ${process.cwd()}`);
-                  
-                  console.log(`🌿 Creating branch: ${branchName}`);
-                  execSync(`git checkout -b ${branchName}`);
-
-                  // Add metadata to each successful result
-                  for (const apiResult of successfulPresets) {
-                    const presetId = apiResult.metadata?.id || `preset-${timestamp}-${apiResult.index}`;
-                    gitResults.push({
-                      ...apiResult,
-                      presetId,
-                      filepath: apiResult.savedFilePath,
-                    });
-                  }
-
-                  // Add all preset files to git
-                  console.log(`\n📝 Adding ${successfulPresets.length} preset file(s) to git...`);
-                  for (const result of gitResults) {
-                    // The savedFilePath is relative to apps/mediamake, we need it relative to repo root
-                    // But if it already starts with 'apps/mediamake/', don't add the prefix again
-                    let relativeFilePath = result.savedFilePath;
-                    if (!relativeFilePath.startsWith('apps/mediamake/')) {
-                      relativeFilePath = `apps/mediamake/${relativeFilePath}`;
-                    }
-                    console.log(`   📁 ${relativeFilePath}`);
-                    
-                    // Check if file exists before trying to add it
-                    if (fs.existsSync(relativeFilePath)) {
-                      execSync(`git add "${relativeFilePath}"`);
-                    } else {
-                      console.error(`   ⚠️  File not found: ${relativeFilePath}`);
-                      console.error(`   🔍 Checking alternate paths...`);
-                      
-                      // Try without the prefix
-                      const alternatePath = result.savedFilePath;
-                      if (fs.existsSync(alternatePath)) {
-                        console.log(`   ✅ Found at: ${alternatePath}`);
-                        execSync(`git add "${alternatePath}"`);
-                      } else {
-                        throw new Error(`Generated file not found: ${relativeFilePath} or ${alternatePath}`);
-                      }
-                    }
-                  }
-
-                  // Create commit message listing all presets
-                  const presetIds = gitResults.map(r => r.presetId).join(', ');
-                  const commitMessage = `feat: add ${successfulPresets.length} preset(s) from issue #${issueNumber}\n\nPresets: ${presetIds}`;
-                  
-                  console.log(`💾 Creating commit...`);
-                  execSync(`git commit -m "${commitMessage}"`);
-
-                  console.log(`📤 Pushing branch: ${branchName}`);
-                  execSync(`git push -u origin ${branchName}`);
-
-                  gitSuccess = true;
-                  console.log(`✅ Git operations complete - all ${successfulPresets.length} preset(s) committed to ${branchName}`);
-
-                } catch (error) {
-                  console.error(`❌ Git operations failed:`, error.message);
-                  gitSuccess = false;
-                  
-                  try {
-                    execSync('git checkout main');
-                  } catch (e) {
-                    console.error('Failed to switch back to main branch:', e.message);
-                  }
-                }
-                
-                // Add failed presets to results
-                for (const apiResult of failedPresets) {
-                  gitResults.push(apiResult);
-                }
-              }
-
-              const step2Duration = ((Date.now() - step2Start) / 1000).toFixed(2);
-              console.log(`\n✅ Git operations complete (${step2Duration}s)`);
-
-              // ==========================================
-              // STEP 3: CREATE SINGLE PR
-              // ==========================================
-              console.log('\n📝 Step 3: Creating Pull Request...');
+              console.log('\n📝 Step 3: Finalizing Pull Request...');
               const step3Start = Date.now();
               
-              let prUrl = null;
-              let prNumber = null;
-              
-              if (gitSuccess && branchName) {
+              if (prNumber) {
                 try {
-                  // Build PR title
-                  const prTitle = successfulPresets.length === 1 
-                    ? `Add ${gitResults[0].metadata?.title || gitResults[0].presetId} preset`
-                    : `Add ${successfulPresets.length} presets from issue #${issueNumber}`;
+                  console.log(`📝 Updating PR #${prNumber} with final results...`);
                   
-                  // Build PR body with all presets listed
+                  // Build comprehensive final PR body
                   let prBody = `This PR was automatically generated from issue #${issueNumber}\n\n`;
                   
+                  // Add generation complete status
+                  prBody += `## ✅ Generation Complete\n\n`;
+                  prBody += `**Final Status:** ${successfulPresets.length}/${presetRequests.length} presets successfully generated\n\n`;
+                  
+                  if (failedPresets.length > 0) {
+                    prBody += `⚠️ ${failedPresets.length} preset(s) failed - see details below\n\n`;
+                  }
+                  
                   // Check if any presets were auto-fixed, have validation failures, or have lint issues
-                  const presetsAutoFixed = gitResults.filter(r => r.success && r.wasAutoFixed);
-                  const presetsWithValidationFailures = gitResults.filter(r => r.success && r.validationFailed);
-                  const presetsWithLintIssues = gitResults.filter(r => r.success && r.hasLintIssues && !r.validationFailed);
+                  const presetsAutoFixed = allResults.filter(r => r.success && r.wasAutoFixed);
+                  const presetsWithValidationFailures = allResults.filter(r => r.success && r.validationFailed);
+                  const presetsWithLintIssues = allResults.filter(r => r.success && r.hasLintIssues && !r.validationFailed);
+                  const presetsWithRetries = allResults.filter(r => r.success && r.retries && r.retries > 0);
                   
                   if (presetsWithValidationFailures.length > 0) {
                     prBody += `## 🔴 Validation Failed\n\n`;
@@ -514,9 +715,18 @@ jobs:
                     prBody += `\n_These are informational warnings. ESLint auto-fix was attempted. Please review before merging._\n\n`;
                   }
                   
-                  prBody += `## Generated Presets (${successfulPresets.length})\n\n`;
+                  if (presetsWithRetries.length > 0) {
+                    prBody += `## 🔄 Retry Information\n\n`;
+                    prBody += `${presetsWithRetries.length} preset(s) required retries due to temporary connection issues:\n`;
+                    presetsWithRetries.forEach(r => {
+                      prBody += `- **${r.metadata?.title || r.presetId}** - Succeeded after ${r.retries} ${r.retries === 1 ? 'retry' : 'retries'}\n`;
+                    });
+                    prBody += `\n_These presets were successfully generated after automatic retry._\n\n`;
+                  }
                   
-                  gitResults.filter(r => r.success).forEach((result, idx) => {
+                  prBody += `## 📦 Generated Presets (${successfulPresets.length})\n\n`;
+                  
+                  allResults.filter(r => r.success).forEach((result, idx) => {
                     prBody += `### ${idx + 1}. ${result.metadata?.title || result.presetId}\n\n`;
                     prBody += `**ID:** \`${result.presetId}\`\n`;
                     prBody += `**Description:** ${result.metadata?.description || 'N/A'}\n`;
@@ -575,82 +785,92 @@ jobs:
                     prBody += `---\n\n`;
                   });
                   
+                  if (failedPresets.length > 0) {
+                    prBody += `\n## ❌ Failed Presets (${failedPresets.length})\n\n`;
+                    failedPresets.forEach((r, idx) => {
+                      prBody += `${idx + 1}. **Preset ${r.index}** - ${r.error}\n`;
+                      if (r.retries > 0) {
+                        prBody += `   - Failed after ${r.retries} ${r.retries === 1 ? 'retry' : 'retries'}\n`;
+                      }
+                    });
+                    prBody += `\n`;
+                  }
+                  
                   prBody += `\nCloses #${issueNumber}`;
 
-                  console.log(`📝 Creating PR: ${prTitle}`);
+                  console.log(`📝 Updating PR #${prNumber} with final results...`);
                   
-                  const prResponse = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/pulls`, {
-                    method: 'POST',
+                  const prResponse = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/pulls/${prNumber}`, {
+                    method: 'PATCH',
                     headers: {
                       'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                       'Content-Type': 'application/json',
                       'Accept': 'application/vnd.github.v3+json',
                     },
                     body: JSON.stringify({
-                      title: prTitle,
                       body: prBody,
-                      head: branchName,
-                      base: 'main',
                     }),
                   });
 
                   if (!prResponse.ok) {
                     const prError = await prResponse.text();
-                    throw new Error(`Failed to create PR: ${prResponse.status} ${prError}`);
+                    throw new Error(`Failed to update PR: ${prResponse.status} ${prError}`);
                   }
-
-                  const prData = await prResponse.json();
-                  prUrl = prData.html_url;
-                  prNumber = prData.number;
                   
-                  console.log(`✅ PR created: ${prUrl}`);
+                  console.log(`✅ PR #${prNumber} updated with final results: ${prUrl}`);
 
                 } catch (error) {
-                  console.error(`❌ PR creation failed:`, error.message);
+                  console.error(`❌ Failed to update PR:`, error.message);
                 }
               } else {
-                console.log('⏭️  Skipping PR creation (no successful presets or git operations failed)');
+                console.log('⏭️  Skipping PR update (no PR was created)');
               }
               
               const step3Duration = ((Date.now() - step3Start) / 1000).toFixed(2);
-              console.log(`\n✅ PR creation complete (${step3Duration}s)`);
-              
-              // Prepare results
-              const results = gitResults;
+              console.log(`\n✅ PR update complete (${step3Duration}s)`);
 
               // ==========================================
               // STEP 4: SUMMARY & REPORTING
               // ==========================================
-              console.log('\n📊 Step 4: Creating summary comment...');
+              console.log('\n📊 Step 4: Creating summary comment on issue...');
               
-              const successCount = results.filter(r => r.success).length;
-              const failureCount = results.length - successCount;
+              const successCount = successfulPresets.length;
+              const failureCount = failedPresets.length;
               
-              let commentBody = `## 🤖 Preset Generation Results\n\n`;
-              commentBody += `**Total Requests:** ${results.length}\n`;
-              commentBody += `**Successful:** ${successCount}\n`;
-              commentBody += `**Failed:** ${failureCount}\n\n`;
+              let commentBody = `## 🤖 Preset Generation Complete\n\n`;
+              commentBody += `**Total Requests:** ${presetRequests.length}\n`;
+              commentBody += `**Successful:** ${successCount} ✅\n`;
+              commentBody += `**Failed:** ${failureCount} ❌\n\n`;
               
               if (successCount > 0 && prUrl) {
                 commentBody += `### ✅ Successfully Generated\n\n`;
                 commentBody += `**Pull Request:** [#${prNumber}](${prUrl})\n\n`;
+                commentBody += `All ${successCount} preset(s) have been committed and pushed. Each preset was committed immediately after generation to preserve progress.\n\n`;
                 commentBody += `**Presets included:**\n`;
-                results.filter(r => r.success).forEach(r => {
-                  commentBody += `- **Preset ${r.index}** (\`${r.presetId}\`) - ${r.metadata?.title || 'Untitled'}\n`;
+                allResults.filter(r => r.success).forEach(r => {
+                  commentBody += `- **${r.metadata?.title || r.presetId}**`;
+                  if (r.retries > 0) {
+                    commentBody += ` 🔄 (succeeded after ${r.retries} ${r.retries === 1 ? 'retry' : 'retries'})`;
+                  }
+                  commentBody += `\n`;
                   commentBody += `  - File: \`${r.filepath}\`\n`;
                 });
               } else if (successCount > 0 && !prUrl) {
                 commentBody += `### ⚠️ Partially Successful\n\n`;
-                commentBody += `${successCount} preset(s) were generated but PR creation failed.\n\n`;
-                results.filter(r => r.success).forEach(r => {
-                  commentBody += `- **Preset ${r.index}** (\`${r.presetId}\`) - ${r.metadata?.title || 'Untitled'}\n`;
+                commentBody += `${successCount} preset(s) were generated but PR update failed.\n\n`;
+                allResults.filter(r => r.success).forEach(r => {
+                  commentBody += `- **${r.metadata?.title || r.presetId}**\n`;
                 });
               }
               
               if (failureCount > 0) {
-                commentBody += `\n### ❌ Failed\n\n`;
-                results.filter(r => !r.success).forEach(r => {
-                  commentBody += `- **Preset ${r.index}** - Error: ${r.error}\n`;
+                commentBody += `\n### ❌ Failed Presets\n\n`;
+                allResults.filter(r => !r.success).forEach(r => {
+                  commentBody += `- **Preset ${r.index}** - ${r.error}`;
+                  if (r.retries > 0) {
+                    commentBody += ` (failed after ${r.retries} ${r.retries === 1 ? 'retry' : 'retries'})`;
+                  }
+                  commentBody += `\n`;
                 });
               }
 
@@ -669,17 +889,20 @@ jobs:
               
               console.log('\n✨ All done!');
               console.log(`\n📊 Final Results:`);
-              console.log(`   Total: ${results.length}`);
+              console.log(`   Total: ${presetRequests.length}`);
               console.log(`   ✅ Successful: ${successCount}`);
               console.log(`   ❌ Failed: ${failureCount}`);
               if (prUrl) {
                 console.log(`   🔗 PR: ${prUrl}`);
               }
               console.log(`\n⏱️  Timing:`);
-              console.log(`   Step 1 (Parallel API calls): ${step1Duration}s`);
-              console.log(`   Step 2 (Git operations): ${step2Duration}s`);
-              console.log(`   Step 3 (PR creation): ${step3Duration}s`);
+              console.log(`   Step 1 (Branch & PR creation): ${step1Duration}s`);
+              console.log(`   Step 2 (Preset generation with commits): ${step2Duration}s`);
+              console.log(`   Step 3 (Final PR update): ${step3Duration}s`);
               console.log(`   Total: ${totalDuration}s`);
+              console.log(`\n💾 Progress Preservation:`);
+              console.log(`   Each preset was committed immediately after generation`);
+              console.log(`   If workflow times out, all completed presets are saved`);
               
               // Exit with error only if ALL presets failed or no PR was created
               if (failureCount > 0 && successCount === 0) {
