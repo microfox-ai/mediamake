@@ -31,6 +31,11 @@ jobs:
         # working-directory: apps/mediamake
         run: npm i
 
+      - name: Apply Next.js requestTimeout patch
+        run: |
+          npx patch-package
+          echo "✅ Applied Next.js patch for extended requestTimeout (1 hour)"
+
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
@@ -49,10 +54,10 @@ jobs:
           npm run build
           echo "✅ Build complete"
 
-      - name: Start MediaMake Server with Extended Timeouts
+      - name: Start MediaMake Server (with patched requestTimeout)
         working-directory: apps/mediamake
         run: |
-          npm run start:extended > server.log 2>&1 &
+          npm run start > server.log 2>&1 &
           SERVER_PID=$!
           echo "🚀 Server starting in background (PID: $SERVER_PID)..."
           
