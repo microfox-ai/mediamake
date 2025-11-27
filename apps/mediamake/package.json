@@ -13,7 +13,8 @@
     "db:optimize": "npx tsx lib/scripts/optimize-database-indexes.ts",
     "push": "npx tsx scripts/push-preset.ts",
     "callAgent": "npx tsx scripts/call-agent.ts",
-    "batch-create-issues": "npx tsx scripts/batch-create-issues.ts"
+    "batch-create-issues": "npx tsx scripts/batch-create-issues.ts",
+    "generate-preset": "tsx scripts/generate-preset.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.47",
