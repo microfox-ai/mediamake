@@ -1,0 +1,12 @@
+{
+  "agentPath": "/preset-prompts/generate-prompt",
+  "defaultParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 25
+  },
+  "queue": [
+    {
+      "userDescription": "Liquid flow, elegant strokes, metallic sheen, smooth serif transitions. typo kinetics for titles/captions/other text.. "
+    }
+  ]
+}

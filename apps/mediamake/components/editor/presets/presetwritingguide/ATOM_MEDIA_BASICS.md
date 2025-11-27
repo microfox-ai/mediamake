@@ -77,9 +77,11 @@ If `type` is not specified, it's auto-detected from file extension:
 
 **Common patterns:**
 
+BY DEFAULT, use COVER ( that is the msot correct way to crop a video to fill the container)
+
 - `cover` - Fill container, maintain aspect ratio, crop if needed
 - `contain` - Fit entirely, maintain aspect ratio
-- `fill` - Stretch to fill container
+- `fill` - Stretch to fill container ( usually messes up the aspect ratio )
 - `none` - Original size
 - `scale-down` - Like `none` or `contain`, whichever is smaller
 

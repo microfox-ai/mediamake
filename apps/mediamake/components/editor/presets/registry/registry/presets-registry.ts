@@ -37,6 +37,7 @@ import { hipHopScratchWipePreset } from '../private2/hip-hop-scratch-wipe';
 import { beatZoomPreset } from '../complex_untested/beat-zoom';
 import { beatShakePreset } from '../complex_untested/beat-shake';
 import { beatExposurePreset } from '../complex_untested/beat-exposure';
+import { matrixDigitalRainTransitionPreset } from '../generated/matrix-digital-rain-transition';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
@@ -76,6 +77,7 @@ export const predefinedPresets: Preset[] = [
   beatZoomPreset,
   beatShakePreset,
   beatExposurePreset,
+  matrixDigitalRainTransitionPreset,
 ];
 
 export const getPredefinedPresetById = (id: string): Preset | undefined => {
