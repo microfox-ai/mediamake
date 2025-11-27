@@ -753,6 +753,9 @@ async function generatePreset(prompt: string): Promise<void> {
     }, null, 2));
     console.log('__PRESET_RESULT_JSON_END__');
     
+    // Exit successfully - important for workflow scripts that wait for completion
+    process.exit(0);
+    
   } catch (error) {
     console.error('\n═══════════════════════════════════════════════════════════════');
     console.error('❌ PRESET GENERATION FAILED');
