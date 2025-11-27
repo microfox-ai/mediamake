@@ -67,6 +67,8 @@ interface SchemaFormProps {
     description?: string;
     availableReferences?: string[]; // Available reference keys for data-referrable fields
     baseData?: Record<string, any>; // Base data for flexible object fields
+    compactMode?: boolean; // Hide title, tabs, reset button for inline use
+    hideCardWrapper?: boolean; // Remove Card wrapper for inline embedding
 }
 
 interface FormField {
@@ -2014,7 +2016,9 @@ export function SchemaForm({
     title = "Input Parameters",
     description,
     availableReferences = [],
-    baseData = {}
+    baseData = {},
+    compactMode = false,
+    hideCardWrapper = false
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
     const [activeTab, setActiveTab] = useState<"form" | "json" | "media">("form");
@@ -2127,55 +2131,61 @@ export function SchemaForm({
         );
     }
 
+    // Compact mode: hide title, tabs, reset button
+    const effectiveShowTabs = compactMode ? false : showTabs;
+    const effectiveShowResetButton = compactMode ? false : showResetButton;
+
     return (
         <div className={className}>
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h3 className="text-md font-semibold">{title}</h3>
-                    {description && (
-                        <p className="text-sm text-muted-foreground mt-1">{description}</p>
-                    )}
+            {!compactMode && (
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-md font-semibold">{title}</h3>
+                        {description && (
+                            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {customActions}
+                        {showResetButton && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        onClick={handleReset}
+                                        variant="outline"
+                                        size="sm"
+                                    >
+                                        <RotateCcw className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{resetButtonText}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                        {showTabs && (
+                            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
+                                <TabsList>
+                                    <TabsTrigger value="form" className="flex items-center gap-2">
+                                        <FormInputIcon className="h-4 w-4" />
+                                        Form
+                                    </TabsTrigger>
+                                    <TabsTrigger value="json" className="flex items-center gap-2">
+                                        <Code className="h-4 w-4" />
+                                        Json
+                                    </TabsTrigger>
+                                    <TabsTrigger value="media" className="flex items-center gap-2">
+                                        <ImageIcon className="h-4 w-4" />
+                                        Media
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {customActions}
-                    {showResetButton && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    onClick={handleReset}
-                                    variant="outline"
-                                    size="sm"
-                                >
-                                    <RotateCcw className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{resetButtonText}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                    {showTabs && (
-                        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
-                            <TabsList>
-                                <TabsTrigger value="form" className="flex items-center gap-2">
-                                    <FormInputIcon className="h-4 w-4" />
-                                    Form
-                                </TabsTrigger>
-                                <TabsTrigger value="json" className="flex items-center gap-2">
-                                    <Code className="h-4 w-4" />
-                                    Json
-                                </TabsTrigger>
-                                <TabsTrigger value="media" className="flex items-center gap-2">
-                                    <ImageIcon className="h-4 w-4" />
-                                    Media
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    )}
-                </div>
-            </div>
+            )}
             <div>
-                {showTabs ? (
+                {effectiveShowTabs ? (
                     <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
                         <TabsContent value="form" className="space-y-4">
                             {expandedMedia && (

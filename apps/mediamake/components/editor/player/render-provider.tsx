@@ -23,6 +23,7 @@ export interface RenderSettings {
     helperFps?: number; // FPS for calculator
     helperDuration?: number; // Duration in seconds for calculator
     frameTime?: number; // Frame time in seconds for still image rendering
+    gl?: 'angle' | 'egl' | 'swangle' | 'swiftshader'; // OpenGL renderer backend for GPU acceleration
 }
 
 export type RenderMethod = 'aws' | 'local';
@@ -75,7 +76,8 @@ const defaultSettings: RenderSettings = {
     isConcurrencyHelperActive: false,
     helperFps: 30,
     helperDuration: 40,
-    frameTime: 0
+    frameTime: 0,
+    gl: 'angle'
 };
 
 const RenderContext = createContext<RenderContextType | undefined>(undefined);

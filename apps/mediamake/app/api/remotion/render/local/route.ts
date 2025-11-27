@@ -18,6 +18,7 @@ interface LocalRenderRequest {
   outputLocation?: string;
   fileName?: string;
   frameTime?: number; // Frame time in seconds for still image rendering
+  gl?: 'angle' | 'egl' | 'swangle' | 'swiftshader'; // OpenGL renderer backend for GPU acceleration
 }
 
 export const POST = async (req: NextRequest) => {
@@ -31,6 +32,7 @@ export const POST = async (req: NextRequest) => {
       outputLocation,
       fileName,
       frameTime = 0,
+      gl = 'angle',
     }: LocalRenderRequest = await req.json();
 
     // Validate required fields
@@ -49,11 +51,12 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    console.log('Starting local render...');
+    console.log('Starting local render with GPU acceleration...');
     console.log('Composition ID:', compositionId);
     console.log('Codec:', codec);
     console.log('Audio Codec:', audioCodec);
     console.log('Render Type:', renderType);
+    console.log('🎮 GPU Backend (gl):', gl);
     console.log('Input Props:', inputProps);
 
     // Create bundle
@@ -95,6 +98,11 @@ export const POST = async (req: NextRequest) => {
         inputProps,
         frame: Math.round(frameTime * composition.fps), // Convert seconds to frame number
         logLevel: 'error',
+        chromiumOptions: {
+          gl,
+          // Enable GPU acceleration
+          enableMultiProcessOnLinux: true,
+        },
       });
 
       result = {
@@ -124,6 +132,11 @@ export const POST = async (req: NextRequest) => {
         videoBitrate: '1k', // Very low bitrate for audio-only
         audioBitrate: '128k',
         logLevel: 'error',
+        chromiumOptions: {
+          gl,
+          // Enable GPU acceleration
+          enableMultiProcessOnLinux: true,
+        },
         onProgress: progress => {
           console.log('Audio render progress:', progress.progress);
           console.log(
@@ -151,6 +164,11 @@ export const POST = async (req: NextRequest) => {
         outputLocation: videoOutputPath,
         inputProps,
         logLevel: 'error',
+        chromiumOptions: {
+          gl,
+          // Enable GPU acceleration
+          enableMultiProcessOnLinux: true,
+        },
         onProgress: progress => {
           // Clear previous logs and show persistent progress
           console.clear();
@@ -159,7 +177,7 @@ export const POST = async (req: NextRequest) => {
             progress.renderEstimatedTime / 60000
           ).toFixed(2);
           console.log(
-            `🎬 Video Render Progress: ${progressPercent}% | ETA: ${estimatedMinutes} minutes`,
+            `🎬 Video Render Progress: ${progressPercent}% | ETA: ${estimatedMinutes} minutes | GPU: ${gl}`,
           );
         },
       });

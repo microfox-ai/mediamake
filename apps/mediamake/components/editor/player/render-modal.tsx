@@ -37,7 +37,7 @@ import { useRender } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
 import { AWS_RENDER_CONFIGS } from '../../../config.mjs';
 import { getSafeConcurrency } from '@/lib/remotion-utils';
-import { AlertCircle, CheckCircle, HelpCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, HelpCircle, XCircle, ExternalLink } from 'lucide-react';
 import {
   calculateCompositionLayoutMetadata,
   InputCompositionProps,
@@ -223,6 +223,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         outputLocation: settings.outputLocation,
         fileName: settings.fileName,
         frameTime: settings.frameTime,
+        gl: settings.gl,
       }),
     });
 
@@ -691,6 +692,71 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                     placeholder="./out"
                   />
                 </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="gl" className="text-right">
+                    GPU Acceleration
+                  </Label>
+                  <Select
+                    value={settings.gl || 'angle'}
+                    onValueChange={value =>
+                      updateSetting(
+                        'gl',
+                        value as 'angle' | 'egl' | 'swangle' | 'swiftshader',
+                      )
+                    }
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select OpenGL backend" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="angle">
+                        ANGLE (Recommended for Windows)
+                      </SelectItem>
+                      <SelectItem value="egl">
+                        EGL (Recommended for Linux)
+                      </SelectItem>
+                      <SelectItem value="swangle">
+                        SwiftShader (Software - Slow)
+                      </SelectItem>
+                      <SelectItem value="swiftshader">
+                        SwiftShader Alternative
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="flex items-center justify-between">
+                    <span>GPU Acceleration</span>
+                    <a
+                      href="https://www.remotion.dev/docs/gpu"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs flex items-center gap-1 hover:underline"
+                    >
+                      Learn more <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <div>
+                      <strong>Accelerated:</strong> WebGL (Three.js, P5.js),
+                      box-shadow, text-shadow, CSS gradients, filters (blur,
+                      drop-shadow), transforms, Canvas 2D operations.
+                    </div>
+                    <div>
+                      <strong>NOT Accelerated:</strong> Video elements
+                      (OffthreadVideo, Html5Video), video encoding, canvas pixel
+                      manipulation.
+                    </div>
+                    <div className="text-xs mt-2">
+                      Use <code className="px-1 py-0.5 bg-muted rounded">angle</code> for
+                      Windows, <code className="px-1 py-0.5 bg-muted rounded">egl</code> for
+                      Linux. Monitor Task Manager (Windows) or GPU tools (Linux) to verify usage.
+                    </div>
+                  </AlertDescription>
+                </Alert>
 
                 <div className="grid grid-cols-4 items-start gap-4 max-h-[200px] overflow-y-auto">
                   <Label htmlFor="localInputProps" className="text-right pt-2">
