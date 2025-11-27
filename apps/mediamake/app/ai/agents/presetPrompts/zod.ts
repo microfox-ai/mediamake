@@ -2,13 +2,10 @@ import { z } from 'zod/v4';
 
 // Preset style enum
 export const PresetStyleEnum = z.enum([
-  'typokinteicslayout',
-  'wordanimationeffect',
-  'sentenceanimationeffect',
-  'audiowaveformbasedEditing',
-  'transitionEffects',
-  'svgMaskingEffects',
-  'svgTransitionEffects',
+  'typokinteics',
+  'internalEffects',
+  'transitions',
+  'unkown',
 ]);
 
 // Input schema for preset prompt generation
@@ -45,6 +42,10 @@ export const PresetPromptItemSchema = z.object({
 
 // Output schema for generated prompts (array of variations)
 export const PresetPromptOutputSchema = z.object({
+  title: z
+    .string()
+    .max(75)
+    .describe('Short descriptive title for the preset set (max 75 characters)'),
   prompts: z
     .array(PresetPromptItemSchema)
     .describe(
