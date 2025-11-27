@@ -102,6 +102,8 @@ export const abstractBulkImageGenerationAgent = aiRouter
         loader: 'Generating creative shot ideas...',
       });
 
+      const modelIdToUse = inputParams.model ?? 'claude-opus-4-1';
+
       const ideateResult = await ctx.next.callAgent(
         '@/midjourney/ideate',
         {
@@ -110,7 +112,7 @@ export const abstractBulkImageGenerationAgent = aiRouter
           predefinedPreferences: inputParams.predefinedPreferences,
           ideaCount: inputParams.ideaCount,
           variationCount: inputParams.variationCount,
-          model: inputParams.model ?? 'claude-opus-4-1',
+          model: modelIdToUse,
           tags: inputParams.tags,
         },
         {
@@ -131,10 +133,9 @@ export const abstractBulkImageGenerationAgent = aiRouter
         loader: 'Generating title...',
       });
 
-      const modelToUse =
-        inputParams.model && inputParams.model.startsWith('claude')
-          ? anthropic(inputParams.model)
-          : google(inputParams.model || 'gemini-2.5-flash');
+      const modelToUse = modelIdToUse.startsWith('claude')
+        ? anthropic(modelIdToUse)
+        : google(modelIdToUse || 'gemini-2.5-flash');
 
       const titleResult = await generateText({
         model: modelToUse,
@@ -179,7 +180,7 @@ export const abstractBulkImageGenerationAgent = aiRouter
           shots: ideateOutput.shots,
           predefinedPreferences: ideateOutput.predefinedPreferences,
           variationCount: ideateOutput.variationCount,
-          model: ideateOutput.model ?? 'claude-opus-4-1',
+          model: modelIdToUse ?? 'claude-opus-4-1',
           tags: ideateOutput.tags,
           mediaUrls: inputParams.mediaUrls,
           userRequest: userRequest,
