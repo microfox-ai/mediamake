@@ -4,7 +4,9 @@
     "style": "user-directive-focused",
     "ideaCount": 25,
     "variationCount": 8,
-    "tags": ["men"],
+    "tags": [
+      "men"
+    ],
     "predefinedPreferences": []
   },
   "queue": [
@@ -36,9 +38,6 @@
       "userDirective": "man or young man or young teen or boy, leather apron, simple tunic, blacksmith's forge, sparks."
     },
     {
-      "userDirective": "man or young man or young teen or boy, pressure suit, helmet reflection, mars colony, red dust storm."
-    },
-    {
       "userDirective": "man or young man or young teen or boy, tie-dye shirt, round glasses, festival field, acoustic guitar."
     },
     {
@@ -49,9 +48,6 @@
     },
     {
       "userDirective": "man or young man or young teen or boy, paint-smeared smock, beret, standing before a large canvas."
-    },
-    {
-      "userDirective": "man or young man or young teen or boy, tricorn hat, loose shirt, treasure map, tropical beach."
     },
     {
       "userDirective": "man or young man or young teen or boy, hoodie, baggy jeans, skateboard, concrete park, graffiti."
@@ -70,9 +66,6 @@
     },
     {
       "userDirective": "man or young man or young teen or boy, trench coat, fedora, foggy street, single lamppost, mystery."
-    },
-    {
-      "userDirective": "man or young man or young teen or boy, tweed jacket, elbow patches, old books, university hall, candlelight."
     },
     {
       "userDirective": "man or young man or young teen or boy, platform shoes, vibrant suit, cityscape background, disco lights."
@@ -100,9 +93,6 @@
     },
     {
       "userDirective": "man or young man or young teen or boy, soot-stained clothes, cap, factory, towering chimneys."
-    },
-    {
-      "userDirective": "man or young man or young teen or boy, colorful attire, lute, tavern, telling a story."
     },
     {
       "userDirective": "man or young man or young teen or boy, flight suit, complex cockpit, star map, nebula outside window."
@@ -142,9 +132,6 @@
     },
     {
       "userDirective": "man or young man or young teen or boy, leather cap, goggles, aviator scarf, biplane wing."
-    },
-    {
-      "userDirective": "man or young man or young teen or boy, VR goggles, data gloves, wires, abstract data space."
     },
     {
       "userDirective": "man or young man or young teen or boy, war paint, fur loincloth, massive axe, snowy mountain peak."

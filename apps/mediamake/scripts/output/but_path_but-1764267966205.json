@@ -1,0 +1,1311 @@
+{
+  "mergedParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 15,
+    "variationCount": 8,
+    "tags": [
+      "animalwear"
+    ],
+    "predefinedPreferences": [
+      "--sref 3704803642"
+    ],
+    "userDirective": "Owl, steampunk goggles, top hat, brass clockwork, Victorian study."
+  },
+  "result": [
+    {
+      "id": "PgwkwPKHDdl51MXU",
+      "metadata": {
+        "loader": "Saving prompts to database..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-ideateMidjourneyShots",
+          "toolCallId": "ideateMidjourneyShots-PUdEMtx9tD925pMA",
+          "state": "output-available",
+          "output": {
+            "predefinedPreferences": [
+              "--sref 3704803642"
+            ],
+            "shots": [
+              "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+              "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+              "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+              "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+              "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+              "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+              "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+              "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+              "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+              "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+              "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+              "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+              "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+              "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+              "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below"
+            ],
+            "variationCount": 8,
+            "model": "claude-opus-4-1",
+            "tags": [
+              "animalwear"
+            ],
+            "creativeInspiration": "## Creative Inspiration: The Mechanical Scholar\n\n**Core Vision:** A distinguished owl character embodying Victorian-era mechanical sophistication, serving as the focal point for steampunk storytelling.\n\n**Subject Analysis:** The owl represents wisdom meeting innovation - a creature of natural intelligence enhanced by human engineering. This isn't merely decoration but transformation: brass goggles become extensions of keen eyesight, the top hat crowns scholarly authority, and clockwork mechanisms suggest a fusion of biological and mechanical precision.\n\n**Environmental Context:** The Victorian study grounds this character in a world of leather-bound books, mahogany furniture, and gas-lit ambiance. This setting implies scholarly pursuits, invention, and the marriage of natural history with industrial revolution aesthetics.\n\n**Thematic Intent:** The directive seeks to explore the intersection of nature and technology through Victorian steampunk aesthetics. The owl becomes a professor, inventor, or keeper of mechanical secrets.\n\n**Key Elements:**\n- Owl as protagonist (not prop)\n- Functional steampunk accessories (goggles, clockwork)\n- Period-accurate Victorian setting\n- Brass/copper mechanical details\n- Scholarly atmosphere\n\n**Creative Direction:** Focus on the owl's character development through environmental storytelling, emphasizing the harmony between organic wisdom and mechanical innovation in a gas-lit world of gears and knowledge."
+          }
+        },
+        {
+          "type": "tool-generateMidjourneyPromptsSimple",
+          "toolCallId": "generateMidjourneyPromptsSimple-WDQLwmakKKoCWQcD",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Victorian owl scholar examining ancient blueprints through brass monocle, delicate feathered wing adjusting miniature clockwork mechanisms with surgical precision, amber gaslight illuminating intricate gears reflected in lens, mahogany study filled with leather-bound tomes, steam-powered desk lamp casting warm shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Distinguished owl professor with brass monocle studying mechanical blueprints, talons delicately manipulating tiny clockwork gears, Victorian gas lamp illuminating workspace, brass and copper mechanisms scattered across antique desk --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Steampunk owl engineer peering through magnifying monocle at ancient schematics, feathered appendage fine-tuning microscopic gears, warm gaslight ambiance, Victorian study atmosphere with spinning cogs visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Scholarly owl with gleaming brass eyepiece analyzing technical drawings, wing-tip precisely adjusting clockwork components, golden gaslight glow, mahogany shelves filled with mechanical treatises --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Mechanical owl savant examining blueprint details through ornate monocle, graceful wing manipulating miniature gears with watchmaker precision, amber illumination from Victorian gas fixtures --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Owl inventor with brass-rimmed monocle deciphering engineering plans, feathered digits working delicate clockwork, gaslit Victorian laboratory, reflections of spinning mechanisms in polished lens --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Aristocratic owl studying mechanical diagrams through golden monocle, wing adjusting tiny brass gears, warm gaslight creating dramatic shadows, Victorian study filled with scientific instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Steampunk owl academic with monocle reflecting intricate gearwork, examining weathered blueprints while adjusting clockwork mechanisms, gas lamp's amber radiance, leather and brass Victorian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Steampunk owl wearing foggy brass goggles surveying wall of synchronized chronometers, golden eyes visible through lenses, pendulums matching wingbeat rhythm, delicate steam wisps escaping from mechanical ports beneath copper-tinted feathers, Victorian timekeeper's chamber --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Victorian owl with steam-fogged goggles observing collection of ticking chronometers, amber eyes gleaming through brass lenses, synchronized pendulums, wisps of steam from hidden mechanical components in plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Mechanical owl timekeeper with condensation-covered goggles watching wall of antique clocks, pendulums swinging in harmony with wings, steam venting from brass exhaust ports integrated into feathers --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Owl chronometer master wearing Victorian goggles studying synchronized timepieces, golden gaze penetrating foggy lenses, steam tendrils emerging from mechanical augmentations beneath feathered exterior --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Steampunk owl engineer with brass-framed goggles monitoring precision chronometers, pendulum movements matching natural rhythm, delicate steam clouds from copper vents hidden in plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Distinguished owl with fog-glazed protective eyewear surveying Victorian clock collection, mechanical synchronization with biological movement, steam wisping from integrated brass mechanisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Owl horologist wearing industrial goggles examining wall-mounted chronometers, golden eyes behind misted glass, steam-powered components releasing vapor through feathered vents --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Victorian owl scientist with brass goggles observing temporal instruments, pendulums synchronized to life rhythm, steam exhaust from biomechanical integration points, mahogany and brass surroundings --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Noble owl gripping ornate brass telescope with powerful talons, aiming through Victorian study window at moonlit airships floating in night sky, elaborate top hat crowned with spinning astrolabe, calculating celestial navigation routes, leather-bound star charts scattered below --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Steampunk owl astronomer with brass telescope clutched in talons, observing airship fleet through window, top hat featuring rotating astrolabe mechanism, moonlight illuminating navigation calculations --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Victorian owl navigator holding ornate spyglass toward moonlit dirigibles, mechanical astrolabe spinning atop silk top hat, celestial charts and brass instruments on mahogany desk --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Distinguished owl scholar with telescope trained on night sky airships, elaborate headpiece with functional astrolabe, talons gripping brass instrument while calculating aerial routes --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Owl cartographer wielding antique telescope toward floating vessels, top hat adorned with rotating star chart mechanism, moonbeams highlighting navigation tools and maps --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Aristocratic owl with brass optical instrument observing airship armada, mechanical astrolabe crown spinning calculations, Victorian study window framing moonlit sky scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Steampunk owl captain surveying airships through ornate spyglass, top hat featuring clockwork navigation device, talons steadying telescope while plotting celestial coordinates --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Owl astronomer with Victorian telescope tracking moonlit dirigibles, rotating brass astrolabe atop formal headwear, surrounded by star charts and navigation instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Scholarly owl perched atop towering stack of weathered leather journals, ornate quill pen held delicately in curved beak, mechanically transcribing observations, transparent chest cavity revealing intricate rotating gears and clockwork heart, Victorian library setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Steampunk owl scribe balanced on leather-bound tomes, writing with feather quill, visible mechanical organs with spinning brass gears beneath translucent chest plumage, gaslit study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Victorian owl chronicler atop journal mountain, beak gripping ink-dipped quill, exposed clockwork anatomy with rotating mechanisms visible through chest window, surrounded by ancient manuscripts --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Mechanical owl historian perched on stacked volumes, automatically recording observations with held quill, transparent torso showing intricate gear systems and steam-powered components --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Owl librarian on leather journal tower, quill pen poised for writing, biomechanical chest cavity displaying spinning cogs and brass mechanisms, warm lamplight on parchment --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Distinguished owl scholar atop book pile with writing implement, translucent chest revealing clockwork internals, mechanical precision in transcription movements, Victorian academic setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Steampunk owl archivist balanced on stacked records, quill in beak documenting discoveries, visible gear-driven organs through transparent chest panel, mahogany shelves surrounding --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Owl documentarian perched on leather volumes, mechanically inscribing with feather pen, exposed clockwork heart and gear systems, gaslight illuminating parchment and brass --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Dramatic portrait profile of steampunk owl against billowing backlit steam clouds, brass goggles pushed up revealing cybernetic eye implant with rotating iris, copper and brass plates seamlessly integrated into natural barn owl plumage, Victorian industrial atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Side profile of mechanical owl with lifted goggles showing augmented eye, steam clouds creating dramatic backlighting, brass plating merged with feathers, industrial Victorian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Owl portrait in profile with raised brass eyewear exposing cybernetic ocular implant, steam atmosphere providing rim lighting, metallic plates integrated into plumage pattern --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Dramatic silhouette of steampunk owl revealing mechanical eye beneath goggles, backlit vapor clouds, copper augmentations blending with natural feather texture --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Profile view of Victorian owl with displaced goggles showing clockwork eye, atmospheric steam creating depth, brass mechanical elements fused with organic features --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Aristocratic owl portrait with pushed-up protective eyewear revealing augmented vision, steam-filled background with dramatic lighting, seamless bio-mechanical integration --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Side angle of enhanced owl with visible cybernetic implant, goggles resting above, misty steam ambiance, brass and copper plates naturally incorporated into plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Cinematic profile of mechanical owl displaying artificial eye, brass goggles lifted, atmospheric steam clouds backlit, metallic enhancements merging with feathered form --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead view of a distinguished steampunk owl scholar hunched over mahogany desk studying sprawled Victorian engineering schematics, brass wing-mounted magnifying apparatus extending elegantly, geometric shadows cast through warm amber gaslight, leather-bound books stacked high, intricate clockwork mechanisms visible, Victorian study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Top-down perspective of mechanical owl professor examining detailed blueprints on polished mahogany surface, copper magnifying lens attached to wing joint, golden lamplight creating intricate shadow patterns, Victorian era study --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Bird's eye view of scholarly owl with brass goggles analyzing spread technical drawings, articulated wing-mounted magnifier extending over parchment, warm gaslight casting geometric shadows across mahogany workspace --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead shot of steampunk owl researcher studying complex schematics, mechanical magnifying apparatus sprouting from wing, amber illumination throwing angular shadows through Victorian study fog --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Aerial view of distinguished owl inventor examining sprawling mechanical diagrams, brass telescopic magnifier extending from wing harness, honeyed lamplight creating shadow geometry on mahogany desk surface --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Top angle of Victorian owl scholar with clockwork monocle studying unfolded engineering plans, wing-mounted optical device casting prismatic shadows in gaslit study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead perspective of mechanical owl professor analyzing technical blueprints, copper magnification apparatus extending from wing joint, casting mathematical shadow patterns through amber Victorian lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Bird's eye composition of steampunk owl examining detailed schematics on mahogany surface, brass magnifying mechanism attached to wing, geometric shadows dancing in warm gaslight glow --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Extreme close-up of owl's brass talon delicately winding ornate pocket watch, reversed library reflection in watch crystal showing towering shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid, Victorian steampunk detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Macro shot of steampunk owl's metallic claw adjusting intricate timepiece, watch face reflecting inverted library with glass jars holding clockwork butterflies in amber liquid, Victorian atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Close detail of brass owl talon winding elaborate pocket watch mechanism, crystal surface mirroring reversed bookshelves displaying preserved mechanical insects in golden fluid-filled vessels --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Intimate view of mechanical owl's claw manipulating ornate watch crown, reflection revealing upside-down Victorian library with specimen containers of brass butterflies floating in honeyed preservative --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Macro perspective of steampunk owl talon adjusting pocket watch gears, watch glass showing inverted library shelves lined with jars containing clockwork lepidoptera in glowing preservation medium --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Extreme close-up of Victorian owl's metallic digit winding timepiece, crystal reflection displaying reversed study with mechanical butterfly specimens suspended in luminous amber fluid --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Detailed shot of brass owl claw operating pocket watch mechanism, watch face mirroring inverted library filled with preservation jars housing delicate mechanical butterflies in golden solution --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Close focus on steampunk owl talon winding ornate chronometer, crystal surface reflecting upside-down shelves of specimen vessels containing clockwork butterflies in glowing Victorian preservative --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Dynamic steampunk owl mid-flight through Victorian study chamber, wings spread revealing hidden brass propeller mechanisms and clockwork joints, dodging floating leather books and levitating brass scientific instruments in experimental zero-gravity room, gaslight streaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Mechanical owl soaring through anti-gravity Victorian laboratory, copper propellers embedded in wings, navigating between suspended tomes and floating brass telescopes in weightless atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Steampunk owl in dramatic flight pose revealing wing-mounted turbines, maneuvering around levitating books and drifting Victorian scientific apparatus in zero-gravity experimental chamber --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Victorian owl with exposed clockwork wing mechanisms flying through study where gravity has failed, dodging floating manuscripts and brass instruments suspended in amber gaslight --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Dynamic aerial scene of mechanical owl with hidden propeller systems navigating weightless Victorian library, books and brass devices floating freely in experimental anti-gravity field --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Steampunk owl mid-flight showing intricate wing turbines, weaving between levitating leather volumes and suspended scientific instruments in zero-gravity Victorian laboratory space --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Mechanical owl soaring through experimental chamber with wing-mounted propellers visible, avoiding floating books and drifting brass apparatus in gravity-defying Victorian study --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Victorian owl revealing hidden flight mechanisms while navigating weightless study filled with suspended tomes and levitating brass instruments in anti-gravity experimental atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Dramatic side profile silhouette of steampunk owl against massive wall of spinning brass cogs and gears, top hat's shadow morphing into industrial chimney releasing musical notes made of visible steam and swirling copper dust particles, Victorian mechanical poetry --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Owl's dark silhouette in profile against rotating clockwork wall, top hat shadow transforming into smokestack emitting steam musical notation and metallic dust spirals, Victorian atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Side view silhouette of mechanical owl before giant spinning gears, hat's shadow becoming chimney releasing visible sound waves of vapor and dancing copper particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Profile shadow of steampunk owl against wall of turning cogs, top hat silhouette morphing into factory stack exhaling musical steam notes and bronze dust swirls --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Dramatic owl silhouette facing clockwork mechanism wall, hat shadow transforming into industrial tower releasing steam-formed musical symbols and copper particle clouds --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Side silhouette of Victorian owl against rotating brass gears, top hat's shadow becoming chimney pipe emitting visible music notes in steam and metallic dust --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Profile view of mechanical owl silhouetted before spinning cog wall, hat shadow morphing into smokestack releasing musical vapor forms and copper dust patterns --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Owl's side silhouette against massive gear mechanism, top hat shadow transforming into chimney releasing steam-rendered musical notation and swirling bronze particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian steampunk owl professor teaching class of tiny mechanical mice students, feathered wing pointing at floating chalk writing equations on blackboard, mysterious magnetic fields emanating from concealed brass chest apparatus controlling levitating chalk, gaslit classroom --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Mechanical owl educator instructing clockwork mice pupils, wing directing magnetically suspended chalk across blackboard with equations, hidden chest device glowing with electromagnetic energy --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Steampunk owl teacher with brass goggles lecturing miniature mechanical mice, floating chalk controlled by magnetic chest apparatus writing complex formulas on Victorian blackboard --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Distinguished owl professor teaching tiny clockwork rodent students, wing gesturing at levitating chalk drawing equations via concealed magnetic mechanism in ornate chest piece --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian owl instructor with mechanical mice class, magnetically controlled chalk floating before blackboard writing formulas, brass chest device emanating visible magnetic fields --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Steampunk owl educator pointing wing at self-writing chalk on blackboard, miniature mechanical mice students watching, electromagnetic chest apparatus glowing with copper energy --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Mechanical owl professor teaching clockwork mice pupils, levitating chalk controlled by hidden magnetic chest device inscribing equations on slate, Victorian classroom atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian owl teacher instructing tiny brass mice students, wing directing floating chalk via concealed electromagnetic apparatus, mathematical formulas appearing on blackboard --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic low angle perspective of distinguished mechanical owl scholar ascending ornate brass ladder towards glowing crystalline power source, Victorian goggles reflecting rainbow prismatic light, intricate clockwork gears casting dancing shadows across leather-bound books, steam wisps rising through gas-lit study, top hat slightly askew from climbing, copper feathers gleaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low angle view of steampunk owl professor reaching for luminescent crystal orb atop towering bookshelf ladder, brass goggles creating prismatic light beams, mechanical wings extended for balance, shadow play of gears across mahogany walls --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Upward perspective of Victorian owl inventor climbing brass library ladder towards pulsating ethereal power crystal, rainbow reflections in goggle lenses, clockwork mechanisms projecting intricate shadows, gas lamp illumination --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic worm's eye view of mechanical owl scholar stretching towards floating crystalline energy source, steampunk goggles refracting spectrum of colors, gear shadows dancing across ancient tomes, Victorian study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low angle shot of distinguished owl in top hat ascending elaborate ladder system reaching for glowing geometric crystal, prismatic light through brass goggles, mechanical components creating shadow theater on walls --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Heroic angle of steampunk owl professor climbing towards suspended luminous crystal artifact, rainbow patterns reflected in vintage goggles, clockwork shadows performing ballet across leather volumes --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic upshot of mechanical owl scholar on brass ladder grasping for radiant crystalline device, goggle lenses splitting light into rainbow cascade, gear silhouettes dancing across Victorian wallpaper --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low perspective of Victorian owl inventor reaching skyward from ladder towards hovering crystal power source, prismatic light explosion through steampunk eyewear, mechanical shadows creating kinetic patterns --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through frosted Victorian window glass, mechanical owl professor delicately adjusting ornate steam-powered phonograph, ethereal musical notes manifesting as tiny floating brass sculptures suspended in mid-air, warm gas lamp glow, copper gears visible through translucent wings --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "View through etched glass window of steampunk owl scholar operating elaborate brass phonograph, musical notation materializing as miniature copper sculptures floating through study, steam wisps creating atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Frosted window perspective revealing Victorian owl adjusting mechanical gramophone, music transforming into suspended brass note sculptures, clockwork mechanisms visible, warm amber lighting throughout study --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through foggy glass panes, distinguished owl professor tuning steam-driven phonograph while tiny metallic musical notes hover as three-dimensional brass artifacts, gas-lit Victorian interior --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Window-framed view of mechanical owl maestro calibrating ornate sound machine, musical notes crystallizing into floating copper miniatures, steam and gear aesthetic, mahogany furniture backdrop --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Peering through condensation-covered window at steampunk owl adjusting vintage phonograph, music notes becoming tangible brass sculptures levitating in space, Victorian study ambiance --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through decorative frosted glass, owl inventor fine-tuning steam phonograph surrounded by materialized brass musical notation floating like mechanical butterflies, warm lamplight atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Window perspective of Victorian owl scholar operating complex phonograph mechanism, musical notes manifesting as tiny brass clockwork sculptures suspended in golden gas-lit air --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Mechanical owl's reflection multiplied into infinite regression through brass telescope lens array, each reflected owl wearing unique steampunk accessories from parallel timelines, constellation maps overlaying the scene, Victorian observatory setting with copper astrolabe details --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Steampunk owl professor reflected infinitely in compound telescope lenses, each iteration sporting different Victorian goggles and clockwork modifications, star charts visible, brass astronomical instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Multiple timeline reflections of distinguished owl through antique telescope optics, alternate versions wearing varied brass accessories, constellation diagrams floating ethereally, mahogany observatory interior --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Infinite mirror effect in Victorian telescope showing mechanical owl with changing steampunk attire across dimensions, stellar maps overlapping reflections, copper gears and brass fittings throughout --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Kaleidoscopic owl reflections in brass telescope lens system, each showing different goggle designs and mechanical modifications from alternate realities, astronomical charts glowing softly --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Fractal reflections of steampunk owl scholar in telescope array, timeline variations displaying unique clockwork accessories, constellation patterns merging with infinite regression, Victorian setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Endless reflections of mechanical owl through brass optical instruments, each version wearing distinctive steampunk gear from parallel worlds, star maps creating ethereal overlay --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Victorian owl multiplied infinitely in telescope lens reflections, each iteration featuring different brass goggles and mechanical augmentations, constellation diagrams floating through dimensional layers --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme macro detail of mechanical owl's eye viewed through brass goggle lens, iris containing intricate microscopic cityscape of turning gears and cogs, tiny steam trains circulating through the pupil's dark depths, copper reflections and Victorian precision engineering --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Ultra-close perspective through steampunk goggle showing owl's eye iris as miniature gear city, microscopic locomotives traveling through pupil darkness, brass and copper mechanical details --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Macro lens view of Victorian owl's eye behind goggle glass, iris revealing tiny clockwork metropolis with miniature trains navigating pupil's void, intricate mechanical precision --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme closeup through brass eyepiece into mechanical owl's eye containing microscopic gear-driven cityscape, steam engines circling through pupil's abyss, copper highlights gleaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Magnified view through steampunk goggle lens revealing owl eye iris as tiny Victorian city of gears, miniature trains spiraling into pupil darkness, brass mechanisms throughout --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Super macro of owl's eye through vintage goggle, iris displaying miniature clockwork urban landscape, tiny locomotives traversing pupil's depths, mechanical precision visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Close detail through brass lens showing mechanical owl's eye as microscopic gear city, steam trains circulating through dark pupil center, Victorian engineering marvel --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme magnification of steampunk owl's eye behind goggle, iris containing tiny mechanical cityscape with miniature railways threading through pupil's darkness, copper and brass details --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide cinematic shot of distinguished mechanical owl conductor directing orchestra of automated brass instruments, wings gracefully controlling tempo while standing atop podium constructed from giant ornate pocket watch, massive pendulum swinging beneath, Victorian concert hall filled with steam and warm gas lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Grand view of steampunk owl maestro conducting self-playing mechanical orchestra, elevated on enormous pocket watch platform with pendulum below, brass instruments operating autonomously, gas-lit Victorian theater --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Theatrical wide shot of Victorian owl professor directing automated symphony of clockwork instruments, standing on giant timepiece podium, pendulum keeping time, steam-filled concert hall atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Cinematic perspective of mechanical owl conductor orchestrating brass automaton ensemble, giant pocket watch stage with swinging pendulum, ornate Victorian auditorium with copper pipe organs --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide establishing shot of distinguished owl directing mechanical instrument orchestra, conducting from massive pocket watch platform, pendulum marking rhythm, steam wisps through amber lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Grand theatrical view of steampunk owl maestro leading automated brass symphony, giant watch podium with pendulum mechanism, Victorian concert hall filled with clockwork musicians --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Expansive shot of mechanical owl conductor directing self-playing instrument ensemble, standing atop colossal pocket watch with swinging pendulum, gas-lit Victorian performance space --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide cinematic frame of Victorian owl professor conducting clockwork orchestra, elevated on enormous timepiece platform with pendulum below, automated brass instruments responding to wing movements --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897bd335cc3c4d335dfe5"
+          }
+        },
+        {
+          "type": "tool-abstractBulkImageGeneration",
+          "toolCallId": "abstractBulkImageGeneration-ZlsjtiL6Xe0yKg4p",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Victorian owl scholar examining ancient blueprints through brass monocle, delicate feathered wing adjusting miniature clockwork mechanisms with surgical precision, amber gaslight illuminating intricate gears reflected in lens, mahogany study filled with leather-bound tomes, steam-powered desk lamp casting warm shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Distinguished owl professor with brass monocle studying mechanical blueprints, talons delicately manipulating tiny clockwork gears, Victorian gas lamp illuminating workspace, brass and copper mechanisms scattered across antique desk --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Steampunk owl engineer peering through magnifying monocle at ancient schematics, feathered appendage fine-tuning microscopic gears, warm gaslight ambiance, Victorian study atmosphere with spinning cogs visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Scholarly owl with gleaming brass eyepiece analyzing technical drawings, wing-tip precisely adjusting clockwork components, golden gaslight glow, mahogany shelves filled with mechanical treatises --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Mechanical owl savant examining blueprint details through ornate monocle, graceful wing manipulating miniature gears with watchmaker precision, amber illumination from Victorian gas fixtures --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Owl inventor with brass-rimmed monocle deciphering engineering plans, feathered digits working delicate clockwork, gaslit Victorian laboratory, reflections of spinning mechanisms in polished lens --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Aristocratic owl studying mechanical diagrams through golden monocle, wing adjusting tiny brass gears, warm gaslight creating dramatic shadows, Victorian study filled with scientific instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "prompt": "Steampunk owl academic with monocle reflecting intricate gearwork, examining weathered blueprints while adjusting clockwork mechanisms, gas lamp's amber radiance, leather and brass Victorian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Steampunk owl wearing foggy brass goggles surveying wall of synchronized chronometers, golden eyes visible through lenses, pendulums matching wingbeat rhythm, delicate steam wisps escaping from mechanical ports beneath copper-tinted feathers, Victorian timekeeper's chamber --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Victorian owl with steam-fogged goggles observing collection of ticking chronometers, amber eyes gleaming through brass lenses, synchronized pendulums, wisps of steam from hidden mechanical components in plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Mechanical owl timekeeper with condensation-covered goggles watching wall of antique clocks, pendulums swinging in harmony with wings, steam venting from brass exhaust ports integrated into feathers --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Owl chronometer master wearing Victorian goggles studying synchronized timepieces, golden gaze penetrating foggy lenses, steam tendrils emerging from mechanical augmentations beneath feathered exterior --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Steampunk owl engineer with brass-framed goggles monitoring precision chronometers, pendulum movements matching natural rhythm, delicate steam clouds from copper vents hidden in plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Distinguished owl with fog-glazed protective eyewear surveying Victorian clock collection, mechanical synchronization with biological movement, steam wisping from integrated brass mechanisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Owl horologist wearing industrial goggles examining wall-mounted chronometers, golden eyes behind misted glass, steam-powered components releasing vapor through feathered vents --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "prompt": "Victorian owl scientist with brass goggles observing temporal instruments, pendulums synchronized to life rhythm, steam exhaust from biomechanical integration points, mahogany and brass surroundings --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Noble owl gripping ornate brass telescope with powerful talons, aiming through Victorian study window at moonlit airships floating in night sky, elaborate top hat crowned with spinning astrolabe, calculating celestial navigation routes, leather-bound star charts scattered below --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Steampunk owl astronomer with brass telescope clutched in talons, observing airship fleet through window, top hat featuring rotating astrolabe mechanism, moonlight illuminating navigation calculations --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Victorian owl navigator holding ornate spyglass toward moonlit dirigibles, mechanical astrolabe spinning atop silk top hat, celestial charts and brass instruments on mahogany desk --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Distinguished owl scholar with telescope trained on night sky airships, elaborate headpiece with functional astrolabe, talons gripping brass instrument while calculating aerial routes --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Owl cartographer wielding antique telescope toward floating vessels, top hat adorned with rotating star chart mechanism, moonbeams highlighting navigation tools and maps --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Aristocratic owl with brass optical instrument observing airship armada, mechanical astrolabe crown spinning calculations, Victorian study window framing moonlit sky scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Steampunk owl captain surveying airships through ornate spyglass, top hat featuring clockwork navigation device, talons steadying telescope while plotting celestial coordinates --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "prompt": "Owl astronomer with Victorian telescope tracking moonlit dirigibles, rotating brass astrolabe atop formal headwear, surrounded by star charts and navigation instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Scholarly owl perched atop towering stack of weathered leather journals, ornate quill pen held delicately in curved beak, mechanically transcribing observations, transparent chest cavity revealing intricate rotating gears and clockwork heart, Victorian library setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Steampunk owl scribe balanced on leather-bound tomes, writing with feather quill, visible mechanical organs with spinning brass gears beneath translucent chest plumage, gaslit study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Victorian owl chronicler atop journal mountain, beak gripping ink-dipped quill, exposed clockwork anatomy with rotating mechanisms visible through chest window, surrounded by ancient manuscripts --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Mechanical owl historian perched on stacked volumes, automatically recording observations with held quill, transparent torso showing intricate gear systems and steam-powered components --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Owl librarian on leather journal tower, quill pen poised for writing, biomechanical chest cavity displaying spinning cogs and brass mechanisms, warm lamplight on parchment --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Distinguished owl scholar atop book pile with writing implement, translucent chest revealing clockwork internals, mechanical precision in transcription movements, Victorian academic setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Steampunk owl archivist balanced on stacked records, quill in beak documenting discoveries, visible gear-driven organs through transparent chest panel, mahogany shelves surrounding --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "prompt": "Owl documentarian perched on leather volumes, mechanically inscribing with feather pen, exposed clockwork heart and gear systems, gaslight illuminating parchment and brass --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Dramatic portrait profile of steampunk owl against billowing backlit steam clouds, brass goggles pushed up revealing cybernetic eye implant with rotating iris, copper and brass plates seamlessly integrated into natural barn owl plumage, Victorian industrial atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Side profile of mechanical owl with lifted goggles showing augmented eye, steam clouds creating dramatic backlighting, brass plating merged with feathers, industrial Victorian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Owl portrait in profile with raised brass eyewear exposing cybernetic ocular implant, steam atmosphere providing rim lighting, metallic plates integrated into plumage pattern --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Dramatic silhouette of steampunk owl revealing mechanical eye beneath goggles, backlit vapor clouds, copper augmentations blending with natural feather texture --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Profile view of Victorian owl with displaced goggles showing clockwork eye, atmospheric steam creating depth, brass mechanical elements fused with organic features --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Aristocratic owl portrait with pushed-up protective eyewear revealing augmented vision, steam-filled background with dramatic lighting, seamless bio-mechanical integration --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Side angle of enhanced owl with visible cybernetic implant, goggles resting above, misty steam ambiance, brass and copper plates naturally incorporated into plumage --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "prompt": "Cinematic profile of mechanical owl displaying artificial eye, brass goggles lifted, atmospheric steam clouds backlit, metallic enhancements merging with feathered form --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead view of a distinguished steampunk owl scholar hunched over mahogany desk studying sprawled Victorian engineering schematics, brass wing-mounted magnifying apparatus extending elegantly, geometric shadows cast through warm amber gaslight, leather-bound books stacked high, intricate clockwork mechanisms visible, Victorian study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Top-down perspective of mechanical owl professor examining detailed blueprints on polished mahogany surface, copper magnifying lens attached to wing joint, golden lamplight creating intricate shadow patterns, Victorian era study --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Bird's eye view of scholarly owl with brass goggles analyzing spread technical drawings, articulated wing-mounted magnifier extending over parchment, warm gaslight casting geometric shadows across mahogany workspace --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead shot of steampunk owl researcher studying complex schematics, mechanical magnifying apparatus sprouting from wing, amber illumination throwing angular shadows through Victorian study fog --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Aerial view of distinguished owl inventor examining sprawling mechanical diagrams, brass telescopic magnifier extending from wing harness, honeyed lamplight creating shadow geometry on mahogany desk surface --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Top angle of Victorian owl scholar with clockwork monocle studying unfolded engineering plans, wing-mounted optical device casting prismatic shadows in gaslit study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Overhead perspective of mechanical owl professor analyzing technical blueprints, copper magnification apparatus extending from wing joint, casting mathematical shadow patterns through amber Victorian lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "prompt": "Bird's eye composition of steampunk owl examining detailed schematics on mahogany surface, brass magnifying mechanism attached to wing, geometric shadows dancing in warm gaslight glow --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Extreme close-up of owl's brass talon delicately winding ornate pocket watch, reversed library reflection in watch crystal showing towering shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid, Victorian steampunk detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Macro shot of steampunk owl's metallic claw adjusting intricate timepiece, watch face reflecting inverted library with glass jars holding clockwork butterflies in amber liquid, Victorian atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Close detail of brass owl talon winding elaborate pocket watch mechanism, crystal surface mirroring reversed bookshelves displaying preserved mechanical insects in golden fluid-filled vessels --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Intimate view of mechanical owl's claw manipulating ornate watch crown, reflection revealing upside-down Victorian library with specimen containers of brass butterflies floating in honeyed preservative --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Macro perspective of steampunk owl talon adjusting pocket watch gears, watch glass showing inverted library shelves lined with jars containing clockwork lepidoptera in glowing preservation medium --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Extreme close-up of Victorian owl's metallic digit winding timepiece, crystal reflection displaying reversed study with mechanical butterfly specimens suspended in luminous amber fluid --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Detailed shot of brass owl claw operating pocket watch mechanism, watch face mirroring inverted library filled with preservation jars housing delicate mechanical butterflies in golden solution --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "prompt": "Close focus on steampunk owl talon winding ornate chronometer, crystal surface reflecting upside-down shelves of specimen vessels containing clockwork butterflies in glowing Victorian preservative --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Dynamic steampunk owl mid-flight through Victorian study chamber, wings spread revealing hidden brass propeller mechanisms and clockwork joints, dodging floating leather books and levitating brass scientific instruments in experimental zero-gravity room, gaslight streaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Mechanical owl soaring through anti-gravity Victorian laboratory, copper propellers embedded in wings, navigating between suspended tomes and floating brass telescopes in weightless atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Steampunk owl in dramatic flight pose revealing wing-mounted turbines, maneuvering around levitating books and drifting Victorian scientific apparatus in zero-gravity experimental chamber --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Victorian owl with exposed clockwork wing mechanisms flying through study where gravity has failed, dodging floating manuscripts and brass instruments suspended in amber gaslight --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Dynamic aerial scene of mechanical owl with hidden propeller systems navigating weightless Victorian library, books and brass devices floating freely in experimental anti-gravity field --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Steampunk owl mid-flight showing intricate wing turbines, weaving between levitating leather volumes and suspended scientific instruments in zero-gravity Victorian laboratory space --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Mechanical owl soaring through experimental chamber with wing-mounted propellers visible, avoiding floating books and drifting brass apparatus in gravity-defying Victorian study --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "prompt": "Victorian owl revealing hidden flight mechanisms while navigating weightless study filled with suspended tomes and levitating brass instruments in anti-gravity experimental atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Dramatic side profile silhouette of steampunk owl against massive wall of spinning brass cogs and gears, top hat's shadow morphing into industrial chimney releasing musical notes made of visible steam and swirling copper dust particles, Victorian mechanical poetry --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Owl's dark silhouette in profile against rotating clockwork wall, top hat shadow transforming into smokestack emitting steam musical notation and metallic dust spirals, Victorian atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Side view silhouette of mechanical owl before giant spinning gears, hat's shadow becoming chimney releasing visible sound waves of vapor and dancing copper particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Profile shadow of steampunk owl against wall of turning cogs, top hat silhouette morphing into factory stack exhaling musical steam notes and bronze dust swirls --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Dramatic owl silhouette facing clockwork mechanism wall, hat shadow transforming into industrial tower releasing steam-formed musical symbols and copper particle clouds --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Side silhouette of Victorian owl against rotating brass gears, top hat's shadow becoming chimney pipe emitting visible music notes in steam and metallic dust --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Profile view of mechanical owl silhouetted before spinning cog wall, hat shadow morphing into smokestack releasing musical vapor forms and copper dust patterns --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "prompt": "Owl's side silhouette against massive gear mechanism, top hat shadow transforming into chimney releasing steam-rendered musical notation and swirling bronze particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian steampunk owl professor teaching class of tiny mechanical mice students, feathered wing pointing at floating chalk writing equations on blackboard, mysterious magnetic fields emanating from concealed brass chest apparatus controlling levitating chalk, gaslit classroom --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Mechanical owl educator instructing clockwork mice pupils, wing directing magnetically suspended chalk across blackboard with equations, hidden chest device glowing with electromagnetic energy --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Steampunk owl teacher with brass goggles lecturing miniature mechanical mice, floating chalk controlled by magnetic chest apparatus writing complex formulas on Victorian blackboard --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Distinguished owl professor teaching tiny clockwork rodent students, wing gesturing at levitating chalk drawing equations via concealed magnetic mechanism in ornate chest piece --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian owl instructor with mechanical mice class, magnetically controlled chalk floating before blackboard writing formulas, brass chest device emanating visible magnetic fields --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Steampunk owl educator pointing wing at self-writing chalk on blackboard, miniature mechanical mice students watching, electromagnetic chest apparatus glowing with copper energy --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Mechanical owl professor teaching clockwork mice pupils, levitating chalk controlled by hidden magnetic chest device inscribing equations on slate, Victorian classroom atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "prompt": "Victorian owl teacher instructing tiny brass mice students, wing directing floating chalk via concealed electromagnetic apparatus, mathematical formulas appearing on blackboard --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic low angle perspective of distinguished mechanical owl scholar ascending ornate brass ladder towards glowing crystalline power source, Victorian goggles reflecting rainbow prismatic light, intricate clockwork gears casting dancing shadows across leather-bound books, steam wisps rising through gas-lit study, top hat slightly askew from climbing, copper feathers gleaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low angle view of steampunk owl professor reaching for luminescent crystal orb atop towering bookshelf ladder, brass goggles creating prismatic light beams, mechanical wings extended for balance, shadow play of gears across mahogany walls --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Upward perspective of Victorian owl inventor climbing brass library ladder towards pulsating ethereal power crystal, rainbow reflections in goggle lenses, clockwork mechanisms projecting intricate shadows, gas lamp illumination --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic worm's eye view of mechanical owl scholar stretching towards floating crystalline energy source, steampunk goggles refracting spectrum of colors, gear shadows dancing across ancient tomes, Victorian study atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low angle shot of distinguished owl in top hat ascending elaborate ladder system reaching for glowing geometric crystal, prismatic light through brass goggles, mechanical components creating shadow theater on walls --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Heroic angle of steampunk owl professor climbing towards suspended luminous crystal artifact, rainbow patterns reflected in vintage goggles, clockwork shadows performing ballet across leather volumes --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Dramatic upshot of mechanical owl scholar on brass ladder grasping for radiant crystalline device, goggle lenses splitting light into rainbow cascade, gear silhouettes dancing across Victorian wallpaper --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "prompt": "Low perspective of Victorian owl inventor reaching skyward from ladder towards hovering crystal power source, prismatic light explosion through steampunk eyewear, mechanical shadows creating kinetic patterns --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through frosted Victorian window glass, mechanical owl professor delicately adjusting ornate steam-powered phonograph, ethereal musical notes manifesting as tiny floating brass sculptures suspended in mid-air, warm gas lamp glow, copper gears visible through translucent wings --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "View through etched glass window of steampunk owl scholar operating elaborate brass phonograph, musical notation materializing as miniature copper sculptures floating through study, steam wisps creating atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Frosted window perspective revealing Victorian owl adjusting mechanical gramophone, music transforming into suspended brass note sculptures, clockwork mechanisms visible, warm amber lighting throughout study --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through foggy glass panes, distinguished owl professor tuning steam-driven phonograph while tiny metallic musical notes hover as three-dimensional brass artifacts, gas-lit Victorian interior --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Window-framed view of mechanical owl maestro calibrating ornate sound machine, musical notes crystallizing into floating copper miniatures, steam and gear aesthetic, mahogany furniture backdrop --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Peering through condensation-covered window at steampunk owl adjusting vintage phonograph, music notes becoming tangible brass sculptures levitating in space, Victorian study ambiance --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Through decorative frosted glass, owl inventor fine-tuning steam phonograph surrounded by materialized brass musical notation floating like mechanical butterflies, warm lamplight atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "prompt": "Window perspective of Victorian owl scholar operating complex phonograph mechanism, musical notes manifesting as tiny brass clockwork sculptures suspended in golden gas-lit air --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Mechanical owl's reflection multiplied into infinite regression through brass telescope lens array, each reflected owl wearing unique steampunk accessories from parallel timelines, constellation maps overlaying the scene, Victorian observatory setting with copper astrolabe details --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Steampunk owl professor reflected infinitely in compound telescope lenses, each iteration sporting different Victorian goggles and clockwork modifications, star charts visible, brass astronomical instruments --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Multiple timeline reflections of distinguished owl through antique telescope optics, alternate versions wearing varied brass accessories, constellation diagrams floating ethereally, mahogany observatory interior --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Infinite mirror effect in Victorian telescope showing mechanical owl with changing steampunk attire across dimensions, stellar maps overlapping reflections, copper gears and brass fittings throughout --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Kaleidoscopic owl reflections in brass telescope lens system, each showing different goggle designs and mechanical modifications from alternate realities, astronomical charts glowing softly --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Fractal reflections of steampunk owl scholar in telescope array, timeline variations displaying unique clockwork accessories, constellation patterns merging with infinite regression, Victorian setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Endless reflections of mechanical owl through brass optical instruments, each version wearing distinctive steampunk gear from parallel worlds, star maps creating ethereal overlay --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "prompt": "Victorian owl multiplied infinitely in telescope lens reflections, each iteration featuring different brass goggles and mechanical augmentations, constellation diagrams floating through dimensional layers --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme macro detail of mechanical owl's eye viewed through brass goggle lens, iris containing intricate microscopic cityscape of turning gears and cogs, tiny steam trains circulating through the pupil's dark depths, copper reflections and Victorian precision engineering --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Ultra-close perspective through steampunk goggle showing owl's eye iris as miniature gear city, microscopic locomotives traveling through pupil darkness, brass and copper mechanical details --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Macro lens view of Victorian owl's eye behind goggle glass, iris revealing tiny clockwork metropolis with miniature trains navigating pupil's void, intricate mechanical precision --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme closeup through brass eyepiece into mechanical owl's eye containing microscopic gear-driven cityscape, steam engines circling through pupil's abyss, copper highlights gleaming --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Magnified view through steampunk goggle lens revealing owl eye iris as tiny Victorian city of gears, miniature trains spiraling into pupil darkness, brass mechanisms throughout --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Super macro of owl's eye through vintage goggle, iris displaying miniature clockwork urban landscape, tiny locomotives traversing pupil's depths, mechanical precision visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Close detail through brass lens showing mechanical owl's eye as microscopic gear city, steam trains circulating through dark pupil center, Victorian engineering marvel --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "prompt": "Extreme magnification of steampunk owl's eye behind goggle, iris containing tiny mechanical cityscape with miniature railways threading through pupil's darkness, copper and brass details --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide cinematic shot of distinguished mechanical owl conductor directing orchestra of automated brass instruments, wings gracefully controlling tempo while standing atop podium constructed from giant ornate pocket watch, massive pendulum swinging beneath, Victorian concert hall filled with steam and warm gas lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Grand view of steampunk owl maestro conducting self-playing mechanical orchestra, elevated on enormous pocket watch platform with pendulum below, brass instruments operating autonomously, gas-lit Victorian theater --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Theatrical wide shot of Victorian owl professor directing automated symphony of clockwork instruments, standing on giant timepiece podium, pendulum keeping time, steam-filled concert hall atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Cinematic perspective of mechanical owl conductor orchestrating brass automaton ensemble, giant pocket watch stage with swinging pendulum, ornate Victorian auditorium with copper pipe organs --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide establishing shot of distinguished owl directing mechanical instrument orchestra, conducting from massive pocket watch platform, pendulum marking rhythm, steam wisps through amber lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Grand theatrical view of steampunk owl maestro leading automated brass symphony, giant watch podium with pendulum mechanism, Victorian concert hall filled with clockwork musicians --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Expansive shot of mechanical owl conductor directing self-playing instrument ensemble, standing atop colossal pocket watch with swinging pendulum, gas-lit Victorian performance space --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below",
+                "prompt": "Wide cinematic frame of Victorian owl professor conducting clockwork orchestra, elevated on enormous timepiece platform with pendulum below, automated brass instruments responding to wing movements --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897bd335cc3c4d335dfe5",
+            "ideateOutput": {
+              "predefinedPreferences": [
+                "--sref 3704803642"
+              ],
+              "shots": [
+                "Owl's brass monocle reflects spinning gears while examining ancient blueprints, feathered wing adjusting miniature clockwork mechanisms with surgical precision under gaslight's amber glow",
+                "Through foggy goggles, owl's golden eyes survey a wall of ticking chronometers, each pendulum synchronized to wingbeats, steam wisping from tiny exhaust ports beneath feathers",
+                "Talons grip an ornate brass telescope aimed through study window at moonlit airships, top hat adorned with rotating astrolabe, calculating celestial navigation paths",
+                "Owl perched atop mountain of leather journals, quill pen held in beak, mechanically transcribing observations while tiny gears rotate within translucent chest cavity",
+                "Portrait angle capturing owl's profile against backlit steam clouds, goggles pushed up revealing cybernetic eye implant, brass plates seamlessly integrated into natural plumage",
+                "Overhead view of owl studying sprawled schematics on mahogany desk, wing-mounted magnifying apparatus extending, casting geometric shadows through amber lamplight",
+                "Close-up of talon winding intricate pocket watch, reflection showing reversed library shelves filled with specimen jars containing mechanical butterflies suspended in golden preservation fluid",
+                "Owl mid-flight through study, wings spread revealing hidden propeller mechanisms, dodging floating books and levitating brass instruments in zero-gravity experimental chamber",
+                "Side profile silhouette against wall of spinning cogs, top hat's shadow morphing into chimney releasing musical notes made of steam and copper dust",
+                "Owl teaching mechanical mice students, pointing wing at blackboard equations while chalk floats mysteriously, controlled by magnetic fields from concealed chest apparatus",
+                "Dramatic low angle showing owl atop ladder reaching for glowing crystalline power source, goggles reflecting rainbow prismatic light, gears casting dancing shadows",
+                "Through frosted window perspective, owl adjusting steam-powered phonograph, surrounded by floating musical notes materialized as tiny brass sculptures in mid-air",
+                "Owl's reflection multiplied infinitely in brass telescope lenses while examining constellation map, each reflection wearing different steampunk accessories from alternate timelines",
+                "Macro detail of owl's eye through goggle lens, iris containing microscopic cityscape of turning gears, tiny trains circulating through pupil's darkness",
+                "Wide shot of owl conducting orchestra of automated instruments, wings directing tempo while standing on podium made from giant pocket watch, pendulum swinging below"
+              ],
+              "variationCount": 8,
+              "model": "claude-opus-4-1",
+              "tags": [
+                "animalwear"
+              ],
+              "creativeInspiration": "## Creative Inspiration: The Mechanical Scholar\n\n**Core Vision:** A distinguished owl character embodying Victorian-era mechanical sophistication, serving as the focal point for steampunk storytelling.\n\n**Subject Analysis:** The owl represents wisdom meeting innovation - a creature of natural intelligence enhanced by human engineering. This isn't merely decoration but transformation: brass goggles become extensions of keen eyesight, the top hat crowns scholarly authority, and clockwork mechanisms suggest a fusion of biological and mechanical precision.\n\n**Environmental Context:** The Victorian study grounds this character in a world of leather-bound books, mahogany furniture, and gas-lit ambiance. This setting implies scholarly pursuits, invention, and the marriage of natural history with industrial revolution aesthetics.\n\n**Thematic Intent:** The directive seeks to explore the intersection of nature and technology through Victorian steampunk aesthetics. The owl becomes a professor, inventor, or keeper of mechanical secrets.\n\n**Key Elements:**\n- Owl as protagonist (not prop)\n- Functional steampunk accessories (goggles, clockwork)\n- Period-accurate Victorian setting\n- Brass/copper mechanical details\n- Scholarly atmosphere\n\n**Creative Direction:** Focus on the owl's character development through environmental storytelling, emphasizing the harmony between organic wisdom and mechanical innovation in a gas-lit world of gears and knowledge."
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:26:06.205Z"
+}

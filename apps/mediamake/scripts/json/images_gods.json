@@ -4,220 +4,12 @@
     "style": "user-directive-focused",
     "ideaCount": 25,
     "variationCount": 8,
-    "tags": ["gods"],
+    "tags": [
+      "gods"
+    ],
     "predefinedPreferences": []
   },
   "queue": [
-    {
-      "userDirective": "The cosmic dancer, wild hair, rhythm of destruction, circle of fire, steady gaze."
-    },
-    {
-      "userDirective": "Sleeping god on a cosmic serpent, the ocean of milk, a universe dreaming, lotus from navel."
-    },
-    {
-      "userDirective": "Elephant-headed scribe, broken tusk, immense wisdom, overcoming obstacles, a tiny mouse companion."
-    },
-    {
-      "userDirective": "Fierce goddess, battleground, destroying demons, ten arms with weapons, divine rage, riding a lion."
-    },
-    {
-      "userDirective": "Goddess of knowledge, white swan, flowing river, playing the veena, ancient scriptures, pure white robes."
-    },
-    {
-      "userDirective": "Goddess of fortune, gold coins flowing, pink lotus blossom, white elephants, radiant abundance."
-    },
-    {
-      "userDirective": "The monkey god, immense strength, leaping across the ocean, pure devotion, carrying a mountain."
-    },
-    {
-      "userDirective": "Blue-skinned flute player, charming the animals, peacock feather, divine playfulness, cosmic wisdom."
-    },
-    {
-      "userDirective": "The perfect king, righteous path, divine bow, loyalty, bridge across the sea, golden deer."
-    },
-    {
-      "userDirective": "Four-faced creator, emerging from a cosmic lotus, chanting Vedas, holding the universe's tools."
-    },
-    {
-      "userDirective": "King of gods, riding a white elephant, wielding the thunderbolt, storm clouds gathering, divine court."
-    },
-    {
-      "userDirective": "Dark goddess, tongue of fire, garland of skulls, primal energy, untamed, liberation from fear."
-    },
-    {
-      "userDirective": "Meditative trance, frozen mountain peak, ash-smeared body, internal fire, cosmic stillness, third eye."
-    },
-    {
-      "userDirective": "Celestial battle, glowing weapons clashing, gods versus demons, chaotic light, churning ocean."
-    },
-    {
-      "userDirective": "The divine descent, an avatar appearing, cosmic light piercing the clouds, a promise of balance."
-    },
-    {
-      "userDirective": "The cosmic charioteer, battlefield wisdom, revealing the universal form, time stopping."
-    },
-    {
-      "userDirective": "The sun god, seven-horse chariot, blazing light, dispelling darkness, racing across the sky."
-    },
-    {
-      "userDirective": "The god of wind, unseen force, flowing movement, carrier of seeds, breath of life."
-    },
-    {
-      "userDirective": "A divine discus, a celestial mace, a glowing trident, weapons of immense power, humming with energy."
-    },
-    {
-      "userDirective": "The divine feminine, cosmic mother, nurturing and fierce, holding both lotus and sword."
-    },
-    {
-      "userDirective": "Blue-skinned child, stealing butter, divine mischief, peacock feather, charming the village."
-    },
-    {
-      "userDirective": "The monkey god carrying a mountain, glowing herbs, devotion, loyalty, incredible leap."
-    },
-    {
-      "userDirective": "Man-lion avatar, bursting from a pillar, twilight hour, fierce protection, sharp claws."
-    },
-    {
-      "userDirective": "King in exile, the perfect path, divine bow, golden deer, forest journey."
-    },
-    {
-      "userDirective": "The divine charioteer, battlefield wisdom, stopping time, revealing the universal form."
-    },
-    {
-      "userDirective": "The dwarf avatar, three giant steps, covering the earth and sky, a humble disguise."
-    },
-    {
-      "userDirective": "Goddess of the river, flowing from matted hair, purifying waters, descending from heaven."
-    },
-    {
-      "userDirective": "The great churn, ocean of milk, gods and demons, the serpent rope, emerging nectar."
-    },
-    {
-      "userDirective": "Lord of obstacles, writing the epic, broken tusk, wisdom and sweets, mouse vehicle."
-    },
-    {
-      "userDirective": "Dark goddess, garland of skulls, primal energy, dance of liberation, unbound hair."
-    },
-    {
-      "userDirective": "Cosmic creator, four faces, chanting Vedas, emerging from a lotus, holding the universe's tools."
-    },
-    {
-      "userDirective": "Warrior goddess, ten arms, vanquishing the buffalo demon, serene fury, lion mount."
-    },
-    {
-      "userDirective": "God of fire, two faces, sacred flame, messenger to the gods, carrier of offerings."
-    },
-    {
-      "userDirective": "King of gods, thunderbolt weapon, riding the white elephant, battling the serpent, rain and storms."
-    },
-    {
-      "userDirective": "God of death, riding a buffalo, final judgment, the southern gate, green hue."
-    },
-    {
-      "userDirective": "Warrior god, six faces, peacock mount, divine spear, general of the celestial army."
-    },
-    {
-      "userDirective": "The divine eagle, enemy of serpents, immense golden wings, carrying the preserver."
-    },
-    {
-      "userDirective": "Sleeping on the infinite serpent, dreaming the universe, cosmic ocean, divine slumber."
-    },
-    {
-      "userDirective": "The sacred bull, gatekeeper, eternal stillness, devotion, vehicle of the ascetic."
-    },
-    {
-      "userDirective": "Goddess of speech, white swan, river of knowledge, holding the veena, ancient texts."
-    },
-    {
-      "userDirective": "Goddess of wealth, emerging from the sea, gold coins, lotus seat, auspicious elephants."
-    },
-    {
-      "userDirective": "Sun god, seven-horse chariot, blazing light, crossing the sky, all-seeing eye."
-    },
-    {
-      "userDirective": "Moon god, cool light, elixir of life, waning and waxing, chariot of antelope."
-    },
-    {
-      "userDirective": "The boar avatar, lifting the earth from the cosmic ocean, divine tusk, primal strength."
-    },
-    {
-      "userDirective": "The divine fish, warning of the great flood, saving the ancient sages, pulling the boat."
-    },
-    {
-      "userDirective": "The cosmic tortoise, holding the mountain, stabilizing the churn, immense burden."
-    },
-    {
-      "userDirective": "God of the wind, unseen force, immense speed, breath of life, flowing robes."
-    },
-    {
-      "userDirective": "God of the ocean, the cosmic noose, riding a sea monster, keeper of the deep, divine law."
-    },
-    {
-      "userDirective": "The great ascetic, third eye, crescent moon, tiger skin, meditating on a frozen peak."
-    },
-    {
-      "userDirective": "The cosmic dance, circle of stars, rhythm of creation, destructive steps, wild matted hair."
-    },
-    {
-      "userDirective": "Goddess of the forest, wild animals, ancient trees, protector, primal green energy."
-    },
-    {
-      "userDirective": "Goddess of dreams, night, illusion, flowing dark robes, owl companion."
-    },
-    {
-      "userDirective": "Divine weapons, celestial discus, glowing mace, humming trident, arrows of light."
-    },
-    {
-      "userDirective": "Lifting the mountain, protecting the village, divine shelter, balancing on a small finger."
-    },
-    {
-      "userDirective": "The ultimate weapon, blinding light, invoked by mantra, world-ending potential."
-    },
-    {
-      "userDirective": "Goddess of patience, daughter of the earth, fire ordeal, enduring, inner strength."
-    },
-    {
-      "userDirective": "The divine flute, enchanting melody, charming animals, moonlight, sacred sound."
-    },
-    {
-      "userDirective": "Primal goddess, untamed power, battlefield, severing ignorance, blood-red tongue."
-    },
-    {
-      "userDirective": "The divine architect, building celestial palaces, golden tools, cosmic measurement."
-    },
-    {
-      "userDirective": "Wish-granting tree, emerging from the ocean, divine flowers, celestial fragrance."
-    },
-    {
-      "userDirective": "The axe-wielding sage, warrior's rage, destroying the warrior class, intense austerity."
-    },
-    {
-      "userDirective": "Celestial dancer, moving through clouds, divine beauty, distracting sages, ethereal."
-    },
-    {
-      "userDirective": "God of love, sugarcane bow, string of bees, flower arrows, inspiring passion."
-    },
-    {
-      "userDirective": "The divine physician, emerging from the ocean, carrying the pot of nectar, healing herbs."
-    },
-    {
-      "userDirective": "Cosmic serpent, infinite coils, holding the planets, a bed for the preserver."
-    },
-    {
-      "userDirective": "The universal form, infinite eyes, mouths, blinding light, showing all of reality."
-    },
-    {
-      "userDirective": "The divine conch, cosmic sound, signaling the start, reverberating through space."
-    },
-    {
-      "userDirective": "The mountain king's daughter, deep meditation, winning the ascetic's heart, divine union."
-    },
-    {
-      "userDirective": "God of justice, slow-moving planet, black robes, crow, delivering karma."
-    },
-    {
-      "userDirective": "A bridge of floating stones, across the great ocean, army of monkeys, devotion in action."
-    },
     {
       "userDirective": "Man-lion avatar, bursting from a pillar, twilight hour, righteous fury, sharp claws."
     },
@@ -235,9 +27,6 @@
     },
     {
       "userDirective": "Warrior god, six faces, peacock mount, divine spear, general of the celestial army."
-    },
-    {
-      "userDirective": "God of fire, sacred flame, carrying offerings, two faces, riding a ram, messenger."
     },
     {
       "userDirective": "God of death, riding a buffalo, the southern gate, green hue, final judgment."
@@ -267,9 +56,6 @@
       "userDirective": "Goddess of the forest, wild animals, ancient trees, primal green, untamed protector."
     },
     {
-      "userDirective": "Celestial weapons clashing, blinding light, arrows of fire, divine discus, humming trident."
-    },
-    {
       "userDirective": "Lifting the mountain, protecting the village, one small finger, divine shelter, monsoon clouds."
     },
     {
@@ -294,9 +80,6 @@
       "userDirective": "The axe-wielding sage, intense penance, warrior's rage, destroying the unjust, deep meditation."
     },
     {
-      "userDirective": "Celestial dancer, moving through clouds, divine beauty, distracting sages, ethereal grace."
-    },
-    {
       "userDirective": "God of love, sugarcane bow, string of bees, flower arrows, inspiring passion, unseen."
     },
     {
@@ -310,9 +93,6 @@
     },
     {
       "userDirective": "The divine conch shell, cosmic sound, signaling battle, reverberating through space."
-    },
-    {
-      "userDirective": "The mountain king's daughter, deep penance, winning the great ascetic, divine union."
     },
     {
       "userDirective": "God of justice, slow-moving planet, dark robes, crow companion, delivering karma."
@@ -352,9 +132,6 @@
     },
     {
       "userDirective": "A ring of fire, the cosmic dancer, trampling ignorance, matted hair flying, creation's rhythm."
-    },
-    {
-      "userDirective": "Goddess of speech, flowing white, holding scriptures, clarity of thought, divine inspiration."
     },
     {
       "userDirective": "The great ascetic, smeared in ash, tiger skin, coiled serpent, crescent moon, still gaze."

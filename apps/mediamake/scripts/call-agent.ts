@@ -30,7 +30,7 @@ interface QueueConfig {
 }
 
 const BASE_URL = 'http://localhost:3000';
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 10;
 
 // Generate a random word-like string for filename prefix
 function generateRandomPrefix(): string {

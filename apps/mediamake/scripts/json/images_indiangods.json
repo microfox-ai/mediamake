@@ -4,7 +4,9 @@
     "style": "user-directive-focused",
     "ideaCount": 25,
     "variationCount": 8,
-    "tags": ["indiangods"],
+    "tags": [
+      "indiangods"
+    ],
     "predefinedPreferences": []
   },
   "queue": [
@@ -16,9 +18,6 @@
     },
     {
       "userDirective": "Lord Krishna, the Vishwaroopa, the universal form, thousand suns, cosmic terror, all worlds in one."
-    },
-    {
-      "userDirective": "Goddess Sita, born of the earth, golden deer, fire's purity, queen of Ayodhya, unwavering heart."
     },
     {
       "userDirective": "Lord Vishnu's avatar, Narasimha, the man-lion, twilight's edge, bursting from the pillar, protector's fury."
@@ -37,9 +36,6 @@
     },
     {
       "userDirective": "Shiva as Bhairava, the terrible one, wandering ascetic, dog companion, skull-staff, guardian of Kashi."
-    },
-    {
-      "userDirective": "Goddess Radha, divine love, Krishna's consort, the greatest Gopi, longing and union, Vrindavan's queen."
     },
     {
       "userDirective": "Lord Vayu, god of the wind, invisible force, breath of life (prana), Hanuman's father, swift as thought."
@@ -84,9 +80,6 @@
       "userDirective": "Goddess Lakshmi, the Ashta Lakshmi, eight forms of wealth, prosperity, knowledge, children, courage."
     },
     {
-      "userDirective": "Lord Ganesha, the scribe, writing the epic Mahabharata, broken tusk as a pen, wisdom's flow."
-    },
-    {
       "userDirective": "Goddess Kali, standing on a calm Shiva, the void, timelessness, ultimate reality, beyond creation."
     },
     {
@@ -106,9 +99,6 @@
     },
     {
       "userDirective": "Nandi, the sacred bull, Shiva's gatekeeper, eternal waiting, pure devotion, the sound of the drum."
-    },
-    {
-      "userDirective": "Goddess Ushas, the dawn, golden chariot, scattering the darkness, sister of night, new beginnings."
     },
     {
       "userDirective": "Lord Agni, the fire god, sacrificial messenger, two-faced, purifying flames, the link between worlds."
@@ -154,9 +144,6 @@
     },
     {
       "userDirective": "Shiva, the quantum dancer, particles and waves, the ring of fire as a data vortex, creation and destruction in code."
-    },
-    {
-      "userDirective": "Lord Vishnu, the final avatar, Kalki, on a white horse, a server's comet-like sword, cleansing the corrupted code."
     }
   ]
 }

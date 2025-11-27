@@ -4,15 +4,16 @@
     "style": "user-directive-focused",
     "ideaCount": 10,
     "variationCount": 8,
-    "tags": ["unrealnexus"],
-    "predefinedPreferences": ["--sref 1337729854"]
+    "tags": [
+      "unrealnexus"
+    ],
+    "predefinedPreferences": [
+      "--sref 1337729854"
+    ]
   },
   "queue": [
     {
       "userDirective": "Floating stairs, negative space, impossible architecture."
-    },
-    {
-      "userDirective": "A single red sphere hovering over a flat black line."
     },
     {
       "userDirective": "A jellyfish floating in a desert sky, monochrome."
@@ -48,9 +49,6 @@
       "userDirective": "A cube balancing perfectly on its corner, defying gravity."
     },
     {
-      "userDirective": "A fish swimming through solid, flat-colored rock. Negative space."
-    },
-    {
       "userDirective": "The moon, but it's a perfect square. Simple sky gradient."
     },
     {
@@ -70,9 +68,6 @@
     },
     {
       "userDirective": "A single chair, levitating, casting an impossible shadow."
-    },
-    {
-      "userDirective": "Endless staircase, ascending and descending, no destination."
     },
     {
       "userDirective": "Barren tree, a single mechanical heart suspended."
@@ -124,9 +119,6 @@
     },
     {
       "userDirective": "A single, black cube, leaking bright, colored light from a crack."
-    },
-    {
-      "userDirective": "A single, antique key, unlocking a patch of empty floor."
     }
   ]
 }

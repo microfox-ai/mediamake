@@ -4,8 +4,12 @@
     "style": "user-directive-focused",
     "ideaCount": 10,
     "variationCount": 8,
-    "tags": ["kidtales"],
-    "predefinedPreferences": ["--sref 4286000636"]
+    "tags": [
+      "kidtales"
+    ],
+    "predefinedPreferences": [
+      "--sref 4286000636"
+    ]
   },
   "queue": [
     {
@@ -27,9 +31,6 @@
       "userDirective": "Bouncy cartoon style, exaggerated expressions, silly inventions, bright, saturated colors."
     },
     {
-      "userDirective": "Warm knitted textures, cozy fireplace, sleepy bears, story time, soft lighting."
-    },
-    {
       "userDirective": "Tiny heroes, giant garden, rickety bridges, bug companions, adventure map."
     },
     {
@@ -46,9 +47,6 @@
     },
     {
       "userDirective": "Underwater kingdom, bioluminescent coral, friendly octopus, muted blues, sunken treasure."
-    },
-    {
-      "userDirective": "Classic ink drawing, cross-hatching, vintage feel, sepia tones, nostalgic characters."
     },
     {
       "userDirective": "Soft chalk pastel, pavement drawings, smudged edges, gentle colors, innocent."
@@ -87,9 +85,6 @@
       "userDirective": "Thatched roof cottage, low stone walls, green misty hills, peat smoke, cozy Irish hearth."
     },
     {
-      "userDirective": "Painted onion domes, whimsical folk art, snowy birch trees, cozy wooden izba."
-    },
-    {
       "userDirective": "Thatched roof hut, stilts over water, woven walls, dense jungle, bright parrots, Amazonian."
     },
     {
@@ -115,9 +110,6 @@
     },
     {
       "userDirective": "Vibrant painted walls, terracotta patio, cacti garden, Mexican folk art, festive."
-    },
-    {
-      "userDirective": "Mansard roofs, wrought-iron balconies, Parisian chimney pots, cozy attic window, flower boxes."
     },
     {
       "userDirective": "Houses on stilts, winding river market, colorful boats, Thai floating village, tropical."
