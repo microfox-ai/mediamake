@@ -170,6 +170,7 @@ jobs:
               }
 
               console.log(`✅ Found ${presetRequests.length} preset request(s)`);
+              console.log(`📦 Will process in batches of 3 to avoid server overload`);
 
               // Configure git
               execSync('git config user.name "github-actions[bot]"');
@@ -179,30 +180,36 @@ jobs:
               const startTime = Date.now();
 
               // ==========================================
-              // STEP 1: PARALLEL API CALLS
+              // STEP 1: BATCHED API CALLS (with timeout)
               // ==========================================
-              console.log('\n🚀 Step 1: Fetching all presets in parallel...');
+              console.log('\n🚀 Step 1: Fetching presets in batches...');
               const step1Start = Date.now();
               
-              // Create promises for all API calls
-              const apiPromises = presetRequests.map((request, i) => {
-                return (async () => {
-                  const index = i + 1;
-                  
-                  if (!request.prompt || !request.technicalSpecs) {
-                    console.error(`❌ Preset ${index} missing required fields (prompt, technicalSpecs)`);
-                    return { index, success: false, error: 'Missing required fields' };
-                  }
+              // Process in batches to avoid overwhelming the server
+              const BATCH_SIZE = 3; // Process 3 presets at a time
+              const REQUEST_TIMEOUT = 20 * 60 * 1000; // 20 minutes per request
+              
+              // Create API call function with timeout
+              async function callPresetAPI(request, index) {
+                if (!request.prompt || !request.technicalSpecs) {
+                  console.error(`❌ Preset ${index} missing required fields (prompt, technicalSpecs)`);
+                  return { index, success: false, error: 'Missing required fields' };
+                }
 
+                try {
+                  const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
+                  
+                  console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
+                  console.log(`   URL: ${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`);
+                  console.log(`   Method: POST`);
+                  console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
+                  console.log(`   Prompt length: ${combinedPrompt.length} characters`);
+                  
+                  // Create AbortController for timeout
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+                  
                   try {
-                    const combinedPrompt = `${request.prompt}\n\nTechnical Specifications:\n${request.technicalSpecs}`;
-                    
-                    console.log(`📤 [${index}/${presetRequests.length}] Calling API...`);
-                    console.log(`   URL: ${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`);
-                    console.log(`   Method: POST`);
-                    console.log(`   Auth: Bearer ${devApiKey ? devApiKey.substring(0, 10) + '...' : 'MISSING'}`);
-                    console.log(`   Prompt length: ${combinedPrompt.length} characters`);
-                    
                     const response = await fetch(`${apiBaseUrl}/api/studio/chat/dev/agent/preset/generate`, {
                       method: 'POST',
                       headers: {
@@ -212,7 +219,10 @@ jobs:
                       body: JSON.stringify({
                         prompt: combinedPrompt,
                       }),
+                      signal: controller.signal,
                     });
+                    
+                    clearTimeout(timeoutId);
 
                     console.log(`📥 [${index}/${presetRequests.length}] Response status: ${response.status} ${response.statusText}`);
                     console.log(`   Response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries())));
@@ -226,6 +236,13 @@ jobs:
 
                     const result = await response.json();
                     console.log(`✅ [${index}/${presetRequests.length}] API call successful`);
+                  } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    if (fetchError.name === 'AbortError') {
+                      throw new Error(`Request timed out after ${REQUEST_TIMEOUT / 1000 / 60} minutes`);
+                    }
+                    throw fetchError;
+                  }
 
                     // Parse the nested response structure
                     // Response format: [{ parts: [{ output: { code, metadata } }] }]
@@ -317,11 +334,13 @@ jobs:
                     console.error(`   Error stack:`, error.stack);
                     
                     // Note: "fetch failed" errors are often due to:
-                    // - Request timeout (API route has maxDuration of 300s)
+                    // - Request timeout (now configured to 20 minutes)
                     // - Connection closed by server
                     // - Network issues
                     if (error.message.includes('fetch failed')) {
                       console.error(`   ℹ️  This is likely a timeout or connection issue`);
+                    } else if (error.message.includes('timed out')) {
+                      console.error(`   ℹ️  Request exceeded ${REQUEST_TIMEOUT / 1000 / 60} minute timeout`);
                     }
                     
                     return {
@@ -331,17 +350,41 @@ jobs:
                       errorStack: error.stack,
                     };
                   }
-                })();
-              });
+              }
 
-              // Wait for all API calls to complete
-              const apiResults = await Promise.all(apiPromises);
+              // Process requests in batches
+              const apiResults = [];
+              for (let i = 0; i < presetRequests.length; i += BATCH_SIZE) {
+                const batch = presetRequests.slice(i, i + BATCH_SIZE);
+                const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+                const totalBatches = Math.ceil(presetRequests.length / BATCH_SIZE);
+                
+                console.log(`\n📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} presets)...`);
+                
+                const batchPromises = batch.map((request, batchIndex) => {
+                  const index = i + batchIndex + 1;
+                  return callPresetAPI(request, index);
+                });
+                
+                const batchResults = await Promise.all(batchPromises);
+                apiResults.push(...batchResults);
+                
+                const successCount = batchResults.filter(r => r.success).length;
+                console.log(`✅ Batch ${batchNumber} complete: ${successCount}/${batch.length} successful`);
+                
+                // Small delay between batches to avoid overwhelming the server
+                if (i + BATCH_SIZE < presetRequests.length) {
+                  console.log(`⏳ Waiting 5 seconds before next batch...`);
+                  await new Promise(resolve => setTimeout(resolve, 5000));
+                }
+              }
               
               const successfulPresets = apiResults.filter(r => r.success);
               const failedPresets = apiResults.filter(r => !r.success);
               
               const step1Duration = ((Date.now() - step1Start) / 1000).toFixed(2);
-              console.log(`\n📊 API Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step1Duration}s)`);
+              console.log(`\n📊 All batches complete!`);
+              console.log(`📊 API Results: ${successfulPresets.length} successful, ${failedPresets.length} failed (${step1Duration}s)`);
               
               // If there were failures, check server logs
               if (failedPresets.length > 0) {
