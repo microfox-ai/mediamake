@@ -1,18 +1,18 @@
 #!/usr/bin/env tsx
 /**
  * Standalone Preset Generator Script
- * 
+ *
  * This script replicates the functionality of the generate.agent.ts workflow:
  * 1. RAG Search - Find relevant examples from existing presets
  * 2. Architecture - Design the component structure
  * 3. Tech Lead Review - Validate the architectural plan
  * 4. Coding + Validation Loop - Generate and validate code (up to 3 attempts)
  * 5. Save - Write validated preset to filesystem
- * 
+ *
  * Usage:
  *   npm run generate-preset "Create a text fade in preset"
  *   npm run generate-preset "Create a zoom transition effect"
- * 
+ *
  * Guide Files:
  *   The script reads guide files from two directories:
  *   - components/editor/presets/presetgenerationguide/ (GENERATION_*.md)
@@ -46,37 +46,68 @@ interface RagSearchResult {
 }
 
 const ArchitectOutputSchema = z.object({
-  rootContainer: z.enum(['BaseLayout']).describe("Must be BaseLayout"),
-  structure: z.array(z.object({
-      id: z.string(),
-      type: z.string().describe("Atom or Component type (e.g., TextAtom, VideoAtom)"),
-      props: z.record(z.string(), z.any()).describe("Key props for this component"),
-      children: z.array(z.string()).optional().describe("IDs of children if any")
-  })).describe("Flat list of nodes defining the tree structure"),
-  dependencies: z.array(z.string()).describe("List of IDs of existing presets (sub-presets) that this preset depends on."),
-  timingStrategy: z.string().describe("Explanation of how timing is handled (relative, sequence, etc.)"),
-  requiredAssets: z.array(z.string()).describe("List of asset types needed (e.g. 'background music', 'logo')"),
+  rootContainer: z.enum(['BaseLayout']).describe('Must be BaseLayout'),
+  structure: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z
+          .string()
+          .describe('Atom or Component type (e.g., TextAtom, VideoAtom)'),
+        props: z
+          .record(z.string(), z.any())
+          .describe('Key props for this component'),
+        children: z
+          .array(z.string())
+          .optional()
+          .describe('IDs of children if any'),
+      }),
+    )
+    .describe('Flat list of nodes defining the tree structure'),
+  dependencies: z
+    .array(z.string())
+    .describe(
+      'List of IDs of existing presets (sub-presets) that this preset depends on.',
+    ),
+  timingStrategy: z
+    .string()
+    .describe(
+      'Explanation of how timing is handled (relative, sequence, etc.)',
+    ),
+  requiredAssets: z
+    .array(z.string())
+    .describe("List of asset types needed (e.g. 'background music', 'logo')"),
   metadata: z.object({
-      title: z.string(),
-      description: z.string(),
-      idProposal: z.string()
-  })
+    title: z.string(),
+    description: z.string(),
+    idProposal: z.string(),
+  }),
 });
 
 const TechLeadOutputSchema = z.object({
   approved: z.boolean(),
-  critique: z.string().optional().describe("If rejected, explain why."),
-  suggestions: z.array(z.string()).describe("Improvements for performance, style, or Remotion best practices."),
-  revisedPlan: ArchitectOutputSchema.optional().describe("If approved with minor changes, provide the revised plan.")
+  critique: z.string().optional().describe('If rejected, explain why.'),
+  suggestions: z
+    .array(z.string())
+    .describe(
+      'Improvements for performance, style, or Remotion best practices.',
+    ),
+  revisedPlan: ArchitectOutputSchema.optional().describe(
+    'If approved with minor changes, provide the revised plan.',
+  ),
 });
 
 const PresetGeneratorOutputSchema = z.object({
-  code: z.string().describe('The complete TypeScript code for the generated preset'),
-  metadata: z.object({
-    id: z.string(),
-    title: z.string(),
-    description: z.string(),
-  }).describe('Metadata of the generated preset'),
+  code: z
+    .string()
+    .describe('The complete TypeScript code for the generated preset'),
+  metadata: z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+    })
+    .describe('Metadata of the generated preset'),
 });
 
 interface ValidationResult {
@@ -103,12 +134,12 @@ async function readGuide(guideName: string): Promise<string> {
     process.cwd(),
     'components/editor/presets/presetwritingguide',
   );
-  
+
   const GENERATION_GUIDES_PATH = path.join(
     process.cwd(),
     'components/editor/presets/presetgenerationguide',
   );
-  
+
   // 1) Try generation guides first (GENERATION_*.md files)
   try {
     const genPath = path.join(GENERATION_GUIDES_PATH, guideName);
@@ -117,14 +148,16 @@ async function readGuide(guideName: string): Promise<string> {
   } catch {
     // Fall through to writing guides
   }
-  
+
   // 2) Fallback to writing guides (0_*.md foundational files)
   try {
     const writePath = path.join(WRITING_GUIDES_PATH, guideName);
     const writeContent = await fs.readFile(writePath, 'utf-8');
     return writeContent;
   } catch (e) {
-    console.warn(`⚠️  Guide not found: ${guideName} (checked both directories)`);
+    console.warn(
+      `⚠️  Guide not found: ${guideName} (checked both directories)`,
+    );
     return '';
   }
 }
@@ -134,7 +167,10 @@ async function readGuide(guideName: string): Promise<string> {
  */
 async function readTypesFile(maxChars?: number): Promise<string> {
   try {
-    const typesPath = path.join(process.cwd(), 'components/editor/presets/types.ts');
+    const typesPath = path.join(
+      process.cwd(),
+      'components/editor/presets/types.ts',
+    );
     const content = await fs.readFile(typesPath, 'utf-8');
     if (maxChars) {
       return content.slice(0, maxChars);
@@ -149,12 +185,17 @@ async function readTypesFile(maxChars?: number): Promise<string> {
 /**
  * Query RAG for relevant presets
  */
-async function queryRagPresets(query: string, topK: number = 5): Promise<RagSearchResult[]> {
+async function queryRagPresets(
+  query: string,
+  topK: number = 5,
+): Promise<RagSearchResult[]> {
   try {
     // Import the RAG helper dynamically to avoid circular dependencies
-    const { queryRagPresets: ragQuery } = await import('../app/ai/agents/preset/helpers/rag');
+    const { queryRagPresets: ragQuery } = await import(
+      '../app/ai/agents/preset/helpers/rag'
+    );
     const results = await ragQuery(query, undefined, topK);
-    
+
     return results
       .filter(r => r.metadata)
       .map(r => ({
@@ -180,15 +221,18 @@ async function queryRagPresets(query: string, topK: number = 5): Promise<RagSear
  */
 async function savePresetToFile(id: string, code: string): Promise<string> {
   try {
-    const registryPath = path.join(process.cwd(), 'components/editor/presets/registry/generated');
-    
+    const registryPath = path.join(
+      process.cwd(),
+      'components/editor/presets/registry/generated',
+    );
+
     // Ensure directory exists
     await fs.mkdir(registryPath, { recursive: true });
-    
+
     // Filename convention: snake-case id.ts
     const filename = `${id}.ts`;
     const filepath = path.join(registryPath, filename);
-    
+
     // Write the code
     await fs.writeFile(filepath, code, 'utf-8');
     console.log(`✅ Saved preset to: ${filepath}`);
@@ -202,10 +246,15 @@ async function savePresetToFile(id: string, code: string): Promise<string> {
 /**
  * Validate preset code using the validation helper
  */
-async function validatePresetCode(code: string, presetId: string): Promise<ValidationResult> {
+async function validatePresetCode(
+  code: string,
+  presetId: string,
+): Promise<ValidationResult> {
   try {
     // Import the validation helper dynamically
-    const { validatePresetCode: validate } = await import('../app/ai/agents/preset/helpers/validation');
+    const { validatePresetCode: validate } = await import(
+      '../app/ai/agents/preset/helpers/validation'
+    );
     return await validate(code, presetId);
   } catch (error) {
     console.error('❌ Validation Error:', error);
@@ -226,19 +275,24 @@ async function validatePresetCode(code: string, presetId: string): Promise<Valid
  */
 async function step1_ragSearch(prompt: string): Promise<RagSearchResult[]> {
   console.log('\n🔍 Step 1: RAG Search - Researching component library...');
-  
+
   const ragResults = await queryRagPresets(prompt);
   console.log(`   ✓ Found ${ragResults.length} relevant presets`);
-  
+
   return ragResults;
 }
 
 /**
  * Step 2: Architectural Design
  */
-async function step2_architect(prompt: string, ragResults: RagSearchResult[]): Promise<any> {
-  console.log('\n🏗️  Step 2: Architectural Design - Creating component structure...');
-  
+async function step2_architect(
+  prompt: string,
+  ragResults: RagSearchResult[],
+): Promise<any> {
+  console.log(
+    '\n🏗️  Step 2: Architectural Design - Creating component structure...',
+  );
+
   // Load guides
   const singlePresetGuide = await readGuide('GENERATION_SINGLE_PRESET.md');
   const patternsGuide = await readGuide('GENERATION_PATTERNS.md');
@@ -247,15 +301,19 @@ async function step2_architect(prompt: string, ragResults: RagSearchResult[]): P
   const basicsGuide = await readGuide('0_BASICS.md');
   const layoutGuide = await readGuide('0_LAYOUT.md');
   const atomsGuide = await readGuide('0_ATOMS.md');
-  
-  const context = ragResults.map(r => `
+
+  const context = ragResults
+    .map(
+      r => `
     ID: ${r.metadata.id}
     Title: ${r.metadata.title}
     Description: ${r.metadata.description}
     Tags: ${r.metadata.tags?.join(', ')}
     Docs: ${r.code} 
-  `).join('\n---\n');
-  
+  `,
+    )
+    .join('\n---\n');
+
   const result = await generateObject({
     model: anthropic('claude-opus-4-5'),
     schema: ArchitectOutputSchema,
@@ -310,10 +368,12 @@ async function step2_architect(prompt: string, ragResults: RagSearchResult[]): P
       Design the blueprint with these foundational rules in mind.
     `,
   });
-  
+
   const plan = result.object;
-  console.log(`   ✓ Plan created with ${plan.structure?.length || 0} components, ${plan.dependencies?.length || 0} dependencies`);
-  
+  console.log(
+    `   ✓ Plan created with ${plan.structure?.length || 0} components, ${plan.dependencies?.length || 0} dependencies`,
+  );
+
   return plan;
 }
 
@@ -323,10 +383,10 @@ async function step2_architect(prompt: string, ragResults: RagSearchResult[]): P
 async function step3_techLeadReview(
   prompt: string,
   initialPlan: any,
-  ragResults: RagSearchResult[]
+  ragResults: RagSearchResult[],
 ): Promise<any> {
   console.log('\n🧐 Step 3: Tech Lead Review - Validating plan...');
-  
+
   // Load guides
   const negativesGuide = await readGuide('0_NEGATIVES.md');
   const basicsGuide = await readGuide('0_BASICS.md');
@@ -335,11 +395,11 @@ async function step3_techLeadReview(
   const singlePresetGuide = await readGuide('GENERATION_SINGLE_PRESET.md');
   const patternsGuide = await readGuide('GENERATION_PATTERNS.md');
   const timingGuide = await readGuide('GENERATION_TIMING.md');
-  
+
   let plan = initialPlan;
   let attempts = 0;
   const maxAttempts = 2;
-  
+
   while (attempts < maxAttempts) {
     const result = await generateObject({
       model: anthropic('claude-opus-4-5'),
@@ -395,10 +455,12 @@ async function step3_techLeadReview(
         Review this plan against the foundational rules and engineering standards.
       `,
     });
-    
+
     const review = result.object;
-    console.log(`   Review Attempt ${attempts + 1}/${maxAttempts}: ${review.approved ? '✓ Approved' : '✗ Rejected'}`);
-    
+    console.log(
+      `   Review Attempt ${attempts + 1}/${maxAttempts}: ${review.approved ? '✓ Approved' : '✗ Rejected'}`,
+    );
+
     if (review.approved) {
       if (review.revisedPlan) {
         plan = review.revisedPlan;
@@ -410,17 +472,17 @@ async function step3_techLeadReview(
     } else {
       console.log(`   ✗ Plan rejected: ${review.critique}`);
       console.log(`   ↻ Re-architecting with feedback...`);
-      
+
       // Re-architect with feedback
       plan = await step2_architect(
         `${prompt}\n\nCRITICAL FEEDBACK: ${review.critique}\nSUGGESTIONS: ${review.suggestions.join(', ')}`,
-        ragResults
+        ragResults,
       );
-      
+
       attempts++;
     }
   }
-  
+
   console.log('   ✓ Review complete');
   return plan;
 }
@@ -431,16 +493,16 @@ async function step3_techLeadReview(
 async function step4_codingAndValidation(
   prompt: string,
   plan: any,
-  ragResults: RagSearchResult[]
+  ragResults: RagSearchResult[],
 ): Promise<{ code: string; metadata: any; validationPassed: boolean }> {
   console.log('\n💻 Step 4: Coding & Validation Loop...');
-  
+
   const presetId = plan.metadata.idProposal || `preset-${Date.now()}`;
-  const maxAttempts = 3;
+  const maxAttempts = 1; // Validation retry limit
   let lastErrors: string[] = [];
   let code = '';
   let generatedMeta: any = null;
-  
+
   // Load guides
   const negativesGuide = await readGuide('0_NEGATIVES.md');
   const basicsGuide = await readGuide('0_BASICS.md');
@@ -451,60 +513,127 @@ async function step4_codingAndValidation(
   const timingGuide = await readGuide('GENERATION_TIMING.md');
   // const typesFile = await readTypesFile(1000);
   const typesFile = await readTypesFile();
-  
+
   // Conditional guides based on prompt keywords
   // This reduces token usage by only loading relevant guides for the specific preset being generated
   // Example: "Create a video transition" loads TRANSITIONS.md and ATOM_MEDIA_VIDEO.md
   const promptLower = prompt.toLowerCase();
-  
+
   // General guides
   const needsTransitions = promptLower.includes('transition');
-  const needsTypography = promptLower.includes('caption') || promptLower.includes('text') || promptLower.includes('typography');
-  const needsEffects = promptLower.includes('effect') || promptLower.includes('animation') || promptLower.includes('fade') || promptLower.includes('zoom') || promptLower.includes('slide');
-  const needsAudioData = promptLower.includes('audio') || promptLower.includes('beat') || promptLower.includes('sync') || promptLower.includes('sound');
-  
+  const needsTypography =
+    promptLower.includes('caption') ||
+    promptLower.includes('text') ||
+    promptLower.includes('typography');
+  const needsEffects =
+    promptLower.includes('effect') ||
+    promptLower.includes('animation') ||
+    promptLower.includes('fade') ||
+    promptLower.includes('zoom') ||
+    promptLower.includes('slide');
+  const needsAudioData =
+    promptLower.includes('audio') ||
+    promptLower.includes('beat') ||
+    promptLower.includes('sync') ||
+    promptLower.includes('sound');
+
   // Atom-specific guides
-  const needsTextAtom = promptLower.includes('text') || promptLower.includes('caption') || promptLower.includes('subtitle') || promptLower.includes('title') || promptLower.includes('word') || promptLower.includes('character');
-  const needsVideoAtom = promptLower.includes('video') || promptLower.includes('clip') || promptLower.includes('footage');
-  const needsImageAtom = promptLower.includes('image') || promptLower.includes('photo') || promptLower.includes('picture') || promptLower.includes('png') || promptLower.includes('jpg');
-  const needsAudioAtom = promptLower.includes('audio') || promptLower.includes('music') || promptLower.includes('sound') || promptLower.includes('voice');
-  const needsLottieAtom = promptLower.includes('lottie') || promptLower.includes('animation json') || promptLower.includes('motion graphic');
-  const needsCanvasAtom = promptLower.includes('canvas') || promptLower.includes('draw') || promptLower.includes('particle') || 
-                          promptLower.includes('waveform') || promptLower.includes('visualizer') || promptLower.includes('chart');
+  const needsTextAtom =
+    promptLower.includes('text') ||
+    promptLower.includes('caption') ||
+    promptLower.includes('subtitle') ||
+    promptLower.includes('title') ||
+    promptLower.includes('word') ||
+    promptLower.includes('character');
+  const needsVideoAtom =
+    promptLower.includes('video') ||
+    promptLower.includes('clip') ||
+    promptLower.includes('footage');
+  const needsImageAtom =
+    promptLower.includes('image') ||
+    promptLower.includes('photo') ||
+    promptLower.includes('picture') ||
+    promptLower.includes('png') ||
+    promptLower.includes('jpg');
+  const needsAudioAtom =
+    promptLower.includes('audio') ||
+    promptLower.includes('music') ||
+    promptLower.includes('sound') ||
+    promptLower.includes('voice');
+  const needsLottieAtom =
+    promptLower.includes('lottie') ||
+    promptLower.includes('animation json') ||
+    promptLower.includes('motion graphic');
+  const needsCanvasAtom =
+    promptLower.includes('canvas') ||
+    promptLower.includes('draw') ||
+    promptLower.includes('particle') ||
+    promptLower.includes('waveform') ||
+    promptLower.includes('visualizer') ||
+    promptLower.includes('chart');
   // HTMLBlockAtom is used for shapes (replaces deprecated ShapeAtom), custom HTML, and SVG content
-  const needsHtmlBlockAtom = promptLower.includes('html') || promptLower.includes('custom html') || promptLower.includes('iframe') || 
-                            promptLower.includes('shape') || promptLower.includes('svg') || promptLower.includes('circle') || 
-                            promptLower.includes('rectangle') || promptLower.includes('polygon');
+  const needsHtmlBlockAtom =
+    promptLower.includes('html') ||
+    promptLower.includes('custom html') ||
+    promptLower.includes('iframe') ||
+    promptLower.includes('shape') ||
+    promptLower.includes('svg') ||
+    promptLower.includes('circle') ||
+    promptLower.includes('rectangle') ||
+    promptLower.includes('polygon');
   const needsMediaBasics = needsVideoAtom || needsImageAtom || needsAudioAtom;
-  
+
   // Load guides
-  const transitionsGuide = needsTransitions ? await readGuide('TRANSITIONS.md') : '';
-  const typographyGuide = needsTypography ? await readGuide('TYPOGRAPHY.md') : '';
+  const transitionsGuide = needsTransitions
+    ? await readGuide('TRANSITIONS.md')
+    : '';
+  const typographyGuide = needsTypography
+    ? await readGuide('TYPOGRAPHY.md')
+    : '';
   const effectsGuide = needsEffects ? await readGuide('EFFECTS.md') : '';
   const audioDataGuide = needsAudioData ? await readGuide('AUDIO_DATA.md') : '';
-  
+
   // Atom guides
   const atomTextGuide = needsTextAtom ? await readGuide('ATOM_TEXT.md') : '';
-  const atomVideoGuide = needsVideoAtom ? await readGuide('ATOM_MEDIA_VIDEO.md') : '';
-  const atomImageGuide = needsImageAtom ? await readGuide('ATOM_MEDIA_IMAGE.md') : '';
-  const atomAudioGuide = needsAudioAtom ? await readGuide('ATOM_MEDIA_AUDIO.md') : '';
-  const atomLottieGuide = needsLottieAtom ? await readGuide('ATOM_LOTTIE.md') : '';
-  const atomCanvasGuide = needsCanvasAtom ? await readGuide('ATOM_CANVAS.md') : '';
-  const atomHtmlBlockGuide = needsHtmlBlockAtom ? await readGuide('ATOM_HTMLBLOCK.md') : '';
-  const atomMediaBasicsGuide = needsMediaBasics ? await readGuide('ATOM_MEDIA_BASICS.md') : '';
-  
-  const context = ragResults.map(r => `
+  const atomVideoGuide = needsVideoAtom
+    ? await readGuide('ATOM_MEDIA_VIDEO.md')
+    : '';
+  const atomImageGuide = needsImageAtom
+    ? await readGuide('ATOM_MEDIA_IMAGE.md')
+    : '';
+  const atomAudioGuide = needsAudioAtom
+    ? await readGuide('ATOM_MEDIA_AUDIO.md')
+    : '';
+  const atomLottieGuide = needsLottieAtom
+    ? await readGuide('ATOM_LOTTIE.md')
+    : '';
+  const atomCanvasGuide = needsCanvasAtom
+    ? await readGuide('ATOM_CANVAS.md')
+    : '';
+  const atomHtmlBlockGuide = needsHtmlBlockAtom
+    ? await readGuide('ATOM_HTMLBLOCK.md')
+    : '';
+  const atomMediaBasicsGuide = needsMediaBasics
+    ? await readGuide('ATOM_MEDIA_BASICS.md')
+    : '';
+
+  const context = ragResults
+    .map(
+      r => `
     // Ref: ${r.metadata.title}
     ${r.code}
-  `).join('\n\n');
-  
+  `,
+    )
+    .join('\n\n');
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`\n   💻 Coding Attempt ${attempt}/${maxAttempts}...`);
-    
-    const feedbackPrompt = lastErrors.length > 0 
-      ? `\n**⚠️ CRITICAL: PREVIOUS VALIDATION ERRORS (MUST FIX) ⚠️**:\n${lastErrors.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\n**INSTRUCTIONS**: Carefully review each error above and fix them in your code. Pay special attention to:\n- ESLint errors: Fix formatting, unused variables, and code style issues\n- Forbidden imports: Remove any 'fs' or 'path' imports\n- Structure issues: Ensure helper functions are inside presetExecution\n- TypeScript errors: Fix type errors and syntax issues` 
-      : '';
-    
+
+    const feedbackPrompt =
+      lastErrors.length > 0
+        ? `\n**⚠️ CRITICAL: PREVIOUS VALIDATION ERRORS (MUST FIX) ⚠️**:\n${lastErrors.map((err, i) => `${i + 1}. ${err}`).join('\n')}\n\n**INSTRUCTIONS**: Carefully review each error above and fix them in your code. Pay special attention to:\n- ESLint errors: Fix formatting, unused variables, and code style issues\n- Forbidden imports: Remove any 'fs' or 'path' imports\n- Structure issues: Ensure helper functions are inside presetExecution\n- TypeScript errors: Fix type errors and syntax issues`
+        : '';
+
     // Generate code
     const result = await generateObject({
       model: anthropic('claude-sonnet-4-5'),
@@ -616,53 +745,55 @@ async function step4_codingAndValidation(
         Generate the full file content.
       `,
     });
-    
+
     code = result.object.code;
     generatedMeta = result.object.metadata;
     console.log(`   ✓ Code generated (${code.length} chars)`);
-    
+
     // Validate
     console.log('   🛡️  Validating code (TypeScript, structure, ESLint)...');
     const validationResult = await validatePresetCode(code, presetId);
-    
+
     if (validationResult.valid) {
       console.log('   ✅ Validation passed!');
-      
+
       if (validationResult.wasAutoFixed && validationResult.fixedCode) {
         console.log('   ✨ Code was auto-fixed by ESLint');
         code = validationResult.fixedCode;
       }
-      
+
       if (validationResult.warnings.length > 0) {
-        console.log(`   ⚠️  ${validationResult.warnings.length} warning(s) (non-blocking):`);
+        console.log(
+          `   ⚠️  ${validationResult.warnings.length} warning(s) (non-blocking):`,
+        );
         validationResult.warnings.forEach(w => console.log(`      - ${w}`));
       }
-      
+
       return { code, metadata: generatedMeta, validationPassed: true };
     }
-    
+
     // Validation failed
     lastErrors = validationResult.errors;
     console.log(`   ❌ Validation failed with ${lastErrors.length} error(s):`);
     lastErrors.forEach(e => console.log(`      - ${e}`));
-    
+
     if (attempt < maxAttempts) {
       console.log('   ↻ Attempting to fix...');
     }
   }
-  
+
   // All attempts failed
   console.log(`\n   ⚠️  Validation failed after ${maxAttempts} attempts`);
   console.log('   💾 Saving code with error metadata for manual review...');
-  
-  return { 
-    code, 
+
+  return {
+    code,
     metadata: {
       ...generatedMeta,
       validationFailed: true,
-      validationErrors: lastErrors
+      validationErrors: lastErrors,
     },
-    validationPassed: false
+    validationPassed: false,
   };
 }
 
@@ -671,10 +802,10 @@ async function step4_codingAndValidation(
  */
 async function step5_save(presetId: string, code: string): Promise<string> {
   console.log('\n💾 Step 5: Saving preset...');
-  
+
   const filePath = await savePresetToFile(presetId, code);
   console.log(`   ✓ Saved to: ${filePath}`);
-  
+
   return filePath;
 }
 
@@ -683,83 +814,108 @@ async function step5_save(presetId: string, code: string): Promise<string> {
 // ============================================================================
 
 async function generatePreset(prompt: string): Promise<void> {
-  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(
+    '═══════════════════════════════════════════════════════════════',
+  );
   console.log('🤖 PRESET GENERATOR STARTED');
-  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(
+    '═══════════════════════════════════════════════════════════════',
+  );
   console.log(`📝 Prompt: "${prompt}"`);
-  console.log('═══════════════════════════════════════════════════════════════');
-  
+  console.log(
+    '═══════════════════════════════════════════════════════════════',
+  );
+
   const startTime = Date.now();
-  
+
   try {
     // Step 1: RAG Search
     const ragResults = await step1_ragSearch(prompt);
-    
+
     // Step 2: Architect
     let plan = await step2_architect(prompt, ragResults);
-    
+
     // Step 3: Tech Lead Review
     plan = await step3_techLeadReview(prompt, plan, ragResults);
-    
+
     // Step 4: Coding & Validation
-    const { code, metadata, validationPassed } = await step4_codingAndValidation(
-      prompt,
-      plan,
-      ragResults
-    );
-    
+    const { code, metadata, validationPassed } =
+      await step4_codingAndValidation(prompt, plan, ragResults);
+
     // Step 5: Save
     const presetId = plan.metadata.idProposal || `preset-${Date.now()}`;
     const filePath = await step5_save(presetId, code);
-    
+
     // Summary
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    
-    console.log('\n═══════════════════════════════════════════════════════════════');
+
+    console.log(
+      '\n═══════════════════════════════════════════════════════════════',
+    );
     console.log('✅ PRESET GENERATION COMPLETE');
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(
+      '═══════════════════════════════════════════════════════════════',
+    );
     console.log(`📦 Preset ID: ${presetId}`);
     console.log(`📄 Title: ${metadata.title}`);
     console.log(`📝 Description: ${metadata.description}`);
     console.log(`📁 File Path: ${filePath}`);
-    console.log(`✔️  Validation: ${validationPassed ? 'PASSED' : 'FAILED (see metadata)'}`);
+    console.log(
+      `✔️  Validation: ${validationPassed ? 'PASSED' : 'FAILED (see metadata)'}`,
+    );
     console.log(`⏱️  Duration: ${duration}s`);
-    console.log('═══════════════════════════════════════════════════════════════');
-    
+    console.log(
+      '═══════════════════════════════════════════════════════════════',
+    );
+
     if (!validationPassed) {
       console.log('\n⚠️  WARNING: Preset saved with validation errors.');
-      console.log('   Please review and fix manually before using in production.');
+      console.log(
+        '   Please review and fix manually before using in production.',
+      );
     }
-    
+
     // Output structured JSON for programmatic consumption
     // This allows scripts/workflows to parse the result easily
     console.log('\n__PRESET_RESULT_JSON_START__');
-    console.log(JSON.stringify({
-      success: true,
-      presetId: presetId,
-      metadata: {
-        id: presetId,
-        title: metadata.title,
-        description: metadata.description,
-        validationFailed: !validationPassed,
-        validationErrors: !validationPassed && (metadata as any).validationErrors ? (metadata as any).validationErrors : [],
-        validationWarnings: (metadata as any).validationWarnings || [],
-        lintOutput: (metadata as any).lintOutput || '',
-        wasAutoFixed: (metadata as any).wasAutoFixed || false,
-      },
-      filePath: filePath,
-      duration: parseFloat(duration),
-      validationPassed: validationPassed,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          success: true,
+          presetId: presetId,
+          metadata: {
+            id: presetId,
+            title: metadata.title,
+            description: metadata.description,
+            validationFailed: !validationPassed,
+            validationErrors:
+              !validationPassed && (metadata as any).validationErrors
+                ? (metadata as any).validationErrors
+                : [],
+            validationWarnings: (metadata as any).validationWarnings || [],
+            lintOutput: (metadata as any).lintOutput || '',
+            wasAutoFixed: (metadata as any).wasAutoFixed || false,
+          },
+          filePath: filePath,
+          duration: parseFloat(duration),
+          validationPassed: validationPassed,
+        },
+        null,
+        2,
+      ),
+    );
     console.log('__PRESET_RESULT_JSON_END__');
-    
+
     // Exit successfully - important for workflow scripts that wait for completion
     process.exit(0);
-    
   } catch (error) {
-    console.error('\n═══════════════════════════════════════════════════════════════');
+    console.error(
+      '\n═══════════════════════════════════════════════════════════════',
+    );
     console.error('❌ PRESET GENERATION FAILED');
-    console.error('═══════════════════════════════════════════════════════════════');
+    console.error(
+      '═══════════════════════════════════════════════════════════════',
+    );
     console.error(error);
     process.exit(1);
   }
@@ -773,9 +929,10 @@ const prompt = process.argv[2];
 
 if (!prompt) {
   console.error('Usage: npm run generate-preset "Your preset description"');
-  console.error('Example: npm run generate-preset "Create a text fade in preset"');
+  console.error(
+    'Example: npm run generate-preset "Create a text fade in preset"',
+  );
   process.exit(1);
 }
 
 generatePreset(prompt);
-

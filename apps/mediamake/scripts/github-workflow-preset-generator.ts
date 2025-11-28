@@ -60,7 +60,7 @@ interface PresetResult {
 // ============================================================================
 
 const BATCH_SIZE = 5; // Process 5 presets at a time
-const MAX_RETRIES = 2; // Retry up to 3 times for failures
+const MAX_RETRIES = 1; // Retry up to 3 times for failures
 const RETRY_DELAY_BASE = 5000; // Base delay for exponential backoff (5s, 10s, 20s)
 const GENERATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes timeout per preset
 
