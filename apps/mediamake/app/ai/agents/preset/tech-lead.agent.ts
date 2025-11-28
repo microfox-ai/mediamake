@@ -9,13 +9,19 @@ const aiRouter = new AiRouter();
 
 export const TechLeadOutputSchema = z.object({
   approved: z.boolean(),
-  critique: z.string().optional().describe("If rejected, explain why."),
-  suggestions: z.array(z.string()).describe("Improvements for performance, style, or Remotion best practices."),
-  revisedPlan: ArchitectOutputSchema.optional().describe("If approved with minor changes, provide the revised plan.")
+  critique: z.string().optional().describe('If rejected, explain why.'),
+  suggestions: z
+    .array(z.string())
+    .describe(
+      'Improvements for performance, style, or Remotion best practices.',
+    ),
+  revisedPlan: ArchitectOutputSchema.optional().describe(
+    'If approved with minor changes, provide the revised plan.',
+  ),
 });
 
 export const techLeadAgent = aiRouter
-  .agent('/', async (ctx) => {
+  .agent('/', async ctx => {
     const { plan } = ctx.request.params as { plan: any };
 
     // Load CRITICAL "0_" Guides (ALWAYS IN CONTEXT - FOUNDATIONAL RULES)
@@ -23,7 +29,7 @@ export const techLeadAgent = aiRouter
     const basicsGuide = await readGuide('0_BASICS.md');
     const layoutGuide = await readGuide('0_LAYOUT.md');
     const atomsGuide = await readGuide('0_ATOMS.md');
-    
+
     // Load Generation Guides
     const singlePresetGuide = await readGuide('GENERATION_SINGLE_PRESET.md');
     const patternsGuide = await readGuide('GENERATION_PATTERNS.md');
@@ -34,7 +40,7 @@ export const techLeadAgent = aiRouter
     });
 
     const result = await generateObject({
-      model: anthropic('claude-opus-4-5'), // Using Opus for critical plan review and validation
+      model: anthropic('claude-sonnet-4-5'), // Using Opus for critical plan review and validation
       schema: TechLeadOutputSchema,
       system: `
         You are the **Tech Lead** for the Remotion team.
@@ -120,11 +126,11 @@ export const techLeadAgent = aiRouter
   .actAsTool('/', {
     id: 'techLead',
     name: 'Tech Lead',
-    description: 'Reviews and approves the architectural plan based on engineering standards.',
+    description:
+      'Reviews and approves the architectural plan based on engineering standards.',
     inputSchema: z.object({
       plan: ArchitectOutputSchema,
     }),
     outputSchema: TechLeadOutputSchema,
     metadata: { title: 'Tech Lead', icon: 'user-check' },
   });
-

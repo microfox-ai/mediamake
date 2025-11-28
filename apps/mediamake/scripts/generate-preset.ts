@@ -315,7 +315,7 @@ async function step2_architect(
     .join('\n---\n');
 
   const result = await generateObject({
-    model: anthropic('claude-opus-4-5'),
+    model: anthropic('claude-sonnet-4-5'),
     schema: ArchitectOutputSchema,
     prompt: `
       You are the **System Architect** for a Remotion video generation system.
@@ -398,11 +398,11 @@ async function step3_techLeadReview(
 
   let plan = initialPlan;
   let attempts = 0;
-  const maxAttempts = 2;
+  const maxAttempts = 1;
 
   while (attempts < maxAttempts) {
     const result = await generateObject({
-      model: anthropic('claude-opus-4-5'),
+      model: anthropic('claude-sonnet-4-5'),
       schema: TechLeadOutputSchema,
       system: `
         You are the **Tech Lead** for the Remotion team.

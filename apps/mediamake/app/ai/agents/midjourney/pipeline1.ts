@@ -102,7 +102,7 @@ export const abstractBulkImageGenerationAgent = aiRouter
         loader: 'Generating creative shot ideas...',
       });
 
-      const modelIdToUse = inputParams.model ?? 'claude-opus-4-1';
+      let modelIdToUse = inputParams.model ?? 'claude-opus-4-5';
 
       const ideateResult = await ctx.next.callAgent(
         '@/midjourney/ideate',
@@ -132,6 +132,8 @@ export const abstractBulkImageGenerationAgent = aiRouter
       ctx.response.writeMessageMetadata({
         loader: 'Generating title...',
       });
+
+      modelIdToUse = inputParams.model ?? 'claude-haiku-4-5';
 
       const modelToUse = modelIdToUse.startsWith('claude')
         ? anthropic(modelIdToUse)
@@ -180,7 +182,7 @@ export const abstractBulkImageGenerationAgent = aiRouter
           shots: ideateOutput.shots,
           predefinedPreferences: ideateOutput.predefinedPreferences,
           variationCount: ideateOutput.variationCount,
-          model: modelIdToUse ?? 'claude-opus-4-1',
+          model: modelIdToUse ?? 'claude-haiku-4-5',
           tags: ideateOutput.tags,
           mediaUrls: inputParams.mediaUrls,
           userRequest: userRequest,

@@ -9,30 +9,51 @@ const aiRouter = new AiRouter();
 
 // Extended Plan Schema
 export const ArchitectOutputSchema = z.object({
-  rootContainer: z.enum(['BaseLayout']).describe("Must be BaseLayout"),
-  structure: z.array(z.object({
-      id: z.string(),
-      type: z.string().describe("Atom or Component type (e.g., TextAtom, VideoAtom)"),
-      props: z.record(z.string(), z.any()).describe("Key props for this component"),
-      children: z.array(z.string()).optional().describe("IDs of children if any")
-  })).describe("Flat list of nodes defining the tree structure"),
-  dependencies: z.array(z.string()).describe("List of IDs of existing presets (sub-presets) that this preset depends on."),
-  timingStrategy: z.string().describe("Explanation of how timing is handled (relative, sequence, etc.)"),
-  requiredAssets: z.array(z.string()).describe("List of asset types needed (e.g. 'background music', 'logo')"),
+  rootContainer: z.enum(['BaseLayout']).describe('Must be BaseLayout'),
+  structure: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z
+          .string()
+          .describe('Atom or Component type (e.g., TextAtom, VideoAtom)'),
+        props: z
+          .record(z.string(), z.any())
+          .describe('Key props for this component'),
+        children: z
+          .array(z.string())
+          .optional()
+          .describe('IDs of children if any'),
+      }),
+    )
+    .describe('Flat list of nodes defining the tree structure'),
+  dependencies: z
+    .array(z.string())
+    .describe(
+      'List of IDs of existing presets (sub-presets) that this preset depends on.',
+    ),
+  timingStrategy: z
+    .string()
+    .describe(
+      'Explanation of how timing is handled (relative, sequence, etc.)',
+    ),
+  requiredAssets: z
+    .array(z.string())
+    .describe("List of asset types needed (e.g. 'background music', 'logo')"),
   metadata: z.object({
-      title: z.string(),
-      description: z.string(),
-      idProposal: z.string()
-  })
+    title: z.string(),
+    description: z.string(),
+    idProposal: z.string(),
+  }),
 });
 
 export const architectAgent = aiRouter
-  .agent('/', async (ctx) => {
+  .agent('/', async ctx => {
     const { prompt, ragResults } = ctx.request.params as {
       prompt: string;
       ragResults: any[];
     };
-    
+
     ctx.response.writeMessageMetadata({
       loader: 'Designing architecture...',
     });
@@ -40,23 +61,27 @@ export const architectAgent = aiRouter
     const singlePresetGuide = await readGuide('GENERATION_SINGLE_PRESET.md');
     const patternsGuide = await readGuide('GENERATION_PATTERNS.md');
     const timingGuide = await readGuide('GENERATION_TIMING.md');
-    
+
     // Load critical "0_" guides (ALWAYS IN CONTEXT - FOUNDATIONAL RULES)
     const negativesGuide = await readGuide('0_NEGATIVES.md');
     const basicsGuide = await readGuide('0_BASICS.md');
     const layoutGuide = await readGuide('0_LAYOUT.md');
     const atomsGuide = await readGuide('0_ATOMS.md');
 
-    const context = ragResults.map(r => `
+    const context = ragResults
+      .map(
+        r => `
       ID: ${r.metadata.id}
       Title: ${r.metadata.title}
       Description: ${r.metadata.description}
       Tags: ${r.metadata.tags?.join(', ')}
       Docs: ${r.code} 
-    `).join('\n---\n');
+    `,
+      )
+      .join('\n---\n');
 
     const result = await generateObject({
-      model: anthropic('claude-opus-4-5'), // Using Opus for superior architectural reasoning
+      model: anthropic('claude-sonnet-4-5'), // Using Opus for superior architectural reasoning
       schema: ArchitectOutputSchema,
       prompt: `
         You are the **System Architect** for a Remotion video generation system.
