@@ -1,24 +1,23 @@
 /**
  * Matrix Digital Rain Transition Preset
  *
- * A cyberpunk-inspired transition effect where the outgoing scene dissolves into cascading columns
- * of glowing green/cyan code characters (digital rain) that reform to reveal the incoming scene.
+ * This preset creates an iconic Matrix-style digital rain transition effect where cascading
+ * green code characters dissolve the outgoing video and reveal the incoming video.
  *
  * Features:
- * - **Digital Rain Effect**: Cascading columns of random glowing characters (Katakana, numbers, symbols)
- * - **Pixelation Breakup**: Outgoing scene pixelates and dissolves into matrix columns
- * - **Light Trails & Sparks**: Falling characters leave glowing trails and occasional bright flashes
- * - **Depth Layers**: Background matrix at lower opacity creates visual depth
- * - **Scan Line Distortion**: Horizontal scan line periodically sweeps across creating glitch effects
- * - **Scene Reconstruction**: Incoming scene materializes as characters align to form the new image
- * - **Performance Optimized**: GPU-accelerated effects-based animations
+ * - **Digital Rain Effect**: Grid of falling characters at varying speeds
+ * - **Matrix Green Aesthetic**: Sepia/hue-rotate filter for authentic Matrix look
+ * - **Scanline Overlay**: Horizontal scanlines for CRT monitor effect
+ * - **Organic Animation**: Random delays and durations for natural falling motion
+ * - **Smooth Transition**: 1.5s crossfade between outgoing and incoming videos
+ * - **Screen Blend Mode**: Characters blend with video for integrated look
  *
  * Use cases:
- * - Cyberpunk/tech-themed video transitions
- * - Digital/virtual reality scene changes
- * - Hacker/coding aesthetic content
- * - Futuristic presentation transitions
- * - Tech product reveals and demonstrations
+ * - Tech-themed video transitions
+ * - Cyberpunk/Matrix-style effects
+ * - Digital/code reveal transitions
+ * - Sci-fi video transitions
+ * - Hacker/programming content
  */
 
 import z from 'zod';
@@ -29,690 +28,260 @@ import type {
 } from '../../types';
 import type { RenderableComponentData } from '@microfox/datamotion';
 
-// ==================== PARAMS SCHEMA ====================
-
 const presetParams = z.object({
-  outgoingMedia: z
+  outgoingVideo: z
     .object({
-      src: z
-        .string()
-        .describe(
-          'Source URL of the outgoing video/image that will dissolve into matrix rain',
-        ),
-      type: z.enum(['image', 'video']).describe('Media type'),
-      duration: z.number().describe('Duration of outgoing media in seconds'),
+      src: z.string().describe('Source URL of outgoing video'),
+      startFrom: z.number().optional().describe('Start time of outgoing video in seconds'),
+      endAt: z.number().optional().describe('End time of outgoing video in seconds'),
     })
-    .describe('Outgoing media item'),
-  incomingMedia: z
+    .describe('Outgoing video configuration'),
+  incomingVideo: z
     .object({
-      src: z
-        .string()
-        .describe(
-          'Source URL of the incoming video/image that will materialize from the matrix rain',
-        ),
-      type: z.enum(['image', 'video']).describe('Media type'),
-      duration: z.number().describe('Duration of incoming media in seconds'),
+      src: z.string().describe('Source URL of incoming video'),
+      startFrom: z.number().optional().describe('Start time of incoming video in seconds'),
+      endAt: z.number().optional().describe('End time of incoming video in seconds'),
     })
-    .describe('Incoming media item'),
+    .describe('Incoming video configuration'),
   transitionDuration: z
     .number()
-    .default(2.5)
-    .describe('Duration of the transition overlap in seconds'),
-  columnCount: z
+    .default(1.5)
+    .describe('Duration of the transition effect in seconds'),
+  gridCols: z
     .number()
-    .default(25)
-    .describe('Number of foreground matrix rain columns (20-30 recommended)'),
-  bgColumnCount: z
+    .default(20)
+    .describe('Number of grid columns for falling characters'),
+  gridRows: z
     .number()
-    .default(15)
-    .describe(
-      'Number of background matrix rain columns for depth (10-20 recommended)',
-    ),
-  matrixColor: z
-    .enum(['green', 'cyan', 'green-cyan-mix'])
-    .default('green-cyan-mix')
-    .describe('Color scheme for the matrix characters'),
-  pixelateIntensity: z
-    .number()
-    .default(1.0)
-    .describe('Intensity of pixelation effect on outgoing scene (0.5-2.0)'),
-  sparkCount: z
-    .number()
-    .default(15)
-    .describe(
-      'Number of random spark flashes during transition (10-20 recommended)',
-    ),
-  scanLineSpeed: z
-    .number()
-    .default(2.0)
-    .describe('Speed of horizontal scan line movement in seconds per cycle'),
+    .default(30)
+    .describe('Number of grid rows for falling characters'),
+  characterSet: z
+    .string()
+    .default('01アイウエオカキクケコサシスセソタチツテト')
+    .describe('Characters to use for the digital rain effect'),
 });
 
 type PresetParams = z.infer<typeof presetParams>;
-
-// ==================== EXECUTION FUNCTION ====================
 
 const presetExecution = (
   params: PresetParams,
   props: PresetPassedProps,
 ): PresetOutput => {
   const {
-    outgoingMedia,
-    incomingMedia,
+    outgoingVideo,
+    incomingVideo,
     transitionDuration,
-    columnCount,
-    bgColumnCount,
-    matrixColor,
-    pixelateIntensity,
-    sparkCount,
-    scanLineSpeed,
+    gridCols,
+    gridRows,
+    characterSet,
   } = params;
 
-  // Calculate BaseLayout duration: sum of media durations minus overlap
-  const baseLayoutDuration =
-    outgoingMedia.duration + incomingMedia.duration - transitionDuration;
-
-  // Calculate overlap start time (when incoming media should start)
-  const overlapStart = outgoingMedia.duration - transitionDuration;
-
-  // Helper: Generate random matrix characters
-  const generateRandomChar = (): string => {
-    const chars =
-      'ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789ABCDEFZ:・."=*+-<>¦｜';
-    return chars[Math.floor(Math.random() * chars.length)];
+  // Helper function to get random character from set
+  const getRandomChar = (): string => {
+    return characterSet[Math.floor(Math.random() * characterSet.length)];
   };
 
-  // Helper: Get color based on scheme
-  const getMatrixColors = () => {
-    if (matrixColor === 'green') {
-      return {
-        primary: '#00ff41',
-        secondary: '#00ff41',
-        glow: 'rgba(0, 255, 65, 0.8)',
-      };
-    } else if (matrixColor === 'cyan') {
-      return {
-        primary: '#00ffff',
-        secondary: '#00ffff',
-        glow: 'rgba(0, 255, 255, 0.8)',
-      };
-    } else {
-      return {
-        primary: '#00ff41',
-        secondary: '#00ffff',
-        glow: 'rgba(0, 255, 200, 0.8)',
-      };
-    }
+  // Helper function to generate random duration and delay
+  const getRandomAnimation = () => {
+    const duration = 0.5 + Math.random() * 1.5; // 0.5s - 2s
+    const delay = Math.random() * 1.0; // 0s - 1s
+    return { duration, delay };
   };
 
-  const colors = getMatrixColors();
-  const viewportWidth = props.config?.width || 1920;
-  const viewportHeight = props.config?.height || 1080;
+  // Generate grid cells
+  const gridCells: RenderableComponentData[] = [];
+  const totalCells = gridCols * gridRows;
 
-  // Helper: Create matrix column
-  // Note: Timing is relative to parent (matrix layer), so start at 0
-  const createMatrixColumn = (
-    columnId: string,
-    xPosition: number,
-    isForeground: boolean,
-  ): RenderableComponentData => {
-    const charCount = isForeground ? 30 : 20;
-    const characters: RenderableComponentData[] = [];
+  for (let i = 0; i < totalCells; i++) {
+    const { duration, delay } = getRandomAnimation();
+    const char = getRandomChar();
 
-    // Faster falling animation - characters should fall quickly during transition
-    const baseDuration = isForeground
-      ? 0.8 + Math.random() * 0.7 // 0.8-1.5s for foreground (faster)
-      : 1.0 + Math.random() * 0.8; // 1.0-1.8s for background
+    const cellId = `matrix-cell-${i}`;
 
-    const delay = Math.random() * 0.3; // Shorter delay for quicker start
-
-    // Generate character elements for this column
-    for (let i = 0; i < charCount; i++) {
-      const charColor = Math.random() > 0.5 ? colors.primary : colors.secondary;
-      const opacity = 0.3 + Math.random() * 0.7;
-
-      characters.push({
-        id: `${columnId}-char-${i}`,
-        type: 'atom',
-        componentId: 'TextAtom',
-        data: {
-          text: generateRandomChar(),
-          style: {
-            fontSize: isForeground ? '28px' : '20px', // Larger for visibility
-            color: charColor,
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            textShadow: `0 0 10px ${colors.glow}, 0 0 20px ${colors.glow}, 0 0 30px ${colors.glow}, 0 0 40px ${colors.glow}`,
-            opacity: Math.max(0.8, opacity), // Higher minimum visibility
-            display: 'block',
-            lineHeight: '1.1',
-            userSelect: 'none',
-            whiteSpace: 'nowrap',
-            margin: '0',
-            padding: '0',
-            width: '100%',
-            textAlign: 'center',
-          },
-        },
-        context: {
-          timing: {
-            start: 0,
-            duration: transitionDuration, // Characters exist during transition only
-          },
-        },
-      } as RenderableComponentData);
-    }
-
-    const columnWidth = isForeground ? 50 : 40; // Increased for larger characters
-
-    // Create falling effect for the column
-    // Matrix rain should be active during the transition period
-    const fallEffect = {
-      id: `${columnId}-fall-effect`,
-      componentId: 'generic',
+    gridCells.push({
+      id: cellId,
+      type: 'atom',
+      componentId: 'HTMLBlockAtom',
       data: {
-        type: 'linear',
-        start: delay, // Relative to column start (which is at overlapStart)
-        duration: baseDuration,
-        mode: 'provider',
-        targetIds: [columnId], // Target the column itself
-        ranges: [
-          { key: 'translateY', val: -viewportHeight, prog: 0 },
-          { key: 'translateY', val: viewportHeight, prog: 1 },
-        ],
-      },
-    };
-
-    return {
-      id: columnId,
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className:
-            'absolute top-0 flex flex-col items-center overflow-hidden',
-          style: {
-            left: `${xPosition}px`,
-            width: `${columnWidth}px`,
-            height: '100%',
-            pointerEvents: 'none',
-            zIndex: isForeground ? 35 : 30, // Ensure proper z-index
-          },
-        },
-        repeatChildrenProps: {
-          style: {
-            display: 'block',
-            width: '100%',
-            textAlign: 'center',
-            flexShrink: 0,
-          },
-        },
-      },
-      context: {
-        timing: {
-          start: 0, // Relative to parent matrix layer (which starts at overlapStart)
-          duration: transitionDuration,
-        },
-      },
-      effects: [fallEffect],
-      childrenData: characters,
-    } as RenderableComponentData;
-  };
-
-  // Helper: Create spark effects
-  // Note: Timing is relative to parent (matrix foreground layer), so start at 0-relative time
-  const createSparkEffects = (): RenderableComponentData[] => {
-    const sparks: RenderableComponentData[] = [];
-
-    for (let i = 0; i < sparkCount; i++) {
-      const xPos = Math.random() * 100;
-      const yPos = Math.random() * 100;
-      // Sparks should appear during the transition overlap period
-      // Relative to parent matrix layer (which starts at overlapStart)
-      const sparkStart = Math.random() * (transitionDuration - 0.2);
-      const sparkDuration = 0.1 + Math.random() * 0.15;
-
-      const sparkId = `spark-${i}`;
-
-      // Create spark flash effect
-      const sparkFlashEffect = {
-        id: `spark-${i}-flash-effect`,
-        componentId: 'generic',
-        data: {
-          type: 'ease-out',
-          start: 0,
-          duration: sparkDuration,
-          mode: 'provider',
-          targetIds: [sparkId], // Target the spark itself
-          ranges: [
-            { key: 'opacity', val: 0, prog: 0 },
-            { key: 'scale', val: 0, prog: 0 },
-            { key: 'opacity', val: 1, prog: 0.5 },
-            { key: 'scale', val: 2, prog: 0.5 },
-            { key: 'opacity', val: 0, prog: 1 },
-            { key: 'scale', val: 0, prog: 1 },
-          ],
-        },
-      };
-
-      sparks.push({
-        id: sparkId,
-        type: 'layout',
-        componentId: 'BaseLayout',
-        data: {
-          containerProps: {
-            className: 'absolute rounded-full',
-            style: {
-              left: `${xPos}%`,
-              top: `${yPos}%`,
-              width: '4px',
-              height: '4px',
-              backgroundColor: Math.random() > 0.5 ? '#00ffff' : '#ffffff',
-              boxShadow: `0 0 20px ${colors.glow}, 0 0 40px ${colors.glow}`,
-            },
-          },
-        },
-        context: {
-          timing: {
-            start: sparkStart,
-            duration: sparkDuration,
-          },
-        },
-        effects: [sparkFlashEffect],
-      } as RenderableComponentData);
-    }
-
-    return sparks;
-  };
-
-  // Generate foreground matrix columns
-  const fgColumns: RenderableComponentData[] = [];
-  const columnSpacing = viewportWidth / (columnCount + 1);
-
-  for (let i = 0; i < columnCount; i++) {
-    const xPos = (i + 1) * columnSpacing;
-    fgColumns.push(createMatrixColumn(`fg-column-${i}`, xPos, true));
-  }
-
-  // Generate background matrix columns
-  const bgColumns: RenderableComponentData[] = [];
-  const bgColumnSpacing = viewportWidth / (bgColumnCount + 1);
-
-  for (let i = 0; i < bgColumnCount; i++) {
-    const xPos = (i + 1) * bgColumnSpacing + Math.random() * 50 - 25;
-    bgColumns.push(createMatrixColumn(`bg-column-${i}`, xPos, false));
-  }
-
-  // Create spark effects
-  const sparks = createSparkEffects();
-
-  // Determine component IDs
-  const outgoingComponentId =
-    outgoingMedia.type === 'video' ? 'VideoAtom' : 'ImageAtom';
-  const incomingComponentId =
-    incomingMedia.type === 'video' ? 'VideoAtom' : 'ImageAtom';
-
-  // Build the complete structure
-  // IMPORTANT: Order matters! Higher z-index items must come LAST in the array
-  const childrenData: RenderableComponentData[] = [
-    // 1. Outgoing scene layer (zIndex 10) - LOWEST, comes first
-    {
-      id: 'matrix-outgoing-scene-layer',
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className: 'absolute inset-0',
-          style: {
-            zIndex: 10,
-          },
-        },
+        html: `<div style="font-family: monospace; color: #00ff00; font-size: 12px; display: flex; align-items: center; justify-content: center; height: 100%; width: 100%;">${char}</div>`,
+        className: 'text-green-400 text-xs font-mono',
       },
       context: {
         timing: {
           start: 0,
-          duration: outgoingMedia.duration,
-        },
-      },
-      effects: [
-        {
-          id: 'pixelate-in-effect',
-          componentId: 'generic',
-          data: {
-            type: 'ease-in',
-            start: overlapStart,
-            duration: transitionDuration * 0.4, // Faster pixelation - scene breaks up quickly
-            mode: 'provider',
-            targetIds: ['matrix-outgoing-scene-layer'], // Target the outgoing scene layer
-            ranges: [
-              { key: 'filter', val: 'none', prog: 0 },
-              {
-                key: 'filter',
-                val: `blur(${pixelateIntensity * 10}px) brightness(0.3)`,
-                prog: 1,
-              },
-            ],
-          },
-        },
-        {
-          id: 'fade-out-effect',
-          componentId: 'generic',
-          data: {
-            type: 'ease-in',
-            start: overlapStart + transitionDuration * 0.2, // Start fading after pixelation begins
-            duration: transitionDuration * 0.8, // Gradual fade as matrix takes over
-            mode: 'provider',
-            targetIds: ['matrix-outgoing-scene-layer'], // Target the outgoing scene layer
-            ranges: [
-              { key: 'opacity', val: 1, prog: 0 },
-              { key: 'opacity', val: 0, prog: 1 },
-            ],
-          },
-        },
-      ],
-      childrenData: [
-        {
-          id: 'matrix-outgoing-media',
-          type: 'atom',
-          componentId: outgoingComponentId,
-          data: {
-            src: outgoingMedia.src,
-            className: 'w-full h-full object-cover',
-          },
-          context: {
-            timing: {
-              start: 0,
-              duration: outgoingMedia.duration,
-            },
-          },
-        } as RenderableComponentData,
-      ],
-    } as RenderableComponentData,
-
-    // 2. Incoming scene layer (zIndex 20)
-    // Starts invisible, materializes as matrix fades out
-    {
-      id: 'matrix-incoming-scene-layer',
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className: 'absolute inset-0',
-          style: {
-            zIndex: 20,
-            opacity: 0, // Start invisible until fade-in effect
-          },
-        },
-      },
-      context: {
-        timing: {
-          start: overlapStart,
-          duration: incomingMedia.duration + transitionDuration,
-        },
-      },
-      effects: [
-        {
-          id: 'fade-in-effect',
-          componentId: 'generic',
-          data: {
-            type: 'ease-out',
-            start: transitionDuration * 0.7, // Start materializing as matrix fades out
-            duration: transitionDuration * 0.3, // Quick materialization
-            mode: 'provider',
-            targetIds: ['matrix-incoming-scene-layer'], // Target the incoming scene layer
-            ranges: [
-              { key: 'opacity', val: 0, prog: 0 },
-              { key: 'opacity', val: 1, prog: 1 },
-            ],
-          },
-        },
-      ],
-      childrenData: [
-        {
-          id: 'matrix-incoming-media',
-          type: 'atom',
-          componentId: incomingComponentId,
-          data: {
-            src: incomingMedia.src,
-            className: 'w-full h-full object-cover',
-          },
-          context: {
-            timing: {
-              start: 0,
-              duration: incomingMedia.duration + transitionDuration,
-            },
-          },
-        } as RenderableComponentData,
-      ],
-    } as RenderableComponentData,
-
-    // 3. Background matrix layer (zIndex 30)
-    // Fades in as outgoing dissolves, fades out as incoming materializes
-    {
-      id: 'matrix-background-layer',
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className: 'absolute inset-0',
-          style: {
-            zIndex: 30,
-            filter: 'blur(2px)',
-            opacity: 0, // Start invisible, fade in
-          },
-        },
-      },
-      context: {
-        timing: {
-          start: overlapStart,
           duration: transitionDuration,
         },
       },
       effects: [
         {
-          id: 'bg-matrix-fade-in',
+          id: `fall-${cellId}`,
           componentId: 'generic',
           data: {
-            type: 'ease-out',
-            start: 0,
-            duration: transitionDuration * 0.3, // Fade in quickly as outgoing dissolves
+            type: 'linear',
+            start: delay,
+            duration: duration,
             mode: 'provider',
-            targetIds: ['matrix-background-layer'],
+            targetIds: [cellId],
             ranges: [
-              { key: 'opacity', val: 0, prog: 0 },
-              { key: 'opacity', val: 0.3, prog: 1 },
-            ],
-          },
-        },
-        {
-          id: 'bg-matrix-fade-out',
-          componentId: 'generic',
-          data: {
-            type: 'ease-in',
-            start: transitionDuration * 0.7, // Start fading out as incoming materializes
-            duration: transitionDuration * 0.3,
-            mode: 'provider',
-            targetIds: ['matrix-background-layer'],
-            ranges: [
-              { key: 'opacity', val: 0.3, prog: 0 },
-              { key: 'opacity', val: 0, prog: 1 },
+              { key: 'translateY', val: '-100%', prog: 0 },
+              { key: 'translateY', val: '100vh', prog: 1 },
             ],
           },
         },
       ],
-      childrenData: bgColumns,
-    } as RenderableComponentData,
+    } as RenderableComponentData);
+  }
 
-    // 4. Foreground matrix layer (zIndex 35) - Characters should be visible here
-    // Fades in as outgoing dissolves, fades out as incoming materializes
-    {
-      id: 'matrix-foreground-layer',
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className: 'absolute inset-0',
-          style: {
-            zIndex: 35,
-            opacity: 0, // Start invisible, fade in
-          },
-        },
-      },
-      context: {
-        timing: {
-          start: overlapStart,
-          duration: transitionDuration,
-        },
-      },
-      effects: [
-        {
-          id: 'fg-matrix-fade-in',
-          componentId: 'generic',
-          data: {
-            type: 'ease-out',
-            start: 0,
-            duration: transitionDuration * 0.3, // Fade in quickly as outgoing dissolves
-            mode: 'provider',
-            targetIds: ['matrix-foreground-layer'],
-            ranges: [
-              { key: 'opacity', val: 0, prog: 0 },
-              { key: 'opacity', val: 1, prog: 1 },
-            ],
-          },
-        },
-        {
-          id: 'fg-matrix-fade-out',
-          componentId: 'generic',
-          data: {
-            type: 'ease-in',
-            start: transitionDuration * 0.7, // Start fading out as incoming materializes
-            duration: transitionDuration * 0.3,
-            mode: 'provider',
-            targetIds: ['matrix-foreground-layer'],
-            ranges: [
-              { key: 'opacity', val: 1, prog: 0 },
-              { key: 'opacity', val: 0, prog: 1 },
-            ],
-          },
-        },
-      ],
-      childrenData: [...fgColumns, ...sparks],
-    } as RenderableComponentData,
-
-    // 5. Scan line layer (zIndex 40) - HIGHEST, comes last
-    // Fades in/out with matrix
-    {
-      id: 'matrix-scan-line-layer',
-      type: 'layout',
-      componentId: 'BaseLayout',
-      data: {
-        containerProps: {
-          className: 'absolute inset-0 pointer-events-none',
-          style: {
-            zIndex: 40,
-            opacity: 0, // Start invisible, fade in
-          },
-        },
-      },
-      context: {
-        timing: {
-          start: overlapStart,
-          duration: transitionDuration,
-        },
-      },
-      effects: [
-        {
-          id: 'scan-line-fade-in',
-          componentId: 'generic',
-          data: {
-            type: 'ease-out',
-            start: 0,
-            duration: transitionDuration * 0.3,
-            mode: 'provider',
-            targetIds: ['matrix-scan-line-layer'],
-            ranges: [
-              { key: 'opacity', val: 0, prog: 0 },
-              { key: 'opacity', val: 1, prog: 1 },
-            ],
-          },
-        },
-        {
-          id: 'scan-line-fade-out',
-          componentId: 'generic',
-          data: {
-            type: 'ease-in',
-            start: transitionDuration * 0.7,
-            duration: transitionDuration * 0.3,
-            mode: 'provider',
-            targetIds: ['matrix-scan-line-layer'],
-            ranges: [
-              { key: 'opacity', val: 1, prog: 0 },
-              { key: 'opacity', val: 0, prog: 1 },
-            ],
-          },
-        },
-      ],
-      childrenData: [
-        {
-          id: 'matrix-scan-line',
-          type: 'layout',
-          componentId: 'BaseLayout',
-          data: {
-            containerProps: {
-              className: 'absolute left-0 right-0',
-              style: {
-                height: '2px',
-                background:
-                  'linear-gradient(to bottom, transparent, rgba(103, 232, 249, 0.8), transparent)',
-                boxShadow:
-                  '0 0 20px rgba(103, 232, 249, 0.6), 0 0 40px rgba(103, 232, 249, 0.3)',
-              },
-            },
-          },
-          context: {
-            timing: {
-              start: 0,
-              duration: transitionDuration,
-            },
-          },
-          effects: [
-            {
-              id: 'scan-line-move-effect',
-              componentId: 'generic',
-              data: {
-                type: 'linear',
-                start: 0,
-                duration: scanLineSpeed,
-                mode: 'provider',
-                targetIds: ['matrix-scan-line'], // Target the scan line itself
-                ranges: [
-                  { key: 'translateY', val: -viewportHeight, prog: 0 },
-                  { key: 'translateY', val: viewportHeight, prog: 1 },
-                ],
-              },
-            },
-          ],
-        } as RenderableComponentData,
-      ],
-    } as RenderableComponentData,
-  ];
-
-  const rootContainer: RenderableComponentData = {
-    id: 'matrix-digital-rain-transition-container',
+  // Create grid overlay container
+  const matrixGridOverlay: RenderableComponentData = {
+    id: 'matrix-grid-overlay',
     type: 'layout',
     componentId: 'BaseLayout',
     data: {
       containerProps: {
-        className: 'relative w-full h-full bg-black overflow-hidden',
+        className: 'absolute inset-0 pointer-events-none',
+        style: {
+          display: 'grid',
+          gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+          gridTemplateRows: `repeat(${gridRows}, 1fr)`,
+          gap: '0',
+          mixBlendMode: 'screen',
+          filter: 'sepia(100%) hue-rotate(90deg) saturate(200%)',
+        },
       },
     },
     context: {
       timing: {
         start: 0,
-        duration: baseLayoutDuration,
+        duration: transitionDuration,
       },
     },
-    childrenData,
+    childrenData: gridCells,
+  };
+
+  // Create scanlines overlay
+  const scanlinesOverlay: RenderableComponentData = {
+    id: 'scanlines-overlay',
+    type: 'atom',
+    componentId: 'HTMLBlockAtom',
+    data: {
+      html: `<div style="position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%); background-size: 100% 4px; opacity: 0.3;"></div>`,
+      className: 'absolute inset-0 pointer-events-none',
+    },
+    context: {
+      timing: {
+        start: 0,
+        duration: transitionDuration,
+      },
+    },
+  };
+
+  // Outgoing video with fade out
+  const outgoingVideoNode: RenderableComponentData = {
+    id: 'outgoing-video',
+    type: 'atom',
+    componentId: 'VideoAtom',
+    data: {
+      src: outgoingVideo.src,
+      startFrom: outgoingVideo.startFrom || 0,
+      endAt: outgoingVideo.endAt,
+      className: 'w-full h-full object-cover',
+      fit: 'cover',
+      style: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      },
+    },
+    context: {
+      timing: {
+        start: 0,
+        duration: transitionDuration,
+      },
+    },
+    effects: [
+      {
+        id: 'outgoing-fade-out',
+        componentId: 'generic',
+        data: {
+          type: 'ease-in',
+          start: 0,
+          duration: transitionDuration,
+          mode: 'provider',
+          targetIds: ['outgoing-video'],
+          ranges: [
+            { key: 'opacity', val: 1, prog: 0 },
+            { key: 'opacity', val: 0, prog: 1 },
+          ],
+        },
+      },
+    ],
+  };
+
+  // Incoming video with fade in
+  const incomingVideoNode: RenderableComponentData = {
+    id: 'incoming-video',
+    type: 'atom',
+    componentId: 'VideoAtom',
+    data: {
+      src: incomingVideo.src,
+      startFrom: incomingVideo.startFrom || 0,
+      endAt: incomingVideo.endAt,
+      className: 'w-full h-full object-cover',
+      fit: 'cover',
+      style: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      },
+    },
+    context: {
+      timing: {
+        start: 0,
+        duration: transitionDuration,
+      },
+    },
+    effects: [
+      {
+        id: 'incoming-fade-in',
+        componentId: 'generic',
+        data: {
+          type: 'ease-out',
+          start: 0,
+          duration: transitionDuration,
+          mode: 'provider',
+          targetIds: ['incoming-video'],
+          ranges: [
+            { key: 'opacity', val: 0, prog: 0 },
+            { key: 'opacity', val: 1, prog: 1 },
+          ],
+        },
+      },
+    ],
+  };
+
+  // Root container
+  const rootContainer: RenderableComponentData = {
+    id: 'matrix-transition-root',
+    type: 'layout',
+    componentId: 'BaseLayout',
+    data: {
+      containerProps: {
+        className: 'absolute inset-0 bg-black overflow-hidden',
+      },
+    },
+    context: {
+      timing: {
+        start: 0,
+        duration: transitionDuration,
+      },
+    },
+    childrenData: [
+      outgoingVideoNode,
+      incomingVideoNode,
+      matrixGridOverlay,
+      scanlinesOverlay,
+    ],
   };
 
   return {
@@ -725,58 +294,44 @@ const presetExecution = (
   };
 };
 
-// ==================== METADATA ====================
-
 const presetMetadata: PresetMetadata = {
   id: 'matrix-digital-rain-transition',
   title: 'Matrix Digital Rain Transition',
   description:
-    'A cyberpunk-inspired transition effect where the outgoing scene dissolves into cascading columns of glowing green/cyan code characters (digital rain) that reform to reveal the incoming scene. Features pixelation breakup, falling characters with light trails and sparks, depth layers with background matrix, and periodic scan line distortions for an authentic matrix/cyberpunk aesthetic.',
+    'An iconic Matrix-style digital rain transition effect where cascading green code characters dissolve the outgoing video and reveal the incoming video. Features authentic Matrix aesthetics with green tint, scanlines, random character falling speeds, and screen blend mode for an organic digital rain effect.',
   type: 'predefined',
   presetType: 'children',
   tags: [
     'transition',
     'matrix',
     'digital-rain',
+    'code',
     'cyberpunk',
     'tech',
-    'code',
-    'glitch',
-    'futuristic',
-    'hacker',
-    'sci-fi',
     'green',
-    'cyan',
-    'neon',
+    'scanline',
+    'grid',
     'cascade',
-    'pixelate',
   ],
   defaultInputParams: {
-    outgoingMedia: {
-      src: 'https://example.com/outgoing-video.mp4',
-      type: 'video',
-      duration: 5,
+    outgoingVideo: {
+      src: 'https://example.com/video1.mp4',
+      startFrom: 0,
     },
-    incomingMedia: {
-      src: 'https://example.com/incoming-video.mp4',
-      type: 'video',
-      duration: 5,
+    incomingVideo: {
+      src: 'https://example.com/video2.mp4',
+      startFrom: 0,
     },
-    transitionDuration: 2.5,
-    columnCount: 25,
-    bgColumnCount: 15,
-    matrixColor: 'green-cyan-mix',
-    pixelateIntensity: 1.0,
-    sparkCount: 15,
-    scanLineSpeed: 2.0,
+    transitionDuration: 1.5,
+    gridCols: 20,
+    gridRows: 30,
+    characterSet: '01アイウエオカキクケコサシスセソタチツテト',
   },
   dependencies: {
     presets: [],
     helpers: [],
   },
 };
-
-// ==================== EXPORT ====================
 
 export const matrixDigitalRainTransitionPreset = {
   metadata: presetMetadata,
