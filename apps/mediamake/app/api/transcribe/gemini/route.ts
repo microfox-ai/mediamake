@@ -45,16 +45,14 @@ const GeminiTranscriptionSchema = z.object({
     .array(
       z.object({
         text: z.string().describe('The text of this segment'),
-        startTime: z.number().describe('Start time in seconds (approximate)'),
-        endTime: z.number().describe('End time in seconds (approximate)'),
+        start: z.number().describe('Start time in seconds (approximate)'),
+        end: z.number().describe('End time in seconds (approximate)'),
         words: z
           .array(
             z.object({
               text: z.string().describe('The word text'),
-              startTime: z
-                .number()
-                .describe('Start time in seconds (approximate)'),
-              endTime: z.number().describe('End time in seconds (approximate)'),
+              start: z.number().describe('Start time in seconds (approximate)'),
+              end: z.number().describe('End time in seconds (approximate)'),
             }),
           )
           .optional()
@@ -105,24 +103,20 @@ function convertGeminiToCaptions(
     if (segment.words && segment.words.length > 0) {
       words = segment.words.map(word => ({
         text: word.text,
-        start: word.startTime,
-        end: word.endTime,
+        start: word.start,
+        end: word.end,
       }));
     } else {
-      words = estimateWordTimestamps(
-        segment.text,
-        segment.startTime,
-        segment.endTime,
-      );
+      words = estimateWordTimestamps(segment.text, segment.start, segment.end);
     }
 
     // Convert to TranscriptionWord format
     const transcriptionWords: Word[] = words.map((word, wordIndex) => ({
       id: `caption-${segmentIndex}-word-${wordIndex}`,
       text: word.text,
-      start: word.start - segment.startTime, // Relative to segment start
+      start: word.start - segment.start, // Relative to segment start
       absoluteStart: word.start, // Absolute time
-      end: word.end - segment.startTime, // Relative to segment start
+      end: word.end - segment.start, // Relative to segment start
       absoluteEnd: word.end, // Absolute time
       duration: word.end - word.start,
       confidence: 0.9, // Gemini doesn't provide confidence, use default
@@ -131,11 +125,11 @@ function convertGeminiToCaptions(
     captions.push({
       id: `caption-${segmentIndex}`,
       text: segment.text,
-      start: segment.startTime,
-      absoluteStart: segment.startTime,
-      end: segment.endTime,
-      absoluteEnd: segment.endTime,
-      duration: segment.endTime - segment.startTime,
+      start: segment.start,
+      absoluteStart: segment.start,
+      end: segment.end,
+      absoluteEnd: segment.end,
+      duration: segment.end - segment.start,
       words: transcriptionWords,
     });
   });
@@ -192,14 +186,29 @@ async function transcribeAudio(
       clientId || 'default',
     );
 
-    // Step 2: Get audio metadata
-    const audioMetadata = await getAudioMetadata(processedUrl);
-    console.log('Audio metadata retrieved:', {
-      duration: audioMetadata.duration,
-      sampleRate: audioMetadata.sampleRate,
-      channels: audioMetadata.channels,
-      format: audioMetadata.format,
-    });
+    // Step 2: Get audio metadata (with fallback for serverless)
+    let audioMetadata;
+    try {
+      audioMetadata = await getAudioMetadata(processedUrl);
+      console.log('Audio metadata retrieved:', {
+        duration: audioMetadata.duration,
+        sampleRate: audioMetadata.sampleRate,
+        channels: audioMetadata.channels,
+        format: audioMetadata.format,
+      });
+    } catch (error) {
+      console.warn('Could not get audio metadata, using defaults:', error);
+      // Use defaults if metadata retrieval fails
+      const urlPath = new URL(processedUrl).pathname;
+      const extension = urlPath.split('.').pop()?.toLowerCase() || 'mp3';
+      audioMetadata = {
+        duration: 0, // Will be estimated by Gemini
+        sampleRate: 44100,
+        channels: 1,
+        format:
+          extension === 'm4a' ? 'm4a' : extension === 'wav' ? 'wav' : 'mp3',
+      };
+    }
 
     // Step 3: Extract audio as base64 for Gemini
     console.log('Extracting audio as base64...');
@@ -213,10 +222,15 @@ async function transcribeAudio(
 
     // Step 5: Transcribe with Gemini
     const model = google('gemini-2.0-flash-exp');
+    const durationHint =
+      audioMetadata.duration > 0
+        ? `The audio duration is approximately ${audioMetadata.duration} seconds.`
+        : 'Please estimate the duration based on the audio content.';
+
     const prompt = `Transcribe this audio file with word-level timestamps if possible. 
 ${language && language !== 'auto' ? `The audio is in ${language}.` : 'Detect the language automatically.'}
 Provide the transcription in segments with approximate timestamps for each segment and word.
-The audio duration is approximately ${audioMetadata.duration} seconds.
+${durationHint}
 Format your response with segments containing:
 - text: The transcribed text for this segment
 - startTime: Start time in seconds
@@ -246,10 +260,13 @@ Format your response with segments containing:
 
     console.log('Successfully received transcription from Gemini');
 
-    const captions = convertGeminiToCaptions(
-      result.object,
-      audioMetadata.duration,
-    );
+    // Use duration from Gemini result if available, otherwise use metadata duration
+    const finalDuration =
+      result.object.segments.length > 0
+        ? Math.max(...result.object.segments.map(s => s.end || 0))
+        : audioMetadata.duration || 0;
+
+    const captions = convertGeminiToCaptions(result.object, finalDuration);
 
     // Generate a unique ID for this transcription
     const transcriptionId = `gemini-${Date.now()}`;

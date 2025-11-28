@@ -1,0 +1,11 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 25,
+    "variationCount": 8,
+    "tags": [],
+    "predefinedPreferences": []
+  },
+  "queue": []
+}

@@ -1,0 +1,15 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 15,
+    "variationCount": 8,
+    "tags": [
+      "animalwear"
+    ],
+    "predefinedPreferences": [
+      "--sref 3704803642"
+    ]
+  },
+  "queue": []
+}

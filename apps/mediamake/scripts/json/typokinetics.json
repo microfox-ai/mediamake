@@ -1,8 +1,0 @@
-{
-  "agentPath": "/preset-prompts/generate-prompt",
-  "defaultParams": {
-    "presetStyle": "typokinetics",
-    "promptsCount": 10
-  },
-  "queue": []
-}

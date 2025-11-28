@@ -51,92 +51,168 @@ export interface AudioAnalysisOptions {
 }
 
 /**
- * Get audio metadata using ffprobe
+ * Get audio format from URL extension
+ */
+function getAudioFormatFromUrl(url: string): string {
+  const urlPath = new URL(url).pathname;
+  const extension = path.extname(urlPath).toLowerCase().replace('.', '');
+  const formatMap: Record<string, string> = {
+    mp3: 'mp3',
+    wav: 'wav',
+    m4a: 'm4a',
+    aac: 'aac',
+    ogg: 'ogg',
+    flac: 'flac',
+    webm: 'webm',
+  };
+  return formatMap[extension] || 'mp3';
+}
+
+/**
+ * Get audio metadata using ffprobe with fallback for serverless environments
  */
 export async function getAudioMetadata(
   audioUrl: string,
 ): Promise<AudioMetadata> {
   configureFfmpegPaths();
 
-  return new Promise<AudioMetadata>((resolve, reject) => {
-    // Add timeout and better error handling
-    const timeout = setTimeout(() => {
-      reject(
-        new Error('ffprobe timeout - audio metadata request took too long'),
-      );
-    }, 30000); // 30 second timeout
-
-    ffmpeg.ffprobe(
-      audioUrl,
-      [
-        '-tls_verify',
-        '0', // Disable TLS certificate verification
-        '-protocol_whitelist',
-        'file,http,https,tcp,tls',
-        '-timeout',
-        '30000',
-      ],
-      (err, data) => {
-        clearTimeout(timeout);
-
-        if (err) {
-          console.error('ffprobe error for URL:', audioUrl);
-          console.error('ffprobe error details:', err.message);
-
-          // Check for specific SSL/TLS errors
-          if (err.message.includes('TLS') || err.message.includes('SSL')) {
-            return reject(
-              new Error(
-                `SSL/TLS connection failed for audio URL. This might be due to network issues or the audio server's SSL configuration. Original error: ${err.message}`,
-              ),
-            );
-          }
-
-          // Check for timeout errors
-          if (
-            err.message.includes('timeout') ||
-            err.message.includes('ETIMEDOUT')
-          ) {
-            return reject(
-              new Error(
-                `Audio metadata request timed out. The audio server might be slow or unreachable. Original error: ${err.message}`,
-              ),
-            );
-          }
-
-          return reject(
-            new Error(`Failed to get audio metadata: ${err.message}`),
-          );
-        }
-
-        const audioStream = data.streams.find(
-          stream => stream.codec_type === 'audio',
+  // Try to use ffprobe first
+  try {
+    return await new Promise<AudioMetadata>((resolve, reject) => {
+      // Add timeout and better error handling
+      const timeout = setTimeout(() => {
+        reject(
+          new Error('ffprobe timeout - audio metadata request took too long'),
         );
+      }, 30000); // 30 second timeout
 
-        if (!audioStream) {
-          return reject(new Error('No audio stream found in the provided URL'));
+      ffmpeg.ffprobe(
+        audioUrl,
+        [
+          '-tls_verify',
+          '0', // Disable TLS certificate verification
+          '-protocol_whitelist',
+          'file,http,https,tcp,tls',
+          '-timeout',
+          '30000',
+        ],
+        (err, data) => {
+          clearTimeout(timeout);
+
+          if (err) {
+            // Check if it's a "Cannot find ffprobe" error (serverless environment)
+            if (
+              err.message.includes('Cannot find ffprobe') ||
+              err.message.includes('ffprobe') ||
+              err.message.includes('ENOENT')
+            ) {
+              // Fall through to fallback
+              return reject(new Error('FFPROBE_NOT_AVAILABLE'));
+            }
+
+            console.error('ffprobe error for URL:', audioUrl);
+            console.error('ffprobe error details:', err.message);
+
+            // Check for specific SSL/TLS errors
+            if (err.message.includes('TLS') || err.message.includes('SSL')) {
+              return reject(
+                new Error(
+                  `SSL/TLS connection failed for audio URL. This might be due to network issues or the audio server's SSL configuration. Original error: ${err.message}`,
+                ),
+              );
+            }
+
+            // Check for timeout errors
+            if (
+              err.message.includes('timeout') ||
+              err.message.includes('ETIMEDOUT')
+            ) {
+              return reject(
+                new Error(
+                  `Audio metadata request timed out. The audio server might be slow or unreachable. Original error: ${err.message}`,
+                ),
+              );
+            }
+
+            return reject(
+              new Error(`Failed to get audio metadata: ${err.message}`),
+            );
+          }
+
+          const audioStream = data.streams.find(
+            stream => stream.codec_type === 'audio',
+          );
+
+          if (!audioStream) {
+            return reject(
+              new Error('No audio stream found in the provided URL'),
+            );
+          }
+
+          const duration = data.format.duration || 0;
+          const sampleRate = audioStream.sample_rate || 44100;
+          const channels = audioStream.channels || 1;
+          const bitRate = data.format.bit_rate;
+          const format = data.format.format_name;
+          const codec = audioStream.codec_name;
+          const fileSize = data.format.size;
+
+          resolve({
+            duration,
+            sampleRate,
+            channels,
+            bitRate,
+            format,
+            codec,
+            fileSize,
+          });
+        },
+      );
+    });
+  } catch (error) {
+    // Fallback for serverless environments where ffprobe is not available
+    if (
+      error instanceof Error &&
+      (error.message === 'FFPROBE_NOT_AVAILABLE' ||
+        error.message.includes('Cannot find ffprobe') ||
+        error.message.includes('ffprobe'))
+    ) {
+      console.warn(
+        'ffprobe not available, using fallback metadata for serverless environment',
+      );
+
+      // Try to get file size from HTTP headers
+      let fileSize: number | undefined;
+      let duration: number = 0;
+
+      try {
+        const response = await fetch(audioUrl, { method: 'HEAD' });
+        const contentLength = response.headers.get('content-length');
+        if (contentLength) {
+          fileSize = parseInt(contentLength, 10);
         }
+        // Try to get duration from Content-Duration header if available
+        const contentDuration = response.headers.get('content-duration');
+        if (contentDuration) {
+          duration = parseFloat(contentDuration);
+        }
+      } catch (fetchError) {
+        console.warn('Could not fetch audio headers:', fetchError);
+      }
 
-        const duration = data.format.duration || 0;
-        const sampleRate = audioStream.sample_rate || 44100;
-        const channels = audioStream.channels || 1;
-        const bitRate = data.format.bit_rate;
-        const format = data.format.format_name;
-        const codec = audioStream.codec_name;
-        const fileSize = data.format.size;
+      // Return default metadata
+      return {
+        duration,
+        sampleRate: 44100, // Default sample rate
+        channels: 1, // Default to mono
+        format: getAudioFormatFromUrl(audioUrl),
+        fileSize,
+      };
+    }
 
-        resolve({
-          duration,
-          sampleRate,
-          channels,
-          bitRate,
-          format,
-          codec,
-          fileSize,
-        });
-      },
-    );
-  });
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 /**
@@ -201,22 +277,58 @@ export async function downloadAudioFile(audioUrl: string): Promise<string> {
 
 /**
  * Extract audio as base64 for AI analysis
+ * Uses direct fetch in serverless environments, falls back to ffmpeg if available
  */
 export async function extractAudioAsBase64(audioUrl: string): Promise<string> {
-  const tempAudioPath = await downloadAudioFile(audioUrl);
-
+  // Try direct fetch first (works in serverless environments)
   try {
-    const audioBuffer = fs.readFileSync(tempAudioPath);
-    const base64Audio = audioBuffer.toString('base64');
+    console.log('Downloading audio directly via fetch...');
+    const response = await fetch(audioUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+      },
+    });
 
-    // Clean up temporary file
-    await cleanupAudioFile(tempAudioPath);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch audio: ${response.status} ${response.statusText}`,
+      );
+    }
 
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Audio = buffer.toString('base64');
+
+    console.log(
+      `Audio downloaded and converted to base64, size: ${buffer.length} bytes`,
+    );
     return base64Audio;
-  } catch (error) {
-    // Clean up temporary file on error
-    await cleanupAudioFile(tempAudioPath);
-    throw error;
+  } catch (fetchError) {
+    console.warn('Direct fetch failed, trying ffmpeg fallback:', fetchError);
+
+    // Fallback to ffmpeg if available (for local development)
+    try {
+      const tempAudioPath = await downloadAudioFile(audioUrl);
+
+      try {
+        const audioBuffer = fs.readFileSync(tempAudioPath);
+        const base64Audio = audioBuffer.toString('base64');
+
+        // Clean up temporary file
+        await cleanupAudioFile(tempAudioPath);
+
+        return base64Audio;
+      } catch (error) {
+        // Clean up temporary file on error
+        await cleanupAudioFile(tempAudioPath);
+        throw error;
+      }
+    } catch (ffmpegError) {
+      // If both fail, throw the original fetch error
+      throw new Error(
+        `Failed to download audio: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`,
+      );
+    }
   }
 }
 
