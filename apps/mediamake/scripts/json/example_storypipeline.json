@@ -1,0 +1,16 @@
+{
+  "agentPath": "/midjourney/pipeline2",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "sceneCount": 10,
+    "shotCount": 30,
+    "variationCount": 8,
+    "tags": ["unrealnexus"],
+    "predefinedPreferences": []
+  },
+  "queue": [
+    {
+      "story": "YOUR STORY"
+    }
+  ]
+}

@@ -124,6 +124,8 @@ export const pipeline2Agent = aiRouter
         loader: 'Dividing story into scenes and generating shot ideas...',
       });
 
+      let modelIdToUse = inputParams.model ?? 'claude-opus-4-5';
+
       const ideateStoryResult = await ctx.next.callAgent(
         '@/midjourney/ideate-story',
         {
@@ -133,7 +135,7 @@ export const pipeline2Agent = aiRouter
           style: inputParams.style,
           predefinedPreferences: inputParams.predefinedPreferences,
           variationCount: inputParams.variationCount,
-          model: inputParams.model,
+          model: inputParams.model ?? modelIdToUse,
           tags: inputParams.tags,
         },
         {
@@ -155,9 +157,9 @@ export const pipeline2Agent = aiRouter
       });
 
       const modelToUse =
-        inputParams.model && inputParams.model.startsWith('claude')
-          ? anthropic(inputParams.model)
-          : google(inputParams.model || 'gemini-2.5-flash');
+        modelIdToUse && modelIdToUse.startsWith('claude')
+          ? anthropic(modelIdToUse)
+          : google(modelIdToUse || 'gemini-2.5-flash');
 
       const storyTitleResult = await generateText({
         model: modelToUse,
@@ -227,6 +229,8 @@ export const pipeline2Agent = aiRouter
               ? inputParams.userRequest
               : ideateStoryOutput.creativeInspiration || '';
 
+          modelIdToUse = inputParams.model ?? 'claude-haiku-4-5';
+
           const simpleResult = await ctx.next.callAgent(
             '@/midjourney/simple',
             {
@@ -235,7 +239,7 @@ export const pipeline2Agent = aiRouter
               predefinedPreferences:
                 ideateStoryOutput.predefinedPreferences || [],
               variationCount: ideateStoryOutput.variationCount || 0,
-              model: ideateStoryOutput.model || inputParams.model,
+              model: inputParams.model ?? modelIdToUse,
               tags: ideateStoryOutput.tags || [],
               mediaUrls: inputParams.mediaUrls,
               userRequest: userRequest,

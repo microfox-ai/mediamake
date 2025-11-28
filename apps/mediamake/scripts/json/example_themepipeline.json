@@ -1,0 +1,15 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 10,
+    "variationCount": 8,
+    "tags": ["unrealnexus"],
+    "predefinedPreferences": []
+  },
+  "queue": [
+    {
+      "userDirective": "Floating stairs, negative space, impossible architecture."
+    }
+  ]
+}
