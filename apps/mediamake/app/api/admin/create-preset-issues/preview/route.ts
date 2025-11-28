@@ -5,7 +5,7 @@ import { join, resolve } from 'path';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { folderPath } = body;
+    const { folderPath, filePattern } = body;
 
     // Resolve folder path
     const resolvedPath = folderPath
@@ -20,9 +20,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Read JSON files
-    const files = readdirSync(resolvedPath).filter(
-      (file) => file.endsWith('.json') && file.startsWith('data_run_'),
-    );
+    const files = readdirSync(resolvedPath).filter(file => {
+      if (!file.endsWith('.json')) return false;
+      // If filePattern is provided and not empty, check startsWith
+      if (filePattern && filePattern.trim() !== '') {
+        return file.startsWith(filePattern);
+      }
+      // If no pattern, return all .json files
+      return true;
+    });
 
     if (files.length === 0) {
       return NextResponse.json({
@@ -77,4 +83,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

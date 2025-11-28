@@ -1,5 +1,8 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Exclude scripts/output folder from Tailwind CSS content scanning */
+@source not "../scripts/";
 
 @custom-variant dark (&:is(.dark *));
 

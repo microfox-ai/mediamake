@@ -40,6 +40,7 @@ export default function PresetBatchCreatorPage() {
   const [githubOwner, setGithubOwner] = useState('microfox-ai');
   const [githubRepo, setGithubRepo] = useState('mediamake');
   const [folderPath, setFolderPath] = useState('scripts/output');
+  const [filePattern, setFilePattern] = useState('data_run_');
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -65,6 +66,7 @@ export default function PresetBatchCreatorPage() {
         },
         body: JSON.stringify({
           folderPath: folderPath || 'scripts/output',
+          filePattern: filePattern || '',
         }),
       });
 
@@ -101,6 +103,7 @@ export default function PresetBatchCreatorPage() {
           githubOwner,
           githubRepo,
           folderPath: folderPath || 'scripts/output',
+          filePattern: filePattern || '',
         }),
       });
 
@@ -161,6 +164,21 @@ export default function PresetBatchCreatorPage() {
                     </p>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="filePattern">File Pattern (Optional)</Label>
+                    <Input
+                      id="filePattern"
+                      placeholder="e.g., data_run_ (leave empty to match all .json files)"
+                      value={filePattern}
+                      onChange={(e) => setFilePattern(e.target.value)}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Files must start with this pattern. Leave empty to process
+                      all .json files in the folder.
+                    </p>
+                  </div>
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="owner">GitHub Owner</Label>
@@ -189,12 +207,22 @@ export default function PresetBatchCreatorPage() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-sm">
-                    This will scan for{' '}
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      data_run_*.json
-                    </code>{' '}
-                    files in the specified folder and create GitHub issues with
-                    the &quot;New Presets&quot; prefix.
+                    This will scan for JSON files{' '}
+                    {filePattern && (
+                      <>
+                        starting with{' '}
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          {filePattern}*.json
+                        </code>{' '}
+                      </>
+                    )}
+                    {!filePattern && (
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                        (*.json)
+                      </code>
+                    )}{' '}
+                    in the specified folder and create GitHub issues with the
+                    &quot;New Presets&quot; prefix.
                   </AlertDescription>
                 </Alert>
 
@@ -316,15 +344,15 @@ export default function PresetBatchCreatorPage() {
             </TabsContent>
 
             <TabsContent value="preview" className="space-y-4 mt-6">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="preview-folder"
-                  className="flex items-center gap-2"
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  Folder Path to Preview
-                </Label>
-                <div className="flex gap-2">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="preview-folder"
+                    className="flex items-center gap-2"
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                    Folder Path to Preview
+                  </Label>
                   <Input
                     id="preview-folder"
                     placeholder="e.g., scripts/output"
@@ -332,14 +360,32 @@ export default function PresetBatchCreatorPage() {
                     onChange={(e) => setFolderPath(e.target.value)}
                     className="font-mono text-sm"
                   />
-                  <Button onClick={handlePreview} disabled={previewing}>
-                    {previewing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Scan'
-                    )}
-                  </Button>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preview-filePattern">
+                    File Pattern (Optional)
+                  </Label>
+                  <Input
+                    id="preview-filePattern"
+                    placeholder="e.g., data_run_ (leave empty to match all .json files)"
+                    value={filePattern}
+                    onChange={(e) => setFilePattern(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Files must start with this pattern. Leave empty to process
+                    all .json files in the folder.
+                  </p>
+                </div>
+
+                <Button onClick={handlePreview} disabled={previewing}>
+                  {previewing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Scan'
+                  )}
+                </Button>
               </div>
 
               {preview && (

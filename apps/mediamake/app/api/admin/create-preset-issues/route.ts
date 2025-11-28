@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { folderPath, githubOwner, githubRepo } = body;
+    const { folderPath, githubOwner, githubRepo, filePattern } = body;
 
     if (!githubOwner || !githubRepo) {
       return NextResponse.json(
@@ -36,13 +36,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Read JSON files
-    const files = readdirSync(resolvedPath).filter(
-      (file) => file.endsWith('.json') && file.startsWith('data_run_'),
-    );
+    const files = readdirSync(resolvedPath).filter(file => {
+      if (!file.endsWith('.json')) return false;
+      // If filePattern is provided and not empty, check startsWith
+      if (filePattern && filePattern.trim() !== '') {
+        return file.startsWith(filePattern);
+      }
+      // If no pattern, return all .json files
+      return true;
+    });
 
     if (files.length === 0) {
+      const patternText =
+        filePattern && filePattern.trim() !== ''
+          ? `${filePattern}*.json`
+          : '*.json';
       return NextResponse.json(
-        { error: 'No data_run_*.json files found' },
+        { error: `No ${patternText} files found` },
         { status: 404 },
       );
     }
@@ -95,8 +105,8 @@ export async function POST(request: NextRequest) {
       } else {
         // Extract common keywords
         const keywords = batchTitles
-          .flatMap((t) => t.split(' '))
-          .filter((w) => w.length > 4);
+          .flatMap(t => t.split(' '))
+          .filter(w => w.length > 4);
         const uniqueKeywords = [...new Set(keywords)].slice(0, 5);
         combinedTitle = uniqueKeywords.join(' ') || 'Mixed Preset Batch';
       }
@@ -141,7 +151,7 @@ export async function POST(request: NextRequest) {
 
       // Delay between requests
       if (i < batches.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
@@ -160,4 +170,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
