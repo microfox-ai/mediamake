@@ -309,7 +309,7 @@ export const midjourneySimpleAgent = aiRouter
                 }
                 
                 Generate Midjourney prompts that align with the user's request and reference images (if provided).
-                Each prompt should be optimized for Midjourney and be creative and engaging.
+                Each prompt should be optimized for Midjourney and be creative and engaging ( with atleast 100 words in the prompt ).
                 ${variationCount > 1 ? `Generate ${variationCount} variations for each shot.` : ''}
                 Do not include -ar tags, -v tags, or other Midjourney parameters in the prompts.
               `,

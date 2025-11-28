@@ -45,16 +45,14 @@ const GeminiTranscriptionSchema = z.object({
     .array(
       z.object({
         text: z.string().describe('The text of this segment'),
-        startTime: z.number().describe('Start time in seconds (approximate)'),
-        endTime: z.number().describe('End time in seconds (approximate)'),
+        start: z.number().describe('Start time in seconds (approximate)'),
+        end: z.number().describe('End time in seconds (approximate)'),
         words: z
           .array(
             z.object({
               text: z.string().describe('The word text'),
-              startTime: z
-                .number()
-                .describe('Start time in seconds (approximate)'),
-              endTime: z.number().describe('End time in seconds (approximate)'),
+              start: z.number().describe('Start time in seconds (approximate)'),
+              end: z.number().describe('End time in seconds (approximate)'),
             }),
           )
           .optional()
@@ -105,24 +103,20 @@ function convertGeminiToCaptions(
     if (segment.words && segment.words.length > 0) {
       words = segment.words.map(word => ({
         text: word.text,
-        start: word.startTime,
-        end: word.endTime,
+        start: word.start,
+        end: word.end,
       }));
     } else {
-      words = estimateWordTimestamps(
-        segment.text,
-        segment.startTime,
-        segment.endTime,
-      );
+      words = estimateWordTimestamps(segment.text, segment.start, segment.end);
     }
 
     // Convert to TranscriptionWord format
     const transcriptionWords: Word[] = words.map((word, wordIndex) => ({
       id: `caption-${segmentIndex}-word-${wordIndex}`,
       text: word.text,
-      start: word.start - segment.startTime, // Relative to segment start
+      start: word.start - segment.start, // Relative to segment start
       absoluteStart: word.start, // Absolute time
-      end: word.end - segment.startTime, // Relative to segment start
+      end: word.end - segment.start, // Relative to segment start
       absoluteEnd: word.end, // Absolute time
       duration: word.end - word.start,
       confidence: 0.9, // Gemini doesn't provide confidence, use default
@@ -131,11 +125,11 @@ function convertGeminiToCaptions(
     captions.push({
       id: `caption-${segmentIndex}`,
       text: segment.text,
-      start: segment.startTime,
-      absoluteStart: segment.startTime,
-      end: segment.endTime,
-      absoluteEnd: segment.endTime,
-      duration: segment.endTime - segment.startTime,
+      start: segment.start,
+      absoluteStart: segment.start,
+      end: segment.end,
+      absoluteEnd: segment.end,
+      duration: segment.end - segment.start,
       words: transcriptionWords,
     });
   });
