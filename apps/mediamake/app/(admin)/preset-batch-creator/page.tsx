@@ -50,6 +50,9 @@ export default function PresetBatchCreatorPage() {
     totalPrompts?: number;
     batchesCreated?: number;
     issues?: CreatedIssue[];
+    processedFiles?: number;
+    failedMoves?: number;
+    failedMoveFiles?: string[];
     error?: string;
   } | null>(null);
 
@@ -448,6 +451,23 @@ export default function PresetBatchCreatorPage() {
                       Successfully created {result.batchesCreated} issue(s) from{' '}
                       {result.totalFiles} file(s) containing{' '}
                       {result.totalPrompts} prompts!
+                      {result.processedFiles !== undefined && (
+                        <>
+                          <br />
+                          <span className="text-sm">
+                            {result.processedFiles} file(s) moved to{' '}
+                            <code className="text-xs bg-white/50 px-1 py-0.5 rounded">
+                              scripts/processed
+                            </code>
+                            {result.failedMoves && result.failedMoves > 0 && (
+                              <>
+                                {' '}
+                                ({result.failedMoves} file(s) failed to move)
+                              </>
+                            )}
+                          </span>
+                        </>
+                      )}
                     </AlertDescription>
                   </Alert>
 

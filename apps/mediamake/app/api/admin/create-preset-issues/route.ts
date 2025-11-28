@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
-import { readFileSync, readdirSync, existsSync } from 'fs';
+import {
+  readFileSync,
+  readdirSync,
+  existsSync,
+  mkdirSync,
+  renameSync,
+} from 'fs';
 import { join, resolve } from 'path';
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -155,12 +161,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Move processed files to scripts/processed folder
+    const processedFiles: string[] = [];
+    const failedMoves: string[] = [];
+    const processedFolder = join(process.cwd(), 'scripts', 'processed');
+
+    try {
+      // Create processed folder if it doesn't exist
+      if (!existsSync(processedFolder)) {
+        mkdirSync(processedFolder, { recursive: true });
+      }
+
+      // Move each processed file
+      for (const file of files) {
+        try {
+          const sourcePath = join(resolvedPath, file);
+          const destPath = join(processedFolder, file);
+          renameSync(sourcePath, destPath);
+          processedFiles.push(file);
+        } catch (error) {
+          console.error(`Failed to move file ${file}:`, error);
+          failedMoves.push(file);
+        }
+      }
+    } catch (error) {
+      console.error('Error moving files to processed folder:', error);
+      // Continue even if moving fails - issues were created successfully
+    }
+
     return NextResponse.json({
       success: true,
       totalFiles: files.length,
       totalPrompts: allPrompts.length,
       batchesCreated: batches.length,
       issues: createdIssues,
+      processedFiles: processedFiles.length,
+      failedMoves: failedMoves.length,
+      ...(failedMoves.length > 0 && {
+        failedMoveFiles: failedMoves,
+      }),
     });
   } catch (error: any) {
     console.error('Error creating issues:', error);

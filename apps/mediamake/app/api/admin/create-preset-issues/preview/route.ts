@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 30;
     const estimatedBatches = Math.ceil(allPrompts.length / BATCH_SIZE);
 
     return NextResponse.json({
