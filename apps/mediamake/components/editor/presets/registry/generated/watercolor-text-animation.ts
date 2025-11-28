@@ -1,38 +1,25 @@
 /**
- * Watercolor Text Animation Preset
+ * Dreamy Watercolor Text Animation Preset
  *
- * This preset creates a watercolor paint-spreading text animation that mimics the organic flow
- * of watercolor paint on wet paper. Each word appears as if painted with a soft brush, starting
- * from a small point and expanding outward with irregular, fluid edges.
+ * This preset creates a hypnotic watercolor text animation where words materialize
+ * through soft color clouds that coalesce into readable text. Features organic watercolor
+ * splashes that form into letters, gentle pulsing breathing animations, chromatic aberration
+ * effects, and floating color particles.
  *
- * Features:
- * - Organic watercolor paint spreading effect with soft brush appearance
- * - Individual word animations with irregular, fluid edges
- * - Subtle breathing animation where watercolor 'bleeds' expand and contract
- * - Opacity transitions and scale transforms to simulate water absorption
- * - Letters float upward slightly as they settle (like paint lifting before drying)
- * - Subtle color variations within each word with soft pastel gradients
- * - Dreamy, weightless motion with varied float patterns per word
- * - Multiple overlapping text shadows for watercolor depth
- * - CSS filters for soft edges (blur, contrast, brightness)
- * - Staggered timing for natural, non-mechanical repetition
+ * Key Features:
+ * - Watercolor cloud formation: Abstract splashes gradually form into readable text
+ * - Breathing pulse animation: Gentle 1→1.05→1 scale animation creating a breathing effect
+ * - Chromatic aberration: RGB channel offsets simulating watercolor color separation
+ * - Floating particles: 10-15 color specks drifting around the text
+ * - Fluid movement: Hypnotic and constantly evolving with overlapping animations
+ * - GPU acceleration: Uses transform: translate3d() for optimal performance
  *
- * Technical Implementation:
- * - BaseLayout with relative positioning for container
- * - Individual TextAtom per word with absolute positioning
- * - Multiple text shadows with varying blur radius and opacity
- * - CSS filters: blur transition from 0.5px to 0px, contrast(0.8), brightness(1.1)
- * - Generic keyframe effects: opacity 0→1 (800ms), scale 0.7→1.05→1 (1200ms)
- * - Continuous floating animation: translateY 0→-5px→0 (3000ms loop)
- * - Transform-origin: center bottom for natural growth
- * - Performance optimizations: will-change, mix-blend-multiply
- * - 150ms stagger between words
- *
- * Use cases:
- * - Creating dreamy, artistic text reveals
- * - Adding organic, hand-painted text effects
- * - Building poetic or emotional content
- * - Creating watercolor-themed title sequences
+ * Use Cases:
+ * - Creating dreamy, artistic title sequences
+ * - Poetic or melodic subtitle animations
+ * - Abstract visual storytelling
+ * - Music video text overlays
+ * - Art-focused content presentations
  */
 
 import z from 'zod';
@@ -42,13 +29,12 @@ import type {
   PresetPassedProps,
 } from '../../types';
 import type { RenderableComponentData } from '@microfox/datamotion';
-import type { GenericEffectData } from '@microfox/remotion';
 
-// Parameter schema
 const presetParams = z.object({
-  text: z
-    .string()
-    .describe('Text to display with watercolor effect (words will be split automatically)'),
+  animationStyle: z
+    .enum(['fade-blur'])
+    .default('fade-blur')
+    .describe('Text animation style (uses fade-blur for watercolor effect)'),
   fontSize: z
     .number()
     .min(12)
@@ -57,282 +43,273 @@ const presetParams = z.object({
     .describe('Font size in pixels'),
   fontFamily: z
     .string()
-    .default('Quicksand')
-    .describe('Font family (Google Font name)'),
+    .default('Inter')
+    .describe('Font family (e.g., "Inter", "Roboto")'),
   fontWeight: z
     .string()
-    .default('600')
-    .describe('Font weight (e.g., "400", "600", "700")'),
-  colorGradient1: z
+    .default('700')
+    .describe('Font weight (e.g., "400", "700", "bold")'),
+  textColor: z
     .string()
-    .default('linear-gradient(135deg, #FFB6C1 0%, #DDA0DD 50%, #B0E0E6 100%)')
-    .describe('CSS gradient for first word (soft pastels)'),
-  colorGradient2: z
+    .default('#ffffff')
+    .describe('Text color (CSS color value)'),
+  backgroundColor: z
     .string()
-    .default('linear-gradient(135deg, #DDA0DD 0%, #B0E0E6 50%, #FFE4E1 100%)')
-    .describe('CSS gradient for second word (soft pastels)'),
-  colorGradient3: z
+    .default('transparent')
+    .describe('Background color behind text'),
+  textShadow: z
     .string()
-    .default('linear-gradient(135deg, #B0E0E6 0%, #FFE4E1 50%, #FFB6C1 100%)')
-    .describe('CSS gradient for third word (soft pastels)'),
-  wordSpacing: z
+    .default('2px 0 0 rgba(255,0,0,0.3), -2px 0 0 rgba(0,255,255,0.3), 0 2px 20px rgba(0,0,0,0.3)')
+    .describe('Text shadow with chromatic aberration effect'),
+  blurDuration: z
     .number()
-    .min(0)
-    .max(100)
-    .default(16)
-    .describe('Gap between words in pixels'),
-  initialBlur: z
+    .min(500)
+    .max(5000)
+    .default(3000)
+    .describe('Duration of blur-in effect in milliseconds'),
+  breathingDuration: z
     .number()
-    .min(0)
-    .max(5)
-    .default(0.5)
-    .describe('Initial blur in pixels (transitions to 0)'),
-  fadeInDuration: z
+    .min(1000)
+    .max(8000)
+    .default(4000)
+    .describe('Duration of breathing pulse animation in milliseconds'),
+  particleCount: z
     .number()
-    .min(0.3)
-    .max(3)
-    .default(0.8)
-    .describe('Fade-in duration in seconds'),
-  scaleDuration: z
+    .min(5)
+    .max(15)
+    .default(10)
+    .describe('Number of floating particles (5-15 for performance)'),
+  particleDriftDuration: z
     .number()
-    .min(0.5)
-    .max(3)
-    .default(1.2)
-    .describe('Scale animation duration in seconds'),
-  floatDuration: z
-    .number()
-    .min(1)
-    .max(10)
-    .default(3)
-    .describe('Continuous floating animation duration in seconds (loops)'),
-  floatDistance: z
-    .number()
-    .min(0)
-    .max(20)
-    .default(5)
-    .describe('Vertical float distance in pixels'),
-  staggerDelay: z
-    .number()
-    .min(0)
-    .max(1)
-    .default(0.15)
-    .describe('Stagger delay between words in seconds'),
-  totalDuration: z
-    .number()
-    .min(1)
-    .max(30)
-    .default(5)
-    .describe('Total duration for the animation in seconds'),
+    .min(5000)
+    .max(15000)
+    .default(10000)
+    .describe('Duration of particle drift animation in milliseconds'),
 });
 
 type PresetParams = z.infer<typeof presetParams>;
 
-const presetExecution = (
+const presetExecution = async (
   params: PresetParams,
   props: PresetPassedProps,
-): PresetOutput => {
-  // Split text into words
-  const words = params.text.trim().split(/\s+/);
-  
-  // Color gradients array (cycle through if more words than gradients)
-  const gradients = [
-    params.colorGradient1,
-    params.colorGradient2,
-    params.colorGradient3,
-  ];
+): Promise<PresetOutput> => {
+  const {
+    animationStyle,
+    fontSize,
+    fontFamily,
+    fontWeight,
+    textColor,
+    backgroundColor,
+    textShadow,
+    blurDuration,
+    breathingDuration,
+    particleCount,
+    particleDriftDuration,
+  } = params;
 
-  // Create word components
-  const wordComponents: RenderableComponentData[] = words.map((word, index) => {
-    const wordId = `word-${index}`;
-    const wordWrapperId = `word-wrapper-${index}`;
-    const gradient = gradients[index % gradients.length];
-    
-    // Calculate staggered start time for this word
-    const wordStart = index * params.staggerDelay;
-    
-    // Vary float duration slightly per word for non-mechanical repetition
-    const floatDurationVariation = params.floatDuration + (index * 0.2);
-    
-    // Vary float distance slightly per word
-    const floatDistanceVariation = params.floatDistance + (index * 0.5);
+  const { presets } = props;
 
-    // Generate text shadows for watercolor depth effect
-    const textShadow = [
-      `0 0 4px ${gradient.match(/#[0-9A-Fa-f]{6}/)?.[0] || '#FFB6C1'}33`,
-      `0 0 8px ${gradient.match(/#[0-9A-Fa-f]{6}/)?.[0] || '#DDA0DD'}22`,
-      `0 0 12px ${gradient.match(/#[0-9A-Fa-f]{6}/)?.[0] || '#B0E0E6'}11`,
-    ].join(', ');
+  // Validate SubtitlesOverlay dependency
+  if (!presets || !presets['SubtitlesOverlay']) {
+    throw new Error('Preset dependency "SubtitlesOverlay" not found');
+  }
 
-    // Create effects for this word
-    const wordEffects: any[] = [
-      // Initial fade-in and blur transition (watercolor spreading)
-      {
-        id: `fade-blur-${wordId}`,
-        componentId: 'generic',
-        data: {
-          type: 'ease-out',
-          start: 0,
-          duration: params.fadeInDuration,
-          mode: 'provider',
-          targetIds: [wordId],
-          ranges: [
-            { key: 'opacity', val: 0, prog: 0 },
-            { key: 'opacity', val: 1, prog: 1 },
-            { key: 'blur', val: `${params.initialBlur}px`, prog: 0 },
-            { key: 'blur', val: '0px', prog: 1 },
-          ],
-        } as GenericEffectData,
-      },
-      // Scale animation (watercolor expansion: small→overshoot→settle)
-      {
-        id: `scale-${wordId}`,
-        componentId: 'generic',
-        data: {
-          type: 'spring',
-          start: 0,
-          duration: params.scaleDuration,
-          mode: 'provider',
-          targetIds: [wordId],
-          ranges: [
-            { key: 'scale', val: 0.7, prog: 0 },
-            { key: 'scale', val: 1.05, prog: 0.7 },
-            { key: 'scale', val: 1, prog: 1 },
-          ],
-        } as GenericEffectData,
-      },
-      // Continuous floating animation (breathing/lifting effect)
-      {
-        id: `float-${wordId}`,
-        componentId: 'generic',
-        data: {
-          type: 'ease-in-out',
-          start: params.scaleDuration,
-          duration: floatDurationVariation,
-          mode: 'provider',
-          targetIds: [wordId],
-          ranges: [
-            { key: 'translateY', val: '0px', prog: 0 },
-            { key: 'translateY', val: `-${floatDistanceVariation}px`, prog: 0.5 },
-            { key: 'translateY', val: '0px', prog: 1 },
-          ],
-        } as GenericEffectData,
-      },
-      // Looping floating animation (continues after initial)
-      {
-        id: `float-loop-${wordId}`,
-        componentId: 'generic',
-        data: {
-          type: 'ease-in-out',
-          start: params.scaleDuration + floatDurationVariation,
-          duration: floatDurationVariation,
-          mode: 'provider',
-          targetIds: [wordId],
-          ranges: [
-            { key: 'translateY', val: '0px', prog: 0 },
-            { key: 'translateY', val: `-${floatDistanceVariation}px`, prog: 0.5 },
-            { key: 'translateY', val: '0px', prog: 1 },
-          ],
-        } as GenericEffectData,
-      },
+  // Generate particle colors (watercolor palette)
+  const generateParticleColor = (index: number): string => {
+    const colors = [
+      'rgba(255, 100, 150, 0.6)', // Pink
+      'rgba(100, 200, 255, 0.5)', // Blue
+      'rgba(255, 220, 100, 0.4)', // Yellow
+      'rgba(200, 100, 255, 0.5)', // Purple
+      'rgba(150, 255, 200, 0.6)', // Mint
+      'rgba(255, 150, 100, 0.5)', // Orange
+      'rgba(100, 150, 255, 0.4)', // Light blue
+      'rgba(255, 200, 150, 0.6)', // Peach
+      'rgba(200, 255, 100, 0.5)', // Lime
+      'rgba(150, 100, 255, 0.4)', // Violet
     ];
+    return colors[index % colors.length];
+  };
 
-    // Word wrapper with staggered timing
-    const wordWrapper: RenderableComponentData = {
-      id: wordWrapperId,
-      type: 'layout',
-      componentId: 'BaseLayout',
+  // Generate random position for particles
+  const generateRandomPosition = (): { left: string; top: string } => {
+    const left = Math.floor(Math.random() * 90) + 5; // 5% to 95%
+    const top = Math.floor(Math.random() * 90) + 5;
+    return { left: `${left}%`, top: `${top}%` };
+  };
+
+  // Generate random size for particles
+  const generateParticleSize = (): number => {
+    return Math.floor(Math.random() * 6) + 5; // 5px to 10px
+  };
+
+  // Create particle components
+  const particles: RenderableComponentData[] = [];
+  for (let i = 0; i < particleCount; i++) {
+    const position = generateRandomPosition();
+    const size = generateParticleSize();
+    const color = generateParticleColor(i);
+    const particleId = `watercolor-particle-${i}`;
+
+    // Random drift animation parameters
+    const driftX = (Math.random() - 0.5) * 100; // -50px to 50px
+    const driftY = (Math.random() - 0.5) * 100;
+
+    particles.push({
+      id: particleId,
+      type: 'atom',
+      componentId: 'HTMLBlockAtom',
       data: {
-        containerProps: {
-          className: 'relative select-none pointer-events-none',
-          style: {
-            transformOrigin: 'center bottom',
-            willChange: 'transform, opacity',
-          },
+        html: '<div></div>',
+        className: 'absolute',
+        style: {
+          width: `${size}px`,
+          height: `${size}px`,
+          borderRadius: '50%',
+          backgroundColor: color,
+          left: position.left,
+          top: position.top,
+          transform: 'translate3d(0, 0, 0)',
         },
       },
       context: {
         timing: {
-          start: wordStart,
-          duration: params.totalDuration,
+          start: 0,
+          duration: 15,
         },
       },
-      childrenData: [
+      effects: [
         {
-          id: wordId,
-          type: 'atom',
-          componentId: 'TextAtom',
+          id: `particle-drift-${i}`,
+          componentId: 'generic',
           data: {
-            text: word,
-            style: {
-              fontSize: `${params.fontSize}px`,
-              fontWeight: params.fontWeight,
-              background: gradient,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              textShadow: textShadow,
-              filter: `contrast(0.8) brightness(1.1)`,
-            },
-            font: {
-              family: params.fontFamily,
-              weights: [params.fontWeight],
-              display: 'swap',
-            },
+            type: 'ease-in-out',
+            start: 0,
+            duration: particleDriftDuration / 1000,
+            mode: 'provider',
+            targetIds: [particleId],
+            ranges: [
+              { key: 'translateX', val: 0, prog: 0 },
+              { key: 'translateX', val: driftX, prog: 0.5 },
+              { key: 'translateX', val: 0, prog: 1 },
+              { key: 'translateY', val: 0, prog: 0 },
+              { key: 'translateY', val: driftY, prog: 0.5 },
+              { key: 'translateY', val: 0, prog: 1 },
+            ],
           },
-          context: {
-            timing: {
-              start: 0,
-              duration: params.totalDuration,
-            },
-          },
-          effects: wordEffects,
-        } as RenderableComponentData,
+        },
       ],
-    };
+    } as RenderableComponentData);
+  }
 
-    return wordWrapper;
-  });
-
-  // Words container with flex layout
-  const wordsContainer: RenderableComponentData = {
-    id: 'words-container',
+  // Particle container
+  const particleContainer: RenderableComponentData = {
+    id: 'watercolor-particle-container',
     type: 'layout',
     componentId: 'BaseLayout',
     data: {
       containerProps: {
-        className: 'relative flex flex-wrap items-center justify-center',
+        className: 'absolute inset-0',
         style: {
-          gap: `${params.wordSpacing}px`,
-          mixBlendMode: 'multiply',
+          pointerEvents: 'none',
+          zIndex: 1,
         },
       },
     },
     context: {
       timing: {
         start: 0,
-        duration: params.totalDuration + (words.length * params.staggerDelay),
+        duration: 15,
       },
     },
-    childrenData: wordComponents,
+    childrenData: particles,
+  };
+
+  // Call SubtitlesOverlay preset
+  const subtitlesResult = await presets['SubtitlesOverlay'](
+    {
+      animationStyle,
+      fontSize,
+      fontFamily,
+      fontWeight,
+      textColor,
+      backgroundColor,
+      textShadow,
+    },
+    props,
+  );
+
+  // Extract subtitles container
+  const subtitlesContainer =
+    subtitlesResult?.output?.childrenData?.[0] || null;
+
+  if (!subtitlesContainer) {
+    throw new Error('SubtitlesOverlay did not return valid output');
+  }
+
+  // Add watercolor formation effects to text container
+  const textContainerId = 'watercolor-text-container';
+  const textContainer: RenderableComponentData = {
+    ...subtitlesContainer,
+    id: textContainerId,
+    effects: [
+      // Cloud formation effect: blur 20px → 0px, contrast 0.5 → 1, brightness 1.2 → 1
+      {
+        id: 'watercolor-formation',
+        componentId: 'generic',
+        data: {
+          type: 'ease-out',
+          start: 0,
+          duration: blurDuration / 1000,
+          mode: 'provider',
+          targetIds: [textContainerId],
+          ranges: [
+            { key: 'filter', val: 'blur(20px) contrast(0.5) brightness(1.2)', prog: 0 },
+            { key: 'filter', val: 'blur(0px) contrast(1) brightness(1)', prog: 1 },
+          ],
+        },
+      },
+      // Breathing pulse animation: scale 1 → 1.05 → 1
+      {
+        id: 'watercolor-breathing',
+        componentId: 'generic',
+        data: {
+          type: 'ease-in-out',
+          start: 0,
+          duration: breathingDuration / 1000,
+          mode: 'provider',
+          targetIds: [textContainerId],
+          ranges: [
+            { key: 'scale', val: 1, prog: 0 },
+            { key: 'scale', val: 1.05, prog: 0.5 },
+            { key: 'scale', val: 1, prog: 1 },
+          ],
+        },
+      },
+    ],
   };
 
   // Root container
   const rootContainer: RenderableComponentData = {
-    id: 'watercolor-text-root',
+    id: 'watercolor-root-container',
     type: 'layout',
     componentId: 'BaseLayout',
     data: {
       containerProps: {
-        className: 'relative w-full h-full flex items-center justify-center',
+        className: 'relative flex flex-col items-center justify-center',
+        style: {
+          width: '100%',
+          height: '100%',
+        },
       },
     },
     context: {
       timing: {
         start: 0,
-        duration: params.totalDuration + (words.length * params.staggerDelay),
+        duration: 15,
       },
     },
-    childrenData: [wordsContainer],
+    childrenData: [particleContainer, textContainer],
   };
 
   return {
@@ -345,56 +322,45 @@ const presetExecution = (
   };
 };
 
-// Preset metadata
 const presetMetadata: PresetMetadata = {
   id: 'watercolor-text-animation',
-  title: 'Watercolor Text Animation',
+  title: 'Dreamy Watercolor Text Animation',
   description:
-    'Organic watercolor paint-spreading text animation with soft brush effects, irregular fluid edges, breathing bleeds, subtle floating motion, and pastel gradient color variations. Creates a dreamy, weightless feel with each word appearing as if painted on wet paper.',
+    'A hypnotic text animation where words materialize through soft watercolor clouds that coalesce into readable text. Features organic watercolor splashes that form into letters, gentle pulsing breathing animations, chromatic aberration effects, and floating color particles. The movement is fluid and constantly evolving with overlapping animations creating a dreamy aesthetic.',
   type: 'predefined',
   presetType: 'children',
   tags: [
     'text',
     'watercolor',
-    'paint',
-    'organic',
-    'artistic',
     'dreamy',
-    'floating',
-    'gradient',
-    'pastel',
-    'soft',
-    'breathing',
+    'artistic',
     'fluid',
-    'hand-painted',
+    'particles',
+    'breathing',
+    'chromatic-aberration',
+    'abstract',
+    'hypnotic',
   ],
   defaultInputParams: {
-    text: 'Watercolor Dreams',
+    animationStyle: 'fade-blur',
     fontSize: 64,
-    fontFamily: 'Quicksand',
-    fontWeight: '600',
-    colorGradient1:
-      'linear-gradient(135deg, #FFB6C1 0%, #DDA0DD 50%, #B0E0E6 100%)',
-    colorGradient2:
-      'linear-gradient(135deg, #DDA0DD 0%, #B0E0E6 50%, #FFE4E1 100%)',
-    colorGradient3:
-      'linear-gradient(135deg, #B0E0E6 0%, #FFE4E1 50%, #FFB6C1 100%)',
-    wordSpacing: 16,
-    initialBlur: 0.5,
-    fadeInDuration: 0.8,
-    scaleDuration: 1.2,
-    floatDuration: 3,
-    floatDistance: 5,
-    staggerDelay: 0.15,
-    totalDuration: 5,
+    fontFamily: 'Inter',
+    fontWeight: '700',
+    textColor: '#ffffff',
+    backgroundColor: 'transparent',
+    textShadow:
+      '2px 0 0 rgba(255,0,0,0.3), -2px 0 0 rgba(0,255,255,0.3), 0 2px 20px rgba(0,0,0,0.3)',
+    blurDuration: 3000,
+    breathingDuration: 4000,
+    particleCount: 10,
+    particleDriftDuration: 10000,
   },
   dependencies: {
-    presets: [],
+    presets: ['SubtitlesOverlay'],
     helpers: [],
   },
 };
 
-// Export preset
 export const watercolorTextAnimationPreset = {
   metadata: presetMetadata,
   presetFunction: presetExecution.toString(),
