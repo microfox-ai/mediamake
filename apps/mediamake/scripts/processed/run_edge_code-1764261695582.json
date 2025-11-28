@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Minimalist multi-clip layout clean wipe transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "c866e9P4GZ3adTKO",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-drQXawCJ4nxx5i6w",
+          "state": "output-available",
+          "output": {
+            "title": "Minimalist Clean Wipe Multi-Clip Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a minimalist multi-clip video transition preset that implements clean horizontal wipe transitions between multiple video clips. The transition should feature a precise linear wipe effect where the incoming video slides in from the right while revealing itself through a clean edge, as the outgoing video remains static underneath. Use a single BaseLayout container with multiple VideoAtom components positioned absolutely. Each transition should have a 0.5 second overlap period where the wipe effect occurs. Implement the wipe using CSS clip-path animations on the incoming video, transitioning from 'inset(0 100% 0 0)' to 'inset(0 0 0 0)' with a linear easing. The outgoing video should maintain full opacity throughout the transition. Support at least 3-4 video clips with consistent wipe transitions between each. Calculate the BaseLayout duration as the sum of all video durations minus the total overlap time (0.5s × number of transitions).",
+                "technicalSpecs": "BaseLayout container: 'relative w-full h-full overflow-hidden bg-black'. VideoAtom positioning: 'absolute inset-0 w-full h-full object-cover'. Wipe effect: Use generic transform effect with clip-path animation via style property. Incoming video timing: startTime = previousVideo.duration - 0.5s. Effect timing: AnimationRange from 0% to 100% over 0.5s during overlap period. Z-index: incoming videos have higher z-index (z-10, z-20, z-30). No opacity changes - pure geometric wipe. GPU acceleration: include 'will-change-transform' class."
+              },
+              {
+                "prompt": "Design a minimalist vertical blind transition preset for multiple video clips, where videos transition through clean vertical strips that slide upward. Create a sophisticated blind effect by dividing the incoming video into 5-8 vertical strips using multiple masked instances of the same VideoAtom. Each strip should slide up from bottom with a slight staggered delay (0.05s between strips) creating a venetian blind reveal effect. The outgoing video remains visible through the gaps until all strips complete their animation. Use a 0.8 second total transition duration with strips animating sequentially. Position each video strip using precise width calculations (e.g., 'w-1/5' for 5 strips) and clip-path for clean edges. The BaseLayout should accommodate multiple video clips with this blind transition between each pair.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full bg-gray-900'. Strip creation: Duplicate VideoAtom with different clip-paths like 'clip-path: inset(0 80% 0 0%)', 'clip-path: inset(0 60% 0 20%)', etc. Strip animation: translateY from 100% to 0% with staggered delays. Positioning classes: 'absolute inset-0' for base videos, strips use calculated left positions. Effect timing: Each strip animates for 0.3s with 0.05s delay increments. Z-index layering: outgoing video z-0, incoming strips z-10 through z-50. Performance: 'transform-gpu' on all animated elements."
+              },
+              {
+                "prompt": "Build a minimalist diagonal sweep transition preset where videos transition through a clean 45-degree diagonal wipe from top-left to bottom-right. The transition should feel precise and geometric, with the incoming video revealing itself through an angled mask that sweeps across the frame. Implement this using a rotating rectangular mask that moves diagonally, creating a sharp transition edge. The sweep should take 0.6 seconds and maintain a perfectly straight diagonal line throughout. Support multiple video clips with consistent diagonal transitions. Add a subtle shadow along the transition edge using a gradient overlay to enhance the geometric feel. The outgoing video should remain completely static while being revealed/hidden by the sweep.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full overflow-hidden'. Diagonal mask: Use transform rotate(45deg) with translateX/translateY animation. Incoming video: clip-path polygon animation from 'polygon(0 0, 0 0, 0 100%, 0 100%)' to 'polygon(0 0, 100% 0, 100% 100%, 0 100%)'. Shadow edge: Add a subtle gradient div with 'bg-gradient-to-br from-black/20 to-transparent' that moves with the wipe. Timing: 0.6s transition with ease-in-out. Position: All videos use 'absolute inset-0 object-cover'. Z-index: incoming video z-10, shadow z-20."
+              },
+              {
+                "prompt": "Create a minimalist iris wipe transition preset for multiple video clips, featuring a clean circular reveal that expands from the center. The incoming video should be revealed through a growing circle that starts as a small point in the center and expands to fill the entire frame. Use CSS clip-path with circle() to create smooth, geometric iris transitions. The circle should expand with a subtle ease-out curve over 0.7 seconds, creating a camera aperture-like effect. The outgoing video remains fully visible until covered by the expanding circle. Support 3-5 video clips with consistent iris transitions. Add an optional thin white border around the expanding circle edge for enhanced visual clarity.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full bg-black overflow-hidden'. Iris effect: clip-path animation from 'circle(0% at 50% 50%)' to 'circle(75% at 50% 50%)'. Incoming video: 'absolute inset-0 object-cover' with clip-path. Border effect: Additional div with border using same clip-path, slightly larger radius, 'border-2 border-white/80'. Timing: 0.7s with cubic-bezier(0.34, 1.56, 0.64, 1). Multiple videos: Calculate startTime for each based on previous duration minus 0.7s overlap. Z-index: outgoing z-0, incoming z-10, border z-20."
+              },
+              {
+                "prompt": "Design a minimalist push transition preset where incoming videos literally push outgoing videos off screen with clean, linear motion. The outgoing video slides left while the incoming video slides in from the right, both moving in perfect synchronization. During the 0.5 second transition, both videos are visible side-by-side, creating a seamless push effect. Implement precise positioning where the incoming video starts at translateX(100%) and animates to translateX(0%), while the outgoing video simultaneously moves from translateX(0%) to translateX(-100%). Support multiple clips with alternating push directions (left, right, up, down) for visual variety. Maintain sharp edges with no blur or fade.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full overflow-hidden'. Outgoing video: transform translateX from 0% to -100% over 0.5s. Incoming video: transform translateX from 100% to 0% over 0.5s. Both use 'absolute inset-0 w-full h-full object-cover'. Linear easing for mechanical precision. Direction variants: Use translateY for vertical, combine for diagonal. Timing calculation: Each video starts at previous.duration - 0.5s. No opacity changes, pure position-based transition. Add 'transform-gpu' for smooth animation."
+              },
+              {
+                "prompt": "Build a minimalist split-screen wipe transition where videos transition through a clean vertical split that opens from the center. The incoming video is revealed as two halves that slide apart from the middle - the left half slides left and the right half slides right, like curtains opening. Create this using two instances of the incoming VideoAtom, each clipped to show only half the video. The halves should move symmetrically outward from the center over 0.6 seconds with smooth easing. The outgoing video remains static underneath. Support multiple video clips with this theatrical curtain-style transition. Keep the aesthetic clean and geometric with precise timing.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full bg-black'. Outgoing video: 'absolute inset-0 object-cover z-0'. Left half: VideoAtom with 'clip-path: inset(0 50% 0 0)', translateX from 50% to 0%. Right half: VideoAtom with 'clip-path: inset(0 0 0 50%)', translateX from -50% to 0%. Both halves: 'absolute inset-0 object-cover z-10'. Animation: 0.6s with ease-out timing. Synchronization: Both halves animate simultaneously. Multiple clips: Calculate overlap timing for each transition. Optional: Add 1px white line at center split for definition."
+              },
+              {
+                "prompt": "Create a minimalist clock wipe transition preset where videos transition through a radial sweep effect, like a clock hand rotating around the center. The incoming video is revealed through a pie-slice shaped mask that rotates clockwise from 12 o'clock position, completing a full 360-degree rotation. Implement using CSS conic-gradient masks or clip-path polygon animations that create a smooth rotational reveal. The transition should take 0.8 seconds with consistent angular velocity. The outgoing video remains static while being progressively hidden. Support multiple clips with alternating clockwise/counter-clockwise rotations. Maintain clean, sharp edges throughout the rotation.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full overflow-hidden'. Clock wipe: Use clip-path polygon with calculated points for rotation, or CSS mask with conic-gradient. Animation: Rotate polygon points or gradient angle from 0deg to 360deg. Incoming video: 'absolute inset-0 object-cover' with animated mask. Timing: 0.8s with linear easing for constant rotation speed. Center point: All rotations anchor at 50% 50%. Direction alternation: Use rotation direction CSS property or reverse polygon point calculations. Z-index: outgoing z-0, incoming z-10. GPU acceleration with 'will-change-clip-path'."
+              },
+              {
+                "prompt": "Design a minimalist grid dissolve transition where videos transition through a clean checkerboard pattern that reveals the incoming video. Divide the frame into a 4x4 or 5x5 grid where each cell reveals the incoming video with a slight stagger, creating a organized dissolution effect. Each grid cell should be a separate masked instance of the incoming VideoAtom that scales from 0 to full size. Cells animate in a diagonal wave pattern from top-left to bottom-right over 0.7 seconds total. The outgoing video remains visible in the gaps until all cells fill in. Keep the geometry precise with no overlaps or gaps between cells.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full'. Grid cells: 16 or 25 VideoAtom instances with calculated positions and clip-paths. Cell size: 'w-1/4 h-1/4' for 4x4 grid. Clip-path: Each cell uses inset() based on grid position. Scale animation: transform scale from 0 to 1 with staggered delays. Stagger pattern: Calculate delay based on row + column index × 0.03s. Cell positioning: Use absolute with calculated top/left percentages. Z-index: outgoing z-0, grid cells z-10 to z-35. Easing: ease-out for organic feel. Total duration: 0.7s from first to last cell."
+              },
+              {
+                "prompt": "Build a minimalist page turn transition preset where videos transition as if turning pages in a book. The outgoing video appears to fold and flip like a page, revealing the incoming video underneath. Create this effect using 3D transforms where the outgoing video rotates around the Y-axis from 0 to -180 degrees, with perspective applied for realistic depth. Add a subtle gradient shadow that moves across the 'page' during the flip. The transition should take 0.9 seconds with smooth acceleration and deceleration. Support multiple clips with alternating left/right page turns. Keep the effect clean and readable without excessive distortion.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full perspective-1000'. Outgoing video: 'absolute inset-0 origin-left' with rotateY animation from 0deg to -180deg. Transform-style: preserve-3d for proper 3D rendering. Incoming video: 'absolute inset-0 z-0' static position. Shadow overlay: Gradient div that animates opacity and position during flip. Timing: 0.9s with cubic-bezier easing. Backface-visibility: hidden on outgoing video. Alternative: Origin-right with rotateY 180deg for right page turn. Multiple clips: Alternate transform-origin between left and right."
+              },
+              {
+                "prompt": "Create a minimalist barn door transition preset where videos transition through symmetrical horizontal bands that slide apart like opening barn doors. Divide the frame into 3-4 horizontal strips that slide outward from the center - top strips slide up, bottom strips slide down, revealing the incoming video underneath. Each strip should be a masked portion of the outgoing video that animates out with precise timing. The strips should move with a slight stagger (0.08s between each) creating a mechanical, organized reveal. The transition completes in 0.6 seconds total. Support multiple clips with consistent barn door transitions. Maintain perfectly straight horizontal edges with no rotation or skew.",
+                "technicalSpecs": "BaseLayout: 'relative w-full h-full overflow-hidden'. Incoming video: 'absolute inset-0 object-cover z-0' static. Outgoing strips: 3-4 instances of outgoing VideoAtom with horizontal clip-paths. Strip 1 (top): 'clip-path: inset(0 0 75% 0)', translateY to -100%. Strip 2 (upper-mid): 'clip-path: inset(25% 0 50% 0)', translateY to -50%. Strip 3 (lower-mid): 'clip-path: inset(50% 0 25% 0)', translateY to 50%. Strip 4 (bottom): 'clip-path: inset(75% 0 0 0)', translateY to 100%. Stagger: 0.08s delay between each strip. Duration: 0.3s per strip animation. Z-index: strips at z-10 through z-40."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3467,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5911
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:41:35.582Z"
+}

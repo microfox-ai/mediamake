@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Subtle, smooth rotation on the Y-axis as text fades in. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "nH6IMB3dx2pA3AzX",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-507PD2CwUZYgYyF1",
+          "state": "output-available",
+          "output": {
+            "title": "Smooth Y-Axis Rotation with Fade-In Typography",
+            "prompts": [
+              {
+                "prompt": "Create a cinematic title preset with a smooth Y-axis rotation that reveals text like a film credit sequence. Think of how movie titles emerge from darkness with dimensional depth - the text should rotate in 3D space from -90deg to 0deg on the Y-axis while simultaneously fading in from 0 to 100% opacity. Use a luxurious ease-out curve over 1.2-1.5 seconds per word/line. The rotation should feel like the text is pivoting from being perpendicular to the camera into view, creating a premium, professional feel. Add subtle perspective depth with transform-style preserve-3d. For caption-based text, stagger each word with a 100-200ms delay to create a cascading reveal effect. Consider adding a subtle text-shadow that animates alongside the rotation to enhance the 3D illusion.",
+                "technicalSpecs": "Use BaseLayout with 'relative w-full h-full flex items-center justify-center' and style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}. For each TextAtom, apply a generic keyframe effect with rotateY animation from -90 to 0, opacity from 0 to 1, using ease-out easing over 1200ms. If using caption data, map through words array and add staggered start times using word.relativeStartTime + (index * 0.1). Add text-shadow effect that animates from '0 0 0 transparent' to '2px 2px 8px rgba(0,0,0,0.3)'. Use containerProps.className 'overflow-hidden' to prevent text from appearing outside bounds during rotation. Consider using an internal effect preset for the rotation-fade combo for reusability."
+              },
+              {
+                "prompt": "Design a minimalist typography preset where text rotates subtly on the Y-axis like pages turning in a book. The rotation should be gentle - only 15-20 degrees - creating a sophisticated parallax effect as text fades in. Think of it as a designer's approach to text reveals: understated but impactful. Each line or word should have a slight rotational offset, creating a layered, dimensional look. The fade should lead the rotation slightly, becoming visible at 30% opacity before the rotation begins, reaching full opacity as the rotation completes. Add a soft blur that clears as the text settles into position, similar to rack focus in cinematography.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative w-full h-full flex flex-col gap-4 justify-center px-8'. Each TextAtom should have two effects: 1) opacity effect from 0 to 1 over 800ms with ease-in-out, 2) rotateY effect from -20 to 0 starting 200ms after opacity begins, lasting 600ms. Add a blur filter effect from 4px to 0px synchronized with the rotation. Use containerProps.style with perspective: '600px' for subtle depth. For caption-based implementations, access word.relativeStartTime and add 150ms stagger between words. Consider fitDurationTo: 'children' to ensure proper timing inheritance."
+              },
+              {
+                "prompt": "Build a dynamic news ticker-style preset where headlines rotate in from the side with Y-axis rotation, mimicking broadcast graphics. The text should slide in from the right while rotating from 45deg to 0deg on Y-axis, creating a sweeping motion effect. Think CNN or ESPN lower thirds - bold, attention-grabbing, with momentum. The rotation should have a slight overshoot (rotate to -5deg then settle to 0deg) for a bouncy, energetic feel. Combine with a scale animation from 0.8 to 1.0 for added impact. The fade-in should be quick and punchy - 0 to 100% in the first 30% of the animation duration.",
+                "technicalSpecs": "Use BaseLayout with 'absolute bottom-0 left-0 right-0 p-6' for lower-third positioning. Apply containerProps.className 'bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm' for broadcast aesthetic. TextAtom effects array: translateX from 100% to 0, rotateY from 45 to -5 to 0 (using multiple keyframes), scale from 0.8 to 1.05 to 1.0, opacity from 0 to 1. Total duration 600ms with spring easing for the overshoot effect. If using caption data, process words in groups of 3-4 for headline chunks, using sentence.relativeStartTime for timing. Add childrenProps for consistent text styling across all atoms."
+              },
+              {
+                "prompt": "Create an elegant carousel-style preset where text rotates in 3D space like cards on a spinning display. Each text element should rotate around a central Y-axis point, appearing to orbit into view. The rotation should feel smooth and continuous - imagine text mounted on an invisible cylinder that's slowly turning. Start with text at rotateY: -180deg (back-facing) and rotate to 0deg (front-facing) while the opacity transitions from 0 at -90deg to full at 0deg. Add a subtle Z-translation that brings text forward as it faces the viewer, creating a true 3D carousel effect. This works beautifully for testimonials, quotes, or feature lists.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full flex items-center justify-center' and style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}. For sequential text reveals, use type: 'scene' with each TextAtom as a child. Apply compound transform effect: rotateY from -180 to 0, translateZ from -100px to 0px to 50px to 0px (for depth pop), opacity with custom range [{ time: 0, value: 0 }, { time: 0.25, value: 0 }, { time: 0.5, value: 1 }]. Duration: 2000ms with ease-in-out. For caption-based text, consider grouping words into phrases and treating each phrase as a carousel card. Use fitDurationTo: 'media' if syncing with video background."
+              },
+              {
+                "prompt": "Develop a glitch-inspired typokinetic preset where text appears through corrupted Y-axis rotations and digital artifacts. The text should flicker into existence with rapid micro-rotations on the Y-axis (-5deg to 5deg to 0deg) combined with opacity strobing. Think cyberpunk aesthetics - the rotation isn't smooth but stuttered, like a hologram stabilizing. Layer in RGB color separation during the glitch phase, where red/blue channels have slightly different rotation values. The fade-in should be non-linear: flash to 100%, drop to 30%, then stabilize at 100%. Add digital scan lines or noise texture overlays that fade out as text stabilizes.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black overflow-hidden'. Create three TextAtom layers for RGB split effect, each with different rotateY animations: red channel -5 to 0, green channel 0 to 0, blue channel 5 to 0. Use blend modes (screen/multiply) for color separation. Opacity effect with keyframes: [0, 1, 0.3, 1, 0.8, 1] over 400ms for flicker. Add custom CSS filter for scan lines using repeating linear gradient. If using caption data, apply glitch effect to high-impact words (word.metadata?.impact > 0.7). Consider using internal effect preset 'glitch-reveal' for the complex animation sequence. Add slight translateX jitter: random values between -2px and 2px."
+              },
+              {
+                "prompt": "Design a fluid, water-like preset where text flows into view with organic Y-axis rotation, as if emerging from liquid. The rotation should undulate - starting at rotateY: 30deg, overcorrecting to -10deg, then settling at 0deg - creating a wave-like motion. Combine with a vertical float effect (translateY) that makes text appear to rise through water. The opacity should fade in gradually like text surfacing from depths, with a subtle blur-to-focus transition mimicking underwater distortion. Add a ripple displacement effect using CSS filters or clip-path animations for extra fluidity.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full flex items-center justify-center' and containerProps.style with perspective: '800px'. TextAtom with multiple effects: rotateY with keyframes [30, -10, 5, 0] using spring easing, translateY from 20px to -5px to 0px, opacity from 0 to 0.6 to 1. Add filter blur from 8px to 0px and custom CSS filter for wave distortion using SVG filters. Duration: 1800ms. For caption implementation, use word.relativeStartTime with 200ms overlap between words for fluid continuity. Consider adding a subtle scale effect from 0.95 to 1.02 to 1 for breathing motion. Use internal effect preset for the wave motion pattern."
+              },
+              {
+                "prompt": "Create a retro arcade-style preset where text rotates in with pixelated precision, like old-school video game titles. The Y-axis rotation should be stepped, not smooth - rotating in 15-degree increments (-90, -75, -60, -45, -30, -15, 0) to simulate low frame rate animation. Each rotation step should coincide with an opacity increase (0, 0.14, 0.28, 0.42, 0.57, 0.71, 1.0). Add a neon glow effect that pulses once the text is fully visible. Include a subtle CRT monitor curve distortion and scanline overlay. The timing should feel rhythmic and mechanical, like it's synchronized to an 8-bit soundtrack.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-black flex items-center justify-center' and style={{ imageRendering: 'pixelated' }}. TextAtom with custom font 'PressStart2P:400:normal' or similar pixel font. Create stepped rotation using multiple keyframes with 'steps(1, end)' easing function for each 15-degree increment. Duration: 100ms per step (700ms total). Add text-shadow effect for neon glow: '0 0 10px currentColor, 0 0 20px currentColor' with pulse animation post-reveal. For caption data, treat each word as a separate arcade sprite with individual timing. Consider adding a shake effect on impact words using translateX/Y with random values between -1px and 1px."
+              },
+              {
+                "prompt": "Build a sophisticated parallax preset where multiple text layers rotate at different speeds on the Y-axis, creating depth. Foreground text rotates from -30deg to 0deg quickly (600ms), midground from -60deg to 0deg moderately (900ms), and background from -90deg to 0deg slowly (1200ms). Each layer should have different opacity curves - foreground fades in last but most prominently, background fades in first but remains at 70% opacity. Think of it like a multi-plane camera technique in classic animation. Add subtle size differences and blur levels to enhance the depth illusion. This creates a rich, layered typography composition perfect for hero sections or title sequences.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full' containing three nested BaseLayouts with 'absolute inset-0 flex items-center justify-center' and different z-index values. Each layer gets unique perspective values: 600px (front), 900px (mid), 1200px (back). TextAtom in each layer with coordinated effects: Layer 1: rotateY -30 to 0 (600ms), opacity 0 to 1, scale 1; Layer 2: rotateY -60 to 0 (900ms), opacity 0 to 0.85, scale 0.9; Layer 3: rotateY -90 to 0 (1200ms), opacity 0 to 0.7, scale 0.8, blur 1px. Use ease-out easing with slight delays (0ms, 100ms, 200ms) between layers. For caption usage, distribute words across layers based on metadata importance."
+              },
+              {
+                "prompt": "Design an audio-reactive preset where text Y-axis rotation responds to music beats, creating a dancing typography effect. The base rotation animates from -45deg to 0deg, but on each beat detection, text briefly rotates an additional 5-10deg then springs back. The fade-in should pulse with audio intensity - dimming and brightening with the bass frequencies. Think music visualizer meets kinetic typography. Add scale pulses synchronized with kicks and snares. The rotation should have a subtle continuous drift even between beats, like text floating in sonic waves.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-blue-900/20'. Use waveform effects with audio analysis: beat-rotate effect targeting rotateY with sensitivity 0.8 and threshold 0.6, reacting to bass frequencies. Base TextAtom effect: rotateY from -45 to 0 over 1000ms. Add beat-scale waveform effect with 1.0 to 1.2 range on beat detection. For opacity, use audio.intensity to modulate between 0.7 and 1.0. If using caption data, sync word appearances with detected beats using audio analysis API. Include internal effect preset 'audio-pulse' for the beat-reactive animations. Consider fitDurationTo: 'audio' for perfect synchronization."
+              },
+              {
+                "prompt": "Create a storytelling preset where text rotates in like pages of a pop-up book unfolding. Each text element should rotate from a folded position (rotateY: -90deg) with a transform-origin set to the left edge, creating a page-flip effect. The rotation should ease-out dramatically in the last 20% of the animation, simulating the paper settling. Combine with a subtle drop-shadow that grows as the page 'lifts' off the background. The opacity should be tied to the rotation angle - completely transparent when perpendicular, fully opaque when flat. Add a paper texture overlay and slight sepia tint for an authentic storybook feeling.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full p-12 bg-amber-50'. TextAtom with containerProps.style: { transformOrigin: 'left center', transformStyle: 'preserve-3d' }. Apply effects: rotateY from -90 to 0 with custom easing curve [0.68, -0.55, 0.265, 1.55] for dramatic settle, opacity with conditional keyframes based on rotation angle [{ time: 0, value: 0 }, { time: 0.3, value: 0.2 }, { time: 0.5, value: 0.6 }, { time: 1, value: 1 }]. Add drop-shadow filter from 'drop-shadow(0 0 0 transparent)' to 'drop-shadow(4px 4px 8px rgba(0,0,0,0.3))'. Duration: 1400ms. For caption data, treat each sentence as a book page with sentence.relativeStartTime + 300ms overlap for continuous reading flow. Consider sub-preset for paper texture overlay."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3474,
+              "outputTokens": 3742,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 7216
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:53:50.409Z"
+}

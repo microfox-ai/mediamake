@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Selective element desaturation. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "jjhg8tH6ohU3X1t8",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-FkXYJbisuuegnEdK",
+          "state": "output-available",
+          "output": {
+            "title": "Selective Desaturation Effects for Text, Video & Images",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset module called 'SelectiveDesaturation' that progressively desaturates specific elements while keeping others in full color. The effect should use CSS filter grayscale property with AnimationRange keyframes, accepting parameters for target element IDs, desaturation intensity (0-100%), duration, and easing curve. The effect should smoothly animate from full color to the specified grayscale level, with support for staggered timing when multiple elements are targeted. Think of this like the classic film technique where everything fades to black and white except the hero element - but inverted, where you select what loses color.",
+                "technicalSpecs": "Effect type: Generic AnimationRange. Properties: filter (grayscale). Structure: { type: 'generic', mode: 'provider', targetIds: params.targetIds, start: params.start || 0, duration: params.duration || 1000, ranges: [{ key: 'filter', val: `grayscale(${params.intensity}%)`, prog: [0, 1] }], easing: params.easing || 'ease-in-out' }. Input schema: z.object({ targetIds: z.array(z.string()), intensity: z.number().min(0).max(100), duration: z.number(), easing: z.enum(['linear', 'ease-in', 'ease-out', 'ease-in-out']), stagger: z.number().optional() }). Return format: { effects: targetIds.map((id, index) => effectWithStagger(id, index * stagger)) }"
+              },
+              {
+                "prompt": "Build a 'PulsingDesaturation' internal effect preset that creates a rhythmic color-to-grayscale pulsing effect synchronized with audio beats. This waveform effect should react to bass frequencies, making elements pulse between full color and desaturated states. The effect should support multiple intensity levels and sensitivity thresholds, perfect for music videos or dynamic presentations where visual elements lose and regain color in sync with the beat. Imagine a heartbeat monitor but for color saturation.",
+                "technicalSpecs": "Effect type: Waveform audio-reactive. Properties: filter (grayscale), scale. Configuration: { type: 'waveform', mode: 'provider', targetIds: params.targetIds, audioProperty: 'bass', effectType: 'custom', customEffect: { filter: (audioValue) => `grayscale(${audioValue * params.maxDesaturation}%)`, scale: (audioValue) => 1 + (audioValue * 0.05) }, sensitivity: params.sensitivity || 0.7, threshold: params.threshold || 0.3 }. Input schema: z.object({ targetIds: z.array(z.string()), maxDesaturation: z.number().min(0).max(100), sensitivity: z.number().min(0).max(1), threshold: z.number().min(0).max(1) }). PresetMetadata: { _internalPreset: true, _internalPresetOutput: 'effects' }"
+              },
+              {
+                "prompt": "Design a 'ColorDrainReveal' internal effect that creates a dramatic color-draining animation where saturation appears to 'leak out' from a specific point. Use combined generic effects with both grayscale filter and brightness adjustments, creating a more cinematic desaturation that maintains proper exposure. The effect should support radial or linear drain patterns, with customizable origin points and spread timing. Think of it like watching old film stock deteriorate but in a controlled, artistic way.",
+                "technicalSpecs": "Effect type: Combined Generic. Properties: filter (grayscale + brightness). Structure: { effects: [{ type: 'generic', mode: 'provider', targetIds: params.targetIds, ranges: [{ key: 'filter', val: `grayscale(${prog}%) brightness(${1 + prog * 0.2})`, prog: [0, 0.3, 0.7, 1] }] }, { type: 'generic', mode: 'provider', targetIds: params.targetIds, ranges: [{ key: 'opacity', val: 1 - (prog * 0.1), prog: [0.5, 1] }] }] }. Input schema: z.object({ targetIds: z.array(z.string()), pattern: z.enum(['radial', 'linear', 'random']), origin: z.object({ x: z.number(), y: z.number() }).optional(), compensateBrightness: z.boolean() })"
+              },
+              {
+                "prompt": "Create a 'SelectiveSaturationMask' effect preset that applies desaturation based on element hierarchy or type. This intelligent effect should desaturate background elements while keeping foreground content vibrant, or vice versa. Use CSS filter combinations with contrast adjustments to maintain visual depth. The effect should support inverse modes, partial desaturation levels, and smooth transitions between saturation zones. Perfect for creating focus effects where color guides attention.",
+                "technicalSpecs": "Effect type: Generic with conditional logic. Properties: filter (grayscale + contrast + blur). Structure: { type: 'generic', mode: 'provider', targetIds: params.targetIds, ranges: params.targetIds.map(id => ({ key: 'filter', val: getFilterForLayer(id, params.layerConfig), prog: [0, 0.2, 0.8, 1] })) }. Helper function: getFilterForLayer determines grayscale % based on z-index or element type. Input schema: z.object({ targetIds: z.array(z.string()), layerConfig: z.object({ background: z.number(), midground: z.number(), foreground: z.number() }), invertMode: z.boolean(), smoothTransition: z.boolean() })"
+              },
+              {
+                "prompt": "Build a 'ChromaticDesaturation' internal effect that separates RGB channels before desaturating, creating a glitch-like color separation effect during the transition. The effect should animate each color channel independently with slight timing offsets, producing a prismatic desaturation that feels like analog video degradation. Support for channel-specific intensity and timing controls, with optional chromatic aberration during the transition.",
+                "technicalSpecs": "Effect type: Combined Generic with RGB manipulation. Properties: filter (multiple), transform. Structure: { effects: ['red', 'green', 'blue'].map((channel, i) => ({ type: 'generic', mode: 'provider', targetIds: params.targetIds, start: i * params.channelDelay, ranges: [{ key: 'filter', val: `${channel === 'red' ? 'hue-rotate(-120deg)' : channel === 'green' ? 'hue-rotate(120deg)' : ''} grayscale(${prog * params.intensity}%)`, prog: [0, 1] }], duration: params.duration })) }. Input schema: z.object({ targetIds: z.array(z.string()), intensity: z.number(), channelDelay: z.number(), aberrationAmount: z.number().optional() })"
+              },
+              {
+                "prompt": "Design a 'MemoryFadeDesaturation' effect preset that mimics how memories fade - starting with vibrant colors that slowly drain away, but with occasional flickers back to full saturation. Use AnimationRange with non-linear progression values to create nostalgic, film-like desaturation with random color 'memories' that briefly return. Perfect for storytelling transitions or emotional moments where color represents vitality or presence.",
+                "technicalSpecs": "Effect type: Generic with complex keyframes. Properties: filter (grayscale), opacity. Structure: { type: 'generic', mode: 'provider', targetIds: params.targetIds, ranges: [{ key: 'filter', val: `grayscale(${calculateMemoryFade(prog, params.flickerPoints)}%)`, prog: [0, 0.2, 0.3, 0.35, 0.4, 0.6, 0.65, 0.7, 0.9, 1] }], easing: 'ease-in-out' }. Helper: calculateMemoryFade returns varying grayscale values with flicker points. Input schema: z.object({ targetIds: z.array(z.string()), finalDesaturation: z.number(), flickerPoints: z.array(z.number()), flickerIntensity: z.number() })"
+              },
+              {
+                "prompt": "Create a 'FrequencyBandDesaturation' waveform effect that desaturates different elements based on different audio frequency bands. Low frequencies desaturate one set of elements, mids another, and highs a third set. This creates a visual equalizer effect where color saturation represents audio spectrum activity. Support for frequency band mapping, sensitivity per band, and smooth interpolation between states.",
+                "technicalSpecs": "Effect type: Waveform multi-band. Configuration: { effects: ['bass', 'mid', 'treble'].map(band => ({ type: 'waveform', mode: 'provider', targetIds: params.bandTargets[band], audioProperty: band, effectType: 'custom', customEffect: { filter: (audioValue) => `grayscale(${(1 - audioValue) * params.maxDesaturation[band]}%)` }, sensitivity: params.sensitivity[band] })) }. Input schema: z.object({ bandTargets: z.object({ bass: z.array(z.string()), mid: z.array(z.string()), treble: z.array(z.string()) }), maxDesaturation: z.object({ bass: z.number(), mid: z.number(), treble: z.number() }), sensitivity: z.object({ bass: z.number(), mid: z.number(), treble: z.number() }) })"
+              },
+              {
+                "prompt": "Build a 'DepthBasedDesaturation' internal effect that applies grayscale based on perceived depth or z-index layering. Elements further 'back' become more desaturated while foreground elements retain color, creating atmospheric perspective. The effect should support depth maps, custom depth values per element, and fog-like gradual desaturation. Include optional blur for distant elements to enhance the depth illusion.",
+                "technicalSpecs": "Effect type: Generic with depth calculation. Properties: filter (grayscale + blur), opacity. Structure: { effects: params.targetIds.map(id => ({ type: 'generic', mode: 'provider', targetIds: [id], ranges: [{ key: 'filter', val: `grayscale(${calculateDepthDesaturation(params.depthMap[id])}%) blur(${params.depthMap[id] * params.blurMultiplier}px)`, prog: [0, 1] }], duration: params.duration, delay: params.depthMap[id] * params.delayMultiplier })) }. Input schema: z.object({ targetIds: z.array(z.string()), depthMap: z.record(z.string(), z.number()), blurMultiplier: z.number(), delayMultiplier: z.number(), fogIntensity: z.number().optional() })"
+              },
+              {
+                "prompt": "Design a 'ThresholdDesaturation' effect preset that desaturates elements only when they cross certain brightness or color thresholds. This creates a high-contrast, poster-like effect where only the brightest or most saturated colors remain. Use CSS filter combinations with dynamic threshold calculations. Perfect for creating dramatic, film noir-style effects or highlighting specific color ranges while muting others.",
+                "technicalSpecs": "Effect type: Generic with conditional filters. Properties: filter (grayscale + contrast + brightness). Structure: { type: 'generic', mode: 'provider', targetIds: params.targetIds, ranges: [{ key: 'filter', val: `grayscale(${prog * params.desaturationAmount}%) contrast(${1 + prog * params.contrastBoost}) brightness(${calculateThresholdBrightness(prog, params.threshold)})`, prog: generateThresholdProgression(params.thresholdType) }] }. Input schema: z.object({ targetIds: z.array(z.string()), thresholdType: z.enum(['brightness', 'saturation', 'luminance']), threshold: z.number().min(0).max(1), desaturationAmount: z.number(), contrastBoost: z.number(), preserveHighlights: z.boolean() })"
+              },
+              {
+                "prompt": "Create a 'TemporalDesaturation' internal effect that applies time-based desaturation with echo/trail effects. Elements gradually lose color but leave behind brief color 'ghosts' or trails, creating a motion-blur-like desaturation. This effect should support multiple echo layers, variable trail lengths, and decay rates. Think of it as combining desaturation with temporal displacement - like watching color being pulled through time.",
+                "technicalSpecs": "Effect type: Combined Generic with echo layers. Properties: filter, opacity, transform. Structure: { effects: params.echoCount.map((_, i) => ({ type: 'generic', mode: 'provider', targetIds: params.targetIds, start: i * params.echoDelay, ranges: [{ key: 'filter', val: `grayscale(${prog * (1 - i/params.echoCount) * 100}%)`, prog: [0, 1] }, { key: 'opacity', val: 1 - (i/params.echoCount * 0.5), prog: [0, 1] }], duration: params.duration * (1 + i * 0.2) })) }. Input schema: z.object({ targetIds: z.array(z.string()), echoCount: z.number().min(1).max(10), echoDelay: z.number(), decayRate: z.number(), trailLength: z.number(), temporalBlur: z.boolean() })"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2553,
+              "outputTokens": 3404,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5957
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:04:43.897Z"
+}

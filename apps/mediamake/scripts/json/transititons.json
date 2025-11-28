@@ -1,0 +1,8 @@
+{
+  "agentPath": "/preset-prompts/generate-prompt",
+  "defaultParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10
+  },
+  "queue": []
+}

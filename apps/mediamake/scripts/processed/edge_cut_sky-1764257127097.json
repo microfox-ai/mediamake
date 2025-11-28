@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "internalEffects",
+    "promptsCount": 10,
+    "userDescription": "Thin border or frame animation. internal effects for text, video, images"
+  },
+  "result": [
+    {
+      "id": "sqzNuduOFThQcT5o",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-Ksxhmf3tN8GBoMTe",
+          "state": "output-available",
+          "output": {
+            "title": "Thin Border Animations with Internal Effects",
+            "prompts": [
+              {
+                "prompt": "Create an internal effect preset that animates a thin border around elements using CSS outline properties. The effect should create a pulsing, glowing border that starts invisible and gradually appears with a subtle breathing animation. Use generic AnimationRange to animate outline-width from 0 to 2px, outline-offset from -2px to 2px, and outline color with opacity fading. Include parameters for borderColor (default: white), borderWidth (1-3px), pulseDuration (in seconds), and glowIntensity (0-1 for opacity). The effect should use a smooth ease-in-out easing for organic movement. Return as provider mode effect targeting specific component IDs.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: outline (width, offset, color with rgba). AnimationRange structure: [{key: 'outline', val: '0px solid rgba(255,255,255,0)', prog: 0}, {key: 'outline', val: '2px solid rgba(255,255,255,0.8)', prog: 0.5}, {key: 'outline', val: '1px solid rgba(255,255,255,0.3)', prog: 1}]. Input params: Zod schema with borderColor (string), borderWidth (number 1-3), pulseDuration (number), glowIntensity (number 0-1). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return format: {effects: [{type: 'generic', mode: 'provider', targetIds, start: 0, duration: pulseDuration, ranges}]}"
+              },
+              {
+                "prompt": "Design an audio-reactive waveform effect preset that creates a dynamic border animation synced to bass frequencies. The border should 'dance' by scaling and rotating slightly on beat hits, creating a vibrant frame effect around media elements. Implement using waveform zoom and rotate effects with bass detection. Include sensitivity controls for how strongly the border reacts (0.1-1.0), threshold for triggering (0-1), and a borderStyle parameter to switch between 'pulse', 'shake', or 'rotate' modes. The effect should create a club-like visual energy around the targeted elements.",
+                "technicalSpecs": "Effect type: Waveform (audio-reactive). Waveform configuration: {type: 'zoom', audioProperty: 'bass', sensitivity: 0.5, threshold: 0.3} combined with {type: 'rotate', audioProperty: 'bass', sensitivity: 0.2, threshold: 0.4}. Input params: sensitivity (number 0.1-1.0), threshold (number 0-1), borderStyle (enum: 'pulse'|'shake'|'rotate'). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects', dependencies: {presets: []}}. Return format: {effects: [{type: 'waveform', mode: 'provider', targetIds, start: 0, duration: 'parent', props: {zoom/rotate config}}]}"
+              },
+              {
+                "prompt": "Build a sophisticated box-shadow based border animation preset that creates a multi-layered frame effect. Animate multiple box-shadow layers with different colors and blur radii to create depth. Start with no shadow, then animate to a complex shadow system: inner glow (inset shadow), main border (0 blur shadow), and outer glow (blurred shadow). Use AnimationRange to morph between shadow states. Parameters should include primaryColor, secondaryColor, frameThickness (1-5px), glowRadius (5-20px), and animationStyle ('fade-in', 'expand', 'morph'). The effect should feel like a neon sign turning on.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: boxShadow with multiple layers. AnimationRange: [{key: 'boxShadow', val: 'none', prog: 0}, {key: 'boxShadow', val: 'inset 0 0 3px rgba(primaryColor), 0 0 0 2px primaryColor, 0 0 15px rgba(primaryColor, 0.5)', prog: 0.6}, {key: 'boxShadow', val: full multi-layer shadow, prog: 1}]. Input params: primaryColor (string), secondaryColor (string), frameThickness (number 1-5), glowRadius (number 5-20), animationStyle (enum). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [{type: 'generic', mode: 'provider', targetIds, ranges, easing: 'ease-out'}]}"
+              },
+              {
+                "prompt": "Create a gradient border animation effect using CSS linear-gradient on a pseudo-element approach (simulated via background). The border should animate its gradient colors in a rotating fashion, creating a rainbow or custom color cycle effect around the frame. Use AnimationRange to animate background-position for gradient movement and opacity for fade effects. Include parameters for gradientColors (array of colors), borderWidth (1-4px), rotationSpeed (seconds per cycle), and fadeInDuration. The effect should create an animated gradient frame that continuously moves around the element's perimeter.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: background (linear-gradient), backgroundPosition, opacity. AnimationRange: [{key: 'background', val: linear-gradient with colors, prog: 0}, {key: 'backgroundPosition', val: '0% 50%', prog: 0}, {key: 'backgroundPosition', val: '100% 50%', prog: 1}]. Input params: gradientColors (array of strings), borderWidth (number 1-4), rotationSpeed (number), fadeInDuration (number). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [{type: 'generic', mode: 'provider', targetIds, duration: rotationSpeed, ranges, loop: true}]}"
+              },
+              {
+                "prompt": "Develop a combined effect preset that creates an animated dashed border with morphing dash patterns. The effect should animate stroke-dasharray and stroke-dashoffset (via CSS border styling) to create a 'marching ants' effect that also changes dash sizes. Combine this with a subtle scale effect that makes the frame 'breathe'. Parameters include dashPattern (array like [5,3,2,3]), marchSpeed (pixels per second), breathScale (1.0-1.05), and borderColor. The animation should feel like an active selection border in design software.",
+                "technicalSpecs": "Effect type: Combined (Generic + Generic). First effect: border dash animation via borderStyle/borderWidth. Second effect: scale animation. AnimationRange 1: [{key: 'border', val: '2px dashed color', prog: 0}, {key: 'borderImageSlice', val: animated dash offset, prog: 1}]. AnimationRange 2: [{key: 'scale', val: 1, prog: 0}, {key: 'scale', val: 1.02, prog: 0.5}, {key: 'scale', val: 1, prog: 1}]. Input params: dashPattern (array), marchSpeed (number), breathScale (number), borderColor (string). Return: {effects: [dashEffect, scaleEffect]}"
+              },
+              {
+                "prompt": "Design a clip-path based border animation that creates a geometric frame effect. The border appears by animating a clip-path polygon that reveals the element from the edges inward, creating a frame that 'draws' itself. Use AnimationRange to morph clip-path values from full reveal to creating an inner border effect. Include parameters for borderThickness (percentage of element size), cornerStyle ('sharp', 'rounded', 'beveled'), drawDuration (seconds), and drawDirection ('clockwise', 'all-sides', 'diagonal'). The effect should feel like a high-tech UI element materializing.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: clipPath (polygon values). AnimationRange: [{key: 'clipPath', val: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)', prog: 0}, {key: 'clipPath', val: 'polygon with border inset values', prog: 1}]. Input params: borderThickness (number 1-10 as percentage), cornerStyle (enum), drawDuration (number), drawDirection (enum). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [{type: 'generic', mode: 'provider', targetIds, duration: drawDuration, ranges, easing: 'ease-in-out'}]}"
+              },
+              {
+                "prompt": "Create an audio-reactive frequency-based border effect that visualizes different frequency bands as colored borders. The border should have multiple layers (bass=red, mid=green, treble=blue) that scale independently based on their frequency data. Use waveform effects with different audio properties for each layer. Parameters include colorMapping (object mapping frequencies to colors), maxScale (1.0-1.2), sensitivity (per frequency band), and blendMode ('additive', 'multiply', 'normal'). This creates a music visualizer frame effect.",
+                "technicalSpecs": "Effect type: Waveform (multi-layer audio-reactive). Multiple waveform configs: [{type: 'scale', audioProperty: 'bass', sensitivity: 0.6}, {type: 'scale', audioProperty: 'mid', sensitivity: 0.5}, {type: 'scale', audioProperty: 'treble', sensitivity: 0.4}]. Input params: colorMapping (object), maxScale (number 1.0-1.2), sensitivity (object with bass/mid/treble values), blendMode (enum). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [bassEffect, midEffect, trebleEffect] all targeting same IDs with different visual properties}"
+              },
+              {
+                "prompt": "Build a glitch-style border animation that creates a distorted, flickering frame effect. Combine rapid opacity changes, transform skews, and color channel splits (via filters) to create a cyberpunk aesthetic. Use AnimationRange with random-feeling but deterministic keyframes. Parameters include glitchIntensity (0-1), colorSplit (pixels of RGB separation), flickerRate (changes per second), and primaryColor. The border should appear to malfunction and reassemble repeatedly, perfect for tech-themed content.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: opacity, transform (skewX/Y), filter (for color splits). Complex AnimationRange with multiple rapid changes: [{key: 'opacity', val: 0, prog: 0}, {key: 'opacity', val: 1, prog: 0.1}, {key: 'opacity', val: 0.3, prog: 0.15}, etc]. Combined with transform and filter animations. Input params: glitchIntensity (number 0-1), colorSplit (number), flickerRate (number), primaryColor (string). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [{type: 'generic', mode: 'provider', targetIds, ranges: [opacityRanges, transformRanges, filterRanges]}]}"
+              },
+              {
+                "prompt": "Design a particle-based border effect that simulates small elements orbiting around the frame edges. While we can't create actual particles, simulate this with animated box-shadows creating multiple small 'light points' that move along the border path. Use AnimationRange to animate shadow positions in a circular/rectangular pattern. Parameters include particleCount (4-12), particleSize (1-3px), orbitSpeed (seconds per revolution), particleColor, and trailEffect (boolean for motion blur). Creates a magical or sci-fi frame effect.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: boxShadow with multiple shadow layers representing particles. AnimationRange animates shadow x/y positions: [{key: 'boxShadow', val: '10px 0 3px color, 0 10px 3px color, -10px 0 3px color, 0 -10px 3px color', prog: 0}, {rotated positions, prog: 0.25}, etc]. Input params: particleCount (number 4-12), particleSize (number 1-3), orbitSpeed (number), particleColor (string), trailEffect (boolean). Return: {effects: [{type: 'generic', mode: 'provider', targetIds, duration: orbitSpeed, ranges, loop: true}]}"
+              },
+              {
+                "prompt": "Create a responsive border effect that adapts its animation based on element aspect ratio and size. The border should morph between different styles: thin and subtle for small elements, bold and animated for large ones. Use AnimationRange with conditional logic based on input parameters. Include aspectRatio parameter, sizeThreshold (pixels), thinStyle (border config), boldStyle (border config), and morphDuration. The effect intelligently chooses border animation complexity based on the target element's characteristics, ensuring optimal visual impact regardless of content size.",
+                "technicalSpecs": "Effect type: Generic (AnimationRange[]). Properties: border, boxShadow, scale (conditional). Dynamic AnimationRange based on params: if small/portrait use subtle animations, if large/landscape use complex animations. Input params: aspectRatio (number), sizeThreshold (number), thinStyle (object with border props), boldStyle (object with border props), morphDuration (number). PresetMetadata: {_internalPreset: true, _internalPresetOutput: 'effects'}. Return: {effects: [{type: 'generic', mode: 'provider', targetIds, ranges: conditionalRanges, duration: morphDuration}]}"
+              }
+            ],
+            "usage": {
+              "inputTokens": 2553,
+              "outputTokens": 3431,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5984
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:25:27.097Z"
+}

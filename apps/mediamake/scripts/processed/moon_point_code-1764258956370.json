@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Kaleidoscopic fractal pattern replication transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "SJY3im92ZnIV6iAg",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-PSbRJsXX7U9h1P8w",
+          "state": "output-available",
+          "output": {
+            "title": "Kaleidoscopic Fractal Video Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a kaleidoscopic fractal transition where the outgoing video splits into hexagonal tiles that rotate and scale down while revealing the incoming video through a growing fractal pattern. The transition should use a 2-second overlap period where the outgoing video fragments into 6 symmetrical hexagonal sections that spiral outward with decreasing opacity. Each hexagon should have a subtle rainbow prismatic edge effect using CSS filters. The incoming video should emerge from the center as an expanding fractal pattern with recursive scaling animations. Use transform-gpu for hardware acceleration and implement the fractal effect through multiple nested divs with scaling transforms. The transition should feel like looking through a constantly shifting kaleidoscope lens.",
+                "technicalSpecs": "BaseLayout container with 'relative overflow-hidden' and duration calculated as video1.duration + video2.duration - 2s overlap. Outgoing VideoAtom uses clip-path for hexagonal masking with 6 duplicated instances at different rotations (0deg, 60deg, 120deg, etc). Each hexagon div has 'absolute' positioning with transform-origin center. Generic effects in provider mode: opacity AnimationRange from 1 to 0 over 2s for outgoing hexagons, scale AnimationRange from 1 to 0.1 and rotate AnimationRange from 0deg to 360deg. Incoming VideoAtom starts at startOffset: video1.duration - 2s with scale AnimationRange from 0.1 to 1 and custom CSS filter for hue-rotate animation. Z-index: 10 for incoming, 5 for outgoing hexagons."
+              },
+              {
+                "prompt": "Design a fluid kaleidoscopic transition using morphing blob shapes that replicate and mirror across multiple axes. The outgoing video should distort into organic blob forms using SVG filters for turbulence and displacement, creating a liquid mercury effect. These blobs should replicate into a 3x3 grid pattern that rotates around the center point while the incoming video emerges through the negative space. Implement smooth bezier easing curves (cubic-bezier(0.68, -0.55, 0.265, 1.55)) for an elastic feel. The transition should last 1.5 seconds with the blob distortion intensifying at the midpoint before resolving into the clean incoming video.",
+                "technicalSpecs": "Single BaseLayout with 'relative w-full h-full' containing 9 div wrappers for blob replication grid. Each wrapper at 'absolute w-1/3 h-1/3' with calculated positions (top-0 left-0, top-0 left-1/3, etc). Outgoing VideoAtom duplicated in each wrapper with SVG filter applied via style prop: filter: url(#turbulence). SVG defs element with feTurbulence and feDisplacementMap for distortion. Generic effects: scale from 1 to 0.5, opacity from 1 to 0 over 1.5s with easing. Incoming VideoAtom at z-10 with startOffset: video1.duration - 1.5s, initial scale 0.5 with AnimationRange to 1. Rotation effect on entire grid container using transform AnimationRange from 0deg to 180deg."
+              },
+              {
+                "prompt": "Build a crystalline fractal shatter transition where the outgoing video breaks into triangular shards that replicate and cascade outward in a spiral pattern. Each shard should have a glass-like refraction effect using backdrop-filter blur and brightness adjustments. The shards should replicate themselves into smaller versions creating a recursive fractal pattern. The incoming video should assemble from these scattered pieces, starting from the outer edges and spiraling inward. Include a subtle camera shake effect during the peak transition moment for added dynamism. The 2.5-second overlap should feel like watching a crystal formation in reverse.",
+                "technicalSpecs": "BaseLayout duration: video1.duration + video2.duration - 2.5s. Create 24 triangular shards using clip-path: polygon() with calculated vertices. Each shard is a div with 'absolute' positioning containing a cropped VideoAtom copy. Apply backdrop-filter: blur(2px) brightness(1.2) to each shard. Generic effects in provider mode: transform AnimationRange for translateX/Y (calculated spiral positions), scale from 1 to 0, rotate from 0 to 720deg. Stagger delays using CSS custom properties (--delay: calc(0.05s * var(--index))). Incoming video uses reverse animation: shards start at outer positions and animate to center. Add shake effect using transform: translate with random values over 0.2s at transition midpoint."
+              },
+              {
+                "prompt": "Develop a mandala-inspired kaleidoscopic transition where both videos blend through rotating geometric patterns that replicate in perfect symmetry. The outgoing video should be masked through an 8-fold symmetrical mandala shape that rotates clockwise while scaling down. Simultaneously, the incoming video appears through a counter-rotating mandala pattern creating a mesmerizing interlocking effect. Use CSS custom properties for dynamic color shifting that creates rainbow prismatic edges between the patterns. The 1.8-second transition should pulse with a breathing rhythm using scale transforms.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-black' containing two pattern containers. First container for outgoing video: 8 divs with 'absolute inset-0' rotated at 45deg intervals (transform: rotate(calc(45deg * var(--i)))). Each div contains VideoAtom with clip-path for triangular wedge. Generic effects: rotate AnimationRange 0 to 360deg clockwise, scale 1 to 0.3, opacity 1 to 0.5. Second container for incoming video with identical structure but counter-clockwise rotation (-360deg). CSS variables for prismatic effect: --hue: calc(var(--i) * 45deg), filter: hue-rotate(var(--hue)). Breathing effect: scale AnimationRange with keyframes [1, 1.1, 1, 0.9, 1] over 1.8s. Z-index layering: incoming at 10, outgoing at 5."
+              },
+              {
+                "prompt": "Create a dimensional portal transition using fractal zoom and replication effects. The outgoing video should appear to zoom infinitely inward through a series of nested rectangular frames that decrease in size exponentially. Each frame should have a slight rotation offset creating a spiral tunnel effect. The incoming video emerges from the center point and expands outward through the same fractal tunnel but in reverse. Add chromatic aberration effects on the edges using CSS filters for red, green, and blue channel splits. The 2.2-second transition should accelerate through the tunnel using exponential easing.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px for 3D depth. Create 12 nested divs for fractal frames, each with 'absolute inset-[calc(5% * var(--level))]' for exponential sizing. Outgoing VideoAtom in outermost frame with transform-style: preserve-3d. Generic effects: translateZ AnimationRange from 0 to -2000px with exponential easing, rotate 0 to 180deg, scale 1 to 0.01. Each nested frame has increasing rotation offset: transform: rotateZ(calc(15deg * var(--level))). Chromatic aberration using three VideoAtom copies with mix-blend-mode and translate offsets for RGB channels. Incoming video starts at center with reverse animation: translateZ from -2000px to 0, scale from 0.01 to 1 over 2.2s."
+              },
+              {
+                "prompt": "Design a liquid mirror kaleidoscope transition where videos morph through reflective mercury-like surfaces that split and replicate. The outgoing video should liquefy into metallic droplets that multiply and scatter in a radial pattern while maintaining reflection symmetry across multiple axes. Each droplet should have a convex distortion effect simulating surface tension. The incoming video coalesces from these scattered droplets converging back to the center. Include iridescent color shifts using hue-rotate animations. The 1.6-second overlap should feel like watching liquid metal reshape itself.",
+                "technicalSpecs": "BaseLayout with radial-gradient background for depth. Generate 16 droplet containers in circular formation using polar coordinates: top: calc(50% + sin(var(--angle)) * var(--radius)), left: calc(50% + cos(var(--angle)) * var(--radius)). Each droplet div with 'absolute w-24 h-24 rounded-full overflow-hidden'. VideoAtom in each with object-fit: cover and filter for metallic effect: contrast(1.2) brightness(1.1). Generic effects: scale AnimationRange with elastic easing [1, 1.3, 0.8, 1.1, 0] for surface tension, translateX/Y for scatter motion. Reflection achieved by transform: scaleX(-1) on alternating droplets. Iridescent effect: filter with hue-rotate AnimationRange 0deg to 360deg. Incoming uses reverse convergence animation."
+              },
+              {
+                "prompt": "Build a geometric tessellation transition using repeating fractal patterns inspired by Penrose tiles. The outgoing video fragments into interlocking pentagonal and star shapes that replicate and rotate to fill the screen in a non-repeating pattern. Each tile should have a different phase of the video creating a time-shifted mosaic effect. The incoming video reconstructs from these tiles reorganizing into the correct temporal sequence. Add subtle glow effects on tile edges using box-shadow. The 2-second transition should include a mid-point rotation where all tiles flip simultaneously.",
+                "technicalSpecs": "BaseLayout with display: grid and custom CSS grid-template-areas for Penrose tiling. Create 30 tile divs with clip-path for pentagon and star shapes. Outgoing VideoAtom duplicated in each tile with different startFrom values (staggered by 0.1s) creating temporal offset. Position tiles using CSS Grid placement. Generic effects: rotateY AnimationRange 0 to 180deg for flip effect at 1s mark, scale 1 to 0.8 to 0, opacity with stepped timing. Box-shadow: 0 0 10px rgba(255,255,255,0.5) for edge glow. Incoming video tiles start flipped (rotateY: 180deg) and flip back while scaling from 0 to 1. Use transform-style: preserve-3d and backface-visibility: hidden for clean flip."
+              },
+              {
+                "prompt": "Create a hypnotic spiral vortex transition where videos twist through a fractal spiral that replicates into smaller spirals. The outgoing video should wrap around a logarithmic spiral path with segments that decrease in size following the golden ratio. Each spiral segment should rotate at different speeds creating a hypnotic whirlpool effect. The incoming video unravels from the center following the reverse spiral path. Apply motion blur effects using CSS filters during peak rotation. The 2.3-second transition should accelerate into the vortex center then decelerate as the new video emerges.",
+                "technicalSpecs": "BaseLayout with transform-origin: 50% 50% for central rotation. Generate spiral path using 20 segments with positions calculated via logarithmic spiral formula: r = a * e^(b*θ). Each segment is a div with VideoAtom, width/height following golden ratio reduction (width: calc(100% / pow(1.618, var(--index)))). Generic effects: rotate AnimationRange with acceleration curve, values from 0 to 1080deg * (index/20) for differential rotation. TranslateX/Y following spiral coordinates. Motion blur: filter: blur() AnimationRange from 0 to 4px peaking at 1.15s. Opacity fade from 1 to 0 for outgoing. Incoming video follows reverse spiral with scale from 0 to 1, starting at center with z-index: 20."
+              },
+              {
+                "prompt": "Design a prismatic kaleidoscope transition using light refraction and spectral color separation. The outgoing video should split into RGB color channels that replicate into a hexagonal honeycomb pattern. Each hexagon cell should act as a prism refracting the video into rainbow spectrums that rotate independently. The incoming video assembles from these dispersed color channels converging and recombining. Include light leak effects using CSS gradients and blend modes. The 1.7-second transition should pulse with chromatic energy before resolving to full color.",
+                "technicalSpecs": "BaseLayout with mix-blend-mode: screen for light effects. Create honeycomb grid using CSS Grid with hexagonal clip-paths. Three VideoAtom copies per cell for RGB channels: red with filter: hue-rotate(-120deg) saturate(2), green normal, blue with filter: hue-rotate(120deg) saturate(2). Position with slight offsets: translateX(calc(var(--offset) * var(--channel))). Generic effects: rotate AnimationRange 0 to 360deg per hexagon with staggered delays, scale pulsing [1, 1.2, 0.8, 1, 0]. Light leaks using ::before pseudo-elements with linear-gradient and mix-blend-mode: overlay. Incoming video channels start separated and converge: translateX from offsets to 0, opacity 0 to 1 over 1.7s."
+              },
+              {
+                "prompt": "Build a recursive fractal bloom transition where videos transform through self-similar patterns that unfold like a blooming flower. The outgoing video should fragment into petal-shaped segments that replicate themselves at smaller scales creating a fractal flower pattern. Each petal generation should rotate and fade at different rates creating depth. The incoming video grows from the center seed point expanding through the same fractal pattern. Add particle effects using small video fragments that float away like pollen. The 2.1-second transition should breathe with organic timing using spring physics easing.",
+                "technicalSpecs": "BaseLayout with multiple nesting levels for fractal recursion. Create base flower with 8 petals using clip-path: ellipse() rotated at 45deg intervals. Each petal contains scaled copies of itself (3 recursion levels) at 50% size. Outgoing VideoAtom in each petal with decreasing opacity per level: opacity: calc(1 - 0.3 * var(--level)). Generic effects: rotate AnimationRange with spring easing, scale from 1 to 0 for collapse, translateY for drift effect. Particle system: 20 small divs with VideoAtom fragments, random positions and float animations. Incoming video uses reverse bloom: scale 0 to 1 from center, petals unfold with staggered timing (delay: calc(0.1s * var(--level))). Spring easing: cubic-bezier(0.68, -0.55, 0.265, 1.55)."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3580,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6024
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T15:55:56.370Z"
+}

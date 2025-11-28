@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Stop motion photo movement slight position change transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "A1wy8L7qdoUWWzEu",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-T1AK9Fcz84CIwX9q",
+          "state": "output-available",
+          "output": {
+            "title": "Stop Motion Position Change Video Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a stop motion photo transition preset that simulates a physical photo stack being slightly repositioned between each frame. Use subtle position shifts (2-3% movement) combined with micro-rotations during a 0.8s overlap period. The outgoing video should appear to 'freeze' into a photo that shifts position slightly (translateX: -20px, translateY: 10px, rotate: -2deg) while fading out, as the incoming video fades in from a complementary shifted position (translateX: 20px, translateY: -10px, rotate: 2deg). Add a subtle drop shadow that intensifies during the transition to emphasize the photo-like quality. The transition should feel like someone is manually adjusting photos on a table between shots.",
+                "technicalSpecs": "BaseLayout container with 'relative w-full h-full overflow-hidden bg-black' and duration calculated as video1.duration + video2.duration - 0.8s overlap. VideoAtom for outgoing media at startFrom: 0, duration: video1.duration, with generic opacity effect from 1 to 0.7 during overlap at video1.duration - 0.8s, and transform effect with translateX: 0 to -20px, translateY: 0 to 10px, rotate: 0 to -2deg. VideoAtom for incoming media at startFrom: video1.duration - 0.8s, with initial opacity 0 to 1 over 0.8s, transform from translateX: 20px, translateY: -10px, rotate: 2deg to neutral. Both videos use 'absolute inset-0 object-cover'. Add filter effect for drop shadow: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' to 'drop-shadow(0 10px 15px rgba(0,0,0,0.3))' during transition."
+              },
+              {
+                "prompt": "Design a jittery stop motion transition that mimics old film projector frame advances with rapid micro-movements. Create a series of 5 quick position jumps (each lasting 0.1s) during a 0.5s overlap, where each jump moves the frame 5-10 pixels in random directions. The outgoing video should stutter through these positions while decreasing opacity (100% → 80% → 60% → 40% → 20% → 0%), while the incoming video mirrors the jitter pattern but increases opacity inversely. Add a film grain overlay effect and slight vignette that pulses during each position change to enhance the vintage projector feel.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full bg-neutral-900' and duration as media1.duration + media2.duration - 0.5s. Outgoing VideoAtom with stepped transform animations at 5 keyframes (0s, 0.1s, 0.2s, 0.3s, 0.4s) using translateX: [0, 8px, -5px, 10px, -7px, 0] and translateY: [0, -5px, 7px, -8px, 6px, 0], opacity stepping down [1, 0.8, 0.6, 0.4, 0.2, 0]. Incoming VideoAtom starting at media1.duration - 0.5s with inverse opacity steps [0, 0.2, 0.4, 0.6, 0.8, 1] and matching transform jitter. Add ShapeAtom overlay with 'absolute inset-0 pointer-events-none mix-blend-screen opacity-20' for grain texture. Use filter effects for vignette: 'brightness(1) contrast(1)' to 'brightness(0.95) contrast(1.1)' pulsing with each jump."
+              },
+              {
+                "prompt": "Build a polaroid-style position drift transition where videos appear as instant photos that slowly slide and rotate into new positions. During a 1.2s overlap, the outgoing video scales down to 0.85 while drifting diagonally (translateX: 0 to -100px, translateY: 0 to 50px) with a gentle rotation (0 to -5deg), developing a white border frame effect. The incoming video starts from an opposite diagonal position (translateX: 100px, translateY: -50px, rotate: 5deg) at 0.85 scale and drifts to center while scaling to 1. Add a subtle paper texture overlay and soft shadow that follows the movement to enhance the physical photo aesthetic.",
+                "technicalSpecs": "BaseLayout container 'relative w-full h-full bg-gradient-to-br from-gray-100 to-gray-200' with duration: video1.duration + video2.duration - 1.2s. Outgoing VideoAtom wrapped in div with 'absolute inset-4 bg-white p-2 shadow-lg' styling, transform animations: scale from 1 to 0.85, translateX: 0 to -100px, translateY: 0 to 50px, rotate: 0 to -5deg over 1.2s starting at video1.duration - 1.2s. Incoming VideoAtom in similar wrapper starting at video1.duration - 1.2s, initial transform: scale(0.85) translateX(100px) translateY(-50px) rotate(5deg), animating to neutral. Both videos use 'w-full h-full object-cover'. Add ImageAtom overlay with paper texture at 'absolute inset-0 mix-blend-multiply opacity-5 pointer-events-none'."
+              },
+              {
+                "prompt": "Create a tilt-shift stop motion transition that simulates miniature photography with selective focus shifts and micro position adjustments. The outgoing video gradually blurs from sharp to heavily blurred (blur: 0 to 8px) while shifting position slightly upward (translateY: 0 to -15px) over a 0.6s overlap. Simultaneously, the incoming video starts heavily blurred and shifts into focus while moving down into position (translateY: 15px to 0). Add a tilt-shift gradient mask effect where the center stays relatively sharp while edges blur more dramatically. Include subtle saturation boost during the transition to enhance the miniature effect.",
+                "technicalSpecs": "BaseLayout with 'relative w-full h-full overflow-hidden bg-black' and calculated duration. Outgoing VideoAtom with filter effect: blur(0px) to blur(8px), brightness(1) to brightness(0.9), saturate(1) to saturate(1.3) over 0.6s at video1.duration - 0.6s, transform: translateY(0) to translateY(-15px), opacity: 1 to 0. Incoming VideoAtom starting at video1.duration - 0.6s with filter: blur(8px) to blur(0px), brightness(0.9) to brightness(1), saturate(1.3) to saturate(1), transform: translateY(15px) to translateY(0), opacity: 0 to 1. Add gradient mask using ShapeAtom with 'absolute inset-0 bg-gradient-to-b from-transparent via-black to-transparent mix-blend-multiply opacity-30' for tilt-shift effect."
+              },
+              {
+                "prompt": "Design a frame-by-frame position glitch transition inspired by analog video tracking errors. Create rapid position oscillations (±15-20px horizontal) that occur 8 times during a 0.4s overlap, simulating VHS tracking issues. The outgoing video shifts horizontally with decreasing amplitude while RGB color channels separate slightly (using CSS filters), and the incoming video starts with maximum displacement and stabilizes. Add horizontal scan lines and chromatic aberration effects that peak during the middle of the transition for authentic analog glitch aesthetics.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black overflow-hidden'. Outgoing VideoAtom with rapid transform keyframes at 0.05s intervals: translateX alternating [0, 20px, -15px, 18px, -12px, 10px, -5px, 0], filter effects for RGB split using drop-shadow: 'drop-shadow(-2px 0 0 red) drop-shadow(2px 0 0 cyan)' intensifying during transition. Opacity: 1 to 0 over 0.4s. Incoming VideoAtom at video1.duration - 0.4s with inverse pattern starting at translateX: -20px, stabilizing to 0. Add ShapeAtom scanlines with repeating linear gradient 'absolute inset-0 pointer-events-none opacity-20 mix-blend-overlay' and CSS: 'background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)'."
+              },
+              {
+                "prompt": "Build a physical slide projector carousel transition where videos appear as slides that rotate and shift position as if advancing through a circular carousel. The outgoing video rotates counter-clockwise (rotate: 0 to -15deg) while sliding left (translateX: 0 to -150px) and scaling down slightly (scale: 1 to 0.9) during a 1s overlap. The incoming video enters from the right with clockwise rotation (rotate: 15deg to 0), sliding into position (translateX: 150px to 0) and scaling up (scale: 0.9 to 1). Add mechanical click sound effect timing and a brief brightness flash at the transition midpoint to simulate the projector light between slides.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-gradient-radial from-gray-800 to-black'. Outgoing VideoAtom with transform animation: rotate(0deg) to rotate(-15deg), translateX(0) to translateX(-150px), scale(1) to scale(0.9) over 1s starting at video1.duration - 1s, opacity: 1 to 0.3 to 0. Incoming VideoAtom at video1.duration - 1s, initial transform: rotate(15deg) translateX(150px) scale(0.9), animating to neutral, opacity: 0 to 0.3 to 1. Add brightness flash using ShapeAtom at transition midpoint (0.5s into overlap) with 'absolute inset-0 bg-white pointer-events-none' and opacity animation: 0 to 0.8 to 0 over 0.2s. Include AudioAtom with mechanical click sound effect timed at transition midpoint."
+              },
+              {
+                "prompt": "Create a Lomography-inspired multi-exposure transition where multiple shifted versions of the frames overlap briefly. During a 0.7s transition, create 3 ghost copies of the outgoing video, each slightly offset (5px, 10px, 15px) and rotated (1deg, 2deg, 3deg) with decreasing opacity (0.6, 0.4, 0.2). The incoming video fades in with similar ghost copies that converge into a single frame. Add color channel shifts (red +2px, blue -2px) and increased contrast during the overlap to mimic the unpredictable multiple exposure effect of toy cameras.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black overflow-hidden'. Create 3 VideoAtom instances for outgoing video, each with same source but different transforms: Copy1: translateX(5px) rotate(1deg) opacity(0.6), Copy2: translateX(10px) translateY(5px) rotate(2deg) opacity(0.4), Copy3: translateX(15px) translateY(10px) rotate(3deg) opacity(0.2), all fading to opacity 0 over 0.7s. Main outgoing video with opacity 1 to 0. Incoming video with 3 copies starting dispersed and converging to center, main copy opacity 0 to 1. Add filter effects: 'contrast(1) saturate(1)' to 'contrast(1.3) saturate(1.2)' during overlap. Use CSS filter for color channel shift: 'filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.5)) drop-shadow(2px 0 0 rgba(0,0,255,0.5))'."
+              },
+              {
+                "prompt": "Design a vintage viewfinder transition that simulates looking through an old camera with position adjustments between shots. The outgoing video is masked in a circular viewfinder shape that shifts position (translateX: 0 to -30px, translateY: 0 to -20px) and shrinks (scale: 1 to 0.8) during a 0.9s overlap. The incoming video appears in a second viewfinder circle that starts offset (translateX: 30px, translateY: 20px, scale: 0.8) and moves to center while expanding. Add viewfinder markings (crosshairs, focus brackets) that remain static while the video content shifts behind them.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-neutral-900'. Outgoing VideoAtom wrapped in div with 'absolute inset-0 rounded-full overflow-hidden border-4 border-gray-700', transform animations: scale(1) to scale(0.8), translateX(0) to translateX(-30px), translateY(0) to translateY(-20px) over 0.9s, opacity 1 to 0. Incoming VideoAtom in similar circular mask starting at video1.duration - 0.9s, initial transform: scale(0.8) translateX(30px) translateY(20px), animating to neutral. Add ShapeAtom overlay for viewfinder UI with 'absolute inset-0 pointer-events-none' containing SVG crosshairs and focus brackets. Use clip-path for perfect circles: 'clip-path: circle(45% at center)'."
+              },
+              {
+                "prompt": "Build a contact sheet transition where videos appear as film negatives shifting position on a light table. The outgoing video inverts colors (invert filter) and shifts to a grid position (translateX: 0 to -200px, translateY: 0 to -150px) while scaling to thumbnail size (scale: 1 to 0.3) over 1.1s. Multiple semi-transparent copies appear briefly at different grid positions. The incoming video starts as an inverted thumbnail in a different grid position and scales up while returning to normal colors. Add a bright backlight effect and film sprocket holes on the sides for authenticity.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-gradient-to-br from-gray-100 to-white'. Outgoing VideoAtom with filter: invert(0) to invert(1), transform: scale(1) to scale(0.3) translateX(-200px) translateY(-150px) over 1.1s, opacity 1 to 0.7. Create 2-3 ghost copies at different grid positions with opacity 0.3. Incoming VideoAtom starting at video1.duration - 1.1s from position translateX(200px) translateY(150px) scale(0.3) with invert(1), animating to center scale(1) invert(0). Add ImageAtom for film sprockets using repeating pattern on sides with 'absolute top-0 bottom-0 w-8 opacity-50'. Use blend mode 'mix-blend-multiply' for negative effect enhancement."
+              },
+              {
+                "prompt": "Create a handheld camera shake transition that mimics the natural movement between shots in documentary-style stop motion. Generate organic position wobbles using sine wave patterns for both X and Y axes (amplitude: 8-12px, frequency: 3-4 cycles) during a 0.8s overlap. The outgoing video shakes with increasing amplitude while fading out, and the incoming video starts with maximum shake that gradually stabilizes. Add motion blur that increases with shake intensity and a subtle zoom breathing effect (scale: 1 to 1.02 to 0.98 to 1) to simulate handheld camera movement.",
+                "technicalSpecs": "BaseLayout 'relative w-full h-full bg-black overflow-hidden'. Outgoing VideoAtom with complex transform keyframes creating sine wave motion: translateX using Math.sin pattern [0, 8px, 0, -8px, 0, 12px, 0] over 0.8s, translateY with offset sine [0, -6px, 0, 6px, 0, -10px, 0], scale oscillating [1, 1.02, 0.98, 1.01, 0.99, 1], opacity 1 to 0. Add motion blur filter: blur(0px) to blur(2px) proportional to movement speed. Incoming VideoAtom at video1.duration - 0.8s starting with maximum shake amplitude, decreasing to stable. Use CSS animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1) for organic movement feel."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2438,
+              "outputTokens": 4162,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6600
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:12:48.717Z"
+}

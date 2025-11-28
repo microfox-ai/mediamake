@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "unkown",
+    "promptsCount": 10,
+    "userDescription": "Zoom in text reveal, sharp focus pull effect."
+  },
+  "result": [
+    {
+      "id": "lCLkyGudQLrNtprh",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-VNxdIAXiXFv7FseU",
+          "state": "output-available",
+          "output": {
+            "title": "Zoom Text Reveal with Sharp Focus Pull",
+            "prompts": [
+              {
+                "prompt": "Create a cinematic depth-of-field text reveal preset that mimics a camera's focus pull effect. The text should start extremely blurred (like it's out of focus in the background) and smoothly rack focus to become sharp and clear, similar to how a cinematographer would pull focus from background to foreground. Use a BaseLayout container with 'relative w-full h-full overflow-hidden' classes. The TextAtom should have a dramatic blur filter that animates from 20px to 0px over 800ms with a custom cubic-bezier easing that simulates the mechanical movement of a camera lens. Simultaneously, animate the scale from 0.95 to 1.0 to enhance the focus pull illusion. Add a subtle brightness boost during the focus transition to simulate the increased light gathering when in focus. Consider adding a slight vignette overlay that fades out as the text comes into focus.",
+                "technicalSpecs": "Structure: BaseLayout container with containerProps.className='relative w-full h-full flex items-center justify-center overflow-hidden'. Use TextAtom with effects array containing: 1) Blur effect animating from 20px to 0px over AnimationRange 0-0.8s with ease-out easing, 2) Scale effect from 0.95 to 1.0 over same range, 3) Opacity from 0.7 to 1.0, 4) Brightness filter from 0.8 to 1.1. Add a second BaseLayout as vignette overlay with 'absolute inset-0 pointer-events-none' and radial gradient background that fades opacity from 0.4 to 0. Use will-change: filter, transform for GPU acceleration. Consider fitDurationTo: 'children' for proper timing inheritance."
+              },
+              {
+                "prompt": "Design a word-by-word zoom reveal preset that treats each word as a separate camera shot zooming in from infinity. Think of it as multiple quick crash zooms edited together in sequence - each word starts at scale(3) with opacity 0 and rapidly zooms in to scale(1) with a slight overshoot bounce. Use caption data to get word-level timing and create a staggered reveal where each word's animation overlaps slightly with the next, creating a rhythmic, punchy edit. Apply motion blur during the zoom using a directional blur filter that decreases as the word settles. Add a subtle shake effect at the end of each zoom to simulate camera impact.",
+                "technicalSpecs": "Use BaseLayout with containerProps.className='relative w-full h-full flex flex-wrap items-center justify-center gap-2'. Iterate through caption.words array, creating individual TextAtom components for each word. Each TextAtom should have: 1) Scale animation from 3 to 1.1 to 1 (overshoot) over 300ms, 2) Opacity from 0 to 1 over 150ms, 3) Blur from 10px to 0 over 200ms. Use spring easing for natural overshoot. Add translateX and translateY with random small values (-2 to 2px) at animation end for shake. Stagger start times using word.relativeStart with 50ms overlap. Consider using an internal effect preset for the zoom-shake combination that can be reused."
+              },
+              {
+                "prompt": "Build a parallax zoom text reveal where the text emerges through multiple depth layers, similar to a multiplane camera technique in traditional animation. Create three layers: far background text (blurred, scaled 0.7), mid-ground text (slightly blurred, scaled 0.85), and foreground text (sharp, scale 1.0). Each layer zooms in at different rates creating a parallax effect. The foreground text should zoom fastest, mid-ground moderate, and background slowest. Use CSS backdrop-filter for realistic depth-of-field blur on the background layers. This creates a dimensional, cinematic reveal that feels like moving through space.",
+                "technicalSpecs": "Create BaseLayout with containerProps.className='relative w-full h-full'. Add three nested BaseLayout containers with 'absolute inset-0 flex items-center justify-center' for each depth layer. Layer 1 (back): TextAtom with initial scale(0.5), blur(15px), opacity(0.3), animating to scale(0.7), blur(8px), opacity(0.5) over 1.2s. Layer 2 (mid): scale(0.6) to scale(0.85), blur(5px) to blur(2px), opacity(0.6) to opacity(0.8) over 1s. Layer 3 (front): scale(0.7) to scale(1), blur(0), opacity(1) over 0.8s. Use z-index or order for layering. Add 'transform-gpu' class for hardware acceleration. Consider different easing curves - ease-out for back, ease-in-out for mid, spring for front."
+              },
+              {
+                "prompt": "Create a lens distortion zoom reveal that simulates looking through a fisheye lens that gradually corrects to normal view. The text starts with extreme barrel distortion (curved/warped) at scale(2) and as it zooms in, the distortion corrects while the scale normalizes. Use CSS perspective and rotateX/Y transforms to create the distortion effect. Add chromatic aberration by splitting the text into RGB color channels that converge as the zoom completes. Include a subtle lens flare that sweeps across during the transition for added cinematic flair.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full perspective-1000'. Create three TextAtom components for RGB channels with mix-blend-mode. Red channel: initial translateX(-3px) rotateY(15deg) scale(2), animate to translateX(0) rotateY(0) scale(1). Green channel: no X translation, rotateY(10deg). Blue channel: translateX(3px) rotateY(5deg). All animate over 1s with cubic-bezier(0.4, 0, 0.2, 1). Add a fourth BaseLayout for lens flare with 'absolute inset-0 pointer-events-none' containing a gradient div that translates from left:-100% to left:100% with opacity animation. Use filter: blur() on each channel, decreasing from 2px to 0. Consider using an internal effect preset for the chromatic aberration effect."
+              },
+              {
+                "prompt": "Develop a telescopic zoom reveal that mimics looking through a telescope or sniper scope. The text starts as a tiny point in the center and expands outward with a circular mask that grows to reveal the full text. Add scope UI elements like crosshairs or range markers that fade out as the text becomes fully visible. Include a subtle breathing animation (scale oscillation) once revealed to simulate natural hand movement. The zoom should have an exponential acceleration curve, starting slow and speeding up dramatically.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full overflow-hidden bg-black'. TextAtom with initial scale(0.01) centered with 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'. Apply clip-path: circle(0% at center) animating to circle(100% at center) over 1.2s. Scale animates from 0.01 to 1.05 to 1.0 with exponential easing (cubic-bezier(0.95, 0.05, 0.795, 0.035)). Add scope overlay BaseLayout with 'absolute inset-0 pointer-events-none' containing SVG crosshairs, opacity 1 to 0 over final 400ms. Post-reveal: add subtle scale animation 1.0 to 1.02 to 1.0 looping every 2s with ease-in-out for breathing effect. Use transform: scale3d() for GPU optimization."
+              },
+              {
+                "prompt": "Design a split-screen zoom reveal where the text is divided into vertical slices that zoom in from different depths, creating a shattered glass or prismatic effect. Each slice has a different initial scale and blur value, and they all converge to form the complete text. Think of it as multiple camera angles of the same subject being edited together simultaneously. Add subtle rotation to each slice during the zoom for dynamic movement. Include light refraction effects using color shifts on alternating slices.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full flex flex-row overflow-hidden'. Use repeatChildrenProps to create 8-10 vertical slices, each a BaseLayout with 'relative h-full flex-1 overflow-hidden'. Each slice contains the full TextAtom but with different clip-path rectangles. Apply effects to each slice: scale from random(1.5, 3) to 1, blur from random(5, 15)px to 0, rotateZ from random(-5, 5)deg to 0, all over 800ms with staggered delays (index * 50ms). Odd slices: add hue-rotate(10deg), even slices: hue-rotate(-10deg), animating to 0. Use transform-origin: center for rotation. Consider using an internal effect preset for the slice animation pattern."
+              },
+              {
+                "prompt": "Create a macro lens zoom reveal that simulates extreme close-up photography. The text starts so close that individual pixels/texture are visible (scale 10+), then pulls back to reveal the full text. During the extreme close-up phase, add grain and noise filters to simulate sensor noise at high magnification. Include a subtle focus breathing effect where the edges slightly blur and sharpen rhythmically. As the camera pulls back, gradually reduce the grain and increase sharpness for a photographic quality reveal.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full overflow-hidden'. TextAtom with initial scale(12) and transform-origin: center. Animate scale from 12 to 1 over 1.5s with ease-in-out. Add SVG filter for grain: feTurbulence + feColorMatrix, animate baseFrequency from 0.9 to 0 and opacity from 1 to 0. Apply CSS filter with blur edges using radial gradient mask - backdrop-filter: blur(3px) on overlay div, opacity pulsing 0.3 to 0 every 600ms for focus breathing. Use two-stage animation: fast zoom from 12 to 3 (400ms), then slow from 3 to 1 (1100ms) for cinematic pacing. Add slight brightness adjustment from 1.2 to 1.0 as zoom completes."
+              },
+              {
+                "prompt": "Build a dolly zoom (vertigo effect) text reveal where the text appears to zoom while the background perspective changes in the opposite direction. This creates the unsettling visual effect famously used in film where the subject stays the same size but the spatial relationship changes. Implement this by scaling the text up while simultaneously adjusting the perspective transform on the container. Add a subtle warping effect during the transition to enhance the disorientation.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full' and dynamic style with perspective animating from 200px to 1200px over 1s. TextAtom positioned center with initial scale(0.3) and translateZ(100px), animating to scale(1) and translateZ(0) inversely timed with perspective change. This creates the dolly zoom effect where text maintains apparent size while depth changes. Add rotateX animation from -10deg to 0 for additional warping. Use transform-style: preserve-3d on container. Include subtle skewY from 5deg to 0 for unsettling distortion. Apply cubic-bezier(0.4, 0.1, 0.4, 0.9) for psychological impact. Consider adding a background element that scales inversely to enhance the effect."
+              },
+              {
+                "prompt": "Design a tilt-shift zoom reveal that makes the text appear as if shot with a tilt-shift lens, creating a miniature/diorama effect. The text starts with heavy blur on top and bottom edges (simulating shallow depth of field) and a slight zoom. As it animates, the blur gradually clears from the edges inward while the text zooms to normal scale. Add increased saturation and contrast during the reveal to mimic the toy-like appearance of tilt-shift photography.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full overflow-hidden'. Create three layers: top blur, text, bottom blur. TextAtom in center with scale(1.3) to scale(1). Two gradient mask overlays using BaseLayout with 'absolute w-full h-1/3' (top-0 and bottom-0) with backdrop-filter: blur(10px) animating to blur(0) over 1s. Apply CSS filters to TextAtom: saturate(150%) contrast(110%) transitioning to saturate(120%) contrast(105%). Use linear gradients with transparent centers for blur masks: linear-gradient(to bottom, black, transparent 70%) for smooth blur falloff. Add slight vignetting with radial-gradient overlay. Consider ease-out easing for natural focus pull feeling."
+              },
+              {
+                "prompt": "Create a probe lens zoom reveal that simulates the unique perspective of a probe/laowa lens that can get impossibly close to subjects. The text emerges from within itself - imagine the camera traveling through the letterforms themselves. Start with extreme scale (20x) focused on the center of the text with heavy radial blur on the edges. As it pulls back, reveal the full text while maintaining sharp focus in the center and gradually sharpening the edges. Add particle effects or light streaks passing by during the zoom to simulate movement through space.",
+                "technicalSpecs": "BaseLayout with containerProps.className='relative w-full h-full overflow-hidden bg-gradient-radial from-transparent to-black/30'. TextAtom with scale(20) and transform-origin: center center. Animate scale from 20 to 1 over 2s with exponential ease-out. Apply radial blur using SVG filter with feGaussianBlur, stdDeviation animating from 8 to 0, masked with radial gradient. Create particle streaks using multiple absolutely positioned divs with 'h-px w-20 bg-white' animating translateX from random positions with varying opacity and blur. Use CSS custom properties for dynamic blur radius: --blur-radius animating from 15px to 0. Add subtle rotation from rotateZ(3deg) to 0 for organic movement. Consider using internal effect preset for particle generation and animation."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3434,
+              "outputTokens": 3520,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6954
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:04:06.958Z"
+}

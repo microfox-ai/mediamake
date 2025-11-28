@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "typokinetics",
+    "promptsCount": 10,
+    "userDescription": "Soft, gentle fade-in, word by word, timed to a vocal line. typo kinetics for titles/captions/other text.."
+  },
+  "result": [
+    {
+      "id": "CkTHKWpkolUzO5Zm",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-B3n7Vvy7JiAV5DQO",
+          "state": "output-available",
+          "output": {
+            "title": "Soft Word-by-Word Fade-In Synced to Vocals",
+            "prompts": [
+              {
+                "prompt": "Create a typokinetics preset that treats each word like a gentle wave rolling onto shore. Words should fade in with a soft opacity curve (0 to 1) while simultaneously scaling from 95% to 100%, creating a 'breathing in' effect. Each word appears sequentially with a 200ms overlap, allowing the previous word to still be fading in as the next begins. The text should follow the natural rhythm of the vocal line by using caption data timing. Apply a subtle blur-to-focus effect (2px to 0) during the fade-in to enhance the softness. Position text center-aligned with adequate line-height for readability. Consider adding a very subtle text-shadow that fades in slightly after the main text (50ms delay) to add depth without harshness.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-col items-center justify-center w-full h-full' for centering. Create TextAtom components for each word from caption data. Apply generic keyframe effects with opacity (0->1), scale (0.95->1), and blur (2->0) over 800ms duration with 'ease-out' easing. Stagger word animations using relative timing with -200ms overlap. Add text-shadow effect as secondary animation with 50ms delay. Use containerProps.className for layout positioning. Consider fitDurationTo: 'children' for dynamic duration. Leverage caption.words array with relativeStart timing for precise synchronization with vocals."
+              },
+              {
+                "prompt": "Design a minimalist typokinetics preset where words materialize like morning mist clearing. Each word starts completely transparent and slightly displaced upward (translateY: -10px), then settles into position while gaining opacity. The animation should be extremely subtle and slow (1.2s per word) with a luxurious 'ease-in-out' curve. Words appear one at a time with no overlap, creating deliberate pacing that respects the vocal timing. Add a slight letter-spacing expansion (0.05em to 0.02em) during the fade to create a 'condensing' feel. The overall composition should breathe with plenty of negative space.",
+                "technicalSpecs": "Structure with BaseLayout using 'relative w-full h-full p-16' for generous padding. Generate TextAtom per word from caption data. Implement effects array with opacity (0->1), translateY (-10->0), and letterSpacing (0.05em->0.02em) animations over 1200ms with 'ease-in-out'. Use word.relativeStart for precise timing without overlap. Set font to 'Inter:300:normal' for lightweight elegance. Add will-change: 'transform, opacity' for GPU optimization. Consider using internal effect preset 'fade-in' as base, extending with custom translateY and letterSpacing."
+              },
+              {
+                "prompt": "Build a organic typokinetics preset mimicking handwritten text appearing in real-time. Words fade in with a diagonal motion from bottom-left to final position (translateX: -15px, translateY: 15px to 0,0), as if being written by an invisible hand. Apply a spring easing for natural, physics-based motion. Each word has variable fade duration (600-900ms) based on word length to simulate writing speed. Add subtle rotation (-2deg to 0deg) during appearance for hand-drawn authenticity. Layer a very soft glow effect that pulses once after each word appears, like ink settling on paper.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-wrap items-baseline justify-start p-8 leading-relaxed'. Create TextAtom for each caption word. Apply compound effects: opacity (0->1), translateX (-15->0), translateY (15->0), rotate (-2->0) with spring easing. Calculate duration as 600 + (word.text.length * 50)ms. Add secondary glow pulse effect using textShadow animation (0->4px->0 blur) triggered 100ms after main animation. Use word.relativeStart for vocal synchronization. Consider Script or handwriting font like 'Dancing Script:400:normal'. Optimize with transform3d for hardware acceleration."
+              },
+              {
+                "prompt": "Develop a ethereal typokinetics preset where words emerge from a dream-like haze. Each word starts with heavy gaussian blur (8px), zero opacity, and slight scale (85%). As it fades in, the blur gradually clears while scale normalizes, creating a 'focusing' effect like adjusting camera depth-of-field. Words overlap significantly (400ms overlap) creating a flowing, continuous reveal. Add a subtle brightness filter animation (0.7 to 1.0) to enhance the emerging-from-darkness feel. The entire text block should have a soft vignette effect around edges.",
+                "technicalSpecs": "Structure BaseLayout with 'relative w-full h-full overflow-hidden'. Add vignette using pseudo-element with 'absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/20 pointer-events-none'. Generate TextAtom per caption word. Apply effects: opacity (0->1), scale (0.85->1), blur (8->0), brightness (0.7->1) over 1000ms with 'ease-in-out'. Use relative timing with -400ms offset for overlap. Set filter property for blur and brightness. Consider using internal 'fade-in' preset as base, extending with scale and filter effects. Ensure GPU acceleration with will-change: 'transform, filter, opacity'."
+              },
+              {
+                "prompt": "Create a sophisticated typokinetics preset inspired by film title sequences. Words fade in with a cinematic dolly zoom effect - starting at scale(1.15) with slight blur, then normalizing while opacity increases. Each word has a subtle tracking animation (letter-spacing from 0.1em to 0.05em) giving a 'tightening' feel. Apply a film grain texture overlay that subtly animates. Words appear in rhythm with vocal phrases, with longer pauses between phrase groups. Add a subtle color grade shift (slight warm tint) during fade-in for nostalgic film look.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-col items-center justify-center w-full h-full bg-black'. Overlay film grain using separate BaseLayout with 'absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none' containing animated noise texture. Create TextAtom for each word with effects: opacity (0->1), scale (1.15->1), blur (1->0), letterSpacing (0.1em->0.05em), filter (sepia(0.2)->sepia(0)) over 900ms. Use caption data to detect phrase boundaries (longer gaps between words) for timing. Apply 'ease-out' for cinematic feel. Set font to serif like 'Playfair Display:400:normal'. Consider adding subtle textShadow for depth."
+              },
+              {
+                "prompt": "Design a liquid typokinetics preset where words flow into place like water droplets. Each word starts with elastic distortion using scaleX(0.7) and scaleY(1.3), then smoothly transitions to normal proportions while fading in. Add a ripple effect using multiple text-shadows that animate outward and fade. Words should feel like they're gently dropping into a still pond, with timing that follows the natural cadence of vocals. Include a subtle wave motion using translateY with a sine-wave pattern that continues after the word appears.",
+                "technicalSpecs": "Structure with BaseLayout 'relative w-full h-full flex items-center justify-center'. Generate TextAtom per caption word. Primary effects: opacity (0->1), scaleX (0.7->1), scaleY (1.3->1) over 700ms with 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' for elastic feel. Add ripple using textShadow with multiple shadows animating: '0 0 0px -> 0 0 20px -> 0 0 40px' with decreasing opacity. Post-appearance, apply continuous translateY sine wave (-2px to 2px) over 3000ms looped. Use word.relativeStart for vocal timing. Consider water-themed color with slight blue tint. Optimize with transform-origin: center for smooth scaling."
+              },
+              {
+                "prompt": "Build a nature-inspired typokinetics preset where words grow organically like leaves unfurling. Each word starts at scale(0) with transform-origin at bottom-center, creating growth from stem upward. Opacity increases non-linearly (ease-in-out-quart) mimicking natural growth patterns. Add slight rotation oscillation (-3deg to 3deg) during growth for organic movement. Words appear with variable timing based on vocal emphasis - emphasized words grow faster (500ms) while soft words take longer (1000ms). Include a gentle sway animation that continues after appearance.",
+                "technicalSpecs": "Use BaseLayout with 'flex flex-wrap items-end justify-center gap-2 p-12'. Create TextAtom for each word with transform-origin: 'bottom center'. Apply effects: opacity (0->1), scale (0->1), rotate (0->3->-3->0) using keyframe array. Duration based on caption word metadata: emphasis ? 500ms : 1000ms. Add post-growth sway using infinite rotate animation (-1deg to 1deg) over 4000ms. Use 'ease-in-out-quart' custom bezier (0.77, 0, 0.175, 1). Consider organic font like 'Quicksand:400:normal'. Layer subtle green-tinted textShadow for natural depth. Use caption.words metadata for emphasis detection."
+              },
+              {
+                "prompt": "Develop a crystalline typokinetics preset where words materialize like frost forming on glass. Each word begins invisible then appears through a crystallization effect - starting from the center of each word and expanding outward using clip-path animation. Combine with opacity fade and subtle sparkle effect using animated text-shadow. Words should feel delicate and pristine, appearing in perfect sync with vocal phrasing. Add a subtle frosted glass backdrop blur effect behind the text for depth.",
+                "technicalSpecs": "Structure BaseLayout with 'relative w-full h-full'. Add frosted backdrop using 'absolute inset-0 backdrop-blur-sm bg-white/5'. Position text container with 'relative z-10 flex flex-col items-center justify-center h-full'. Create TextAtom per word with clip-path animation: 'circle(0% at 50% 50%)' to 'circle(100% at 50% 50%)' over 800ms. Combine with opacity (0.3->1) for softer start. Add sparkle using animated textShadow: multiple small shadows that pulse. Use word.relativeStart for vocal timing. Apply 'ease-out' for natural crystallization. Consider crisp sans-serif like 'Montserrat:200:normal' for delicate feel."
+              },
+              {
+                "prompt": "Create a whisper-soft typokinetics preset where words breathe into existence like spoken secrets. Each word fades in with extreme subtlety - starting at 5% opacity and very slowly building to 100% over 1.5 seconds. Apply micro-movements using translateX with random offset (-2 to 2px) for each word, creating gentle floating. Add a barely perceptible scale pulse (1.0 to 1.02) that matches breathing rhythm. Words overlap heavily (700ms) creating a continuous, meditative flow perfectly timed to vocal delivery.",
+                "technicalSpecs": "Use BaseLayout with 'w-full h-full flex items-center justify-center p-20'. Generate TextAtom for each word from caption data. Apply ultra-soft effects: opacity (0.05->1) over 1500ms with 'ease-in'. Add micro translateX using random value between -2 and 2px per word. Layer subtle scale pulse (1->1.02->1) over 2000ms looped. Use relative timing with -700ms offset for heavy overlap. Set font to thin weight like 'Raleway:100:normal'. Add very soft textShadow (0 2px 4px rgba(0,0,0,0.1)). Consider reducing motion for accessibility with prefers-reduced-motion media query alternative."
+              },
+              {
+                "prompt": "Design an ambient typokinetics preset where words dissolve in like particles coalescing. Start each word completely dispersed using blur(20px) and letter-spacing(0.5em), then gradually pull together while fading in. Add subtle color shift from desaturated to full color using CSS filters. Each word's animation duration varies based on word importance (keywords take 1.2s, others 0.8s). Create depth with staggered z-index layers and subtle parallax motion. The overall effect should feel like thoughts forming from abstract concepts.",
+                "technicalSpecs": "Structure with BaseLayout 'relative w-full h-full overflow-hidden bg-gradient-to-b from-gray-900 to-black'. Create TextAtom per word with varying z-index based on word index. Apply complex effects: opacity (0->1), blur (20px->0), letterSpacing (0.5em->0.02em), grayscale (1->0), brightness (0.5->1) over duration based on word.metadata.keyword flag. Add subtle parallax using translateY tied to word z-index (higher words move more). Use 'cubic-bezier(0.4, 0, 0.2, 1)' for smooth convergence. Consider modern sans like 'Space Grotesk:300:normal'. Optimize with will-change for all animated properties. Leverage caption metadata for keyword detection."
+              }
+            ],
+            "usage": {
+              "inputTokens": 3480,
+              "outputTokens": 3304,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 6784
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:49:11.180Z"
+}

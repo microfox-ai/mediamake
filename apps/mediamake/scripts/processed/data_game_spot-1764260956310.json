@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Filmstrip scroll with quick-cut montage transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "wcZezAvDql5Mxkci",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-xzuPUURna3zHUh0C",
+          "state": "output-available",
+          "output": {
+            "title": "Filmstrip Quick-Cut Montage Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a filmstrip scroll transition preset that simulates the classic film reel effect with rapid-cut montage transitions. The transition should feature a horizontal scrolling motion where the outgoing video slides left while revealing perforated film strip edges, and the incoming video enters from the right with a quick 'snap' effect. During the 0.3-second overlap period, both videos should be visible with the film strip perforation overlay creating a divider between them. Add a subtle shake effect (2-3px amplitude) during the transition moment to simulate the mechanical film advance. The outgoing video should have a slight darkening filter applied (brightness 0.7) while the incoming video starts slightly overexposed (brightness 1.2) before normalizing. Include optional film grain overlay and vintage color grading effects.",
+                "technicalSpecs": "BaseLayout container with 'relative overflow-hidden bg-black' and duration calculated as sum of all video durations minus (0.3s × number of transitions). Each VideoAtom positioned with 'absolute inset-0' and z-index layering (outgoing: z-10, incoming: z-20, film overlay: z-30). Use generic transform effects with translateX animations (-100% for outgoing, 100% to 0% for incoming) during overlap. Apply filter effects for brightness transitions and shake effect using small translateX/Y oscillations at 60fps. Film strip perforation overlay as semi-transparent PNG ImageAtom with 'absolute inset-y-0 w-full pointer-events-none z-30'. Provider mode effects with targetIds for each video segment."
+              },
+              {
+                "prompt": "Design a stroboscopic flash-cut montage transition preset that mimics high-energy music video editing. Each transition should feature an ultra-fast 0.1-second overlap with aggressive opacity flickering - the outgoing video flashes 3 times (opacity 1→0.3→1→0) while the incoming video counter-flashes (opacity 0→1→0→1). Add a scale pulse effect where videos briefly scale to 1.1x during the flash frames. Include a rotating film frame border that spins 15 degrees during each transition. The videos should have alternating blend modes (screen, multiply, overlay) during the flash sequence to create color bleeding effects. Support variable playback rates where videos speed-ramp from 1x to 2x during exit and 0.5x to 1x during entry.",
+                "technicalSpecs": "BaseLayout with 'relative bg-black overflow-hidden' and precise timing calculations for flash sequences. VideoAtom components with playbackRate props animated via effects (1→2 for exit, 0.5→1 for entry). Opacity effects using AnimationRange arrays with 4 keyframes over 0.1s (at 0%, 33%, 66%, 100%). Transform effects combining scale (1→1.1→1) and rotate (0→15→0) animations. Blend mode cycling using style props with conditional rendering based on transition index. Frame border as ShapeAtom with 'absolute inset-4 border-4 border-white' and rotation animation. All effects in provider mode targeting specific video IDs."
+              },
+              {
+                "prompt": "Build a split-screen wipe montage transition that divides the screen into vertical film strips, with each strip transitioning at slightly offset times to create a cascading effect. The screen splits into 5 vertical sections, each 20% width, with transitions staggered by 0.05 seconds. Outgoing video strips slide upward while incoming strips slide downward, creating a venetian blind effect. During the 0.4-second total transition, add a film perforation texture that scrolls vertically across each strip. Apply a subtle RGB channel shift effect (2px offset) during the peak transition moment. Videos should maintain aspect ratio within their strips using object-fit cover with strategic positioning.",
+                "technicalSpecs": "BaseLayout container with 'relative flex flex-row overflow-hidden bg-black'. Create 5 child BaseLayout strips with 'flex-1 relative overflow-hidden'. Each strip contains both outgoing and incoming VideoAtom components with 'absolute inset-0 object-cover'. Stagger start times: strip[i].startOffset = i * 0.05. Transform effects: translateY(-100%) for outgoing, translateY(100% to 0%) for incoming. RGB split via CSS filters or multiple video instances with slight position offsets. Film perforation as repeating ImageAtom with translateY animation. Calculate total duration as videosDuration - (0.4 * transitionCount)."
+              },
+              {
+                "prompt": "Create a glitch-cut montage transition preset inspired by damaged film reels and digital artifacts. During each 0.2-second transition, the outgoing video freezes on its last frame while digital corruption effects tear across the screen - horizontal RGB splits, datamoshing artifacts, and frame ghosting. The incoming video emerges through the glitch with a reverse corruption effect. Add random frame drops where the video briefly shows black frames (3-5 frames at 24fps). Include scan lines that roll vertically during transitions and chromatic aberration that peaks at transition midpoint (red channel +5px, blue channel -5px offset).",
+                "technicalSpecs": "BaseLayout with 'relative bg-black overflow-hidden'. Outgoing VideoAtom with pause() at transition start, maintaining last frame. Create glitch effects using multiple semi-transparent VideoAtom copies with slight position offsets and blend modes (screen, difference). Use filter effects for RGB channel splitting via multiple transform translateX/Y with different delays. Black frame inserts using opacity keyframes (1→0→1) at specific milliseconds. Scan lines as repeating semi-transparent ImageAtom with translateY animation. Chromatic aberration via duplicated videos with red/blue color filters and position offsets."
+              },
+              {
+                "prompt": "Design a kinetic typography filmstrip transition where video frames transform into text characters spelling 'CUT' before morphing into the next video. The outgoing video shrinks into letter shapes while maintaining video playback inside the letterforms. During the 0.5-second transition, the letters rotate 180° while the incoming video expands from within them. Add typewriter-style sound effects synced to each letter appearance. Include film countdown numbers (3-2-1) overlaid in the corner during transitions. Apply a vintage film projector flicker effect with random opacity variations (0.8-1.0) at 12fps intervals.",
+                "technicalSpecs": "BaseLayout container with 'relative overflow-hidden bg-neutral-900'. Create letter masks using SVG clip-paths or CSS mask-image on VideoAtom components. Outgoing video with transform scale(1→0.3) and clip-path transitions. TextAtom for 'CUT' typography with 'absolute inset-0 flex items-center justify-center text-[20vw] font-black'. Rotation via transform rotateY(0→180deg). Countdown numbers as TextAtom with 'absolute top-4 right-4 text-6xl font-mono'. Flicker effect using opacity AnimationRange with random values between 0.8-1.0 at 83ms intervals (12fps). AudioAtom for typewriter sounds with precise startOffset timing."
+              },
+              {
+                "prompt": "Build a match-cut energy transition that analyzes motion vectors between clips and creates dynamic transition paths. The outgoing video's dominant motion direction determines the transition style - horizontal motion triggers a whip pan, vertical creates a tilt transition, and circular motion produces a spiral wipe. During the 0.15-second transition, add motion blur that follows the detected direction (10-20px blur length). Include speed ramping where playback accelerates to 3x during exit and decelerates from 3x to 1x on entry. Add light leak overlays that flash at transition points with directional gradients matching the motion vector.",
+                "technicalSpecs": "BaseLayout with dynamic className based on motion detection. VideoAtom with playbackRate interpolation (1→3 exit, 3→1 entry) via effects. Motion blur using CSS filter blur() with directional transform for motion trail effect. Create motion paths using transform combinations: whip pan (translateX + slight rotate), tilt (translateY + rotateX), spiral (rotate + scale + translate in bezier curve). Light leaks as ImageAtom overlays with 'absolute inset-0 mix-blend-screen opacity-0' animated to opacity-80 during transition. Use cubic-bezier easing curves matching motion characteristics."
+              },
+              {
+                "prompt": "Create a film negative inversion transition where videos flip between positive and negative states during cuts. The outgoing video gradually inverts to negative (inverting colors) while scaling down to 0.8x, then the incoming video starts as negative and transitions to positive while scaling up from 1.2x to 1x. During the 0.3-second overlap, both videos are partially inverted creating a surreal double-exposure effect. Add film sprocket holes animations that rotate like a real film reel during transitions. Include optional color channel isolation where only specific colors remain during the negative phase.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-zinc-950'. Apply CSS filter invert() with animation from 0% to 100% for outgoing, 100% to 0% for incoming. Combine with filter effects for hue-rotate(180deg) and contrast(1.2) during inversion. Scale transforms: outgoing scale(1→0.8), incoming scale(1.2→1). Sprocket holes as SVG ImageAtom with 'absolute inset-y-0 w-12 left-0 right-0' and rotateY animation. Double-exposure via blend-mode: difference during overlap period. Color isolation using CSS filter combinations or masked regions. Provider mode targeting video IDs for synchronized effects."
+              },
+              {
+                "prompt": "Design a rhythmic jump-cut montage transition that syncs cuts to musical beats with visual percussion effects. Each transition features a 'punch' zoom where the outgoing video rapidly scales to 1.3x while fading, and the incoming video 'bounces' in with an elastic easing (scale 0.7→1.1→0.95→1.0). Add a brief white frame flash (2 frames at 24fps) at the exact cut point. Include visual 'impact' rings that ripple outward from the center during transitions. Videos should have subtle hue shifts that cycle through complementary colors with each cut. Support beat detection markers for precise synchronization.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-black'. Outgoing VideoAtom with scale(1→1.3) and opacity(1→0) over 0.2s. Incoming video with elastic easing scale animation keyframes at 0%, 40%, 60%, 100%. White flash using BaseLayout with 'absolute inset-0 bg-white z-50' and opacity 0→1→0 over 83ms. Impact rings as multiple ShapeAtom circles with 'absolute inset-0 rounded-full border-2 border-white' scaling from 0.5→2 with opacity fade. Hue rotation via filter effects cycling through 0→30→60→90 degrees. Beat markers as data attributes for timing alignment."
+              },
+              {
+                "prompt": "Build a film roll transition where videos appear to be on a continuous strip of film that scrolls horizontally. Create a perspective-transformed film strip that curves slightly in 3D space, with videos playing within film frames. During transitions, the film strip accelerates its scroll speed, showing motion blur on frame edges. Add authentic film artifacts like dust particles, scratches, and occasional hair strands that move across frames. Include frame numbers burned into corners and SMPTE color bars that briefly appear between clips. The strip should cast subtle shadows on a projector screen background.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden bg-gradient-to-b from-gray-900 to-black' and perspective(1000px). Film strip container with transform rotateY(-5deg) for 3D effect. VideoAtom components in sequence with 'absolute' positioning and calculated translateX positions. Motion blur using filter blur() on edges with gradient masks. Dust/scratches as animated ImageAtom overlays with random paths. Frame numbers via TextAtom with 'absolute bottom-2 right-2 font-mono text-xs'. SMPTE bars as ImageAtom shown during gaps. Shadow effects using box-shadow or pseudo-elements. Smooth scroll via transform translateX with ease-in-out timing."
+              },
+              {
+                "prompt": "Create a multi-plane parallax transition that simulates depth layers in classic animation. Split each video into 3 depth planes (foreground, midground, background) that transition at different speeds - foreground moves fastest, background slowest. During the 0.4-second transition, planes slide horizontally with parallax offset (FG: 100%, MG: 60%, BG: 30% movement). Add a focal depth effect where non-focused planes blur slightly during transition. Include film grain that intensifies during movement and vignetting that pulses with transitions. Support custom depth maps for automatic plane separation.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden' containing 3 depth plane containers. Each plane as BaseLayout with z-index (BG: z-0, MG: z-10, FG: z-20). VideoAtom duplicated across planes with CSS masks for layer isolation. Parallax via different translateX distances: FG -100vw, MG -60vw, BG -30vw. Blur effects using filter blur() - unfocused planes at 2-4px during transition. Film grain as noise ImageAtom overlay with opacity animation. Vignette using radial-gradient mask or border shadow. Timing offsets calculated as: FG starts first, MG +50ms, BG +100ms delay. Duration: sum of videos minus (0.4s × transitions)."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3309,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5753
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T16:29:16.310Z"
+}

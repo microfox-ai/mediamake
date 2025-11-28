@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "3D photo card flip rotation perspective change transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "c4DTna5rU0WIPN39",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-nc3r7FhZkecyIGNs",
+          "state": "output-available",
+          "output": {
+            "title": "3D Card Flip Perspective Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a 3D card flip transition preset that simulates a physical photo card rotating in 3D space to reveal the next video. The outgoing video should appear on the 'front' of a card that rotates 180 degrees on the Y-axis with realistic perspective, while the incoming video appears on the 'back'. Use CSS perspective (1000px) on the container and rotateY transforms. During the 0.8-second overlap period, the card should flip smoothly with a cubic-bezier easing. Add a subtle shadow that shifts during rotation to enhance the 3D effect. Both videos should maintain their aspect ratios using object-fit: cover.",
+                "technicalSpecs": "BaseLayout container with 'relative overflow-hidden' and style={{ perspective: '1000px' }}. Two nested BaseLayouts as card faces with 'absolute inset-0 backface-hidden'. Front face gets rotateY(0deg) initially, animates to rotateY(180deg). Back face starts at rotateY(-180deg), animates to rotateY(0deg). Use generic transform effects with AnimationRange for rotation timing. Add filter effect for dynamic shadow: 'drop-shadow(0 10px 30px rgba(0,0,0,0.3))' to 'drop-shadow(-10px 10px 20px rgba(0,0,0,0.2))'. Calculate duration as video1.duration + video2.duration - 0.8s overlap."
+              },
+              {
+                "prompt": "Design a perspective shift transition where videos appear as cards in a 3D carousel that rotates to show the next item. The outgoing video scales down to 0.7 and moves left with rotateY(-25deg) while fading to 0.6 opacity, creating a receding effect. The incoming video starts scaled at 0.7 on the right with rotateY(25deg) and animates to full scale at center with rotateY(0deg). Use a 1.2-second overlap with spring-like easing for natural motion. Add blur effects that increase on the outgoing video (0 to 4px) as it moves away.",
+                "technicalSpecs": "BaseLayout with 'relative overflow-hidden' and style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}. VideoAtoms positioned with 'absolute inset-0'. Outgoing: transform effect with translateX(0) to translateX(-30%), rotateY(0deg) to rotateY(-25deg), scale(1) to scale(0.7). Incoming: translateX(30%) to translateX(0), rotateY(25deg) to rotateY(0deg), scale(0.7) to scale(1). Filter effects for blur transitions. Use ease-out timing for natural deceleration."
+              },
+              {
+                "prompt": "Build a rotating cube transition where videos are mapped to faces of a 3D cube that rotates to reveal the next face. The cube should rotate 90 degrees on the X-axis, with the outgoing video on the top face rotating up and out of view while the incoming video rotates in from the bottom. Apply perspective distortion and use a 1-second overlap with smooth easing. Add subtle brightness adjustments where the outgoing video darkens (brightness 1 to 0.7) as it rotates away.",
+                "technicalSpecs": "BaseLayout container with style={{ perspective: '800px', transformStyle: 'preserve-3d' }}. Create cube structure with nested BaseLayouts for faces. Top face (outgoing): transform from rotateX(0deg) translateZ(50vh) to rotateX(-90deg) translateZ(50vh). Front face (incoming): rotateX(90deg) translateZ(50vh) to rotateX(0deg) translateZ(50vh). Use generic transform effects with precise timing. Add filter effect for brightness changes. Set z-index appropriately for face visibility order."
+              },
+              {
+                "prompt": "Implement a page-turn style flip transition that mimics turning a page in a photo album. The outgoing video should appear to lift and flip like a page, with the right edge rotating on the Y-axis while the left edge stays fixed. Use transform-origin: left center for the pivot point. During the 0.6-second overlap, show a gradient shadow on the 'page' being turned. The incoming video reveals underneath as the page turns. Add a subtle 3D tilt to enhance realism.",
+                "technicalSpecs": "BaseLayout with perspective: 1500px. Outgoing video in a BaseLayout with 'absolute inset-0 origin-left' and clip-path for page shape. Transform effect: rotateY(0deg) to rotateY(-180deg) with scaleX gradually decreasing to 0. Add gradient overlay div for page shadow using 'absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-black/20 to-transparent'. Incoming video positioned below with z-index: 0. Use ease-in-out timing for natural page flip motion."
+              },
+              {
+                "prompt": "Create a 3D door-swing transition where the outgoing video acts as a door that swings open to reveal the incoming video behind it. The door should rotate 90 degrees on the Y-axis from the right edge (transform-origin: right center), with realistic perspective and shadow effects. During the 0.9-second overlap, add a subtle bounce at the end of the swing animation. The incoming video should have a slight zoom-in effect (scale 0.95 to 1) as it's revealed.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px. Outgoing video in BaseLayout with 'absolute inset-0 origin-right'. Transform effect: rotateY(0deg) to rotateY(85deg) with bounce easing (cubic-bezier(0.68, -0.55, 0.265, 1.55)). Shadow effect using filter: drop-shadow increases during rotation. Incoming video with scale transform from 0.95 to 1 and subtle brightness change from 0.8 to 1. Use provider mode effects with targetIds for precise control."
+              },
+              {
+                "prompt": "Design a perspective zoom transition where videos appear as photos being shuffled in a stack. The outgoing video scales up dramatically (1 to 2.5) while rotating slightly (rotateZ -5deg) and fading out, creating an effect of pulling a photo toward the viewer and discarding it. The incoming video starts small in the background (scale 0.6) and scales to normal size while rotating from rotateZ(8deg) to 0deg. Use a 0.7-second overlap with aggressive easing for dynamic motion.",
+                "technicalSpecs": "BaseLayout with overflow-hidden and perspective: 600px. Outgoing: transform effect combining scale(1) to scale(2.5), rotateZ(0deg) to rotateZ(-5deg), translateY(0) to translateY(-20%). Opacity 1 to 0 over last 40% of transition. Incoming: scale(0.6) to scale(1), rotateZ(8deg) to rotateZ(0deg), with z-index: -1 initially. Use ease-in timing for outgoing acceleration, ease-out for incoming deceleration."
+              },
+              {
+                "prompt": "Build a 3D accordion fold transition where the screen appears to fold like an accordion, with the outgoing video on one panel and incoming on another. The fold should create a zigzag effect using multiple transform segments with alternating rotateY angles. During the 1.1-second overlap, panels should fold/unfold with realistic shadows between folds. Use skewY transforms to enhance the folding illusion.",
+                "technicalSpecs": "BaseLayout with perspective: 1200px. Create 3-4 vertical strips using nested BaseLayouts with clip-path. Each strip has alternating rotateY transforms: strip1: 0deg to 45deg, strip2: 0deg to -45deg, strip3: 0deg to 45deg. Add skewY transforms for enhanced folding effect. Use filter for shadows between strips: drop-shadow(2px 0 8px rgba(0,0,0,0.4)). Incoming video revealed as accordion unfolds with opposite rotation values. Stagger timing by 0.1s between strips."
+              },
+              {
+                "prompt": "Create a spinning card carousel transition where multiple cards rotate in 3D space around a central axis. The outgoing video is on a card that rotates out to the left side while scaling down, and the incoming video rotates in from the right. Add depth by having cards at different Z positions during rotation. Include motion blur during the fastest part of the spin using CSS filters. Use a 0.8-second overlap with easing that simulates momentum.",
+                "technicalSpecs": "BaseLayout with perspective: 1000px and transformStyle: preserve-3d. Outgoing: transform combining rotateY(0deg) to rotateY(-120deg), translateZ(0) to translateZ(-200px), scale(1) to scale(0.8). Incoming: rotateY(120deg) to rotateY(0deg), translateZ(-200px) to translateZ(0), scale(0.8) to scale(1). Add filter blur effect: 0 to 2px to 0 following rotation speed. Use cubic-bezier(0.4, 0, 0.2, 1) for smooth momentum-based motion."
+              },
+              {
+                "prompt": "Implement a 3D box unfold transition that simulates a gift box opening to reveal the next video. The outgoing video appears on the lid that rotates up and back (rotateX from 0 to -110deg) from a hinge at the top edge. The incoming video is inside the box, starting with a slight shadow overlay that clears as the lid opens. Add a subtle bounce effect at the end of the lid opening animation for realism.",
+                "technicalSpecs": "BaseLayout with perspective: 1400px. Lid (outgoing) in BaseLayout with 'absolute inset-0 origin-top'. Transform: rotateX(0deg) to rotateX(-110deg) with bounce easing. Add shadow gradient overlay on incoming video: 'absolute inset-0 bg-gradient-to-t from-black/40 to-transparent' that animates opacity from 1 to 0. Incoming video has subtle scale animation from 0.98 to 1 for depth effect. Duration calculation accounts for 1.0s overlap period."
+              },
+              {
+                "prompt": "Design a perspective flip book animation where videos appear as pages rapidly flipping in a book. Create multiple intermediate 'pages' that flip quickly in sequence, each showing a brief glimpse of the transition. The main outgoing video flips away while 2-3 semi-transparent intermediate frames create the illusion of multiple pages. The incoming video is revealed as the final page. Use staggered timing and varying rotation speeds for realistic page flutter.",
+                "technicalSpecs": "BaseLayout with perspective: 1800px. Create 4 layers: outgoing video, 2 intermediate divs with opacity 0.3 and blur, incoming video. Each layer has rotateY animation with staggered start times (0s, 0.15s, 0.3s delays). Outgoing: rotateY(0) to rotateY(-170deg). Intermediates: rotateY(0) to rotateY(-175deg) and rotateY(0) to rotateY(-165deg). Use varying speeds with ease-out timing. Add subtle translateZ for depth separation between pages. Include drop-shadow filter that increases during flip."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2440,
+              "outputTokens": 2802,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5242
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:02:46.157Z"
+}

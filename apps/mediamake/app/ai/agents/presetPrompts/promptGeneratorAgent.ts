@@ -547,7 +547,7 @@ const promptGeneratorAgent = aiRouter
 
       // Generate title first (simple call)
       const titleResult = await generateObject({
-        model: anthropic('claude-opus-4-1'),
+        model: anthropic('claude-haiku-4-5'),
         schema: z.object({
           title: z
             .string()
@@ -574,7 +574,7 @@ const promptGeneratorAgent = aiRouter
 
       // Generate multiple prompt variations in a single LLM call
       const result = await generateObject({
-        model: anthropic('claude-opus-4-1'),
+        model: anthropic('claude-opus-4-5'),
         schema: PresetPromptOutputSchema.omit({ usage: true, title: true }),
         prompt: fullPrompt,
         maxRetries: 2,

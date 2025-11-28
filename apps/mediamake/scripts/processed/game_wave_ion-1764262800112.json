@@ -1,0 +1,76 @@
+{
+  "mergedParams": {
+    "presetStyle": "transitions",
+    "promptsCount": 10,
+    "userDescription": "Camera flash bulb bright white blowout fade transition effects between videos"
+  },
+  "result": [
+    {
+      "id": "VzYoFLVWu33A0xJK",
+      "metadata": {
+        "loader": "Generating 10 unique prompt variations..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-generatePresetPrompt",
+          "toolCallId": "generatePresetPrompt-1b0o3MHwFYqiqQ84",
+          "state": "output-available",
+          "output": {
+            "title": "Flash Bulb White Blowout Transitions",
+            "prompts": [
+              {
+                "prompt": "Create a camera flash transition preset that simulates an intense white blowout effect between two video clips. The transition should work like a camera flash going off - starting with the first video playing normally, then when transitioning, a pure white overlay rapidly expands from the center outward with a bright burst effect, completely whiting out the screen momentarily. During the peak white-out moment (overlap period of 0.5 seconds), switch from the outgoing to incoming video. As the flash fades, reveal the second video with a subtle afterglow effect. Use a white ShapeAtom as an overlay that scales from 0 to 1.5 while fading in to create the flash burst, then fades out to reveal the new video. The outgoing video should have a brief exposure boost (brightness filter) right before the flash for added realism.",
+                "technicalSpecs": "BaseLayout container with duration = video1.duration + video2.duration - 0.5s overlap. Three layers: outgoing VideoAtom (z-10), incoming VideoAtom starting at video1.duration - 0.5s (z-20), and white ShapeAtom flash overlay (z-30). Flash ShapeAtom uses scale transform from 0 to 1.5 and opacity from 0 to 1 to 0. Outgoing video gets brightness(1.5) filter at transition start. Use generic effects in provider mode targeting each atom. Container uses 'relative w-full h-full overflow-hidden' with all atoms positioned 'absolute inset-0'. Flash timing: fade in 0.1s, hold 0.2s, fade out 0.2s."
+              },
+              {
+                "prompt": "Design a stroboscopic flash transition that creates multiple rapid white flashes between videos, mimicking a paparazzi camera burst or club strobe light effect. The transition should have 3-5 quick white flashes of varying intensity, with each flash briefly revealing glimpses of the incoming video mixed with the outgoing video. During each flash, apply a harsh contrast and brightness boost to both videos to simulate overexposure. The flashes should have irregular timing to feel more organic and chaotic. Between flashes, both videos should be visible with reduced opacity, creating a double-exposure effect. The final flash should be the longest and brightest, fully transitioning to the new video.",
+                "technicalSpecs": "BaseLayout with 1.5s overlap period. Stack outgoing VideoAtom, incoming VideoAtom (starts at video1.duration - 1.5s), and multiple white ShapeAtom layers for flash effects. Create 4 flash ShapeAtoms with staggered timing: flash1 at 0.2s (opacity 0.8), flash2 at 0.5s (opacity 1), flash3 at 0.8s (opacity 0.6), flash4 at 1.2s (opacity 1, duration 0.3s). Both videos use filter animations: brightness oscillates between 1 and 2, contrast between 1 and 1.5. During non-flash moments, outgoing video opacity 0.6, incoming 0.4. Use provider mode effects with targetIds for each element."
+              },
+              {
+                "prompt": "Build a radial flash wipe transition where the white flash effect originates from a specific point (like a lens hotspot) and expands outward in a circular motion to reveal the next video. The flash should have a softer, more photographic quality with a gradual feathered edge rather than a harsh cutoff. Include a subtle lens flare effect with light rays emanating from the flash origin point. The outgoing video should gradually desaturate and increase in brightness as the flash approaches, while the incoming video starts desaturated and gradually returns to full color as the flash recedes. Add a slight camera shake effect during the peak flash moment for added impact.",
+                "technicalSpecs": "BaseLayout with 0.8s overlap. Use radial-gradient mask on white ShapeAtom for soft-edged circular flash (background: radial-gradient(circle, white 40%, transparent 70%)). Flash scales from 0 at center point to 2.5 to cover frame. Add secondary ShapeAtom for lens flare rays using linear gradients. Outgoing video: grayscale filter animates 0 to 0.8, brightness 1 to 1.8. Incoming video: grayscale 0.8 to 0, brightness 1.8 to 1. Camera shake via transform: translate with small random values during 0.1s at peak flash. All atoms absolute positioned, flash elements z-indexed above videos."
+              },
+              {
+                "prompt": "Create an analog photography flash cube effect that simulates vintage camera flash bulbs from the 1960s-70s. The transition should include a warm-tinted flash (slightly yellow/amber instead of pure white) that builds up slowly like an old flash charging, then pops with a bright burst that leaves a lingering afterimage. Include film grain and slight vignetting during the transition. The flash should have an uneven, organic quality with hotspots and falloff. Add a subtle mechanical shutter sound visualization through a quick black frame before the flash. The incoming video should appear slightly overexposed initially, then settle to normal exposure over 0.5 seconds.",
+                "technicalSpecs": "BaseLayout with 1s overlap period. Layer structure: black ShapeAtom for shutter (0.05s duration), outgoing VideoAtom with sepia and grain filters, warm-tinted flash ShapeAtom (background: radial-gradient with #FFF8E7 center), incoming VideoAtom. Flash uses irregular shape via border-radius: 45% 55% 45% 55% for organic feel. Vignette via box-shadow: inset 0 0 100px rgba(0,0,0,0.4). Incoming video starts with brightness(1.4) contrast(0.9), animates to normal over 0.5s. Add noise texture overlay ShapeAtom with mix-blend-mode: overlay for grain effect."
+              },
+              {
+                "prompt": "Develop a high-speed sports photography flash transition that creates a dramatic freeze-frame effect between action videos. At the transition point, the outgoing video should freeze on its last frame while a bright white flash strobes 2-3 times rapidly (like motor drive burst mode). During the strobe sequence, incrementally reveal the incoming video in steps - 33% visibility after first flash, 66% after second, 100% after third. Each flash should leave a slight motion blur trail effect on the transitioning elements. Include a subtle zoom punch effect synchronized with each flash to add kinetic energy. The overall effect should feel like capturing decisive moments in sports photography.",
+                "technicalSpecs": "BaseLayout with 0.6s overlap. Outgoing VideoAtom uses endAt property to freeze last frame during overlap. Three white ShapeAtom flashes at 0.1s, 0.25s, 0.4s (each 0.05s duration). Incoming video opacity keyframes: 0, 0.33, 0.66, 1 synchronized with flashes. Motion blur via filter: blur(2px) during flash peaks. Scale transform on BaseLayout: 1 to 1.05 to 1 with each flash for zoom punch. Use transform-origin: center for zoom effect. Flash atoms use opacity animation with easing-in-out-quad for smooth strobes."
+              },
+              {
+                "prompt": "Design a cinematic anamorphic lens flare flash transition inspired by J.J. Abrams' signature style. The flash should include horizontal lens flare streaks that sweep across the frame, with blue-tinted light artifacts and hexagonal bokeh shapes. Start with a small bright point that expands into multiple light rays, creating a brief whiteout before revealing the next video. Include chromatic aberration effects at the edges during the flash peak - split RGB channels slightly for a prismatic effect. The transition should feel epic and cinematic, with the incoming video appearing through the dissipating lens flare elements. Add subtle film gate shake for authentic camera feel.",
+                "technicalSpecs": "BaseLayout with 1.2s overlap. Multiple ShapeAtom layers: horizontal flare (linear-gradient blue to white to blue, width 200%, transform: translateX), hexagonal bokeh shapes (clip-path: polygon for hexagon, multiple instances), main flash burst (radial-gradient). Chromatic aberration via separate RGB ShapeAtoms with slight offset transforms and mix-blend-mode: screen. Outgoing video fades to 0.3 opacity during flash. Incoming video starts at 0.3, rises to 1. Film gate shake: BaseLayout transform with translateY ±2px randomly. Use backdrop-filter: blur on flare elements for glow effect."
+              },
+              {
+                "prompt": "Build a documentary-style handheld camera flash transition that simulates raw, guerrilla filmmaking aesthetics. The flash should feel sudden and harsh, like an on-camera flash in a dark environment. Include realistic camera operator movement - slight shake before the flash as if adjusting position, then a jolt during the flash as if startled by its brightness. The flash should blow out highlights completely while leaving shadows crushed, creating high contrast. Add a brief auto-exposure adjustment period after the flash where the incoming video's levels normalize. Include subtle rolling shutter effect during the flash moment for digital camera authenticity.",
+                "technicalSpecs": "BaseLayout with 0.4s quick overlap. Handheld shake via transform: translate with Perlin noise values throughout. Flash ShapeAtom with instant opacity 0 to 1 (no fade in), holds for 0.1s, fades out over 0.3s. During flash: outgoing video contrast(2) brightness(1.5), incoming video starts with contrast(0.5) brightness(0.7) then animates to normal over 0.5s (auto-exposure simulation). Rolling shutter: incoming video split into 3 horizontal strips (ShapeAtoms with clip-path), each with 0.02s timing offset. Sharp shadows via filter: drop-shadow during flash peak."
+              },
+              {
+                "prompt": "Create a surveillance camera flash transition that mimics security footage switching between cameras with infrared flash illumination. The transition should include a brief signal interference pattern (scan lines), followed by a harsh monochromatic white flash with a distinctive infrared quality (slightly green-tinted). Add digital artifacts like pixel blocking and frame tearing during the switch. Include timestamp overlay that glitches during transition. The incoming video should have a brief night-vision look (green tint, high contrast) before returning to normal. Add subtle CCTV barrel distortion to both videos for authenticity.",
+                "technicalSpecs": "BaseLayout with 0.7s overlap. Scan lines via repeating linear-gradient ShapeAtom (background-size: 100% 4px). Flash with greenish tint (#E8FFE8). Pixel artifacts using multiple small ShapeAtoms with random positions and colors. Frame tearing via clip-path animation on videos. Timestamp TextAtom that changes opacity rapidly for glitch. Incoming video: initial filter: hue-rotate(120deg) saturate(0.5) contrast(1.5), animates to normal. Barrel distortion via CSS transform: scale(1.1) and border-radius: 10% on video containers. Signal noise ShapeAtom with CSS noise pattern."
+              },
+              {
+                "prompt": "Develop a fashion photography studio flash transition that recreates high-end editorial shooting conditions. The flash should have the quality of professional studio strobes - pure, even white light with subtle falloff at edges. Include multiple flash heads firing in sequence (key light, fill light, rim light) to create a sophisticated lighting transition. Each flash should reveal different aspects of the incoming video with varying intensities. Add a subtle mirror/prism effect during peak flash for artistic flair. The transition should feel elegant and controlled, with perfect timing between flash pops. Include a brief color grade shift that emulates fashion photography post-processing.",
+                "technicalSpecs": "BaseLayout with 1s overlap for sophisticated timing. Three flash ShapeAtoms: key light (center, opacity 1), fill light (left side, opacity 0.6), rim light (right edge, opacity 0.8), fired at 0.2s intervals. Each flash uses different gradient patterns for directional light. Prism effect: rainbow gradient ShapeAtom with mix-blend-mode: add, opacity 0.3 at peak. Color grading: incoming video starts with filter: contrast(1.2) saturate(0.8) for fashion look, normalizes over 0.5s. Soft vignette via radial-gradient overlay. Flash falloff using feather masks on ShapeAtom edges."
+              },
+              {
+                "prompt": "Design an experimental double-exposure flash transition that creates a dreamy, artistic blend between two videos. The flash should act as a blend catalyst, causing the two videos to merge and separate in waves. Start with both videos at 50% opacity, then use pulsing white flashes to shift the blend - each flash increases the incoming video's prominence while decreasing the outgoing. Include color channel splitting during flashes for a psychedelic effect. Add particle-like light spots that float across during transition for ethereal quality. The final flash should be softest but longest, gently completing the transition. Apply slight time displacement between videos during overlap for ghost-like trailing effects.",
+                "technicalSpecs": "BaseLayout with 2s extended overlap for artistic blend. Both videos start at opacity 0.5. Five soft flash pulses with increasing incoming/decreasing outgoing opacity: 0.5/0.5, 0.6/0.4, 0.7/0.3, 0.85/0.15, 1/0. RGB channel split: three duplicate video layers with red/green/blue filters and slight transform offsets during flashes. Particle ShapeAtoms (10-15 small circles) with random positions and float animations. Time displacement: incoming video playbackRate: 0.95 during overlap for slight desync. Mix-blend-modes alternate between screen and overlay on videos. Soft white ShapeAtom flashes with gaussian blur for dreamy quality."
+              }
+            ],
+            "usage": {
+              "inputTokens": 2444,
+              "outputTokens": 3352,
+              "reasoningTokens": 0,
+              "cachedInputTokens": 0,
+              "totalTokens": 5796
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T17:00:00.112Z"
+}
