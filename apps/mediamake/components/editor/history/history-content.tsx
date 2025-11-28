@@ -44,24 +44,80 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
     const { fetchAndUpdateProgress } = useProgress();
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
 
-    // Load selected request from API
+    const [localRender, setLocalRender] = useState<any | null>(null);
+    const [isLocalRender, setIsLocalRender] = useState(false);
+
+    // Load selected request from API or local store
     useEffect(() => {
         if (selectedRender && propSelectedRequest) {
-            console.log('Using passed request from API:', propSelectedRequest);
-            setSelectedRequest(propSelectedRequest);
-            setError(null);
+            // Check if it's a local render
+            if ((propSelectedRequest as any).concurrency !== undefined) {
+                setIsLocalRender(true);
+                setLocalRender(propSelectedRequest);
+                setSelectedRequest(null);
+                setError(null);
+            } else {
+                console.log('Using passed request from API:', propSelectedRequest);
+                setIsLocalRender(false);
+                setSelectedRequest(propSelectedRequest);
+                setLocalRender(null);
+                setError(null);
+            }
         } else if (selectedRender && !propSelectedRequest) {
             setError('Request not found');
         } else {
             setSelectedRequest(null);
+            setLocalRender(null);
             setError(null);
         }
     }, [selectedRender, propSelectedRequest]);
 
-    // Check progress for the selected rendering request
+    // Poll local render progress
+    useEffect(() => {
+        if (!isLocalRender || !selectedRender) return;
+
+        const pollProgress = async () => {
+            try {
+                const response = await fetch(`/api/remotion/render/local/progress/${selectedRender}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setLocalRender(data.render);
+                }
+            } catch (error) {
+                console.error('Failed to poll local render progress:', error);
+            }
+        };
+
+        pollProgress();
+        const interval = setInterval(pollProgress, 2000); // Poll every 2 seconds
+        return () => clearInterval(interval);
+    }, [isLocalRender, selectedRender]);
+
+    // Poll local render progress
+    useEffect(() => {
+        if (!isLocalRender || !selectedRender) return;
+
+        const pollProgress = async () => {
+            try {
+                const response = await fetch(`/api/remotion/render/local/progress/${selectedRender}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setLocalRender(data.render);
+                }
+            } catch (error) {
+                console.error('Failed to poll local render progress:', error);
+            }
+        };
+
+        pollProgress();
+        const interval = setInterval(pollProgress, 2000); // Poll every 2 seconds
+        return () => clearInterval(interval);
+    }, [isLocalRender, selectedRender]);
+
+    // Check progress for the selected AWS rendering request
     useEffect(() => {
         console.log('selectedRequest', selectedRequest);
-        if (!selectedRequest || selectedRequest.status !== "rendering" || !selectedRequest.bucketName || !selectedRequest.renderId) {
+        if (isLocalRender || !selectedRequest || selectedRequest.status !== "rendering" || !selectedRequest.bucketName || !selectedRequest.renderId) {
             return;
         }
 
@@ -91,7 +147,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         checkProgress();
         const interval = setInterval(checkProgress, 3000); // Check every 3 seconds
         return () => clearInterval(interval);
-    }, [selectedRequest, fetchAndUpdateProgress, onRefreshApiRequest, apiKey]);
+    }, [isLocalRender, selectedRequest, fetchAndUpdateProgress, onRefreshApiRequest, apiKey]);
 
     const getStatusIcon = (status: RenderRequest["status"]) => {
         switch (status) {
@@ -193,7 +249,30 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         );
     }
 
-    if (error || !selectedRequest) {
+    // Handle cancel local render
+    const handleCancelLocalRender = async (renderId: string) => {
+        try {
+            const response = await fetch(`/api/remotion/render/local/cancel/${renderId}`, {
+                method: 'POST',
+            });
+            if (response.ok) {
+                toast.success('Render cancelled successfully');
+                // Refresh the render data
+                const progressResponse = await fetch(`/api/remotion/render/local/progress/${renderId}`);
+                if (progressResponse.ok) {
+                    const data = await progressResponse.json();
+                    setLocalRender(data.render);
+                }
+            } else {
+                toast.error('Failed to cancel render');
+            }
+        } catch (error) {
+            console.error('Failed to cancel render:', error);
+            toast.error('Failed to cancel render');
+        }
+    };
+
+    if (error || (!selectedRequest && !localRender)) {
         return (
             <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
@@ -215,6 +294,175 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         );
     }
 
+    // Show local render UI
+    if (isLocalRender && localRender) {
+        return (
+            <div className="flex-1 flex flex-col min-h-0">
+                <ScrollArea className="flex-1 overflow-y-auto">
+                    <div className="p-6 space-y-6">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {getStatusIcon(localRender.status as any)}
+                                <div>
+                                    <h1 className="text-2xl font-bold">{localRender.fileName}</h1>
+                                    <p className="text-muted-foreground">
+                                        Local Render • Started {new Date(localRender.startTime).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {getStatusBadge(localRender.status as any)}
+                                {(localRender.status === 'rendering' || localRender.status === 'pending') && (
+                                    <Button
+                                        onClick={() => handleCancelLocalRender(localRender.id)}
+                                        variant="destructive"
+                                        size="sm"
+                                    >
+                                        Cancel Render
+                                    </Button>
+                                )}
+                                {localRender.status === 'failed' && localRender.checkpointPath && (
+                                    <Button
+                                        onClick={() => toast.info('Resume functionality coming soon')}
+                                        variant="default"
+                                        size="sm"
+                                    >
+                                        Resume from Checkpoint
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Progress Section */}
+                        {localRender.status === 'rendering' && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Play className="h-5 w-5" />
+                                        Rendering Progress
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between text-sm">
+                                            <span>Progress</span>
+                                            <span className="font-medium">{Math.round((localRender.progress || 0) * 100)}%</span>
+                                        </div>
+                                        <Progress value={(localRender.progress || 0) * 100} className="w-full" />
+                                        {localRender.currentFrame && localRender.totalFrames && (
+                                            <p className="text-sm text-muted-foreground">
+                                                Frame {localRender.currentFrame} of {localRender.totalFrames}
+                                            </p>
+                                        )}
+                                        {localRender.estimatedTimeRemaining && (
+                                            <p className="text-sm text-muted-foreground">
+                                                Estimated time remaining: {Math.ceil(localRender.estimatedTimeRemaining / 60000)} minutes
+                                            </p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Render Details */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Render Details</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Composition</dt>
+                                        <dd className="font-medium">{localRender.compositionId}</dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Render Type</dt>
+                                        <dd className="font-medium">{localRender.renderType}</dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Codec</dt>
+                                        <dd className="font-medium">{localRender.codec}</dd>
+                                    </div>
+                                    {localRender.audioCodec && (
+                                        <div className="flex justify-between">
+                                            <dt className="text-muted-foreground">Audio Codec</dt>
+                                            <dd className="font-medium">{localRender.audioCodec}</dd>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Quality</dt>
+                                        <dd className="font-medium capitalize">{localRender.quality}</dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Concurrency</dt>
+                                        <dd className="font-medium">{localRender.concurrency} threads</dd>
+                                    </div>
+                                    {localRender.outputPath && (
+                                        <div className="flex justify-between">
+                                            <dt className="text-muted-foreground">Output Path</dt>
+                                            <dd className="font-medium text-sm truncate max-w-xs">{localRender.outputPath}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            </CardContent>
+                        </Card>
+
+                        {/* Error Display */}
+                        {localRender.status === 'failed' && localRender.error && (
+                            <Card className="border-destructive">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-destructive">
+                                        <AlertCircle className="h-5 w-5" />
+                                        Render Failed
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">{localRender.error}</p>
+                                    {localRender.checkpointPath && (
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            A checkpoint was saved. You can resume this render from where it failed.
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Success Display */}
+                        {localRender.status === 'completed' && localRender.outputPath && (
+                            <Card className="border-green-500">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-green-600">
+                                        <CheckCircle className="h-5 w-5" />
+                                        Render Completed
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Your video has been rendered successfully!
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(localRender.outputPath);
+                                                toast.success('Path copied to clipboard');
+                                            }}
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            Copy Path
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
+        );
+    }
+
+    // Show AWS render UI
     return (
         <div className="flex-1 flex flex-col min-h-0">
             <ScrollArea className="flex-1 overflow-y-auto">
@@ -222,16 +470,16 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            {getStatusIcon(selectedRequest.status)}
+                            {getStatusIcon(selectedRequest!.status)}
                             <div>
-                                <h1 className="text-2xl font-bold">{selectedRequest.fileName}</h1>
+                                <h1 className="text-2xl font-bold">{selectedRequest!.fileName}</h1>
                                 <p className="text-muted-foreground">
-                                    Created {formatDate(selectedRequest.createdAt)}
+                                    Created {formatDate(selectedRequest!.createdAt)}
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {getStatusBadge(selectedRequest.status)}
+                            {getStatusBadge(selectedRequest!.status)}
                             {isRefreshing && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -252,7 +500,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     <Separator />
 
                     {/* Progress Section */}
-                    {selectedRequest.status === "rendering" && selectedRequest.progress !== undefined && (
+                    {selectedRequest && selectedRequest.status === "rendering" && selectedRequest.progress !== undefined && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -295,7 +543,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     )}
 
                     {/* Error Section */}
-                    {selectedRequest.status === "failed" && selectedRequest.error && (
+                    {selectedRequest && selectedRequest.status === "failed" && selectedRequest.error && (
                         <Card className="border-red-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-red-600">
@@ -313,7 +561,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     )}
 
                     {/* Download Section */}
-                    {selectedRequest.status === "completed" && selectedRequest.downloadUrl && (
+                    {selectedRequest && selectedRequest.status === "completed" && selectedRequest.downloadUrl && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -352,29 +600,30 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     )}
 
                     {/* Cost Display */}
-                    {selectedRequest.progressData?.renderInfo?.costs && (
+                    {selectedRequest && selectedRequest.progressData?.renderInfo?.costs && (
                         <CostDisplay costs={selectedRequest.progressData.renderInfo.costs} />
                     )}
 
                     {/* Progress Details */}
-                    {selectedRequest.progressData?.renderInfo && (
+                    {selectedRequest && selectedRequest.progressData?.renderInfo && (
                         <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo} awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
                     )}
 
                     {/* Render Details */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Settings className="h-5 w-5" />
-                                Render Details
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                        <span className="text-sm font-medium">File Name:</span>
-                                        <span className="text-sm font-mono">{selectedRequest.fileName}</span>
+                    {selectedRequest && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Settings className="h-5 w-5" />
+                                    Render Details
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium">File Name:</span>
+                                            <span className="text-sm font-mono">{selectedRequest.fileName}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-sm font-medium">Codec:</span>
@@ -409,10 +658,11 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                 </div>
                             </div>
                         </CardContent>
-                    </Card>
+                        </Card>
+                    )}
 
                     {/* Input Props */}
-                    {selectedRequest.inputProps && (
+                    {selectedRequest && selectedRequest.inputProps && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">

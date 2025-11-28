@@ -31,11 +31,25 @@ interface HistorySidebarProps {
 
 export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiRequest }: HistorySidebarProps) {
     const [renderRequests, setRenderRequests] = useState<RenderRequest[]>([]);
+    const [localRenders, setLocalRenders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
     const [isApiLoading, setIsApiLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+
+    // Fetch local renders
+    const fetchLocalRenders = async () => {
+        try {
+            const response = await fetch('/api/remotion/render/local/list');
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            setLocalRenders(data.renders || []);
+        } catch (error) {
+            console.error('Failed to fetch local renders:', error);
+        }
+    };
 
     // Fetch render history from API
     const fetchApiHistory = async (key: string) => {
@@ -63,6 +77,13 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
             setIsApiLoading(false);
         }
     };
+
+    // Poll local renders periodically
+    useEffect(() => {
+        fetchLocalRenders();
+        const interval = setInterval(fetchLocalRenders, 3000); // Poll every 3 seconds
+        return () => clearInterval(interval);
+    }, []);
 
     // Refresh a single API request
     const refreshApiRequest = async (renderId: string): Promise<RenderRequest | null> => {
@@ -180,7 +201,8 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
                 <div>
                     <h2 className="text-lg font-semibold">Render History</h2>
                     <p className="text-sm text-muted-foreground">
-                        {renderRequests?.length || 0} render requests
+                        {(localRenders?.length || 0) + (renderRequests?.length || 0)} total renders
+                        {localRenders?.length > 0 && ` (${localRenders.length} local)`}
                     </p>
                 </div>
 
@@ -220,6 +242,61 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
 
             <ScrollArea className="h-[calc(100vh-12rem)] overflow-y-auto">
                 <div className="p-4 space-y-3">
+                    {/* Local Renders Section */}
+                    {localRenders?.length > 0 && (
+                        <>
+                            <div className="text-xs font-semibold text-muted-foreground mb-2">LOCAL RENDERS</div>
+                            {localRenders.map((render) => (
+                                <Card
+                                    key={render.id}
+                                    className={cn(
+                                        "cursor-pointer transition-colors hover:bg-muted/50",
+                                        selectedRender === render.id && "ring-2 ring-primary"
+                                    )}
+                                    onClick={() => onSelectRender(render.id, render as any)}
+                                >
+                                    <CardHeader className="p-3 pb-2">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <CardTitle className="text-sm font-medium truncate flex-1">
+                                                {render.fileName}
+                                            </CardTitle>
+                                            {getStatusBadge(render.status as "pending" | "rendering" | "completed" | "failed")}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-3 pt-0 space-y-1.5 text-xs">
+                                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                                            <Clock className="h-3 w-3" />
+                                            <span>{new Date(render.startTime).toLocaleString()}</span>
+                                        </div>
+                                        {render.status === 'rendering' && render.progress !== undefined && (
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Progress</span>
+                                                    <span className="font-medium">{Math.round(render.progress * 100)}%</span>
+                                                </div>
+                                                <div className="w-full bg-muted rounded-full h-1.5">
+                                                    <div 
+                                                        className="bg-primary h-1.5 rounded-full transition-all"
+                                                        style={{ width: `${render.progress * 100}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                            <span className="px-1.5 py-0.5 bg-muted rounded">{render.codec}</span>
+                                            <span className="px-1.5 py-0.5 bg-muted rounded">{render.quality}</span>
+                                            <span className="px-1.5 py-0.5 bg-muted rounded">⚡{render.concurrency}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                            {renderRequests?.length > 0 && (
+                                <div className="text-xs font-semibold text-muted-foreground mt-4 mb-2">AWS RENDERS</div>
+                            )}
+                        </>
+                    )}
+                    
+                    {/* AWS Renders Section */}
                     {renderRequests?.map((request) => (
                         <Card
                             key={request.id}

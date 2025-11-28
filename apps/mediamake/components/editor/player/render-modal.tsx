@@ -223,6 +223,8 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         outputLocation: settings.outputLocation,
         fileName: settings.fileName,
         frameTime: settings.frameTime,
+        quality: settings.quality || 'balanced',
+        concurrency: settings.concurrency || 'auto',
       }),
     });
 
@@ -233,11 +235,12 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
     const result = await response.json();
 
-    toast.success(
-      `Local ${settings.renderType} render completed successfully!`,
-    );
-    toast.info(`Output saved to: ${result.result.outputPath}`);
+    toast.success('Local render started!');
+    toast.info(`Render ID: ${result.renderId} - Check history page for progress`);
     onClose();
+    
+    // Navigate to history page
+    router.push('/history');
   };
 
   return (
@@ -660,6 +663,48 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       <SelectItem value="mp3">MP3</SelectItem>
                       <SelectItem value="pcm-16">PCM-16</SelectItem>
                       <SelectItem value="opus">Opus</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="quality" className="text-right">
+                    Quality
+                  </Label>
+                  <Select
+                    value={settings.quality || 'balanced'}
+                    onValueChange={value => updateSetting('quality', value as 'fast' | 'balanced' | 'high')}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select quality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fast">Fast (2x faster, good for previews)</SelectItem>
+                      <SelectItem value="balanced">Balanced (recommended)</SelectItem>
+                      <SelectItem value="high">High (best quality, slower)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="concurrency" className="text-right">
+                    Concurrency
+                  </Label>
+                  <Select
+                    value={settings.concurrency ? String(settings.concurrency) : 'auto'}
+                    onValueChange={value => updateSetting('concurrency', value === 'auto' ? 'auto' : parseInt(value))}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select concurrency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto (recommended)</SelectItem>
+                      <SelectItem value="2">2 threads</SelectItem>
+                      <SelectItem value="4">4 threads</SelectItem>
+                      <SelectItem value="6">6 threads</SelectItem>
+                      <SelectItem value="8">8 threads</SelectItem>
+                      <SelectItem value="12">12 threads</SelectItem>
+                      <SelectItem value="16">16 threads</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

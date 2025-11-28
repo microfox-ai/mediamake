@@ -18,7 +18,9 @@ export interface RenderSettings {
         | 'basic-fast'
         | 'throttled'
         | 'classic'; // Only used for AWS rendering
-    concurrencyOverride?: number | 'auto'; // User-defined concurrency
+    concurrencyOverride?: number | 'auto'; // User-defined concurrency (AWS)
+    concurrency?: number | 'auto'; // Concurrency for local renders
+    quality?: 'fast' | 'balanced' | 'high'; // Quality preset for local renders
     isConcurrencyHelperActive?: boolean; // Toggle for calculator UI
     helperFps?: number; // FPS for calculator
     helperDuration?: number; // Duration in seconds for calculator
