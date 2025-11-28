@@ -186,14 +186,29 @@ async function transcribeAudio(
       clientId || 'default',
     );
 
-    // Step 2: Get audio metadata
-    const audioMetadata = await getAudioMetadata(processedUrl);
-    console.log('Audio metadata retrieved:', {
-      duration: audioMetadata.duration,
-      sampleRate: audioMetadata.sampleRate,
-      channels: audioMetadata.channels,
-      format: audioMetadata.format,
-    });
+    // Step 2: Get audio metadata (with fallback for serverless)
+    let audioMetadata;
+    try {
+      audioMetadata = await getAudioMetadata(processedUrl);
+      console.log('Audio metadata retrieved:', {
+        duration: audioMetadata.duration,
+        sampleRate: audioMetadata.sampleRate,
+        channels: audioMetadata.channels,
+        format: audioMetadata.format,
+      });
+    } catch (error) {
+      console.warn('Could not get audio metadata, using defaults:', error);
+      // Use defaults if metadata retrieval fails
+      const urlPath = new URL(processedUrl).pathname;
+      const extension = urlPath.split('.').pop()?.toLowerCase() || 'mp3';
+      audioMetadata = {
+        duration: 0, // Will be estimated by Gemini
+        sampleRate: 44100,
+        channels: 1,
+        format:
+          extension === 'm4a' ? 'm4a' : extension === 'wav' ? 'wav' : 'mp3',
+      };
+    }
 
     // Step 3: Extract audio as base64 for Gemini
     console.log('Extracting audio as base64...');
@@ -207,10 +222,15 @@ async function transcribeAudio(
 
     // Step 5: Transcribe with Gemini
     const model = google('gemini-2.0-flash-exp');
+    const durationHint =
+      audioMetadata.duration > 0
+        ? `The audio duration is approximately ${audioMetadata.duration} seconds.`
+        : 'Please estimate the duration based on the audio content.';
+
     const prompt = `Transcribe this audio file with word-level timestamps if possible. 
 ${language && language !== 'auto' ? `The audio is in ${language}.` : 'Detect the language automatically.'}
 Provide the transcription in segments with approximate timestamps for each segment and word.
-The audio duration is approximately ${audioMetadata.duration} seconds.
+${durationHint}
 Format your response with segments containing:
 - text: The transcribed text for this segment
 - startTime: Start time in seconds
@@ -240,10 +260,13 @@ Format your response with segments containing:
 
     console.log('Successfully received transcription from Gemini');
 
-    const captions = convertGeminiToCaptions(
-      result.object,
-      audioMetadata.duration,
-    );
+    // Use duration from Gemini result if available, otherwise use metadata duration
+    const finalDuration =
+      result.object.segments.length > 0
+        ? Math.max(...result.object.segments.map(s => s.end || 0))
+        : audioMetadata.duration || 0;
+
+    const captions = convertGeminiToCaptions(result.object, finalDuration);
 
     // Generate a unique ID for this transcription
     const transcriptionId = `gemini-${Date.now()}`;

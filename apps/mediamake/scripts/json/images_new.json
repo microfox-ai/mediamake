@@ -4,100 +4,12 @@
     "style": "user-directive-focused",
     "ideaCount": 25,
     "variationCount": 10,
-    "tags": ["unset"],
+    "tags": [
+      "unset"
+    ],
     "predefinedPreferences": []
   },
   "queue": [
-    {
-      "userDirective": "anime style - man, god aura, powerup, stylistic digital art, engaging for shoen & youth audience"
-    },
-    {
-      "userDirective": "anime style - woman, god aura, powerup, stylistic digital art, engaging for rebellious female audience"
-    },
-    {
-      "userDirective": "sports car wallpapers, high resolution, detailed, or digital arts, for car lovers & enthusiasts"
-    },
-    {
-      "userDirective": "cyberpunk city - neon-lit streets, rainy, towering skyscrapers, flying cars, digital art, for sci-fi fans & tech enthusiasts"
-    },
-    {
-      "userDirective": "fantasy landscape - mystical forest, ancient ruins, bioluminescent plants, matte painting, for RPG gamers & fantasy readers"
-    },
-    {
-      "userDirective": "minimalist interior - scandinavian design, neutral colors, clean lines, natural light, architectural render, for design lovers & homeowners"
-    },
-    {
-      "userDirective": "gothic horror - haunted mansion, full moon, swirling fog, ominous silhouettes, dark digital art, for horror movie buffs & gothic art fans"
-    },
-    {
-      "userDirective": "streetwear fashion - model in urban setting, dynamic pose, name-brand sneakers, graffiti background, edgy photography, for hypebeasts & youth culture"
-    },
-    {
-      "userDirective": "flat lay photo - aesthetic brunch, overhead shot, vibrant colors, rustic table, natural light, for food bloggers & lifestyle influencers"
-    },
-    {
-      "userDirective": "epic fantasy art - dragon, knight, dramatic lighting, detailed armor, cinematic, for D&D players & epic fantasy fans"
-    },
-    {
-      "userDirective": "cute animal - stylized chibi character, big expressive eyes, pastel colors, soft shading, sticker style, for casual gamers & kawaii culture fans"
-    },
-    {
-      "userDirective": "comic book style - superhero, dynamic action pose, bold inks, cel shading, city explosion, for Marvel/DC fans & comic collectors"
-    },
-    {
-      "userDirective": "steampunk vehicle - intricate gears, brass and copper, Victorian design, airship, highly detailed 3D model, for steampunk aficionados & makers"
-    },
-    {
-      "userDirective": "cozy cottage interior - fireplace, sleeping cat, overgrown plants, warm lighting, Studio Ghibli style, for cozy gamers & cottagecore fans"
-    },
-    {
-      "userDirective": "serene yoga pose - woman, mountain sunrise, athletic wear, peaceful, high-resolution photo, for fitness & wellness influencers"
-    },
-    {
-      "userDirective": "gourmet pastry - flaky crust, powdered sugar, macro shot, shallow depth of field, food photography, for bakers & food bloggers"
-    },
-    {
-      "userDirective": "coder desk setup - multiple monitors, mechanical keyboard, dark room, lines of code, clean 3D render, for programmers & tech enthusiasts"
-    },
-    {
-      "userDirective": "abstract music visual - neon soundwaves, geometric patterns, pulsating lights, dark, motion graphics style, for EDM fans & DJs"
-    },
-    {
-      "userDirective": "backpacker on trail - jungle path, distant mountains, adventure gear, gritty travel photo, for explorers & backpackers"
-    },
-    {
-      "userDirective": "ancient rome - bustling forum, senators in togas, detailed reconstruction, digital painting, for history buffs & students"
-    },
-    {
-      "userDirective": "knitting flat lay - pastel yarn, wooden needles, cozy blanket, bright and airy photo, for crafters & DIY bloggers"
-    },
-    {
-      "userDirective": "shojo anime girl - school uniform, cherry blossoms, big eyes, flowing hair, soft digital art, for romance anime & manga fans"
-    },
-    {
-      "userDirective": "happy golden retriever - running in field, golden hour, tongue out, pet portrait photography, for dog lovers & families"
-    },
-    {
-      "userDirective": "dark academia library - dusty books, leather armchair, moody lighting, green lamp, cinematic photo, for students & book lovers"
-    },
-    {
-      "userDirective": "skateboarder mid-air - skate park, graffiti, dynamic trick, fisheye lens photo, for skaters & streetwear audience"
-    },
-    {
-      "userDirective": "zodiac constellation - celestial art, cosmic nebula, sparkling stars, mystical, for astrology followers & new age audience"
-    },
-    {
-      "userDirective": "bodybuilder pose - dramatic shadows, gym, high contrast monochrome, fitness photography, for weightlifters & athletes"
-    },
-    {
-      "userDirective": "antique pocket watch - intricate gears, brass, detailed macro photo, vintage style, for collectors & history lovers"
-    },
-    {
-      "userDirective": "sleeping newborn - swaddled, soft blanket, neutral tones, professional newborn photo, for new parents & family"
-    },
-    {
-      "userDirective": "reforestation - people planting saplings, green hills, sunny, documentary photo, for environmentalists & activists"
-    },
     {
       "userDirective": "cthulhu rising - stormy ocean, massive tentacles, cosmic horror, dark fantasy art, for Lovecraft fans & horror readers"
     },
