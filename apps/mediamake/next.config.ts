@@ -37,8 +37,12 @@ const nextConfig: NextConfig = {
         rollup: 'commonjs rollup',
         '@rollup/rollup-linux-x64-gnu': 'commonjs @rollup/rollup-linux-x64-gnu',
         mongodb: 'commonjs mongodb',
+        // Note: ffmpeg/ffprobe installers are externalized but binaries should be available
+        // in node_modules. The path resolution in the code handles Vercel/serverless environments.
         '@ffmpeg-installer/ffmpeg': 'commonjs @ffmpeg-installer/ffmpeg',
         '@ffprobe-installer/ffprobe': 'commonjs @ffprobe-installer/ffprobe',
+        // Externalize fluent-ffmpeg to avoid bundling issues and warnings
+        'fluent-ffmpeg': 'commonjs fluent-ffmpeg',
       });
     }
 
@@ -74,7 +78,7 @@ const nextConfig: NextConfig = {
       mongodb: false,
     };
 
-    // Suppress warnings for optional dependencies
+    // Suppress warnings for optional dependencies and fluent-ffmpeg
     config.ignoreWarnings = [
       ...(config.ignoreWarnings || []),
       /Module not found.*@remotion\/google-fonts/,
@@ -85,7 +89,20 @@ const nextConfig: NextConfig = {
       /Module not found.*tls/,
       /Module not found.*child_process/,
       /Module not found.*dns/,
+      // Suppress fluent-ffmpeg warnings
+      /Critical dependency: the request of a dependency is an expression/,
+      /fluent-ffmpeg/,
+      // Suppress webpack cache warnings about large strings
+      /Serializing big strings/,
     ];
+
+    // Suppress specific webpack cache warnings
+    if (config.cache) {
+      config.cache = {
+        ...config.cache,
+        compression: 'gzip' as const,
+      };
+    }
 
     return config;
   },
