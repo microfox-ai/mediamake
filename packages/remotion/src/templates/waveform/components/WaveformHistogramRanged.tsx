@@ -24,6 +24,9 @@ export interface WaveformHistogramRangedDataProps {
     // Animation
     amplitude?: number;
 
+    // Bar slant/rotation
+    barSlant?: number; // Rotation angle in degrees (default: 0)
+
     // Frequency range visualization
     showFrequencyRanges?: boolean; // Show bass/mid/treble sections
     rangeDividerColor?: string; // Color for range dividers
@@ -71,6 +74,7 @@ export const WaveformHistogramRanged: React.FC<WaveformHistogramRangedProps> = (
         gradientStyle = 'normal',
         horizontalSymmetry = false,
         waveDirection = 'right-to-left',
+        barSlant = 0,
     } = data;
     return (
         <Waveform config={config} className={className} style={style}>
@@ -95,6 +99,7 @@ export const WaveformHistogramRanged: React.FC<WaveformHistogramRangedProps> = (
                 gradientStyle={gradientStyle}
                 horizontalSymmetry={horizontalSymmetry}
                 waveDirection={waveDirection}
+                barSlant={barSlant}
             />
         </Waveform>
     );
@@ -122,6 +127,7 @@ const WaveformHistogramRangedContent: React.FC<Omit<WaveformHistogramRangedDataP
     gradientStyle,
     horizontalSymmetry,
     waveDirection,
+    barSlant,
 }) => {
     const { amplitudes, bassValues, midValues, trebleValues, height } = useWaveformContext();
 
@@ -198,6 +204,8 @@ const WaveformHistogramRangedContent: React.FC<Omit<WaveformHistogramRangedDataP
                                 borderRadius: growUpwards ? `${barBorderRadius}px ${barBorderRadius}px 0 0` : `0 0 ${barBorderRadius}px ${barBorderRadius}px`,
                                 opacity,
                                 position: 'relative',
+                                transform: barSlant ? `rotate(${barSlant}deg)` : undefined,
+                                transformOrigin: 'center bottom',
                             }}
                             title={`${rangeName}: ${(value * 100).toFixed(1)}%`}
                         >
