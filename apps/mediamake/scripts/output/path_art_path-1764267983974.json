@@ -1,0 +1,1361 @@
+{
+  "mergedParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 15,
+    "variationCount": 8,
+    "tags": [
+      "animalwear"
+    ],
+    "predefinedPreferences": [
+      "--sref 3704803642"
+    ],
+    "userDirective": "Lizard, post-apocalyptic scavenger gear, desert wasteland, makeshift armor."
+  },
+  "result": [
+    {
+      "id": "ILmLgcy7cpqesOcD",
+      "metadata": {
+        "loader": "Saving prompts to database..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-ideateMidjourneyShots",
+          "toolCallId": "ideateMidjourneyShots-YJ3P1y3jVk0XyC3b",
+          "state": "output-available",
+          "output": {
+            "predefinedPreferences": [
+              "--sref 3704803642"
+            ],
+            "shots": [
+              "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+              "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+              "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+              "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+              "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+              "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+              "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+              "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+              "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+              "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+              "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+              "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+              "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+              "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+              "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation"
+            ],
+            "variationCount": 8,
+            "model": "claude-opus-4-1",
+            "tags": [
+              "animalwear"
+            ],
+            "creativeInspiration": "## Creative Inspiration: Desert Survivor Lizard\n\n**Core Vision:** A resourceful lizard character surviving in a harsh post-apocalyptic desert, embodying the ultimate wasteland scavenger through ingenious makeshift protection and salvaged gear.\n\n**Character Design:** The lizard protagonist wears cobbled-together armor from pre-war remnants—rusted metal plates strapped with leather, torn fabric wrappings, repurposed road signs as shields. Their scales peek through gaps, dust-caked and sun-bleached. Goggles fashioned from broken bottles protect their eyes.\n\n**Environmental Context:** Endless dunes of rust-colored sand dotted with skeletal remains of civilization—twisted metal structures, abandoned vehicles half-buried, bleached bones. The scorching sun creates harsh shadows and heat mirages.\n\n**Key Elements:**\n- Layered scavenged materials showing ingenuity\n- Desert adaptation tools (water collectors, sun shields)\n- Weathered textures emphasizing survival hardship\n- Reptilian features integrated with mechanical/industrial salvage\n\n**Mood:** Gritty determination meets clever adaptation. The aesthetic balances biological evolution with post-industrial decay—a creature perfectly adapted to thrive where others perished.\n\n**Visual Themes:** Contrast between organic reptilian form and harsh metallic armor, survival through adaptation, beauty in desolation, resourcefulness over resources."
+          }
+        },
+        {
+          "type": "tool-generateMidjourneyPromptsSimple",
+          "toolCallId": "generateMidjourneyPromptsSimple-bzZUd1uCxq5wzWvm",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps, post-apocalyptic desert survivor, resourceful reptilian scavenger, cobbled-together protection from pre-war remnants, dust-caked scales, harsh shadows and heat mirages, gritty determination, weathered textures, cinematic lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Shattered bottle-glass goggles reflecting endless dunes and twisted metal ruins, lizard survivor's amber scales illuminated through tattered cloth wrappings, nuclear orange sunset bleeding across wasteland horizon, makeshift armor casting jagged shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Close portrait of desert lizard warrior, cracked welding goggles showing apocalyptic landscape reflection, rusty metal plates strapped with leather over scales, fabric strips fluttering in radioactive wind, golden hour wasteland lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Reptilian eye visible through broken goggle lens, reflecting skeletal civilization remains, sun-bleached scales contrasting with dark metal armor pieces, torn canvas and leather bindings, atmospheric dust particles glowing in sunset --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard scavenger's face in profile, improvised eye protection from salvaged materials reflecting desolate horizon, scales catching amber light between armor gaps, post-industrial decay meets biological adaptation --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Wasteland survivor lizard, fragmented mirror goggles showing burning sky, patchwork armor from road signs and scrap metal, reptilian features emerging through weathered fabric, harsh desert sun creating dramatic silhouette --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Desert-adapted lizard creature, reflection of endless wasteland in makeshift eyewear, scales glowing through battle-worn armor tears, nuclear sunset painting everything orange and rust, survival through ingenuity aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard warrior's portrait, bottle-glass goggles reflecting apocalyptic desert, scales visible beneath layers of salvaged protection, fabric bandages and metal plates, heat distortion and atmospheric dust --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Post-apocalyptic reptilian survivor, cracked lens showing wasteland expanse, amber-lit scales peeking through improvised armor gaps, sunset silhouette against radioactive sky, weathered and determined expression --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges, post-apocalyptic lizard scavenger, makeshift desert armor, weathered textures of survival, harsh wasteland environment, gritty detail photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Reptilian claws wrapped around corroded STOP sign repurposed as shield, desert sand dancing in hot wind, leather bindings digging deep into scaled flesh, rust and blood creating abstract patterns on metal --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Macro shot of lizard hand clutching salvaged road sign defense, individual sand grains suspended in air, cracked scales under tight leather straps, oxidized metal surface with dark stains, survival gear detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Desert survivor's grip on makeshift shield from pre-war signage, swirling sand vortex around clawed fingers, leather cutting grooves in reptilian skin, battle-worn metal edges, atmospheric dust particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Lizard warrior's talons holding weathered stop sign shield, sandstorm particles in motion, improvised straps biting into scaled armor, rust patterns mixing with old bloodstains, post-industrial wasteland aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Detailed view of scavenger's clawed grip on road sign protection, desert wind carrying sand streams, leather harness marks on scales, corroded metal telling stories of survival, harsh textural contrasts --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Reptilian hand detail grasping rusted highway sign shield, kinetic sand movement, leather straps creating pressure marks on scales, weathered metal surface with organic stains, wasteland craftsmanship --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Close focus on lizard claws and improvised stop sign defense, sand particles frozen mid-swirl, leather bindings cutting circulation, metal edges worn smooth from use, dried blood creating patina --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Macro of desert lizard's grip on salvaged signage shield, individual sand grains catching light, leather straps embedded in scale patterns, rust and biological stains creating abstract art, survival adaptation detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand, post-apocalyptic desert landscape, bleached bones framing composition, resourceful wasteland survivor, dramatic perspective photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "View through weathered ribcage bones, armored lizard ascending sand mountain, patchwork metal plates reflecting brutal sun, heavy salvage sack leaving trail, skeletal remains as foreground frame, epic wasteland journey --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Perspective through bleached skeleton chest, reptilian survivor climbing rust-colored dune, improvised armor glinting in desert light, tail pulling scavenged treasures, bone architecture creating natural frame, harsh survival aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Looking up through ancient ribcage remains, lizard warrior ascending sandy slope, cobbled protection from salvaged materials catching rays, dragging bag of precious findings, death and survival juxtaposed --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Skeleton bones framing desert lizard's climb, makeshift armor pieces reflecting scorching sunlight, powerful tail hauling survival gear through sand, dramatic low angle emphasizing struggle, post-apocalyptic determination --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Through the hollow of bleached ribs, armored reptile scaling endless dune, metal and leather protection glowing in harsh light, salvage collection dragging behind, bones as compositional element, wasteland endurance story --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Ribcage window to lizard scavenger's ascent, assembled armor catching golden desert sun, muscular tail pulling gathered resources, skeletal foreground adding depth, survival against impossible odds --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "View between ancient bone bars, determined lizard climbing sand mountain, piecemeal armor creating light patterns, heavy salvage bag carving sand groove, death framing life, wasteland photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Skeleton chest cavity perspective, reptilian survivor conquering dune, improvised protection sparkling in sunlight, tail-dragged treasures leaving trace, bleached bones as natural frame, desert adaptation narrative --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air, post-apocalyptic wasteland vista, makeshift armor from salvaged vehicle parts, reptilian survivor scanning horizon --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Desert lizard warrior standing on rusted school bus wreckage, repurposed license plates as pauldrons clanking in wind, forked tongue sampling toxic atmosphere, endless dunes stretching to horizon, king of the wasteland pose --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Reptilian scavenger atop flipped transit vehicle, shoulder armor made from state plates rattling, tongue flicking to sense danger, panoramic desert wasteland view, makeshift protection from automotive salvage --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard survivor commanding view from bus skeleton, license plate shoulder guards catching wind, tasting post-nuclear air with reptilian senses, infinite sand sea below, vehicle graveyard kingdom --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Armored lizard sentinel on overturned transport, collected plates as shoulder protection clattering, tongue detecting radiation levels, surveying domain of rust and sand, apocalyptic overlook composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Desert reptile perched on dead bus hull, improvised license plate armor pieces rattling, sampling wasteland air chemistry, endless desolation stretching beyond, survivor surveying territory --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard warrior atop vehicle corpse, shoulder guards from registration plates singing in wind, tongue reading atmospheric toxins, commanding wasteland view, makeshift armor from civilization's remains --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Scavenger lizard on bus wreckage throne, license plate pauldrons creating metallic symphony, tasting radioactive wind currents, desert empire vista, post-apocalyptic ruler surveying domain --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Reptilian survivor claiming high ground on transport ruins, automotive plate armor rattling, tongue sensing environmental hazards, panoramic wasteland perspective, adaptation through salvage aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background, post-apocalyptic lizard finding water, makeshift collection device, emotional wasteland moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Extreme close-up of lizard's eye with water droplet, military helmet repurposed as water catcher, dry cracked scales versus wet relief, heat shimmer creating surreal backdrop, precious resource in wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Single water bead on reptilian pupil, salvaged helmet holding collected moisture, dehydrated scales telling survival story, background melting in heat distortion, life-giving liquid in death valley --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Lizard's eye reflecting water drop miracle, combat helmet transformed to survival tool, parched skin contrasting liquid hope, waves of heat bending reality, emotional breakthrough in desert hell --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Macro of moisture on scaled eyelid, helmet-bowl with precious water drops, dry weathered scales versus wet salvation, atmospheric heat creating abstract background, wasteland's most valuable treasure --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Water pearl on reptilian iris, repurposed military gear collecting liquid, cracked scales showing dehydration history, heat mirages warping environment, survival's sweet victory moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Lizard survivor's eye with water blessing, helmet converted to life-saving vessel, desert-dried scales meeting moisture, reality bending in extreme heat, emotional climax of endurance --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Close detail of water on reptile eye, salvaged helmet as makeshift basin, parched texture versus liquid relief, heat waves creating dreamlike backdrop, wasteland's rarest commodity --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Reptilian tear of joy meeting collected water, military helmet holding survival drops, weathered scales contrasting with moisture, heat distortion abstracting background, triumph over desolation --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Profile silhouette of weathered lizard survivor against massive sandstorm wall, makeshift goggles glowing eerie green from radiation, tattered cape made from sewn plastic bags and tarp fragments whipping violently in wind, defiant stance against apocalyptic storm, post-apocalyptic desert wasteland, dramatic side lighting through dust clouds --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Reptilian scavenger's profile silhouette facing colossal sandstorm, bottle-glass goggles radiating toxic green light, patchwork plastic bag cape thrashing in nuclear winds, standing firm against nature's fury, rust-colored desert apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Desert lizard warrior profile against towering dust wall, improvised goggles emitting radioactive green glow, DIY plastic sheeting cape billowing dramatically, unwavering stance in wasteland storm, harsh contrast lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Silhouetted lizard survivor confronting sandstorm barrier, jury-rigged goggles glowing green with contamination, recycled plastic bags sewn into makeshift cloak whipping wildly, defiant posture against elements --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Profile view of armored lizard against apocalyptic sandstorm, radiation-lit goggles from salvaged materials, tattered plastic bag cape dancing violently in wind, standing resolute in desert wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Lizard scavenger silhouette facing sand wall tempest, green-glowing makeshift eye protection, improvised plastic tarp cape flailing in storm, determined stance against hostile environment --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Side profile of reptilian survivor against massive dust storm, cobbled-together goggles radiating nuclear green, sewn plastic bag cloak whipping chaotically, defying nature's assault --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Desert lizard's profile silhouette confronting sandstorm wall, glowing green radiation goggles from broken bottles, patchwork plastic cape thrashing violently, standing firm against apocalyptic winds --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Aerial overhead view of lizard scavenger's long shadow stretching across field of bleached bones and skulls, makeshift armor pieces creating sharp geometric shadow patterns, footprints disappearing into endless desert, circling vultures casting shadows below, harsh noon sun --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Bird's eye view of reptilian survivor's shadow over bone graveyard, cobbled armor casting angular geometric shapes, tracks vanishing into infinite sand dunes, vulture silhouettes circling overhead --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Top-down perspective of lizard warrior's elongated shadow across skeletal remains, salvaged metal armor creating abstract shadow geometry, footsteps fading into horizon, scavenger birds circling above --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Overhead shot of desert lizard's shadow stretching over sun-bleached bones, improvised armor pieces forming sharp shadow patterns, trail disappearing into vast wasteland, vultures wheeling in sky --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Aerial view of lizard survivor's dark shadow crossing bone field, geometric armor shadows contrasting organic remains, footprints dissolving into endless dunes, carrion birds circling hungrily --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Top view of reptilian scavenger's shadow over skeletal wasteland, makeshift armor creating angular shadow designs, tracks vanishing into desert infinity, vultures casting moving shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Bird's eye perspective of lizard's long shadow across bone-strewn ground, salvaged armor pieces throwing geometric shadows, footsteps fading into distance, circling scavenger birds above --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Overhead angle of desert lizard's shadow stretching over bleached skeletons, cobbled armor casting sharp geometric patterns, trail disappearing into endless sand sea, vultures circling ominously --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Weathered lizard's scarred clawed hands assembling new armor piece from rusted car hood, orange sparks flying from metal-on-metal friction, intense concentration in reptilian eyes, improvised tools made from sharpened bones and scrap, workshop of salvaged parts --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Close-up of reptilian survivor's battle-scarred hands crafting armor from automobile hood, sparks cascading from grinding metal, focused determination in lizard features, bone tools and salvaged materials scattered --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Desert lizard's damaged claws working on car hood armor, bright sparks erupting from friction work, concentrated expression on scaled face, makeshift bone tools, post-apocalyptic crafting scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Scarred lizard hands shaping rusted vehicle panel into armor, shower of orange sparks from metal grinding, intense focus in reptilian features, improvised bone implements, wasteland workshop --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Weathered reptilian claws assembling salvaged car armor, sparks flying from metal friction, determined concentration etched in scales, tools fashioned from bones and debris, scavenger's workbench --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Close view of lizard's battle-worn hands crafting hood armor, cascading sparks from metalwork, focused reptilian expression, bone-made tools and scrap materials, survival crafting moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Desert survivor's scarred claws working rusted auto panel, orange sparks erupting from grinding, intense determination in lizard eyes, improvised bone tools scattered, makeshift armor workshop --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Lizard scavenger's damaged hands shaping car hood into protection, bright friction sparks flying, concentrated reptilian features, sharpened bone tools, post-apocalyptic armorer at work --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme macro close-up of dusty lizard scales pushing through gaps in chain-link armor, individual dust particles sparkling like diamonds in harsh light, dramatic texture contrast between organic scales and industrial metal, evolution of survival visible in details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Ultra close-up of reptilian scales emerging through chain-mail gaps, dust motes glittering like gems, stark contrast of biological and mechanical textures, adaptive evolution in microscopic detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Macro shot of weathered scales breaking through metal armor holes, crystalline dust particles catching light, organic versus industrial texture study, survival adaptation visible in details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme magnification of lizard scales penetrating chain-link openings, dust specks shimmering like diamonds, natural scales against harsh metal contrast, evolutionary survival captured intimately --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Super close-up of dusty scales pushing past armor gaps, particles sparkling in desert sun, texture interplay of flesh and steel, adaptation through adversity in minute detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Macro view of reptilian skin emerging through chain armor, glittering dust particles like jewels, organic meets industrial texture contrast, evolution etched in microscopic details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Ultra-macro of scales breaking through metal links, dust motes gleaming like crystals, biological versus mechanical surface study, survival evolution in intimate detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme close-up of weathered scales through chain gaps, diamond-like dust particles in light, contrasting textures of nature and industry, adaptive survival visible microscopically --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert lizard scavenger emerging from buried subway entrance, makeshift flashlight duct-taped to head casting harsh beam, cables and wires repurposed as belt, concrete dust falling like apocalyptic snow, deep darkness swallowing background, underground wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Reptilian survivor climbing from collapsed metro entrance, jury-rigged headlamp taped to skull, electrical cables as improvised belt, concrete particles drifting like ash, consuming darkness behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Lizard warrior emerging from buried underground station, salvaged flashlight strapped to head with tape, wire belt holding armor, dust falling like nuclear snow, black void beyond --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert scavenger rising from subway ruins, makeshift headlight duct-taped above eyes, cable belt around waist, concrete dust cascading like snowfall, darkness devouring background depths --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Armored lizard exiting buried transit entrance, improvised lamp taped to head gear, repurposed wires as utility belt, falling concrete powder like ash snow, pitch black tunnel behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Reptilian survivor ascending from metro rubble, flashlight roughly taped to skull, electrical cord belt, dust particles falling like contaminated snow, absolute darkness swallowing depths --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Lizard scavenger climbing from underground entrance, headlamp duct-taped to forehead, cable belt holding supplies, concrete dust drifting like toxic snowfall, void-like darkness beyond --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert survivor emerging from buried station, makeshift light source taped to head, wire and cable belt, falling concrete particles like apocalyptic precipitation, consuming blackness behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "weathered lizard survivor staring into broken mirror shard, reflection showing past glory versus scarred present, makeshift armor of rusted metal plates and leather straps, each dent telling survival stories, dust-caked scales, accepting eyes, post-apocalyptic desert wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "battle-worn lizard examining cracked mirror fragment, ghostly reflection of former self, cobbled armor from road signs and scrap metal, weathered reptilian face with bottle-goggle scars, rust-colored sand dunes, harsh shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "grizzled desert lizard confronting reflection in shattered glass, mismatched armor pieces bearing combat damage, sun-bleached scales showing through gaps, determined expression accepting harsh reality, abandoned civilization remnants --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "survivor lizard holding polished metal shard as mirror, past memories versus present scars, ingenious armor from salvaged materials, leather wrappings and torn fabric, reptilian resilience, heat mirages distorting reflection --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "resourceful lizard facing broken mirror revelation, armor telling thousand battles through scratches and dents, goggles pushed up revealing tired eyes, makeshift protection from pre-war remnants, desolate beauty --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "post-apocalyptic lizard contemplating fractured reflection, repurposed road signs as chest plates, weathered textures of survival hardship, scales and metal fusion, acceptance written in posture, skeletal structures background --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "desert lizard warrior seeing truth in mirror shard, layered scavenged materials showing ingenuity, sun-damaged scales, bottle-bottom goggle marks, armor gaps revealing reptilian form, rust and bone landscape --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "battle-scarred lizard examining reflection in salvaged chrome, makeshift armor bearing survival history, dust storms etched into scales, resourcefulness over resources philosophy visible, twisted metal wasteland setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "thirsty lizard drinking from rusted water pipe, precious liquid dripping, loosened armor plates for comfort, vulnerable moment in harsh desert, alert posture despite exhaustion, makeshift goggles pushed up, survival instinct --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "desperate lizard scavenger sipping from corroded pipe, water more valuable than gold, temporarily removed shoulder armor, dusty scales glistening with moisture, watchful eyes scanning horizon, post-apocalyptic oasis --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "resourceful lizard collecting water from ancient plumbing, armor straps undone for breathing room, tongue catching precious drops, vulnerable yet vigilant, salvaged metal canteen nearby, endless dunes backdrop --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "parched desert lizard at makeshift water source, rusted industrial pipe dripping life, leather wrappings loosened, moment of relief in desolation, clawed hands gripping pipe, guard never fully relaxed --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "survivor lizard drinking cautiously from metal pipe, armor pieces shifted for access, water creating mud puddles, reptilian throat working, bottle-bottom goggles reflecting sun, harsh landscape waiting --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "weary lizard finding water in wasteland ruins, precious drops on dust-caked scales, cobbled armor partially removed, vulnerable position but necessary risk, sun-bleached bones nearby, survival priority --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "lizard warrior at rare water source, rusted pipe salvation, makeshift armor hanging loose, exposed scales showing exhaustion, alert tail position, heat mirages dancing, moment between life and death --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "tactical lizard drinking while maintaining watch, salvaged armor adjusted for comfort, water rationing discipline, reptilian adaptation meeting human infrastructure, skeletal vehicle remains, desert survival mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "nocturnal lizard with bioluminescent scales glowing through armor gaps, constellation patterns of light, moon illuminating salvaged metal plates, desert transformed into alien landscape, ethereal glow meeting industrial decay --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "glowing lizard survivor under starlit sky, phosphorescent scales creating light patterns through makeshift armor, moonlight on rusted metal, otherworldly desert scene, biological adaptation meeting post-apocalyptic reality --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "night-active lizard radiating bioluminescence, scales pulsing through torn fabric wrappings, lunar reflection on bottle-goggles, salvaged armor becoming light sculpture, wasteland turned mystical, evolutionary triumph --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "luminescent desert lizard in moonlight, glowing patterns beneath cobbled armor, repurposed road signs catching silver light, scales creating star maps, abandoned structures as shadow puppets, beautiful desolation --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "bioluminescent lizard warrior at night, natural light seeping through armor joints, moon-bathed wasteland, glowing constellation tattoos of scales, metal and organic light dance, survival evolution --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "radiant lizard displaying natural phosphorescence, armor gaps revealing light rivers, desert sand glowing under moon, twisted metal reflecting bioluminescence, alien beauty in familiar wasteland, adapted perfection --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "glowing-scaled lizard under desert stars, luminous patterns through leather straps, moonlit salvaged materials, biological lantern effect, post-apocalyptic aurora, nature reclaiming technology through light --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "night lizard with evolutionary glow, bioluminescent navigation through armor spaces, silver moon on weathered metal, scales telling light stories, transformed desert landscape, beauty persisting through apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "adaptable lizard with prehensile tail wrapped around salvaged rifle, perfect balance of natural evolution and human tools, armor integrated with biological defenses, scales meeting steel, survival synthesis --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "resourceful lizard gripping weathered rifle with tail, makeshift armor working with natural scales, evolution embracing destruction, reptilian advantages meeting human weapons, desert warrior hybrid, adaptive supremacy --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "survivor lizard demonstrating tail dexterity with scavenged gun, cobbled armor complementing natural defenses, biological and mechanical fusion, scales beneath metal plates, wasteland adaptation mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "evolved lizard wielding rifle through tail grip, armor pieces following body contours, natural weapons enhanced by salvage, bottle-goggles and alert eyes, species advancement through apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "tactical lizard using tail as third arm for weapon, integrated armor and scale system, repurposed materials meeting reptilian form, dust-covered rifle and claws, perfect wasteland predator --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "hybrid warrior lizard with tail-held armament, salvaged protection merged with natural armor, evolutionary response to apocalypse, scales and steel harmony, desert survival perfected --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "adapted lizard combining species traits with human tools, tail coiled around rusty rifle, makeshift armor as second skin, biological advantages preserved, technological integration, ultimate survivor --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "post-evolution lizard mastering salvaged weapons, prehensile tail advantage, armor gaps showing defensive scales, natural and artificial protection united, species thriving where humans failed --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "first-person POV through bottle-bottom goggles, green-tinted distorted desert view, clawed lizard hands reaching toward shimmering oasis mirage, hope despite desolation, makeshift goggle edges visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "looking through improvised bottle goggles, warped green vision of wasteland, reptilian claws extending toward distant water mirage, determination against despair, scratched glass distortion, survival perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "bottle-goggle view of harsh desert, emerald-filtered reality, scaled hands grasping at heat shimmer oasis, false hope in apocalypse, makeshift eyewear frame visible, lizard survivor's vision --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "distorted first-person through salvaged goggles, green glass warping desert landscape, clawed fingers reaching for illusory water, perseverance through deception, bottle edges creating vignette --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "POV through cracked bottle lenses, tinted wasteland vista, lizard claws pursuing mirage salvation, hope as survival tool, improvised protection visible, reptilian determination despite futility --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "green-filtered desert through makeshift goggles, distorted oasis beckoning, scaled hands stretching toward false promise, optimism in desolation, bottle-bottom view of apocalypse, survivor's perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "looking through recycled bottle eyewear, warped green desert expanse, reptilian hands chasing water illusion, faith against evidence, goggle scratches adding texture, lizard's hopeful vision --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "first-person bottle-goggle perspective, emerald-tinted wasteland, clawed appendages reaching for phantom oasis, survival through belief, distorted but determined view, makeshift lens edges framing hope --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897cf335cc3c4d335dfed"
+          }
+        },
+        {
+          "type": "tool-abstractBulkImageGeneration",
+          "toolCallId": "abstractBulkImageGeneration-h8jPAZcRISrzROej",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps, post-apocalyptic desert survivor, resourceful reptilian scavenger, cobbled-together protection from pre-war remnants, dust-caked scales, harsh shadows and heat mirages, gritty determination, weathered textures, cinematic lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Shattered bottle-glass goggles reflecting endless dunes and twisted metal ruins, lizard survivor's amber scales illuminated through tattered cloth wrappings, nuclear orange sunset bleeding across wasteland horizon, makeshift armor casting jagged shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Close portrait of desert lizard warrior, cracked welding goggles showing apocalyptic landscape reflection, rusty metal plates strapped with leather over scales, fabric strips fluttering in radioactive wind, golden hour wasteland lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Reptilian eye visible through broken goggle lens, reflecting skeletal civilization remains, sun-bleached scales contrasting with dark metal armor pieces, torn canvas and leather bindings, atmospheric dust particles glowing in sunset --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard scavenger's face in profile, improvised eye protection from salvaged materials reflecting desolate horizon, scales catching amber light between armor gaps, post-industrial decay meets biological adaptation --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Wasteland survivor lizard, fragmented mirror goggles showing burning sky, patchwork armor from road signs and scrap metal, reptilian features emerging through weathered fabric, harsh desert sun creating dramatic silhouette --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Desert-adapted lizard creature, reflection of endless wasteland in makeshift eyewear, scales glowing through battle-worn armor tears, nuclear sunset painting everything orange and rust, survival through ingenuity aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Lizard warrior's portrait, bottle-glass goggles reflecting apocalyptic desert, scales visible beneath layers of salvaged protection, fabric bandages and metal plates, heat distortion and atmospheric dust --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "prompt": "Post-apocalyptic reptilian survivor, cracked lens showing wasteland expanse, amber-lit scales peeking through improvised armor gaps, sunset silhouette against radioactive sky, weathered and determined expression --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges, post-apocalyptic lizard scavenger, makeshift desert armor, weathered textures of survival, harsh wasteland environment, gritty detail photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Reptilian claws wrapped around corroded STOP sign repurposed as shield, desert sand dancing in hot wind, leather bindings digging deep into scaled flesh, rust and blood creating abstract patterns on metal --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Macro shot of lizard hand clutching salvaged road sign defense, individual sand grains suspended in air, cracked scales under tight leather straps, oxidized metal surface with dark stains, survival gear detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Desert survivor's grip on makeshift shield from pre-war signage, swirling sand vortex around clawed fingers, leather cutting grooves in reptilian skin, battle-worn metal edges, atmospheric dust particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Lizard warrior's talons holding weathered stop sign shield, sandstorm particles in motion, improvised straps biting into scaled armor, rust patterns mixing with old bloodstains, post-industrial wasteland aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Detailed view of scavenger's clawed grip on road sign protection, desert wind carrying sand streams, leather harness marks on scales, corroded metal telling stories of survival, harsh textural contrasts --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Reptilian hand detail grasping rusted highway sign shield, kinetic sand movement, leather straps creating pressure marks on scales, weathered metal surface with organic stains, wasteland craftsmanship --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Close focus on lizard claws and improvised stop sign defense, sand particles frozen mid-swirl, leather bindings cutting circulation, metal edges worn smooth from use, dried blood creating patina --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "prompt": "Macro of desert lizard's grip on salvaged signage shield, individual sand grains catching light, leather straps embedded in scale patterns, rust and biological stains creating abstract art, survival adaptation detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand, post-apocalyptic desert landscape, bleached bones framing composition, resourceful wasteland survivor, dramatic perspective photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "View through weathered ribcage bones, armored lizard ascending sand mountain, patchwork metal plates reflecting brutal sun, heavy salvage sack leaving trail, skeletal remains as foreground frame, epic wasteland journey --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Perspective through bleached skeleton chest, reptilian survivor climbing rust-colored dune, improvised armor glinting in desert light, tail pulling scavenged treasures, bone architecture creating natural frame, harsh survival aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Looking up through ancient ribcage remains, lizard warrior ascending sandy slope, cobbled protection from salvaged materials catching rays, dragging bag of precious findings, death and survival juxtaposed --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Skeleton bones framing desert lizard's climb, makeshift armor pieces reflecting scorching sunlight, powerful tail hauling survival gear through sand, dramatic low angle emphasizing struggle, post-apocalyptic determination --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Through the hollow of bleached ribs, armored reptile scaling endless dune, metal and leather protection glowing in harsh light, salvage collection dragging behind, bones as compositional element, wasteland endurance story --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Ribcage window to lizard scavenger's ascent, assembled armor catching golden desert sun, muscular tail pulling gathered resources, skeletal foreground adding depth, survival against impossible odds --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "View between ancient bone bars, determined lizard climbing sand mountain, piecemeal armor creating light patterns, heavy salvage bag carving sand groove, death framing life, wasteland photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "prompt": "Skeleton chest cavity perspective, reptilian survivor conquering dune, improvised protection sparkling in sunlight, tail-dragged treasures leaving trace, bleached bones as natural frame, desert adaptation narrative --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air, post-apocalyptic wasteland vista, makeshift armor from salvaged vehicle parts, reptilian survivor scanning horizon --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Desert lizard warrior standing on rusted school bus wreckage, repurposed license plates as pauldrons clanking in wind, forked tongue sampling toxic atmosphere, endless dunes stretching to horizon, king of the wasteland pose --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Reptilian scavenger atop flipped transit vehicle, shoulder armor made from state plates rattling, tongue flicking to sense danger, panoramic desert wasteland view, makeshift protection from automotive salvage --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard survivor commanding view from bus skeleton, license plate shoulder guards catching wind, tasting post-nuclear air with reptilian senses, infinite sand sea below, vehicle graveyard kingdom --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Armored lizard sentinel on overturned transport, collected plates as shoulder protection clattering, tongue detecting radiation levels, surveying domain of rust and sand, apocalyptic overlook composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Desert reptile perched on dead bus hull, improvised license plate armor pieces rattling, sampling wasteland air chemistry, endless desolation stretching beyond, survivor surveying territory --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Lizard warrior atop vehicle corpse, shoulder guards from registration plates singing in wind, tongue reading atmospheric toxins, commanding wasteland view, makeshift armor from civilization's remains --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Scavenger lizard on bus wreckage throne, license plate pauldrons creating metallic symphony, tasting radioactive wind currents, desert empire vista, post-apocalyptic ruler surveying domain --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "prompt": "Reptilian survivor claiming high ground on transport ruins, automotive plate armor rattling, tongue sensing environmental hazards, panoramic wasteland perspective, adaptation through salvage aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background, post-apocalyptic lizard finding water, makeshift collection device, emotional wasteland moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Extreme close-up of lizard's eye with water droplet, military helmet repurposed as water catcher, dry cracked scales versus wet relief, heat shimmer creating surreal backdrop, precious resource in wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Single water bead on reptilian pupil, salvaged helmet holding collected moisture, dehydrated scales telling survival story, background melting in heat distortion, life-giving liquid in death valley --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Lizard's eye reflecting water drop miracle, combat helmet transformed to survival tool, parched skin contrasting liquid hope, waves of heat bending reality, emotional breakthrough in desert hell --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Macro of moisture on scaled eyelid, helmet-bowl with precious water drops, dry weathered scales versus wet salvation, atmospheric heat creating abstract background, wasteland's most valuable treasure --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Water pearl on reptilian iris, repurposed military gear collecting liquid, cracked scales showing dehydration history, heat mirages warping environment, survival's sweet victory moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Lizard survivor's eye with water blessing, helmet converted to life-saving vessel, desert-dried scales meeting moisture, reality bending in extreme heat, emotional climax of endurance --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Close detail of water on reptile eye, salvaged helmet as makeshift basin, parched texture versus liquid relief, heat waves creating dreamlike backdrop, wasteland's rarest commodity --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "prompt": "Reptilian tear of joy meeting collected water, military helmet holding survival drops, weathered scales contrasting with moisture, heat distortion abstracting background, triumph over desolation --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Profile silhouette of weathered lizard survivor against massive sandstorm wall, makeshift goggles glowing eerie green from radiation, tattered cape made from sewn plastic bags and tarp fragments whipping violently in wind, defiant stance against apocalyptic storm, post-apocalyptic desert wasteland, dramatic side lighting through dust clouds --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Reptilian scavenger's profile silhouette facing colossal sandstorm, bottle-glass goggles radiating toxic green light, patchwork plastic bag cape thrashing in nuclear winds, standing firm against nature's fury, rust-colored desert apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Desert lizard warrior profile against towering dust wall, improvised goggles emitting radioactive green glow, DIY plastic sheeting cape billowing dramatically, unwavering stance in wasteland storm, harsh contrast lighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Silhouetted lizard survivor confronting sandstorm barrier, jury-rigged goggles glowing green with contamination, recycled plastic bags sewn into makeshift cloak whipping wildly, defiant posture against elements --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Profile view of armored lizard against apocalyptic sandstorm, radiation-lit goggles from salvaged materials, tattered plastic bag cape dancing violently in wind, standing resolute in desert wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Lizard scavenger silhouette facing sand wall tempest, green-glowing makeshift eye protection, improvised plastic tarp cape flailing in storm, determined stance against hostile environment --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Side profile of reptilian survivor against massive dust storm, cobbled-together goggles radiating nuclear green, sewn plastic bag cloak whipping chaotically, defying nature's assault --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "prompt": "Desert lizard's profile silhouette confronting sandstorm wall, glowing green radiation goggles from broken bottles, patchwork plastic cape thrashing violently, standing firm against apocalyptic winds --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Aerial overhead view of lizard scavenger's long shadow stretching across field of bleached bones and skulls, makeshift armor pieces creating sharp geometric shadow patterns, footprints disappearing into endless desert, circling vultures casting shadows below, harsh noon sun --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Bird's eye view of reptilian survivor's shadow over bone graveyard, cobbled armor casting angular geometric shapes, tracks vanishing into infinite sand dunes, vulture silhouettes circling overhead --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Top-down perspective of lizard warrior's elongated shadow across skeletal remains, salvaged metal armor creating abstract shadow geometry, footsteps fading into horizon, scavenger birds circling above --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Overhead shot of desert lizard's shadow stretching over sun-bleached bones, improvised armor pieces forming sharp shadow patterns, trail disappearing into vast wasteland, vultures wheeling in sky --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Aerial view of lizard survivor's dark shadow crossing bone field, geometric armor shadows contrasting organic remains, footprints dissolving into endless dunes, carrion birds circling hungrily --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Top view of reptilian scavenger's shadow over skeletal wasteland, makeshift armor creating angular shadow designs, tracks vanishing into desert infinity, vultures casting moving shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Bird's eye perspective of lizard's long shadow across bone-strewn ground, salvaged armor pieces throwing geometric shadows, footsteps fading into distance, circling scavenger birds above --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "prompt": "Overhead angle of desert lizard's shadow stretching over bleached skeletons, cobbled armor casting sharp geometric patterns, trail disappearing into endless sand sea, vultures circling ominously --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Weathered lizard's scarred clawed hands assembling new armor piece from rusted car hood, orange sparks flying from metal-on-metal friction, intense concentration in reptilian eyes, improvised tools made from sharpened bones and scrap, workshop of salvaged parts --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Close-up of reptilian survivor's battle-scarred hands crafting armor from automobile hood, sparks cascading from grinding metal, focused determination in lizard features, bone tools and salvaged materials scattered --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Desert lizard's damaged claws working on car hood armor, bright sparks erupting from friction work, concentrated expression on scaled face, makeshift bone tools, post-apocalyptic crafting scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Scarred lizard hands shaping rusted vehicle panel into armor, shower of orange sparks from metal grinding, intense focus in reptilian features, improvised bone implements, wasteland workshop --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Weathered reptilian claws assembling salvaged car armor, sparks flying from metal friction, determined concentration etched in scales, tools fashioned from bones and debris, scavenger's workbench --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Close view of lizard's battle-worn hands crafting hood armor, cascading sparks from metalwork, focused reptilian expression, bone-made tools and scrap materials, survival crafting moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Desert survivor's scarred claws working rusted auto panel, orange sparks erupting from grinding, intense determination in lizard eyes, improvised bone tools scattered, makeshift armor workshop --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "prompt": "Lizard scavenger's damaged hands shaping car hood into protection, bright friction sparks flying, concentrated reptilian features, sharpened bone tools, post-apocalyptic armorer at work --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme macro close-up of dusty lizard scales pushing through gaps in chain-link armor, individual dust particles sparkling like diamonds in harsh light, dramatic texture contrast between organic scales and industrial metal, evolution of survival visible in details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Ultra close-up of reptilian scales emerging through chain-mail gaps, dust motes glittering like gems, stark contrast of biological and mechanical textures, adaptive evolution in microscopic detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Macro shot of weathered scales breaking through metal armor holes, crystalline dust particles catching light, organic versus industrial texture study, survival adaptation visible in details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme magnification of lizard scales penetrating chain-link openings, dust specks shimmering like diamonds, natural scales against harsh metal contrast, evolutionary survival captured intimately --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Super close-up of dusty scales pushing past armor gaps, particles sparkling in desert sun, texture interplay of flesh and steel, adaptation through adversity in minute detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Macro view of reptilian skin emerging through chain armor, glittering dust particles like jewels, organic meets industrial texture contrast, evolution etched in microscopic details --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Ultra-macro of scales breaking through metal links, dust motes gleaming like crystals, biological versus mechanical surface study, survival evolution in intimate detail --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "prompt": "Extreme close-up of weathered scales through chain gaps, diamond-like dust particles in light, contrasting textures of nature and industry, adaptive survival visible microscopically --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert lizard scavenger emerging from buried subway entrance, makeshift flashlight duct-taped to head casting harsh beam, cables and wires repurposed as belt, concrete dust falling like apocalyptic snow, deep darkness swallowing background, underground wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Reptilian survivor climbing from collapsed metro entrance, jury-rigged headlamp taped to skull, electrical cables as improvised belt, concrete particles drifting like ash, consuming darkness behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Lizard warrior emerging from buried underground station, salvaged flashlight strapped to head with tape, wire belt holding armor, dust falling like nuclear snow, black void beyond --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert scavenger rising from subway ruins, makeshift headlight duct-taped above eyes, cable belt around waist, concrete dust cascading like snowfall, darkness devouring background depths --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Armored lizard exiting buried transit entrance, improvised lamp taped to head gear, repurposed wires as utility belt, falling concrete powder like ash snow, pitch black tunnel behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Reptilian survivor ascending from metro rubble, flashlight roughly taped to skull, electrical cord belt, dust particles falling like contaminated snow, absolute darkness swallowing depths --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Lizard scavenger climbing from underground entrance, headlamp duct-taped to forehead, cable belt holding supplies, concrete dust drifting like toxic snowfall, void-like darkness beyond --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "prompt": "Desert survivor emerging from buried station, makeshift light source taped to head, wire and cable belt, falling concrete particles like apocalyptic precipitation, consuming blackness behind --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "weathered lizard survivor staring into broken mirror shard, reflection showing past glory versus scarred present, makeshift armor of rusted metal plates and leather straps, each dent telling survival stories, dust-caked scales, accepting eyes, post-apocalyptic desert wasteland --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "battle-worn lizard examining cracked mirror fragment, ghostly reflection of former self, cobbled armor from road signs and scrap metal, weathered reptilian face with bottle-goggle scars, rust-colored sand dunes, harsh shadows --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "grizzled desert lizard confronting reflection in shattered glass, mismatched armor pieces bearing combat damage, sun-bleached scales showing through gaps, determined expression accepting harsh reality, abandoned civilization remnants --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "survivor lizard holding polished metal shard as mirror, past memories versus present scars, ingenious armor from salvaged materials, leather wrappings and torn fabric, reptilian resilience, heat mirages distorting reflection --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "resourceful lizard facing broken mirror revelation, armor telling thousand battles through scratches and dents, goggles pushed up revealing tired eyes, makeshift protection from pre-war remnants, desolate beauty --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "post-apocalyptic lizard contemplating fractured reflection, repurposed road signs as chest plates, weathered textures of survival hardship, scales and metal fusion, acceptance written in posture, skeletal structures background --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "desert lizard warrior seeing truth in mirror shard, layered scavenged materials showing ingenuity, sun-damaged scales, bottle-bottom goggle marks, armor gaps revealing reptilian form, rust and bone landscape --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "prompt": "battle-scarred lizard examining reflection in salvaged chrome, makeshift armor bearing survival history, dust storms etched into scales, resourcefulness over resources philosophy visible, twisted metal wasteland setting --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "thirsty lizard drinking from rusted water pipe, precious liquid dripping, loosened armor plates for comfort, vulnerable moment in harsh desert, alert posture despite exhaustion, makeshift goggles pushed up, survival instinct --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "desperate lizard scavenger sipping from corroded pipe, water more valuable than gold, temporarily removed shoulder armor, dusty scales glistening with moisture, watchful eyes scanning horizon, post-apocalyptic oasis --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "resourceful lizard collecting water from ancient plumbing, armor straps undone for breathing room, tongue catching precious drops, vulnerable yet vigilant, salvaged metal canteen nearby, endless dunes backdrop --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "parched desert lizard at makeshift water source, rusted industrial pipe dripping life, leather wrappings loosened, moment of relief in desolation, clawed hands gripping pipe, guard never fully relaxed --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "survivor lizard drinking cautiously from metal pipe, armor pieces shifted for access, water creating mud puddles, reptilian throat working, bottle-bottom goggles reflecting sun, harsh landscape waiting --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "weary lizard finding water in wasteland ruins, precious drops on dust-caked scales, cobbled armor partially removed, vulnerable position but necessary risk, sun-bleached bones nearby, survival priority --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "lizard warrior at rare water source, rusted pipe salvation, makeshift armor hanging loose, exposed scales showing exhaustion, alert tail position, heat mirages dancing, moment between life and death --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "prompt": "tactical lizard drinking while maintaining watch, salvaged armor adjusted for comfort, water rationing discipline, reptilian adaptation meeting human infrastructure, skeletal vehicle remains, desert survival mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "nocturnal lizard with bioluminescent scales glowing through armor gaps, constellation patterns of light, moon illuminating salvaged metal plates, desert transformed into alien landscape, ethereal glow meeting industrial decay --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "glowing lizard survivor under starlit sky, phosphorescent scales creating light patterns through makeshift armor, moonlight on rusted metal, otherworldly desert scene, biological adaptation meeting post-apocalyptic reality --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "night-active lizard radiating bioluminescence, scales pulsing through torn fabric wrappings, lunar reflection on bottle-goggles, salvaged armor becoming light sculpture, wasteland turned mystical, evolutionary triumph --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "luminescent desert lizard in moonlight, glowing patterns beneath cobbled armor, repurposed road signs catching silver light, scales creating star maps, abandoned structures as shadow puppets, beautiful desolation --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "bioluminescent lizard warrior at night, natural light seeping through armor joints, moon-bathed wasteland, glowing constellation tattoos of scales, metal and organic light dance, survival evolution --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "radiant lizard displaying natural phosphorescence, armor gaps revealing light rivers, desert sand glowing under moon, twisted metal reflecting bioluminescence, alien beauty in familiar wasteland, adapted perfection --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "glowing-scaled lizard under desert stars, luminous patterns through leather straps, moonlit salvaged materials, biological lantern effect, post-apocalyptic aurora, nature reclaiming technology through light --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "prompt": "night lizard with evolutionary glow, bioluminescent navigation through armor spaces, silver moon on weathered metal, scales telling light stories, transformed desert landscape, beauty persisting through apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "adaptable lizard with prehensile tail wrapped around salvaged rifle, perfect balance of natural evolution and human tools, armor integrated with biological defenses, scales meeting steel, survival synthesis --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "resourceful lizard gripping weathered rifle with tail, makeshift armor working with natural scales, evolution embracing destruction, reptilian advantages meeting human weapons, desert warrior hybrid, adaptive supremacy --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "survivor lizard demonstrating tail dexterity with scavenged gun, cobbled armor complementing natural defenses, biological and mechanical fusion, scales beneath metal plates, wasteland adaptation mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "evolved lizard wielding rifle through tail grip, armor pieces following body contours, natural weapons enhanced by salvage, bottle-goggles and alert eyes, species advancement through apocalypse --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "tactical lizard using tail as third arm for weapon, integrated armor and scale system, repurposed materials meeting reptilian form, dust-covered rifle and claws, perfect wasteland predator --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "hybrid warrior lizard with tail-held armament, salvaged protection merged with natural armor, evolutionary response to apocalypse, scales and steel harmony, desert survival perfected --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "adapted lizard combining species traits with human tools, tail coiled around rusty rifle, makeshift armor as second skin, biological advantages preserved, technological integration, ultimate survivor --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "prompt": "post-evolution lizard mastering salvaged weapons, prehensile tail advantage, armor gaps showing defensive scales, natural and artificial protection united, species thriving where humans failed --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "first-person POV through bottle-bottom goggles, green-tinted distorted desert view, clawed lizard hands reaching toward shimmering oasis mirage, hope despite desolation, makeshift goggle edges visible --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "looking through improvised bottle goggles, warped green vision of wasteland, reptilian claws extending toward distant water mirage, determination against despair, scratched glass distortion, survival perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "bottle-goggle view of harsh desert, emerald-filtered reality, scaled hands grasping at heat shimmer oasis, false hope in apocalypse, makeshift eyewear frame visible, lizard survivor's vision --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "distorted first-person through salvaged goggles, green glass warping desert landscape, clawed fingers reaching for illusory water, perseverance through deception, bottle edges creating vignette --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "POV through cracked bottle lenses, tinted wasteland vista, lizard claws pursuing mirage salvation, hope as survival tool, improvised protection visible, reptilian determination despite futility --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "green-filtered desert through makeshift goggles, distorted oasis beckoning, scaled hands stretching toward false promise, optimism in desolation, bottle-bottom view of apocalypse, survivor's perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "looking through recycled bottle eyewear, warped green desert expanse, reptilian hands chasing water illusion, faith against evidence, goggle scratches adding texture, lizard's hopeful vision --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation",
+                "prompt": "first-person bottle-goggle perspective, emerald-tinted wasteland, clawed appendages reaching for phantom oasis, survival through belief, distorted but determined view, makeshift lens edges framing hope --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897cf335cc3c4d335dfed",
+            "ideateOutput": {
+              "predefinedPreferences": [
+                "--sref 3704803642"
+              ],
+              "shots": [
+                "Lizard's reflection in cracked goggles reveals burning wasteland horizon, makeshift armor silhouette against nuclear sunset, scales glowing amber through torn fabric gaps",
+                "Close-up of clawed hand gripping rusted stop sign shield, sand particles swirling, leather straps cutting into scales, dried blood stains on metal edges",
+                "Low angle shot through skeleton ribcage, lizard scavenger climbing dune, cobbled armor catching harsh sunlight, tail dragging salvage bag through sand",
+                "Lizard perched atop overturned bus, surveying endless desert, license plates as shoulder guards rattling in hot wind, tongue tasting radioactive air",
+                "Water drops on reptilian eye, precious liquid collected in helmet-turned-bowl, parched scales contrasting with single tear of survival, heat waves distorting background",
+                "Profile silhouette against sandstorm wall, goggles glowing green from radiation, tattered cape of sewn plastic bags whipping violently, stance defiant against nature",
+                "Overhead view of lizard's shadow stretching across bleached bones, armor pieces creating geometric patterns, footprints disappearing into infinity, vultures circling above",
+                "Lizard's scarred hands assembling new armor piece from car hood, sparks flying from friction, determination etched in reptilian features, tools improvised from bones",
+                "Extreme close-up of scales pushing through chain-link armor gaps, dust particles like diamonds, texture contrast between organic and industrial, survival evolution visible",
+                "Lizard emerging from buried subway entrance, flashlight duct-taped to head, cables as belt, concrete dust falling like snow, darkness swallowing background",
+                "Reflection in broken mirror shard showing past glory versus present survival, armor pieces telling stories through dents, weathered face accepting harsh reality",
+                "Lizard drinking from rusted pipe, water precious as gold, armor loosened for comfort, vulnerable moment in harsh landscape, guard never fully down",
+                "Night scene with bioluminescent scales glowing through armor gaps, creating constellation patterns, moon illuminating salvaged metal, desert transformed into alien landscape",
+                "Lizard's tail wrapped around salvaged rifle, balance between species adaptation and human tools, armor integrated with natural defenses, evolution meeting destruction",
+                "First-person view through bottle-bottom goggles, world tinted green and distorted, clawed hands reaching for distant oasis mirage, hope despite desolation"
+              ],
+              "variationCount": 8,
+              "model": "claude-opus-4-1",
+              "tags": [
+                "animalwear"
+              ],
+              "creativeInspiration": "## Creative Inspiration: Desert Survivor Lizard\n\n**Core Vision:** A resourceful lizard character surviving in a harsh post-apocalyptic desert, embodying the ultimate wasteland scavenger through ingenious makeshift protection and salvaged gear.\n\n**Character Design:** The lizard protagonist wears cobbled-together armor from pre-war remnants—rusted metal plates strapped with leather, torn fabric wrappings, repurposed road signs as shields. Their scales peek through gaps, dust-caked and sun-bleached. Goggles fashioned from broken bottles protect their eyes.\n\n**Environmental Context:** Endless dunes of rust-colored sand dotted with skeletal remains of civilization—twisted metal structures, abandoned vehicles half-buried, bleached bones. The scorching sun creates harsh shadows and heat mirages.\n\n**Key Elements:**\n- Layered scavenged materials showing ingenuity\n- Desert adaptation tools (water collectors, sun shields)\n- Weathered textures emphasizing survival hardship\n- Reptilian features integrated with mechanical/industrial salvage\n\n**Mood:** Gritty determination meets clever adaptation. The aesthetic balances biological evolution with post-industrial decay—a creature perfectly adapted to thrive where others perished.\n\n**Visual Themes:** Contrast between organic reptilian form and harsh metallic armor, survival through adaptation, beauty in desolation, resourcefulness over resources."
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:26:23.974Z"
+}

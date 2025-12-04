@@ -1,0 +1,1311 @@
+{
+  "mergedParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 15,
+    "variationCount": 8,
+    "tags": [
+      "animalwear"
+    ],
+    "predefinedPreferences": [
+      "--sref 3704803642"
+    ],
+    "userDirective": "Monkey, graffiti hoodie, skateboard, urban city, streetwear style."
+  },
+  "result": [
+    {
+      "id": "sSkUJy0EpMibNfC6",
+      "metadata": {
+        "loader": "Saving prompts to database..."
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool-ideateMidjourneyShots",
+          "toolCallId": "ideateMidjourneyShots-jp9ClsjV13Whe9iD",
+          "state": "output-available",
+          "output": {
+            "predefinedPreferences": [
+              "--sref 3704803642"
+            ],
+            "shots": [
+              "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+              "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+              "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+              "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+              "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+              "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+              "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+              "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+              "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+              "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+              "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+              "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+              "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+              "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+              "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city"
+            ],
+            "variationCount": 8,
+            "model": "claude-opus-4-1",
+            "tags": [
+              "animalwear"
+            ],
+            "creativeInspiration": "## Creative Strategy Analysis: Urban Monkey Streetwear\n\n**Core Directive Breakdown:**\nThe user envisions a street-savvy monkey character as the protagonist of an urban streetwear narrative. This anthropomorphic subject embodies skateboard culture through specific visual markers: graffiti-adorned hoodies and skateboard integration.\n\n**Explicit Requirements:**\n- Primary subject: Monkey (likely anthropomorphized)\n- Essential props: Graffiti-decorated hoodie, skateboard\n- Setting: Urban cityscape\n- Aesthetic: Streetwear fashion culture\n\n**Implicit Creative Direction:**\nThis directive suggests a fusion of animal personification with youth subculture - think Supreme meets Planet of the Apes. The monkey represents rebellion, playfulness, and urban adaptability. The graffiti hoodie isn't just clothing but a canvas for street art expression. The skateboard grounds the character in authentic skate culture.\n\n**Visual Territory:**\nConcrete jungle environments, street art backdrops, skate spots, urban textures. The monkey should feel native to city streets - perhaps perched on fire escapes, grinding rails, or tagging walls. Color palette leans toward bold streetwear tones: neon accents against urban grays, spray paint aesthetics.\n\n**Purpose:** \nCreating an iconic streetwear character that bridges animal whimsy with authentic urban culture, suitable for brand mascots, apparel designs, or contemporary art pieces."
+          }
+        },
+        {
+          "type": "tool-generateMidjourneyPromptsSimple",
+          "toolCallId": "generateMidjourneyPromptsSimple-8dnLUpmi1x3YuLhI",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Anthropomorphic monkey performing kickflip mid-air, graffiti-covered hoodie flowing dynamically, wildstyle street art on brick wall background, golden hour lighting through urban steam, skateboard suspended in perfect trick position, street photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Street-smart monkey frozen in kickflip motion, vibrant graffiti hoodie catching wind like urban wings, neon-tagged brick wall backdrop, golden sunlight piercing through city steam vents, skateboard trick perfection --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Urban monkey athlete executing flawless kickflip, hoodie adorned with fresh graffiti pieces billowing dramatically, tagged brick wall canvas, steam-filtered golden hour rays, dynamic skateboard action freeze-frame --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Simian skater suspended in kickflip glory, graffiti-bombed hoodie creating wing silhouettes, urban art wall explosion, atmospheric steam catching sunset light, skateboard defying gravity --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Monkey skateboarder mid-aerial trick, street art hoodie flowing like cape, brick wall mural backdrop, golden light streaming through industrial vapor, frozen skateboard rotation --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Anthropomorphic primate nailing kickflip, graffiti-laden hoodie catching air currents, spray-painted brick canvas, steam-diffused golden hour glow, skateboard wheels spinning in suspension --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Street monkey in peak kickflip form, wildstyle graffiti hoodie billowing majestically, tagged urban wall art, sunset rays cutting through city mist, skateboard deck rotating perfectly --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Urban ape athlete frozen mid-kickflip, hoodie covered in fresh graffiti flowing like wings, neon-bombed brick wall, golden hour illuminating steam clouds, skateboard suspended in time --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Extreme close-up of monkey hands gripping skateboard deck, knuckles wrapped in worn street tape, graffiti letters on hoodie sleeve morphing into fur texture, macro photography detail, urban texture study --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Macro shot of simian fingers clutching skateboard grip tape, athletic tape wrapping knuckles, wildstyle graffiti bleeding from hoodie fabric into fur, hyper-detailed texture photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Tight frame on primate hands holding skateboard, street-worn tape around joints, graffiti artwork seamlessly transitioning from sleeve to fur, extreme detail capture --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Close-up monkey grip on deck, battle-worn tape wrapping fingers, hoodie's graffiti letters dissolving into natural fur patterns, textural photography masterpiece --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Intimate shot of ape hands on skateboard surface, knuckles bound in grimy tape, spray paint letters merging with fur texture, macro lens revelation --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Detailed view of simian skateboard grip, tape-wrapped fighter knuckles, graffiti art flowing from fabric into fur, extreme close-up texture study --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Magnified monkey hands clutching deck, street tape protecting joints, wildstyle letters transitioning from hoodie to hair, hyper-realistic detail shot --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Ultra-close primate fingers on grip tape, worn athletic wrapping, graffiti bleeding organically into fur patterns, photorealistic macro capture --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Silhouetted monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline exploding in technicolor sunrise, industrial urban landscape, cinematic backlighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Backlit simian skater grinding metro rail, aerosol cans clinking in pockets, kaleidoscopic sunrise erupting behind skyline, industrial dawn atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Monkey silhouette sliding rail at daybreak, spray cans jangling in hoodie, city horizon blazing with color explosion, urban industrial poetry --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Dark monkey form grinding transit rail, paint cans creating pocket percussion, technicolor dawn bursting over cityscape, gritty industrial beauty --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Shadowed primate on subway grind, rattling aerosols in hoodie storage, prismatic sunrise illuminating urban sprawl, industrial morning magic --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Silhouetted ape rail-sliding at dawn, spray paint arsenal in pockets, city skyline erupting in color symphony, industrial sunrise spectacle --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Backlit monkey executing rail grind, cans clanking in hoodie compartments, psychedelic sunrise over metropolis, urban industrial canvas --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Shadow monkey grinding metal rail, paint cans creating rhythm, technicolor explosion behind city silhouette, industrial dawn choreography --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Monkey crouched on rusty fire escape, skateboard propped vertically against ladder, graffiti hoodie glowing under flickering streetlight, rain creating prismatic reflections on wet concrete below --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Simian perched on weathered fire escape, board leaning on corroded ladder, illuminated graffiti hoodie under stuttering lamp, rainbow puddles on pavement --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Urban monkey hunched on metal escape, skateboard vertical against rungs, street art hoodie catching intermittent light, rain-slicked concrete prisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Primate crouching on rust-eaten platform, deck standing against ladder, graffiti glowing in streetlight flicker, wet streets creating color cascades --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Ape squatting on deteriorating fire escape, board positioned on ladder, hoodie art pulsing under failing light, rain generating street rainbows --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Monkey coiled on oxidized escape structure, skateboard upright on ladder, graffiti luminous under sporadic illumination, prismatic rain reflections --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Simian compressed on corroded platform, board vertical against metal rungs, street art hoodie strobing in lamplight, wet concrete kaleidoscope --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Urban primate poised on rusty scaffold, skateboard leaning vertically, graffiti hoodie glowing intermittently, rain creating street-level prisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Fish-eye perspective of monkey dropping into abandoned pool, graffiti hoodie matching tagged bowl curves, skateboard wheels igniting sparks on coping edge, extreme wide-angle distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Warped fish-eye view of simian descending pool wall, hoodie graffiti echoing bowl's spray paint, wheels throwing sparks on coping, radical lens distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Ultra-wide monkey dropping into empty pool, street art hoodie harmonizing with tagged curves, skateboard creating spark shower on edge, fish-eye warping --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Distorted lens capturing primate pool drop, graffiti synchronizing with bowl art, wheels sparking against coping metal, extreme wide-angle perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Fish-eye ape entering drained pool, hoodie matching curved wall tags, board wheels generating spark cascade, spherical lens distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Curved perspective of monkey pool descent, graffiti hoodie mirroring bowl artwork, skateboard igniting coping sparks, fish-eye reality bending --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Wide-angle simian dropping into tagged bowl, hoodie art flowing with pool graffiti, wheels creating spark trail on edge, lens distortion mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Warped view of urban monkey entering pool, street art hoodie matching bowl tags, skateboard sparking on coping, fish-eye spatial manipulation --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic monkey emperor seated on throne constructed from stacked skateboard decks, wearing crown made of spray paint caps, graffiti-covered hoodie draped like royal streetwear regalia, overlooking sprawling urban kingdom cityscape below, street art aesthetic, urban royalty concept --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Street king monkey on skateboard deck throne, spray cap crown gleaming, graffiti hoodie as majestic cape, neon city lights below creating urban constellation, street art supremacy --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey ruler perched on pyramid of vintage skateboards, aerosol can crown, tagged hoodie flowing like emperor's robes, concrete jungle kingdom stretching to horizon, graffiti palace aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic simian sovereign on skateboard throne, spray paint cap diadem, wildstyle graffiti hoodie draped regally, bird's eye view of tagged cityscape, urban empire vibes --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey monarch seated on stacked deck throne, crown of golden spray caps catching light, graffiti hoodie with intricate street art patterns, city skyline bowing beneath, streetwear royalty --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Street culture monkey king on skateboard furniture throne, spray paint crown reflecting city lights, hoodie covered in legendary graffiti pieces, urban domain spreading infinitely, concrete kingdom aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic ape emperor on skateboard deck monument, cap crown with paint drips, hoodie displaying museum-worthy graffiti art, metropolitan realm below, street art sovereignty --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey overlord throning on skateboard architecture, spray cap coronet, graffiti hoodie billowing like battle standard, tagged city blocks forming urban chessboard below, streetwear dynasty --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Split-screen diptych composition: left panel showing monkey's reflection in urban storefront glass window, right panel revealing actual anthropomorphic monkey skating past on skateboard, graffiti-covered hoodie creating kaleidoscopic motion blur of spray paint colors --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Cinematic split-screen: reflective storefront glass capturing monkey silhouette left side, dynamic monkey skater rushing past right side, graffiti hoodie exploding in prismatic color streaks, urban motion study --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Diptych street scene: monkey's ghostly reflection in boutique window left frame, real monkey kickflipping past right frame, tagged hoodie creating rainbow velocity trails, parallel reality moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Two-panel urban narrative: glass reflection showing static monkey left, kinetic skating monkey right, graffiti hoodie bleeding colors like wet spray paint, street photography aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Mirror and motion diptych: storefront reflection capturing contemplative monkey left, actual monkey carving concrete right, hoodie's graffiti characters fragmenting into color particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Split reality composition: window reflection freezing monkey in time left panel, blur of skating movement right panel, graffiti hoodie creating psychedelic color explosion, urban duality --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Dual perspective street scene: crystalline reflection in shop glass left, motion-blurred skating monkey right, spray paint hoodie design stretching between dimensions, kaleidoscopic street art --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Parallel moment diptych: sharp monkey reflection in storefront left side, speed-blurred skating reality right side, graffiti hoodie morphing into abstract expressionist color field --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Anthropomorphic monkey freeze-framed mid-manual trick, balancing skateboard on two wheels through narrow graffitied alley, hoodie's vibrant graffiti characters appearing to leap off fabric onto surrounding tagged brick walls, dimensional street art breaking reality --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey frozen in perfect manual balance, skateboard tilted dramatically, graffiti from hoodie literally jumping onto alley walls, characters floating between dimensions, surreal street art moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Athletic monkey executing manual through tight urban canyon, hoodie's graffiti pieces escaping into 3D space, merging with existing wall tags, reality-bending street art convergence --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Simian skater suspended mid-manual, narrow tagged passage, animated graffiti letters flowing from hoodie to walls like liquid paint, fourth wall breaking street art --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey balancing impossible manual angle, claustrophobic graffiti alley, hoodie artwork coming alive and crawling onto surrounding surfaces, magical realism street scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Anthropomorphic ape in manual stance, threading needle between tagged walls, graffiti characters evacuating hoodie fabric, populating alley walls in explosive migration --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Street monkey mid-manual trick, skateboard defying physics, hoodie's graffiti art achieving sentience, leaping across dimensional boundary to walls, augmented reality aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey locked in manual position, navigating graffiti corridor, hoodie designs becoming autonomous entities, transitioning from textile to brick in supernatural street art exodus --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Aerial drone perspective of anthropomorphic monkey carving infinity symbol pattern on rooftop helipad, graffiti-adorned hoodie forming abstract expressionist art against geometric city grid below, skateboard wheels leaving luminous paint trails, urban mandala creation --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Bird's eye view monkey skating figure-8 on helicopter pad, tagged hoodie creating Rothko-like color fields against cityscape geometry, skateboard painting neon trails, architectural art performance --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Top-down perspective simian skater drawing infinity loop on rooftop, graffiti hoodie contrasting angular city blocks, wheels dispensing glowing paint, creating urban sacred geometry --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Overhead shot monkey carving endless symbol on helipad surface, hoodie's chaotic graffiti versus organized city grid, skateboard leaving phosphorescent paint paths, metropolitan mandala --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Aerial viewpoint anthropomorphic ape skating infinity pattern, wildstyle hoodie against minimalist urban planning, luminous wheel trails forming light painting, rooftop art installation --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Drone perspective monkey creating infinite loop on building top, graffiti hoodie as abstract art piece against city tessellation, skateboard trailing liquid light, geometric street art fusion --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Sky view simian artist carving eternal symbol on helipad canvas, tagged hoodie clashing with orderly streets below, wheels leaving UV paint traces, architectural graffiti performance --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Helicopter angle monkey drawing infinity on rooftop stage, hoodie's organic graffiti opposing rigid city layout, skateboard wheels creating glow-in-dark artwork, urban land art --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Anthropomorphic monkey wallriding massive vertical billboard at impossible angle, skateboard perpendicular to gravity, graffiti hoodie's designs merging seamlessly with billboard's street art advertising campaign, reality-warping moment where dimensions collapse --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Monkey defying physics on vertical billboard surface, skateboard at 90-degree angle, hoodie graffiti bleeding into advertisement artwork, creating unified street art masterpiece, gravity optional --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Simian skater wallriding towering billboard, perpendicular to earth, tagged hoodie patterns fusing with commercial street art, boundaries dissolving between clothing and advertising --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Gravity-defying monkey on billboard wall, skateboard locked vertically, graffiti from hoodie interweaving with billboard's urban campaign, creating meta street art commentary --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Anthropomorphic ape riding billboard like vertical ground, skateboard magnetized to surface, hoodie artwork synchronizing with advertisement graffiti, reality glitch aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Monkey executing impossible billboard wallride, skateboard parallel to sky, hoodie's street art melting into billboard design, creating singular graffiti organism, physics-breaking moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Street monkey on perpendicular billboard plane, defying natural law, tagged hoodie graphics merging with commercial art, dimensional portal between fashion and advertising --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Simian athlete wallriding vertical advertisement, skateboard locked in anti-gravity, graffiti hoodie becoming one with billboard's street art vision, surreal urban fusion --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Triptych action sequence of anthropomorphic monkey skater, first frame approaching metal rail with focused expression, second frame grinding rail with orange sparks cascading dramatically, third frame landing in puddle creating explosive water crown, graffiti-covered hoodie with paint streaks showing motion blur, urban streetwear aesthetic, dynamic skateboard culture, cinematic sports photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Three-panel street photography narrative, cool monkey in graffiti hoodie performing rail grind sequence, approach shot with determination, spark-filled grinding moment with metal friction, puddle splash finale with water droplets frozen mid-air, paint drips on hoodie creating motion trails, gritty urban skateboarding documentary style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Sequential skateboard trick montage featuring streetwise monkey, building momentum toward rail, explosive spark shower during grind, dramatic puddle explosion on landing, hoodie's graffiti art bleeding and streaking with movement, street culture authenticity, high-speed sports capture aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Monkey skater's rail grind trilogy, first approaching with skateboard poised, middle frame grinding with bright orange sparks flying, final frame splashing through puddle sending water everywhere, graffiti hoodie with motion-activated paint effects, raw street skating energy, photojournalistic approach --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Urban monkey athlete in three acts, rolling toward rail with confidence, grinding metal with spark fountain erupting, water explosion landing in street puddle, hoodie covered in living graffiti that streaks with velocity, authentic skate culture documentation, street photography realism --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Cinematic triptych of monkey skateboarder's rail trick, anticipation frame showing approach, action frame with sparks flying like fireworks, impact frame with puddle creating water sculpture, graffiti on hoodie morphing through motion, streetwear culture celebration, dynamic sports photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Street skating sequence with anthropomorphic monkey protagonist, pre-trick focus, mid-grind spark shower spectacle, post-trick puddle explosion, hoodie's graffiti artwork streaming behind like speed lines, urban skateboarding authenticity, editorial sports photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Three-stage rail grind story featuring monkey in graffiti hoodie, approaching with intent, grinding with industrial sparks cascading, landing creates puddle tsunami, paint effects on clothing showing motion dynamics, street culture documentation, high-contrast urban photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Anthropomorphic monkey perched gargoyle-style on gothic building corner overlooking neon city, skateboard held defensively like warrior's shield, elaborate graffiti hoodie telling visual evolution story from jungle to concrete jungle through interconnected street art panels, city lights creating divine halo effect, urban guardian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Streetwise monkey crouched on architectural corner like urban sentinel, skateboard positioned as protective shield, hoodie covered in narrative graffiti showing transformation from nature to city life, golden hour city lights forming angelic backlight, street culture mythology, architectural photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey guardian atop building edge in gargoyle pose, skateboard held shield-like against chest, graffiti hoodie depicting evolution timeline through street art storytelling, surrounding city lights creating ethereal glow, urban protector vibes, dramatic architectural composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Urban monkey sentinel perched on skyscraper corner, skateboard as defensive barrier, hoodie's graffiti narrating journey from wilderness to metropolis through connected artwork, city illumination forming luminous crown, street culture guardian spirit, cinematic cityscape photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Anthropomorphic monkey in protective stance on building precipice, skateboard shield ready, graffiti hoodie showing visual autobiography of urban adaptation, city lights creating sacred aureole, streetwear mythology, dramatic architectural portrait style --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey protector crouched gargoyle-fashion on urban cathedral corner, skateboard held defensively, hoodie graffiti illustrating evolution from jungle vines to city power lines, neon halo from surrounding lights, street culture deity aesthetic, gothic urban photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Street monkey guardian on architectural ledge, skateboard positioned as shield of honor, hoodie covered in episodic graffiti showing urban metamorphosis story, city lights forming divine radiance, contemporary mythology, dramatic architectural composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey sentinel perched on building's edge like modern gargoyle, skateboard as protective emblem, graffiti hoodie chronicling urban evolution through interconnected street art scenes, luminous city light halo effect, streetwear folklore, architectural drama photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Surreal double exposure portrait of anthropomorphic monkey's profile seamlessly blended with sprawling nighttime cityscape, skateboard wheels transformed into lunar phases floating across composition, graffiti hoodie morphing into constellation map where street art tags become star formations, urban mysticism aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Dreamlike double exposure featuring monkey silhouette merged with city skyline, skateboard wheels evolving into moon cycle sequence, hoodie's graffiti becoming celestial street art constellation chart, tags transformed to star clusters, urban cosmic mythology, artistic photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Monkey profile double exposed with metropolitan landscape, four skateboard wheels showing moon phases from new to full, graffiti hoodie transitioning into stellar map with spray paint tags as constellations, street culture astronomy, surrealistic urban portrait --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Layered exposure blending monkey's contemplative profile with city lights, skateboard wheels metamorphosing into lunar progression, hoodie graffiti evolving into cosmic street art star chart, urban zodiac creation, mystical streetwear photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Double exposure magic with monkey face containing entire cityscape, skateboard wheels becoming moon phase calendar, graffiti hoodie transforming into navigational star map of street culture universe, tags as celestial bodies, ethereal urban art photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Monkey silhouette double exposed with nocturnal city vista, skateboard wheels cycling through lunar phases, hoodie's graffiti morphing into astronomical street art diagram, spray paint constellations, urban mystical realism, conceptual photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Surreal overlay of monkey profile with metropolitan nightscape, skateboard wheels as moon phase timeline, graffiti hoodie becoming cosmic cartography where tags map stellar formations, street culture cosmology, artistic double exposure technique --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Composite image merging monkey portrait with cityscape, skateboard wheels transformed to lunar cycle display, hoodie graffiti evolving into celestial navigation chart with street art constellations, urban spiritual aesthetic, experimental photography approach --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Anthropomorphic monkey executing massive ollie over chaotic shopping cart pyramid in abandoned supermarket parking lot, hoodie worn inside-out revealing hidden graffiti universe with miniature cityscape details, skateboard deck underside showing intricate worn street map with journey marks, urban archaeology aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Street monkey mid-flight over stacked shopping cart sculpture, reversed hoodie exposing secret graffiti dimension with tiny buildings and hidden messages, skateboard bottom displaying weathered city map with personal route history, urban exploration photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey skater airborne above shopping cart tower, inside-out hoodie revealing concealed graffiti cosmos with microscopic urban details, deck underside showing battle-worn street navigation map, abandoned retail dystopia setting, street culture archaeology --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Athletic monkey clearing shopping cart obstacle course, inverted hoodie exposing internal graffiti universe with miniature city elements, skateboard base featuring worn municipal map with skating route scars, post-apocalyptic retail landscape, documentary action photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey performing epic ollie over cart pyramid structure, reversed hoodie showing hidden graffiti world within fabric, skateboard underside displaying aged street cartography with personal journey markers, urban decay aesthetic, dynamic sports photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Airborne monkey conquering shopping cart mountain, inside-out hoodie revealing secret spray paint dimension with tiny architectural details, deck bottom showing weathered city blueprint with skating history, abandoned commerce ruins, street culture documentation --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey skater suspended over chaotic cart arrangement, inverted hoodie exposing concealed graffiti microcosm with urban miniatures, skateboard base featuring worn navigation map with route memories, retail wasteland setting, action photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Street monkey mid-trick over shopping cart chaos, reversed hoodie displaying hidden graffiti universe with microscopic cityscape, deck underside showing battle-scarred street map with personal skating trails, urban ruins aesthetic, high-speed capture photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Dramatic worm's eye view of triumphant anthropomorphic monkey against storm clouds, skateboard raised victoriously overhead like championship trophy, graffiti hoodie letters melting and dripping like acid rain, puddle reflection showing inverted city skyline creating mirror world effect, heroic street culture monument --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Extreme low angle shot of monkey towering against dramatic sky, skateboard held high in victory pose, hoodie's graffiti typography liquefying into rain drops, ground puddle reflecting upside-down metropolis, street culture triumph, monumental photography composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Ground-level perspective of monkey champion against turbulent clouds, skateboard raised in celebration, graffiti letters on hoodie dissolving into liquid streams, puddle mirror showing inverted cityscape portal, urban victory monument, dramatic architectural photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Worm's eye view of colossal monkey figure against stormy atmosphere, skateboard trophy held aloft, hoodie graffiti melting like watercolor rain, reflective puddle revealing reversed city dimension, streetwear mythology, heroic low angle composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Dramatic upward angle of monkey silhouette against cloud drama, skateboard raised triumphantly skyward, graffiti text dripping from hoodie like paint rain, puddle creating parallel inverted city universe, street culture apotheosis, monumental portrait style --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Low angle hero shot of monkey against tempestuous sky, skateboard held high like sacred object, hoodie's graffiti letters liquefying into cascading drops, ground reflection showing flipped urban landscape, victory monument aesthetic, epic photography composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Ground perspective of towering monkey figure against storm clouds, skateboard raised in triumph gesture, graffiti on hoodie melting into rain effect, puddle reflection creating inverted city portal, street culture legend, dramatic architectural angle --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Extreme low viewpoint of monkey colossus against dramatic cloudscape, skateboard held victoriously overhead, hoodie graffiti dissolving into liquid typography, reflective puddle showing mirror city world, urban culture monument, heroic perspective photography --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897cc335cc3c4d335dfec"
+          }
+        },
+        {
+          "type": "tool-abstractBulkImageGeneration",
+          "toolCallId": "abstractBulkImageGeneration-VbwVX3i3A4gvIrGT",
+          "state": "output-available",
+          "output": {
+            "prompts": [
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Anthropomorphic monkey performing kickflip mid-air, graffiti-covered hoodie flowing dynamically, wildstyle street art on brick wall background, golden hour lighting through urban steam, skateboard suspended in perfect trick position, street photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Street-smart monkey frozen in kickflip motion, vibrant graffiti hoodie catching wind like urban wings, neon-tagged brick wall backdrop, golden sunlight piercing through city steam vents, skateboard trick perfection --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Urban monkey athlete executing flawless kickflip, hoodie adorned with fresh graffiti pieces billowing dramatically, tagged brick wall canvas, steam-filtered golden hour rays, dynamic skateboard action freeze-frame --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Simian skater suspended in kickflip glory, graffiti-bombed hoodie creating wing silhouettes, urban art wall explosion, atmospheric steam catching sunset light, skateboard defying gravity --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Monkey skateboarder mid-aerial trick, street art hoodie flowing like cape, brick wall mural backdrop, golden light streaming through industrial vapor, frozen skateboard rotation --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Anthropomorphic primate nailing kickflip, graffiti-laden hoodie catching air currents, spray-painted brick canvas, steam-diffused golden hour glow, skateboard wheels spinning in suspension --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Street monkey in peak kickflip form, wildstyle graffiti hoodie billowing majestically, tagged urban wall art, sunset rays cutting through city mist, skateboard deck rotating perfectly --sref 3704803642"
+              },
+              {
+                "shotIndex": 0,
+                "shotDescription": "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "prompt": "Urban ape athlete frozen mid-kickflip, hoodie covered in fresh graffiti flowing like wings, neon-bombed brick wall, golden hour illuminating steam clouds, skateboard suspended in time --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Extreme close-up of monkey hands gripping skateboard deck, knuckles wrapped in worn street tape, graffiti letters on hoodie sleeve morphing into fur texture, macro photography detail, urban texture study --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Macro shot of simian fingers clutching skateboard grip tape, athletic tape wrapping knuckles, wildstyle graffiti bleeding from hoodie fabric into fur, hyper-detailed texture photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Tight frame on primate hands holding skateboard, street-worn tape around joints, graffiti artwork seamlessly transitioning from sleeve to fur, extreme detail capture --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Close-up monkey grip on deck, battle-worn tape wrapping fingers, hoodie's graffiti letters dissolving into natural fur patterns, textural photography masterpiece --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Intimate shot of ape hands on skateboard surface, knuckles bound in grimy tape, spray paint letters merging with fur texture, macro lens revelation --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Detailed view of simian skateboard grip, tape-wrapped fighter knuckles, graffiti art flowing from fabric into fur, extreme close-up texture study --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Magnified monkey hands clutching deck, street tape protecting joints, wildstyle letters transitioning from hoodie to hair, hyper-realistic detail shot --sref 3704803642"
+              },
+              {
+                "shotIndex": 1,
+                "shotDescription": "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "prompt": "Ultra-close primate fingers on grip tape, worn athletic wrapping, graffiti bleeding organically into fur patterns, photorealistic macro capture --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Silhouetted monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline exploding in technicolor sunrise, industrial urban landscape, cinematic backlighting --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Backlit simian skater grinding metro rail, aerosol cans clinking in pockets, kaleidoscopic sunrise erupting behind skyline, industrial dawn atmosphere --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Monkey silhouette sliding rail at daybreak, spray cans jangling in hoodie, city horizon blazing with color explosion, urban industrial poetry --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Dark monkey form grinding transit rail, paint cans creating pocket percussion, technicolor dawn bursting over cityscape, gritty industrial beauty --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Shadowed primate on subway grind, rattling aerosols in hoodie storage, prismatic sunrise illuminating urban sprawl, industrial morning magic --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Silhouetted ape rail-sliding at dawn, spray paint arsenal in pockets, city skyline erupting in color symphony, industrial sunrise spectacle --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Backlit monkey executing rail grind, cans clanking in hoodie compartments, psychedelic sunrise over metropolis, urban industrial canvas --sref 3704803642"
+              },
+              {
+                "shotIndex": 2,
+                "shotDescription": "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "prompt": "Shadow monkey grinding metal rail, paint cans creating rhythm, technicolor explosion behind city silhouette, industrial dawn choreography --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Monkey crouched on rusty fire escape, skateboard propped vertically against ladder, graffiti hoodie glowing under flickering streetlight, rain creating prismatic reflections on wet concrete below --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Simian perched on weathered fire escape, board leaning on corroded ladder, illuminated graffiti hoodie under stuttering lamp, rainbow puddles on pavement --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Urban monkey hunched on metal escape, skateboard vertical against rungs, street art hoodie catching intermittent light, rain-slicked concrete prisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Primate crouching on rust-eaten platform, deck standing against ladder, graffiti glowing in streetlight flicker, wet streets creating color cascades --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Ape squatting on deteriorating fire escape, board positioned on ladder, hoodie art pulsing under failing light, rain generating street rainbows --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Monkey coiled on oxidized escape structure, skateboard upright on ladder, graffiti luminous under sporadic illumination, prismatic rain reflections --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Simian compressed on corroded platform, board vertical against metal rungs, street art hoodie strobing in lamplight, wet concrete kaleidoscope --sref 3704803642"
+              },
+              {
+                "shotIndex": 3,
+                "shotDescription": "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "prompt": "Urban primate poised on rusty scaffold, skateboard leaning vertically, graffiti hoodie glowing intermittently, rain creating street-level prisms --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Fish-eye perspective of monkey dropping into abandoned pool, graffiti hoodie matching tagged bowl curves, skateboard wheels igniting sparks on coping edge, extreme wide-angle distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Warped fish-eye view of simian descending pool wall, hoodie graffiti echoing bowl's spray paint, wheels throwing sparks on coping, radical lens distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Ultra-wide monkey dropping into empty pool, street art hoodie harmonizing with tagged curves, skateboard creating spark shower on edge, fish-eye warping --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Distorted lens capturing primate pool drop, graffiti synchronizing with bowl art, wheels sparking against coping metal, extreme wide-angle perspective --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Fish-eye ape entering drained pool, hoodie matching curved wall tags, board wheels generating spark cascade, spherical lens distortion --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Curved perspective of monkey pool descent, graffiti hoodie mirroring bowl artwork, skateboard igniting coping sparks, fish-eye reality bending --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Wide-angle simian dropping into tagged bowl, hoodie art flowing with pool graffiti, wheels creating spark trail on edge, lens distortion mastery --sref 3704803642"
+              },
+              {
+                "shotIndex": 4,
+                "shotDescription": "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "prompt": "Warped view of urban monkey entering pool, street art hoodie matching bowl tags, skateboard sparking on coping, fish-eye spatial manipulation --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic monkey emperor seated on throne constructed from stacked skateboard decks, wearing crown made of spray paint caps, graffiti-covered hoodie draped like royal streetwear regalia, overlooking sprawling urban kingdom cityscape below, street art aesthetic, urban royalty concept --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Street king monkey on skateboard deck throne, spray cap crown gleaming, graffiti hoodie as majestic cape, neon city lights below creating urban constellation, street art supremacy --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey ruler perched on pyramid of vintage skateboards, aerosol can crown, tagged hoodie flowing like emperor's robes, concrete jungle kingdom stretching to horizon, graffiti palace aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic simian sovereign on skateboard throne, spray paint cap diadem, wildstyle graffiti hoodie draped regally, bird's eye view of tagged cityscape, urban empire vibes --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey monarch seated on stacked deck throne, crown of golden spray caps catching light, graffiti hoodie with intricate street art patterns, city skyline bowing beneath, streetwear royalty --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Street culture monkey king on skateboard furniture throne, spray paint crown reflecting city lights, hoodie covered in legendary graffiti pieces, urban domain spreading infinitely, concrete kingdom aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Anthropomorphic ape emperor on skateboard deck monument, cap crown with paint drips, hoodie displaying museum-worthy graffiti art, metropolitan realm below, street art sovereignty --sref 3704803642"
+              },
+              {
+                "shotIndex": 5,
+                "shotDescription": "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "prompt": "Monkey overlord throning on skateboard architecture, spray cap coronet, graffiti hoodie billowing like battle standard, tagged city blocks forming urban chessboard below, streetwear dynasty --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Split-screen diptych composition: left panel showing monkey's reflection in urban storefront glass window, right panel revealing actual anthropomorphic monkey skating past on skateboard, graffiti-covered hoodie creating kaleidoscopic motion blur of spray paint colors --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Cinematic split-screen: reflective storefront glass capturing monkey silhouette left side, dynamic monkey skater rushing past right side, graffiti hoodie exploding in prismatic color streaks, urban motion study --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Diptych street scene: monkey's ghostly reflection in boutique window left frame, real monkey kickflipping past right frame, tagged hoodie creating rainbow velocity trails, parallel reality moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Two-panel urban narrative: glass reflection showing static monkey left, kinetic skating monkey right, graffiti hoodie bleeding colors like wet spray paint, street photography aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Mirror and motion diptych: storefront reflection capturing contemplative monkey left, actual monkey carving concrete right, hoodie's graffiti characters fragmenting into color particles --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Split reality composition: window reflection freezing monkey in time left panel, blur of skating movement right panel, graffiti hoodie creating psychedelic color explosion, urban duality --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Dual perspective street scene: crystalline reflection in shop glass left, motion-blurred skating monkey right, spray paint hoodie design stretching between dimensions, kaleidoscopic street art --sref 3704803642"
+              },
+              {
+                "shotIndex": 6,
+                "shotDescription": "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "prompt": "Parallel moment diptych: sharp monkey reflection in storefront left side, speed-blurred skating reality right side, graffiti hoodie morphing into abstract expressionist color field --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Anthropomorphic monkey freeze-framed mid-manual trick, balancing skateboard on two wheels through narrow graffitied alley, hoodie's vibrant graffiti characters appearing to leap off fabric onto surrounding tagged brick walls, dimensional street art breaking reality --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey frozen in perfect manual balance, skateboard tilted dramatically, graffiti from hoodie literally jumping onto alley walls, characters floating between dimensions, surreal street art moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Athletic monkey executing manual through tight urban canyon, hoodie's graffiti pieces escaping into 3D space, merging with existing wall tags, reality-bending street art convergence --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Simian skater suspended mid-manual, narrow tagged passage, animated graffiti letters flowing from hoodie to walls like liquid paint, fourth wall breaking street art --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey balancing impossible manual angle, claustrophobic graffiti alley, hoodie artwork coming alive and crawling onto surrounding surfaces, magical realism street scene --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Anthropomorphic ape in manual stance, threading needle between tagged walls, graffiti characters evacuating hoodie fabric, populating alley walls in explosive migration --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Street monkey mid-manual trick, skateboard defying physics, hoodie's graffiti art achieving sentience, leaping across dimensional boundary to walls, augmented reality aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 7,
+                "shotDescription": "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "prompt": "Monkey locked in manual position, navigating graffiti corridor, hoodie designs becoming autonomous entities, transitioning from textile to brick in supernatural street art exodus --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Aerial drone perspective of anthropomorphic monkey carving infinity symbol pattern on rooftop helipad, graffiti-adorned hoodie forming abstract expressionist art against geometric city grid below, skateboard wheels leaving luminous paint trails, urban mandala creation --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Bird's eye view monkey skating figure-8 on helicopter pad, tagged hoodie creating Rothko-like color fields against cityscape geometry, skateboard painting neon trails, architectural art performance --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Top-down perspective simian skater drawing infinity loop on rooftop, graffiti hoodie contrasting angular city blocks, wheels dispensing glowing paint, creating urban sacred geometry --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Overhead shot monkey carving endless symbol on helipad surface, hoodie's chaotic graffiti versus organized city grid, skateboard leaving phosphorescent paint paths, metropolitan mandala --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Aerial viewpoint anthropomorphic ape skating infinity pattern, wildstyle hoodie against minimalist urban planning, luminous wheel trails forming light painting, rooftop art installation --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Drone perspective monkey creating infinite loop on building top, graffiti hoodie as abstract art piece against city tessellation, skateboard trailing liquid light, geometric street art fusion --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Sky view simian artist carving eternal symbol on helipad canvas, tagged hoodie clashing with orderly streets below, wheels leaving UV paint traces, architectural graffiti performance --sref 3704803642"
+              },
+              {
+                "shotIndex": 8,
+                "shotDescription": "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "prompt": "Helicopter angle monkey drawing infinity on rooftop stage, hoodie's organic graffiti opposing rigid city layout, skateboard wheels creating glow-in-dark artwork, urban land art --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Anthropomorphic monkey wallriding massive vertical billboard at impossible angle, skateboard perpendicular to gravity, graffiti hoodie's designs merging seamlessly with billboard's street art advertising campaign, reality-warping moment where dimensions collapse --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Monkey defying physics on vertical billboard surface, skateboard at 90-degree angle, hoodie graffiti bleeding into advertisement artwork, creating unified street art masterpiece, gravity optional --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Simian skater wallriding towering billboard, perpendicular to earth, tagged hoodie patterns fusing with commercial street art, boundaries dissolving between clothing and advertising --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Gravity-defying monkey on billboard wall, skateboard locked vertically, graffiti from hoodie interweaving with billboard's urban campaign, creating meta street art commentary --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Anthropomorphic ape riding billboard like vertical ground, skateboard magnetized to surface, hoodie artwork synchronizing with advertisement graffiti, reality glitch aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Monkey executing impossible billboard wallride, skateboard parallel to sky, hoodie's street art melting into billboard design, creating singular graffiti organism, physics-breaking moment --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Street monkey on perpendicular billboard plane, defying natural law, tagged hoodie graphics merging with commercial art, dimensional portal between fashion and advertising --sref 3704803642"
+              },
+              {
+                "shotIndex": 9,
+                "shotDescription": "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "prompt": "Simian athlete wallriding vertical advertisement, skateboard locked in anti-gravity, graffiti hoodie becoming one with billboard's street art vision, surreal urban fusion --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Triptych action sequence of anthropomorphic monkey skater, first frame approaching metal rail with focused expression, second frame grinding rail with orange sparks cascading dramatically, third frame landing in puddle creating explosive water crown, graffiti-covered hoodie with paint streaks showing motion blur, urban streetwear aesthetic, dynamic skateboard culture, cinematic sports photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Three-panel street photography narrative, cool monkey in graffiti hoodie performing rail grind sequence, approach shot with determination, spark-filled grinding moment with metal friction, puddle splash finale with water droplets frozen mid-air, paint drips on hoodie creating motion trails, gritty urban skateboarding documentary style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Sequential skateboard trick montage featuring streetwise monkey, building momentum toward rail, explosive spark shower during grind, dramatic puddle explosion on landing, hoodie's graffiti art bleeding and streaking with movement, street culture authenticity, high-speed sports capture aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Monkey skater's rail grind trilogy, first approaching with skateboard poised, middle frame grinding with bright orange sparks flying, final frame splashing through puddle sending water everywhere, graffiti hoodie with motion-activated paint effects, raw street skating energy, photojournalistic approach --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Urban monkey athlete in three acts, rolling toward rail with confidence, grinding metal with spark fountain erupting, water explosion landing in street puddle, hoodie covered in living graffiti that streaks with velocity, authentic skate culture documentation, street photography realism --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Cinematic triptych of monkey skateboarder's rail trick, anticipation frame showing approach, action frame with sparks flying like fireworks, impact frame with puddle creating water sculpture, graffiti on hoodie morphing through motion, streetwear culture celebration, dynamic sports photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Street skating sequence with anthropomorphic monkey protagonist, pre-trick focus, mid-grind spark shower spectacle, post-trick puddle explosion, hoodie's graffiti artwork streaming behind like speed lines, urban skateboarding authenticity, editorial sports photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 10,
+                "shotDescription": "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "prompt": "Three-stage rail grind story featuring monkey in graffiti hoodie, approaching with intent, grinding with industrial sparks cascading, landing creates puddle tsunami, paint effects on clothing showing motion dynamics, street culture documentation, high-contrast urban photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Anthropomorphic monkey perched gargoyle-style on gothic building corner overlooking neon city, skateboard held defensively like warrior's shield, elaborate graffiti hoodie telling visual evolution story from jungle to concrete jungle through interconnected street art panels, city lights creating divine halo effect, urban guardian aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Streetwise monkey crouched on architectural corner like urban sentinel, skateboard positioned as protective shield, hoodie covered in narrative graffiti showing transformation from nature to city life, golden hour city lights forming angelic backlight, street culture mythology, architectural photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey guardian atop building edge in gargoyle pose, skateboard held shield-like against chest, graffiti hoodie depicting evolution timeline through street art storytelling, surrounding city lights creating ethereal glow, urban protector vibes, dramatic architectural composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Urban monkey sentinel perched on skyscraper corner, skateboard as defensive barrier, hoodie's graffiti narrating journey from wilderness to metropolis through connected artwork, city illumination forming luminous crown, street culture guardian spirit, cinematic cityscape photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Anthropomorphic monkey in protective stance on building precipice, skateboard shield ready, graffiti hoodie showing visual autobiography of urban adaptation, city lights creating sacred aureole, streetwear mythology, dramatic architectural portrait style --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey protector crouched gargoyle-fashion on urban cathedral corner, skateboard held defensively, hoodie graffiti illustrating evolution from jungle vines to city power lines, neon halo from surrounding lights, street culture deity aesthetic, gothic urban photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Street monkey guardian on architectural ledge, skateboard positioned as shield of honor, hoodie covered in episodic graffiti showing urban metamorphosis story, city lights forming divine radiance, contemporary mythology, dramatic architectural composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 11,
+                "shotDescription": "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "prompt": "Monkey sentinel perched on building's edge like modern gargoyle, skateboard as protective emblem, graffiti hoodie chronicling urban evolution through interconnected street art scenes, luminous city light halo effect, streetwear folklore, architectural drama photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Surreal double exposure portrait of anthropomorphic monkey's profile seamlessly blended with sprawling nighttime cityscape, skateboard wheels transformed into lunar phases floating across composition, graffiti hoodie morphing into constellation map where street art tags become star formations, urban mysticism aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Dreamlike double exposure featuring monkey silhouette merged with city skyline, skateboard wheels evolving into moon cycle sequence, hoodie's graffiti becoming celestial street art constellation chart, tags transformed to star clusters, urban cosmic mythology, artistic photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Monkey profile double exposed with metropolitan landscape, four skateboard wheels showing moon phases from new to full, graffiti hoodie transitioning into stellar map with spray paint tags as constellations, street culture astronomy, surrealistic urban portrait --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Layered exposure blending monkey's contemplative profile with city lights, skateboard wheels metamorphosing into lunar progression, hoodie graffiti evolving into cosmic street art star chart, urban zodiac creation, mystical streetwear photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Double exposure magic with monkey face containing entire cityscape, skateboard wheels becoming moon phase calendar, graffiti hoodie transforming into navigational star map of street culture universe, tags as celestial bodies, ethereal urban art photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Monkey silhouette double exposed with nocturnal city vista, skateboard wheels cycling through lunar phases, hoodie's graffiti morphing into astronomical street art diagram, spray paint constellations, urban mystical realism, conceptual photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Surreal overlay of monkey profile with metropolitan nightscape, skateboard wheels as moon phase timeline, graffiti hoodie becoming cosmic cartography where tags map stellar formations, street culture cosmology, artistic double exposure technique --sref 3704803642"
+              },
+              {
+                "shotIndex": 12,
+                "shotDescription": "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "prompt": "Composite image merging monkey portrait with cityscape, skateboard wheels transformed to lunar cycle display, hoodie graffiti evolving into celestial navigation chart with street art constellations, urban spiritual aesthetic, experimental photography approach --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Anthropomorphic monkey executing massive ollie over chaotic shopping cart pyramid in abandoned supermarket parking lot, hoodie worn inside-out revealing hidden graffiti universe with miniature cityscape details, skateboard deck underside showing intricate worn street map with journey marks, urban archaeology aesthetic --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Street monkey mid-flight over stacked shopping cart sculpture, reversed hoodie exposing secret graffiti dimension with tiny buildings and hidden messages, skateboard bottom displaying weathered city map with personal route history, urban exploration photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey skater airborne above shopping cart tower, inside-out hoodie revealing concealed graffiti cosmos with microscopic urban details, deck underside showing battle-worn street navigation map, abandoned retail dystopia setting, street culture archaeology --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Athletic monkey clearing shopping cart obstacle course, inverted hoodie exposing internal graffiti universe with miniature city elements, skateboard base featuring worn municipal map with skating route scars, post-apocalyptic retail landscape, documentary action photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey performing epic ollie over cart pyramid structure, reversed hoodie showing hidden graffiti world within fabric, skateboard underside displaying aged street cartography with personal journey markers, urban decay aesthetic, dynamic sports photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Airborne monkey conquering shopping cart mountain, inside-out hoodie revealing secret spray paint dimension with tiny architectural details, deck bottom showing weathered city blueprint with skating history, abandoned commerce ruins, street culture documentation --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Monkey skater suspended over chaotic cart arrangement, inverted hoodie exposing concealed graffiti microcosm with urban miniatures, skateboard base featuring worn navigation map with route memories, retail wasteland setting, action photography style --sref 3704803642"
+              },
+              {
+                "shotIndex": 13,
+                "shotDescription": "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "prompt": "Street monkey mid-trick over shopping cart chaos, reversed hoodie displaying hidden graffiti universe with microscopic cityscape, deck underside showing battle-scarred street map with personal skating trails, urban ruins aesthetic, high-speed capture photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Dramatic worm's eye view of triumphant anthropomorphic monkey against storm clouds, skateboard raised victoriously overhead like championship trophy, graffiti hoodie letters melting and dripping like acid rain, puddle reflection showing inverted city skyline creating mirror world effect, heroic street culture monument --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Extreme low angle shot of monkey towering against dramatic sky, skateboard held high in victory pose, hoodie's graffiti typography liquefying into rain drops, ground puddle reflecting upside-down metropolis, street culture triumph, monumental photography composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Ground-level perspective of monkey champion against turbulent clouds, skateboard raised in celebration, graffiti letters on hoodie dissolving into liquid streams, puddle mirror showing inverted cityscape portal, urban victory monument, dramatic architectural photography --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Worm's eye view of colossal monkey figure against stormy atmosphere, skateboard trophy held aloft, hoodie graffiti melting like watercolor rain, reflective puddle revealing reversed city dimension, streetwear mythology, heroic low angle composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Dramatic upward angle of monkey silhouette against cloud drama, skateboard raised triumphantly skyward, graffiti text dripping from hoodie like paint rain, puddle creating parallel inverted city universe, street culture apotheosis, monumental portrait style --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Low angle hero shot of monkey against tempestuous sky, skateboard held high like sacred object, hoodie's graffiti letters liquefying into cascading drops, ground reflection showing flipped urban landscape, victory monument aesthetic, epic photography composition --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Ground perspective of towering monkey figure against storm clouds, skateboard raised in triumph gesture, graffiti on hoodie melting into rain effect, puddle reflection creating inverted city portal, street culture legend, dramatic architectural angle --sref 3704803642"
+              },
+              {
+                "shotIndex": 14,
+                "shotDescription": "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city",
+                "prompt": "Extreme low viewpoint of monkey colossus against dramatic cloudscape, skateboard held victoriously overhead, hoodie graffiti dissolving into liquid typography, reflective puddle showing mirror city world, urban culture monument, heroic perspective photography --sref 3704803642"
+              }
+            ],
+            "processedShots": 15,
+            "imageAnalysisUsed": false,
+            "_id": "692897cc335cc3c4d335dfec",
+            "ideateOutput": {
+              "predefinedPreferences": [
+                "--sref 3704803642"
+              ],
+              "shots": [
+                "Monkey mid-kickflip, frozen in time, graffiti hoodie billowing like wings against neon-tagged brick wall, golden hour casting long shadows through urban steam vents",
+                "Close-up of simian hands gripping skateboard deck, knuckles wrapped in street tape, hoodie sleeve revealing intricate wildstyle graffiti letters bleeding into fur texture",
+                "Silhouette of monkey grinding subway rail at dawn, spray paint cans rattling in hoodie pockets, city skyline erupting in technicolor sunrise behind industrial chaos",
+                "Monkey crouched on fire escape, skateboard vertical against rusty ladder, hoodie's graffiti glowing under flickering streetlight, rain creating prismatic reflections on concrete",
+                "Fish-eye lens capturing monkey dropping into empty swimming pool, graffiti hoodie matching the bowl's tagged curves, skateboard wheels sparking against coping edge",
+                "Monkey sitting on skateboard throne made from stacked decks, crown of spray caps, hoodie draped like royal streetwear regalia, urban kingdom sprawling below",
+                "Split-screen diptych: left shows monkey's reflection in storefront glass, right reveals actual monkey skating past, graffiti hoodie creating kaleidoscopic color blur",
+                "Monkey freeze-framed mid-manual, balancing on two wheels through narrow alley, hoodie's graffiti characters seeming to leap off fabric into surrounding tagged walls",
+                "Aerial view of monkey carving infinity symbol on rooftop helipad, graffiti hoodie forming abstract art against geometric city grid, skateboard leaving paint trails",
+                "Monkey wallriding vertical billboard, skateboard perpendicular to gravity, hoodie's graffiti merging seamlessly with advertisement's street art campaign, reality bending moment",
+                "Triptych sequence: monkey approaching rail, grinding with sparks flying, landing in puddle explosion, graffiti hoodie capturing motion through streaking paint effects",
+                "Monkey perched gargoyle-style on building corner, skateboard held like shield, hoodie's graffiti telling visual story of urban evolution, city lights creating halo",
+                "Double exposure: monkey's profile overlaid with cityscape, skateboard wheels becoming moon phases, graffiti hoodie transforming into constellation map of street culture",
+                "Monkey caught mid-ollie over shopping cart pyramid, hoodie inside-out revealing hidden graffiti universe, skateboard deck underside showing worn street map",
+                "Extreme low angle: monkey towering against clouded sky, skateboard raised triumphantly, graffiti hoodie's letters dripping like rain, puddle reflection showing inverted city"
+              ],
+              "variationCount": 8,
+              "model": "claude-opus-4-1",
+              "tags": [
+                "animalwear"
+              ],
+              "creativeInspiration": "## Creative Strategy Analysis: Urban Monkey Streetwear\n\n**Core Directive Breakdown:**\nThe user envisions a street-savvy monkey character as the protagonist of an urban streetwear narrative. This anthropomorphic subject embodies skateboard culture through specific visual markers: graffiti-adorned hoodies and skateboard integration.\n\n**Explicit Requirements:**\n- Primary subject: Monkey (likely anthropomorphized)\n- Essential props: Graffiti-decorated hoodie, skateboard\n- Setting: Urban cityscape\n- Aesthetic: Streetwear fashion culture\n\n**Implicit Creative Direction:**\nThis directive suggests a fusion of animal personification with youth subculture - think Supreme meets Planet of the Apes. The monkey represents rebellion, playfulness, and urban adaptability. The graffiti hoodie isn't just clothing but a canvas for street art expression. The skateboard grounds the character in authentic skate culture.\n\n**Visual Territory:**\nConcrete jungle environments, street art backdrops, skate spots, urban textures. The monkey should feel native to city streets - perhaps perched on fire escapes, grinding rails, or tagging walls. Color palette leans toward bold streetwear tones: neon accents against urban grays, spray paint aesthetics.\n\n**Purpose:** \nCreating an iconic streetwear character that bridges animal whimsy with authentic urban culture, suitable for brand mascots, apparel designs, or contemporary art pieces."
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-11-27T18:26:21.278Z"
+}
