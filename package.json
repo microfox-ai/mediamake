@@ -81,7 +81,9 @@
     "rollup": "^4.52.2"
   },
   "overrides": {
-    "@aws-sdk/*": "3.787.0"
+    "@aws-sdk/*": "3.787.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   },
   "type": "module"
 }
