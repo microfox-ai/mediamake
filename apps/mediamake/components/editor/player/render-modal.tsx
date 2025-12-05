@@ -37,7 +37,7 @@ import { useRender } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
 import { AWS_RENDER_CONFIGS } from '../../../config.mjs';
 import { getSafeConcurrency } from '@/lib/remotion-utils';
-import { AlertCircle, CheckCircle, HelpCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, HelpCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   calculateCompositionLayoutMetadata,
   InputCompositionProps,
@@ -60,10 +60,11 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   } = useRender();
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
+  const [showJson, setShowJson] = useState(false);
   const selectedConfig = useMemo(() => {
     return (
       AWS_RENDER_CONFIGS[
-        settings.awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
+      settings.awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
       ] || null
     );
   }, [settings.awsRenderPreset]);
@@ -274,11 +275,11 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       updateSetting(
                         'awsRenderPreset',
                         value as
-                          | 'complex-fast'
-                          | 'complex-slow'
-                          | 'basic-fast'
-                          | 'throttled'
-                          | 'classic',
+                        | 'complex-fast'
+                        | 'complex-slow'
+                        | 'basic-fast'
+                        | 'throttled'
+                        | 'classic',
                       )
                     }
                   >
@@ -537,17 +538,33 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-4 items-start gap-4 max-h-[200px] overflow-y-auto">
-                  <Label htmlFor="inputProps" className="text-right pt-2">
-                    Input Props
-                  </Label>
-                  <Textarea
-                    id="inputProps"
-                    value={settings.inputProps}
-                    onChange={e => updateSetting('inputProps', e.target.value)}
-                    className="col-span-3 min-h-[120px] font-mono text-sm"
-                    placeholder="Enter JSON input props..."
-                  />
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Input Props</Label>
+                  <div className="col-span-3 space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowJson(!showJson)}
+                      className="w-full justify-between"
+                    >
+                      <span>{showJson ? 'Hide JSON' : 'Show JSON'}</span>
+                      {showJson ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    {showJson && (
+                      <Textarea
+                        id="inputProps"
+                        value={settings.inputProps}
+                        onChange={e => updateSetting('inputProps', e.target.value)}
+                        className="min-h-[120px] font-mono text-sm max-h-[200px] overflow-y-auto"
+                        placeholder="Enter JSON input props..."
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -692,17 +709,33 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-4 items-start gap-4 max-h-[200px] overflow-y-auto">
-                  <Label htmlFor="localInputProps" className="text-right pt-2">
-                    Input Props
-                  </Label>
-                  <Textarea
-                    id="localInputProps"
-                    value={settings.inputProps}
-                    onChange={e => updateSetting('inputProps', e.target.value)}
-                    className="col-span-3 min-h-[120px] font-mono text-sm"
-                    placeholder="Enter JSON input props..."
-                  />
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Input Props</Label>
+                  <div className="col-span-3 space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowJson(!showJson)}
+                      className="w-full justify-between"
+                    >
+                      <span>{showJson ? 'Hide JSON' : 'Show JSON'}</span>
+                      {showJson ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    {showJson && (
+                      <Textarea
+                        id="localInputProps"
+                        value={settings.inputProps}
+                        onChange={e => updateSetting('inputProps', e.target.value)}
+                        className="min-h-[120px] font-mono text-sm max-h-[200px] overflow-y-auto"
+                        placeholder="Enter JSON input props..."
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>
