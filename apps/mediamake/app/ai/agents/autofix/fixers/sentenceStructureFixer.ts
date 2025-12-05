@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const sentenceStructureFixerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('SENTENCE STRUCTURE FIXER: Starting...');
@@ -183,4 +183,3 @@ Optimize sentence structure for subtitle display while preserving all timing.`;
   });
 
 export default sentenceStructureFixerAgent;
-

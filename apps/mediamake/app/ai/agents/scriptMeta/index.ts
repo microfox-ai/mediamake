@@ -13,13 +13,13 @@ import contextualTextToImageAgent from './private/contextualTextToImageAgent';
 const aiRouter = new AiRouter();
 
 export const scriptMetaOrchestor = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating script meta generation...',
     });
     return next();
   })
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/music/keyword', musicKeywordAgent)
   .agent('/music/rag-image-attacher', ragImageAttacherAgent)
   .agent('/music/empty-image-attacher', emptyImageAttacherAgent)

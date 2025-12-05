@@ -19,9 +19,9 @@ import crypto from 'crypto';
 
 /**
  * Text-to-Image Agent - /text-to-image
- * 
+ *
  * Simple image generation for transcription captions.
- * 
+ *
  * Choose from built-in presets or provide your own custom prompt.
  * Built-in presets: graphic-novel, cinematic-realism, minimalist-flat, watercolor-artistic, abstract-geometric
  */
@@ -40,9 +40,14 @@ const TextToImageMetadataSchema = z.object({
   imageResolution: z.string().optional().describe('The image resolution used'),
   status: z
     .enum(['pending', 'processing', 'completed', 'failed'])
-    .describe('The status of image generation - processing means task submitted, webhook will update when done'),
+    .describe(
+      'The status of image generation - processing means task submitted, webhook will update when done',
+    ),
   error: z.string().optional().describe('Error message if generation failed'),
-  completedAt: z.string().optional().describe('When the image was completed (ISO timestamp)'),
+  completedAt: z
+    .string()
+    .optional()
+    .describe('When the image was completed (ISO timestamp)'),
 });
 
 // Legacy: IMAGE_GENERATION_SYSTEM_PROMPT moved to imagePromptRegistry.ts
@@ -60,15 +65,15 @@ function encryptAuthToken(token: string): string {
 
   // Create key from secret (32 bytes for AES-256)
   const key = crypto.createHash('sha256').update(secret).digest();
-  
+
   // Generate random IV (16 bytes for AES)
   const iv = crypto.randomBytes(16);
-  
+
   // Encrypt
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(token, 'utf8');
   encrypted = Buffer.concat([encrypted, cipher.final()]);
-  
+
   // Return as iv:encryptedData (both in hex)
   return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
@@ -92,9 +97,10 @@ async function generateImageForCaption(
   }
 
   // Construct webhook URL
-  const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                         process.env.VERCEL_URL || 
-                         'http://localhost:3000';
+  const webhookBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.VERCEL_URL ||
+    'http://localhost:3000';
   const webhookUrl = `${webhookBaseUrl}/api/webhooks/text-to-image`;
 
   // Use API key from environment as auth token
@@ -102,16 +108,22 @@ async function generateImageForCaption(
   if (!apiKey) {
     throw new Error('DEV_API_KEY environment variable not set');
   }
-  
+
   const encryptedToken = encryptAuthToken(apiKey);
 
   console.log(`[Image Gen] 🔐 Using API key for webhook authentication`);
-  console.log(`[Image Gen] 🔒 Encrypted token (first 40 chars): ${encryptedToken.substring(0, 40)}...`);
+  console.log(
+    `[Image Gen] 🔒 Encrypted token (first 40 chars): ${encryptedToken.substring(0, 40)}...`,
+  );
 
   try {
-    console.log(`[Image Gen] 📤 Sending request to ${baseUrl}/api/text-to-image`);
+    console.log(
+      `[Image Gen] 📤 Sending request to ${baseUrl}/api/text-to-image`,
+    );
     console.log(`[Image Gen] Webhook URL: ${webhookUrl}`);
-    console.log(`[Image Gen] Webhook auth token (encrypted): ${encryptedToken.substring(0, 20)}...`);
+    console.log(
+      `[Image Gen] Webhook auth token (encrypted): ${encryptedToken.substring(0, 20)}...`,
+    );
 
     const response = await fetch(`${baseUrl}/api/text-to-image`, {
       method: 'POST',
@@ -135,7 +147,9 @@ async function generateImageForCaption(
       }),
     });
 
-    console.log(`[Image Gen] Response status: ${response.status} ${response.statusText}`);
+    console.log(
+      `[Image Gen] Response status: ${response.status} ${response.statusText}`,
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -146,7 +160,9 @@ async function generateImageForCaption(
       } catch {
         errorData = { error: errorText };
       }
-      throw new Error(errorData.error || 'Failed to create image generation task');
+      throw new Error(
+        errorData.error || 'Failed to create image generation task',
+      );
     }
 
     const data = await response.json();
@@ -174,7 +190,7 @@ const TextToImageTranscriptionSchema = ScriptMetaOutputSchema.extend({
 });
 
 const textToImageAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
@@ -210,7 +226,7 @@ const textToImageAgent = aiRouter
           throw new Error(
             `Prompt preset '${promptPresetId}' not found. Available presets: ${getAllPromptPresets()
               .map(p => p.id)
-              .join(', ')}`
+              .join(', ')}`,
           );
         }
         systemPrompt = preset.systemPrompt;
@@ -294,7 +310,9 @@ const textToImageAgent = aiRouter
               };
             }
 
-            console.log(`[Caption ${index + 1}] Task created: ${taskId} (webhook will update when ready)`);
+            console.log(
+              `[Caption ${index + 1}] Task created: ${taskId} (webhook will update when ready)`,
+            );
 
             // Return immediately with "processing" status
             // Webhook will update to "completed" or "failed" when done
@@ -412,13 +430,13 @@ const textToImageAgent = aiRouter
         ])
         .optional()
         .describe(
-          'Prompt preset to use for image generation. Options: graphic-novel (hand-drawn with limited palette), cinematic-realism (photo-realistic with dramatic lighting), minimalist-flat (clean geometric design), watercolor-artistic (soft painted style), abstract-geometric (bold shapes and colors). Default: graphic-novel'
+          'Prompt preset to use for image generation. Options: graphic-novel (hand-drawn with limited palette), cinematic-realism (photo-realistic with dramatic lighting), minimalist-flat (clean geometric design), watercolor-artistic (soft painted style), abstract-geometric (bold shapes and colors). Default: graphic-novel',
         ),
       customPrompt: z
         .string()
         .optional()
         .describe(
-          'Custom system prompt for image generation. If provided, overrides promptPresetId. Use this to define your own unique visual style and guidelines. You can copy a preset prompt and modify it.'
+          'Custom system prompt for image generation. If provided, overrides promptPresetId. Use this to define your own unique visual style and guidelines. You can copy a preset prompt and modify it.',
         ),
     }),
     outputSchema: TextToImageTranscriptionSchema,
@@ -445,7 +463,7 @@ const textToImageAgent = aiRouter
 textToImageAgent
   .agent('/prompts', async () => {
     const presets = getAllPromptPresets();
-    
+
     return {
       presets: presets.map(p => ({
         id: p.id,
@@ -456,7 +474,8 @@ textToImageAgent
         tags: p.tags,
       })),
       count: presets.length,
-      message: 'Use promptPresetId to select a preset, or copy systemPrompt to create your own customPrompt',
+      message:
+        'Use promptPresetId to select a preset, or copy systemPrompt to create your own customPrompt',
     };
   })
   .actAsTool('/prompts', {
@@ -466,14 +485,18 @@ textToImageAgent
       'Lists all available built-in image prompt presets. Each preset includes the full system prompt text that you can copy and modify to create a custom prompt.',
     inputSchema: z.object({}),
     outputSchema: z.object({
-      presets: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        description: z.string(),
-        systemPrompt: z.string().describe('Full prompt text - copy this to create custom prompt'),
-        category: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      })),
+      presets: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          description: z.string(),
+          systemPrompt: z
+            .string()
+            .describe('Full prompt text - copy this to create custom prompt'),
+          category: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+        }),
+      ),
       count: z.number(),
       message: z.string(),
     }),
@@ -485,4 +508,3 @@ textToImageAgent
   });
 
 export default textToImageAgent;
-

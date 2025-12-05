@@ -25,7 +25,7 @@
 // });
 
 // const clearMetadataAgent = aiRouter
-//   .use('/', loadTranscription)
+//   .before('/', loadTranscription)
 //   .agent('/', async ctx => {
 //     try {
 //       ctx.response.writeMessageMetadata({
@@ -105,4 +105,3 @@
 //   });
 
 // export default clearMetadataAgent;
-

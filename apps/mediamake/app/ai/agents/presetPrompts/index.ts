@@ -5,7 +5,7 @@ import promptGeneratorAgent from './promptGeneratorAgent';
 const aiRouter = new AiRouter();
 
 export const presetPromptsOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating preset prompt generation...',
     });
