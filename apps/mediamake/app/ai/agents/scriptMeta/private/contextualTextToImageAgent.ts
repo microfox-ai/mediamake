@@ -19,13 +19,13 @@ import crypto from 'crypto';
 
 /**
  * Contextual Text-to-Image Agent - /contextual-text-to-image
- * 
+ *
  * Advanced image generation that considers the full script context.
- * 
+ *
  * Unlike the simple text-to-image agent that processes each caption in isolation,
  * this agent uses the entire script as context when generating image prompts for each caption.
  * This results in more coherent, narrative-aware, and visually consistent images.
- * 
+ *
  * Choose from built-in presets or provide your own custom prompt.
  * Built-in presets: graphic-novel, cinematic-realism, minimalist-flat, watercolor-artistic, abstract-geometric
  */
@@ -44,10 +44,18 @@ const TextToImageMetadataSchema = z.object({
   imageResolution: z.string().optional().describe('The image resolution used'),
   status: z
     .enum(['pending', 'processing', 'completed', 'failed'])
-    .describe('The status of image generation - processing means task submitted, webhook will update when done'),
+    .describe(
+      'The status of image generation - processing means task submitted, webhook will update when done',
+    ),
   error: z.string().optional().describe('Error message if generation failed'),
-  completedAt: z.string().optional().describe('When the image was completed (ISO timestamp)'),
-  contextAware: z.boolean().default(true).describe('Whether this was generated with full script context'),
+  completedAt: z
+    .string()
+    .optional()
+    .describe('When the image was completed (ISO timestamp)'),
+  contextAware: z
+    .boolean()
+    .default(true)
+    .describe('Whether this was generated with full script context'),
 });
 
 /**
@@ -62,15 +70,15 @@ function encryptAuthToken(token: string): string {
 
   // Create key from secret (32 bytes for AES-256)
   const key = crypto.createHash('sha256').update(secret).digest();
-  
+
   // Generate random IV (16 bytes for AES)
   const iv = crypto.randomBytes(16);
-  
+
   // Encrypt
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(token, 'utf8');
   encrypted = Buffer.concat([encrypted, cipher.final()]);
-  
+
   // Return as iv:encryptedData (both in hex)
   return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
@@ -94,9 +102,10 @@ async function generateImageForCaption(
   }
 
   // Construct webhook URL
-  const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                         process.env.VERCEL_URL || 
-                         'http://localhost:3000';
+  const webhookBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.VERCEL_URL ||
+    'http://localhost:3000';
   const webhookUrl = `${webhookBaseUrl}/api/webhooks/text-to-image`;
 
   // Use API key from environment as auth token
@@ -104,16 +113,24 @@ async function generateImageForCaption(
   if (!apiKey) {
     throw new Error('DEV_API_KEY environment variable not set');
   }
-  
+
   const encryptedToken = encryptAuthToken(apiKey);
 
-  console.log(`[Contextual Image Gen] 🔐 Using API key for webhook authentication`);
-  console.log(`[Contextual Image Gen] 🔒 Encrypted token (first 40 chars): ${encryptedToken.substring(0, 40)}...`);
+  console.log(
+    `[Contextual Image Gen] 🔐 Using API key for webhook authentication`,
+  );
+  console.log(
+    `[Contextual Image Gen] 🔒 Encrypted token (first 40 chars): ${encryptedToken.substring(0, 40)}...`,
+  );
 
   try {
-    console.log(`[Contextual Image Gen] 📤 Sending request to ${baseUrl}/api/text-to-image`);
+    console.log(
+      `[Contextual Image Gen] 📤 Sending request to ${baseUrl}/api/text-to-image`,
+    );
     console.log(`[Contextual Image Gen] Webhook URL: ${webhookUrl}`);
-    console.log(`[Contextual Image Gen] Webhook auth token (encrypted): ${encryptedToken.substring(0, 20)}...`);
+    console.log(
+      `[Contextual Image Gen] Webhook auth token (encrypted): ${encryptedToken.substring(0, 20)}...`,
+    );
 
     const response = await fetch(`${baseUrl}/api/text-to-image`, {
       method: 'POST',
@@ -138,7 +155,9 @@ async function generateImageForCaption(
       }),
     });
 
-    console.log(`[Contextual Image Gen] Response status: ${response.status} ${response.statusText}`);
+    console.log(
+      `[Contextual Image Gen] Response status: ${response.status} ${response.statusText}`,
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -149,14 +168,19 @@ async function generateImageForCaption(
       } catch {
         errorData = { error: errorText };
       }
-      throw new Error(errorData.error || 'Failed to create image generation task');
+      throw new Error(
+        errorData.error || 'Failed to create image generation task',
+      );
     }
 
     const data = await response.json();
     console.log(`[Contextual Image Gen] ✅ Task created: ${data.taskId}`);
     return { taskId: data.taskId };
   } catch (error) {
-    console.error('[Contextual Image Gen] ❌ Error calling text-to-image API:', error);
+    console.error(
+      '[Contextual Image Gen] ❌ Error calling text-to-image API:',
+      error,
+    );
     return {
       taskId: '',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -174,7 +198,7 @@ const TextToImageTranscriptionSchema = ScriptMetaOutputSchema.extend({
 });
 
 const contextualTextToImageAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
@@ -210,12 +234,14 @@ const contextualTextToImageAgent = aiRouter
           throw new Error(
             `Prompt preset '${promptPresetId}' not found. Available presets: ${getAllPromptPresets()
               .map(p => p.id)
-              .join(', ')}`
+              .join(', ')}`,
           );
         }
         systemPrompt = preset.systemPrompt;
         selectedPresetId = preset.id;
-        console.log(`Using preset: ${preset.name} (${preset.id}) with full script context`);
+        console.log(
+          `Using preset: ${preset.name} (${preset.id}) with full script context`,
+        );
       }
 
       // Get sentences from context state (loaded by middleware)
@@ -236,10 +262,15 @@ const contextualTextToImageAgent = aiRouter
 
       // Create full script context for the AI
       const fullScript = sentencesToAnalyze
-        .map((sentence: string, idx: number) => `[Caption ${idx + 1}]: ${sentence}`)
+        .map(
+          (sentence: string, idx: number) =>
+            `[Caption ${idx + 1}]: ${sentence}`,
+        )
         .join('\n');
 
-      console.log(`[Contextual Image Gen] Full script context prepared (${fullScript.length} chars)`);
+      console.log(
+        `[Contextual Image Gen] Full script context prepared (${fullScript.length} chars)`,
+      );
 
       // Enhanced system prompt that includes script context awareness
       const contextAwareSystemPrompt = dedent`
@@ -268,10 +299,18 @@ const contextualTextToImageAgent = aiRouter
 
       // Define schema for batch prompt generation
       const BatchImagePromptsSchema = z.object({
-        prompts: z.array(z.object({
-          captionIndex: z.number().describe('Index of the caption (0-based)'),
-          imagePrompt: z.string().describe('The generated image prompt for this caption'),
-        })).length(sentencesToAnalyze.length),
+        prompts: z
+          .array(
+            z.object({
+              captionIndex: z
+                .number()
+                .describe('Index of the caption (0-based)'),
+              imagePrompt: z
+                .string()
+                .describe('The generated image prompt for this caption'),
+            }),
+          )
+          .length(sentencesToAnalyze.length),
       });
 
       const batchPromptResult = await generateObject({
@@ -299,7 +338,9 @@ const contextualTextToImageAgent = aiRouter
         maxRetries: 2,
       });
 
-      console.log(`[Contextual Image Gen] ✅ Generated ${batchPromptResult.object.prompts.length} prompts in one batch`);
+      console.log(
+        `[Contextual Image Gen] ✅ Generated ${batchPromptResult.object.prompts.length} prompts in one batch`,
+      );
 
       // Step 2: Create image generation tasks for each prompt
       ctx.response.writeMessageMetadata({
@@ -345,16 +386,27 @@ const contextualTextToImageAgent = aiRouter
                   contextAware: true,
                 },
                 usage: {
-                  inputTokens: Math.round(((batchPromptResult.usage as any)?.promptTokens || 0) / sentencesToAnalyze.length),
-                  outputTokens: Math.round(((batchPromptResult.usage as any)?.completionTokens || 0) / sentencesToAnalyze.length),
-                  totalTokens: Math.round(((batchPromptResult.usage as any)?.totalTokens || 0) / sentencesToAnalyze.length),
+                  inputTokens: Math.round(
+                    ((batchPromptResult.usage as any)?.promptTokens || 0) /
+                      sentencesToAnalyze.length,
+                  ),
+                  outputTokens: Math.round(
+                    ((batchPromptResult.usage as any)?.completionTokens || 0) /
+                      sentencesToAnalyze.length,
+                  ),
+                  totalTokens: Math.round(
+                    ((batchPromptResult.usage as any)?.totalTokens || 0) /
+                      sentencesToAnalyze.length,
+                  ),
                   cachedInputTokens: 0,
                   reasoningTokens: 0,
                 },
               };
             }
 
-            console.log(`[Caption ${index + 1}] Context-aware task created: ${taskId} (webhook will update when ready)`);
+            console.log(
+              `[Caption ${index + 1}] Context-aware task created: ${taskId} (webhook will update when ready)`,
+            );
 
             // Return immediately with "processing" status
             return {
@@ -370,9 +422,18 @@ const contextualTextToImageAgent = aiRouter
                 contextAware: true,
               },
               usage: {
-                inputTokens: Math.round(((batchPromptResult.usage as any)?.promptTokens || 0) / sentencesToAnalyze.length),
-                outputTokens: Math.round(((batchPromptResult.usage as any)?.completionTokens || 0) / sentencesToAnalyze.length),
-                totalTokens: Math.round(((batchPromptResult.usage as any)?.totalTokens || 0) / sentencesToAnalyze.length),
+                inputTokens: Math.round(
+                  ((batchPromptResult.usage as any)?.promptTokens || 0) /
+                    sentencesToAnalyze.length,
+                ),
+                outputTokens: Math.round(
+                  ((batchPromptResult.usage as any)?.completionTokens || 0) /
+                    sentencesToAnalyze.length,
+                ),
+                totalTokens: Math.round(
+                  ((batchPromptResult.usage as any)?.totalTokens || 0) /
+                    sentencesToAnalyze.length,
+                ),
                 cachedInputTokens: 0,
                 reasoningTokens: 0,
               },
@@ -442,7 +503,10 @@ const contextualTextToImageAgent = aiRouter
 
       return result;
     } catch (error) {
-      console.error('Error generating context-aware images for transcription:', error);
+      console.error(
+        'Error generating context-aware images for transcription:',
+        error,
+      );
       throw error;
     }
   })
@@ -480,13 +544,13 @@ const contextualTextToImageAgent = aiRouter
         ])
         .optional()
         .describe(
-          'Prompt preset to use for image generation. Options: graphic-novel (hand-drawn with limited palette), cinematic-realism (photo-realistic with dramatic lighting), minimalist-flat (clean geometric design), watercolor-artistic (soft painted style), abstract-geometric (bold shapes and colors). Default: graphic-novel'
+          'Prompt preset to use for image generation. Options: graphic-novel (hand-drawn with limited palette), cinematic-realism (photo-realistic with dramatic lighting), minimalist-flat (clean geometric design), watercolor-artistic (soft painted style), abstract-geometric (bold shapes and colors). Default: graphic-novel',
         ),
       customPrompt: z
         .string()
         .optional()
         .describe(
-          'Custom system prompt for image generation. If provided, overrides promptPresetId. Use this to define your own unique visual style and guidelines. You can copy a preset prompt and modify it.'
+          'Custom system prompt for image generation. If provided, overrides promptPresetId. Use this to define your own unique visual style and guidelines. You can copy a preset prompt and modify it.',
         ),
     }),
     outputSchema: TextToImageTranscriptionSchema,
@@ -515,7 +579,7 @@ const contextualTextToImageAgent = aiRouter
 contextualTextToImageAgent
   .agent('/prompts', async () => {
     const presets = getAllPromptPresets();
-    
+
     return {
       presets: presets.map(p => ({
         id: p.id,
@@ -526,7 +590,8 @@ contextualTextToImageAgent
         tags: p.tags,
       })),
       count: presets.length,
-      message: 'Use promptPresetId to select a preset, or copy systemPrompt to create your own customPrompt. This agent uses full script context for better image generation.',
+      message:
+        'Use promptPresetId to select a preset, or copy systemPrompt to create your own customPrompt. This agent uses full script context for better image generation.',
     };
   })
   .actAsTool('/prompts', {
@@ -536,14 +601,18 @@ contextualTextToImageAgent
       'Lists all available built-in image prompt presets for context-aware generation. Each preset includes the full system prompt text that you can copy and modify to create a custom prompt.',
     inputSchema: z.object({}),
     outputSchema: z.object({
-      presets: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        description: z.string(),
-        systemPrompt: z.string().describe('Full prompt text - copy this to create custom prompt'),
-        category: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      })),
+      presets: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          description: z.string(),
+          systemPrompt: z
+            .string()
+            .describe('Full prompt text - copy this to create custom prompt'),
+          category: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+        }),
+      ),
       count: z.number(),
       message: z.string(),
     }),
@@ -555,4 +624,3 @@ contextualTextToImageAgent
   });
 
 export default contextualTextToImageAgent;
-

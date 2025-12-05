@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const timingOptimizerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('TIMING OPTIMIZER: Starting...');
@@ -173,4 +173,3 @@ Optimize timing values for better subtitle display without changing any text.`;
   });
 
 export default timingOptimizerAgent;
-

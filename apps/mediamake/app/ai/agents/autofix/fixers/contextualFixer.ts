@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const contextualFixerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('CONTEXTUAL FIXER: Starting...');
@@ -183,12 +183,7 @@ Apply the user's contextual corrections while preserving timing as much as possi
     }),
     metadata: {
       category: 'transcription',
-      tags: [
-        'transcription',
-        'autofix',
-        'transcription-autofix',
-        'contextual',
-      ],
+      tags: ['transcription', 'autofix', 'transcription-autofix', 'contextual'],
       icon: '🎯',
       title: 'Contextual Fixer',
       description: 'User-guided contextual corrections',
@@ -197,4 +192,3 @@ Apply the user's contextual corrections while preserving timing as much as possi
   });
 
 export default contextualFixerAgent;
-

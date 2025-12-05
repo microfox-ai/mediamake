@@ -15,13 +15,13 @@ const aiRouter = new AiRouter();
  * Coordinates multiple specialized autofix agents
  */
 export const autofixOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating autofix agents...',
     });
     return next();
   })
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/spelling', spellingFixerAgent)
   .agent('/word-boundary', wordBoundaryFixerAgent)
   .agent('/sentence-structure', sentenceStructureFixerAgent)
@@ -122,9 +122,7 @@ export const autofixOrchestrator = aiRouter
       for (const agentName of agentsToRun) {
         try {
           const agentPath = `/${agentName}`;
-          console.log(
-            `AUTOFIX ORCHESTRATOR: Running agent ${agentPath}...`,
-          );
+          console.log(`AUTOFIX ORCHESTRATOR: Running agent ${agentPath}...`);
 
           const response = await ctx.next.callAgent(agentPath, {
             transcriptionId,
@@ -133,11 +131,16 @@ export const autofixOrchestrator = aiRouter
           });
 
           // Handle both wrapped and direct responses
-          const result = (response as any).ok 
-            ? (response as any).data 
+          const result = (response as any).ok
+            ? (response as any).data
             : response;
 
-          if (result && result.success && result.changes && result.changes.length > 0) {
+          if (
+            result &&
+            result.success &&
+            result.changes &&
+            result.changes.length > 0
+          ) {
             // Update current transcription with fixes
             currentTranscription = result.transcription;
             allChanges.push({
@@ -214,7 +217,7 @@ export const autofixOrchestrator = aiRouter
         .string()
         .optional()
         .describe(
-          "Your written version - if provided, uses contextual fixer for best results",
+          'Your written version - if provided, uses contextual fixer for best results',
         ),
       agents: z
         .array(
@@ -228,7 +231,9 @@ export const autofixOrchestrator = aiRouter
         )
         .optional()
         .default(['spelling', 'word-boundary', 'punctuation'])
-        .describe('Specific agents to run (default: spelling, word-boundary, punctuation)'),
+        .describe(
+          'Specific agents to run (default: spelling, word-boundary, punctuation)',
+        ),
       applyToDatabase: z
         .boolean()
         .optional()
@@ -249,10 +254,14 @@ export const autofixOrchestrator = aiRouter
       title: 'Autofix Orchestrator',
       description: 'Run multiple autofix agents',
       category: 'transcription',
-      tags: ['transcription', 'autofix', 'transcription-autofix', 'orchestrator'],
+      tags: [
+        'transcription',
+        'autofix',
+        'transcription-autofix',
+        'orchestrator',
+      ],
       hideUI: false,
     },
   });
 
 export default autofixOrchestrator;
-

@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const wordBoundaryFixerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('WORD BOUNDARY FIXER: Starting...');
@@ -179,4 +179,3 @@ Fix ONLY word boundary issues (merged/split words) while preserving timing.`;
   });
 
 export default wordBoundaryFixerAgent;
-

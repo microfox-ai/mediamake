@@ -93,7 +93,7 @@ const nextConfig: NextConfig = {
       /Critical dependency: the request of a dependency is an expression/,
       /fluent-ffmpeg/,
       // Suppress webpack cache warnings about large strings
-      /Serializing big strings/,
+      /Serializing big s  trings/,
     ];
 
     // Suppress specific webpack cache warnings

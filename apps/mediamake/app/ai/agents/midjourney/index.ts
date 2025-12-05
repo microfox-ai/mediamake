@@ -11,7 +11,7 @@ import { pipeline2Agent } from './pipeline2';
 const aiRouter = new AiRouter();
 
 export const midjourneyOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating Midjourney prompt generation...',
     });

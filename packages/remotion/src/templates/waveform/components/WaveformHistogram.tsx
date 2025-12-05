@@ -25,6 +25,8 @@ export interface WaveformHistogramDataProps {
     // Animation
     amplitude?: number;
 
+    // Bar slant/rotation
+    barSlant?: number; // Rotation angle in degrees (default: 0)
 
     // Gradient
     gradientStartColor?: string;
@@ -53,6 +55,7 @@ export const WaveformHistogram: React.FC<WaveformHistogramProps> = ({ data }) =>
         histogramStyle = 'centered',
         amplitude = 1,
         multiplier = 1,
+        barSlant = 0,
         gradientStartColor,
         gradientEndColor,
         gradientDirection = 'vertical',
@@ -77,6 +80,7 @@ export const WaveformHistogram: React.FC<WaveformHistogramProps> = ({ data }) =>
                 multiplier={multiplier}
                 gradientStyle={gradientStyle}
                 waveDirection={waveDirection}
+                barSlant={barSlant}
             />
         </Waveform>
     );
@@ -99,6 +103,7 @@ const WaveformHistogramContent: React.FC<Omit<WaveformHistogramDataProps, 'confi
     multiplier,
     gradientStyle,
     waveDirection,
+    barSlant,
 }) => {
     const { waveformData, frequencyData, amplitudes, width, height } = useWaveformContext();
 
@@ -167,6 +172,8 @@ const WaveformHistogramContent: React.FC<Omit<WaveformHistogramDataProps, 'confi
                             )}px`,
                             borderRadius: growUpwards ? `${barBorderRadius}px ${barBorderRadius}px 0 0` : `0 0 ${barBorderRadius}px ${barBorderRadius}px`,
                             opacity,
+                            transform: barSlant ? `rotate(${barSlant}deg)` : undefined,
+                            transformOrigin: 'center bottom',
                         }}
                     />
                 ))}

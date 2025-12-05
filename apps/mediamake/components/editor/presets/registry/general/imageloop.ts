@@ -346,6 +346,22 @@ const presetParams = z.object({
     .number()
     .optional()
     .describe('Track start offset time in seconds (default: 0)'),
+  containerLeft: z
+    .number()
+    .optional()
+    .describe('Container left position in pixels or percentage'),
+  containerTop: z
+    .number()
+    .optional()
+    .describe('Container top position in pixels or percentage'),
+  containerRight: z
+    .number()
+    .optional()
+    .describe('Container right position in pixels or percentage'),
+  containerBottom: z
+    .number()
+    .optional()
+    .describe('Container bottom position in pixels or percentage'),
   images: z.array(imageSourceSchema).min(1).describe('Array of image sources'),
   effects: z.array(effectSchema).min(1).describe('Array of effects to apply'),
 });
@@ -451,6 +467,24 @@ const presetExecution = async (
       case 'none':
       default:
         return 'none';
+    }
+  };
+
+  // Helper function to map fit prop to object-* class
+  const getObjectFitClass = (fit: string | undefined): string => {
+    switch (fit) {
+      case 'cover':
+        return 'object-cover';
+      case 'contain':
+        return 'object-contain';
+      case 'fill':
+        return 'object-fill';
+      case 'none':
+        return 'object-none';
+      case 'scale-down':
+        return 'object-scale-down';
+      default:
+        return 'object-cover'; // Default fallback
     }
   };
 
@@ -706,6 +740,9 @@ const presetExecution = async (
       // Only set timing if we have a duration or start time
       const hasTiming = imageDuration !== undefined || imageStart !== undefined;
 
+      const imageFit = image.fit || 'cover';
+      const objectFitClass = getObjectFitClass(imageFit);
+
       return {
         id: `${params.trackName ?? 'imageloop'}-image-${imageIndex}`,
         componentId: 'ImageAtom',
@@ -714,10 +751,10 @@ const presetExecution = async (
           src: image.src,
           className: isPanEffect
             ? isVertical
-              ? 'w-full h-auto object-cover'
-              : `w-full  object-cover`
-            : 'w-full h-full object-cover',
-          fit: image.fit || 'cover',
+              ? `w-full h-auto ${objectFitClass}`
+              : `w-full ${objectFitClass}`
+            : `w-full h-full ${objectFitClass}`,
+          fit: imageFit,
           style: {
             ...(isPanEffect
               ? {
@@ -750,6 +787,29 @@ const presetExecution = async (
     }),
   );
 
+  // Build container style based on positioning props
+  const containerStyle: React.CSSProperties = {};
+  if (params.containerLeft !== undefined) {
+    containerStyle.left = params.containerLeft;
+  }
+  if (params.containerTop !== undefined) {
+    containerStyle.top = params.containerTop;
+  }
+  if (params.containerRight !== undefined) {
+    containerStyle.right = params.containerRight;
+  }
+  if (params.containerBottom !== undefined) {
+    containerStyle.bottom = params.containerBottom;
+  }
+
+  // Build container className - use inset-0 only if no positioning props are provided
+  const hasPositioning =
+    params.containerLeft !== undefined ||
+    params.containerTop !== undefined ||
+    params.containerRight !== undefined ||
+    params.containerBottom !== undefined;
+  const containerClassName = hasPositioning ? 'absolute' : 'absolute inset-0';
+
   return {
     output: {
       childrenData: [
@@ -759,7 +819,10 @@ const presetExecution = async (
           type: params.trackFitDurationTo ? 'layout' : ('scene' as const),
           data: {
             containerProps: {
-              className: 'absolute inset-0',
+              className: containerClassName,
+              ...(Object.keys(containerStyle).length > 0
+                ? { style: containerStyle }
+                : {}),
             },
           },
           context: {
@@ -782,7 +845,10 @@ const presetExecution = async (
       attachedToId: `BaseScene`,
       attachedContainers: [
         {
-          className: 'absolute inset-0',
+          className: containerClassName,
+          ...(Object.keys(containerStyle).length > 0
+            ? { style: containerStyle }
+            : {}),
         },
       ],
     },
