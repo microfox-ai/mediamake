@@ -24,6 +24,8 @@ import {
   AudioAtomDataProps,
   WaveformConfig,
   WaveformHistogramRangedDataProps,
+  WaveformHistogramDataProps,
+  WaveformCircleDataProps,
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
@@ -44,8 +46,10 @@ const audioSourceSchema = z.object({
 // Define the schema for waveform configuration
 const waveformConfigSchema = z.object({
   type: z
-    .enum(['static', 'waves'])
-    .describe('Waveform type: static or animated waves'),
+    .enum(['static', 'waves', 'circle'])
+    .describe(
+      'Waveform type: static (frequency-based), waves (animated), or circle (circular waveform)',
+    ),
   isHidden: z
     .boolean()
     .optional()
@@ -112,6 +116,12 @@ const waveformConfigSchema = z.object({
     .max(20)
     .optional()
     .describe('Bar width (default: 4)'),
+  barSlant: z
+    .number()
+    .min(-180)
+    .max(180)
+    .optional()
+    .describe('Bar slant/rotation angle in degrees (default: 0)'),
   horizontalSymmetry: z
     .boolean()
     .optional()
@@ -148,6 +158,58 @@ const waveformConfigSchema = z.object({
     .describe(
       'Frame-based smoothing control (0 = no smoothing, 1 = default, >1 = more smoothing)',
     ),
+  // Circle-specific parameters
+  strokeColor: z
+    .string()
+    .optional()
+    .describe('Circle stroke color (default: #FF6B6B)'),
+  strokeWidth: z
+    .number()
+    .min(1)
+    .max(20)
+    .optional()
+    .describe('Circle stroke width (default: 3)'),
+  fill: z.string().optional().describe('Circle fill color (default: none)'),
+  radius: z
+    .number()
+    .min(0)
+    .max(100)
+    .optional()
+    .describe('Circle radius as percentage of container (default: 80)'),
+  centerX: z
+    .number()
+    .min(0)
+    .max(100)
+    .optional()
+    .describe('Circle center X as percentage (default: 50)'),
+  centerY: z
+    .number()
+    .min(0)
+    .max(100)
+    .optional()
+    .describe('Circle center Y as percentage (default: 50)'),
+  startAngle: z
+    .number()
+    .min(0)
+    .max(360)
+    .optional()
+    .describe('Circle start angle in degrees (default: 0)'),
+  endAngle: z
+    .number()
+    .min(0)
+    .max(360)
+    .optional()
+    .describe('Circle end angle in degrees (default: 360)'),
+  rotationSpeed: z
+    .number()
+    .optional()
+    .describe('Circle rotation speed in degrees per frame (default: 0)'),
+  opacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe('Opacity (0-1, default: 1)'),
 });
 
 // Define the schema for container styling
@@ -197,6 +259,13 @@ const containerStyleSchema = z.object({
     .number()
     .optional()
     .describe('Width of vertical waveform (default: 200)'),
+  // Container rotation
+  rotation: z
+    .number()
+    .optional()
+    .describe(
+      'Container rotation in degrees (default: 0, can be used instead of verticalTransform)',
+    ),
 });
 
 // Main preset parameters schema
@@ -247,6 +316,18 @@ const presetExecution = (
         useFrequencyData: waveform.useFrequencyData ?? true,
         ...baseConfig,
       };
+    } else if (waveform.type === 'circle') {
+      return {
+        audioSrc: audio?.src ?? '',
+        numberOfSamples: waveform.numberOfSamples || 64,
+        windowInSeconds: waveform.windowInSeconds || 1 / 30,
+        amplitude: waveform.amplitude || 1,
+        width: container?.width || config.width || 1920,
+        height: container?.height || config.height || 1080,
+        dataOffsetInSeconds: audio?.start || 0,
+        useFrequencyData: waveform.useFrequencyData ?? false,
+        ...baseConfig,
+      };
     } else {
       return {
         audioSrc: audio?.src ?? '',
@@ -262,71 +343,143 @@ const presetExecution = (
     }
   };
 
-  // Create waveform data props
-  const waveformData: WaveformHistogramRangedDataProps = {
-    config: createWaveformConfig(),
-    barColor: waveform.barColor || '#A41117',
-    barSpacing: waveform.barSpacing || (waveform.type === 'static' ? 10 : 8),
-    barBorderRadius:
-      waveform.barBorderRadius || (waveform.type === 'static' ? 8 : 4),
-    barWidth: waveform.barWidth || 4,
-    horizontalSymmetry:
-      waveform.horizontalSymmetry ?? waveform.type === 'waves',
-    verticalMirror: waveform.verticalMirror ?? true,
-    histogramStyle: waveform.histogramStyle || 'full-width',
-    amplitude:
-      waveform.type === 'static'
-        ? waveform.amplitude || 0.75
-        : waveform.waveAmplitude || 3.5,
-    gradientStartColor: waveform.gradientStartColor || '#FFF',
-    gradientEndColor: waveform.gradientEndColor || '#FDCE99',
-    gradientDirection: waveform.gradientDirection || 'vertical',
-    gradientStyle: waveform.gradientStyle || 'mirrored',
-    className: waveform.isHidden ? 'opacity-0' : 'rounded-lg',
-    waveDirection: waveform.waveDirection || 'right-to-left',
+  // Create waveform data props based on type
+  const createWaveformData = () => {
+    const baseConfig = createWaveformConfig();
+
+    if (waveform.type === 'circle') {
+      const circleData: WaveformCircleDataProps = {
+        config: baseConfig,
+        strokeColor: waveform.strokeColor || '#FF6B6B',
+        strokeWidth: waveform.strokeWidth || 3,
+        fill: waveform.fill || 'none',
+        opacity: waveform.opacity ?? 1,
+        radius: waveform.radius ?? 80,
+        centerX: waveform.centerX ?? 50,
+        centerY: waveform.centerY ?? 50,
+        startAngle: waveform.startAngle ?? 0,
+        endAngle: waveform.endAngle ?? 360,
+        amplitude: waveform.amplitude || 1,
+        rotationSpeed: waveform.rotationSpeed ?? 0,
+        gradientStartColor: waveform.gradientStartColor,
+        gradientEndColor: waveform.gradientEndColor,
+        className: waveform.isHidden ? 'opacity-0' : 'rounded-lg',
+      };
+      return { data: circleData, componentId: 'WaveformCircle' };
+    } else if (waveform.type === 'static') {
+      const rangedData: WaveformHistogramRangedDataProps = {
+        config: baseConfig,
+        barColor: waveform.barColor || '#A41117',
+        barSpacing: waveform.barSpacing || 10,
+        barBorderRadius: waveform.barBorderRadius || 8,
+        barWidth: waveform.barWidth || 4,
+        barSlant: waveform.barSlant ?? 0,
+        horizontalSymmetry: waveform.horizontalSymmetry ?? false,
+        verticalMirror: waveform.verticalMirror ?? true,
+        histogramStyle: waveform.histogramStyle || 'full-width',
+        amplitude: waveform.amplitude || 0.75,
+        gradientStartColor: waveform.gradientStartColor || '#FFF',
+        gradientEndColor: waveform.gradientEndColor || '#FDCE99',
+        gradientDirection: waveform.gradientDirection || 'vertical',
+        gradientStyle: waveform.gradientStyle || 'mirrored',
+        className: waveform.isHidden ? 'opacity-0' : 'rounded-lg',
+        waveDirection: waveform.waveDirection || 'right-to-left',
+      };
+      return { data: rangedData, componentId: 'WaveformHistogramRanged' };
+    } else {
+      const histogramData: WaveformHistogramDataProps = {
+        config: baseConfig,
+        barColor: waveform.barColor || '#A41117',
+        barSpacing: waveform.barSpacing || 8,
+        barBorderRadius: waveform.barBorderRadius || 4,
+        barWidth: waveform.barWidth || 4,
+        barSlant: waveform.barSlant ?? 0,
+        horizontalSymmetry: waveform.horizontalSymmetry ?? true,
+        verticalMirror: waveform.verticalMirror ?? true,
+        histogramStyle: waveform.histogramStyle || 'full-width',
+        amplitude: waveform.waveAmplitude || 3.5,
+        gradientStartColor: waveform.gradientStartColor || '#FFF',
+        gradientEndColor: waveform.gradientEndColor || '#FDCE99',
+        gradientDirection: waveform.gradientDirection || 'vertical',
+        gradientStyle: waveform.gradientStyle || 'mirrored',
+        className: waveform.isHidden ? 'opacity-0' : 'rounded-lg',
+        waveDirection: waveform.waveDirection || 'right-to-left',
+      };
+      return { data: histogramData, componentId: 'WaveformHistogram' };
+    }
   };
 
-  // Create container styling based on vertical transform
+  const { data: waveformData, componentId: waveformComponentId } =
+    createWaveformData();
+
+  // Create container styling based on vertical transform and rotation
   const isVertical = container?.verticalTransform;
+  const containerRotation = container?.rotation ?? 0;
+
+  // Build transform string for non-vertical containers
+  const buildTransform = () => {
+    if (containerRotation === 0) return undefined;
+    return `rotate(${containerRotation}deg)`;
+  };
+
+  const baseContainerStyle = {
+    backgroundColor: container?.backgroundColor || 'transparent',
+    position: container?.position || 'absolute',
+    zIndex: container?.zIndex ?? 1,
+  };
 
   const containerStyle = isVertical
     ? {
-        backgroundColor: container?.backgroundColor || 'transparent',
-        position: container?.position || 'absolute',
+        ...baseContainerStyle,
         top: container?.top ?? 0,
         bottom: container?.bottom ?? 0,
         left: container?.left ?? 0,
         right: container?.right ?? 0,
-        zIndex: container?.zIndex ?? 1,
         width: container?.verticalWidth || 200,
         height: config.height || 1080,
-        transform: 'rotate(90deg)',
-        transformOrigin: 'center',
       }
     : {
-        backgroundColor: container?.backgroundColor || 'transparent',
-        position: container?.position || 'absolute',
+        ...baseContainerStyle,
         bottom: container?.bottom ?? 0,
         left: container?.left ?? 0,
         right: container?.right ?? 0,
-        zIndex: container?.zIndex ?? 1,
+        top: container?.top,
         width: config.width || 1920,
-        height: container?.height || (waveform.type === 'static' ? 300 : 200),
+        height:
+          container?.height ||
+          (waveform.type === 'static'
+            ? 300
+            : waveform.type === 'circle'
+              ? config.height || 1080
+              : 200),
+        ...(buildTransform() && {
+          transform: buildTransform(),
+          transformOrigin: 'center',
+        }),
       };
 
-  // Calculate vertical positioning
+  // Calculate vertical positioning with combined transforms
   const getVerticalPositioning = () => {
     if (!isVertical) return {};
 
     const leftPos = container?.leftVerticalPos;
     const rightPos = container?.rightVerticalPos;
 
+    // Build combined transform: translateX + vertical rotation + custom rotation
+    const buildPositionTransform = (translateX: string) => {
+      const transforms: string[] = [translateX, 'rotate(90deg)'];
+      if (containerRotation !== 0) {
+        transforms.push(`rotate(${containerRotation}deg)`);
+      }
+      return transforms.join(' ');
+    };
+
     // If both are provided, left takes precedence
     if (leftPos !== undefined) {
       return {
         left: `${leftPos}%`,
         right: 'auto',
-        transform: 'translateX(-50%) rotate(90deg)',
+        transform: buildPositionTransform('translateX(-50%)'),
         transformOrigin: 'center',
       };
     }
@@ -336,7 +489,7 @@ const presetExecution = (
       return {
         right: `${rightPos}%`,
         left: 'auto',
-        transform: 'translateX(50%) rotate(90deg)',
+        transform: buildPositionTransform('translateX(50%)'),
         transformOrigin: 'center',
       };
     }
@@ -345,7 +498,7 @@ const presetExecution = (
     return {
       left: '50%',
       right: 'auto',
-      transform: 'translateX(-50%) rotate(90deg)',
+      transform: buildPositionTransform('translateX(-50%)'),
       transformOrigin: 'center',
     };
   };
@@ -427,10 +580,7 @@ const presetExecution = (
               childrenData: [
                 {
                   id: 'Waveform',
-                  componentId:
-                    waveform.type === 'static'
-                      ? 'WaveformHistogramRanged'
-                      : 'WaveformHistogram',
+                  componentId: waveformComponentId,
                   type: 'atom',
                   data: waveformData,
                 },

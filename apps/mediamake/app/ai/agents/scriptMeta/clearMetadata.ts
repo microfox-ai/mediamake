@@ -13,7 +13,9 @@ const aiRouter = new AiRouter();
 
 // Input schema - only needs transcriptionId
 const ClearMetadataInputSchema = z.object({
-  transcriptionId: z.string().describe('The transcription ID to clear metadata from'),
+  transcriptionId: z
+    .string()
+    .describe('The transcription ID to clear metadata from'),
 });
 
 // Output schema
@@ -25,7 +27,7 @@ const ClearMetadataOutputSchema = z.object({
 });
 
 const clearMetadataAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
@@ -105,4 +107,3 @@ const clearMetadataAgent = aiRouter
   });
 
 export default clearMetadataAgent;
-

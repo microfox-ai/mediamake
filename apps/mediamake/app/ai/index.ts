@@ -54,8 +54,8 @@ const aiMainRouter = aiRouter
   .agent('/preset-prompts', presetPromptsOrchestrator)
   .agent('/audio-technical-analysis', audioTechnicalAnalysisAgent)
   .agent('/preset', presetAgent)
-  .use('/', contextLimiter(5))
-  .use('/', onlyTextParts(100))
+  .before('/', contextLimiter(5))
+  .before('/', onlyTextParts(100))
   .agent('/', async props => {
     // Ai decides what to do based on the last message & user intent.
     props.response.writeMessageMetadata({

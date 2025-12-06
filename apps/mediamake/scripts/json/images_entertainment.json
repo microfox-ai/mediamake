@@ -1,0 +1,23 @@
+{
+  "agentPath": "/midjourney/pipeline1",
+  "defaultParams": {
+    "style": "user-directive-focused",
+    "ideaCount": 50,
+    "variationCount": 10,
+    "tags": [
+      "entertainment"
+    ],
+    "predefinedPreferences": []
+  },
+  "queue": [
+    {
+      "userDirective": "Generate a saga concept about a 'time patrol' or organization that must fix anachronisms in history created by time-traveling villains."
+    },
+    {
+      "userDirective": "Ideate a saga that deconstructs the 'chosen one' trope, showing the political manipulation and immense psychological pressure placed on a young figurehead."
+    },
+    {
+      "userDirective": "Ideate on character designs that draw from the 'body horror' of 'The Fly' or 'Akira' for a hero or villain whose powers are a grotesque, unstable mutation."
+    }
+  ]
+}

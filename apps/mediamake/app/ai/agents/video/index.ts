@@ -6,7 +6,7 @@ import { reflectiveThinkAgent } from './shorts/reflectiveThink';
 const aiRouter = new AiRouter();
 
 export const videoGenerationOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating video generation...',
     });
