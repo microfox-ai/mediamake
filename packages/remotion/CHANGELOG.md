@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+### Patch Changes
+
+- 320390f: Changes from PR #371: gen-images-sets
+
 ## 1.2.3
 
 ### Patch Changes
