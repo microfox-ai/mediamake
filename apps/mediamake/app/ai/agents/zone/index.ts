@@ -10,7 +10,7 @@ import { musicGenreAgent } from './musicGenreAgent';
 const aiRouter = new AiRouter();
 
 export const zoneInternalOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating zone internal agents...',
     });

@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const contextualFixerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('CONTEXTUAL FIXER: Starting...');

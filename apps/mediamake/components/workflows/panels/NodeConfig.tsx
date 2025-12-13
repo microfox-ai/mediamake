@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Trash2, Plus, Link2, AlertCircle } from 'lucide-react';
+import { X, Trash2, Plus, Link2, AlertCircle, Eye } from 'lucide-react';
 import { SchemaForm } from '@/components/editor/presets/form/schema-form';
+import { ResultViewer } from '../ResultViewer';
 
 interface NodeConfigProps {
   node: WorkflowNode;
@@ -325,18 +326,48 @@ export function NodeConfig({
       </div>
 
       <ScrollArea className="flex-1 h-0">
-        <div className="p-4">
-          {node.type === 'agent' && renderAgentConfig()}
-          {node.type === 'input' && renderInputConfig()}
-          {node.type === 'output' && (
-            <div className="space-y-4">
-              {renderConnectedInputs()}
-              <p className="text-sm text-muted-foreground">
-                Output nodes collect results automatically. No configuration needed.
-              </p>
+        <div className="p-4 space-y-6">
+          {/* Show Result First if Available */}
+          {node.data.result !== undefined && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-green-500" />
+                <Label className="text-sm font-semibold">Result</Label>
+              </div>
+              <ResultViewer result={node.data.result} compact={true} maxHeight="300px" />
             </div>
           )}
-          {node.type === 'transform' && renderTransformConfig()}
+
+          {/* Show Error if Available */}
+          {node.data.error && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <Label className="text-sm font-semibold text-red-500">Error</Label>
+              </div>
+              <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-xs text-red-900 dark:text-red-200">
+                {typeof node.data.error === 'string' 
+                  ? node.data.error 
+                  : (node.data.error as any)?.message || String(node.data.error)
+                }
+              </div>
+            </div>
+          )}
+
+          {/* Configuration Section */}
+          <div>
+            {node.type === 'agent' && renderAgentConfig()}
+            {node.type === 'input' && renderInputConfig()}
+            {node.type === 'output' && (
+              <div className="space-y-4">
+                {renderConnectedInputs()}
+                <p className="text-sm text-muted-foreground">
+                  Output nodes collect results automatically. No configuration needed.
+                </p>
+              </div>
+            )}
+            {node.type === 'transform' && renderTransformConfig()}
+          </div>
         </div>
       </ScrollArea>
 

@@ -188,10 +188,22 @@ export function generateInputHandles(schema: any) {
  */
 export function generateOutputHandles(schema: any) {
   const fields = parseZodSchema(schema);
-  return fields.map(field => ({
+  
+  // Create individual field handles
+  const fieldHandles = fields.map(field => ({
     id: field.name,
     label: field.name,
     type: field.type,
   }));
+  
+  // Add a special "__full__" handle that represents the entire output object
+  // This allows agents to pass the complete result to agents that expect the whole object
+  const fullOutputHandle = {
+    id: '__full__',
+    label: '📦 Full Output',
+    type: 'object' as WorkflowDataType,
+  };
+  
+  return [fullOutputHandle, ...fieldHandles];
 }
 

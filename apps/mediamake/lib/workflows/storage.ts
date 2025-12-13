@@ -4,18 +4,68 @@ import type {
   WorkflowExecutionDocument,
   ListWorkflowsParams,
 } from '@/app/types/workflows';
-import type { WorkflowDefinition, WorkflowExecution } from './types';
+import type { WorkflowDefinition, WorkflowExecution, WorkflowNode, AgentNodeData } from './types';
+import { rehydrateAgentSchemas } from './schemaRehydration';
 
 const WORKFLOWS_COLLECTION = 'workflows';
 const EXECUTIONS_COLLECTION = 'workflow_executions';
+
+/**
+ * Strip schemas and execution results from nodes before saving
+ * Schemas are huge and can be rehydrated from the registry
+ * Results should be stored separately in execution history
+ */
+function stripSchemas(nodes: WorkflowNode[]): WorkflowNode[] {
+  return nodes.map(node => {
+    if (node.type === 'agent' && node.data) {
+      const agentData = node.data as AgentNodeData;
+      const { inputSchema, outputSchema, result, ...restData } = agentData as any;
+      
+      return {
+        ...node,
+        data: {
+          ...restData,
+          // Reset status to idle when saving (don't persist execution state)
+          status: 'idle',
+        },
+      };
+    }
+    
+    // For other node types, also strip results
+    if (node.data) {
+      const { result, ...restData } = node.data as any;
+      return {
+        ...node,
+        data: {
+          ...restData,
+          status: 'idle',
+        },
+      };
+    }
+    
+    return node;
+  });
+}
 
 // Convert WorkflowDefinition to MongoDB document
 function toWorkflowDocument(
   workflow: WorkflowDefinition,
   userId: string,
 ): WorkflowDocument {
-  return {
+  // Strip schemas to reduce document size
+  const strippedWorkflow = {
     ...workflow,
+    nodes: stripSchemas(workflow.nodes),
+  };
+  
+  // Log size reduction for debugging
+  const originalSize = JSON.stringify(workflow).length;
+  const strippedSize = JSON.stringify(strippedWorkflow).length;
+  const reduction = ((originalSize - strippedSize) / originalSize * 100).toFixed(1);
+  console.log(`Workflow size optimized: ${(originalSize / 1024).toFixed(1)}KB → ${(strippedSize / 1024).toFixed(1)}KB (${reduction}% reduction)`);
+  
+  return {
+    ...strippedWorkflow,
     userId,
     version: 1,
     createdAt: workflow.createdAt || new Date(),
@@ -26,9 +76,14 @@ function toWorkflowDocument(
 // Convert MongoDB document to WorkflowDefinition
 function fromWorkflowDocument(doc: WorkflowDocument): WorkflowDefinition {
   const { _id, userId, version, executions, deletedAt, ...workflow } = doc;
+  
+  // Rehydrate agent schemas from registry
+  const rehydratedNodes = rehydrateAgentSchemas(workflow.nodes || []);
+  
   return {
     ...workflow,
     id: _id || workflow.id,
+    nodes: rehydratedNodes,
   } as WorkflowDefinition;
 }
 
@@ -44,9 +99,15 @@ export async function saveWorkflow(
 
   const doc = toWorkflowDocument(workflow, userId);
 
+  // Remove createdAt from the update to avoid conflict
+  const { createdAt, ...updateDoc } = doc;
+
   const result = await collection.updateOne(
     { id: workflow.id, userId },
-    { $set: doc, $setOnInsert: { createdAt: new Date() } },
+    { 
+      $set: updateDoc, 
+      $setOnInsert: { createdAt: createdAt || new Date() } 
+    },
     { upsert: true },
   );
 

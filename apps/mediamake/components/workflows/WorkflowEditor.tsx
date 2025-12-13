@@ -137,7 +137,39 @@ function DropZone({
 export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<WorkflowEdge>([]);
+  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState<WorkflowEdge>([]);
+  
+  // Wrap onEdgesChange to detect deletions and clear affected node results
+  const onEdgesChange = useCallback((changes: any[]) => {
+    // Check for removed edges
+    const removedEdges = changes.filter(change => change.type === 'remove');
+    
+    if (removedEdges.length > 0) {
+      // Find all target nodes affected by deleted edges
+      const affectedTargets = new Set<string>();
+      removedEdges.forEach(change => {
+        const edge = edges.find(e => e.id === change.id);
+        if (edge) {
+          affectedTargets.add(edge.target);
+        }
+      });
+      
+      // Clear results for affected nodes
+      if (affectedTargets.size > 0) {
+        setNodes(nds =>
+          nds.map(node =>
+            affectedTargets.has(node.id)
+              ? { ...node, data: { ...node.data, result: undefined, status: 'idle' } }
+              : node
+          )
+        );
+        console.log('🔄 Cleared results for nodes with deleted connections:', Array.from(affectedTargets));
+      }
+    }
+    
+    // Pass through to original handler
+    onEdgesChangeInternal(changes);
+  }, [edges, setNodes, onEdgesChangeInternal]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [workflowName, setWorkflowName] = useState('Untitled Workflow');
   const [workflowDescription, setWorkflowDescription] = useState('');
@@ -162,44 +194,68 @@ export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
   const loadWorkflow = async () => {
     try {
       setIsLoading(true);
+      console.log(`🔍 Loading workflow: ${workflowId}`);
 
-      // First try to load from IndexedDB (draft)
-      const draft = await workflowDB.getDraft(workflowId);
-      if (draft) {
-        // Rehydrate agent schemas that were stripped during save
-        const rehydratedNodes = rehydrateAgentSchemas(draft.nodes);
-        setNodes(rehydratedNodes);
-        setEdges(draft.edges);
-        setVariables(draft.variables || []);
-        setWorkflowName(draft.name);
-        setWorkflowDescription(draft.description || '');
-        setIsLoading(false);
-        return;
-      }
-
-      // Try to load from MongoDB
+      // Try to load from MongoDB first (source of truth)
       const response = await fetch(
         `/api/workflows/${workflowId}?userId=demo-user`,
       );
       const data = await response.json();
 
+      console.log(`📥 MongoDB response:`, {
+        success: data.success,
+        hasData: !!data.data,
+        nodes: data.data?.nodes?.length || 0,
+        edges: data.data?.edges?.length || 0,
+      });
+
       if (data.success && data.data) {
         const workflow = data.data;
         // Rehydrate agent schemas that were stripped during save
         const rehydratedNodes = rehydrateAgentSchemas(workflow.nodes);
+        console.log(`✅ Rehydrated nodes from MongoDB:`, rehydratedNodes.length);
+        
         setNodes(rehydratedNodes);
         setEdges(workflow.edges);
         setVariables(workflow.variables || []);
         setWorkflowName(workflow.name);
         setWorkflowDescription(workflow.description || '');
+        
+        // Clear any stale IndexedDB draft
+        await workflowDB.deleteDraft(workflowId);
+        console.log(`🗑️  Cleared stale IndexedDB draft`);
+        
+        setIsLoading(false);
+        return;
+      }
+
+      // If not in MongoDB, try IndexedDB draft as fallback
+      console.log(`📡 Not in MongoDB, checking IndexedDB...`);
+      const draft = await workflowDB.getDraft(workflowId);
+      if (draft && draft.nodes?.length > 0) {
+        console.log(`📂 Found draft in IndexedDB:`, {
+          nodes: draft.nodes?.length || 0,
+          edges: draft.edges?.length || 0,
+        });
+        
+        // Rehydrate agent schemas that were stripped during save
+        const rehydratedNodes = rehydrateAgentSchemas(draft.nodes);
+        console.log(`✅ Rehydrated nodes from draft:`, rehydratedNodes.length);
+        
+        setNodes(rehydratedNodes);
+        setEdges(draft.edges);
+        setVariables(draft.variables || []);
+        setWorkflowName(draft.name);
+        setWorkflowDescription(draft.description || '');
       } else {
+        console.log(`ℹ️  New workflow - starting with empty canvas`);
         // New workflow
         setNodes([]);
         setEdges([]);
         setVariables([]);
       }
     } catch (error) {
-      console.error('Failed to load workflow:', error);
+      console.error('❌ Failed to load workflow:', error);
     } finally {
       setIsLoading(false);
     }
@@ -335,8 +391,20 @@ export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
         };
         return addEdge(newEdge, eds);
       });
+      
+      // Clear result of target node when new connection is made
+      if (connection.target) {
+        setNodes(nds =>
+          nds.map(node =>
+            node.id === connection.target
+              ? { ...node, data: { ...node.data, result: undefined, status: 'idle' } }
+              : node
+          )
+        );
+        console.log('🔄 Cleared result for target node:', connection.target);
+      }
     },
-    [setEdges],
+    [setEdges, setNodes],
   );
 
   const onNodeClick = useCallback(
@@ -415,10 +483,16 @@ export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
       return;
     }
 
-    console.log('Running single node:', nodeId);
+    console.log('🎯 Running single node:', nodeId);
     
-    // Set node to running state
-    handleNodeUpdate(nodeId, 'running');
+    // Clear the target node's result first to force re-execution
+    setNodes(nds =>
+      nds.map(node =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, result: undefined, status: 'running' } }
+          : node
+      )
+    );
 
     try {
       // Import executor dynamically
@@ -432,16 +506,26 @@ export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
       const sourceNodes = nodes.filter(n => sourceNodeIds.includes(n.id));
       
       // Create a workflow with this node AND all its source nodes
+      // Important: Clear the target node's result in the workflow definition
       const singleNodeWorkflow = {
         id: workflowId,
         name: workflowName,
         description: workflowDescription,
-        nodes: [...sourceNodes, nodeToRun], // Include source nodes + target node
+        nodes: [
+          ...sourceNodes, // Source nodes with their cached results
+          { ...nodeToRun, data: { ...nodeToRun.data, result: undefined, status: 'idle' as const } } // Target node cleared
+        ],
         edges: incomingEdges, // Only incoming edges
         variables,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      console.log('🔄 Single node workflow:', {
+        targetNode: nodeId,
+        sourceNodes: sourceNodes.map(n => ({ id: n.id, hasResult: !!n.data.result })),
+        edges: incomingEdges.length,
+      });
 
       // Progress callback adapter
       const onProgress: ExecutionProgressCallback = ({ nodeId, status, result, error }) => {
@@ -450,15 +534,15 @@ export function WorkflowEditor({ workflowId }: WorkflowEditorProps) {
 
       // Execute (skip already-executed source nodes, use their cached results)
       const executor = new WorkflowExecutor(singleNodeWorkflow, onProgress);
-      const results = await executor.execute(true); // true = skip already-executed nodes
+      const results = await executor.execute(true); // true = skip already-executed source nodes
       
       // Get the result for this specific node
       const result = results.get(nodeId);
       handleNodeUpdate(nodeId, 'success', result);
       
-      console.log('Single node execution completed:', { nodeId, result });
+      console.log('✅ Single node execution completed:', { nodeId, result });
     } catch (error) {
-      console.error('Single node execution failed:', error);
+      console.error('❌ Single node execution failed:', error);
       handleNodeUpdate(nodeId, 'error', undefined, error);
     }
   }, [nodes, edges, variables, workflowId, workflowName, workflowDescription, handleNodeUpdate]);

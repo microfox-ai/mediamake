@@ -92,7 +92,7 @@ async function downloadImageAsBase64(url: string): Promise<string> {
 }
 
 export const midjourneyPromptingAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({

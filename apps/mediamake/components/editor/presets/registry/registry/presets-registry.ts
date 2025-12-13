@@ -26,10 +26,7 @@ import { htmlBlockAtomPreset } from '../general/htmlBlockAtom';
 import { textbasePreset } from '../demo/textbase';
 import { genericOpacityEffectPreset } from '../internalEffects/generic-opacity-effect';
 import { glowPulseTextEffectPreset } from '../internalEffects/glow-pulse-text-effect';
-import { wipeRevealPreset } from '../canvas_experimental/wipe-reveal';
-import { contentAwarePreset } from '../canvas_experimental/content-aware-reveal';
-import { glitchEffectPreset } from '../canvas_experimental/glitch-effect';
-import { particleEffectPreset } from '../canvas_experimental/particle-effect';
+
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
@@ -58,10 +55,7 @@ export const predefinedPresets: Preset[] = [
   textbasePreset,
   genericOpacityEffectPreset,
   glowPulseTextEffectPreset,
-  wipeRevealPreset,
-  contentAwarePreset,
-  glitchEffectPreset,
-  particleEffectPreset,
+
 ];
 
 export const getPredefinedPresetById = (id: string): Preset | undefined => {

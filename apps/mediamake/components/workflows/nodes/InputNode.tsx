@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { WorkflowNode, InputNodeData } from '@/lib/workflows/types';
-import { ArrowRightCircle, CheckCircle, Loader2, XCircle, Play } from 'lucide-react';
+import { ArrowRightCircle, CheckCircle, Loader2, XCircle, Play, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useConnectionContext } from '../WorkflowEditor';
 import { Button } from '@/components/ui/button';
+import { ResultPreview } from '../ResultPreview';
 
 export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) => {
   const inputData = data as InputNodeData & { status?: string; result?: any };
@@ -20,11 +21,12 @@ export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
     }
   };
 
-  // Calculate dynamic height based on number of fields
+  // Calculate dynamic height based on number of fields and result
   const headerHeight = 40;
-  const minContentHeight = 80;
+  const minContentHeight = inputData.result ? 0 : 80;
   const handleSpacing = 32; // Space per handle
-  const dynamicHeight = headerHeight + Math.max(minContentHeight, fields.length * handleSpacing);
+  const baseHeight = headerHeight + Math.max(minContentHeight, fields.length * handleSpacing);
+  const useAutoHeight = !!inputData.result;
 
   const statusIcon = {
     running: <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
@@ -35,11 +37,11 @@ export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
   return (
     <>
       <div
-        style={{ height: `${dynamicHeight}px` }}
+        style={useAutoHeight ? { minHeight: `${baseHeight}px`, position: 'relative' } : { height: `${baseHeight}px`, position: 'relative' }}
         className={cn(
           'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900',
           'border-2 rounded-lg shadow-sm overflow-hidden',
-          'w-[220px]',
+          'w-[280px]', // Wider for better content display
           selected ? 'border-blue-500 ring-2 ring-blue-500 ring-offset-2' : 'border-blue-300 dark:border-blue-700',
           inputData.status === 'running' && 'border-blue-500 animate-pulse',
           inputData.status === 'success' && 'border-green-500',
@@ -71,11 +73,24 @@ export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
 
         {/* Content - Hide when connecting to avoid overlap with labels */}
         {!isConnecting && (
-          <div className="p-3">
+          <div className="p-3 space-y-2">
             {fields.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">
                 No fields configured
               </p>
+            ) : inputData.result ? (
+              <>
+                <div className="flex items-center gap-2 justify-between">
+                  <div className="text-xs font-medium flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <Eye className="h-3 w-3" />
+                    <span>Value</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Click for details
+                  </div>
+                </div>
+                <ResultPreview result={inputData.result} compact={true} />
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -90,25 +105,23 @@ export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
 
       {/* Output Handles - one for each field */}
       {fields.map((field, index) => {
-        // Calculate position below the header using dynamic height
-        const contentHeight = dynamicHeight - headerHeight;
+        // Calculate position below the header using base height
+        const contentHeight = baseHeight - headerHeight;
         const topPosition = `${headerHeight + ((index + 1) / (fields.length + 1)) * contentHeight}px`;
 
         return (
-          <>
+          <div key={field.name}>
             <Handle
-              key={`handle-${field.name}`}
               type="source"
               position={Position.Right}
               id={field.name}
-              style={{ top: topPosition }}
+              style={{ top: topPosition, position: 'absolute' }}
               className="w-3 h-3 !bg-blue-500 !border-2 !border-white dark:!border-gray-800 hover:!scale-150 transition-transform"
               title={`${field.name} (${field.type})`}
             />
             {/* Label - appears inside the node next to handle when connecting */}
             {isConnecting && (
               <div
-                key={`label-${field.name}`}
                 style={{
                   position: 'absolute',
                   right: '12px',
@@ -122,7 +135,7 @@ export const InputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
                 {field.name}
               </div>
             )}
-          </>
+          </div>
         );
       })}
     </>

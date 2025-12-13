@@ -19,7 +19,7 @@ import { loadTranscription } from '../middlewares/loadTranscription';
 const aiRouter = new AiRouter();
 
 const punctuationFixerAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       console.log('PUNCTUATION FIXER: Starting...');

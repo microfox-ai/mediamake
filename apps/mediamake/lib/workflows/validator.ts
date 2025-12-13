@@ -64,6 +64,22 @@ export function validateConnection(
   targetNode: WorkflowNode,
   targetHandle: string | null,
 ): ConnectionValidationResult {
+  // Prevent connections TO Input nodes (they should only be sources, not targets)
+  if (targetNode.type === 'input') {
+    return {
+      valid: false,
+      error: 'Cannot connect to Input nodes. Input nodes only provide data.',
+    };
+  }
+
+  // Prevent connections FROM Output nodes (they should only be targets, not sources)
+  if (sourceNode.type === 'output') {
+    return {
+      valid: false,
+      error: 'Cannot connect from Output nodes. Output nodes only receive data.',
+    };
+  }
+
   // Get handle types
   const sourceType = sourceHandle ? getHandleType(sourceNode, sourceHandle) : 'any';
   const targetType = targetHandle ? getHandleType(targetNode, targetHandle) : 'any';
@@ -330,16 +346,17 @@ export function validateWorkflow(
  * Get nodes in topological order (for execution)
  */
 export function topologicalSort(workflow: WorkflowDefinition): string[] {
-  const graph = new Map<string, Set<string>>();
+  // Track adjacency list with edge counts for proper in-degree management
+  const graph = new Map<string, Map<string, number>>(); // source -> (target -> edge count)
   const inDegree = new Map<string, number>();
 
   // Initialize
   workflow.nodes.forEach(node => {
-    graph.set(node.id, new Set());
+    graph.set(node.id, new Map());
     inDegree.set(node.id, 0);
   });
 
-  // Deduplicate edges (safety check)
+  // Deduplicate edges (safety check for exact duplicates)
   const uniqueEdges = new Map<string, WorkflowEdge>();
   workflow.edges.forEach(edge => {
     const key = `${edge.source}:${edge.sourceHandle || ''}:${edge.target}:${edge.targetHandle || ''}`;
@@ -348,9 +365,13 @@ export function topologicalSort(workflow: WorkflowDefinition): string[] {
     }
   });
 
-  // Build graph with deduplicated edges
+  // Build graph with proper edge counting
   uniqueEdges.forEach(edge => {
-    graph.get(edge.source)!.add(edge.target);
+    const neighbors = graph.get(edge.source)!;
+    const currentCount = neighbors.get(edge.target) || 0;
+    neighbors.set(edge.target, currentCount + 1);
+    
+    // Each edge increases in-degree by 1
     inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
   });
 
@@ -369,8 +390,10 @@ export function topologicalSort(workflow: WorkflowDefinition): string[] {
     const node = queue.shift()!;
     result.push(node);
 
-    graph.get(node)!.forEach(neighbor => {
-      const newDegree = (inDegree.get(neighbor) || 0) - 1;
+    // For each neighbor, decrement in-degree by the number of edges
+    const neighbors = graph.get(node)!;
+    neighbors.forEach((edgeCount, neighbor) => {
+      const newDegree = (inDegree.get(neighbor) || 0) - edgeCount;
       inDegree.set(neighbor, newDegree);
       if (newDegree === 0) {
         queue.push(neighbor);
@@ -380,15 +403,52 @@ export function topologicalSort(workflow: WorkflowDefinition): string[] {
 
   // If result doesn't contain all nodes, there's a cycle
   if (result.length !== workflow.nodes.length) {
-    console.error('Topological sort failed:', {
-      totalNodes: workflow.nodes.length,
-      processedNodes: result.length,
-      nodes: workflow.nodes.map(n => ({ id: n.id, type: n.type })),
-      edges: workflow.edges.map(e => ({ from: e.source, to: e.target })),
-      result,
-      missingNodes: workflow.nodes.filter(n => !result.includes(n.id)).map(n => n.id),
+    const missingNodes = workflow.nodes.filter(n => !result.includes(n.id));
+    const processedNodes = workflow.nodes.filter(n => result.includes(n.id));
+    
+    console.error('🚨 TOPOLOGICAL SORT FAILED - WORKFLOW EXECUTION BLOCKED 🚨');
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error('Total Nodes:', workflow.nodes.length);
+    console.error('Processed Nodes:', result.length);
+    console.error('Missing Nodes:', missingNodes.length);
+    console.error('');
+    console.error('✅ Successfully Processed Nodes:');
+    processedNodes.forEach(n => {
+      console.error(`  - ${n.id} (${n.type}) ${(n.data as any).agentName || n.data.label || ''}`);
     });
-    throw new Error(`Workflow contains a cycle or disconnected nodes. Processed ${result.length}/${workflow.nodes.length} nodes.`);
+    console.error('');
+    console.error('❌ FAILED/MISSING Nodes:');
+    missingNodes.forEach(n => {
+      const incomingEdges = workflow.edges.filter(e => e.target === n.id);
+      const outgoingEdges = workflow.edges.filter(e => e.source === n.id);
+      console.error(`  - ${n.id} (${n.type}) ${(n.data as any).agentName || n.data.label || ''}`);
+      console.error(`    Incoming edges: ${incomingEdges.length}`);
+      incomingEdges.forEach(e => {
+        const sourceNode = workflow.nodes.find(sn => sn.id === e.source);
+        console.error(`      <- FROM: ${e.source} (${sourceNode?.type}) via ${e.sourceHandle} -> ${e.targetHandle}`);
+      });
+      console.error(`    Outgoing edges: ${outgoingEdges.length}`);
+      outgoingEdges.forEach(e => {
+        const targetNode = workflow.nodes.find(tn => tn.id === e.target);
+        console.error(`      -> TO: ${e.target} (${targetNode?.type}) via ${e.sourceHandle} -> ${e.targetHandle}`);
+      });
+    });
+    console.error('');
+    console.error('📊 All Edges in Workflow:');
+    workflow.edges.forEach(e => {
+      const sourceNode = workflow.nodes.find(n => n.id === e.source);
+      const targetNode = workflow.nodes.find(n => n.id === e.target);
+      console.error(`  ${e.source} (${sourceNode?.type}) [${e.sourceHandle}] -> ${e.target} (${targetNode?.type}) [${e.targetHandle}]`);
+    });
+    console.error('');
+    console.error('🔍 In-Degree Map (nodes waiting for inputs):');
+    inDegree.forEach((degree, nodeId) => {
+      const node = workflow.nodes.find(n => n.id === nodeId);
+      console.error(`  ${nodeId} (${node?.type}): ${degree} incoming edges`);
+    });
+    console.error('═══════════════════════════════════════════════════════════');
+    
+    throw new Error(`Workflow contains a cycle or disconnected nodes. Processed ${result.length}/${workflow.nodes.length} nodes. Check browser console for detailed debug info.`);
   }
 
   return result;

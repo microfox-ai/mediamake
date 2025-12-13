@@ -15,13 +15,13 @@ const aiRouter = new AiRouter();
  * Coordinates multiple specialized autofix agents
  */
 export const autofixOrchestrator = aiRouter
-  .use('/', async (ctx, next) => {
+  .before('/', async (ctx, next) => {
     ctx.response.writeMessageMetadata({
       loader: 'Orchestrating autofix agents...',
     });
     return next();
   })
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/spelling', spellingFixerAgent)
   .agent('/word-boundary', wordBoundaryFixerAgent)
   .agent('/sentence-structure', sentenceStructureFixerAgent)

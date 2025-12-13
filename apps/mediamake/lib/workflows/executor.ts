@@ -110,6 +110,10 @@ export class WorkflowExecutor {
       throw new Error(`Node ${nodeId} not found`);
     }
 
+    console.log(`\n🔵 Executing Node: ${nodeId}`);
+    console.log(`   Type: ${node.type}`);
+    console.log(`   Name: ${(node.data as any).agentName || node.data.label || 'Unnamed'}`);
+
     // Notify progress - running
     this.onProgress?.({
       nodeId,
@@ -120,9 +124,19 @@ export class WorkflowExecutor {
 
     try {
       // Collect inputs from connected nodes
+      console.log(`   📥 Collecting inputs...`);
       const inputs = this.collectInputs(node);
+      console.log(`   📊 Collected inputs:`, Object.keys(inputs).length > 0 ? Object.keys(inputs) : 'none');
+      if (Object.keys(inputs).length > 0) {
+        Object.entries(inputs).forEach(([key, value]) => {
+          const valueType = Array.isArray(value) ? 'array' : typeof value;
+          const preview = typeof value === 'string' ? value.substring(0, 50) : JSON.stringify(value)?.substring(0, 50);
+          console.log(`      - ${key}: ${valueType} ${preview ? `(${preview}...)` : ''}`);
+        });
+      }
 
       // Execute based on node type
+      console.log(`   ⚙️  Executing ${node.type} node...`);
       let result: any;
       switch (node.type) {
         case 'agent':
@@ -143,6 +157,7 @@ export class WorkflowExecutor {
 
       // Store result
       this.executionState.set(nodeId, result);
+      console.log(`   ✅ Node completed successfully`);
 
       // Notify progress - success
       this.onProgress?.({
@@ -151,6 +166,7 @@ export class WorkflowExecutor {
         result,
       });
     } catch (error) {
+      console.error(`   ❌ Node execution failed:`, error);
       // Notify progress - error
       this.onProgress?.({
         nodeId,
@@ -166,22 +182,79 @@ export class WorkflowExecutor {
    */
   private collectInputs(node: WorkflowNode): Record<string, any> {
     const inputs: Record<string, any> = {};
+    const multiConnectionData: Record<string, Array<{ sourceName: string; data: any }>> = {};
 
     // Find all edges that target this node
     const incomingEdges = this.workflow.edges.filter(
       edge => edge.target === node.id,
     );
 
+    console.log(`      📥 Found ${incomingEdges.length} incoming edges`);
+
     incomingEdges.forEach(edge => {
       const sourceResult = this.executionState.get(edge.source);
+      const sourceNode = this.workflow.nodes.find(n => n.id === edge.source);
+      const sourceData = sourceNode?.data as any;
+      const sourceName = sourceData?.agentName || sourceData?.label || edge.source;
+
       if (sourceResult !== undefined) {
-        // If there's a specific handle, use that field
-        if (edge.sourceHandle && typeof sourceResult === 'object') {
-          inputs[edge.targetHandle || 'input'] = sourceResult[edge.sourceHandle];
+        const targetHandle = edge.targetHandle || 'input';
+        let valueToAdd: any;
+
+        // Extract the value based on handle type
+        if (edge.sourceHandle) {
+          // Special handle "__full__" means pass the entire result object
+          if (edge.sourceHandle === '__full__') {
+            valueToAdd = sourceResult;
+            console.log(`      ✅ ${sourceName} [${edge.sourceHandle}] -> ${targetHandle}`);
+          } 
+          // Otherwise, extract the specific field
+          else if (typeof sourceResult === 'object') {
+            valueToAdd = sourceResult[edge.sourceHandle];
+            if (valueToAdd !== undefined) {
+              console.log(`      ✅ ${sourceName} [${edge.sourceHandle}] -> ${targetHandle}`);
+            } else {
+              console.warn(`      ⚠️  ${sourceName} [${edge.sourceHandle}] is UNDEFINED! Available fields:`, Object.keys(sourceResult));
+            }
+          } else {
+            // Fallback: use the entire result if it's not an object
+            valueToAdd = sourceResult;
+            console.log(`      ✅ ${sourceName} (entire) -> ${targetHandle}`);
+          }
         } else {
-          // Otherwise, use the entire result
-          inputs[edge.targetHandle || 'input'] = sourceResult;
+          // No specific handle, use the entire result
+          valueToAdd = sourceResult;
+          console.log(`      ✅ ${sourceName} (entire) -> ${targetHandle}`);
         }
+
+        // Track multiple connections to the same target handle
+        if (!multiConnectionData[targetHandle]) {
+          multiConnectionData[targetHandle] = [];
+        }
+        multiConnectionData[targetHandle].push({
+          sourceName,
+          data: valueToAdd,
+        });
+      } else {
+        console.error(`      ❌ Source "${sourceName}" has no result! Cannot connect to ${edge.targetHandle}`);
+      }
+    });
+
+    // Merge multi-connection data
+    Object.entries(multiConnectionData).forEach(([targetHandle, connections]) => {
+      if (connections.length === 1) {
+        // Single connection: use data directly
+        inputs[targetHandle] = connections[0].data;
+      } else {
+        // Multiple connections: merge under agent names
+        const merged: Record<string, any> = {};
+        connections.forEach(({ sourceName, data }) => {
+          // Clean source name for use as key
+          const key = sourceName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+          merged[key] = data;
+        });
+        inputs[targetHandle] = merged;
+        console.log(`      🔀 Merged ${connections.length} connections to ${targetHandle}`);
       }
     });
 

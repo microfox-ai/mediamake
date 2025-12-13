@@ -174,7 +174,7 @@ const TextToImageTranscriptionSchema = ScriptMetaOutputSchema.extend({
 });
 
 const contextualTextToImageAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({

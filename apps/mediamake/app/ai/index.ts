@@ -27,6 +27,8 @@ import { audioAnalysisAgent } from './agents/analysis/audioAnlysisAgent';
 import { audioTechnicalAnalysisAgent } from './agents/analysis/audioTechnicalAnalysis';
 import { midjourneySimpleAgent } from './agents/midjourney/simple';
 import { zoneInternalOrchestrator } from './agents/zone';
+import { comicOrchestrator } from './agents/comic';
+import { anthropic } from '@ai-sdk/anthropic';
 
 const aiRouter = new AiRouter();
 //aiRouter.setLogger(console);
@@ -47,8 +49,9 @@ const aiMainRouter = aiRouter
   .agent('/script-meta', scriptMetaOrchestor)
   .agent('/audio-analysis', audioAnalysisAgent)
   .agent('/audio-technical-analysis', audioTechnicalAnalysisAgent)
-  .use('/', contextLimiter(5))
-  .use('/', onlyTextParts(100))
+  .agent('/comic', comicOrchestrator)
+  .before('/', contextLimiter(5))
+  .before('/', onlyTextParts(100))
   .agent('/', async props => {
     // Ai decides what to do based on the last message & user intent.
     props.response.writeMessageMetadata({

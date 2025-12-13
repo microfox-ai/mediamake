@@ -67,6 +67,6 @@ export const braveResearchAgent = aiRouter
     metadata: {
       icon: 'https://raw.githubusercontent.com/microfox-ai/microfox/refs/heads/main/logos/brave.svg',
       title: 'Brave Research',
-      hideUI: true,
+      hideUI: false,
     },
   });

@@ -2,10 +2,11 @@ import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { WorkflowNode, AgentNodeData } from '@/lib/workflows/types';
 import { generateInputHandles, generateOutputHandles } from '@/lib/workflows/schemaParser';
-import { Loader2, CheckCircle, XCircle, AlertCircle, Play } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertCircle, Play, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useConnectionContext } from '../WorkflowEditor';
 import { Button } from '@/components/ui/button';
+import { ResultPreview } from '../ResultPreview';
 
 export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) => {
   const agentData = data as AgentNodeData & { status?: string; error?: string; result?: any };
@@ -23,12 +24,16 @@ export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
   const inputHandles = agentData.inputSchema ? generateInputHandles(agentData.inputSchema) : [];
   const outputHandles = agentData.outputSchema ? generateOutputHandles(agentData.outputSchema) : [];
 
-  // Calculate dynamic height based on number of handles
+  // Calculate dynamic height based on number of handles and result
   const maxHandles = Math.max(inputHandles.length, outputHandles.length, 1);
   const headerHeight = 40;
-  const minContentHeight = 80;
+  // Allow node to expand when showing results
+  const minContentHeight = agentData.result ? 0 : 80; // No min height if showing result
   const handleSpacing = 32; // Space per handle
-  const dynamicHeight = headerHeight + Math.max(minContentHeight, maxHandles * handleSpacing);
+  const baseHeight = headerHeight + Math.max(minContentHeight, maxHandles * handleSpacing);
+  
+  // When showing result, use auto height instead of fixed
+  const useAutoHeight = !!agentData.result;
 
   const statusIcon = {
     idle: null,
@@ -41,11 +46,11 @@ export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
   return (
     <>
       <div
-        style={{ height: `${dynamicHeight}px` }}
+        style={useAutoHeight ? { minHeight: `${baseHeight}px` } : { height: `${baseHeight}px` }}
         className={cn(
           'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900',
           'border-2 rounded-lg shadow-md overflow-hidden',
-          'w-[240px]',
+          'w-[280px]', // Slightly wider for better content display
           selected ? 'border-purple-500 ring-2 ring-purple-500 ring-offset-2' : 'border-purple-300 dark:border-purple-700',
           agentData.status === 'running' && 'border-blue-500 animate-pulse',
           agentData.status === 'success' && 'border-green-500',
@@ -81,9 +86,22 @@ export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
 
         {/* Content - Hide description when connecting to avoid overlap with labels */}
         {!isConnecting && (
-          <div className="p-3">
-            {/* Description */}
-            {agentData.description ? (
+          <div className="p-3 space-y-2">
+            {/* Show result preview if available */}
+            {agentData.result ? (
+              <>
+                <div className="flex items-center gap-2 justify-between">
+                  <div className="text-xs font-medium flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <Eye className="h-3 w-3" />
+                    <span>Result</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Click for details
+                  </div>
+                </div>
+                <ResultPreview result={agentData.result} compact={true} />
+              </>
+            ) : agentData.description ? (
               <p className="text-xs text-muted-foreground line-clamp-4 leading-relaxed">
                 {agentData.description}
               </p>
@@ -98,8 +116,8 @@ export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
 
       {/* Input Handles - Left side */}
       {inputHandles.map((handle, index) => {
-        // Calculate position below the header using dynamic height
-        const contentHeight = dynamicHeight - headerHeight;
+        // Calculate position below the header using base height (not affected by content expansion)
+        const contentHeight = baseHeight - headerHeight;
         const topPosition = `${headerHeight + ((index + 1) / (inputHandles.length + 1)) * contentHeight}px`;
 
         return (
@@ -134,8 +152,8 @@ export const AgentNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) 
 
       {/* Output Handles - Right side */}
       {outputHandles.map((handle, index) => {
-        // Calculate position below the header using dynamic height
-        const contentHeight = dynamicHeight - headerHeight;
+        // Calculate position below the header using base height (not affected by content expansion)
+        const contentHeight = baseHeight - headerHeight;
         const topPosition = `${headerHeight + ((index + 1) / (outputHandles.length + 1)) * contentHeight}px`;
 
         return (

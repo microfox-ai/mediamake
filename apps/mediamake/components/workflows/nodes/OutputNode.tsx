@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { WorkflowNode, OutputNodeData } from '@/lib/workflows/types';
-import { CheckCircle, Loader2, XCircle, Play } from 'lucide-react';
+import { CheckCircle, Loader2, XCircle, Play, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useConnectionContext } from '../WorkflowEditor';
 import { Button } from '@/components/ui/button';
+import { ResultPreview } from '../ResultPreview';
 
 export const OutputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>) => {
   const outputData = data as OutputNodeData & { status?: string; result?: any };
@@ -20,11 +21,12 @@ export const OutputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>)
     }
   };
 
-  // Calculate dynamic height based on number of fields
+  // Calculate dynamic height based on number of fields and result
   const headerHeight = 40;
-  const minContentHeight = 80;
+  const minContentHeight = outputData.result ? 0 : 80; // No min if showing result
   const handleSpacing = 32; // Space per handle
-  const dynamicHeight = headerHeight + Math.max(minContentHeight, fields.length * handleSpacing);
+  const baseHeight = headerHeight + Math.max(minContentHeight, fields.length * handleSpacing);
+  const useAutoHeight = !!outputData.result;
 
   const statusIcon = {
     running: <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
@@ -34,12 +36,21 @@ export const OutputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>)
 
   return (
     <>
+      {/* Invisible source handle to prevent ReactFlow from showing default connection point */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="disabled"
+        isConnectable={false}
+        style={{ opacity: 0, pointerEvents: 'none' }}
+      />
+      
       <div
-        style={{ height: `${dynamicHeight}px` }}
+        style={useAutoHeight ? { minHeight: `${baseHeight}px` } : { height: `${baseHeight}px` }}
         className={cn(
           'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900',
           'border-2 rounded-lg shadow-sm overflow-hidden',
-          'w-[220px]',
+          'w-[280px]', // Wider for better content display
           selected ? 'border-green-500 ring-2 ring-green-500 ring-offset-2' : 'border-green-300 dark:border-green-700',
           outputData.status === 'running' && 'border-blue-500 animate-pulse',
           outputData.status === 'success' && 'border-green-500',
@@ -71,11 +82,24 @@ export const OutputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>)
 
         {/* Content - Hide when connecting to avoid overlap with labels */}
         {!isConnecting && (
-          <div className="p-3">
+          <div className="p-3 space-y-2">
             {fields.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">
                 No fields configured
               </p>
+            ) : outputData.result ? (
+              <>
+                <div className="flex items-center gap-2 justify-between">
+                  <div className="text-xs font-medium flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <Eye className="h-3 w-3" />
+                    <span>Result</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Click for details
+                  </div>
+                </div>
+                <ResultPreview result={outputData.result} compact={true} />
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -90,8 +114,8 @@ export const OutputNode = memo(({ id, data, selected }: NodeProps<WorkflowNode>)
 
       {/* Input Handles - one for each field */}
       {fields.map((field, index) => {
-        // Calculate position below the header using dynamic height
-        const contentHeight = dynamicHeight - headerHeight;
+        // Calculate position below the header using base height
+        const contentHeight = baseHeight - headerHeight;
         const topPosition = `${headerHeight + ((index + 1) / (fields.length + 1)) * contentHeight}px`;
 
         return (

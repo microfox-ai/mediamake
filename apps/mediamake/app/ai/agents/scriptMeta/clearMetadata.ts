@@ -25,7 +25,7 @@ const ClearMetadataOutputSchema = z.object({
 });
 
 const clearMetadataAgent = aiRouter
-  .use('/', loadTranscription)
+  .before('/', loadTranscription)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({

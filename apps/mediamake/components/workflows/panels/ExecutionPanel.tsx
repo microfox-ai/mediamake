@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Save, ArrowLeft } from 'lucide-react';
+import { Save, ArrowLeft, Download } from 'lucide-react';
 import type { WorkflowDefinition, ExecutionStatus } from '@/lib/workflows/types';
 import { WorkflowExecutor } from '../WorkflowExecutor';
 
@@ -47,6 +47,23 @@ export function ExecutionPanel({
               console.log('Execution complete:', results);
             }}
           />
+          <Button 
+            variant="outline"
+            onClick={() => {
+              const json = JSON.stringify(workflow, null, 2);
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workflow.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              console.log('✅ Workflow exported!');
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button onClick={onSave} disabled={isSaving}>
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? 'Saving...' : 'Save'}
