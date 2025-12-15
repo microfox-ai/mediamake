@@ -19,7 +19,7 @@ import {
     Search,
     X,
 } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { MidjourneyPromptRecord } from "@/app/ai/agents/midjourney/helpers";
 import {
     Pagination,
@@ -32,6 +32,14 @@ import {
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import useQueryState from "@/hooks/use-query-state";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface MidjourneyTableProps {
     selectedRecord: string | null;
@@ -49,7 +57,7 @@ interface MidjourneyListResponse {
 export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTableProps) {
     const [records, setRecords] = useState<MidjourneyPromptRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useQueryState("page", 1);
     const [pageInput, setPageInput] = useState("");
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
@@ -57,7 +65,9 @@ export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTa
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
-    const [customTagInput, setCustomTagInput] = useState("");
+    const [customTagInput, setCustomTagInput] = useQueryState("customTagInput", "");
+    const [sortBy, setSortBy] = useQueryState<string>("sortBy", "createdAt");
+    const [sortOrder, setSortOrder] = useQueryState<string>("sortOrder", "desc");
     const limit = 20;
 
     // Debounce search query
@@ -89,12 +99,12 @@ export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTa
         fetchAvailableTags();
     }, []);
 
-    // Reset to page 1 when filters change
+    // Reset to page 1 when filters or sorting change
     useEffect(() => {
         if (page !== 1) {
             setPage(1);
         }
-    }, [selectedTags, debouncedSearchQuery]);
+    }, [selectedTags, debouncedSearchQuery, sortBy, sortOrder]);
 
     // Fetch records from API
     const fetchRecords = async (pageNum: number) => {
@@ -103,8 +113,8 @@ export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTa
             const params = new URLSearchParams();
             params.append('page', pageNum.toString());
             params.append('limit', limit.toString());
-            params.append('sortBy', 'createdAt');
-            params.append('sortOrder', 'desc');
+            params.append('sortBy', typeof sortBy === "string" ? sortBy : "createdAt");
+            params.append('sortOrder', sortOrder === "asc" || sortOrder === "desc" ? sortOrder : "desc");
             if (debouncedSearchQuery) {
                 params.append('search', debouncedSearchQuery);
             }
@@ -130,7 +140,7 @@ export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTa
 
     useEffect(() => {
         fetchRecords(page);
-    }, [page, selectedTags, debouncedSearchQuery]);
+    }, [page, selectedTags, debouncedSearchQuery, sortBy, sortOrder]);
 
     const formatDate = (date: Date | string) => {
         const d = typeof date === 'string' ? new Date(date) : date;
@@ -213,15 +223,40 @@ export function MidjourneyTable({ selectedRecord, onSelectRecord }: MidjourneyTa
                     )}
                 </div>
 
-                {/* Search Input */}
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search by title..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9"
-                    />
+                {/* Search + Sorting */}
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="relative md:flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search by title..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 md:w-64">
+                        <span className="text-xs text-muted-foreground">Sort by</span>
+                        <Select
+                            value={`${sortBy}:${sortOrder}`}
+                            onValueChange={(value) => {
+                                const [by, order] = value.split(":");
+                                setSortBy(by as string);
+                                setSortOrder(order as string);
+                            }}
+                        >
+                            <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Sort by" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="createdAt:desc">Created (newest)</SelectItem>
+                                <SelectItem value="createdAt:asc">Created (oldest)</SelectItem>
+                                <SelectItem value="updatedAt:desc">Updated (newest)</SelectItem>
+                                <SelectItem value="updatedAt:asc">Updated (oldest)</SelectItem>
+                                <SelectItem value="title:asc">Title (A–Z)</SelectItem>
+                                <SelectItem value="title:desc">Title (Z–A)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {/* Custom Tag Input */}

@@ -24,22 +24,19 @@ export async function POST(
     const collection = db.collection('midjourneyPrompts');
 
     const objectId = new ObjectId(id);
-    
+
     // Get the current record
     const record = await collection.findOne({ _id: objectId });
     if (!record) {
-      return NextResponse.json(
-        { error: 'Record not found' },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
     // Get current generatedIndexes or initialize as empty array
     const currentGeneratedIndexes = record.generatedIndexes || [];
-    
+
     // Add the promptIndex if it's not already there
     const updatedGeneratedIndexes = Array.from(
-      new Set([...currentGeneratedIndexes, promptIndex])
+      new Set([...currentGeneratedIndexes, promptIndex]),
     ).sort((a, b) => a - b);
 
     // Update the record using the helper function
@@ -64,4 +61,3 @@ export async function POST(
     );
   }
 }
-

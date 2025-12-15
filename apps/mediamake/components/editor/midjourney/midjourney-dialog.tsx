@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Popover,
     PopoverContent,
@@ -40,10 +41,12 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
     const [isLoading, setIsLoading] = useState(false);
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [copiedAllPrompts, setCopiedAllPrompts] = useState(false);
+    const [copiedId, setCopiedId] = useState(false);
     const [indexRange, setIndexRange] = useState<[number, number]>([0, 0]);
     const [variationCount, setVariationCount] = useState<number>(1);
     const [showIndexRangePopover, setShowIndexRangePopover] = useState(false);
     const [showVariationCountPopover, setShowVariationCountPopover] = useState(false);
+    const [includeTag, setIncludeTag] = useState(true);
 
     useEffect(() => {
         if (recordId) {
@@ -97,6 +100,22 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
         }
     };
 
+    const copyRecordId = async () => {
+        const idToCopy = record?._id?.toString() || recordId;
+        if (!idToCopy) {
+            toast.error('No record id to copy');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(idToCopy);
+            setCopiedId(true);
+            toast.success('Record id copied');
+            setTimeout(() => setCopiedId(false), 2000);
+        } catch (error) {
+            toast.error('Failed to copy id');
+        }
+    };
+
     const copyAllPrompts = async () => {
         if (!record || !record.prompts || record.prompts.length === 0) {
             toast.error('No prompts to copy');
@@ -104,9 +123,11 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
         }
 
         try {
+            const firstTag = includeTag ? record.tags?.[0] : undefined;
             const promptsArray = record.prompts.map((p, _index) => ({
                 ...p,
                 pIndex: _index,
+                ...(firstTag ? { tag: firstTag } : {}),
             }));
             const jsonString = JSON.stringify(promptsArray, null, 2);
             await navigator.clipboard.writeText(jsonString);
@@ -131,11 +152,13 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
         }
 
         try {
+            const firstTag = includeTag ? record.tags?.[0] : undefined;
             const promptsArray = record.prompts
                 .slice(startIndex, endIndex + 1)
                 .map((p, relativeIndex) => ({
                     ...p,
                     pIndex: startIndex + relativeIndex,
+                    ...(firstTag ? { tag: firstTag } : {}),
                 }));
             const jsonString = JSON.stringify(promptsArray, null, 2);
             await navigator.clipboard.writeText(jsonString);
@@ -175,6 +198,7 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
 
         // Take up to variationCount prompts per shot
         const selectedPrompts: Array<any> = [];
+        const firstTag = includeTag ? record.tags?.[0] : undefined;
         Object.keys(promptsByShot)
             .sort((a, b) => parseInt(a) - parseInt(b))
             .forEach((shotIndexStr) => {
@@ -184,6 +208,7 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
                     selectedPrompts.push({
                         ...prompt,
                         pIndex: index,
+                        ...(firstTag ? { tag: firstTag } : {}),
                     });
                 });
             });
@@ -243,21 +268,43 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
                 ) : record ? (
                     <>
                         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-                            <DialogTitle className="text-2xl">
-                                {record.title || 'Untitled Record'}
-                            </DialogTitle>
-                            <div className="flex items-center gap-2 mt-2">
-                                {record.isGenerated ? (
-                                    <Badge variant="default" className="gap-1">
-                                        <CheckCircle className="h-3 w-3" />
-                                        Generated
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="secondary" className="gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {record.generationProgress}% Complete
-                                    </Badge>
-                                )}
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <div>
+                                    <DialogTitle className="text-2xl">
+                                        {record.title || 'Untitled Record'}
+                                    </DialogTitle>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        {record.isGenerated ? (
+                                            <Badge variant="default" className="gap-1">
+                                                <CheckCircle className="h-3 w-3" />
+                                                Generated
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {record.generationProgress}% Complete
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={copyRecordId}
+                                    className="gap-2"
+                                >
+                                    {copiedId ? (
+                                        <>
+                                            <Check className="h-4 w-4 text-green-500" />
+                                            ID Copied
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="h-4 w-4" />
+                                            Copy ID
+                                        </>
+                                    )}
+                                </Button>
                             </div>
                         </DialogHeader>
 
@@ -316,7 +363,18 @@ export function MidjourneyDialog({ recordId, recordData, onClose }: MidjourneyDi
                                         <div>
                                             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                                                 <h3 className="text-lg font-semibold">Prompts ({record.prompts.length})</h3>
-                                                <div className="flex gap-2 flex-wrap">
+                                                <div className="flex gap-3 flex-wrap items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id="include-tag"
+                                                            checked={includeTag}
+                                                            onCheckedChange={(checked) => setIncludeTag(!!checked)}
+                                                        />
+                                                        <Label htmlFor="include-tag" className="text-xs text-muted-foreground">
+                                                            Include tag in copied prompts
+                                                        </Label>
+                                                    </div>
+
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
