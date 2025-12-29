@@ -3,9 +3,19 @@ import {
   renderMediaOnLambda,
   speculateFunctionName,
 } from '@remotion/lambda/client';
-import { AWS_RENDER_CONFIGS, REGION, SITE_NAME } from '../../../../config.mjs';
+import { AWS_RENDER_CONFIGS, REGION, SITE_NAME, CONCURRENCY_LIMITS, FRAMES_PER_LAMBDA_LIMITS } from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
+
+// Custom configuration type
+interface CustomLambdaConfig {
+  memory: number;
+  disk: number;
+  timeout: number;
+  concurrency: number | 'auto';
+  framesPerLambda: number | 'auto';
+  timeoutInMilliseconds: number;
+}
 
 export const POST = async (req: NextRequest) => {
   try {
@@ -17,8 +27,13 @@ export const POST = async (req: NextRequest) => {
       codec,
       audioCodec,
       renderType,
+      // Configuration mode
+      configMode = 'preset',
+      // Preset mode settings
       awsRenderPreset = 'classic',
       concurrencyOverride,
+      // Custom mode settings
+      customConfig,
     } = await req.json();
 
     if (
@@ -38,60 +53,98 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const config =
-      AWS_RENDER_CONFIGS[
-      awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
-      ] ?? AWS_RENDER_CONFIGS.classic;
+    // Determine the configuration based on mode
+    let config: {
+      memory: number;
+      disk: number;
+      timeout: number;
+      concurrency: number | undefined;
+      timeoutInMilliseconds: number;
+      framesPerLambda: number | undefined;
+    };
 
-    let concurrency: number | undefined;
-
-    if (concurrencyOverride === 'auto') {
-      concurrency = undefined;
-    } else if (typeof concurrencyOverride === 'number') {
-      concurrency = concurrencyOverride;
+    if (configMode === 'custom' && customConfig) {
+      // Validate custom config
+      const validatedCustomConfig = validateCustomConfig(customConfig);
+      
+      config = {
+        memory: validatedCustomConfig.memory,
+        disk: validatedCustomConfig.disk,
+        timeout: validatedCustomConfig.timeout,
+        concurrency: validatedCustomConfig.concurrency === 'auto' ? undefined : validatedCustomConfig.concurrency,
+        timeoutInMilliseconds: validatedCustomConfig.timeoutInMilliseconds,
+        framesPerLambda: validatedCustomConfig.framesPerLambda === 'auto' ? undefined : validatedCustomConfig.framesPerLambda,
+      };
     } else {
-      concurrency = config.concurrency;
+      // Use preset configuration
+      const presetConfig = AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] 
+        ?? AWS_RENDER_CONFIGS.classic;
+      
+      config = {
+        memory: presetConfig.memory,
+        disk: presetConfig.disk,
+        timeout: presetConfig.timeout,
+        concurrency: presetConfig.concurrency,
+        timeoutInMilliseconds: presetConfig.timeoutInMilliseconds,
+        framesPerLambda: presetConfig.framesPerLambda,
+      };
+
+      // Apply concurrency override for preset mode
+      if (concurrencyOverride === 'auto') {
+        config.concurrency = undefined;
+      } else if (typeof concurrencyOverride === 'number') {
+        config.concurrency = concurrencyOverride;
+      }
     }
 
-    console.log(process.env.REMOTION_AWS_REGION || REGION);
-    console.log('Composition is', id);
-    console.log('Codec is', codec);
-    console.log('Audio Codec is', audioCodec);
-    console.log('Render Type is', renderType);
-    console.log('AWS Render Preset is', awsRenderPreset);
-    console.log(
-      'Function name is',
-      speculateFunctionName({
-        diskSizeInMb: config.disk,
-        memorySizeInMb: config.memory,
-        timeoutInSeconds: config.timeout,
-      }),
-    );
+    const functionName = speculateFunctionName({
+      diskSizeInMb: config.disk,
+      memorySizeInMb: config.memory,
+      timeoutInSeconds: config.timeout,
+    });
 
-    const result = await renderMediaOnLambda({
+    console.log('==========================================');
+    console.log('REMOTION LAMBDA RENDER');
+    console.log('==========================================');
+    console.log('Region:', process.env.REMOTION_AWS_REGION || REGION);
+    console.log('Config Mode:', configMode);
+    console.log('Composition:', id);
+    console.log('Codec:', codec);
+    console.log('Audio Codec:', audioCodec);
+    console.log('Render Type:', renderType);
+    console.log('Function Name:', functionName);
+    console.log('Memory:', config.memory, 'MB');
+    console.log('Disk:', config.disk, 'MB');
+    console.log('Timeout:', config.timeout, 's');
+    console.log('Concurrency:', config.concurrency ?? 'Auto');
+    console.log('Frames/Lambda:', config.framesPerLambda ?? 'Auto');
+    console.log('==========================================');
+
+    // Remotion only allows one of concurrency or framesPerLambda, not both
+    // If concurrency is set, prioritize it and don't send framesPerLambda
+    const renderOptions: any = {
       codec: codec ?? 'h264',
-      functionName: speculateFunctionName({
-        diskSizeInMb: config.disk,
-        memorySizeInMb: config.memory,
-        timeoutInSeconds: config.timeout,
-      }),
+      functionName,
       region: (process.env.REMOTION_AWS_REGION || REGION) as AwsRegion,
-      serveUrl: SITE_NAME, // https://remotionlambda-useast2-xjv1ee2a1g.s3.us-east-2.amazonaws.com/sites/mediamake
+      serveUrl: SITE_NAME,
       composition: id ?? 'DataMotion',
       inputProps: inputProps,
       audioCodec: audioCodec ?? 'aac',
-      //      framesPerLambda: 10,
-      //concurrency: 10,
-      ...(concurrency ? { concurrency: concurrency } : {}),
-      timeoutInMilliseconds: config.timeoutInMilliseconds ?? (900 * 1000),
+      timeoutInMilliseconds: config.timeoutInMilliseconds ?? 900 * 1000,
       downloadBehavior: {
         type: isDownloadable ? 'download' : 'play-in-browser',
         fileName: isDownloadable ? fileName || 'video.mp4' : null,
       },
-      //   metadata: {
+    };
 
-      //   }
-    });
+    // Only set one of concurrency or framesPerLambda
+    if (config.concurrency !== undefined) {
+      renderOptions.concurrency = config.concurrency;
+    } else if (config.framesPerLambda !== undefined) {
+      renderOptions.framesPerLambda = config.framesPerLambda;
+    }
+
+    const result = await renderMediaOnLambda(renderOptions);
 
     const clientId = req.headers.get('x-client-id');
     if (clientId) {
@@ -106,11 +159,33 @@ export const POST = async (req: NextRequest) => {
         bucketName: result.bucketName,
         isDownloadable: isDownloadable,
         renderType: renderType || 'video',
-        awsRenderPreset: awsRenderPreset,
-        concurrencyUsed: concurrency,
+        audioCodec: audioCodec || 'aac',
+        // Store configuration details
+        configMode,
+        awsRenderPreset: configMode === 'preset' ? awsRenderPreset : undefined,
+        customConfig: configMode === 'custom' ? customConfig : undefined,
+        // Actual values used for rendering
+        concurrencyUsed: config.concurrency,
+        framesPerLambdaUsed: config.framesPerLambda,
+        memoryUsed: config.memory,
+        diskUsed: config.disk,
+        timeoutUsed: config.timeout,
+        functionNameUsed: functionName,
       });
     }
-    return NextResponse.json(result);
+    
+    return NextResponse.json({
+      ...result,
+      configUsed: {
+        mode: configMode,
+        functionName,
+        memory: config.memory,
+        disk: config.disk,
+        timeout: config.timeout,
+        concurrency: config.concurrency ?? 'auto',
+        framesPerLambda: config.framesPerLambda ?? 'auto',
+      },
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -122,3 +197,33 @@ export const POST = async (req: NextRequest) => {
   }
 };
 
+/**
+ * Validate and sanitize custom configuration
+ */
+function validateCustomConfig(config: CustomLambdaConfig): CustomLambdaConfig {
+  const validMemories = [1024, 2048, 3008, 4096, 6144, 10240];
+  const validDisks = [2048, 5120, 10240];
+  
+  const memory = validMemories.includes(config.memory) ? config.memory : 3008;
+  const disk = validDisks.includes(config.disk) ? config.disk : 10240;
+  const timeout = Math.min(900, Math.max(1, config.timeout || 900));
+  
+  let concurrency: number | 'auto' = 'auto';
+  if (config.concurrency !== 'auto' && typeof config.concurrency === 'number') {
+    concurrency = Math.min(CONCURRENCY_LIMITS.max, Math.max(CONCURRENCY_LIMITS.min, config.concurrency));
+  }
+  
+  let framesPerLambda: number | 'auto' = 'auto';
+  if (config.framesPerLambda !== 'auto' && typeof config.framesPerLambda === 'number') {
+    framesPerLambda = Math.min(FRAMES_PER_LAMBDA_LIMITS.max, Math.max(FRAMES_PER_LAMBDA_LIMITS.min, config.framesPerLambda));
+  }
+  
+  return {
+    memory,
+    disk,
+    timeout,
+    concurrency,
+    framesPerLambda,
+    timeoutInMilliseconds: timeout * 1000,
+  };
+}
