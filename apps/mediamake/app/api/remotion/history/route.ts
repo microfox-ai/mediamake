@@ -32,6 +32,18 @@ export const GET = async (req: NextRequest) => {
       isDownloadable: doc.isDownloadable,
       bucketName: doc.bucketName,
       renderId: doc.renderId,
+      renderType: doc.renderType,
+      audioCodec: doc.audioCodec,
+      // Lambda configuration fields
+      configMode: doc.configMode,
+      awsRenderPreset: doc.awsRenderPreset,
+      customConfig: doc.customConfig,
+      concurrencyUsed: doc.concurrencyUsed,
+      framesPerLambdaUsed: doc.framesPerLambdaUsed,
+      memoryUsed: doc.memoryUsed,
+      diskUsed: doc.diskUsed,
+      timeoutUsed: doc.timeoutUsed,
+      functionNameUsed: doc.functionNameUsed,
     }));
 
     return NextResponse.json(formattedHistory);

@@ -30,29 +30,78 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-// localStorage functionality removed - render requests are now handled by API
-import { useRender } from './render-provider';
+import { useRender, ConfigMode } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
-import { AWS_RENDER_CONFIGS } from '../../../config.mjs';
+import {
+  AWS_RENDER_CONFIGS,
+  LAMBDA_MEMORY_OPTIONS,
+  LAMBDA_TIMEOUT_OPTIONS,
+  LAMBDA_DISK_OPTIONS,
+  CONCURRENCY_LIMITS,
+  FRAMES_PER_LAMBDA_LIMITS,
+} from '../../../config.mjs';
 import { getSafeConcurrency } from '@/lib/remotion-utils';
-import { AlertCircle, CheckCircle, HelpCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle,
+  HelpCircle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Rocket,
+  Shield,
+  Gauge,
+  Timer,
+  Leaf,
+  Tv,
+  Building,
+  Settings2,
+  Cpu,
+  HardDrive,
+  Clock,
+  Layers,
+  Info,
+} from 'lucide-react';
 import {
   calculateCompositionLayoutMetadata,
   InputCompositionProps,
 } from '@microfox/remotion';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface RenderModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Icon mapping for presets
+const presetIcons: Record<string, React.ReactNode> = {
+  Zap: <Zap className="h-4 w-4" />,
+  Rocket: <Rocket className="h-4 w-4" />,
+  Shield: <Shield className="h-4 w-4" />,
+  Gauge: <Gauge className="h-4 w-4" />,
+  Timer: <Timer className="h-4 w-4" />,
+  Leaf: <Leaf className="h-4 w-4" />,
+  Tv: <Tv className="h-4 w-4" />,
+  Building: <Building className="h-4 w-4" />,
+};
+
 export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   const router = useRouter();
   const {
     settings,
     updateSetting,
+    updateCustomConfig,
     renderMethod,
     setRenderMethod,
     isLoading,
@@ -61,13 +110,29 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
+
   const selectedConfig = useMemo(() => {
+    if (settings.configMode === 'custom') {
+      return {
+        name: 'Custom',
+        memory: settings.customConfig.memory,
+        disk: settings.customConfig.disk,
+        timeout: settings.customConfig.timeout,
+        concurrency: settings.customConfig.concurrency === 'auto' ? undefined : settings.customConfig.concurrency,
+        timeoutInMilliseconds: settings.customConfig.timeoutInMilliseconds,
+        framesPerLambda: settings.customConfig.framesPerLambda === 'auto' ? undefined : settings.customConfig.framesPerLambda,
+        description: 'Custom configuration with your own settings.',
+        bestFor: 'Advanced users who know their requirements.',
+        notFor: 'Users unfamiliar with AWS Lambda settings.',
+        icon: 'Settings2',
+      };
+    }
     return (
       AWS_RENDER_CONFIGS[
-      settings.awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
+        settings.awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS
       ] || null
     );
-  }, [settings.awsRenderPreset]);
+  }, [settings.configMode, settings.awsRenderPreset, settings.customConfig]);
 
   useEffect(() => {
     const inputProps = JSON.parse(settings.inputProps) as InputCompositionProps;
@@ -152,22 +217,32 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
       return;
     }
 
+    // Build request body based on config mode
+    const requestBody: Record<string, unknown> = {
+      id: settings.composition,
+      inputProps: parsedInputProps,
+      fileName: settings.isDownloadable ? settings.fileName : undefined,
+      codec: settings.codec,
+      audioCodec: settings.audioCodec,
+      renderType: settings.renderType,
+      isDownloadable: settings.isDownloadable,
+      configMode: settings.configMode,
+    };
+
+    if (settings.configMode === 'preset') {
+      requestBody.awsRenderPreset = settings.awsRenderPreset;
+      requestBody.concurrencyOverride = settings.concurrencyOverride;
+    } else {
+      // Custom mode - send full custom config
+      requestBody.customConfig = settings.customConfig;
+    }
+
     const response = await fetch('/api/remotion/render', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        id: settings.composition,
-        inputProps: parsedInputProps,
-        fileName: settings.isDownloadable ? settings.fileName : undefined,
-        codec: settings.codec,
-        audioCodec: settings.audioCodec,
-        renderType: settings.renderType,
-        isDownloadable: settings.isDownloadable,
-        awsRenderPreset: settings.awsRenderPreset,
-        concurrencyOverride: settings.concurrencyOverride,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -177,28 +252,8 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
     const result = await response.json();
 
-    // Save render request to localStorage
-    const renderRequest = {
-      id: result.renderId || `render-${Date.now()}`,
-      fileName: settings.fileName,
-      codec: settings.codec,
-      composition: settings.composition,
-      status: 'rendering' as const,
-      createdAt: new Date().toISOString(),
-      progress: 0,
-      inputProps: parsedInputProps,
-      bucketName: result.bucketName,
-      renderId: result.renderId,
-      isDownloadable: settings.isDownloadable,
-    };
-
-    // Render request is now handled by the API directly
-
     toast.success('AWS render started successfully!');
     onClose();
-
-    // Navigate to history page
-    //router.push("/history");
   };
 
   const handleLocalRender = async () => {
@@ -241,9 +296,21 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     onClose();
   };
 
+  // Get effective concurrency for display
+  const getEffectiveConcurrency = () => {
+    if (settings.configMode === 'preset') {
+      return settings.concurrencyOverride === 'auto' 
+        ? 'Auto' 
+        : settings.concurrencyOverride;
+    }
+    return settings.customConfig.concurrency === 'auto' 
+      ? 'Auto' 
+      : settings.customConfig.concurrency;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Render Video</DialogTitle>
           <DialogDescription>
@@ -265,210 +332,517 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
             <TabsContent value="aws" className="space-y-4">
               <div className="flex flex-col gap-4 py-4">
-                <div className="grid grid-cols-1 items-center gap-4">
-                  <Label htmlFor="awsRenderPreset" className="text-right">
-                    Render Preset
-                  </Label>
-                  <Select
-                    value={settings.awsRenderPreset}
-                    onValueChange={value =>
-                      updateSetting(
-                        'awsRenderPreset',
-                        value as
-                        | 'complex-fast'
-                        | 'complex-slow'
-                        | 'basic-fast'
-                        | 'throttled'
-                        | 'classic',
-                      )
-                    }
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select preset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="classic">
-                        Classic (Short Videos)
-                      </SelectItem>
-                      <SelectItem value="complex-fast">
-                        Complex (Fast)
-                      </SelectItem>
-                      <SelectItem value="complex-slow">
-                        Complex (Slow)
-                      </SelectItem>
-                      <SelectItem value="basic-fast">Basic (Fast)</SelectItem>
-                      <SelectItem value="throttled">
-                        Throttled (API Safe)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedConfig && (
-                  <Card className="col-span-4">
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        {selectedConfig.name}
-                      </CardTitle>
-                      <CardDescription>
-                        {selectedConfig.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-2">
-                      <div className="flex items-start gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500 mt-1" />
-                        <div>
-                          <span className="font-semibold">Best for:</span>{' '}
-                          {selectedConfig.bestFor}
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <XCircle className="h-4 w-4 text-red-500 mt-1" />
-                        <div>
-                          <span className="font-semibold">Not for:</span>{' '}
-                          {selectedConfig.notFor}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
-                  <Label className="text-right pt-2">Concurrency</Label>
-                  <div className="col-span-3 space-y-4">
-                    <RadioGroup
-                      value={
-                        typeof settings.concurrencyOverride === 'number'
-                          ? 'custom'
-                          : 'auto'
-                      }
-                      onValueChange={value => {
-                        if (value === 'auto') {
-                          updateSetting('concurrencyOverride', 'auto');
-                        } else {
-                          updateSetting('concurrencyOverride', 50);
-                        }
-                      }}
+                {/* Configuration Mode Selector */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Config Mode</Label>
+                  <div className="col-span-3">
+                    <Tabs
+                      value={settings.configMode}
+                      onValueChange={(value) => updateSetting('configMode', value as ConfigMode)}
+                      className="w-full"
                     >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="auto" id="auto" />
-                        <Label htmlFor="auto">Auto (Fast)</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="custom" id="custom" />
-                        <Label htmlFor="custom">Custom</Label>
-                      </div>
-                    </RadioGroup>
-
-                    {settings.concurrencyOverride !== 'auto' && (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          value={settings.concurrencyOverride}
-                          onChange={e => {
-                            const value = parseInt(e.target.value, 10);
-                            updateSetting(
-                              'concurrencyOverride',
-                              Math.min(200, Math.max(1, value || 1)),
-                            );
-                          }}
-                          max={200}
-                          min={1}
-                          className="w-24"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Max: 200
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="concurrency-helper"
-                          checked={settings.isConcurrencyHelperActive}
-                          onCheckedChange={checked =>
-                            updateSetting('isConcurrencyHelperActive', checked)
-                          }
-                        />
-                        <Label htmlFor="concurrency-helper">
-                          Calculate Recommended Concurrency
-                        </Label>
-                      </div>
-
-                      {settings.isConcurrencyHelperActive && (
-                        <div className="grid grid-cols-2 gap-4 pt-4">
-                          <div>
-                            <Label htmlFor="helper-duration">
-                              Duration (s)
-                            </Label>
-                            <Input
-                              id="helper-duration"
-                              type="number"
-                              value={settings.helperDuration}
-                              onChange={e =>
-                                updateSetting(
-                                  'helperDuration',
-                                  parseInt(e.target.value) || 0,
-                                )
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="helper-fps">FPS</Label>
-                            <Input
-                              id="helper-fps"
-                              type="number"
-                              value={settings.helperFps}
-                              onChange={e =>
-                                updateSetting(
-                                  'helperFps',
-                                  parseInt(e.target.value) || 0,
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {safeConcurrency !== null && (
-                        <Alert
-                          variant={
-                            safeConcurrency > 200 ? 'destructive' : 'default'
-                          }
-                          className="mt-4"
-                        >
-                          <HelpCircle className="h-4 w-4" />
-                          <AlertTitle>
-                            {safeConcurrency > 200
-                              ? 'Warning!'
-                              : 'Recommendation'}
-                          </AlertTitle>
-                          <AlertDescription className="flex items-center justify-between">
-                            <span>
-                              {safeConcurrency > 200
-                                ? `High concurrency (${safeConcurrency}) needed. Render may fail.`
-                                : `Recommended safe concurrency is ~${safeConcurrency}.`}
-                            </span>
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto"
-                              onClick={() => {
-                                updateSetting(
-                                  'concurrencyOverride',
-                                  Math.min(safeConcurrency, 200),
-                                );
-                              }}
-                            >
-                              Apply
-                            </Button>
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="preset" className="flex items-center gap-2">
+                          <Zap className="h-4 w-4" />
+                          Preset
+                        </TabsTrigger>
+                        <TabsTrigger value="custom" className="flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Custom
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
                 </div>
 
+                {/* Preset Mode */}
+                {settings.configMode === 'preset' && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="awsRenderPreset" className="text-right">
+                        Render Preset
+                      </Label>
+                      <Select
+                        value={settings.awsRenderPreset}
+                        onValueChange={value =>
+                          updateSetting('awsRenderPreset', value as typeof settings.awsRenderPreset)
+                        }
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select preset" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(AWS_RENDER_CONFIGS).map(([key, config]) => (
+                            <SelectItem key={key} value={key}>
+                              <div className="flex items-center gap-2">
+                                {presetIcons[config.icon] || <Zap className="h-4 w-4" />}
+                                <span>{config.name}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {Math.round(config.memory / 1024)}GB
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedConfig && (
+                      <Card className="col-span-4">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center gap-2">
+                            {presetIcons[selectedConfig.icon] || <Zap className="h-5 w-5" />}
+                            <CardTitle className="text-lg">
+                              {selectedConfig.name}
+                            </CardTitle>
+                            <Badge variant="secondary">
+                              {selectedConfig.memory / 1024}GB • {selectedConfig.timeout}s
+                            </Badge>
+                          </div>
+                          <CardDescription>
+                            {selectedConfig.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-2">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500 mt-1" />
+                            <div>
+                              <span className="font-semibold">Best for:</span>{' '}
+                              {selectedConfig.bestFor}
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <XCircle className="h-4 w-4 text-red-500 mt-1" />
+                            <div>
+                              <span className="font-semibold">Not for:</span>{' '}
+                              {selectedConfig.notFor}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Preset Concurrency Override */}
+                    <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
+                      <Label className="text-right pt-2">Concurrency</Label>
+                      <div className="col-span-3 space-y-4">
+                        <RadioGroup
+                          value={
+                            typeof settings.concurrencyOverride === 'number'
+                              ? 'custom'
+                              : 'auto'
+                          }
+                          onValueChange={value => {
+                            if (value === 'auto') {
+                              updateSetting('concurrencyOverride', 'auto');
+                            } else {
+                              updateSetting('concurrencyOverride', CONCURRENCY_LIMITS.default);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="auto" id="auto" />
+                            <Label htmlFor="auto">Auto (Recommended)</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="custom" id="custom" />
+                            <Label htmlFor="custom">Custom</Label>
+                          </div>
+                        </RadioGroup>
+
+                        {settings.concurrencyOverride !== 'auto' && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={settings.concurrencyOverride}
+                              onChange={e => {
+                                const value = parseInt(e.target.value, 10);
+                                updateSetting(
+                                  'concurrencyOverride',
+                                  Math.min(CONCURRENCY_LIMITS.max, Math.max(CONCURRENCY_LIMITS.min, value || CONCURRENCY_LIMITS.min)),
+                                );
+                              }}
+                              max={CONCURRENCY_LIMITS.max}
+                              min={CONCURRENCY_LIMITS.min}
+                              className="w-24"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Range: {CONCURRENCY_LIMITS.min} - {CONCURRENCY_LIMITS.max}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Custom Mode */}
+                {settings.configMode === 'custom' && (
+                  <div className="space-y-6">
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Advanced Configuration</AlertTitle>
+                      <AlertDescription>
+                        Ensure you have deployed Lambda functions with matching configurations.
+                        Mismatched settings will cause render failures.
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Memory Selection */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2 flex items-center gap-1">
+                        <Cpu className="h-4 w-4" />
+                        Memory
+                      </Label>
+                      <div className="col-span-3 space-y-2">
+                        <Select
+                          value={settings.customConfig.memory.toString()}
+                          onValueChange={value => updateCustomConfig('memory', parseInt(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select memory" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LAMBDA_MEMORY_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                <div className="flex flex-col">
+                                  <span>{option.label}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {option.description}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Disk Size Selection */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2 flex items-center gap-1">
+                        <HardDrive className="h-4 w-4" />
+                        Disk Size
+                      </Label>
+                      <div className="col-span-3">
+                        <Select
+                          value={settings.customConfig.disk.toString()}
+                          onValueChange={value => updateCustomConfig('disk', parseInt(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select disk size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LAMBDA_DISK_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                <div className="flex flex-col">
+                                  <span>{option.label}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {option.description}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Timeout Selection */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2 flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        Timeout
+                      </Label>
+                      <div className="col-span-3 space-y-2">
+                        <Select
+                          value={settings.customConfig.timeout.toString()}
+                          onValueChange={value => {
+                            const timeout = parseInt(value);
+                            updateCustomConfig('timeout', timeout);
+                            updateCustomConfig('timeoutInMilliseconds', timeout * 1000);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select timeout" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LAMBDA_TIMEOUT_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                <div className="flex flex-col">
+                                  <span>{option.label}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {option.description}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          AWS Lambda maximum is 15 minutes (900s)
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Concurrency */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2 flex items-center gap-1">
+                        <Layers className="h-4 w-4" />
+                        Concurrency
+                      </Label>
+                      <div className="col-span-3 space-y-3">
+                        <RadioGroup
+                          value={settings.customConfig.concurrency === 'auto' ? 'auto' : 'custom'}
+                          onValueChange={value => {
+                            if (value === 'auto') {
+                              updateCustomConfig('concurrency', 'auto');
+                            } else {
+                              updateCustomConfig('concurrency', CONCURRENCY_LIMITS.default);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="auto" id="custom-auto" />
+                            <Label htmlFor="custom-auto">Auto (Let Remotion decide)</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="custom" id="custom-manual" />
+                            <Label htmlFor="custom-manual">Manual</Label>
+                          </div>
+                        </RadioGroup>
+
+                        {settings.customConfig.concurrency !== 'auto' && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-4">
+                              <Slider
+                                value={[settings.customConfig.concurrency as number]}
+                                onValueChange={([value]) => updateCustomConfig('concurrency', value)}
+                                min={CONCURRENCY_LIMITS.min}
+                                max={CONCURRENCY_LIMITS.max}
+                                step={1}
+                                className="flex-1"
+                              />
+                              <Input
+                                type="number"
+                                value={settings.customConfig.concurrency}
+                                onChange={e => {
+                                  const value = parseInt(e.target.value, 10);
+                                  updateCustomConfig(
+                                    'concurrency',
+                                    Math.min(CONCURRENCY_LIMITS.max, Math.max(CONCURRENCY_LIMITS.min, value || CONCURRENCY_LIMITS.min)),
+                                  );
+                                }}
+                                className="w-20"
+                                min={CONCURRENCY_LIMITS.min}
+                                max={CONCURRENCY_LIMITS.max}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Number of parallel Lambda invocations ({CONCURRENCY_LIMITS.min}-{CONCURRENCY_LIMITS.max})
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Frames Per Lambda */}
+                    <div className="grid grid-cols-4 items-start gap-4">
+                      <Label className="text-right pt-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="flex items-center gap-1 cursor-help">
+                              Frames/Lambda
+                              <Info className="h-3 w-3" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>How many frames each Lambda processes. Lower values = more parallelism but higher costs.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Label>
+                      <div className="col-span-3 space-y-3">
+                        <RadioGroup
+                          value={settings.customConfig.framesPerLambda === 'auto' ? 'auto' : 'custom'}
+                          onValueChange={value => {
+                            if (value === 'auto') {
+                              updateCustomConfig('framesPerLambda', 'auto');
+                            } else {
+                              updateCustomConfig('framesPerLambda', FRAMES_PER_LAMBDA_LIMITS.default);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="auto" id="fpl-auto" />
+                            <Label htmlFor="fpl-auto">Auto</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="custom" id="fpl-manual" />
+                            <Label htmlFor="fpl-manual">Manual</Label>
+                          </div>
+                        </RadioGroup>
+
+                        {settings.customConfig.framesPerLambda !== 'auto' && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-4">
+                              <Slider
+                                value={[settings.customConfig.framesPerLambda as number]}
+                                onValueChange={([value]) => updateCustomConfig('framesPerLambda', value)}
+                                min={FRAMES_PER_LAMBDA_LIMITS.min}
+                                max={FRAMES_PER_LAMBDA_LIMITS.max}
+                                step={5}
+                                className="flex-1"
+                              />
+                              <Input
+                                type="number"
+                                value={settings.customConfig.framesPerLambda}
+                                onChange={e => {
+                                  const value = parseInt(e.target.value, 10);
+                                  updateCustomConfig(
+                                    'framesPerLambda',
+                                    Math.min(FRAMES_PER_LAMBDA_LIMITS.max, Math.max(FRAMES_PER_LAMBDA_LIMITS.min, value || FRAMES_PER_LAMBDA_LIMITS.min)),
+                                  );
+                                }}
+                                className="w-20"
+                                min={FRAMES_PER_LAMBDA_LIMITS.min}
+                                max={FRAMES_PER_LAMBDA_LIMITS.max}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Range: {FRAMES_PER_LAMBDA_LIMITS.min}-{FRAMES_PER_LAMBDA_LIMITS.max} frames
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Custom Config Summary */}
+                    <Card className="bg-muted/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Configuration Summary
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Memory:</span>
+                            <Badge variant="outline">{settings.customConfig.memory / 1024} GB</Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Disk:</span>
+                            <Badge variant="outline">{settings.customConfig.disk / 1024} GB</Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Timeout:</span>
+                            <Badge variant="outline">{settings.customConfig.timeout}s</Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Concurrency:</span>
+                            <Badge variant="outline">
+                              {settings.customConfig.concurrency === 'auto' ? 'Auto' : settings.customConfig.concurrency}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between col-span-2">
+                            <span className="text-muted-foreground">Frames/Lambda:</span>
+                            <Badge variant="outline">
+                              {settings.customConfig.framesPerLambda === 'auto' ? 'Auto' : settings.customConfig.framesPerLambda}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Concurrency Calculator (works for both modes) */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="concurrency-helper"
+                      checked={settings.isConcurrencyHelperActive}
+                      onCheckedChange={checked =>
+                        updateSetting('isConcurrencyHelperActive', checked)
+                      }
+                    />
+                    <Label htmlFor="concurrency-helper">
+                      Calculate Recommended Concurrency
+                    </Label>
+                  </div>
+
+                  {settings.isConcurrencyHelperActive && (
+                    <div className="grid grid-cols-2 gap-4 pt-4">
+                      <div>
+                        <Label htmlFor="helper-duration">Duration (s)</Label>
+                        <Input
+                          id="helper-duration"
+                          type="number"
+                          value={settings.helperDuration}
+                          onChange={e =>
+                            updateSetting(
+                              'helperDuration',
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="helper-fps">FPS</Label>
+                        <Input
+                          id="helper-fps"
+                          type="number"
+                          value={settings.helperFps}
+                          onChange={e =>
+                            updateSetting(
+                              'helperFps',
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {safeConcurrency !== null && (
+                    <Alert
+                      variant={safeConcurrency > CONCURRENCY_LIMITS.max ? 'destructive' : 'default'}
+                      className="mt-4"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      <AlertTitle>
+                        {safeConcurrency > CONCURRENCY_LIMITS.max ? 'Warning!' : 'Recommendation'}
+                      </AlertTitle>
+                      <AlertDescription className="flex items-center justify-between">
+                        <span>
+                          {safeConcurrency > CONCURRENCY_LIMITS.max
+                            ? `High concurrency (${safeConcurrency}) needed. Render may fail.`
+                            : `Recommended safe concurrency is ~${safeConcurrency}.`}
+                        </span>
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto"
+                          onClick={() => {
+                            const value = Math.min(safeConcurrency, CONCURRENCY_LIMITS.max);
+                            if (settings.configMode === 'preset') {
+                              updateSetting('concurrencyOverride', value);
+                            } else {
+                              updateCustomConfig('concurrency', value);
+                            }
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Common AWS Settings */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="isDownloadable" className="text-right">
                     Downloadable
@@ -485,7 +859,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       htmlFor="isDownloadable"
                       className="text-sm text-muted-foreground"
                     >
-                      Enable file download ( Not recommended )
+                      Enable file download (Not recommended)
                     </Label>
                   </div>
                 </div>

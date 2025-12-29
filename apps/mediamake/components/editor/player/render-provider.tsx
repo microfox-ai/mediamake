@@ -3,6 +3,19 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { InputCompositionProps } from "@microfox/remotion";
 
+// Configuration mode types
+export type ConfigMode = 'preset' | 'custom';
+
+// Custom configuration for advanced users
+export interface CustomLambdaConfig {
+    memory: number;      // Memory in MB (1024, 2048, 3008, 4096, 6144, 10240)
+    disk: number;        // Disk in MB (2048, 5120, 10240)
+    timeout: number;     // Timeout in seconds (1-900)
+    concurrency: number | 'auto'; // Number of concurrent lambdas or auto
+    framesPerLambda: number | 'auto'; // Frames per lambda or auto
+    timeoutInMilliseconds: number; // Timeout for render operation
+}
+
 export interface RenderSettings {
     fileName: string;
     codec: string;
@@ -12,17 +25,34 @@ export interface RenderSettings {
     inputProps: string;
     outputLocation?: string; // Only used for local rendering
     isDownloadable?: boolean; // Only used for AWS rendering
-    awsRenderPreset?:
+    
+    // Configuration mode
+    configMode: ConfigMode;
+    
+    // Preset mode settings
+    awsRenderPreset:
+        | 'classic'
         | 'complex-fast'
         | 'complex-slow'
         | 'basic-fast'
         | 'throttled'
-        | 'classic'; // Only used for AWS rendering
-    concurrencyOverride?: number | 'auto'; // User-defined concurrency
-    isConcurrencyHelperActive?: boolean; // Toggle for calculator UI
-    helperFps?: number; // FPS for calculator
-    helperDuration?: number; // Duration in seconds for calculator
-    frameTime?: number; // Frame time in seconds for still image rendering
+        | 'lightweight'
+        | 'broadcast'
+        | 'enterprise';
+    
+    // Custom mode settings
+    customConfig: CustomLambdaConfig;
+    
+    // Legacy concurrency override (still supported for presets)
+    concurrencyOverride?: number | 'auto';
+    
+    // Concurrency calculator settings
+    isConcurrencyHelperActive?: boolean;
+    helperFps?: number;
+    helperDuration?: number;
+    
+    // Still image settings
+    frameTime?: number;
 }
 
 export type RenderMethod = 'aws' | 'local';
@@ -49,7 +79,20 @@ interface RenderContextType {
     openModal: () => void;
     closeModal: () => void;
     resetSettings: () => void;
+    
+    // Custom config helpers
+    updateCustomConfig: <K extends keyof CustomLambdaConfig>(key: K, value: CustomLambdaConfig[K]) => void;
+    resetCustomConfig: () => void;
 }
+
+const defaultCustomConfig: CustomLambdaConfig = {
+    memory: 3008,
+    disk: 10240,
+    timeout: 900,
+    concurrency: 'auto',
+    framesPerLambda: 'auto',
+    timeoutInMilliseconds: 900 * 1000,
+};
 
 const defaultSettings: RenderSettings = {
     fileName: "video-" + Date.now().toString().replaceAll("-", ""),
@@ -70,11 +113,25 @@ const defaultSettings: RenderSettings = {
     } as InputCompositionProps, null, 2),
     outputLocation: "./out",
     isDownloadable: false,
+    
+    // Configuration mode
+    configMode: 'preset',
+    
+    // Preset settings
     awsRenderPreset: "classic",
+    
+    // Custom settings
+    customConfig: defaultCustomConfig,
+    
+    // Legacy
     concurrencyOverride: 'auto',
+    
+    // Calculator
     isConcurrencyHelperActive: false,
     helperFps: 30,
     helperDuration: 40,
+    
+    // Still
     frameTime: 0
 };
 
@@ -114,6 +171,23 @@ export function RenderProvider({
         }));
     };
 
+    const updateCustomConfig = <K extends keyof CustomLambdaConfig>(key: K, value: CustomLambdaConfig[K]) => {
+        setSettingsState(prev => ({
+            ...prev,
+            customConfig: {
+                ...prev.customConfig,
+                [key]: value
+            }
+        }));
+    };
+
+    const resetCustomConfig = () => {
+        setSettingsState(prev => ({
+            ...prev,
+            customConfig: defaultCustomConfig
+        }));
+    };
+
     const openModal = () => {
         setSettingsState(prev => ({
             ...prev,
@@ -142,7 +216,9 @@ export function RenderProvider({
         setIsLoading,
         openModal,
         closeModal,
-        resetSettings
+        resetSettings,
+        updateCustomConfig,
+        resetCustomConfig
     };
 
     return (
@@ -162,13 +238,18 @@ export function useRender() {
 
 // Hook for external components to control render settings
 export function useRenderSettings() {
-    const { settings, setSettings, updateSetting, renderMethod, setRenderMethod } = useRender();
+    const { settings, setSettings, updateSetting, renderMethod, setRenderMethod, updateCustomConfig, resetCustomConfig } = useRender();
 
     return {
         settings,
         setSettings,
         updateSetting,
         renderMethod,
-        setRenderMethod
+        setRenderMethod,
+        updateCustomConfig,
+        resetCustomConfig
     };
 }
+
+// Export default custom config for use elsewhere
+export { defaultCustomConfig };

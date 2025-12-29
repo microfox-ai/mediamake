@@ -16,7 +16,13 @@ import {
     Calendar,
     Code,
     Settings,
-    ExternalLink
+    ExternalLink,
+    Cpu,
+    HardDrive,
+    Timer,
+    Layers,
+    Zap,
+    Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -381,15 +387,13 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                         <span className="text-sm font-mono">{selectedRequest.codec}</span>
                                     </div>
                                     <div className="flex justify-between">
+                                        <span className="text-sm font-medium">Audio Codec:</span>
+                                        <span className="text-sm font-mono">{selectedRequest?.audioCodec || 'aac'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
                                         <span className="text-sm font-medium">Composition:</span>
                                         <span className="text-sm font-mono">{selectedRequest.composition}</span>
                                     </div>
-                                    {selectedRequest.awsRenderPreset && (
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium">AWS Preset:</span>
-                                            <span className="text-sm font-mono">{selectedRequest.awsRenderPreset}</span>
-                                        </div>
-                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
@@ -411,8 +415,129 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                         </CardContent>
                     </Card>
 
+                    {/* Lambda Configuration */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                {selectedRequest?.configMode === 'custom' ? (
+                                    <Settings2 className="h-5 w-5" />
+                                ) : (
+                                    <Zap className="h-5 w-5" />
+                                )}
+                                Lambda Configuration
+                                <Badge variant={selectedRequest?.configMode === 'custom' ? 'secondary' : 'outline'} className="ml-2">
+                                    {selectedRequest?.configMode === 'custom' ? 'Custom' : 'Preset'}
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    {/* Config Mode & Preset */}
+                                    {selectedRequest?.configMode !== 'custom' && selectedRequest?.awsRenderPreset && (
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-medium flex items-center gap-1">
+                                                <Zap className="h-4 w-4 text-muted-foreground" />
+                                                Preset:
+                                            </span>
+                                            <Badge variant="outline">{selectedRequest?.awsRenderPreset}</Badge>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Memory */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium flex items-center gap-1">
+                                            <Cpu className="h-4 w-4 text-muted-foreground" />
+                                            Memory:
+                                        </span>
+                                        <span className="text-sm font-mono">
+                                            {selectedRequest?.memoryUsed 
+                                                ? `${(selectedRequest?.memoryUsed / 1024).toFixed(1)} GB` 
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Disk */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium flex items-center gap-1">
+                                            <HardDrive className="h-4 w-4 text-muted-foreground" />
+                                            Disk:
+                                        </span>
+                                        <span className="text-sm font-mono">
+                                            {selectedRequest?.diskUsed 
+                                                ? `${(selectedRequest?.diskUsed / 1024).toFixed(1)} GB` 
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Timeout */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium flex items-center gap-1">
+                                            <Timer className="h-4 w-4 text-muted-foreground" />
+                                            Timeout:
+                                        </span>
+                                        <span className="text-sm font-mono">
+                                            {selectedRequest?.timeoutUsed 
+                                                ? `${selectedRequest?.timeoutUsed}s` 
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    {/* Concurrency */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium flex items-center gap-1">
+                                            <Layers className="h-4 w-4 text-muted-foreground" />
+                                            Concurrency:
+                                        </span>
+                                        <span className="text-sm font-mono">
+                                            {selectedRequest?.concurrencyUsed ?? 'Auto'}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Frames Per Lambda */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium flex items-center gap-1">
+                                            <Play className="h-4 w-4 text-muted-foreground" />
+                                            Frames/Lambda:
+                                        </span>
+                                        <span className="text-sm font-mono">
+                                            {selectedRequest?.framesPerLambdaUsed ?? 'Auto'}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Function Name */}
+                                    {selectedRequest?.functionNameUsed && (
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-medium flex items-center gap-1">
+                                                <Code className="h-4 w-4 text-muted-foreground" />
+                                                Function:
+                                            </span>
+                                            <span className="text-sm font-mono text-xs truncate max-w-[180px]" title={selectedRequest?.functionNameUsed ?? 'N/A'}>
+                                                {selectedRequest?.functionNameUsed ?? 'N/A'}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Custom Config Details */}
+                            {selectedRequest?.configMode === 'custom' && selectedRequest?.customConfig && (
+                                <div className="mt-4 pt-4 border-t">
+                                    <p className="text-sm text-muted-foreground mb-2">Custom Configuration Used:</p>
+                                    <div className="bg-muted/50 rounded-md p-3 font-mono text-xs">
+                                        <pre className="whitespace-pre-wrap">
+                                            {JSON.stringify(selectedRequest?.customConfig, null, 2)}
+                                        </pre>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     {/* Input Props */}
-                    {selectedRequest.inputProps && (
+                    {selectedRequest?.inputProps && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -422,7 +547,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                             </CardHeader>
                             <CardContent>
                                 <ReadOnlyJsonEditor
-                                    value={selectedRequest.inputProps}
+                                    value={selectedRequest?.inputProps}
                                     height="300px"
                                     className="w-full"
                                 />
