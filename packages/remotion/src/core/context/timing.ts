@@ -75,7 +75,7 @@ export const calculateComponentDuration = async (
   component: Pick<RenderableComponentData, 'data' | 'componentId'>
 ): Promise<number | undefined> => {
   const src = component.data.src;
-  if (src.startsWith('http')) {
+  if (src?.startsWith('http')) {
     const audioInput = new Input({
       formats: ALL_FORMATS,
       source: new UrlSource(src),
