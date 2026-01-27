@@ -6,6 +6,11 @@ interface PresetDataDocument {
   _id?: ObjectId;
   clientId?: string;
   name: string;
+  /**
+   * List of other clientIds that can access this preset.
+   * The owner is always allowed (via clientId field).
+   */
+  sharedWithClientIds?: string[];
   presetData: {
     presets: Array<{
       presetId: string;
@@ -42,17 +47,28 @@ export async function GET(request: NextRequest) {
     if (id) {
       try {
         const objectId = new ObjectId(id);
-        const doc = await collection.findOne({
-          _id: objectId,
-          ...(clientId ? { clientId } : {}),
-        });
+        // When fetching a single preset, allow access if:
+        // - requester is the owner (clientId matches), OR
+        // - requester is in the sharedWithClientIds list.
+        const query: any = { _id: objectId };
+        if (clientId) {
+          query.$or = [
+            { clientId },
+            { sharedWithClientIds: clientId },
+          ];
+        }
+
+        const doc = await collection.findOne(query);
         if (!doc) {
           return NextResponse.json(
             { error: 'Preset not found' },
             { status: 404 },
           );
         }
-        return NextResponse.json(doc);
+        // Include ownerClientId in response for frontend ownership checks
+        const responseDoc: any = { ...doc };
+        responseDoc.ownerClientId = doc.clientId;
+        return NextResponse.json(responseDoc);
       } catch {
         return NextResponse.json(
           { error: 'Invalid preset ID' },
@@ -61,10 +77,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Otherwise, return only metadata without presetData
-    const query = clientId ? { clientId } : {};
+    // Otherwise, return only metadata without presetData.
+    // If clientId is present, return:
+    // - presets owned by this clientId
+    // - presets shared with this clientId
+    const metaQuery = clientId
+      ? {
+          $or: [
+            { clientId },
+            { sharedWithClientIds: clientId },
+          ],
+        }
+      : {};
+
     const presetsMeta = await collection
-      .find(query, { projection: { name: 1, createdAt: 1, updatedAt: 1 } })
+      .find(metaQuery, {
+        projection: {
+          name: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          clientId: 1,
+          sharedWithClientIds: 1,
+        },
+      })
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -74,6 +109,8 @@ export async function GET(request: NextRequest) {
       name: d.name,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
+      ownerClientId: d.clientId,
+      sharedWithClientIds: d.sharedWithClientIds ?? [],
     }));
 
     return NextResponse.json(response);
@@ -94,7 +131,17 @@ export async function POST(request: NextRequest) {
     const collection = db.collection<PresetDataDocument>('presetData');
 
     const body = await request.json();
-    const { name, presetData, overwriteId } = body;
+    const {
+      name,
+      presetData,
+      overwriteId,
+      sharedWithClientIds,
+    } = body as {
+      name: string;
+      presetData: PresetDataDocument['presetData'];
+      overwriteId?: string;
+      sharedWithClientIds?: string[];
+    };
 
     console.log(`💾 API: Saving preset data:`, {
       name: name,
@@ -116,13 +163,20 @@ export async function POST(request: NextRequest) {
     if (overwriteId) {
       try {
         const objectId = new ObjectId(overwriteId);
+        // Only the owner (matching clientId) is allowed to overwrite.
+        const updateFilter: any = { _id: objectId };
+        if (clientId) {
+          updateFilter.clientId = clientId;
+        }
+
         const updateResult = await collection.updateOne(
-          { _id: objectId },
+          updateFilter,
           {
             $set: {
               name,
               presetData,
               updatedAt: new Date(),
+              sharedWithClientIds: sharedWithClientIds ?? [],
             },
           },
         );
@@ -162,6 +216,7 @@ export async function POST(request: NextRequest) {
       clientId,
       name,
       presetData,
+      sharedWithClientIds: sharedWithClientIds ?? [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
