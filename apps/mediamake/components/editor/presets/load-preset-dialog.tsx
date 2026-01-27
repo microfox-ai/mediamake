@@ -22,12 +22,16 @@ interface SavedPresetMeta {
     name: string;
     createdAt: string;
     updatedAt?: string;
+    ownerClientId?: string;
+    sharedWithClientIds?: string[];
 }
 
 interface SavedPresetData {
     id: string;
     name: string;
     createdAt: string;
+    ownerClientId?: string;
+    sharedWithClientIds?: string[];
     presetData: {
         presets: Array<{
             presetId: string;
@@ -93,6 +97,8 @@ export function LoadPresetDialog({
                 id: fullPreset._id ?? fullPreset.id,
                 name: fullPreset.name,
                 createdAt: fullPreset.createdAt,
+                ownerClientId: fullPreset.ownerClientId ?? fullPreset.clientId,
+                sharedWithClientIds: fullPreset.sharedWithClientIds ?? [],
                 presetData: fullPreset.presetData,
             };
             await onLoad(normalized);
