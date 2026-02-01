@@ -19,7 +19,7 @@
  */
 
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { PresetMetadata, PresetOutput, PresetPassedProps } from '../../types';
 import { BaseEffect, RenderableComponentData } from '@microfox/datamotion';
 import { InputCompositionProps, GenericEffectData } from '@microfox/remotion';
 
@@ -103,10 +103,7 @@ const presetParams = z.object({
 
 const presetExecution = async (
   params: z.infer<typeof presetParams>,
-  props: {
-    config: InputCompositionProps['config'];
-    fetcher: (url: string, data: any) => Promise<any>;
-  },
+  props: PresetPassedProps,
 ): Promise<PresetOutput> => {
   // Parse aspect ratio
   const [widthRatio, heightRatio] = params.aspectRatio.split(':').map(Number);
@@ -340,15 +337,12 @@ const presetExecution = async (
       if (videoItem.duration !== undefined) {
         duration = videoItem.duration;
       } else {
-        try {
-          const mediaInfo = await props.fetcher('/api/media-info', {
-            src: videoItem.src,
-          });
-          duration = mediaInfo.duration ?? 5;
-        } catch (error) {
-          console.error(`Failed to fetch duration for ${videoItem.src}`, error);
-          duration = 5;
-        }
+        const getMediaDuration = props.helpers?.getMediaDuration;
+        const computed =
+          typeof getMediaDuration === 'function'
+            ? await getMediaDuration(videoItem.src)
+            : undefined;
+        duration = computed ?? 5;
       }
 
       const videoId = `video-item-${index}`; // Use index for a clean, unique ID
@@ -439,6 +433,7 @@ const videoStitchPresetMetadata: PresetMetadata = {
   type: 'predefined',
   presetType: 'full',
   tags: ['video', 'stitch', 'sequence', 'aspect-ratio', 'transition'],
+  dependencies: { helpers: ['getMediaDuration'] },
   defaultInputParams: {
     aspectRatio: '16:9',
     videoItems: [
