@@ -40,25 +40,31 @@ const configEntries = Object.entries(AWS_RENDER_CONFIGS);
 
 console.log(`\nDeploying ${configEntries.length} Lambda function(s)...\n`);
 
-// Deploy Lambda function for each configuration
+// Deploy Lambda function for each configuration (failures don't block site deployment)
+const functionFailures = [];
 for (const [configKey, config] of configEntries) {
   console.log(`[${configKey}] Deploying Lambda function...`);
   console.log(
     `  Memory: ${config.memory}MB, Disk: ${config.disk}MB, Timeout: ${config.timeout}s`,
   );
 
-  const { functionName, alreadyExisted: functionAlreadyExisted } =
-    await deployFunction({
-      createCloudWatchLogGroup: true,
-      memorySizeInMb: config.memory,
-      region: region,
-      timeoutInSeconds: config.timeout,
-      diskSizeInMb: config.disk,
-    });
+  try {
+    const { functionName, alreadyExisted: functionAlreadyExisted } =
+      await deployFunction({
+        createCloudWatchLogGroup: true,
+        memorySizeInMb: config.memory,
+        region: region,
+        timeoutInSeconds: config.timeout,
+        diskSizeInMb: config.disk,
+      });
 
-  console.log(
-    `  ✓ ${functionName} ${functionAlreadyExisted ? '(already existed)' : '(created)'}\n`,
-  );
+    console.log(
+      `  ✓ ${functionName} ${functionAlreadyExisted ? '(already existed)' : '(created)'}\n`,
+    );
+  } catch (err) {
+    console.log(`  ✗ Failed: ${err.message}\n`);
+    functionFailures.push({ configKey, error: err });
+  }
 }
 
 // Ensure bucket (shared across all configs)
@@ -86,14 +92,27 @@ console.log(siteName);
 
 console.log();
 console.log('✓ Deployment complete!');
-console.log(
-  `✓ Deployed ${configEntries.length} Lambda function(s) for all configurations:`,
-);
-configEntries.forEach(([key, config]) => {
+if (functionFailures.length > 0) {
   console.log(
-    `  - ${key}: ${config.memory}MB RAM, ${config.disk}MB disk, ${config.timeout}s timeout`,
+    `⚠ ${configEntries.length - functionFailures.length}/${configEntries.length} Lambda function(s) deployed (${functionFailures.length} failed):`,
   );
-});
+  configEntries.forEach(([key, config]) => {
+    const failed = functionFailures.find((f) => f.configKey === key);
+    const status = failed ? '✗ FAILED' : '✓';
+    console.log(
+      `  - ${key}: ${config.memory}MB RAM, ${config.disk}MB disk, ${config.timeout}s timeout [${status}]`,
+    );
+  });
+} else {
+  console.log(
+    `✓ Deployed ${configEntries.length} Lambda function(s) for all configurations:`,
+  );
+  configEntries.forEach(([key, config]) => {
+    console.log(
+      `  - ${key}: ${config.memory}MB RAM, ${config.disk}MB disk, ${config.timeout}s timeout`,
+    );
+  });
+}
 console.log();
 console.log('You now have everything you need to render videos!');
 console.log('Re-run this command when:');
