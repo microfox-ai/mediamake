@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.5
+
+### Patch Changes
+
+- 4b2846e: Changes from PR #375: aws-rendering-configs
+- d3fafd6: Changes from PR #377: agent-search-and-preset-sharing
+
 ## 1.2.4
 
 ### Patch Changes
