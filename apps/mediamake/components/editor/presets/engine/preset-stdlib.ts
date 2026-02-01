@@ -6,8 +6,28 @@
  * presets that declare them in their metadata.dependencies.helpers array.
  */
 
+import { ALL_FORMATS, Input, UrlSource } from 'mediabunny';
 import { RenderableComponentData } from '@microfox/datamotion';
 import { GenericEffectData } from '@microfox/remotion';
+
+/**
+ * Gets media duration from URL using mediabunny (client-safe).
+ * Returns undefined on failure; backend can handle fallback.
+ */
+export const getMediaDuration = async (
+  src: string,
+): Promise<number | undefined> => {
+  if (!src?.startsWith('http')) return undefined;
+  try {
+    const audioInput = new Input({
+      formats: ALL_FORMATS,
+      source: new UrlSource(src),
+    });
+    return await audioInput.computeDuration();
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * Recursively searches for components matching the given IDs
@@ -471,6 +491,7 @@ export const applyNoGapsExtension = (
 export const presetStdLib = {
   findMatchingComponents,
   findMatchingComponentsByQuery,
+  getMediaDuration,
   hexToRgb,
   preprocessCaptions,
   splitSentenceIntoParts,

@@ -198,6 +198,8 @@ interface SavedPresetData {
     id: string;
     name: string;
     createdAt: string;
+    ownerClientId?: string;
+    sharedWithClientIds?: string[];
     presetData: {
         presets: Array<{
             presetId: string;
@@ -258,10 +260,13 @@ export function PresetList({
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
     const [isSavingPreset, setIsSavingPreset] = useState(false);
+    const [currentUserClientId, setCurrentUserClientId] = useState<string | null>(null);
+    const [allClientIds, setAllClientIds] = useState<string[]>([]);
 
     // Load saved presets on component mount
     useEffect(() => {
         loadSavedPresets();
+        loadAllClientIds();
     }, []);
 
     const loadSavedPresets = async () => {
@@ -278,6 +283,43 @@ export function PresetList({
             setIsLoadingSaved(false);
         }
     };
+
+    // Load all clientIds from Redis (safe endpoint - no sensitive data)
+    const loadAllClientIds = async () => {
+        try {
+            const response = await fetch('/api/db/client-ids');
+            if (response.ok) {
+                const data = await response.json();
+                const ids: string[] = Array.isArray(data.clientIds) ? data.clientIds : [];
+                setAllClientIds(ids);
+            }
+        } catch (error) {
+            console.error('Failed to load client IDs:', error);
+        }
+    };
+
+    // Infer current user's clientId from presets they own (most common owner)
+    useEffect(() => {
+        if (savedPresets.length > 0) {
+            const ownerCounts = new Map<string, number>();
+            savedPresets.forEach((p) => {
+                if (p.ownerClientId) {
+                    ownerCounts.set(p.ownerClientId, (ownerCounts.get(p.ownerClientId) || 0) + 1);
+                }
+            });
+            if (ownerCounts.size > 0) {
+                const mostCommonOwner = Array.from(ownerCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+                if (mostCommonOwner) {
+                    setCurrentUserClientId(mostCommonOwner);
+                }
+            }
+        }
+    }, [savedPresets]);
+
+    // For the current user (owner), we want to show all other clientIds (exclude owner)
+    const availableClientIds = currentUserClientId
+        ? allClientIds.filter((id) => id !== currentUserClientId)
+        : allClientIds;
 
     // Helper function to generate random 6-character string
     const generateRandomString = (length: number = 6): string => {
@@ -366,7 +408,7 @@ export function PresetList({
         }
     }, [appliedPresets.presets, currentLoadedPreset, setCurrentLoadedPreset, showSaveDialog, isSavingPreset]);
 
-    const savePresetData = async (name: string, overwriteId?: string) => {
+    const savePresetData = async (name: string, overwriteId?: string, sharedWithClientIds?: string[]) => {
         try {
             setIsSavingPreset(true);
             const presetData = {
@@ -379,6 +421,11 @@ export function PresetList({
                 defaultData: defaultData // Include baseData (references)
             };
 
+            // Filter out current user from sharedWithClientIds (users shouldn't share with themselves)
+            const filteredSharedWithClientIds = sharedWithClientIds
+                ? sharedWithClientIds.filter(id => id !== currentUserClientId)
+                : undefined;
+
             const response = await fetch('/api/preset-data', {
                 method: 'POST',
                 headers: {
@@ -387,7 +434,8 @@ export function PresetList({
                 body: JSON.stringify({
                     name,
                     presetData,
-                    overwriteId // Include the ID to overwrite if provided
+                    overwriteId, // Include the ID to overwrite if provided
+                    sharedWithClientIds: filteredSharedWithClientIds,
                 })
             });
 
@@ -683,11 +731,40 @@ export function PresetList({
                 open={showSaveDialog}
                 onOpenChange={setShowSaveDialog}
                 onSave={savePresetData}
+                availableClientIds={availableClientIds}
+                initialSharedWithClientIds={(() => {
+                    if (!currentLoadedPreset || !currentUserClientId) return [];
+                    
+                    const loadedPreset = savedPresets.find((p) => p.id === currentLoadedPreset);
+                    if (!loadedPreset) return [];
+                    
+                    const isOwner = loadedPreset.ownerClientId === currentUserClientId;
+                    const originalSharedWith = loadedPreset.sharedWithClientIds ?? [];
+                    const originalOwnerId = loadedPreset.ownerClientId;
+                    
+                    if (isOwner) {
+                        // Owner: use sharedWithClientIds as-is (already excludes owner)
+                        return originalSharedWith;
+                    } else {
+                        // Shared user: exclude current user, include original owner
+                        const filteredShared = originalSharedWith.filter(id => id !== currentUserClientId);
+                        // Include original owner if not already in the list
+                        if (originalOwnerId && !filteredShared.includes(originalOwnerId)) {
+                            return [originalOwnerId, ...filteredShared];
+                        }
+                        return filteredShared;
+                    }
+                })()}
                 currentLoadedPreset={currentLoadedPreset}
                 currentLoadedPresetName={
                     currentLoadedPreset
                         ? savedPresets.find(p => p.id === currentLoadedPreset)?.name || ""
                         : ""
+                }
+                isOwner={
+                    currentLoadedPreset && currentUserClientId
+                        ? savedPresets.find((p) => p.id === currentLoadedPreset)?.ownerClientId === currentUserClientId
+                        : false
                 }
             />
 

@@ -48,3 +48,6 @@ next-env.d.ts
 # AI Studio
 .chat
 .studio
+
+# AI Worker
+.serverless-workers/**
