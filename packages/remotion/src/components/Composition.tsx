@@ -56,10 +56,12 @@ export const CompositionLayout = ({ childrenData, style, config }: InputComposit
 };
 
 export const calculateCompositionLayoutMetadata: CalculateMetadataFunction<InputCompositionProps> = async ({ props, defaultProps, abortSignal, isRendering }) => {
+    // setDurationsInContext will skip calculations if durations are already present (from client-side)
     const updatedProps = await setDurationsInContext(props);
     let calculatedDuration: number | undefined = undefined;
 
     if (props.config?.fitDurationTo?.length > 0) {
+        // calculateDuration will use pre-calculated durations from context if available
         calculatedDuration = await calculateDuration(updatedProps.childrenData, {
             fitDurationTo: updatedProps.config.fitDurationTo,
         });
