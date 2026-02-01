@@ -14,6 +14,7 @@ import { RenderProvider } from "../player";
 import { config } from "process";
 import { createCachedFetcher } from "@/lib/audio-cache";
 import { toast } from "sonner";
+import { setDurationsInContextClient } from "./utils/client-duration-calculator";
 
 interface PresetEditorWithProviderProps {
     selectedPresets: (Preset | DatabasePreset)[];
@@ -160,7 +161,13 @@ function PresetEditorContent({ selectedPresets, onPresetsChange, onPresetsProces
             // Note: User configuration is now applied as the base before preset processing
             // This ensures presets can override user settings when generating output
 
-            setGeneratedOutput(baseComposition);
+            // Calculate durations on the client side before setting output
+            // This allows the backend to skip duration calculations during rendering
+            console.log('Calculating durations on client side...');
+            const compositionWithDurations = await setDurationsInContextClient(baseComposition);
+            console.log('Durations calculated, setting output...');
+
+            setGeneratedOutput(compositionWithDurations);
             toast.success('Video generated successfully!');
         } catch (error) {
             console.error('Error generating output:', error);
