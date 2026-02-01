@@ -178,11 +178,11 @@ export const chatRestoreLocal: AiMiddleware = async (props, next) => {
 
       // Check if the new message already exists in the store
       const isNewMessageInStore = oldMessages.find(
-        message => message.id === newMessage.id,
+        (message) => message.id === newMessage.id,
       );
 
       if (isNewMessageInStore) {
-        props.request.messages = oldMessages.map(message =>
+        props.request.messages = oldMessages.map((message) =>
           message.id === newMessage.id ? newMessage : message,
         );
       } else {
