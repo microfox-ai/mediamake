@@ -9,6 +9,7 @@ import {
   detectChanges,
   saveTranscriptionFix,
 } from '../helpers';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadTranscription } from '../middlewares/loadTranscription';
 
 /**
@@ -104,6 +105,9 @@ Apply the user's contextual corrections while preserving timing as much as possi
         prompt,
         maxRetries: 2,
       });
+      if (result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', result.usage);
+      }
 
       console.log('CONTEXTUAL FIXER USING:', result.usage);
 
