@@ -4,6 +4,7 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { anthropic } from '@ai-sdk/anthropic';
 import dedent from 'dedent';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 const aiRouter = new AiRouter();
 
@@ -159,6 +160,10 @@ export const abstractBulkImageGenerationAgent = aiRouter
         `,
         maxRetries: 2,
       });
+      const titleModelId = modelIdToUse.startsWith('claude') ? `anthropic/${modelIdToUse}` : `google/${modelIdToUse || 'gemini-2.5-flash'}`;
+      if (titleResult.usage) {
+        appendUsage(ctx.state, titleModelId, titleResult.usage);
+      }
 
       const generatedTitle = titleResult.text
         .trim()

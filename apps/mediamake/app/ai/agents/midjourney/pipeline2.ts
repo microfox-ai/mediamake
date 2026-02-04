@@ -4,6 +4,7 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { anthropic } from '@ai-sdk/anthropic';
 import dedent from 'dedent';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 const aiRouter = new AiRouter();
 
@@ -179,6 +180,10 @@ export const pipeline2Agent = aiRouter
         `,
         maxRetries: 2,
       });
+      const storyModelId = modelIdToUse?.startsWith('claude') ? `anthropic/${modelIdToUse}` : `google/${modelIdToUse || 'gemini-2.5-flash'}`;
+      if (storyTitleResult.usage) {
+        appendUsage(ctx.state, storyModelId, storyTitleResult.usage);
+      }
 
       const storyTitle = storyTitleResult.text
         .trim()
@@ -217,6 +222,9 @@ export const pipeline2Agent = aiRouter
             `,
             maxRetries: 2,
           });
+          if (sceneTitleResult.usage) {
+            appendUsage(ctx.state, storyModelId, sceneTitleResult.usage);
+          }
 
           const sceneTitle = sceneTitleResult.text
             .trim()

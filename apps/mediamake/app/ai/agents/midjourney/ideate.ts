@@ -4,6 +4,7 @@ import { generateText, generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { anthropic } from '@ai-sdk/anthropic';
 import dedent from 'dedent';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 const aiRouter = new AiRouter();
 
@@ -388,6 +389,10 @@ export const ideateAgent = aiRouter
         prompt: `LIMIT THE INSPIRATION TO 200 WORDS MAX.. n\n${stylePrompt}`,
         maxRetries: 2,
       });
+      const ideateModelId = model?.startsWith('claude') ? `anthropic/${model}` : `google/${model || 'gemini-2.5-pro'}`;
+      if (inspirationResult.usage) {
+        appendUsage(ctx.state, ideateModelId, inspirationResult.usage);
+      }
 
       const creativeInspiration = inspirationResult.text;
       console.log('creativeInspiration', creativeInspiration);
