@@ -2,6 +2,7 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod';
 import { generateText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { generateAgent } from './generate.agent';
 import { indexingAgent } from './indexing.agent';
 import { queryAgent } from './query.agent';
@@ -39,6 +40,9 @@ export const presetAgent = aiRouter
             Return ONLY ONE WORD.
         `,
     });
+    if (classification.usage) {
+      appendUsage(ctx.state, 'anthropic/claude-haiku-4-5', classification.usage);
+    }
 
     const intent = classification.text.trim().toUpperCase();
     console.log(`[PRESET ROUTER] Classified intent: ${intent}`);
