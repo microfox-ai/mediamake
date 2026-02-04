@@ -17,6 +17,7 @@ import { conceptAgent } from './agents/metadata/conceptAgent';
 import { musicStitchAgent } from './agents/video/shorts/musicStitch';
 import { contextLimiter } from './middlewares/contextLimiter';
 import { onlyTextParts } from './middlewares/onlyTextParts';
+import { initUsageState, persistUsageAfter, recordUsage } from './middlewares/usageCapture';
 import { chatRestoreLocal } from '../api/studio/chat/sessions/chatSessionLocal';
 import transcriptionFixerAgent from './agents/words/transcriptionFixer';
 import autofixOrchestrator from './agents/autofix';
@@ -54,6 +55,8 @@ const aiMainRouter = aiRouter
   .agent('/preset-prompts', presetPromptsOrchestrator)
   .agent('/audio-technical-analysis', audioTechnicalAnalysisAgent)
   .agent('/preset', presetAgent)
+  .before('/', initUsageState)
+  .after('/', persistUsageAfter)
   .before('/', contextLimiter(5))
   .before('/', onlyTextParts(100))
   .agent('/', async props => {
@@ -97,8 +100,11 @@ const aiMainRouter = aiRouter
       onError: error => {
         console.error('ORCHESTRATION ERROR', error);
       },
-      onFinish: result => {
+      onFinish: async result => {
         console.log('ORCHESTRATION USAGE', result.totalUsage);
+        if (result.usage) {
+          await recordUsage(props.state, props.request, 'anthropic/claude-sonnet-4-5', result.usage);
+        }
       },
     });
     props.response.merge(
@@ -119,5 +125,7 @@ type AiRouterTools = InferUITools<typeof aiRouterTools>;
 export { aiMainRouter, aiRouterRegistry };
 
 export { aiRouterTools, type AiRouterTools };
+
+export { appendUsage, recordUsage } from './middlewares/usageCapture';
 
 //http://localhost:3000/api/studio/chat/agent/research/brave?query=Herohonda&deep=false&count=3
