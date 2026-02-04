@@ -15,6 +15,7 @@ import {
   DEFAULT_PRESET_ID,
 } from './imagePromptRegistry';
 import { loadTranscription } from '../middlewares/loadTranscription';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import crypto from 'crypto';
 
 /**
@@ -272,6 +273,9 @@ const textToImageAgent = aiRouter
               `,
               maxRetries: 2,
             });
+            if (promptResult.usage) {
+              appendUsage(ctx.state, 'google/gemini-2.5-pro', promptResult.usage);
+            }
 
             const imagePrompt = promptResult.text.trim();
             console.log(

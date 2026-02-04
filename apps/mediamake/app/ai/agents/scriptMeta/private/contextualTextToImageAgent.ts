@@ -15,6 +15,7 @@ import {
   DEFAULT_PRESET_ID,
 } from './imagePromptRegistry';
 import { loadTranscription } from '../middlewares/loadTranscription';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import crypto from 'crypto';
 
 /**
@@ -337,6 +338,9 @@ const contextualTextToImageAgent = aiRouter
         schema: BatchImagePromptsSchema,
         maxRetries: 2,
       });
+      if (batchPromptResult.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', batchPromptResult.usage);
+      }
 
       console.log(
         `[Contextual Image Gen] ✅ Generated ${batchPromptResult.object.prompts.length} prompts in one batch`,
