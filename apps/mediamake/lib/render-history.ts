@@ -1,4 +1,4 @@
-import { InputCompositionProps } from "@microfox/remotion";
+import type { InputCompositionProps } from "@microfox/remotion";
 
 // Custom Lambda configuration type
 export interface CustomLambdaConfig {

@@ -137,6 +137,21 @@ export class RenderRequestMongoDB {
     return await collection.find(query).sort({ createdAt: -1 }).toArray();
   }
 
+  /** Get render requests created in the last N days (for cron worker). */
+  async getRecent(days = 2): Promise<RenderRequestDocument[]> {
+    const db = await getDatabase();
+    const collection = db.collection<RenderRequestDocument>(
+      this.collectionName,
+    );
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    start.setUTCHours(0, 0, 0, 0);
+    return collection
+      .find({ createdAt: { $gte: start.toISOString() } })
+      .sort({ createdAt: -1 })
+      .toArray();
+  }
+
   // Clean up old completed/failed renders (older than 30 days)
   async cleanupOldRenders(daysOld = 30): Promise<number> {
     const db = await getDatabase();
