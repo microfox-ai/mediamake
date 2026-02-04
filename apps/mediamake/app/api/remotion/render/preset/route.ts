@@ -12,6 +12,7 @@ import {
 } from '../../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
+import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { getPredefinedPresetById } from '@/components/editor/presets/registry/registry/presets-registry';
 import {
@@ -366,6 +367,13 @@ export const POST = async (req: NextRequest) => {
         diskUsed: config.disk,
         timeoutUsed: config.timeout,
         functionNameUsed: functionName,
+      });
+      await platformCostUsageDB.insert({
+        platform: 'aws_render',
+        source: 'remotion_lambda',
+        clientId,
+        metadata: { renderId: result.renderId, bucketName: result.bucketName },
+        isCalculated: false,
       });
     }
 
