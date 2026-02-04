@@ -37,7 +37,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { StudioConfig } from "@/microfox.config"
-import { MagnetIcon, LayoutDashboardIcon, ListIcon, KeyIcon, AudioLinesIcon, FolderOpenIcon, TvIcon, TextIcon, TypeIcon, SparklesIcon } from "lucide-react"
+import { MagnetIcon, LayoutDashboardIcon, ListIcon, KeyIcon, AudioLinesIcon, FolderOpenIcon, TvIcon, TextIcon, TypeIcon, SparklesIcon, CreditCardIcon } from "lucide-react"
 import { aiRouterRegistry } from "@/app/ai"
 
 const aiagents = Object.entries(aiRouterRegistry.map).map(([path, value]) => {
@@ -74,6 +74,11 @@ const data = {
       title: "API Keys",
       url: "/api-keys",
       icon: <KeyIcon />,
+    },
+    {
+      title: "Billing",
+      url: "/billing",
+      icon: <CreditCardIcon />,
     },
     {
       title: "Transcriber",
