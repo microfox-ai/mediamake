@@ -128,7 +128,8 @@
     "throttleit": "^2.1.0",
     "unified": "^11.0.5",
     "vaul": "^1.1.2",
-    "zod": "^4.1.8"
+    "zod": "^4.1.8",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
