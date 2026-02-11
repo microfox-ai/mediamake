@@ -69,7 +69,7 @@ export function useTimelineRenderer(loadedTimeline: Timeline | null) {
     const state = useCompileStore.getState();
     
     // Check if all presets are loaded
-    const allPresetsReady = loadedTimeline.presets.every(preset => {
+    const allPresetsReady = loadedTimeline.presets?.every(preset => {
       const info = state.presetInfoCache.get(preset.presetId);
       return info && !info.isLoading && info.preset !== null;
     });

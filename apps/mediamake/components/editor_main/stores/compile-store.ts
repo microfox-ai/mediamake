@@ -232,10 +232,10 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             console.warn(`Preset ${presetItem.presetId} not found, skipping`);
             continue;
           }
-          presetInfo.preset = fetchedPreset;
+          presetInfo!.preset = fetchedPreset;
         }
 
-        const actualPreset = presetInfo.preset;
+        const actualPreset = presetInfo!.preset;
         if (!actualPreset) {
           continue;
         }
