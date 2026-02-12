@@ -43,7 +43,6 @@ function getDefaultAwsRenderConfigs(): Record<string, { disk: number; memory: nu
 export const workerConfig: WorkerConfig = {
   timeout: 300,
   memorySize: 1024,
-  schedule: 'cron(0 1 * * ? *)',
 };
 
 export default createWorker<typeof InputSchema, Output>({

@@ -1,7 +1,8 @@
 /**
  * Rollup worker: daily/weekly/monthly aggregates.
- * Runs daily: reads platform_cost_usage where isCalculated and cost exists,
+ * Reads platform_cost_usage where isCalculated and cost exists,
  * groups by clientId, platform, period (day/week/month), sums cost; upserts into platform_cost_usage_aggregates.
+ * Part of the cost-usage queue (ai → remotion → rollup); chaining is handled by the queue at compile time.
  */
 
 import { createWorker, type WorkerConfig } from '@microfox/ai-worker';
@@ -39,9 +40,8 @@ function getPeriodValue(date: Date, periodType: PeriodType): string {
 }
 
 export const workerConfig: WorkerConfig = {
-  timeout: 300,
+  timeout: 600,
   memorySize: 1024,
-  schedule: 'cron(0 3 * * ? *)',
 };
 
 export default createWorker<typeof InputSchema, Output>({

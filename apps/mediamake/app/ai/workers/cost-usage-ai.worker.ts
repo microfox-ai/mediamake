@@ -24,7 +24,6 @@ type Output = z.infer<typeof OutputSchema>;
 export const workerConfig: WorkerConfig = {
   timeout: 300,
   memorySize: 1024,
-  schedule: 'cron(0 2 * * ? *)',
 };
 
 export default createWorker<typeof InputSchema, Output>({
