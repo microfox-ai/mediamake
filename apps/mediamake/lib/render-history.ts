@@ -41,6 +41,9 @@ export interface RenderRequest {
   renderType?: "video" | "audio" | "still";
   audioCodec?: string;
   isDownloadable?: boolean;
+
+  /** When true, render is archived (hidden from active list but kept for cost/details). */
+  isArchived?: boolean;
   
   // Configuration mode
   configMode?: ConfigMode;
