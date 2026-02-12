@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build mediamake (app and local packages)
+        run: npm run build:mediamake
+
       - name: Deploy to AWS
         env:
           REMOTION_AWS_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
