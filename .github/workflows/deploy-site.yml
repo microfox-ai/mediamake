@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/mediamake-site-deployments
     paths:
       - 'apps/mediamake/**'
       - '.github/workflows/deploy-site.yml'
@@ -24,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build mediamake (app and local packages)
-        run: npm run build:mediamake
+      - name: Build @microfox/remotion package
+        run: npm run build --workspace=@microfox/remotion
 
       - name: Deploy to AWS
         env:
