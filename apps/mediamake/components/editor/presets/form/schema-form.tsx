@@ -2131,13 +2131,31 @@ export function SchemaForm({
         <div className={className}>
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-md font-semibold">{title}</h3>
+                    <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>
                     {description && (
-                        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1 overflow-hidden text-ellipsis">{description}</p>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     {customActions}
+                    {showTabs && (
+                        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
+                            <TabsList>
+                                <TabsTrigger value="form" className="text-xs flex items-center gap-2">
+                                    <FormInputIcon className="h-3 w-3" />
+                                    Form
+                                </TabsTrigger>
+                                <TabsTrigger value="json" className="text-xs flex items-center gap-2">
+                                    <Code className="h-3 w-3" />
+                                    Json
+                                </TabsTrigger>
+                                <TabsTrigger value="media" className="text-xs flex items-center gap-2">
+                                    <ImageIcon className="h-3 w-3" />
+                                    Media
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
                     {showResetButton && (
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -2145,32 +2163,15 @@ export function SchemaForm({
                                     onClick={handleReset}
                                     variant="outline"
                                     size="sm"
+                                    className="text-xs p-1"
                                 >
-                                    <RotateCcw className="h-4 w-4" />
+                                    <RotateCcw className="h-3 w-3" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>{resetButtonText}</p>
                             </TooltipContent>
                         </Tooltip>
-                    )}
-                    {showTabs && (
-                        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
-                            <TabsList>
-                                <TabsTrigger value="form" className="flex items-center gap-2">
-                                    <FormInputIcon className="h-4 w-4" />
-                                    Form
-                                </TabsTrigger>
-                                <TabsTrigger value="json" className="flex items-center gap-2">
-                                    <Code className="h-4 w-4" />
-                                    Json
-                                </TabsTrigger>
-                                <TabsTrigger value="media" className="flex items-center gap-2">
-                                    <ImageIcon className="h-4 w-4" />
-                                    Media
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
                     )}
                 </div>
             </div>
