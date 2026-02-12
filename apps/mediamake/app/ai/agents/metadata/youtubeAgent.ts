@@ -3,6 +3,7 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod';
 import { generateObject, convertToModelMessages } from 'ai';
 import dedent from 'dedent';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 const aiRouter = new AiRouter();
 
@@ -97,12 +98,14 @@ export const youtubeAgent = aiRouter
 
     const systemPrompt = getSystemPrompt(videoType || 'blank', userPrompt);
     const selectedModel = google(model || 'gemini-2.5-pro');
+    let metadata;
 
-    // Generate final metadata
-    const metadataResult = await generateObject({
-      model: selectedModel,
-      system: systemPrompt,
-      prompt: dedent`
+    try {
+      // Generate final metadata
+      const metadataResult = await generateObject({
+        model: selectedModel,
+        system: systemPrompt,
+        prompt: dedent`
         Create final YouTube metadata for this content:
         
         User Description: ${userDescription}
@@ -115,11 +118,19 @@ export const youtubeAgent = aiRouter
         - Detailed thumbnail idea
         - Artwork prompt (for AI art generation)
       `,
-      schema: YouTubeMetadataSchema.omit({ finalDescription: true }),
-      maxOutputTokens: 2000,
-    });
+        schema: YouTubeMetadataSchema.omit({ finalDescription: true }),
+        maxOutputTokens: 2000,
+      });
+      if (metadataResult.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', metadataResult.usage);
+      }
 
-    const metadata = metadataResult.object;
+      metadata = metadataResult.object;
+
+    } catch (error) {
+      console.error("Error generating YouTube metadata:", error)
+      throw error
+    }
 
     // Return the complete result
     return {

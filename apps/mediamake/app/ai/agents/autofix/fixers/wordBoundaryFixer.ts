@@ -10,6 +10,7 @@ import {
   saveTranscriptionFix,
 } from '../helpers';
 import { loadTranscription } from '../middlewares/loadTranscription';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 /**
  * Word Boundary Fixer Agent
@@ -87,6 +88,9 @@ Fix ONLY word boundary issues (merged/split words) while preserving timing.`;
         prompt,
         maxRetries: 2,
       });
+      if (result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-flash', result.usage);
+      }
 
       console.log('WORD BOUNDARY FIXER USING:', result.usage);
 

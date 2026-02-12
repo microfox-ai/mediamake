@@ -1,4 +1,4 @@
-import { InputCompositionProps } from "@microfox/remotion";
+import type { InputCompositionProps } from "@microfox/remotion";
 
 // Custom Lambda configuration type
 export interface CustomLambdaConfig {
@@ -41,6 +41,9 @@ export interface RenderRequest {
   renderType?: "video" | "audio" | "still";
   audioCodec?: string;
   isDownloadable?: boolean;
+
+  /** When true, render is archived (hidden from active list but kept for cost/details). */
+  isArchived?: boolean;
   
   // Configuration mode
   configMode?: ConfigMode;

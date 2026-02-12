@@ -6,6 +6,7 @@ import { getDatabase } from '@/lib/mongodb';
 import { Transcription } from '@/app/types/transcription';
 import dedent from 'dedent';
 import { ObjectId } from 'mongodb';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 /**
  * Transcription Fixer Agent - /transcription-fixer
@@ -205,6 +206,9 @@ ${userWrittenTranscription ? `USER'S WRITTEN VERSION: ${userWrittenTranscription
         // }
         maxRetries: 2,
       });
+      if (result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', result.usage);
+      }
 
       console.log('TRANSCRIPTION FIXER USING', result.usage);
 

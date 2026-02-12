@@ -11,6 +11,7 @@ import {
   type PresetStyle,
 } from './zod';
 import dedent from 'dedent';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 
 /**
  * Preset Prompt Generator Agent
@@ -561,6 +562,9 @@ const promptGeneratorAgent = aiRouter
       });
 
       const title = titleResult.object.title;
+      if (titleResult.usage){
+        appendUsage(ctx.state, 'anthropic/claude-haiku-4-5', titleResult.usage);
+      }
 
       // Get style-specific prompt
       const styleSpecificPrompt = getStyleSpecificPrompt(
@@ -579,6 +583,10 @@ const promptGeneratorAgent = aiRouter
         prompt: fullPrompt,
         maxRetries: 2,
       });
+
+      if (result.usage){
+        appendUsage(ctx.state, 'anthropic/claude-opus-4-5', result.usage);
+      }
 
       // Apply suffixPrompt to each prompt if provided
       const promptsWithSuffix = result.object.prompts.map(item => ({

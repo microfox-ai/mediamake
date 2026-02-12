@@ -6,6 +6,7 @@ import dedent from 'dedent';
 import { mapBraveWebSearch } from '@/components/ai/braveResearch/mapper';
 import { WebSearchOutput } from '@/components/ai/braveResearch/types';
 import { downsizeResearchData } from './helpers';
+import { recordUsage } from '@/app/ai/middlewares/usageCapture';
 
 const aiRouter = new AiRouter();
 
@@ -69,8 +70,11 @@ export const summarizeAgent = aiRouter
       Summarise the following information: ${downsizeResearchData(researchData, 10000)}`,
       // Cheap Mode => Increase this to adjust longer Sumamries
       maxOutputTokens: 3000,
-      onFinish: output => {
+      onFinish: async output => {
         console.log('SUMMARY USAGE', output.totalUsage);
+        if (output.usage) {
+          await recordUsage(ctx.state, ctx.request, 'google/gemini-2.0-flash-001', output.usage);
+        }
       },
     });
 

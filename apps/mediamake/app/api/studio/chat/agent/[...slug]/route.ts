@@ -6,7 +6,6 @@ import { NextRequest } from 'next/server';
 export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
-  //const body = req.body;
   const agentFullPath = req.nextUrl.href.split('/api/studio/chat/agent')[1];
   const agentPath = agentFullPath.includes('?')
     ? agentFullPath.split('?')[0]
@@ -14,17 +13,13 @@ export async function GET(req: NextRequest) {
 
   const searchParams = req.nextUrl.searchParams;
   const params: any = {};
-  for (const [key, value] of searchParams.entries()) {
+  searchParams.entries().forEach(([key, value]) => {
     params[key] = value;
-  }
-
-  //const revalidatePath = lastMessage?.metadata?.revalidatePath;
-
+  });
   const response = await aiMainRouter.toAwaitResponse(agentPath, {
     request: {
       messages: [],
       params,
-      //loadedRevalidatePath: agentPath,
     },
   });
 

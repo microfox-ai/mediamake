@@ -9,6 +9,7 @@ import {
   detectChanges,
   saveTranscriptionFix,
 } from '../helpers';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadTranscription } from '../middlewares/loadTranscription';
 
 /**
@@ -91,6 +92,9 @@ Optimize sentence structure for subtitle display while preserving all timing.`;
         prompt,
         maxRetries: 2,
       });
+      if (result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', result.usage);
+      }
 
       console.log('SENTENCE STRUCTURE FIXER USING:', result.usage);
 

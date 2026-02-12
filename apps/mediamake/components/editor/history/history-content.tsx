@@ -22,10 +22,12 @@ import {
     Timer,
     Layers,
     Zap,
-    Settings2
+    Settings2,
+    Trash2,
+    Archive
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type RenderRequest } from "@/lib/render-history";
 import { CostDisplay } from "./cost-display";
 import { ProgressDetails } from "./progress-details";
@@ -35,25 +37,45 @@ import Link from "next/link";
 import useLocalState from "@/components/studio/context/hooks/useLocalState";
 import { toast } from "sonner";
 import { ReadOnlyJsonEditor } from "./readonly-json-editor";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface HistoryContentProps {
     selectedRender: string | null;
     selectedRequest?: RenderRequest | null;
     onRefreshApiRequest?: (renderId: string, updatedRequest: RenderRequest) => void;
+    onRenderDeleted?: (renderId: string) => void;
 }
 
-export function HistoryContent({ selectedRender, selectedRequest: propSelectedRequest, onRefreshApiRequest }: HistoryContentProps) {
+export function HistoryContent({ selectedRender, selectedRequest: propSelectedRequest, onRefreshApiRequest, onRenderDeleted }: HistoryContentProps) {
     const [selectedRequest, setSelectedRequest] = useState<RenderRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [archiveInDatabase, setArchiveInDatabase] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
     const { fetchAndUpdateProgress } = useProgress();
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
+    const selectedRenderIdRef = useRef<string | null>(null);
 
-    // Load selected request from API
+    useEffect(() => {
+        selectedRenderIdRef.current = selectedRender;
+    }, [selectedRender]);
+
+    // Load selected request from API and sync with parent
     useEffect(() => {
         if (selectedRender && propSelectedRequest) {
-            console.log('Using passed request from API:', propSelectedRequest);
             setSelectedRequest(propSelectedRequest);
             setError(null);
         } else if (selectedRender && !propSelectedRequest) {
@@ -64,40 +86,92 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         }
     }, [selectedRender, propSelectedRequest]);
 
-    // Check progress for the selected rendering request
+    // When selection changes, fetch fresh details. Skip progress API only when we already have full data from DB.
     useEffect(() => {
-        console.log('selectedRequest', selectedRequest);
+        if (!selectedRender || !propSelectedRequest || !apiKey?.trim()) return;
+        if (!propSelectedRequest.bucketName || !propSelectedRequest.renderId) return;
+        // Completed/failed with full data already in DB: skip fetch to avoid unnecessary Lambda calls.
+        const hasProgressData = Boolean(propSelectedRequest.progressData);
+        const failedHasError = propSelectedRequest.status === "failed" && propSelectedRequest.error != null;
+        if (
+            (propSelectedRequest.status === "completed" && hasProgressData) ||
+            (propSelectedRequest.status === "failed" && hasProgressData && failedHasError)
+        ) {
+            return;
+        }
+
+        const renderIdForThisEffect = selectedRender;
+        let cancelled = false;
+        const doFetch = async () => {
+            setIsRefreshing(true);
+            try {
+                const result = await fetchAndUpdateProgress(propSelectedRequest, apiKey);
+                if (cancelled) return;
+                if (selectedRenderIdRef.current !== renderIdForThisEffect) return;
+                if (result.success && result.updatedRequest) {
+                    setSelectedRequest(result.updatedRequest);
+                    if (onRefreshApiRequest) {
+                        onRefreshApiRequest(renderIdForThisEffect, result.updatedRequest);
+                    }
+                }
+            } catch (err) {
+                if (!cancelled && selectedRenderIdRef.current === renderIdForThisEffect) {
+                    console.error('Error fetching details on selection:', err);
+                }
+            } finally {
+                if (!cancelled) setIsRefreshing(false);
+            }
+        };
+        doFetch();
+        return () => {
+            cancelled = true;
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when selection identity changes, not when callbacks change
+    }, [selectedRender, propSelectedRequest?.id, apiKey]);
+
+    // Check progress for the selected rendering request (only while status is "rendering")
+    useEffect(() => {
         if (!selectedRequest || selectedRequest.status !== "rendering" || !selectedRequest.bucketName || !selectedRequest.renderId) {
             return;
         }
 
-        if (!apiKey) {
+        if (!apiKey?.trim()) {
             return;
         }
 
+        const requestId = selectedRequest.id;
+
         const checkProgress = async () => {
-            setIsRefreshing(true);
             try {
                 const result = await fetchAndUpdateProgress(selectedRequest, apiKey);
+                if (selectedRenderIdRef.current !== requestId) return;
                 if (result.success && result.updatedRequest) {
                     setSelectedRequest(result.updatedRequest);
-                    // Also notify the parent component of the update
                     if (onRefreshApiRequest) {
-                        onRefreshApiRequest(selectedRequest.id, result.updatedRequest);
+                        onRefreshApiRequest(requestId, result.updatedRequest);
                     }
                 }
-            } catch (error) {
-                console.error('Error checking progress:', error);
+            } catch (err) {
+                if (selectedRenderIdRef.current === requestId) {
+                    console.error('Error checking progress:', err);
+                }
             } finally {
-                setIsRefreshing(false);
+                if (selectedRenderIdRef.current === requestId) {
+                    setIsRefreshing(false);
+                }
             }
         };
 
-        // Check immediately first, then set up interval
+        setIsRefreshing(true);
         checkProgress();
-        const interval = setInterval(checkProgress, 3000); // Check every 3 seconds
-        return () => clearInterval(interval);
-    }, [selectedRequest, fetchAndUpdateProgress, onRefreshApiRequest, apiKey]);
+        const interval = setInterval(checkProgress, 3000);
+        return () => {
+            clearInterval(interval);
+            if (selectedRenderIdRef.current === requestId) {
+                setIsRefreshing(false);
+            }
+        };
+    }, [selectedRequest?.id, selectedRequest?.status, selectedRequest?.bucketName, selectedRequest?.renderId, apiKey, fetchAndUpdateProgress, onRefreshApiRequest]);
 
     const getStatusIcon = (status: RenderRequest["status"]) => {
         switch (status) {
@@ -185,6 +259,48 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         }
     };
 
+    const handleDeleteConfirm = async () => {
+        if (!selectedRender || !selectedRequest || !apiKey?.trim()) {
+            toast.error("Missing selection or API key");
+            return;
+        }
+        if (!selectedRequest.bucketName) {
+            toast.error("This render has no bucket info; cannot delete from Lambda.");
+            return;
+        }
+        setIsDeleting(true);
+        try {
+            const res = await fetch('/api/remotion/render/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    renderId: selectedRender,
+                    bucketName: selectedRequest.bucketName,
+                    archiveInDatabase,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast.error(data.error || 'Failed to delete render');
+                return;
+            }
+            const freedMB = ((data.freedBytes ?? 0) / (1024 * 1024)).toFixed(1);
+            toast.success(
+                `Render deleted from Lambda (${freedMB} MB freed)${data.archivedInDatabase ? '. Archived in database.' : ''}`
+            );
+            setDeleteDialogOpen(false);
+            onRenderDeleted?.(selectedRender);
+        } catch (err) {
+            console.error('Delete render error:', err);
+            toast.error('Failed to delete render');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     if (!selectedRender) {
         return (
             <div className="flex-1 flex items-center justify-center bg-muted/20">
@@ -221,6 +337,10 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         );
     }
 
+    // Support both shapes: progressData.renderInfo (from API response) or raw progressData (from DB)
+    const rawProgress = selectedRequest.progressData;
+    const renderInfo = rawProgress?.renderInfo ?? (rawProgress && 'costs' in rawProgress ? rawProgress : undefined) as typeof rawProgress extends { renderInfo?: infer R } ? R : undefined;
+
     return (
         <div className="flex-1 flex flex-col min-h-0">
             <ScrollArea className="flex-1 overflow-y-auto">
@@ -238,20 +358,38 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                         </div>
                         <div className="flex items-center gap-2">
                             {getStatusBadge(selectedRequest.status)}
+                            {selectedRequest.isArchived && (
+                                <Badge variant="secondary" className="gap-1">
+                                    <Archive className="h-3 w-3" />
+                                    Archived
+                                </Badge>
+                            )}
                             {isRefreshing && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <RefreshCw className="h-4 w-4 animate-spin" />
                                     <span>Checking status...</span>
                                 </div>
                             )}
-                            <Button
-                                onClick={handleRefresh}
-                                variant="outline"
-                                size="sm"
-                                disabled={isRefreshing}
-                            >
-                                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-                            </Button>
+                            {!selectedRequest.isArchived && (
+                                <>
+                                    <Button
+                                        onClick={handleRefresh}
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isRefreshing}
+                                    >
+                                        <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                                    </Button>
+                                    <Button
+                                        onClick={() => setDeleteDialogOpen(true)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -287,12 +425,12 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                     </p>
 
                                     {/* Show cost and progress details during rendering if available */}
-                                    {selectedRequest.progressData?.renderInfo && (
+                                    {renderInfo && (
                                         <div className="pt-4 border-t space-y-4">
-                                            {selectedRequest.progressData.renderInfo.costs && (
-                                                <CostDisplay costs={selectedRequest.progressData.renderInfo.costs} />
+                                            {renderInfo.costs && (
+                                                <CostDisplay costs={renderInfo.costs} />
                                             )}
-                                            <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo}  awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
+                                            <ProgressDetails renderInfo={renderInfo} awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
                                         </div>
                                     )}
                                 </div>
@@ -358,13 +496,13 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     )}
 
                     {/* Cost Display */}
-                    {selectedRequest.progressData?.renderInfo?.costs && (
-                        <CostDisplay costs={selectedRequest.progressData.renderInfo.costs} />
+                    {renderInfo?.costs && (
+                        <CostDisplay costs={renderInfo.costs} />
                     )}
 
                     {/* Progress Details */}
-                    {selectedRequest.progressData?.renderInfo && (
-                        <ProgressDetails renderInfo={selectedRequest.progressData.renderInfo} awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
+                    {renderInfo && (
+                        <ProgressDetails renderInfo={renderInfo} awsRenderPreset={selectedRequest.awsRenderPreset ?? "N/A"} />
                     )}
 
                     {/* Render Details */}
@@ -514,7 +652,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                                 <Code className="h-4 w-4 text-muted-foreground" />
                                                 Function:
                                             </span>
-                                            <span className="text-sm font-mono text-xs truncate max-w-[180px]" title={selectedRequest?.functionNameUsed ?? 'N/A'}>
+                                            <span className="text-xs font-mono truncate max-w-[180px]" title={selectedRequest?.functionNameUsed ?? 'N/A'}>
                                                 {selectedRequest?.functionNameUsed ?? 'N/A'}
                                             </span>
                                         </div>
@@ -556,6 +694,41 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                     )}
                 </div>
             </ScrollArea>
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete render</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will delete the render from Lambda (S3): output file and artifacts will be removed.
+                            You can also remove this entry from the history list below.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex items-center space-x-2 py-2">
+                        <Checkbox
+                            id="archive-in-db"
+                            checked={archiveInDatabase}
+                            onCheckedChange={(checked) => setArchiveInDatabase(checked === true)}
+                        />
+                        <Label htmlFor="archive-in-db" className="text-sm font-normal cursor-pointer">
+                            Archive in database (keep cost/details, hide from active list)
+                        </Label>
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteConfirm();
+                            }}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

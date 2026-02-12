@@ -132,7 +132,8 @@
     "unified": "^11.0.5",
     "vaul": "^1.1.2",
     "workflow": "^4.0.1-beta.50",
-    "zod": "^4.1.8"
+    "zod": "^4.1.8",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

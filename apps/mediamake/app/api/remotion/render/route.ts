@@ -6,6 +6,7 @@ import {
 import { AWS_RENDER_CONFIGS, REGION, SITE_NAME, CONCURRENCY_LIMITS, FRAMES_PER_LAMBDA_LIMITS } from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
+import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -171,6 +172,13 @@ export const POST = async (req: NextRequest) => {
         diskUsed: config.disk,
         timeoutUsed: config.timeout,
         functionNameUsed: functionName,
+      });
+      await platformCostUsageDB.insert({
+        platform: 'aws_render',
+        source: 'remotion_lambda',
+        clientId,
+        metadata: { renderId: result.renderId, bucketName: result.bucketName },
+        isCalculated: false,
       });
     }
     

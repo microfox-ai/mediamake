@@ -1,0 +1,995 @@
+{
+  "id": "Timeline-1",
+  "projectId": "project-1",
+  "displayName": "Timeline 1",
+  "description": "This is a timeline for the first timeline",
+  "createdAt": "2026-01-27T00:00:00.000Z",
+  "updatedAt": "2026-01-27T00:00:00.000Z",
+  "configuration": {
+    "config": {
+      "fps": 30,
+      "width": 1080,
+      "height": 1920,
+      "duration": 41,
+      "fitDurationTo": "BaseScene"
+    },
+    "style": {
+      "backgroundColor": "black"
+    }
+  },
+  "defaultData": {
+    "references": [
+      {
+        "key": "title",
+        "type": "string",
+        "value": "anime zone"
+      },
+      {
+        "key": "captions",
+        "type": "captions",
+        "value": {
+          "captions": [
+            {
+              "id": "caption-0",
+              "text": "Hey, hey, hey.",
+              "start": 0,
+              "absoluteStart": 12.24,
+              "end": 13.11,
+              "absoluteEnd": 13.11,
+              "duration": 0.8699999999999992,
+              "words": [
+                {
+                  "id": "caption-0-word-0",
+                  "text": "Hey,",
+                  "start": 0,
+                  "absoluteStart": 12.24,
+                  "end": 0.8599999999999994,
+                  "absoluteEnd": 13.1,
+                  "duration": 0.8599999999999994,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-0-word-1",
+                  "text": "hey,",
+                  "start": 0.8699999999999992,
+                  "absoluteStart": 13.11,
+                  "end": 0.8699999999999992,
+                  "absoluteEnd": 13.11,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-0-word-2",
+                  "text": "hey.",
+                  "start": 0.8699999999999992,
+                  "absoluteStart": 13.11,
+                  "end": 0.8699999999999992,
+                  "absoluteEnd": 13.11,
+                  "duration": 0,
+                  "confidence": 0.9
+                }
+              ]
+            },
+            {
+              "id": "caption-1",
+              "text": "Hey, hey, hey.",
+              "start": 0,
+              "absoluteStart": 13.11,
+              "end": 14.72,
+              "absoluteEnd": 14.72,
+              "duration": 1.6100000000000012,
+              "words": [
+                {
+                  "id": "caption-1-word-0",
+                  "text": "Hey,",
+                  "start": 0,
+                  "absoluteStart": 13.11,
+                  "end": 0,
+                  "absoluteEnd": 13.11,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-1-word-1",
+                  "text": "hey,",
+                  "start": 0,
+                  "absoluteStart": 13.11,
+                  "end": 0,
+                  "absoluteEnd": 13.11,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-1-word-2",
+                  "text": "hey.",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 13.12,
+                  "end": 1.6100000000000012,
+                  "absoluteEnd": 14.72,
+                  "duration": 1.6000000000000014,
+                  "confidence": 0.9
+                }
+              ]
+            },
+            {
+              "id": "caption-2",
+              "text": "Hey, hey, hey, hey, hey, hey, hey, hey.",
+              "start": 0,
+              "absoluteStart": 15.42,
+              "end": 15.43,
+              "absoluteEnd": 15.43,
+              "duration": 0.009999999999999787,
+              "words": [
+                {
+                  "id": "caption-2-word-0",
+                  "text": "Hey,",
+                  "start": 0,
+                  "absoluteStart": 15.42,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0.009999999999999787,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-1",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-2",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-3",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-4",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-5",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-6",
+                  "text": "hey,",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                },
+                {
+                  "id": "caption-2-word-7",
+                  "text": "hey.",
+                  "start": 0.009999999999999787,
+                  "absoluteStart": 15.43,
+                  "end": 0.009999999999999787,
+                  "absoluteEnd": 15.43,
+                  "duration": 0,
+                  "confidence": 0.9
+                }
+              ]
+            }
+          ],
+          "_id": "6977288eaa681977a1fd0c3b"
+        }
+      }
+    ]
+  },
+  "presets": [
+    {
+      "id": "preset-1",
+      "label": "Base Scene",
+      "presetId": "base-scene",
+      "presetType": "full",
+      "presetInputData": {
+        "backgroundColor": "black",
+        "fitDurationTo": "audio-track",
+        "aspectRatio": "16:9",
+        "clip": {
+          "start": 0,
+          "duration": 0
+        },
+        "resolution": 1080,
+        "duration": 40
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-2",
+      "label": "Audio Track",
+      "presetId": "media-track",
+      "presetType": "children",
+      "presetInputData": {
+        "mediaItems": [
+          {
+            "src": "https://cdn1.suno.ai/eb9bf65b-a94c-4e75-87f3-1ad8fc8f9748.m4a",
+            "type": "audio",
+            "ranges": [],
+            "fit": "cover",
+            "playbackRate": 1,
+            "volume": 1.5
+          }
+        ],
+        "trackName": "audio-track",
+        "trackType": "sequence",
+        "trackDuration": 0
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-3",
+      "label": "Image Loop Track",
+      "presetId": "imageloop",
+      "presetType": "children",
+      "presetInputData": {
+        "trackName": "imageloop-track",
+        "images": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/midjourney/1769416166390-midjourney-1769416166390.jpeg",
+            "filter": "contrast",
+            "rangeString": "0:14-5:40",
+            "opacity": 0.95,
+            "fit": "cover"
+          }
+        ],
+        "effects": [
+          {
+            "type": "zoom",
+            "pan": {
+              "direction": "up",
+              "distance": 10,
+              "loopTimes": 5
+            },
+            "range": "0:00-6:00",
+            "zoom": {
+              "direction": "in",
+              "depth": 1.25,
+              "loopTimes": 4
+            }
+          },
+          {
+            "type": "generic",
+            "range": "0:00-0:06",
+            "generic": {
+              "animationType": "ease-in-out",
+              "animationRanges": [
+                {
+                  "key": "opacity",
+                  "val": "0",
+                  "prog": 0
+                },
+                {
+                  "key": "opacity",
+                  "val": "1",
+                  "prog": 1
+                }
+              ]
+            }
+          }
+        ],
+        "trackStartOffset": 0,
+        "trackFitDurationTo": "audio-track"
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-4",
+      "label": "Image Loop (MpCkGi)",
+      "presetId": "imageloop",
+      "presetType": "children",
+      "presetInputData": {
+        "trackName": "MpCkGi",
+        "images": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1764758445058-shanks4.png",
+            "filter": "saturate",
+            "rangeString": "00:00-00:37",
+            "opacity": 0.95,
+            "fit": "cover"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1764758445058-shanks4.png",
+            "filter": "saturate",
+            "rangeString": "1:32-2:02",
+            "opacity": 0.95,
+            "fit": "cover"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1764758445058-shanks4.png",
+            "filter": "saturate",
+            "rangeString": "2:48-3:12",
+            "opacity": 0.95,
+            "fit": "cover"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1764758445058-shanks4.png",
+            "filter": "saturate",
+            "rangeString": "4:20-5:12",
+            "opacity": 0.95,
+            "fit": "cover"
+          }
+        ],
+        "effects": [
+          {
+            "type": "pan",
+            "pan": {
+              "direction": "up",
+              "distance": 10,
+              "loopTimes": 5
+            },
+            "range": "0:00-10:00"
+          }
+        ],
+        "trackStartOffset": 0,
+        "trackFitDurationTo": "audio-track"
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-5",
+      "label": "HTML Block",
+      "presetId": "htmlBlockAtom",
+      "presetType": "children",
+      "presetInputData": {
+        "className": "w-full h-full flex items-center justify-center text-white text-2xl font-bold",
+        "style": {
+          "borderRadius": "8px",
+          "padding": "20px",
+          "background": "linear-gradient( rgba(0,0,0,0) 0%, rgba(0,0,0,0) 65%, rgba(0,0,0,1) 100%)"
+        },
+        "ranges": ["0:00-10:00"],
+        "trackName": "html-blocks"
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-6",
+      "label": "Beat Stitch",
+      "presetId": "beatstitch",
+      "presetType": "children",
+      "presetInputData": {
+        "audio": {
+          "src": "https://cdn1.suno.ai/45876cb2-e7bf-417f-87b1-6fa9e93cba5b.webm",
+          "start": 0,
+          "duration": 402,
+          "muted": true
+        },
+        "clips": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443467962_o66cxg0m7.jpg",
+            "objectPosition": "top"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443402316_ka2u9tehc.jpg",
+            "objectPosition": "top"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443402157_dtl21bayy.jpg",
+            "objectPosition": "top"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443439963_vkiq8rjx4.jpg"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443402453_u2f8uaf04.jpg"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443402293_liadndpl6.jpg"
+          },
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/scraped/MediaMake234/pinterest_1762443402402_g2z5lahni.jpg"
+          }
+        ],
+        "minTimeDiff": 0.5,
+        "maxBeats": 100,
+        "isRepeatClips": true,
+        "hideBeatCount": true,
+        "transition": {
+          "type": "shake",
+          "impact": 1
+        },
+        "clipRanges": ["2:02-2:08", "4:22-4:33"],
+        "trackName": "beatstitch"
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-7",
+      "label": "Overlay Track",
+      "presetId": "media-track",
+      "presetType": "children",
+      "presetInputData": {
+        "mediaItems": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1759561799880-9665235-hd_1920_1080_25fps.mp4",
+            "type": "video",
+            "fit": "cover",
+            "loop": true,
+            "fitDurationTo": "audio-track",
+            "duration": 8,
+            "blendMode": "screen",
+            "opacity": 1,
+            "mute": true,
+            "startOffset": 0,
+            "fadeInTransition": "opacity",
+            "fadeInDuration": 4,
+            "playbackRate": 1
+          }
+        ],
+        "trackName": "overlay-track",
+        "trackType": "aligned",
+        "trackFitDurationTo": "audio-track",
+        "trackDuration": 0,
+        "trackStartOffset": 0
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-8",
+      "label": "Headphone Alert",
+      "presetId": "text-overlay",
+      "presetType": "children",
+      "presetInputData": {
+        "text": "Plug your Headphone for Best experience",
+        "fontSize": 24,
+        "color": "#FFFFFF",
+        "textAlign": "center",
+        "position": {
+          "alignment": "center-center",
+          "left": ""
+        },
+        "style": {
+          "textShadow": "0 2px 4px rgba(0,0,0,0.5)",
+          "textTransform": "uppercase"
+        },
+        "fadeInTransition": "opacity",
+        "fadeInDuration": 1,
+        "fadeOutTransition": "none",
+        "fadeOutDuration": 1,
+        "opacity": 1,
+        "fontFamily": "Inter:600",
+        "letterSpacing": 10,
+        "transitions": {
+          "fadeInTransition": "blur-in",
+          "fadeInDuration": 1,
+          "startOffset": 7,
+          "duration": 8,
+          "fadeOutTransition": "blur-out",
+          "fadeOutDuration": 6
+        }
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-9",
+      "label": "Explicit Lyrics Alert",
+      "presetId": "text-overlay",
+      "presetType": "children",
+      "presetInputData": {
+        "text": "Explicit Lyrics Alert",
+        "fontSize": 40,
+        "color": "#FFFFFF",
+        "textAlign": "center",
+        "position": {
+          "alignment": "center-center",
+          "left": ""
+        },
+        "style": {
+          "textShadow": "0 2px 4px rgba(0,0,0,0.5)",
+          "textTransform": "uppercase"
+        },
+        "fadeInTransition": "opacity",
+        "fadeInDuration": 1,
+        "fadeOutTransition": "none",
+        "fadeOutDuration": 1,
+        "opacity": 1,
+        "fontFamily": "RacingSansOne",
+        "letterSpacing": 20,
+        "transitions": {
+          "fadeInTransition": "blur-in",
+          "fadeInDuration": 1,
+          "startOffset": 11,
+          "duration": 8,
+          "fadeOutTransition": "blur-out",
+          "fadeOutDuration": 6
+        }
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-10",
+      "label": "Vertical Float Subtitles",
+      "presetId": "sub-vertical-float",
+      "presetType": "children",
+      "presetInputData": {
+        "negativeOffset": 0.25,
+        "position": {
+          "align": "fixed",
+          "bottom": 50,
+          "right": 0,
+          "textAlign": "center",
+          "radius": 100,
+          "left": 0,
+          "top": 696,
+          "randomize": true
+        },
+        "inputCaptions": "data:[captions]",
+        "avgFontSize": 100,
+        "fontChoices": [
+          {
+            "primaryFont": "Courgette",
+            "headerFont": "Courgette"
+          }
+        ],
+        "colorChoices": [
+          {
+            "primary": "#fff",
+            "secondary": "#fff",
+            "accent": "#fff"
+          }
+        ],
+        "subtitleSync": {
+          "negativeOffset": 0.5,
+          "maxLines": 4,
+          "floatThreshold": 3,
+          "noGaps": {
+            "enabled": true,
+            "maxLength": 1
+          },
+          "animationStyle": "horizontal-typewriter",
+          "disableMetadata": false,
+          "layout": "vertical",
+          "fontScaling": {
+            "highlighted": 1,
+            "normal": 0.8
+          },
+          "impact": 0.1,
+          "isGlowEnabled": true
+        },
+        "style": {
+          "textTransformMain": "capitalize",
+          "textTransformSub": "capitalize"
+        }
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-11",
+      "label": "Super Mel Text",
+      "presetId": "text-overlay",
+      "presetType": "children",
+      "presetInputData": {
+        "text": "Super Mel",
+        "fontSize": 75,
+        "color": "#FFFFFF",
+        "textAlign": "center",
+        "position": {
+          "alignment": "center-center",
+          "left": ""
+        },
+        "style": {
+          "textShadow": "0 2px 4px rgba(0,0,0,0.5)",
+          "textTransform": "uppercase"
+        },
+        "fadeInTransition": "opacity",
+        "fadeInDuration": 1,
+        "fadeOutTransition": "none",
+        "fadeOutDuration": 1,
+        "opacity": 1,
+        "fontFamily": "Condiment",
+        "letterSpacing": 5,
+        "transitions": {
+          "fadeInTransition": "blur-in",
+          "fadeInDuration": 1,
+          "startOffset": 0,
+          "duration": 5,
+          "fadeOutTransition": "blur-out",
+          "fadeOutDuration": 2,
+          "range": "00:00-00:6"
+        }
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-12",
+      "label": "Kinetic Motion Subtitles",
+      "presetId": "sub-kinetic-motion",
+      "presetType": "children",
+      "presetInputData": {
+        "kineticMotion": {
+          "motionIntensity": 0.5,
+          "dynamicPositioning": false,
+          "smartScaling": false,
+          "motionBlur": true,
+          "particleEffects": true,
+          "colorFlow": false,
+          "rotationEffects": false,
+          "waveDistortion": true,
+          "negativeOffset": 0.5,
+          "maxLines": 2,
+          "disableMetadata": false,
+          "noGaps": {
+            "enabled": false,
+            "maxLength": 3
+          },
+          "fontScaling": {
+            "highlighted": 1.25,
+            "normal": 0.9
+          },
+          "animationPreset": "subtle-glow"
+        },
+        "position": {
+          "align": "fixed",
+          "randomize": false,
+          "textAlign": "center",
+          "top": 800,
+          "left": 0,
+          "right": 0,
+          "bottom": 100
+        },
+        "fontChoices": [
+          {
+            "primaryFont": "BebasNeue",
+            "headerFont": "Condiment"
+          }
+        ],
+        "colorChoices": [
+          {
+            "primary": "#fff",
+            "secondary": "#fff",
+            "accent": "#ff0000"
+          }
+        ],
+        "style": {
+          "textTransformSub": "uppercase",
+          "textTransformMain": "uppercase"
+        },
+        "avgFontSize": 90,
+        "inputCaptions": "data:[captions]"
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-13",
+      "label": "I am the Text",
+      "presetId": "text-overlay",
+      "presetType": "children",
+      "presetInputData": {
+        "text": "I am the",
+        "fontSize": 80,
+        "color": "#FFFFFF",
+        "textAlign": "center",
+        "position": {
+          "alignment": "center-center",
+          "left": "10%",
+          "right": "10%",
+          "bottom": "10%",
+          "top": "-10%"
+        },
+        "style": {
+          "textShadow": "",
+          "filter": "",
+          "color": "#ff29c2",
+          "textColor": "#fff",
+          "backgroundColor": "",
+          "padding": "",
+          "borderRadius": "100px",
+          "textTransform": "capitalize",
+          "otherProps": {
+            "textAlign": "center"
+          }
+        },
+        "fadeInTransition": "opacity",
+        "fadeInDuration": 1,
+        "fadeOutTransition": "none",
+        "fadeOutDuration": 1,
+        "opacity": 1,
+        "fontFamily": "Courgette",
+        "transitions": {
+          "startOffset": 13,
+          "fadeInTransition": "blur-in",
+          "fadeInDuration": 3,
+          "duration": 20,
+          "fadeOutTransition": "blur-out",
+          "fadeOutDuration": 1,
+          "range": "00:07-00:16"
+        },
+        "letterSpacing": 5
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-14",
+      "label": "Brave Text",
+      "presetId": "text-overlay",
+      "presetType": "children",
+      "presetInputData": {
+        "text": "Brave",
+        "fontSize": 150,
+        "color": "#FFFFFF",
+        "textAlign": "center",
+        "position": {
+          "alignment": "center-center",
+          "left": "",
+          "right": "",
+          "bottom": "",
+          "top": "5%"
+        },
+        "style": {
+          "textShadow": "",
+          "filter": "",
+          "color": "#ff29c2",
+          "textColor": "#fff",
+          "backgroundColor": "",
+          "padding": "",
+          "borderRadius": "100px",
+          "textTransform": "capitalize",
+          "otherProps": {
+            "textAlign": "center"
+          }
+        },
+        "fadeInTransition": "opacity",
+        "fadeInDuration": 1,
+        "fadeOutTransition": "none",
+        "fadeOutDuration": 1,
+        "opacity": 1,
+        "fontFamily": "Courgette",
+        "transitions": {
+          "startOffset": 13,
+          "fadeInTransition": "blur-in",
+          "fadeInDuration": 3,
+          "duration": 20,
+          "fadeOutTransition": "blur-out",
+          "fadeOutDuration": 1,
+          "range": "00:07-00:16"
+        },
+        "letterSpacing": 10
+      },
+      "disabled": false
+    },
+    {
+      "id": "preset-15",
+      "label": "Fast Rap Static Subtitles",
+      "presetId": "sub-fast-rap-static",
+      "presetType": "children",
+      "presetInputData": {
+        "subtitleSync": {
+          "transitionStyle": "blur-slide-right",
+          "negativeOffset": 0.2,
+          "maxLines": 3,
+          "transitionDuration": 0.1,
+          "staticWordOpacity": 1,
+          "highlightIntensity": 1,
+          "disableMetadata": false,
+          "noGaps": {
+            "enabled": false,
+            "maxLength": 3
+          },
+          "eachWordAScentence": false
+        },
+        "position": {
+          "align": "fixed",
+          "randomize": false,
+          "textAlign": "center",
+          "bottom": 0,
+          "left": 600,
+          "right": 0,
+          "top": 0
+        },
+        "fontChoices": [
+          {
+            "primaryFont": "RacingSansOne",
+            "headerFont": "RacingSansOne"
+          }
+        ],
+        "colorChoices": [
+          {
+            "primary": "#fff",
+            "secondary": "#fff",
+            "accent": "#ffbb00"
+          }
+        ],
+        "style": {
+          "textTransformSub": "uppercase",
+          "textTransformMain": "uppercase",
+          "extraStyleProps": {}
+        },
+        "avgFontSize": 100,
+        "inputCaptions": "data:[captions]"
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-16",
+      "label": "Waveform Audio",
+      "presetId": "waveform-audio",
+      "presetType": "children",
+      "presetInputData": {
+        "trackName": "waveform-track",
+        "waveform": {
+          "type": "circle",
+          "isHidden": false,
+          "barColor": "#fff",
+          "barSpacing": 8,
+          "barBorderRadius": 4,
+          "barWidth": 8,
+          "horizontalSymmetry": true,
+          "verticalMirror": true,
+          "gradientStartColor": "#fff",
+          "gradientEndColor": "#fff",
+          "gradientDirection": "vertical",
+          "gradientStyle": "mirrored",
+          "waveDirection": "right-to-left",
+          "numberOfSamples": 128,
+          "useFrequencyData": false,
+          "histogramStyle": "centered",
+          "waveAmplitude": 2,
+          "amplitude": 2,
+          "waveNumberOfSamples": 128,
+          "windowInSeconds": 1,
+          "smoothNormalisation": 1,
+          "centerX": 50,
+          "centerY": 0,
+          "endAngle": 360,
+          "startAngle": 0,
+          "rotationSpeed": 0.5,
+          "opacity": 0.5,
+          "radius": 2,
+          "strokeWidth": 8
+        },
+        "container": {
+          "backgroundColor": "transparent",
+          "position": "absolute",
+          "bottom": 50,
+          "height": 1080,
+          "zIndex": 1,
+          "left": 800,
+          "right": 0,
+          "width": 0,
+          "className": "flex items-center justify-center",
+          "verticalTransform": false,
+          "verticalPosition": "5%",
+          "top": -400,
+          "verticalWidth": 1080,
+          "leftVerticalPos": 0
+        },
+        "trackFitDurationTo": "audio-track",
+        "audioRefTrack": "r",
+        "audio": {
+          "src": "ref:audio-track"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-17",
+      "label": "Media Track (SaUZLz)",
+      "presetId": "media-track",
+      "presetType": "children",
+      "presetInputData": {
+        "mediaItems": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1761203509123-215484_small.mp4",
+            "type": "video",
+            "fit": "cover",
+            "loop": true,
+            "fitDurationTo": "audio-track",
+            "duration": 8,
+            "blendMode": "color-burn",
+            "opacity": 0.35,
+            "mute": true,
+            "startOffset": 0,
+            "fadeInTransition": "opacity",
+            "fadeInDuration": 0.1
+          }
+        ],
+        "trackName": "SaUZLz",
+        "trackType": "aligned",
+        "trackFitDurationTo": "audio-track",
+        "trackDuration": 0,
+        "trackStartOffset": 0
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-18",
+      "label": "Media Track (brcFhb)",
+      "presetId": "media-track",
+      "presetType": "children",
+      "presetInputData": {
+        "mediaItems": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1764687259756-221903.mp4",
+            "type": "video",
+            "fit": "cover",
+            "loop": true,
+            "fitDurationTo": "audio-track",
+            "duration": 8,
+            "blendMode": "color",
+            "opacity": 1,
+            "mute": true,
+            "startOffset": 0,
+            "fadeInTransition": "opacity",
+            "fadeInDuration": 60
+          }
+        ],
+        "trackName": "brcFhb",
+        "trackType": "aligned",
+        "trackFitDurationTo": "audio-track",
+        "trackDuration": 0,
+        "trackStartOffset": 10
+      },
+      "disabled": true
+    },
+    {
+      "id": "preset-19",
+      "label": "Media Track (ItTzyg)",
+      "presetId": "media-track",
+      "presetType": "children",
+      "presetInputData": {
+        "mediaItems": [
+          {
+            "src": "https://aidev.blr1.cdn.digitaloceanspaces.com/mediamake/MediaMake234/1759954135257-183519-871250783.mp4",
+            "type": "video",
+            "fit": "cover",
+            "loop": true,
+            "fitDurationTo": "audio-track",
+            "duration": 8,
+            "blendMode": "color-dodge",
+            "opacity": 0.25,
+            "mute": true,
+            "startOffset": 0,
+            "fadeInTransition": "opacity",
+            "fadeInDuration": 12
+          }
+        ],
+        "trackName": "ItTzyg",
+        "trackType": "aligned",
+        "trackFitDurationTo": "audio-track",
+        "trackDuration": 0,
+        "trackStartOffset": 26
+      },
+      "disabled": true
+    }
+  ],
+  "metadata": {
+    "calculatedDuration": 41,
+    "calculatedRange": {
+      "start": 0.129,
+      "end": 41.129
+    }
+  }
+}

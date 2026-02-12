@@ -9,6 +9,7 @@ import {
   detectChanges,
   saveTranscriptionFix,
 } from '../helpers';
+import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadTranscription } from '../middlewares/loadTranscription';
 
 /**
@@ -84,6 +85,9 @@ Fix ONLY spelling errors while preserving all timing and structure.`;
         prompt,
         maxRetries: 2,
       });
+      if (result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-flash', result.usage);
+      }
 
       console.log('SPELLING FIXER USING:', result.usage);
 
