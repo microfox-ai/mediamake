@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - fix/mediamake-site-deployments
+      - fix/mediamake-site-deploments
     paths:
       - 'apps/mediamake/**'
       - '.github/workflows/deploy-site.yml'
