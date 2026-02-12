@@ -70,11 +70,25 @@ const CHART_COLORS = [
   "hsl(var(--primary))",
 ];
 
-const ROLLUP_WORKER_ID = "cost-usage-rollup";
-const REMOTION_WORKER_ID = "cost-usage-remotion";
-const AI_USAGE_WORKER_ID = "cost-usage-ai";
 const POLL_INTERVAL_MS = 1500;
-const POLL_MAX_ATTEMPTS = 120; // ~3 min
+const POLL_MAX_ATTEMPTS = 180; // ~4.5 min for full queue (ai → remotion → rollup)
+
+interface QueueJobStep {
+  workerId: string;
+  workerJobId: string;
+  status: "queued" | "running" | "completed" | "failed";
+  output?: unknown;
+  error?: { message: string };
+  startedAt?: string;
+  completedAt?: string;
+}
+
+interface QueueJobProgress {
+  id: string;
+  queueId: string;
+  status: string;
+  steps: QueueJobStep[];
+}
 
 function useBillingData(periodType: PeriodType, periodValue: string | null) {
   const [data, setData] = React.useState<{
@@ -205,80 +219,86 @@ export default function BillingPage() {
 
   const [runRollupStatus, setRunRollupStatus] = React.useState<RunRollupStatus>("idle");
   const [runRollupMessage, setRunRollupMessage] = React.useState<string | null>(null);
+  const [queueProgress, setQueueProgress] = React.useState<QueueJobProgress | null>(null);
 
   const runRollupWorker = React.useCallback(async () => {
     setRunRollupStatus("triggering");
     setRunRollupMessage(null);
+    setQueueProgress(null);
     try {
-      const triggerRes = await fetch(`/api/workflows/workers/${ROLLUP_WORKER_ID}`, {
+      const triggerRes = await fetch("/api/billing/aggregates/rollup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: {}, await: false }),
       });
       if (!triggerRes.ok) {
-        const errBody = await triggerRes.text();
-        throw new Error(errBody || triggerRes.statusText);
+        const errJson = await triggerRes.json().catch(() => ({}));
+        const errBody = (errJson?.error ?? (await triggerRes.text())) || triggerRes.statusText;
+        throw new Error(typeof errBody === "string" ? errBody : (errBody as { message?: string })?.message ?? "Trigger failed");
       }
       const triggerJson = await triggerRes.json();
       const jobId = triggerJson.jobId;
       if (!jobId) {
-        throw new Error("No jobId returned from worker");
+        throw new Error("No jobId returned from rollup");
       }
-      // Fire-and-forget: also run remotion and AI cost workers so all cost data is refreshed
-      fetch(`/api/workflows/workers/${REMOTION_WORKER_ID}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: {}, await: false }),
-      }).catch(() => {});
-      fetch(`/api/workflows/workers/${AI_USAGE_WORKER_ID}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: {}, await: false }),
-      }).catch(() => {});
       setRunRollupStatus("polling");
+      const FALLBACK_AFTER_ATTEMPTS = 60; // ~90s - if no step updates, queue job tracking may be unavailable
       for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-        const statusRes = await fetch(`/api/workflows/workers/${ROLLUP_WORKER_ID}/${jobId}`);
+        const statusRes = await fetch(`/api/workflows/queue-jobs/${jobId}`);
+        if (statusRes.status === 404) {
+          setRunRollupMessage("Queue job not found. Ensure WORKFLOW_APP_BASE_URL is set in Lambda for progress tracking.");
+          setRunRollupStatus("failed");
+          return;
+        }
         if (!statusRes.ok) {
           setRunRollupMessage(`Status check failed: ${statusRes.statusText}`);
           setRunRollupStatus("failed");
           return;
         }
-        const statusJson = await statusRes.json();
-        const status = statusJson.status;
-        if (status === "completed") {
-          const out = statusJson.output;
+        const qj = (await statusRes.json()) as QueueJobProgress;
+        setQueueProgress(qj);
+        if (qj.status === "completed") {
+          const lastStep = qj.steps?.slice(-1)[0];
+          const out = lastStep?.output;
           const msg =
             out != null && typeof out === "object"
-              ? `Processed ${out.documentsRead ?? "?"} docs, ${out.aggregatesUpserted ?? "?"} aggregates updated`
-              : "Rollup completed.";
+              ? `Processed ${(out as Record<string, unknown>).documentsRead ?? "?"} docs, ${(out as Record<string, unknown>).aggregatesUpserted ?? "?"} aggregates updated`
+              : "Queue completed.";
           setRunRollupMessage(msg);
           setRunRollupStatus("completed");
           await refetch();
           setTimeout(() => {
             setRunRollupStatus("idle");
             setRunRollupMessage(null);
+            setQueueProgress(null);
           }, 4000);
           return;
         }
-        if (status === "failed") {
-          setRunRollupMessage(statusJson.error?.message ?? statusJson.error ?? "Worker failed");
+        if (qj.status === "failed") {
+          const failedStep = qj.steps?.find((s) => s.status === "failed");
+          const err = failedStep?.error?.message ?? "Queue failed";
+          setRunRollupMessage(err);
           setRunRollupStatus("failed");
           return;
         }
+        if (attempt === FALLBACK_AFTER_ATTEMPTS - 1) {
+          const hasStepUpdates = (qj.steps?.length ?? 0) > 1 || qj.steps?.some((s) => s.status === "completed" || s.status === "running");
+          if (!hasStepUpdates) {
+            await refetch();
+            setRunRollupMessage(
+              "Queue progress unavailable (set WORKFLOW_APP_BASE_URL in Lambda env). Data refreshed—check if rollup completed."
+            );
+            setRunRollupStatus("completed");
+            setTimeout(() => {
+              setRunRollupStatus("idle");
+              setRunRollupMessage(null);
+              setQueueProgress(null);
+            }, 5000);
+            return;
+          }
+        }
       }
-      setRunRollupMessage("Rollup timed out.");
+      setRunRollupMessage("Queue timed out.");
       setRunRollupStatus("failed");
-      // Mark rollup job as failed so job store reflects reality (Lambda init/runtime errors may not update status)
-      fetch(`/api/workflows/workers/${ROLLUP_WORKER_ID}/update`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId,
-          status: "failed",
-          error: { message: "Rollup timed out or worker failed to start." },
-        }),
-      }).catch(() => {});
     } catch (e) {
       setRunRollupMessage(e instanceof Error ? e.message : "Failed to run rollup");
       setRunRollupStatus("failed");
@@ -349,7 +369,7 @@ export default function BillingPage() {
                   {(runRollupStatus === "triggering" || runRollupStatus === "polling") ? (
                     <>
                       <Loader2Icon className="h-4 w-4 animate-spin" />
-                      {runRollupStatus === "triggering" ? "Starting…" : "Running rollup…"}
+                      {runRollupStatus === "triggering" ? "Starting…" : "Running queue…"}
                     </>
                   ) : (
                     <>
@@ -370,6 +390,29 @@ export default function BillingPage() {
               >
                 {runRollupMessage}
               </p>
+            )}
+            {queueProgress && queueProgress.steps?.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {queueProgress.steps.map((step, i) => (
+                  <span
+                    key={i}
+                    className={`rounded px-2 py-1 font-medium ${
+                      step.status === "completed"
+                        ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                        : step.status === "running"
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                          : step.status === "failed"
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step.workerId}
+                    {step.status === "completed" && " ✓"}
+                    {step.status === "running" && " …"}
+                    {step.status === "failed" && " ✗"}
+                  </span>
+                ))}
+              </div>
             )}
 
             {error && (
