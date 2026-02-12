@@ -15,7 +15,8 @@ import {
     AlertCircle,
     Play,
     Key,
-    RefreshCw
+    RefreshCw,
+    Archive
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -25,37 +26,42 @@ import { toast } from "sonner";
 
 interface HistorySidebarProps {
     selectedRender: string | null;
+    deletedRenderId?: string | null;
+    onClearDeletedId?: () => void;
     onSelectRender: (renderId: string, renderRequest?: RenderRequest) => void;
     onRefreshApiRequest?: (renderId: string, updatedRequest: RenderRequest) => void;
 }
 
-export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiRequest }: HistorySidebarProps) {
+const HISTORY_PAGE_SIZE = 5;
+
+export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeletedId, onSelectRender, onRefreshApiRequest }: HistorySidebarProps) {
     const [renderRequests, setRenderRequests] = useState<RenderRequest[]>([]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
     const [isApiLoading, setIsApiLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+    const [showArchived, setShowArchived] = useState(false);
 
-    // Fetch render history from API
-    const fetchApiHistory = async (key: string) => {
+    // Fetch first page of render history (active or archived)
+    const fetchApiHistory = async (key: string, archived = false) => {
         setIsApiLoading(true);
         setApiError(null);
-
-
         try {
-            const response = await fetch('/api/remotion/history', {
-                headers: {
-                    "Authorization": `Bearer ${key}`,
-                },
+            const params = new URLSearchParams({ limit: String(HISTORY_PAGE_SIZE) });
+            if (archived) params.set('archived', 'true');
+            const url = `/api/remotion/history?${params}`;
+            const response = await fetch(url, {
+                headers: { "Authorization": `Bearer ${key}` },
             });
-
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
-            }
-
+            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
             const data = await response.json();
-            setRenderRequests(data);
+            setRenderRequests(data.items ?? []);
+            setNextCursor(data.nextCursor ?? null);
+            setHasMore(data.hasMore ?? false);
         } catch (error) {
             console.error('Failed to fetch API history:', error);
             setApiError(error instanceof Error ? error.message : 'Failed to fetch history');
@@ -64,60 +70,83 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
         }
     };
 
-    // Refresh a single API request
-    const refreshApiRequest = async (renderId: string): Promise<RenderRequest | null> => {
-        if (!apiKey.trim()) return null;
-
-        setRefreshingIds(prev => new Set(prev).add(renderId));
-
+    // Load next page and append
+    const loadMore = async () => {
+        if (!apiKey.trim() || !nextCursor || isLoadingMore) return;
+        setIsLoadingMore(true);
+        setApiError(null);
         try {
-            const response = await fetch('/api/remotion/history', {
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                },
+            const params = new URLSearchParams({
+                limit: String(HISTORY_PAGE_SIZE),
+                cursor: nextCursor,
             });
-
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
-            }
-
+            if (showArchived) params.set('archived', 'true');
+            const response = await fetch(`/api/remotion/history?${params}`, {
+                headers: { "Authorization": `Bearer ${apiKey}` },
+            });
+            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
             const data = await response.json();
-            const updatedRequest = data.find((req: RenderRequest) => req.id === renderId);
+            const newItems = data.items ?? [];
+            setRenderRequests(prev => [...prev, ...newItems]);
+            setNextCursor(data.nextCursor ?? null);
+            setHasMore(data.hasMore ?? false);
+        } catch (error) {
+            console.error('Failed to load more history:', error);
+            setApiError(error instanceof Error ? error.message : 'Failed to load more');
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
 
-            if (updatedRequest) {
-                // Update the request in the current list
+    // Refresh a single render (fetch by id). Use includeArchived when the item is archived.
+    const refreshApiRequest = async (renderId: string, isArchived?: boolean): Promise<RenderRequest | null> => {
+        if (!apiKey.trim()) return null;
+        setRefreshingIds(prev => new Set(prev).add(renderId));
+        try {
+            const params = new URLSearchParams({ renderId });
+            if (isArchived) params.set('includeArchived', 'true');
+            const response = await fetch(`/api/remotion/history?${params}`, {
+                headers: { "Authorization": `Bearer ${apiKey}` },
+            });
+            if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+            const data = await response.json();
+            const updatedRequest = (data.items && data.items[0]) as RenderRequest | undefined;
+            if (updatedRequest && updatedRequest.id === renderId) {
                 setRenderRequests(prev =>
                     prev.map(req => req.id === renderId ? updatedRequest : req)
                 );
-
-                // Notify parent component of the updated request
-                if (onRefreshApiRequest) {
-                    onRefreshApiRequest(renderId, updatedRequest);
-                }
+                if (onRefreshApiRequest) onRefreshApiRequest(renderId, updatedRequest);
+                return updatedRequest;
             }
-
-            return updatedRequest || null;
+            return null;
         } catch (error) {
             console.error('Failed to refresh API request:', error);
             return null;
         } finally {
             setRefreshingIds(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(renderId);
-                return newSet;
+                const next = new Set(prev);
+                next.delete(renderId);
+                return next;
             });
         }
     };
 
-    // Load render history from API
+    // Load render history from API (refetch when switching active/archived)
     useEffect(() => {
         if (apiKey.trim().length > 0) {
-            fetchApiHistory(apiKey);
+            fetchApiHistory(apiKey, showArchived);
         } else {
             toast.error("Please enter an API key");
             setIsLoading(false);
         }
-    }, [apiKey]);
+    }, [apiKey, showArchived]);
+
+    // Remove deleted render from list when parent signals it
+    useEffect(() => {
+        if (!deletedRenderId) return;
+        setRenderRequests((prev) => prev.filter((r) => r.id !== deletedRenderId));
+        onClearDeletedId?.();
+    }, [deletedRenderId, onClearDeletedId]);
 
 
     const getStatusIcon = (status: RenderRequest["status"]) => {
@@ -180,8 +209,31 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
                 <div>
                     <h2 className="text-lg font-semibold">Render History</h2>
                     <p className="text-sm text-muted-foreground">
-                        {renderRequests?.length || 0} render requests
+                        {renderRequests?.length || 0} loaded
+                        {hasMore ? " · more available" : ""}
+                        {showArchived ? " (archived)" : ""}
                     </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant={showArchived ? "secondary" : "ghost"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setShowArchived(false)}
+                    >
+                        Active
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={showArchived ? "ghost" : "secondary"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setShowArchived(true)}
+                    >
+                        <Archive className="h-3 w-3 mr-1" />
+                        Archived
+                    </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -204,7 +256,7 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
                             <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => fetchApiHistory(apiKey)}
+                                onClick={() => fetchApiHistory(apiKey, showArchived)}
                                 disabled={isApiLoading}
                                 className="px-2"
                             >
@@ -241,8 +293,14 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
                                         {getStatusIcon(request.status)}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     {getStatusBadge(request.status)}
+                                    {request.isArchived && (
+                                        <Badge variant="outline" className="text-xs">
+                                            <Archive className="h-3 w-3 mr-0.5" />
+                                            Archived
+                                        </Badge>
+                                    )}
                                     {request.status === "rendering" && request.progress !== undefined && (
                                         <span className="text-xs text-muted-foreground">
                                             {Math.round(request.progress * 100)}%
@@ -317,6 +375,27 @@ export function HistorySidebar({ selectedRender, onSelectRender, onRefreshApiReq
                             <Download className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p>No render requests yet</p>
                             <p className="text-xs">Start rendering to see your history here</p>
+                        </div>
+                    )}
+
+                    {hasMore && renderRequests.length > 0 && (
+                        <div className="pt-2 pb-4 flex justify-center">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={loadMore}
+                                disabled={isLoadingMore}
+                            >
+                                {isLoadingMore ? (
+                                    <>
+                                        <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                                        Loading...
+                                    </>
+                                ) : (
+                                    "Load more"
+                                )}
+                            </Button>
                         </div>
                     )}
                 </div>
