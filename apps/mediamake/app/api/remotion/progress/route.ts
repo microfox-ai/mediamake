@@ -47,10 +47,14 @@ export const GET = async (req: NextRequest) => {
     });
 
     if (clientId) {
+      const errorMessage = renderProgress.fatalErrorEncountered && renderProgress.errors?.[0]
+        ? renderProgress.errors[0].message
+        : undefined;
+      // Persist full progress (cost, statistics, errors, timing, etc.) for display in history and archived view.
       await renderRequestDB.update(
         renderProgress.renderId,
         {
-          progressData: renderProgress,
+          progressData: renderProgress as Parameters<typeof renderRequestDB.update>[1]['progressData'],
           status: renderProgress.fatalErrorEncountered
             ? 'failed'
             : renderProgress.done
@@ -58,6 +62,7 @@ export const GET = async (req: NextRequest) => {
               : 'rendering',
           downloadUrl: renderProgress.outputFile as string,
           fileSize: renderProgress.outputSizeInBytes as number,
+          ...(errorMessage != null ? { error: errorMessage } : {}),
         },
         clientId,
       );
