@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Code, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw } from "lucide-react";
+import { Code, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Rocket } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { InputCompositionProps } from "@microfox/remotion";
 import type { PlayerRef } from "@remotion/player";
 import { interpolate } from "remotion";
+import { useRender } from "@/components/editor/player/render-provider";
+import { RenderModal } from "@/components/editor/player/render-modal";
 
 interface TimelineControlBarProps {
   generatedOutput: InputCompositionProps | null;
@@ -55,6 +57,8 @@ export function TimelineControlBar({
   const seekBarRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [wasPlaying, setWasPlaying] = useState(false);
+
+  const { isModalOpen, openModal, closeModal, updateSetting } = useRender();
 
   const durationInFrames = calculatedMetadata?.durationInFrames ?? 0;
   const fps = calculatedMetadata?.fps ?? 30;
@@ -180,6 +184,15 @@ export function TimelineControlBar({
   const handleLoop = useCallback(() => {
     onLoopChange(!loop);
   }, [loop, onLoopChange]);
+
+  const handleRenderClick = useCallback(() => {
+    if (generatedOutput) {
+      // Sync render settings with current composition
+      updateSetting('inputProps', JSON.stringify(generatedOutput, null, 2));
+      updateSetting('composition', 'DataMotion');
+    }
+    openModal();
+  }, [generatedOutput, updateSetting, openModal]);
 
   // Seek bar handlers
   const getFrameFromX = useCallback((clientX: number, durationInFrames: number, width: number) => {
@@ -382,6 +395,17 @@ export function TimelineControlBar({
           </Button>
         )}
 
+        {/* Render Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleRenderClick}
+          disabled={!generatedOutput}
+          title="Render Video"
+        >
+          <Rocket className="h-4 w-4" />
+        </Button>
+
         {/* JSON Button */}
         <Button
           variant="outline"
@@ -392,6 +416,12 @@ export function TimelineControlBar({
           <Code className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Render Modal */}
+      <RenderModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+      />
     </div>
   );
 }
