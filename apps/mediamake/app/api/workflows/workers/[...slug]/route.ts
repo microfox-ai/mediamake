@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Worker execution endpoint.
- * 
+ *
  * POST /api/workflows/workers/:workerId - Execute a worker
  * GET /api/workflows/workers/:workerId/:jobId - Get worker job status
  * POST /api/workflows/workers/:workerId/webhook - Webhook callback for completion notifications
- * 
+ *
  * This endpoint allows workers to be called like workflows, enabling
  * them to be used in orchestration.
- * 
+ *
  * Workers are auto-discovered from app/ai directory (any .worker.ts files) or
  * can be imported and registered manually via registerWorker().
  */
@@ -23,26 +23,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // - Support hot-reload in development
 // - Export: scanWorkers(), getWorker(workerId), listWorkers()
 
-// Legacy registry for backward compatibility (deprecated - use registry/workers instead)
-const legacyWorkerRegistry = new Map<string, () => Promise<any>>();
-
-// NOTE: Next.js route modules must not export arbitrary symbols.
-// Keep legacy registry support internal-only.
-function registerWorkerLoader(workerId: string, workerLoader: () => Promise<any>) {
-  legacyWorkerRegistry.set(workerId, workerLoader);
-}
-
 /**
- * Get a worker by ID using the new registry system.
+ * Get a worker by ID.
  */
 async function getWorkerById(workerId: string): Promise<any | null> {
-  // Check legacy registry first for backward compatibility
-  const loader = legacyWorkerRegistry.get(workerId);
-  if (loader) {
-    return await loader();
-  }
-  
-  // Use new registry system with auto-discovery (dynamic import to avoid TypeScript resolution issues)
   const workersModule = await import('../../registry/workers') as { getWorker: (workerId: string) => Promise<any | null> };
   return await workersModule.getWorker(workerId);
 }
