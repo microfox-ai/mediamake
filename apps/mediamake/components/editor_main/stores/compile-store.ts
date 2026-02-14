@@ -311,7 +311,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         set({ generationProgress: 100 });
       }
 
-      toast.success('Timeline rendered successfully!');
+      // toast.success('Timeline rendered successfully!');
     } catch (error) {
       console.error('Error generating output:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate video. Please try again.';

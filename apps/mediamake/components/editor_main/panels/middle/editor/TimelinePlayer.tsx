@@ -44,12 +44,6 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
   if (calculatedMetadata) {
     return (
       <div className="relative w-full h-full bg-black/50 flex items-center justify-center">
-        {isGenerating && (
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Generating timeline...</p>
-          </div>
-        )}
         <Player
           ref={ref}
           inputProps={calculatedMetadata.props}
@@ -63,6 +57,11 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
           loop={loop}
           acknowledgeRemotionLicense={true}
         />
+        {isGenerating && (
+          <div className="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-white/50" />
+          </div>
+        )}
       </div>
     );
   }

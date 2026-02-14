@@ -32,6 +32,8 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const configDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const defaultDataDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUpdatingFromStoreRef = useRef(false);
+  const lastSyncedInputDataRef = useRef<string>("");
 
   // Get edited timeline if it exists, otherwise use original
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -58,6 +60,12 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
   // Initialize local state with first preset data
   const [localInputData, setLocalInputData] = useState(firstPreset?.presetInputData || {});
 
+  // Initialize the ref with the initial value
+  useEffect(() => {
+    const initialData = firstPreset?.presetInputData || {};
+    lastSyncedInputDataRef.current = JSON.stringify(initialData);
+  }, []); // Only on mount
+
   // Update editedName when timeline changes
   useEffect(() => {
     setEditedName(displayTimeline.displayName);
@@ -69,9 +77,23 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
   }, [displayTimeline.description]);
 
   // Sync local state when first preset changes externally
+  // Only sync if data actually changed and we're not updating from our own debounced update
   useEffect(() => {
-    if (firstPreset) {
-      setLocalInputData(firstPreset.presetInputData || {});
+    if (!firstPreset) return;
+
+    // Skip if we're currently updating from our own debounced update
+    if (isUpdatingFromStoreRef.current) return;
+
+    // Skip if we're currently compiling (to prevent re-renders during generation)
+    if (isCompilingRef.current) return;
+
+    const newInputData = firstPreset.presetInputData || {};
+    const newInputDataStr = JSON.stringify(newInputData);
+
+    // Only update if the data actually changed
+    if (newInputDataStr !== lastSyncedInputDataRef.current) {
+      lastSyncedInputDataRef.current = newInputDataStr;
+      setLocalInputData(newInputData);
     }
   }, [firstPreset?.presetInputData]);
 
@@ -140,8 +162,14 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
 
     // Debounce both store update and compilation
     debounceTimeoutRef.current = setTimeout(() => {
+      // Mark that we're updating from our own debounced update
+      isUpdatingFromStoreRef.current = true;
+
       // Update store
       updatePresetInputData(timeline.id, firstPreset.id, newInputData);
+
+      // Update the ref to track what we just set
+      lastSyncedInputDataRef.current = JSON.stringify(newInputData);
 
       // Get updated timeline from edits store
       const { getEditedTimeline } = useTimelineEditsStore.getState();
@@ -153,6 +181,11 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
       if (compileStore.currentTimeline?.id === updatedTimeline.id) {
         useCompileStore.setState({ currentTimeline: updatedTimeline });
       }
+
+      // Reset the flag after a short delay to allow store updates to propagate
+      setTimeout(() => {
+        isUpdatingFromStoreRef.current = false;
+      }, 100);
 
       // Auto-compile if preset metadata allows it (only if not already compiling)
       if (actualPreset?.metadata && !isCompilingRef.current) {

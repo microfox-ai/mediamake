@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Code, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Rocket } from "lucide-react";
+import { Code, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Rocket, Loader2, CheckIcon } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { InputCompositionProps } from "@microfox/remotion";
@@ -18,6 +18,7 @@ interface TimelineControlBarProps {
   loop: boolean;
   onLoopChange: (loop: boolean) => void;
   onShowJson: () => void;
+  isGenerating: boolean;
 }
 
 const formatTime = (frame: number, fps: number): string => {
@@ -46,6 +47,7 @@ export function TimelineControlBar({
   playerRef,
   loop,
   onLoopChange,
+  isGenerating,
   onShowJson,
 }: TimelineControlBarProps) {
   const [playing, setPlaying] = useState(false);
@@ -287,29 +289,30 @@ export function TimelineControlBar({
 
   return (
     <div className="border-t px-2 py-1 bg-background">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         {/* Play/Pause Button */}
-        <div className="flex flex-1 flex-col items-start gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePlayPause}
+          disabled={!calculatedMetadata}
+          className="shrink-0"
+        >
+          {playing ? (
+            <>
+              <Pause className="h-4 w-4 mr-2" />
+              Pause
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 mr-2" />
+              Play
+            </>
+          )}
+        </Button>
+        <div className="flex flex-1 flex-col items-start gap-1 mx-2">
           <div className="flex w-full items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePlayPause}
-              disabled={!calculatedMetadata}
-              className="shrink-0"
-            >
-              {playing ? (
-                <>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Pause
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Play
-                </>
-              )}
-            </Button>
+
             {/* Seek Bar */}
             <div
               ref={seekBarRef}
@@ -340,10 +343,15 @@ export function TimelineControlBar({
             </div>
 
             {/* Metadata Display */}
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground flex items-center gap-2">
               {calculatedMetadata.width} × {calculatedMetadata.height} @ {fps}fps
               {durationInFrames > 0 && (
                 <> • {Math.round(durationInFrames / fps)}s</>
+              )}
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
+              ) : (
+                <CheckIcon className="h-4 w-4 text-green-500" />
               )}
             </div>
 

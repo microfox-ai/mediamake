@@ -94,6 +94,7 @@ export function EditPatternContent() {
         loop={loop}
         onLoopChange={setLoop}
         onShowJson={() => setShowOutputDialog(true)}
+        isGenerating={isGenerating}
       />
 
       {/* Output JSON Dialog */}
