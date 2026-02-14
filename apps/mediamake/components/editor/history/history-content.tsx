@@ -24,11 +24,13 @@ import {
     Zap,
     Settings2,
     Trash2,
-    Archive
+    Archive,
+    Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { type RenderRequest } from "@/lib/render-history";
+import type { InputCompositionProps } from "@microfox/remotion";
 import { CostDisplay } from "./cost-display";
 import { ProgressDetails } from "./progress-details";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -65,6 +67,8 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [archiveInDatabase, setArchiveInDatabase] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [loadedInputProps, setLoadedInputProps] = useState<InputCompositionProps | null>(null);
+    const [isLoadingInputProps, setIsLoadingInputProps] = useState(false);
     const { fetchAndUpdateProgress } = useProgress();
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
     const selectedRenderIdRef = useRef<string | null>(null);
@@ -78,11 +82,13 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         if (selectedRender && propSelectedRequest) {
             setSelectedRequest(propSelectedRequest);
             setError(null);
+            setLoadedInputProps(null); // clear on-demand inputProps when selection changes
         } else if (selectedRender && !propSelectedRequest) {
             setError('Request not found');
         } else {
             setSelectedRequest(null);
             setError(null);
+            setLoadedInputProps(null);
         }
     }, [selectedRender, propSelectedRequest]);
 
@@ -256,6 +262,39 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
             setError('Failed to refresh request');
         } finally {
             setIsRefreshing(false);
+        }
+    };
+
+    const handleLoadInputProps = async () => {
+        if (!selectedRender || !apiKey?.trim()) {
+            toast.error("Missing selection or API key");
+            return;
+        }
+        setIsLoadingInputProps(true);
+        try {
+            const params = new URLSearchParams({
+                renderId: selectedRender,
+                inputPropsOnly: "true",
+            });
+            if (selectedRequest?.isArchived) params.set("includeArchived", "true");
+            const res = await fetch(`/api/remotion/history?${params}`, {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data.error || "Failed to load input props");
+                return;
+            }
+            const data = await res.json();
+            setLoadedInputProps(data.inputProps ?? null);
+            if (data.inputProps == null) {
+                toast.info("No input props stored for this render");
+            }
+        } catch (err) {
+            console.error("Failed to load input props:", err);
+            toast.error("Failed to load input props");
+        } finally {
+            setIsLoadingInputProps(false);
         }
     };
 
@@ -674,24 +713,43 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                         </CardContent>
                     </Card>
 
-                    {/* Input Props */}
-                    {selectedRequest?.inputProps && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Code className="h-5 w-5" />
-                                    Input Properties
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
+                    {/* Input Props — loaded on demand to avoid heavy payloads in history list */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Code className="h-5 w-5" />
+                                Input Properties
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {(selectedRequest?.inputProps ?? loadedInputProps) ? (
                                 <ReadOnlyJsonEditor
-                                    value={selectedRequest?.inputProps}
+                                    value={selectedRequest?.inputProps ?? loadedInputProps ?? {}}
                                     height="300px"
                                     className="w-full"
                                 />
-                            </CardContent>
-                        </Card>
-                    )}
+                            ) : (
+                                <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                                    <p className="text-sm text-muted-foreground">
+                                        Input props are not loaded with the history list to keep the page fast. Load them only when needed.
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadInputProps}
+                                        disabled={isLoadingInputProps}
+                                        className="gap-2"
+                                    >
+                                        {isLoadingInputProps ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Code className="h-4 w-4" />
+                                        )}
+                                        {isLoadingInputProps ? "Loading…" : "Load input props"}
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             </ScrollArea>
 
