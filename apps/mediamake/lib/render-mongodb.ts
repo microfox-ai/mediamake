@@ -66,6 +66,29 @@ export class RenderRequestMongoDB {
     return await collection.findOne(query);
   }
 
+  /** Get only inputProps for a render (for on-demand load). Uses projection to avoid loading full document. */
+  async getInputPropsById(
+    id: string,
+    clientId: string,
+    options?: { includeArchived?: boolean },
+  ): Promise<RenderRequest['inputProps'] | null> {
+    const db = await getDatabase();
+    const collection = db.collection<RenderRequestDocument>(
+      this.collectionName,
+    );
+
+    const query: Filter<RenderRequestDocument> = {
+      renderId: id,
+      clientId,
+      ...(options?.includeArchived ? {} : notArchivedFilter),
+    };
+
+    const doc = await collection.findOne(query, {
+      projection: { inputProps: 1 },
+    });
+    return doc?.inputProps ?? null;
+  }
+
   async getByClientId(
     clientId: string,
     limit = 50,
@@ -82,10 +105,24 @@ export class RenderRequestMongoDB {
       .toArray();
   }
 
+  // /**
+  //  * Ensure pagination index exists. Idempotent; safe to call on every request.
+  //  * Without this index, list queries can take 20+ seconds on large collections.
+  //  */
+  // private async ensurePaginationIndex(): Promise<void> {
+  //   const db = await getDatabase();
+  //   const collection = db.collection<RenderRequestDocument>(this.collectionName);
+  //   await collection.createIndex(
+  //     { clientId: 1, isArchived: 1, createdAt: -1, _id: -1 },
+  //     { background: true },
+  //   );
+  // }
+
   /**
    * Get render requests by clientId with cursor-based pagination.
    * Cursor is opaque string encoding last item's createdAt and _id.
    * Use archivedOnly: true to list only archived renders.
+   * Excludes inputProps from the read to keep list fast (it can be MBs).
    */
   async getByClientIdPaginated(
     clientId: string,
@@ -97,6 +134,7 @@ export class RenderRequestMongoDB {
     nextCursor: string | null;
     hasMore: boolean;
   }> {
+    // await this.ensurePaginationIndex();
     const db = await getDatabase();
     const collection = db.collection<RenderRequestDocument>(
       this.collectionName,
@@ -123,8 +161,11 @@ export class RenderRequestMongoDB {
       }
     }
 
+    // Exclude inputProps so MongoDB doesn't read/transfer it (list doesn't need it; can be MBs)
+    const projection = { inputProps: 0 } as const;
+
     const items = await collection
-      .find(query)
+      .find(query, { projection })
       .sort(sort)
       .limit(limit + 1)
       .toArray();

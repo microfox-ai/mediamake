@@ -4,6 +4,7 @@ import { renderRequestDB, type RenderRequestDocument } from '@/lib/render-mongod
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+/** Format document for API response. Excludes inputProps to keep list/single responses light (inputProps can be MBs). */
 function formatDoc(doc: RenderRequestDocument) {
   return {
     id: doc.renderId,
@@ -16,7 +17,6 @@ function formatDoc(doc: RenderRequestDocument) {
     fileSize: doc.fileSize,
     progress: doc.progress,
     error: doc.error,
-    inputProps: doc.inputProps,
     progressData: doc.progressData,
     isDownloadable: doc.isDownloadable,
     bucketName: doc.bucketName,
@@ -49,10 +49,21 @@ export const GET = async (req: NextRequest) => {
 
     const { searchParams } = new URL(req.url);
     const singleRenderId = searchParams.get('renderId');
+    const inputPropsOnly = searchParams.get('inputPropsOnly') === 'true';
     const includeArchived = searchParams.get('includeArchived') === 'true' || searchParams.get('includeDeleted') === 'true';
     const archivedOnly = searchParams.get('archived') === 'true' || searchParams.get('deleted') === 'true';
 
-    // Single render fetch (e.g. for refresh or viewing archived)
+    // Fetch only inputProps for a single render (on-demand, avoids sending large payload in list/single)
+    if (singleRenderId && inputPropsOnly) {
+      const inputProps = await renderRequestDB.getInputPropsById(
+        singleRenderId,
+        clientId,
+        includeArchived ? { includeArchived: true } : undefined,
+      );
+      return NextResponse.json({ inputProps: inputProps ?? undefined });
+    }
+
+    // Single render fetch (e.g. for refresh or viewing archived) — excludes inputProps
     if (singleRenderId) {
       const doc = await renderRequestDB.getById(
         singleRenderId,
