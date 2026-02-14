@@ -46,6 +46,7 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, RefreshCwIcon } from "lucide-react";
+import { useWorkflowJob } from "@/hooks/useWorkflowJob";
 
 type PeriodType = "day" | "week" | "month";
 
@@ -69,26 +70,6 @@ const CHART_COLORS = [
   "hsl(var(--chart-5))",
   "hsl(var(--primary))",
 ];
-
-const POLL_INTERVAL_MS = 1500;
-const POLL_MAX_ATTEMPTS = 180; // ~4.5 min for full queue (ai → remotion → rollup)
-
-interface QueueJobStep {
-  workerId: string;
-  workerJobId: string;
-  status: "queued" | "running" | "completed" | "failed";
-  output?: unknown;
-  error?: { message: string };
-  startedAt?: string;
-  completedAt?: string;
-}
-
-interface QueueJobProgress {
-  id: string;
-  queueId: string;
-  status: string;
-  steps: QueueJobStep[];
-}
 
 function useBillingData(periodType: PeriodType, periodValue: string | null) {
   const [data, setData] = React.useState<{
@@ -209,7 +190,17 @@ function deriveAnalytics(aggregates: BillingAggregate[]) {
   };
 }
 
-type RunRollupStatus = "idle" | "triggering" | "polling" | "completed" | "failed";
+const COST_USAGE_QUEUE_ID = "cost-usage";
+
+function rollupSuccessMessage(output: { steps?: Array<{ output?: unknown }> }): string {
+  const lastStep = output.steps?.slice(-1)[0];
+  const out = lastStep?.output;
+  if (out != null && typeof out === "object") {
+    const o = out as Record<string, unknown>;
+    return `Processed ${o.documentsRead ?? "?"} docs, ${o.aggregatesUpserted ?? "?"} aggregates updated`;
+  }
+  return "Rollup completed.";
+}
 
 export default function BillingPage() {
   const [periodType, setPeriodType] = React.useState<PeriodType>("month");
@@ -217,93 +208,54 @@ export default function BillingPage() {
   const { data, loading, error, refetch } = useBillingData(periodType, periodValue);
   const analytics = data ? deriveAnalytics(data.aggregates) : null;
 
-  const [runRollupStatus, setRunRollupStatus] = React.useState<RunRollupStatus>("idle");
-  const [runRollupMessage, setRunRollupMessage] = React.useState<string | null>(null);
-  const [queueProgress, setQueueProgress] = React.useState<QueueJobProgress | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const successTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const runRollupWorker = React.useCallback(async () => {
-    setRunRollupStatus("triggering");
-    setRunRollupMessage(null);
-    setQueueProgress(null);
-    try {
-      const triggerRes = await fetch("/api/billing/aggregates/rollup", {
-        method: "POST",
-      });
-      if (!triggerRes.ok) {
-        const errJson = await triggerRes.json().catch(() => ({}));
-        const errBody = (errJson?.error ?? (await triggerRes.text())) || triggerRes.statusText;
-        throw new Error(typeof errBody === "string" ? errBody : (errBody as { message?: string })?.message ?? "Trigger failed");
-      }
-      const triggerJson = await triggerRes.json();
-      const jobId = triggerJson.jobId;
-      if (!jobId) {
-        throw new Error("No jobId returned from rollup");
-      }
-      setRunRollupStatus("polling");
-      const FALLBACK_AFTER_ATTEMPTS = 60; // ~90s - if no step updates, queue job tracking may be unavailable
-      for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-        const statusRes = await fetch(`/api/workflows/queue-jobs/${jobId}`);
-        if (statusRes.status === 404) {
-          setRunRollupMessage("Queue job not found. Ensure WORKFLOW_APP_BASE_URL is set in Lambda for progress tracking.");
-          setRunRollupStatus("failed");
-          return;
-        }
-        if (!statusRes.ok) {
-          setRunRollupMessage(`Status check failed: ${statusRes.statusText}`);
-          setRunRollupStatus("failed");
-          return;
-        }
-        const qj = (await statusRes.json()) as QueueJobProgress;
-        setQueueProgress(qj);
-        if (qj.status === "completed") {
-          const lastStep = qj.steps?.slice(-1)[0];
-          const out = lastStep?.output;
-          const msg =
-            out != null && typeof out === "object"
-              ? `Processed ${(out as Record<string, unknown>).documentsRead ?? "?"} docs, ${(out as Record<string, unknown>).aggregatesUpserted ?? "?"} aggregates updated`
-              : "Queue completed.";
-          setRunRollupMessage(msg);
-          setRunRollupStatus("completed");
-          await refetch();
-          setTimeout(() => {
-            setRunRollupStatus("idle");
-            setRunRollupMessage(null);
-            setQueueProgress(null);
-          }, 4000);
-          return;
-        }
-        if (qj.status === "failed") {
-          const failedStep = qj.steps?.find((s) => s.status === "failed");
-          const err = failedStep?.error?.message ?? "Queue failed";
-          setRunRollupMessage(err);
-          setRunRollupStatus("failed");
-          return;
-        }
-        if (attempt === FALLBACK_AFTER_ATTEMPTS - 1) {
-          const hasStepUpdates = (qj.steps?.length ?? 0) > 1 || qj.steps?.some((s) => s.status === "completed" || s.status === "running");
-          if (!hasStepUpdates) {
-            await refetch();
-            setRunRollupMessage(
-              "Queue progress unavailable (set WORKFLOW_APP_BASE_URL in Lambda env). Data refreshed—check if rollup completed."
-            );
-            setRunRollupStatus("completed");
-            setTimeout(() => {
-              setRunRollupStatus("idle");
-              setRunRollupMessage(null);
-              setQueueProgress(null);
-            }, 5000);
-            return;
-          }
-        }
-      }
-      setRunRollupMessage("Queue timed out.");
-      setRunRollupStatus("failed");
-    } catch (e) {
-      setRunRollupMessage(e instanceof Error ? e.message : "Failed to run rollup");
-      setRunRollupStatus("failed");
-    }
-  }, [refetch]);
+  const {
+    trigger,
+    status: rollupStatus,
+    output: queueOutput,
+    error: rollupError,
+    loading: rollupLoading,
+    polling: rollupPolling,
+    reset: resetRollup,
+  } = useWorkflowJob({
+    type: "queue",
+    queueId: COST_USAGE_QUEUE_ID,
+    metadata: { source: "billing-ui" },
+    pollIntervalMs: 1500,
+    pollTimeoutMs: 300_000,
+    autoPoll: true,
+    onComplete: (result) => {
+      refetch();
+      const msg =
+        result && "steps" in result ? rollupSuccessMessage(result) : "Rollup completed.";
+      setSuccessMessage(msg);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = setTimeout(() => {
+        setSuccessMessage(null);
+        resetRollup();
+      }, 4000);
+    },
+    onError: () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    },
+  });
+
+  React.useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
+  const runRollupWorker = React.useCallback(() => {
+    setSuccessMessage(null);
+    trigger({});
+  }, [trigger]);
+
+  const runRollupMessage = rollupError?.message ?? successMessage;
+  const runRollupMessageIsError = !!rollupError;
+  const queueProgress = queueOutput && "steps" in queueOutput ? queueOutput : null;
 
   const chartConfigCost: ChartConfig = {
     totalCostUSD: { label: "Total cost (USD)", color: "hsl(var(--chart-1))" },
@@ -363,13 +315,13 @@ export default function BillingPage() {
                   variant="outline"
                   size="sm"
                   onClick={runRollupWorker}
-                  disabled={runRollupStatus === "triggering" || runRollupStatus === "polling"}
+                  disabled={rollupLoading || rollupPolling}
                   className="gap-2"
                 >
-                  {(runRollupStatus === "triggering" || runRollupStatus === "polling") ? (
+                  {rollupLoading || rollupPolling ? (
                     <>
                       <Loader2Icon className="h-4 w-4 animate-spin" />
-                      {runRollupStatus === "triggering" ? "Starting…" : "Running queue…"}
+                      {rollupLoading ? "Starting…" : "Running queue…"}
                     </>
                   ) : (
                     <>
@@ -383,7 +335,7 @@ export default function BillingPage() {
             {runRollupMessage && (
               <p
                 className={
-                  runRollupStatus === "failed"
+                  runRollupMessageIsError
                     ? "text-destructive text-sm"
                     : "text-muted-foreground text-sm"
                 }
