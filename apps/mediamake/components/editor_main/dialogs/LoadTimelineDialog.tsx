@@ -18,6 +18,7 @@ import useQueryState from "@/hooks/use-query-state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/components/session-provider";
+import { useSearchParams } from "next/navigation";
 
 interface Timeline {
     id: string;
@@ -57,10 +58,11 @@ export function LoadTimelineDialog({ open, onOpenChange }: LoadTimelineDialogPro
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState<PaginationInfo | null>(null);
     const [showLegacy, setShowLegacy] = useState(false);
-    const [projectIdFromQuery] = useQueryState("id", "");
+    const params = useSearchParams();
+    const projectIdFromQuery = params.get("id");
     const { setTimelines: setStoreTimelines, currentProjectId, loadProjectTimelines } = useProjectStore();
     const session = useSession();
-    
+
     const projectId = projectIdFromQuery || currentProjectId;
     const clientId = session?.clientId;
 
@@ -162,41 +164,22 @@ export function LoadTimelineDialog({ open, onOpenChange }: LoadTimelineDialogPro
 
         setIsLoading(true);
         try {
-            // Fetch full timeline
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (clientId) {
                 headers['x-client-id'] = clientId;
             }
-            const response = await fetch(`/api/project/timeline?id=${timelineId}`, {
-                headers,
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to load timeline");
-            }
-
-            const timeline = await response.json();
-
-            // Create duplicate with new projectId
-            const duplicate = {
-                ...timeline,
-                projectId: projectId,
-                displayName: `${timeline.displayName} (Copy)`,
-            };
-            delete duplicate.id;
-
-            const createHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (clientId) {
-                createHeaders['x-client-id'] = clientId;
-            }
             const createResponse = await fetch("/api/project/timeline", {
                 method: "POST",
-                headers: createHeaders,
-                body: JSON.stringify(duplicate),
+                headers,
+                body: JSON.stringify({
+                    projectId,
+                    sourceTimelineId: timelineId,
+                }),
             });
 
             if (!createResponse.ok) {
-                throw new Error("Failed to duplicate timeline");
+                const errorData = await createResponse.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to duplicate timeline");
             }
 
             // Reload timelines
@@ -204,7 +187,7 @@ export function LoadTimelineDialog({ open, onOpenChange }: LoadTimelineDialogPro
             onOpenChange(false);
         } catch (error) {
             console.error("Error loading timeline:", error);
-            alert("Failed to load timeline. Please try again.");
+            alert(error instanceof Error ? error.message : "Failed to load timeline. Please try again.");
         } finally {
             setIsLoading(false);
         }

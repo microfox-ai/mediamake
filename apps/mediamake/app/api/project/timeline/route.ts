@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
     const collection = db.collection<TimelineDocument>('timelines');
 
     const body = await request.json();
-    const { projectId, displayName, description, template, legacyId } = body;
+    const { projectId, displayName, description, template, legacyId, sourceTimelineId, configuration, defaultData, presets } = body;
 
     if (!projectId || typeof projectId !== 'string') {
       return NextResponse.json(
@@ -280,6 +280,67 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Handle timeline duplication (copy from existing timeline)
+    if (sourceTimelineId) {
+      try {
+        const sourceObjectId = new ObjectId(sourceTimelineId);
+        const sourceQuery: any = { _id: sourceObjectId };
+        if (clientId) {
+          sourceQuery.clientId = clientId;
+        }
+        const sourceTimeline = await collection.findOne(sourceQuery);
+        
+        if (!sourceTimeline) {
+          return NextResponse.json(
+            { error: 'Source timeline not found' },
+            { status: 404 },
+          );
+        }
+
+        // Copy all data from source timeline
+        const timelineDocument: Omit<TimelineDocument, '_id'> = {
+          clientId,
+          projectId,
+          displayName: displayName?.trim() || `${sourceTimeline.displayName} (Copy)`,
+          description: description?.trim() || sourceTimeline.description,
+          configuration: sourceTimeline.configuration,
+          defaultData: sourceTimeline.defaultData,
+          presets: sourceTimeline.presets,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        const result = await collection.insertOne(timelineDocument);
+
+        console.log(`✅ API: Successfully duplicated timeline:`, {
+          timelineId: result.insertedId.toString(),
+          sourceTimelineId: sourceTimelineId,
+          projectId: projectId,
+          displayName: timelineDocument.displayName,
+          numberOfPresets: sourceTimeline.presets?.length || 0,
+        });
+
+        const created = await collection.findOne({ _id: result.insertedId });
+        return NextResponse.json({
+          id: created?._id?.toString(),
+          projectId: created?.projectId,
+          displayName: created?.displayName,
+          description: created?.description,
+          createdAt: created?.createdAt,
+          updatedAt: created?.updatedAt,
+          configuration: created?.configuration,
+          defaultData: created?.defaultData,
+          presets: created?.presets,
+        });
+      } catch (error) {
+        console.error('Error duplicating timeline:', error);
+        return NextResponse.json(
+          { error: 'Failed to duplicate timeline' },
+          { status: 500 },
+        );
+      }
+    }
+
     // Regular timeline creation
     if (!displayName || typeof displayName !== 'string' || displayName.trim() === '') {
       return NextResponse.json(
@@ -297,8 +358,20 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     };
 
-    // Apply template
-    if (template === 'blank') {
+    // If configuration, defaultData, or presets are provided in the body (for duplication/import),
+    // use them instead of template defaults
+    if (configuration !== undefined) {
+      timelineData.configuration = configuration;
+    }
+    if (defaultData !== undefined) {
+      timelineData.defaultData = defaultData;
+    }
+    if (presets !== undefined) {
+      timelineData.presets = presets;
+    }
+
+    // Apply template only if no data was provided (i.e., creating a new blank timeline)
+    if (template === 'blank' && configuration === undefined && defaultData === undefined && presets === undefined) {
       timelineData = {
         ...timelineData,
         configuration: {

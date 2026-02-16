@@ -17,6 +17,7 @@ import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { usePresetsStore } from "../../../stores/presets-store";
+import { useSession } from "@/components/session-provider";
 import { cn } from "@/lib/utils";
 import { PresetItem } from "./PresetItem";
 import { TimelineAddPresetMenu } from "./TimelineAddPresetMenu";
@@ -50,6 +51,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const { selectTimeline, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline } = useTimelineEditsStore();
     const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
+    const session = useSession();
 
     // Get edited timeline if it exists, otherwise use original
     const editedTimeline = getEditedTimeline(timeline.id);
@@ -60,41 +62,56 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const presets = displayTimeline.presets || [];
 
     const handleClick = (e: React.MouseEvent) => {
+        if (isOpen) {
+            if (loadedTimeline?.id != timeline.id) {
+                loadTimeline(timeline);
+            }
+            if (selectedItem?.type != 'timeline' || selectedItem.item.id !== timeline.id) {
+                selectTimeline(timeline);
+            }
+            return;
+        }
         e.stopPropagation();
         loadTimeline(timeline);
         selectTimeline(timeline);
         setIsOpen(_open => !_open);
     };
 
-    const handleDuplicateTimeline = async () => {
-        try {
-            const duplicate = {
-                ...displayTimeline,
-                displayName: `${displayTimeline.displayName} (Copy)`,
-            };
-            if ('id' in duplicate) {
-                delete (duplicate as any).id;
-            }
+    const closeTimeline = () => {
+        setIsOpen(false);
+    };
 
+    const handleDuplicateTimeline = async () => {
+        if (!currentProjectId) {
+            alert("Please create or load a project first");
+            return;
+        }
+
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.clientId) {
+                headers['x-client-id'] = session.clientId;
+            }
             const response = await fetch("/api/project/timeline", {
                 method: "POST",
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(duplicate),
+                headers,
+                body: JSON.stringify({
+                    projectId: currentProjectId,
+                    sourceTimelineId: timeline.id,
+                    displayName: `${displayTimeline.displayName} (Copy)`,
+                }),
             });
 
             if (!response.ok) {
-                throw new Error("Failed to duplicate timeline");
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to duplicate timeline");
             }
 
             // Reload timelines
-            if (currentProjectId) {
-                await loadProjectTimelines(currentProjectId);
-            }
+            await loadProjectTimelines(currentProjectId, session?.clientId);
         } catch (error) {
             console.error("Error duplicating timeline:", error);
-            alert("Failed to duplicate timeline. Please try again.");
+            alert(error instanceof Error ? error.message : "Failed to duplicate timeline. Please try again.");
         }
     };
 
@@ -167,7 +184,9 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     )}
                                 >
                                     {isOpen ? (
-                                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        <ChevronDown
+                                            onClick={closeTimeline}
+                                            className="h-3 w-3 text-muted-foreground" />
                                     ) : (
                                         <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                     )}

@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useProjectStore } from "../stores/project-store";
 import useQueryState from "@/hooks/use-query-state";
 import { useSession } from "@/components/session-provider";
+import { useSearchParams } from "next/navigation";
 
 interface NewTimelineDialogProps {
     open: boolean;
@@ -30,7 +31,8 @@ export function NewTimelineDialog({ open, onOpenChange }: NewTimelineDialogProps
     const [name, setName] = useState("");
     const [template, setTemplate] = useState("blank");
     const [isLoading, setIsLoading] = useState(false);
-    const [projectIdFromQuery] = useQueryState("id", "");
+    const params = useSearchParams();
+    const projectIdFromQuery = params.get("id");
     const { setTimelines, currentProjectId } = useProjectStore();
     const session = useSession();
 
