@@ -678,7 +678,7 @@ function SortableMediaItem({
                                     item={mediaItem.data}
                                     onClick={() => onMediaClick?.(mediaItem.data, arrayKey, index)}
                                     onDelete={() => onDelete?.(arrayKey, index)}
-                                    onReplace={(files) => onReplace?.(arrayKey, index, files)}
+                                    onReplace={(files) => onReplace?.(arrayKey, index, files, mediaItem.path)}
                                 />
                                 <div className="text-xs text-muted-foreground mt-1">
                                     {mediaItem.path}
@@ -691,7 +691,7 @@ function SortableMediaItem({
                         item={item}
                         onClick={() => onMediaClick?.(item, arrayKey, index)}
                         onDelete={() => onDelete?.(arrayKey, index)}
-                        onReplace={(files) => onReplace?.(arrayKey, index, files)}
+                        onReplace={(files) => onReplace?.(arrayKey, index, files, 'src')}
                     />
                 )}
             </div>
@@ -845,44 +845,71 @@ function MediaTab({
         const file = Array.isArray(files) ? files[0] : files;
         if (file) {
             // Update the item with the new media file
-            const updatedItem = { ...item };
+            let updatedItem: any;
 
             // Check if item has direct src field
-            if ('src' in item) {
-                updatedItem.src = file.filePath;
-                if (file.fileName) updatedItem.title = file.fileName;
-                if (file.contentType) updatedItem.contentType = file.contentType;
+            if ('src' in item && !mediaPath) {
+                updatedItem = {
+                    ...item,
+                    src: file.filePath,
+                    ...(file.fileName && { title: file.fileName }),
+                    ...(file.contentType && { contentType: file.contentType })
+                };
             } else {
                 // Smart media replacement logic - only replace the specific media item that was clicked
                 if (mediaPath) {
                     console.log('Replacing media at path:', mediaPath, 'with file:', file.filePath);
 
                     // Use the specific media path to replace only the targeted media item
+                    // This function creates a new immutable object structure
                     const replaceAtPath = (obj: any, path: string): any => {
-                        if (!path) return obj;
+                        if (!path) return { ...obj };
 
+                        // Deep clone the object to avoid mutations
+                        const deepClone = (val: any): any => {
+                            if (val === null || typeof val !== 'object') return val;
+                            if (Array.isArray(val)) return val.map(deepClone);
+                            const cloned: any = {};
+                            for (const key in val) {
+                                if (val.hasOwnProperty(key)) {
+                                    cloned[key] = deepClone(val[key]);
+                                }
+                            }
+                            return cloned;
+                        };
+
+                        const cloned = deepClone(obj);
                         const pathParts = path.split('.');
-                        let current = obj;
+                        let current: any = cloned;
 
-                        // Navigate to the parent of the target
+                        // Navigate to the parent of the target, creating new objects as we go
                         for (let i = 0; i < pathParts.length - 1; i++) {
                             const part = pathParts[i];
                             if (part.includes('[') && part.includes(']')) {
                                 // Handle array indices like "splitParts[0]"
-                                const [key, index] = part.split('[');
-                                const arrayIndex = parseInt(index.replace(']', ''));
+                                const [key, idx] = part.split('[');
+                                const arrayIndex = parseInt(idx.replace(']', ''));
+                                if (!current[key]) current[key] = [];
+                                if (!Array.isArray(current[key][arrayIndex])) {
+                                    current[key] = [...current[key]];
+                                    current[key][arrayIndex] = { ...current[key][arrayIndex] };
+                                }
                                 current = current[key][arrayIndex];
                             } else {
+                                current[part] = { ...current[part] };
                                 current = current[part];
                             }
                         }
 
-                        // Get the final key
+                        // Get the final key and update it
                         const finalKey = pathParts[pathParts.length - 1];
                         if (finalKey.includes('[') && finalKey.includes(']')) {
                             // Handle array index
-                            const [key, index] = finalKey.split('[');
-                            const arrayIndex = parseInt(index.replace(']', ''));
+                            const [key, idx] = finalKey.split('[');
+                            const arrayIndex = parseInt(idx.replace(']', ''));
+
+                            if (!current[key]) current[key] = [];
+                            current[key] = [...current[key]];
 
                             if (typeof current[key][arrayIndex] === 'string') {
                                 // Replace string URL
@@ -890,12 +917,12 @@ function MediaTab({
                                 current[key][arrayIndex] = file.filePath;
                             } else {
                                 // Replace object
-                                console.log('Replacing object at', path, 'from', current[key][arrayIndex].src, 'to', file.filePath);
+                                console.log('Replacing object at', path, 'from', current[key][arrayIndex]?.src, 'to', file.filePath);
                                 current[key][arrayIndex] = {
                                     ...current[key][arrayIndex],
                                     src: file.filePath,
-                                    title: file.fileName || current[key][arrayIndex].title,
-                                    contentType: file.contentType || current[key][arrayIndex].contentType
+                                    ...(file.fileName && { title: file.fileName }),
+                                    ...(file.contentType && { contentType: file.contentType })
                                 };
                             }
                         } else {
@@ -906,21 +933,20 @@ function MediaTab({
                                 current[finalKey] = file.filePath;
                             } else {
                                 // Replace object
-                                console.log('Replacing object at', path, 'from', current[finalKey].src, 'to', file.filePath);
+                                console.log('Replacing object at', path, 'from', current[finalKey]?.src, 'to', file.filePath);
                                 current[finalKey] = {
                                     ...current[finalKey],
                                     src: file.filePath,
-                                    title: file.fileName || current[finalKey].title,
-                                    contentType: file.contentType || current[finalKey].contentType
+                                    ...(file.fileName && { title: file.fileName }),
+                                    ...(file.contentType && { contentType: file.contentType })
                                 };
                             }
                         }
 
-                        return obj;
+                        return cloned;
                     };
 
-                    const updatedNestedItem = replaceAtPath(updatedItem, mediaPath);
-                    array[index] = updatedNestedItem;
+                    updatedItem = replaceAtPath(item, mediaPath);
                 } else {
                     // Fallback to old logic if no media path provided
                     const updateNestedSrc = (obj: any, skipWords = false): any => {
@@ -933,14 +959,14 @@ function MediaTab({
                                 continue;
                             }
 
-                            if (typeof value === 'object' && value !== null) {
+                            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                                 if ('src' in value && typeof value.src === 'string') {
                                     const mediaValue = value as any;
                                     result[key] = {
                                         ...value,
                                         src: file.filePath,
-                                        title: file.fileName || mediaValue.title,
-                                        contentType: file.contentType || mediaValue.contentType
+                                        ...(file.fileName && { title: file.fileName }),
+                                        ...(file.contentType && { contentType: file.contentType })
                                     };
                                     break; // Update only the first src field found
                                 } else {
@@ -951,11 +977,11 @@ function MediaTab({
                         return result;
                     };
 
-                    const updatedNestedItem = updateNestedSrc(updatedItem, true); // Skip words array
-                    array[index] = updatedNestedItem;
+                    updatedItem = updateNestedSrc(item, true); // Skip words array
                 }
             }
 
+            array[index] = updatedItem;
             newData[arrayKey] = array;
             onChange(newData);
         }

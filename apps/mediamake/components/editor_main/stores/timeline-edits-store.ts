@@ -30,6 +30,8 @@ interface TimelineEditsState {
   updateTimelineConfig: (timelineId: string, config: any) => void;
   updateTimelineDefaultData: (timelineId: string, defaultData: any) => void;
   addPresetToTimeline: (timelineId: string, preset: PresetType | DatabasePreset) => void;
+  removePreset: (timelineId: string, presetId: string) => void;
+  duplicatePreset: (timelineId: string, presetId: string) => void;
   reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => void;
   
   // History actions
@@ -311,6 +313,77 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           presets: [...existingPresets, newPreset] 
         });
       }
+    },
+
+    removePreset: (timelineId: string, presetId: string) => {
+      const state = get();
+      const timeline = state.editedTimelines.get(timelineId);
+      
+      if (!timeline) {
+        const { useProjectStore } = require('./project-store');
+        const projectState = useProjectStore.getState();
+        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
+          ? projectState.loadedTimeline 
+          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
+        
+        if (!originalTimeline || !originalTimeline.presets) return;
+        
+        const filteredPresets = originalTimeline.presets.filter((p: any) => p.id !== presetId);
+        get().updateTimeline(timelineId, { presets: filteredPresets });
+        return;
+      }
+      
+      if (!timeline.presets) return;
+      
+      const filteredPresets = timeline.presets.filter(p => p.id !== presetId);
+      get().updateTimeline(timelineId, { presets: filteredPresets });
+    },
+
+    duplicatePreset: (timelineId: string, presetId: string) => {
+      const state = get();
+      const timeline = state.editedTimelines.get(timelineId);
+      
+      let sourcePreset: any;
+      let allPresets: any[];
+      
+      if (!timeline) {
+        const { useProjectStore } = require('./project-store');
+        const projectState = useProjectStore.getState();
+        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
+          ? projectState.loadedTimeline 
+          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
+        
+        if (!originalTimeline || !originalTimeline.presets) return;
+        
+        sourcePreset = originalTimeline.presets.find((p: any) => p.id === presetId);
+        allPresets = originalTimeline.presets;
+      } else {
+        if (!timeline.presets) return;
+        sourcePreset = timeline.presets.find(p => p.id === presetId);
+        allPresets = timeline.presets;
+      }
+      
+      if (!sourcePreset) return;
+      
+      // Find the index of the source preset
+      const sourceIndex = allPresets.findIndex((p: any) => p.id === presetId);
+      if (sourceIndex === -1) return;
+      
+      // Count how many presets with the same presetId exist
+      const count = allPresets.filter((p: any) => p.presetId === sourcePreset.presetId).length;
+      
+      // Create duplicate preset
+      const duplicatedPreset = {
+        ...sourcePreset,
+        id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        label: count > 0 ? `${sourcePreset.label} (Copy)` : `${sourcePreset.label} (Copy)`,
+      };
+      
+      // Insert duplicate right after the source preset
+      const newPresets = [...allPresets];
+      newPresets.splice(sourceIndex + 1, 0, duplicatedPreset);
+      
+      get().updateTimeline(timelineId, { presets: newPresets });
     },
 
     reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => {

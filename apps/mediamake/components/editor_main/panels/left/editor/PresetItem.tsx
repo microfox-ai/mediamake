@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { File, Eye, EyeOff, Play, DivideIcon, GripVertical } from "lucide-react";
+import { File, Eye, EyeOff, Play, DivideIcon, GripVertical, Copy, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
@@ -10,6 +10,12 @@ import { type Timeline } from "../../../stores/project-store";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -26,7 +32,7 @@ export function PresetItem({
 }: PresetItemProps) {
     const [isHovered, setIsHovered] = useState(false);
     const { selectPreset, selectedItem } = useEditorStore();
-    const { getEditedTimeline, updatePresetDisabled } = useTimelineEditsStore();
+    const { getEditedTimeline, updatePresetDisabled, removePreset, duplicatePreset, reorderPresets } = useTimelineEditsStore();
     const { generateOutput } = useCompileStore();
     const { loadedTimeline } = useProjectStore();
 
@@ -108,82 +114,130 @@ export function PresetItem({
         }
     };
 
+    const handleDuplicate = () => {
+        duplicatePreset(timeline.id, preset.id);
+    };
+
+    const handleDelete = () => {
+        if (confirm(`Are you sure you want to delete "${displayPreset.label}"?`)) {
+            removePreset(timeline.id, preset.id);
+        }
+    };
+
+    const handleMoveUp = () => {
+        // Can't move up if it's the first preset (index 0) or if it's the second preset (index 1, since first is special)
+        if (index <= 1) return;
+        reorderPresets(timeline.id, index, index - 1);
+    };
+
+    const presets = displayTimeline.presets || [];
+
+    const handleMoveDown = () => {
+        if (index >= presets.length - 1) return;
+        reorderPresets(timeline.id, index, index + 1);
+    };
+
+    const canMoveUp = index > 1; // Can't move first preset (index 0) or second preset (index 1) up
+    const canMoveDown = index < presets.length - 1;
+
     return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            onClick={handleClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className={cn(
-                "relative cursor-default group flex items-center gap-2 px-2 py-0 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
-                isSelected && "bg-blue-100 hover:bg-blue-100"
-            )}
-        >
-            <div
-                {...attributes}
-                {...listeners}
-                className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <GripVertical className="h-3 w-3 text-muted-foreground" />
-            </div>
-            <File className="h-3 w-3" />
-            <span className={cn("flex-1",
-                displayPreset.disabled ? "line-through" : "",
-                (!isSelected || displayPreset.disabled) ? "text-muted-foreground" : isSelected ? "text-black" : "text-foreground")}>
-                {displayPreset.label}
-            </span>
+        <ContextMenu>
+            <ContextMenuTrigger asChild>
+                <div
+                    ref={setNodeRef}
+                    style={style}
+                    onClick={handleClick}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    className={cn(
+                        "relative cursor-default group flex items-center gap-2 px-2 py-0 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                        isSelected && "bg-blue-100 hover:bg-blue-100"
+                    )}
+                >
+                    <div
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <GripVertical className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <File className="h-3 w-3" />
+                    <span className={cn("flex-1",
+                        displayPreset.disabled ? "line-through" : "",
+                        (!isSelected || displayPreset.disabled) ? "text-muted-foreground" : isSelected ? "text-black" : "text-foreground")}>
+                        {displayPreset.label}
+                    </span>
 
-            {/* Icons that appear on hover */}
-            {isHovered ? (
-                <div className="flex items-center h-full gap-0 transition-opacity">
-                    {/* Regenerate Preset (Play) */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div
-                                onClick={handleRegenerate}
-                                className="p-0 px-2 h-full flex items-center justify-center text-foreground hover:text-primary hover:bg-black/10 cursor-default"
-                            >
-                                <Play className="h-3 w-3" />
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Regenerate only this preset</p>
-                        </TooltipContent>
-                    </Tooltip>
+                    {/* Icons that appear on hover */}
+                    {isHovered ? (
+                        <div className="flex items-center h-full gap-0 transition-opacity">
+                            {/* Regenerate Preset (Play) */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div
+                                        onClick={handleRegenerate}
+                                        className="p-0 px-2 h-full flex items-center justify-center text-foreground hover:text-primary hover:bg-black/10 cursor-default"
+                                    >
+                                        <Play className="h-3 w-3" />
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Regenerate only this preset</p>
+                                </TooltipContent>
+                            </Tooltip>
 
-                    {/* Toggle Preset Layer (Eye/EyeOff) */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div
-                                onClick={handleToggleDisabled}
-                                className={cn(
-                                    "p-0 px-2 h-full flex items-center justify-center hover:bg-black/10",
-                                    displayPreset.disabled
-                                        ? "text-foreground hover:text-muted-foreground cursor-default"
-                                        : "text-foreground hover:text-muted-foreground cursor-default"
-                                )}
-                            >
-                                {displayPreset.disabled ? (
-                                    <EyeOff className="h-3 w-3" />
-                                ) : (
-                                    <Eye className="h-3 w-3" />
-                                )}
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Toggle preset layer</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            ) : (
-                <div className="flex items-center gap-1 transition-opacity pr-2">
-                    {displayPreset.disabled && (
-                        <EyeOff className="h-3 w-3" />
+                            {/* Toggle Preset Layer (Eye/EyeOff) */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div
+                                        onClick={handleToggleDisabled}
+                                        className={cn(
+                                            "p-0 px-2 h-full flex items-center justify-center hover:bg-black/10",
+                                            displayPreset.disabled
+                                                ? "text-foreground hover:text-muted-foreground cursor-default"
+                                                : "text-foreground hover:text-muted-foreground cursor-default"
+                                        )}
+                                    >
+                                        {displayPreset.disabled ? (
+                                            <EyeOff className="h-3 w-3" />
+                                        ) : (
+                                            <Eye className="h-3 w-3" />
+                                        )}
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Toggle preset layer</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1 transition-opacity pr-2">
+                            {displayPreset.disabled && (
+                                <EyeOff className="h-3 w-3" />
+                            )}
+                        </div>
                     )}
                 </div>
-            )}
-        </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+                <ContextMenuItem onClick={handleDuplicate}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate Block
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleDelete} variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Block
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleMoveUp} disabled={!canMoveUp}>
+                    <ArrowUp className="h-4 w-4 mr-2" />
+                    Move Up
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleMoveDown} disabled={!canMoveDown}>
+                    <ArrowDown className="h-4 w-4 mr-2" />
+                    Move Down
+                </ContextMenuItem>
+            </ContextMenuContent>
+        </ContextMenu>
     );
 }
