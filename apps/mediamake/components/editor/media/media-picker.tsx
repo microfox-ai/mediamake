@@ -52,6 +52,12 @@ interface PaginationProps {
 
 function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: PaginationProps) {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const [pageInput, setPageInput] = useState(currentPage.toString());
+
+    // Update input when currentPage changes externally
+    useEffect(() => {
+        setPageInput(currentPage.toString());
+    }, [currentPage]);
 
     if (totalPages <= 1) {
         return null;
@@ -66,6 +72,27 @@ function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: Pag
     const handleNext = () => {
         if (currentPage < totalPages) {
             onPageChange(currentPage + 1);
+        }
+    };
+
+    const handlePageInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const pageNum = parseInt(pageInput, 10);
+            if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                onPageChange(pageNum);
+            } else {
+                // Reset to current page if invalid
+                setPageInput(currentPage.toString());
+            }
+        }
+    };
+
+    const handlePageInputBlur = () => {
+        // Reset to current page if input is invalid or empty
+        const pageNum = parseInt(pageInput, 10);
+        if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
+            setPageInput(currentPage.toString());
         }
     };
 
@@ -131,6 +158,20 @@ function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: Pag
                         </span>
                     )
                 )}
+                <div className="flex items-center gap-1 px-2">
+                    <span className="text-xs text-muted-foreground">Go to</span>
+                    <Input
+                        type="number"
+                        min={1}
+                        max={totalPages}
+                        value={pageInput}
+                        onChange={(e) => setPageInput(e.target.value)}
+                        onKeyPress={handlePageInputKeyPress}
+                        onBlur={handlePageInputBlur}
+                        className="w-12 h-8 text-center text-sm"
+                        placeholder={currentPage.toString()}
+                    />
+                </div>
                 <Button variant="outline" size="sm" onClick={handleNext} disabled={currentPage === totalPages}>
                     Next
                 </Button>
