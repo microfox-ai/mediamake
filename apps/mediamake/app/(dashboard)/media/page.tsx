@@ -8,6 +8,7 @@ import { MediaPicker } from "@/components/editor/media/media-picker";
 import { useState } from "react";
 import { MediaFile } from "@/app/types/media";
 import { MediaLibrarySidebar } from "@/components/media/media-library-sidebar";
+import { MidjourneyGenerate } from "@/components/media/midjourney-generate";
 import { MediaProvider } from "@/components/editor/media/media-context";
 
 export default function MediaPage() {
@@ -36,6 +37,9 @@ export default function MediaPage() {
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-4 md:gap-6 ">
+                        <div className="px-4">
+                            <MidjourneyGenerate />
+                        </div>
                         <div className="flex h-[calc(100vh-8rem)]">
                             <MediaLibrarySidebar
                                 selectedTag={selectedTag}
