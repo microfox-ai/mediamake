@@ -69,6 +69,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
             if (selectedItem?.type != 'timeline' || selectedItem.item.id !== timeline.id) {
                 selectTimeline(timeline);
             }
+            e.stopPropagation();
             return;
         }
         e.stopPropagation();
@@ -77,7 +78,8 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         setIsOpen(_open => !_open);
     };
 
-    const closeTimeline = () => {
+    const closeTimeline = (e: React.MouseEvent) => {
+        e.stopPropagation();
         setIsOpen(false);
     };
 

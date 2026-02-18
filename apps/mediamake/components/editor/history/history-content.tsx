@@ -132,7 +132,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         return () => {
             cancelled = true;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when selection identity changes, not when callbacks change
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when selection identity changes, not when callbacks change
     }, [selectedRender, propSelectedRequest?.id, apiKey]);
 
     // Check progress for the selected rendering request (only while status is "rendering")
@@ -224,6 +224,8 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
+        link.target = '_blank';
+        console.log('Downloading file:', url, fileName);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -620,7 +622,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             <Badge variant="outline">{selectedRequest?.awsRenderPreset}</Badge>
                                         </div>
                                     )}
-                                    
+
                                     {/* Memory */}
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium flex items-center gap-1">
@@ -628,12 +630,12 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             Memory:
                                         </span>
                                         <span className="text-sm font-mono">
-                                            {selectedRequest?.memoryUsed 
-                                                ? `${(selectedRequest?.memoryUsed / 1024).toFixed(1)} GB` 
+                                            {selectedRequest?.memoryUsed
+                                                ? `${(selectedRequest?.memoryUsed / 1024).toFixed(1)} GB`
                                                 : 'N/A'}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Disk */}
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium flex items-center gap-1">
@@ -641,12 +643,12 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             Disk:
                                         </span>
                                         <span className="text-sm font-mono">
-                                            {selectedRequest?.diskUsed 
-                                                ? `${(selectedRequest?.diskUsed / 1024).toFixed(1)} GB` 
+                                            {selectedRequest?.diskUsed
+                                                ? `${(selectedRequest?.diskUsed / 1024).toFixed(1)} GB`
                                                 : 'N/A'}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Timeout */}
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium flex items-center gap-1">
@@ -654,13 +656,13 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             Timeout:
                                         </span>
                                         <span className="text-sm font-mono">
-                                            {selectedRequest?.timeoutUsed 
-                                                ? `${selectedRequest?.timeoutUsed}s` 
+                                            {selectedRequest?.timeoutUsed
+                                                ? `${selectedRequest?.timeoutUsed}s`
                                                 : 'N/A'}
                                         </span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-3">
                                     {/* Concurrency */}
                                     <div className="flex justify-between items-center">
@@ -672,7 +674,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             {selectedRequest?.concurrencyUsed ?? 'Auto'}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Frames Per Lambda */}
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium flex items-center gap-1">
@@ -683,7 +685,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                             {selectedRequest?.framesPerLambdaUsed ?? 'Auto'}
                                         </span>
                                     </div>
-                                    
+
                                     {/* Function Name */}
                                     {selectedRequest?.functionNameUsed && (
                                         <div className="flex justify-between items-center">
@@ -698,7 +700,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                     )}
                                 </div>
                             </div>
-                            
+
                             {/* Custom Config Details */}
                             {selectedRequest?.configMode === 'custom' && selectedRequest?.customConfig && (
                                 <div className="mt-4 pt-4 border-t">
