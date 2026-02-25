@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.6
+
+### Patch Changes
+
+- 845bb98: Changes from PR #383: layers-preview-editor
+
 ## 1.2.5
 
 ### Patch Changes
