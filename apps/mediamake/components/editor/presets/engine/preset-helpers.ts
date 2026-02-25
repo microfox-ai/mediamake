@@ -284,20 +284,40 @@ export const runPreset = async <T>(
   return output as PresetOutput;
 };
 
+/** Recursively tag all nodes in the tree with _presetItemId for editor "out of sync" tracking. */
+function tagNodesWithPresetItemId(
+  nodes: RenderableComponentData[],
+  presetItemId: string
+): void {
+  for (const node of nodes) {
+    (node as RenderableComponentData & { _presetItemId?: string })._presetItemId =
+      presetItemId;
+    if (node.childrenData && node.childrenData.length > 0) {
+      tagNodesWithPresetItemId(node.childrenData, presetItemId);
+    }
+  }
+}
+
 export const insertPresetToComposition = (
   data: InputCompositionProps,
   options: {
     presetOutput: PresetOutput;
     presetType: 'children' | 'data' | 'context' | 'effects' | 'full';
+    /** Timeline preset item id; used to tag output nodes for "not in sync" indicator. */
+    presetItemId?: string;
   },
 ) => {
   // Extract the output data from the new PresetOutput structure
   const outputData = options.presetOutput.output;
   const outputOptions = options.presetOutput.options;
+  const presetItemId = options.presetItemId;
 
   if (!data.childrenData || data.childrenData.length === 0) {
     if (options.presetType === 'full') {
       data.childrenData = outputData.childrenData || [];
+      if (presetItemId && data.childrenData.length > 0) {
+        tagNodesWithPresetItemId(data.childrenData, presetItemId);
+      }
       if (outputData.config) {
         data.config = outputData.config;
       }
@@ -311,6 +331,9 @@ export const insertPresetToComposition = (
   }
   if (options.presetType === 'full') {
     data.childrenData = outputData.childrenData || [];
+    if (presetItemId && data.childrenData.length > 0) {
+      tagNodesWithPresetItemId(data.childrenData, presetItemId);
+    }
     if (outputData.config) {
       data.config = {
         ...data.config,
@@ -346,9 +369,11 @@ export const insertPresetToComposition = (
     // Append the preset children to the target component
     const targetComponent = targetComponents[0];
     if (targetComponent) {
+      const newChildren = [...outputData.childrenData];
+      if (presetItemId) tagNodesWithPresetItemId(newChildren, presetItemId);
       targetComponent.childrenData = [
         ...(targetComponent.childrenData || []),
-        ...outputData.childrenData,
+        ...newChildren,
       ];
 
       // Apply attached containers styling if provided
@@ -373,6 +398,9 @@ export const insertPresetToComposition = (
     // THERE ARE NO BASE DATA, JUST ASSUME THE PRESET OUTPUT IS FULL THEN
     if (data.childrenData.length === 0) {
       data.childrenData = outputData.childrenData;
+      if (presetItemId && data.childrenData.length > 0) {
+        tagNodesWithPresetItemId(data.childrenData, presetItemId);
+      }
       if (outputData.config) {
         data.config = outputData.config;
       }
@@ -382,6 +410,11 @@ export const insertPresetToComposition = (
       return data;
     }
     componeents = [data.childrenData[0]];
+  }
+
+  if (presetItemId && componeents[0]) {
+    (componeents[0] as RenderableComponentData & { _presetItemId?: string })._presetItemId =
+      presetItemId;
   }
 
   if (options.presetType === 'data') {
