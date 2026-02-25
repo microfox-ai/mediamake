@@ -169,30 +169,42 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
     }
 
     if (type === 'atom') {
+        const bounds = (data as { boundaries?: { left?: number; top?: number; width?: number; height?: number } })?.boundaries;
+        const hasBoundaries =
+            bounds &&
+            typeof bounds.left === 'number' &&
+            typeof bounds.top === 'number' &&
+            typeof bounds.width === 'number' &&
+            typeof bounds.height === 'number';
+        const wrapperStyle = hasBoundaries
+            ? {
+                position: 'absolute' as const,
+                left: bounds!.left,
+                top: bounds!.top,
+                width: bounds!.width,
+                height: bounds!.height,
+            }
+            : undefined;
+
+        const renderAtom = (atomProps: typeof props) => {
+            const node = effects && effects.length > 0 ? (
+                <EffectWrapper effects={effects} context={newContext}>
+                    <ComponentClass {...atomProps} />
+                </EffectWrapper>
+            ) : (
+                <ComponentClass {...atomProps} />
+            );
+            return wrapperStyle ? <div style={wrapperStyle}>{node}</div> : node;
+        };
 
         if (newTiming.durationInFrames && newTiming.durationInFrames > 0) {
             return (
                 <RenderContext.Provider value={newContext}>
                     <Sequence layout='none' name={componentId + " - " + id} from={newTiming.startInFrames} durationInFrames={newTiming.durationInFrames}>
-                        {effects && effects.length > 0 ? (
-                            <EffectWrapper effects={effects} context={newContext}>
-                                <ComponentClass {...{
-                                    ...props, context: {
-                                        timing: {
-                                            durationInFrames: newTiming.durationInFrames
-                                        }
-                                    }
-                                }} />
-                            </EffectWrapper>
-                        ) : (
-                            <ComponentClass {...{
-                                ...props, context: {
-                                    timing: {
-                                        durationInFrames: newTiming.durationInFrames
-                                    }
-                                }
-                            }} />
-                        )}
+                        {renderAtom({
+                            ...props,
+                            context: { ...(props.context || {}), timing: { durationInFrames: newTiming.durationInFrames } },
+                        })}
                     </Sequence>
                 </RenderContext.Provider>
             );
@@ -200,13 +212,7 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
 
         return (
             <RenderContext.Provider value={newContext}>
-                {effects && effects.length > 0 ? (
-                    <EffectWrapper effects={effects} context={newContext}>
-                        <ComponentClass {...props} />
-                    </EffectWrapper>
-                ) : (
-                    <ComponentClass {...props} />
-                )}
+                {renderAtom(props)}
             </RenderContext.Provider>
         );
     }
