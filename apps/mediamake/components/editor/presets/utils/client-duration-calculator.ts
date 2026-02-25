@@ -68,6 +68,20 @@ async function calculateComponentDurationClient(
   return calculationPromise;
 }
 
+function findNodeById(
+  childrenData: RenderableComponentData[],
+  targetId: string
+): RenderableComponentData | null {
+  for (const node of childrenData) {
+    if (node.id === targetId) return node;
+    if (node.childrenData?.length) {
+      const found = findNodeById(node.childrenData, targetId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 /**
  * Find matching components by IDs
  */
@@ -146,7 +160,8 @@ export async function setDurationsInContextClient(
 
   const iterateRecursively = async (
     components: RenderableComponentData[],
-    onlyScene: boolean = false
+    onlyScene: boolean = false,
+    fullTreeForLookup: RenderableComponentData[] | null = null
   ): Promise<RenderableComponentData[]> => {
     const updatedComponents: RenderableComponentData[] = [];
 
@@ -157,11 +172,12 @@ export async function setDurationsInContextClient(
       if (component.childrenData && component.childrenData.length > 0) {
         updatedComponent.childrenData = await iterateRecursively(
           component.childrenData,
-          onlyScene
+          onlyScene,
+          fullTreeForLookup
         );
       }
 
-      // Check if this component's ID matches any target ID (if fitDurationTo exists)
+      // First pass: components with fitDurationTo — resolve from full tree if available, else from children
       const fitDurationTo = updatedComponent.context?.timing?.fitDurationTo;
       if (
         fitDurationTo &&
@@ -171,11 +187,19 @@ export async function setDurationsInContextClient(
         fitDurationTo != "this" &&
         fitDurationTo != "fill"
       ) {
-        const duration = await calculateDurationClient(
-          updatedComponent.childrenData || [],
-          { fitDurationTo }
-        );
-        // Only update when we got a valid duration; otherwise leave props unchanged for backend
+        let duration: number | undefined;
+        if (fullTreeForLookup) {
+          const targetNode = findNodeById(fullTreeForLookup, fitDurationTo as string);
+          if (targetNode?.context?.timing?.duration != null) {
+            duration = targetNode.context.timing.duration;
+          }
+        }
+        if (duration === undefined) {
+          duration = await calculateDurationClient(
+            updatedComponent.childrenData || [],
+            { fitDurationTo }
+          );
+        }
         if (duration !== undefined) {
           updatedComponent = {
             ...updatedComponent,
@@ -197,7 +221,6 @@ export async function setDurationsInContextClient(
       ) {
         let duration: number | undefined;
 
-        // If fitDurationTo is set and points to another component, calculate duration from that component
         const sceneFitDurationTo = updatedComponent.context?.timing?.fitDurationTo;
         const sceneChildrenData = updatedComponent.childrenData || [];
         if (
@@ -205,12 +228,18 @@ export async function setDurationsInContextClient(
           sceneFitDurationTo !== updatedComponent.id &&
           sceneFitDurationTo !== 'this'
         ) {
-          duration = await calculateDurationClient(sceneChildrenData, {
-            fitDurationTo: sceneFitDurationTo,
-          });
-        }
-        // If fitDurationTo is 'this' or same as component id, or no fitDurationTo, sum children durations
-        else if (!updatedComponent.context?.timing?.duration) {
+          if (fullTreeForLookup) {
+            const targetNode = findNodeById(fullTreeForLookup, sceneFitDurationTo as string);
+            if (targetNode?.context?.timing?.duration != null) {
+              duration = targetNode.context.timing.duration;
+            }
+          }
+          if (duration === undefined) {
+            duration = await calculateDurationClient(sceneChildrenData, {
+              fitDurationTo: sceneFitDurationTo,
+            });
+          }
+        } else if (!updatedComponent.context?.timing?.duration) {
           duration =
             sceneChildrenData.reduce(
               (acc, child) => acc + (child.context?.timing?.duration ?? 0),
@@ -245,9 +274,8 @@ export async function setDurationsInContextClient(
             mediaDuration = updatedComponent.context?.timing?.duration;
           }
 
-          // Only update when we have a valid duration; otherwise leave props unchanged for backend
           if (mediaDuration === undefined) {
-            // Skip update - backend will handle calculations
+            // Skip - backend will handle
           } else if (!updatedComponent.context?.timing?.fitDurationTo) {
             updatedComponent.context = {
               ...(updatedComponent.context || {}),
@@ -269,6 +297,34 @@ export async function setDurationsInContextClient(
         }
       }
 
+      // Second pass: set duration for atoms with fitDurationTo from full tree
+      if (
+        updatedComponent.type === "atom" &&
+        onlyScene &&
+        fullTreeForLookup &&
+        updatedComponent.context?.timing?.fitDurationTo &&
+        updatedComponent.context.timing.fitDurationTo !== updatedComponent.id &&
+        updatedComponent.context.timing.fitDurationTo !== "this" &&
+        updatedComponent.context.timing.fitDurationTo !== "fill"
+      ) {
+        const targetNode = findNodeById(
+          fullTreeForLookup,
+          updatedComponent.context.timing.fitDurationTo as string
+        );
+        if (targetNode?.context?.timing?.duration != null) {
+          updatedComponent = {
+            ...updatedComponent,
+            context: {
+              ...updatedComponent.context,
+              timing: {
+                ...updatedComponent.context.timing,
+                duration: targetNode.context.timing.duration,
+              },
+            },
+          };
+        }
+      }
+
       updatedComponents.push(updatedComponent);
     }
 
@@ -276,8 +332,8 @@ export async function setDurationsInContextClient(
   };
 
   const rootChildrenData = root.childrenData || [];
-  let updatedChildrenData = await iterateRecursively(rootChildrenData, false);
-  updatedChildrenData = await iterateRecursively(updatedChildrenData, true);
+  let updatedChildrenData = await iterateRecursively(rootChildrenData, false, null);
+  updatedChildrenData = await iterateRecursively(updatedChildrenData, true, updatedChildrenData);
 
   return {
     ...root,

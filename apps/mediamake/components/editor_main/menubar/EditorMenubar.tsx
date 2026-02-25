@@ -30,6 +30,7 @@ import {
   Download,
   Loader2,
   CheckIcon,
+  Layers,
 } from "lucide-react";
 import { NewProjectDialog } from "../dialogs/NewProjectDialog";
 import { NewTimelineDialog } from "../dialogs/NewTimelineDialog";
@@ -37,6 +38,8 @@ import { LoadProjectDialog } from "../dialogs/LoadProjectDialog";
 import { LoadTimelineDialog } from "../dialogs/LoadTimelineDialog";
 import { useTimelineEditsStore } from "../stores/timeline-edits-store";
 import { useProjectStore } from "../stores/project-store";
+import { useLayerStateStore } from "../stores/layer-state-store";
+import { useCompileStore } from "../stores/compile-store";
 import { toast } from "sonner";
 
 export function EditorMenubar() {
@@ -45,6 +48,7 @@ export function EditorMenubar() {
   const [loadProjectOpen, setLoadProjectOpen] = useState(false);
   const [loadTimelineOpen, setLoadTimelineOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingLayerState, setIsSavingLayerState] = useState(false);
 
   const {
     isDirty,
@@ -55,7 +59,9 @@ export function EditorMenubar() {
     saveToDatabase,
     editedTimelines
   } = useTimelineEditsStore();
-  const { loadedTimeline } = useProjectStore();
+  const { loadedTimeline, currentProjectId } = useProjectStore();
+  const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
+  const getLayerStateSnapshot = useLayerStateStore((s) => s.getLayerStateSnapshot);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -104,6 +110,34 @@ export function EditorMenubar() {
     }
   };
 
+  const handleSaveLayerState = async () => {
+    if (!loadedTimeline || !currentProjectId) return;
+
+    setIsSavingLayerState(true);
+    try {
+      const snapshot = getLayerStateSnapshot(calculatedMetadata?.props?.childrenData);
+      const res = await fetch("/api/project/timeline/layer-state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: currentProjectId,
+          timelineId: loadedTimeline.id,
+          ...snapshot,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to save layer state");
+      }
+      toast.success("Layer state saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save layer state");
+      console.error(error);
+    } finally {
+      setIsSavingLayerState(false);
+    }
+  };
+
   return (
     <>
       <Menubar className="h-8 rounded-none border-b border-x-0 border-t-0 px-2 flex items-center">
@@ -141,6 +175,17 @@ export function EditorMenubar() {
               )}
               Save
               <MenubarShortcut>⌘S</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem
+              onClick={handleSaveLayerState}
+              disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
+            >
+              {isSavingLayerState ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Layers className="mr-2 h-4 w-4" />
+              )}
+              Save layer state
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem>

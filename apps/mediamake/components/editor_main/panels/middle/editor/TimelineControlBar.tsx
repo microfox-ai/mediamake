@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Code, Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, Rocket, Loader2, CheckIcon } from "lucide-react";
+import { Code, Play, Pause, Maximize, Rocket, Loader2, CheckIcon, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { InputCompositionProps } from "@microfox/remotion";
@@ -10,11 +10,12 @@ import type { PlayerRef } from "@remotion/player";
 import { interpolate } from "remotion";
 import { useRender } from "@/components/editor/player/render-provider";
 import { RenderModal } from "@/components/editor/player/render-modal";
+import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { usePlayerRefStore } from "../../../stores/player-ref-store";
 
 interface TimelineControlBarProps {
   generatedOutput: InputCompositionProps | null;
   calculatedMetadata: Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null;
-  playerRef: React.RefObject<PlayerRef | null>;
   loop: boolean;
   onLoopChange: (loop: boolean) => void;
   onShowJson: () => void;
@@ -44,14 +45,13 @@ const formatTime = (frame: number, fps: number): string => {
 export function TimelineControlBar({
   generatedOutput,
   calculatedMetadata,
-  playerRef,
   loop,
   onLoopChange,
   isGenerating,
   onShowJson,
 }: TimelineControlBarProps) {
+  const playerRef = usePlayerRefStore((s) => s.playerRef);
   const [playing, setPlaying] = useState(false);
-  const [frame, setFrame] = useState(0);
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -61,9 +61,13 @@ export function TimelineControlBar({
   const [wasPlaying, setWasPlaying] = useState(false);
 
   const { isModalOpen, openModal, closeModal, updateSetting } = useRender();
+  const { currentFrame, setCurrentFrame } = useLayerStateStore();
 
   const durationInFrames = calculatedMetadata?.durationInFrames ?? 0;
   const fps = calculatedMetadata?.fps ?? 30;
+
+  // Use store's currentFrame for seek bar (synced by TimelinePlayer on frameupdate)
+  const frame = currentFrame;
 
   // Check fullscreen support
   useEffect(() => {
@@ -92,22 +96,6 @@ export function TimelineControlBar({
     return () => {
       current.removeEventListener('play', onPlay);
       current.removeEventListener('pause', onPause);
-    };
-  }, [playerRef]);
-
-  // Frame updates
-  useEffect(() => {
-    const { current } = playerRef;
-    if (!current) return;
-
-    const onFrameUpdate = () => {
-      setFrame(current.getCurrentFrame());
-    };
-
-    current.addEventListener('frameupdate', onFrameUpdate);
-
-    return () => {
-      current.removeEventListener('frameupdate', onFrameUpdate);
     };
   }, [playerRef]);
 
@@ -220,9 +208,10 @@ export function TimelineControlBar({
 
     playerRef.current.pause();
     playerRef.current.seekTo(newFrame);
+    setCurrentFrame(newFrame);
     setDragging(true);
     setWasPlaying(playing);
-  }, [durationInFrames, playerRef, playing, getFrameFromX]);
+  }, [durationInFrames, playerRef, playing, getFrameFromX, setCurrentFrame]);
 
   const handleSeekBarPointerMove = useCallback((e: PointerEvent) => {
     if (!dragging || !playerRef.current || !seekBarRef.current) return;
@@ -235,7 +224,8 @@ export function TimelineControlBar({
     );
 
     playerRef.current.seekTo(newFrame);
-  }, [dragging, durationInFrames, playerRef, getFrameFromX]);
+    setCurrentFrame(newFrame);
+  }, [dragging, durationInFrames, playerRef, getFrameFromX, setCurrentFrame]);
 
   const handleSeekBarPointerUp = useCallback(() => {
     if (!dragging) return;
@@ -267,6 +257,34 @@ export function TimelineControlBar({
     return (frame / Math.max(1, durationInFrames - 1)) * 100;
   }, [frame, durationInFrames]);
 
+  const handleStepBack = useCallback(() => {
+    if (!playerRef.current || durationInFrames === 0) return;
+    const f = Math.max(0, Math.floor(frame) - 1);
+    playerRef.current.pause();
+    playerRef.current.seekTo(f);
+    setCurrentFrame(f);
+  }, [playerRef, durationInFrames, frame, setCurrentFrame]);
+
+  const handleStepForward = useCallback(() => {
+    if (!playerRef.current || durationInFrames === 0) return;
+    const maxFrame = Math.max(0, durationInFrames - 1);
+    const f = Math.min(maxFrame, Math.ceil(frame) + 1);
+    playerRef.current.pause();
+    playerRef.current.seekTo(f);
+    setCurrentFrame(f);
+  }, [playerRef, durationInFrames, frame, setCurrentFrame]);
+
+  const handleFrameInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = parseInt(e.target.value, 10);
+      if (isNaN(v)) return;
+      const f = Math.max(0, Math.min(durationInFrames - 1, v));
+      playerRef.current?.seekTo(f);
+      setCurrentFrame(f);
+    },
+    [durationInFrames, playerRef, setCurrentFrame]
+  );
+
   if (!calculatedMetadata) {
     return (
       <div className="border-t px-4 py-3 bg-background">
@@ -293,6 +311,16 @@ export function TimelineControlBar({
         {/* Play/Pause Button */}
         <Button
           variant="outline"
+          size="icon"
+          onClick={handleStepBack}
+          disabled={!calculatedMetadata || frame <= 0}
+          className="shrink-0 h-8 w-8"
+          title="Previous frame"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
           size="sm"
           onClick={handlePlayPause}
           disabled={!calculatedMetadata}
@@ -309,6 +337,16 @@ export function TimelineControlBar({
               Play
             </>
           )}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleStepForward}
+          disabled={!calculatedMetadata || frame >= Math.max(0, durationInFrames - 1)}
+          className="shrink-0 h-8 w-8"
+          title="Next frame"
+        >
+          <ChevronRight className="h-4 w-4" />
         </Button>
         <div className="flex flex-1 flex-col items-start gap-1 mx-2">
           <div className="flex w-full items-center gap-2">
@@ -337,9 +375,20 @@ export function TimelineControlBar({
             </div>
           </div>
           <div className="flex w-full items-center justify-between gap-2">
-            {/* Time Display */}
-            <div className="text-xs font-mono text-muted-foreground">
-              {formatTime(frame, fps)} / {formatTime(durationInFrames, fps)}
+            {/* Time Display & Frame Input */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-muted-foreground">
+                {formatTime(frame, fps)} / {formatTime(durationInFrames, fps)}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={Math.max(0, durationInFrames - 1)}
+                value={Math.round(frame)}
+                onChange={handleFrameInputChange}
+                className="w-14 h-6 px-1 text-xs font-mono bg-muted rounded border border-input"
+                title="Jump to frame"
+              />
             </div>
 
             {/* Metadata Display */}

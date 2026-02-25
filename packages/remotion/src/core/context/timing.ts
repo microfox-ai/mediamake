@@ -29,6 +29,21 @@ const getDurationCacheKey = (
   return `${src}|${startFromStr}|${endAtStr}|${playbackRateStr}`;
 };
 
+/** Find a single node by id in the tree (searches recursively). */
+export const findNodeById = (
+  childrenData: RenderableComponentData[],
+  targetId: string
+): RenderableComponentData | null => {
+  for (const node of childrenData) {
+    if (node.id === targetId) return node;
+    if (node.childrenData?.length) {
+      const found = findNodeById(node.childrenData, targetId);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 export const findMatchingComponents = (
   childrenData: RenderableComponentData[],
   targetIds: string[]
@@ -225,7 +240,9 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
   durationCache.clear();
   const iterateRecursively = async (
     components: RenderableComponentData[],
-    onlyScene: boolean = false
+    onlyScene: boolean = false,
+    /** When set (e.g. result of first pass), fitDurationTo is resolved by looking up target in this tree (siblings/parent tree). */
+    fullTreeForLookup: RenderableComponentData[] | null = null
   ): Promise<RenderableComponentData[]> => {
     const updatedComponents: RenderableComponentData[] = [];
 
@@ -236,7 +253,8 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
       if (component.childrenData && component.childrenData.length > 0) {
         updatedComponent.childrenData = await iterateRecursively(
           component.childrenData,
-          onlyScene
+          onlyScene,
+          fullTreeForLookup
         );
       }
 
@@ -251,7 +269,15 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
       ) {
         // Only calculate duration if it's not already set (from client-side calculation)
         let duration = updatedComponent.context?.timing?.duration;
-        
+        if (!duration && fullTreeForLookup) {
+          const targetNode = findNodeById(
+            fullTreeForLookup,
+            updatedComponent.context!.timing!.fitDurationTo as string
+          );
+          if (targetNode?.context?.timing?.duration != null) {
+            duration = targetNode.context.timing.duration;
+          }
+        }
         if (!duration) {
           duration = await calculateDuration(
             updatedComponent.childrenData,
@@ -281,16 +307,27 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
       ) {
         let duration: number | undefined;
 
-        // If fitDurationTo is set and points to another component, calculate duration from that component
+        // If fitDurationTo is set and points to another component, resolve from full tree first (sibling), else from children
         if (
           updatedComponent.context?.timing?.fitDurationTo &&
           updatedComponent.context.timing.fitDurationTo !==
             updatedComponent.id &&
           updatedComponent.context.timing.fitDurationTo !== 'this'
         ) {
-          duration = await calculateDuration(updatedComponent.childrenData, {
-            fitDurationTo: updatedComponent.context.timing.fitDurationTo,
-          });
+          if (fullTreeForLookup) {
+            const targetNode = findNodeById(
+              fullTreeForLookup,
+              updatedComponent.context.timing.fitDurationTo as string
+            );
+            if (targetNode?.context?.timing?.duration != null) {
+              duration = targetNode.context.timing.duration;
+            }
+          }
+          if (duration === undefined) {
+            duration = await calculateDuration(updatedComponent.childrenData, {
+              fitDurationTo: updatedComponent.context.timing.fitDurationTo,
+            });
+          }
         }
         // If fitDurationTo is 'this' or same as component id, or no fitDurationTo, sum children durations
         // Only calculate if duration is not already set (from client-side calculation)
@@ -324,18 +361,18 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
           // Only calculate duration if:
           // 1. We don't have a duration in context yet, OR
           // 2. We need srcDuration for looping (even if duration exists)
-          const needsDurationCalculation = 
-            !updatedComponent.context?.timing?.duration || 
+          const needsDurationCalculation =
+            !updatedComponent.context?.timing?.duration ||
             (updatedComponent.data?.loop && !updatedComponent.data?.srcDuration);
-          
+
           let mediaDuration: number | undefined;
-          
+
           if (needsDurationCalculation) {
             mediaDuration = await calculateComponentDuration(updatedComponent);
           } else {
             mediaDuration = updatedComponent.context?.timing?.duration;
           }
-          
+
           if (!updatedComponent.context?.timing?.fitDurationTo) {
             updatedComponent.context = {
               ...(updatedComponent.context || {}),
@@ -360,17 +397,109 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
         }
       }
 
+      // Second pass: set duration for atoms that have fitDurationTo (target may be sibling/parent, so use full tree)
+      if (
+        updatedComponent.type === 'atom' &&
+        onlyScene &&
+        fullTreeForLookup &&
+        updatedComponent.context?.timing?.fitDurationTo &&
+        updatedComponent.context.timing.fitDurationTo !== updatedComponent.id &&
+        updatedComponent.context.timing.fitDurationTo !== 'this' &&
+        updatedComponent.context.timing.fitDurationTo !== 'fill'
+      ) {
+        const targetNode = findNodeById(
+          fullTreeForLookup,
+          updatedComponent.context.timing.fitDurationTo as string
+        );
+        if (targetNode?.context?.timing?.duration != null) {
+          updatedComponent = {
+            ...updatedComponent,
+            context: {
+              ...updatedComponent.context,
+              timing: {
+                ...updatedComponent.context.timing,
+                duration: targetNode.context.timing.duration,
+              },
+            },
+          };
+        }
+      }
+
       updatedComponents.push(updatedComponent);
     }
 
     return updatedComponents;
   };
 
-  let updatedChildrenData = await iterateRecursively(root.childrenData, false);
-  updatedChildrenData = await iterateRecursively(updatedChildrenData, true);
+  let updatedChildrenData = await iterateRecursively(root.childrenData ?? [], false, null);
+  updatedChildrenData = await iterateRecursively(updatedChildrenData, true, updatedChildrenData);
+
+  const fps = root.config?.fps ?? 30;
+  updatedChildrenData = propagateTimingToChildren(updatedChildrenData, fps);
 
   return {
     ...root,
     childrenData: updatedChildrenData,
   };
 };
+
+/**
+ * Propagate relative start/duration to children so every node has context.timing.
+ * Children's start is relative to parent; layout children default start=0, scene children default start=sum(previous siblings' durations).
+ * Only fills in missing start/duration; does not overwrite existing.
+ */
+function propagateTimingToChildren(
+  components: RenderableComponentData[],
+  fps: number,
+  parentTiming?: { start: number; duration: number },
+  parentType?: 'layout' | 'scene'
+): RenderableComponentData[] {
+  let runningSum = 0;
+  const result: RenderableComponentData[] = [];
+
+  for (const component of components) {
+    let updatedComponent = { ...component };
+
+    if (parentTiming != null) {
+      const existingStart = updatedComponent.context?.timing?.start;
+      const existingDuration = updatedComponent.context?.timing?.duration;
+      const relativeStart = existingStart ?? (parentType === 'scene' ? runningSum : 0);
+      const relativeDuration = existingDuration ?? parentTiming.duration;
+      const startInFrames = Math.round(relativeStart * fps);
+      const durationInFrames = Math.round(relativeDuration * fps);
+
+      updatedComponent = {
+        ...updatedComponent,
+        context: {
+          ...updatedComponent.context,
+          timing: {
+            ...updatedComponent.context?.timing,
+            start: relativeStart,
+            duration: relativeDuration,
+            startInFrames,
+            durationInFrames,
+          },
+        },
+      };
+
+      if (parentType === 'scene') {
+        runningSum += relativeDuration;
+      }
+    }
+
+    if (updatedComponent.childrenData && updatedComponent.childrenData.length > 0) {
+      const childParentStart = updatedComponent.context?.timing?.start ?? 0;
+      const childParentDuration = updatedComponent.context?.timing?.duration ?? 0;
+      updatedComponent.childrenData = propagateTimingToChildren(
+        updatedComponent.childrenData,
+        fps,
+        { start: childParentStart, duration: childParentDuration },
+        updatedComponent.type === 'scene' ? 'scene' : 'layout'
+      );
+    }
+
+    result.push(updatedComponent);
+  }
+
+  return result;
+}

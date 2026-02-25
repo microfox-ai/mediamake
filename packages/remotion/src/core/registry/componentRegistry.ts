@@ -89,6 +89,16 @@ class ComponentRegistryManager {
     return { ...this.registry };
   }
 
+  /** Returns registered effect ids and display names for UI (effect type selector). */
+  getRegisteredEffects(): { id: string; displayName: string }[] {
+    return Object.entries(this.registry)
+      .filter(([key]) => key.startsWith('effect-'))
+      .map(([key, entry]) => ({
+        id: key.replace(/^effect-/, ''),
+        displayName: entry.config?.displayName || key.replace(/^effect-/, ''),
+      }));
+  }
+
   clear(): void {
     this.registry = {};
     this.packageRegistry = {};
@@ -141,3 +151,6 @@ export const getComponentConfig = (name: string) =>
 
 export const getComponentWithConfig = (name: string) =>
   componentRegistry.getComponentWithConfig(name);
+
+export const getRegisteredEffects = () =>
+  componentRegistry.getRegisteredEffects();

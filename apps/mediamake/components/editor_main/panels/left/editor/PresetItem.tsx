@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { File, Eye, EyeOff, Play, DivideIcon, GripVertical, Copy, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { File, Eye, EyeOff, Play, DivideIcon, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
+import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
 import { type Timeline } from "../../../stores/project-store";
@@ -33,6 +34,7 @@ export function PresetItem({
     const [isHovered, setIsHovered] = useState(false);
     const { selectPreset, selectedItem } = useEditorStore();
     const { getEditedTimeline, updatePresetDisabled, removePreset, duplicatePreset, reorderPresets } = useTimelineEditsStore();
+    const { hasOverridesForPresetItem, clearOverridesForPresetItem } = useLayerStateStore();
     const { generateOutput } = useCompileStore();
     const { loadedTimeline } = useProjectStore();
 
@@ -114,6 +116,14 @@ export function PresetItem({
         }
     };
 
+    const handleRevertToPreset = () => {
+        clearOverridesForPresetItem(preset.id);
+        if (loadedTimeline) {
+            const finalTimeline = getEditedTimeline(loadedTimeline.id) || loadedTimeline;
+            generateOutput(finalTimeline);
+        }
+    };
+
     const handleDuplicate = () => {
         duplicatePreset(timeline.id, preset.id);
     };
@@ -163,11 +173,23 @@ export function PresetItem({
                         <GripVertical className="h-3 w-3 text-muted-foreground" />
                     </div>
                     <File className="h-3 w-3" />
-                    <span className={cn("flex-1",
+                    <span className={cn("flex-1 min-w-0 truncate",
                         displayPreset.disabled ? "line-through" : "",
                         (!isSelected || displayPreset.disabled) ? "text-muted-foreground" : isSelected ? "text-black" : "text-foreground")}>
                         {displayPreset.label}
                     </span>
+                    {hasOverridesForPresetItem(displayPreset.id) && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="shrink-0 text-[10px] text-amber-600 font-medium" title="Layer was modified in preview">
+                                    Modified
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Layer was moved or resized in preview; not in sync with preset</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
 
                     {/* Icons that appear on hover */}
                     {isHovered ? (
@@ -221,6 +243,12 @@ export function PresetItem({
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
+                {hasOverridesForPresetItem(displayPreset.id) && (
+                    <ContextMenuItem onClick={handleRevertToPreset}>
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Revert to preset
+                    </ContextMenuItem>
+                )}
                 <ContextMenuItem onClick={handleDuplicate}>
                     <Copy className="h-4 w-4 mr-2" />
                     Duplicate Block

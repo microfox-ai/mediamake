@@ -6,21 +6,113 @@ import { useTimelineRenderer } from "./useTimelineRenderer";
 import { TimelinePlayer } from "./TimelinePlayer";
 import { TimelineControlBar } from "./TimelineControlBar";
 import { OutputJsonDialog } from "./OutputJsonDialog";
+import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import type { PlayerRef } from "@remotion/player";
 
+const LAYER_STATE_STORAGE_PREFIX = "layer-state";
+
 export function EditPatternContent() {
-  const { loadedTimeline } = useProjectStore();
+  const { loadedTimeline, currentProjectId } = useProjectStore();
   const [showOutputDialog, setShowOutputDialog] = useState(false);
   const [loop, setLoop] = useState(true);
   const playerRef = useRef<PlayerRef | null>(null);
   const savedPlayerStateRef = useRef<{ frame: number; isPlaying: boolean } | null>(null);
   const previousCalculatedMetadataRef = useRef<any>(null);
+  const { setSeekToFrame, loadLayerState } = useLayerStateStore();
+  const setPlayerRef = usePlayerRefStore((s) => s.setPlayerRef);
+
+  // Load layer edits when timeline or project changes
+  useEffect(() => {
+    if (!loadedTimeline || !currentProjectId) {
+      loadLayerState({
+        trackStates: {},
+        hiddenLayerIds: [],
+        lockedLayerIds: [],
+      });
+      return;
+    }
+    const projectId = currentProjectId;
+    const timelineId = loadedTimeline.id;
+    let cancelled = false;
+    const key = `${LAYER_STATE_STORAGE_PREFIX}-${projectId}-${timelineId}`;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/project/timeline/layer-state?projectId=${encodeURIComponent(projectId)}&timelineId=${encodeURIComponent(timelineId)}`
+        );
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (cancelled) return;
+          const snapshot =
+            data != null && typeof data === "object"
+              ? {
+                  childrenData: Array.isArray(data.childrenData) ? data.childrenData : undefined,
+                  trackStates: data.trackStates && typeof data.trackStates === "object" ? data.trackStates : {},
+                  hiddenLayerIds: Array.isArray(data.hiddenLayerIds) ? data.hiddenLayerIds : [],
+                  lockedLayerIds: Array.isArray(data.lockedLayerIds) ? data.lockedLayerIds : [],
+                }
+              : { trackStates: {} as Record<string, never>, hiddenLayerIds: [], lockedLayerIds: [] };
+          loadLayerState(snapshot);
+          if (typeof window !== "undefined" && data != null) {
+            try {
+              localStorage.setItem(key, JSON.stringify(snapshot));
+            } catch (_) {}
+          }
+          return;
+        }
+      } catch (_) {
+        if (cancelled) return;
+      }
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const data = JSON.parse(stored);
+            if (!cancelled && data != null && typeof data === "object") {
+              loadLayerState({
+                childrenData: Array.isArray(data.childrenData) ? data.childrenData : undefined,
+                trackStates: data.trackStates && typeof data.trackStates === "object" ? data.trackStates : {},
+                hiddenLayerIds: Array.isArray(data.hiddenLayerIds) ? data.hiddenLayerIds : [],
+                lockedLayerIds: Array.isArray(data.lockedLayerIds) ? data.lockedLayerIds : [],
+              });
+            }
+            return;
+          }
+        } catch (_) {}
+      }
+      if (!cancelled) {
+        loadLayerState({ trackStates: {}, hiddenLayerIds: [], lockedLayerIds: [] });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadedTimeline?.id, currentProjectId, loadLayerState]);
+
+  // Share player ref with bottom panel and other consumers (Zustand store)
+  useEffect(() => {
+    setPlayerRef(playerRef);
+    return () => setPlayerRef({ current: null });
+  }, [setPlayerRef]);
 
   const {
     generatedOutput,
     calculatedMetadata,
     isGenerating,
   } = useTimelineRenderer(loadedTimeline);
+
+  // Register a seek callback so other panels (e.g. LayersTree) can jump the Player.
+  useEffect(() => {
+    setSeekToFrame((frame: number) => {
+      playerRef.current?.seekTo(frame);
+    });
+    return () => {
+      setSeekToFrame(() => {});
+    };
+  }, [setSeekToFrame]);
+
 
   // Preserve player position when output regenerates
   useEffect(() => {
@@ -90,7 +182,6 @@ export function EditPatternContent() {
       <TimelineControlBar
         generatedOutput={generatedOutput}
         calculatedMetadata={calculatedMetadata}
-        playerRef={playerRef}
         loop={loop}
         onLoopChange={setLoop}
         onShowJson={() => setShowOutputDialog(true)}
