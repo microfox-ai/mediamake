@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, GripVertical, Type, Music, ArrowUp, ArrowDown, Copy, Trash2 } from "lucide-react";
+import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, GripVertical, Type, Music, ArrowUp, ArrowDown, Copy, Trash2, Edit2 } from "lucide-react";
 import {
   flattenLayers,
   filterEditableLayers,
@@ -12,6 +12,7 @@ import {
 import type { RenderableComponentData } from "@microfox/remotion";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -170,6 +171,7 @@ export function LayersTree() {
     addChildNode,
     removeNode,
   } = useLayerStateStore();
+  const { editModeEnabled, toggleEditMode } = useEditorUIStore();
   // Expand all nodes by default for better visibility
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -669,36 +671,53 @@ export function LayersTree() {
       <div className="p-4 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium">Output layers</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-8 text-xs shrink-0" title="Add layer at root">
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add layer
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleAddLayer(createImageLayer)}>
-                <Image className="h-3.5 w-3.5 mr-2" />
-                Image
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAddLayer(createAudioLayer)}>
-                <Music className="h-3.5 w-3.5 mr-2" />
-                Audio
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAddLayer(createTextLayer)}>
-                <Type className="h-3.5 w-3.5 mr-2" />
-                Text
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAddLayer(createVideoLayer)}>
-                <Video className="h-3.5 w-3.5 mr-2" />
-                Video
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleAddLayer(createLayoutNode)}>
-                <File className="h-3.5 w-3.5 mr-2" />
-                Layout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 shrink-0"
+                  title="Add layer at root"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleAddLayer(createImageLayer)}>
+                  <Image className="h-3.5 w-3.5 mr-2" />
+                  Image
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAddLayer(createAudioLayer)}>
+                  <Music className="h-3.5 w-3.5 mr-2" />
+                  Audio
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAddLayer(createTextLayer)}>
+                  <Type className="h-3.5 w-3.5 mr-2" />
+                  Text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAddLayer(createVideoLayer)}>
+                  <Video className="h-3.5 w-3.5 mr-2" />
+                  Video
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleAddLayer(createLayoutNode)}>
+                  <File className="h-3.5 w-3.5 mr-2" />
+                  Layout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              type="button"
+              size="sm"
+              variant={editModeEnabled ? "default" : "outline"}
+              className="h-8 w-8 p-0 shrink-0"
+              title={editModeEnabled ? "Disable canvas editing" : "Enable canvas editing"}
+              onClick={toggleEditMode}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
         <div className="space-y-0.5">
           {layerTree
