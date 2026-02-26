@@ -31,6 +31,8 @@ export type EditableCompositionLayoutProps = InputCompositionProps & {
   currentFrame?: number;
   onSelectLayer?: (id: string, addToSelection: boolean) => void;
   onChangeLayerBounds?: (id: string, bounds: Partial<CalculatedBoundaries>) => void;
+  /** When false, render a non-interactive composition (no selection / drag / resize). */
+  editModeEnabled?: boolean;
 };
 
 /**
@@ -48,6 +50,7 @@ export function EditableCompositionLayout(
     currentFrame = 0,
     onSelectLayer,
     onChangeLayerBounds,
+    editModeEnabled = true,
   } = props;
 
   const { setOverride, hiddenLayerIds, lockedLayerIds } = useLayerStateStore();
@@ -250,32 +253,34 @@ export function EditableCompositionLayout(
           config={config ?? { fps: 30, width: 1920, height: 1080, duration: 20 }}
         />
       </div>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          overflow: "visible",
-          pointerEvents: "auto",
-        }}
-        onPointerDown={onCanvasPointerDown}
-      >
-        {sortedLayers.map((layer) => (
-          <LayerOutlineWithSequence
-            key={layer.id}
-            layer={layer}
-            isSelected={selectedLayerIds.includes(layer.id)}
-            isDragging={draggingLayerId === layer.id}
-            isLocked={lockedLayerIds.has(layer.id)}
-            fps={fps}
-            onSelect={(add) => handleSelect(layer.id, add)}
-            onDrag={(dx, dy) => handleDrag(layer.id, dx, dy)}
-            onResize={(handle, dx, dy) =>
-              handleResize(layer.id, handle, dx, dy)
-            }
-            onDragEnd={handleDragEnd}
-          />
-        ))}
-      </div>
+      {editModeEnabled && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            overflow: "visible",
+            pointerEvents: "auto",
+          }}
+          onPointerDown={onCanvasPointerDown}
+        >
+          {sortedLayers.map((layer) => (
+            <LayerOutlineWithSequence
+              key={layer.id}
+              layer={layer}
+              isSelected={selectedLayerIds.includes(layer.id)}
+              isDragging={draggingLayerId === layer.id}
+              isLocked={lockedLayerIds.has(layer.id)}
+              fps={fps}
+              onSelect={(add) => handleSelect(layer.id, add)}
+              onDrag={(dx, dy) => handleDrag(layer.id, dx, dy)}
+              onResize={(handle, dx, dy) =>
+                handleResize(layer.id, handle, dx, dy)
+              }
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+        </div>
+      )}
     </AbsoluteFill>
   );
 }
