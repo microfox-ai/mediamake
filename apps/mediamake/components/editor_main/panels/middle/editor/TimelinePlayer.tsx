@@ -8,6 +8,7 @@ import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { Timeline } from "../../../stores/project-store";
 import type { PlayerRef } from "@remotion/player";
 import { useLayerStateStore, filterHiddenChildrenData } from "../../../stores/layer-state-store";
+import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { EditableCompositionLayout } from "./EditableCompositionLayout";
 
 interface TimelinePlayerProps {
@@ -40,17 +41,22 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
     loadedChildrenData,
   } = useLayerStateStore();
 
+  const { filePanelTab, editModeEnabled } = useEditorUIStore();
+
   const mergedProps = useMemo(() => {
     if (!calculatedMetadata?.props) return null;
     const base = calculatedMetadata.props;
     const mergedChildren = getMergedChildren(base.childrenData) ?? [];
     const visibleChildren = filterHiddenChildrenData(mergedChildren, hiddenLayerIds, trackStates) ?? [];
+    const interactionsEnabled = filePanelTab === "layers" && editModeEnabled;
     return {
       ...base,
       childrenData: visibleChildren,
       selectedLayerIds,
       currentFrame,
+      editModeEnabled: interactionsEnabled,
       onSelectLayer: (id: string, addToSelection: boolean) => {
+        if (!interactionsEnabled) return;
         if (id) {
           selectLayer(id, addToSelection);
         } else {
@@ -58,7 +64,22 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
         }
       },
     };
-  }, [calculatedMetadata?.props, overrides, addedNodes, hiddenLayerIds, trackStates, selectedLayerIds, currentFrame, selectLayer, clearLayerSelection, childrenOrderByParentId, getMergedChildren, loadedChildrenData]);
+  }, [
+    calculatedMetadata?.props,
+    overrides,
+    addedNodes,
+    hiddenLayerIds,
+    trackStates,
+    selectedLayerIds,
+    currentFrame,
+    selectLayer,
+    clearLayerSelection,
+    childrenOrderByParentId,
+    getMergedChildren,
+    loadedChildrenData,
+    filePanelTab,
+    editModeEnabled,
+  ]);
 
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -96,12 +117,6 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
     );
   }
 
-  const player: React.CSSProperties = {
-    backgroundColor: "#00000030",
-    position: "relative",
-    height: "100%",
-  };
-
   if (calculatedMetadata && mergedProps) {
     const fps = calculatedMetadata.fps ?? 30;
     const width = calculatedMetadata.width ?? 1920;
@@ -111,8 +126,19 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
         ? calculatedMetadata.durationInFrames
         : 20;
 
+    const interactionsEnabled =
+      filePanelTab === "layers" && editModeEnabled;
+    const showControls =
+      filePanelTab === "timelines" || !interactionsEnabled;
+
+    const player: React.CSSProperties = {
+      backgroundColor: "#00000030",
+      position: "relative",
+      height: "100%",
+    };
+
     return (
-      <div className="relative w-full h-full bg-black/50 flex items-center justify-center">
+      <div className="relative w-full h-full bg-black/50 flex items-center justify-center overflow-hidden">
         <RemotionPlayer
           ref={playerRefCallback}
           component={EditableCompositionLayout}
@@ -123,7 +149,7 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
           compositionWidth={width}
           style={player}
           className="w-fit h-full"
-          controls={false}
+          controls={showControls}
           loop={loop}
           acknowledgeRemotionLicense={true}
           overflowVisible
