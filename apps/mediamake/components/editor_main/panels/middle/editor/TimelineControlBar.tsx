@@ -12,6 +12,7 @@ import { useRender } from "@/components/editor/player/render-provider";
 import { RenderModal } from "@/components/editor/player/render-modal";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
+import { useCompileStore } from "../../../stores/compile-store";
 
 interface TimelineControlBarProps {
   generatedOutput: InputCompositionProps | null;
@@ -62,6 +63,7 @@ export function TimelineControlBar({
 
   const { isModalOpen, openModal, closeModal, updateSetting } = useRender();
   const { currentFrame, setCurrentFrame } = useLayerStateStore();
+  const { currentTimeline, generateOutput } = useCompileStore();
 
   const durationInFrames = calculatedMetadata?.durationInFrames ?? 0;
   const fps = calculatedMetadata?.fps ?? 30;
@@ -183,6 +185,11 @@ export function TimelineControlBar({
     }
     openModal();
   }, [generatedOutput, updateSetting, openModal]);
+
+  const handleRecompile = useCallback(() => {
+    if (!currentTimeline) return;
+    generateOutput(currentTimeline);
+  }, [currentTimeline, generateOutput]);
 
   // Seek bar handlers
   const getFrameFromX = useCallback((clientX: number, durationInFrames: number, width: number) => {
@@ -461,6 +468,21 @@ export function TimelineControlBar({
           title="Render Video"
         >
           <Rocket className="h-4 w-4" />
+        </Button>
+
+        {/* Re-render / Compile Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleRecompile}
+          disabled={!currentTimeline || isGenerating}
+          title="Re-render timeline"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCcw className="h-4 w-4" />
+          )}
         </Button>
 
         {/* JSON Button */}

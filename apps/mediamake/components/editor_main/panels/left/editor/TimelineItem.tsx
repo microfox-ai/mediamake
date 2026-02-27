@@ -19,6 +19,7 @@ import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { usePresetsStore } from "../../../stores/presets-store";
 import { useSession } from "@/components/session-provider";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PresetItem } from "./PresetItem";
 import { TimelineAddPresetMenu } from "./TimelineAddPresetMenu";
 import { Preset, DatabasePreset } from "@/components/editor/presets/types";
@@ -79,20 +80,19 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const handleClick = async (e: React.MouseEvent) => {
         e.stopPropagation();
 
+        // Expand immediately so the user sees the section open with skeletons
+        if (!isOpen) {
+            setIsOpen(true);
+        }
+
         const fullTimeline = await ensureTimelineLoaded();
         if (!fullTimeline) {
             return;
         }
 
-        if (isOpen) {
-            if (selectedItem?.type !== 'timeline' || selectedItem.item.id !== fullTimeline.id) {
-                selectTimeline(fullTimeline);
-            }
-            return;
+        if (selectedItem?.type !== 'timeline' || selectedItem.item.id !== fullTimeline.id) {
+            selectTimeline(fullTimeline);
         }
-
-        selectTimeline(fullTimeline);
-        setIsOpen(_open => !_open);
     };
 
     const closeTimeline = (e: React.MouseEvent) => {
@@ -296,7 +296,21 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <div className="ml-4 space-y-1 border-l">
-                        {presets.length > 1 && (
+                        {isLoadingTimeline && presets.length === 0 && (
+                            <div className="space-y-1 py-2 pl-2">
+                                {Array.from({ length: 3 }).map((_, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center gap-2 px-2 py-1"
+                                    >
+                                        <Skeleton className="h-4 w-4 rounded" />
+                                        <Skeleton className="h-3 w-32" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {!isLoadingTimeline && presets.length > 1 && (
                             <DndContext
                                 sensors={sensors}
                                 collisionDetection={closestCenter}
@@ -317,7 +331,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 </SortableContext>
                             </DndContext>
                         )}
-                        {presets.length === 1 && (
+                        {!isLoadingTimeline && presets.length === 1 && (
                             <div className="text-xs text-muted-foreground px-2 py-1">
                                 First preset is configured in Timeline Properties
                             </div>
