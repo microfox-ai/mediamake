@@ -47,11 +47,12 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [showPresetLibrary, setShowPresetLibrary] = useState(false);
-    const { loadTimeline, loadedTimeline, loadProjectTimelines, currentProjectId } = useProjectStore();
+    const { loadTimeline, loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline } = useTimelineEditsStore();
     const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
     const session = useSession();
+    const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
 
     // Get edited timeline if it exists, otherwise use original
     const editedTimeline = getEditedTimeline(timeline.id);
@@ -61,20 +62,36 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
     const presets = displayTimeline.presets || [];
 
-    const handleClick = (e: React.MouseEvent) => {
-        if (isOpen) {
-            if (loadedTimeline?.id != timeline.id) {
-                loadTimeline(timeline);
-            }
-            if (selectedItem?.type != 'timeline' || selectedItem.item.id !== timeline.id) {
-                selectTimeline(timeline);
-            }
-            e.stopPropagation();
+    const ensureTimelineLoaded = async () => {
+        if (loadedTimeline?.id === timeline.id) {
+            return loadedTimeline;
+        }
+
+        setIsLoadingTimeline(true);
+        try {
+            const full = await loadTimelineById(timeline.id, session?.clientId);
+            return full;
+        } finally {
+            setIsLoadingTimeline(false);
+        }
+    };
+
+    const handleClick = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        const fullTimeline = await ensureTimelineLoaded();
+        if (!fullTimeline) {
             return;
         }
-        e.stopPropagation();
-        loadTimeline(timeline);
-        selectTimeline(timeline);
+
+        if (isOpen) {
+            if (selectedItem?.type !== 'timeline' || selectedItem.item.id !== fullTimeline.id) {
+                selectTimeline(fullTimeline);
+            }
+            return;
+        }
+
+        selectTimeline(fullTimeline);
         setIsOpen(_open => !_open);
     };
 

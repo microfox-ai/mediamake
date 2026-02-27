@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const projectId = searchParams.get('projectId');
     const search = searchParams.get('search');
+    const summary = searchParams.get('summary') === 'true';
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const skip = (page - 1) * limit;
@@ -89,8 +90,9 @@ export async function GET(request: NextRequest) {
       query.displayName = { $regex: search, $options: 'i' };
     }
 
-    // If projectId is provided, return all timelines for that project
-    if (projectId && !search) {
+    // If projectId is provided and summary mode is NOT requested, return all timelines for that project
+    // This preserves existing behaviour for callers that expect full timeline documents.
+    if (projectId && !search && !summary) {
       const timelines = await collection
         .find(query)
         .sort({ createdAt: -1 })
@@ -111,10 +113,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Search/list mode with pagination
+    // Search/list mode with pagination, returning lightweight timeline summaries.
     const [timelines, total] = await Promise.all([
       collection
-        .find(query, { projection: { displayName: 1, createdAt: 1, updatedAt: 1, description: 1 } })
+        .find(query, {
+          projection: {
+            displayName: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            description: 1,
+            projectId: 1,
+          },
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -125,6 +135,7 @@ export async function GET(request: NextRequest) {
     const response = {
       timelines: timelines.map((d: any) => ({
         id: d._id.toString(),
+        projectId: d.projectId,
         displayName: d.displayName,
         description: d.description,
         createdAt: d.createdAt,
