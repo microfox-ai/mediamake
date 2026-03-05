@@ -135,6 +135,7 @@ export interface MediaFile {
   _id?: ObjectId;
   tags: string[]; // Array of tag IDs
   clientId: string;
+  projectId?: string; // Optional project for filtering
   createdAt: Date;
   updatedAt: Date;
   contentType: 'video' | 'audio' | 'image' | 'document' | 'unknown';
@@ -157,6 +158,7 @@ export interface CreateTagRequest {
 export interface CreateMediaFileRequest {
   tags: string[];
   clientId?: string;
+  projectId?: string;
   contentType: 'video' | 'audio' | 'image' | 'document' | 'unknown';
   contentMimeType: string;
   contentSubType: string;
