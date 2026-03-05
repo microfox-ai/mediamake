@@ -7,7 +7,7 @@ import {
   UpdateMediaFileRequest,
 } from '@/app/types/media';
 import { getClientId } from '@/lib/auth-utils';
-import { indexAndAnalyzeImage, hasDescription } from '@/lib/sparkboard-lib';
+import { indexAndAnalyzeImage, hasDescription } from '@/lib/sparkboard/sparkboard-lib';
 
 // GET /api/media-files - Fetch media files with optional tag filtering
 export async function GET(request: NextRequest) {
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tag = searchParams.get('tag');
     const tags = searchParams.get('tags');
+    const projectId = searchParams.get('projectId');
     const contentType = searchParams.get('contentType');
     const contentSource = searchParams.get('contentSource');
     const contentSourceUrl = searchParams.get('contentSourceUrl');
@@ -35,6 +36,14 @@ export async function GET(request: NextRequest) {
     if (tag) query.tags = { $in: [tag] };
     if (tags)
       query.tags = { $in: tags.includes(',') ? tags.split(',') : [tags] };
+    // Project filter:
+    // - 'default' / 'stocksearch' => only media without projectId (global stocksearch)
+    // - any other value => exact projectId match
+    if (projectId === 'default' || projectId === 'stocksearch') {
+      query.projectId = { $exists: false };
+    } else if (projectId) {
+      query.projectId = projectId;
+    }
     if (contentType) query.contentType = contentType;
     if (contentSource) query.contentSource = contentSource;
     if (contentSourceUrl) query.contentSourceUrl = contentSourceUrl;
@@ -58,6 +67,7 @@ export async function GET(request: NextRequest) {
         _id: 1,
         tags: 1,
         clientId: 1,
+        projectId: 1,
         createdAt: 1,
         updatedAt: 1,
         contentType: 1,
@@ -99,13 +109,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const clientId = getClientId(request);
-    const body: CreateMediaFileRequest = await request.json();
+    const body: CreateMediaFileRequest & {
+      analyzeImage?: boolean;
+      generateDescription?: boolean;
+      generateKeywords?: boolean;
+    } = await request.json();
     console.log(
       'Media file creation request body:',
       JSON.stringify(body, null, 2),
     );
     const {
       tags,
+      projectId: bodyProjectId,
       contentType,
       contentMimeType,
       contentSubType,
@@ -115,6 +130,9 @@ export async function POST(request: NextRequest) {
       fileName,
       fileSize,
       filePath,
+      analyzeImage = true,
+      generateDescription = true,
+      generateKeywords = true,
     } = body;
 
     if (!tags || !contentType || !contentMimeType || !contentSource) {
@@ -134,7 +152,7 @@ export async function POST(request: NextRequest) {
     let finalMetadata = metadata || {};
     const mediaSourceUrl = filePath;
     // Perform AI analysis for images if metadata doesn't have description
-    if (contentType === 'image' && !hasDescription(finalMetadata)) {
+    if (contentType === 'image' && analyzeImage && !hasDescription(finalMetadata)) {
       try {
         // TODO: Add video analysis support when the endpoint supports it
         if (mediaSourceUrl) {
@@ -147,10 +165,18 @@ export async function POST(request: NextRequest) {
               platformUrl: mediaSourceUrl,
               imageLink: mediaSourceUrl,
               tags: tags,
+              projectId: bodyProjectId ?? undefined,
             },
           );
 
           if (aiMetadata) {
+            const ai = aiMetadata as unknown as Record<string, unknown>;
+            if (!generateDescription) ai.description = null;
+            if (!generateKeywords) {
+              ai.keywords = null;
+              ai.artStyle = null;
+              ai.audienceKeywords = null;
+            }
             // Merge AI metadata with existing metadata
             finalMetadata = {
               ...finalMetadata,
@@ -197,6 +223,7 @@ export async function POST(request: NextRequest) {
     const mediaFile: MediaFile = {
       tags,
       clientId: clientId || 'default',
+      ...(bodyProjectId ? { projectId: bodyProjectId } : {}),
       contentType,
       contentMimeType,
       contentSubType: contentSubType || 'unknown',
