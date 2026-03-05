@@ -43,31 +43,10 @@ const nextConfig: NextConfig = {
         '@ffprobe-installer/ffprobe': 'commonjs @ffprobe-installer/ffprobe',
         // Externalize fluent-ffmpeg to avoid bundling issues and warnings
         'fluent-ffmpeg': 'commonjs fluent-ffmpeg',
+        // Treat sharp as a Node runtime dependency, not something to bundle.
+        sharp: 'commonjs sharp',
       });
     }
-
-    // // Ignore specific problematic files and Node.js modules
-    // config.resolve.fallback = {
-    //   ...config.resolve.fallback,
-    //   fs: false,
-    //   path: false,
-    //   os: false,
-    //   net: false,
-    //   tls: false,
-    //   child_process: false,
-    //   dns: false,
-    //   crypto: false,
-    //   stream: false,
-    //   util: false,
-    //   url: false,
-    //   querystring: false,
-    //   http: false,
-    //   https: false,
-    //   zlib: false,
-    //   events: false,
-    //   buffer: false,
-    //   process: false,
-    // };
 
     // Add resolve aliases to avoid problematic modules
     config.resolve.alias = {
@@ -76,6 +55,15 @@ const nextConfig: NextConfig = {
       rollup: false,
       '@rollup/rollup-linux-x64-gnu': false,
       mongodb: false,
+      // In client bundles, completely stub out sharp/detect-libc so webpack
+      // never walks their dependency tree.
+      ...(isServer
+        ? {}
+        : {
+            sharp: false,
+            'sharp$': false,
+            'detect-libc': false,
+          }),
     };
 
     // Suppress warnings for optional dependencies and fluent-ffmpeg
