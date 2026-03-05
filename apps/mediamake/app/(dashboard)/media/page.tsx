@@ -12,6 +12,7 @@ import { MediaProvider } from "@/components/editor/media/media-context";
 
 export default function MediaPage() {
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
     const [hashtagFilters, setHashtagFilters] = useState<string[]>([]);
 
@@ -23,6 +24,11 @@ export default function MediaPage() {
             setSelectedTag(null);
             setHashtagFilters([]);
         }
+        setSelectedFile(null);
+    };
+
+    const handleProjectSelection = (projectId: string | null) => {
+        setSelectedProjectId(projectId);
         setSelectedFile(null);
     };
 
@@ -40,6 +46,8 @@ export default function MediaPage() {
                             <MediaLibrarySidebar
                                 selectedTag={selectedTag}
                                 onSelectTag={handleTagSelection}
+                                selectedProjectId={selectedProjectId}
+                                onSelectProject={handleProjectSelection}
                                 hashtagFilters={hashtagFilters}
                                 onHashtagFiltersChange={handleHashtagFiltersChange}
                             />
@@ -47,11 +55,13 @@ export default function MediaPage() {
                                 <MediaPicker
                                     pickerMode={false}
                                     selectedTag={selectedTag}
+                                    selectedProjectId={selectedProjectId}
                                     selectedFile={selectedFile}
                                     onSelectFile={(file) => setSelectedFile(file)}
                                     hashtagFilters={hashtagFilters}
                                     onHashtagFiltersChange={handleHashtagFiltersChange}
                                     showSidebar={false}
+                                    onClearSelectedTag={() => handleTagSelection(null)}
                                 />
                             </div>
                         </div>
