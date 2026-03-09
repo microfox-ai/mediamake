@@ -31,7 +31,6 @@ type Output = z.infer<typeof OutputSchema>;
 export const workerConfig: WorkerConfig = {
   timeout: 900,
   memorySize: 2048,
-  visibilityTimeout: 5400,
   group: 'sparkboard',
 };
 
