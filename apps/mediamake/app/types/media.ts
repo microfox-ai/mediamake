@@ -136,6 +136,8 @@ export interface MediaFile {
   tags: string[]; // Array of tag IDs
   clientId: string;
   projectId?: string; // Optional project for filtering
+  /** Optional parent media reference for derived/split media */
+  parentMediaId?: ObjectId;
   createdAt: Date;
   updatedAt: Date;
   contentType: 'video' | 'audio' | 'image' | 'document' | 'unknown';
@@ -159,6 +161,7 @@ export interface CreateMediaFileRequest {
   tags: string[];
   clientId?: string;
   projectId?: string;
+  parentMediaId?: string;
   contentType: 'video' | 'audio' | 'image' | 'document' | 'unknown';
   contentMimeType: string;
   contentSubType: string;
@@ -181,4 +184,5 @@ export interface UpdateMediaFileRequest {
   fileName?: string;
   fileSize?: number;
   filePath?: string;
+  parentMediaId?: string;
 }
