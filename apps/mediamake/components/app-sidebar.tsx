@@ -66,8 +66,13 @@ const data = {
       icon: <LayoutDashboardIcon />,
     },
     {
-      title: "History",
-      url: "/history",
+      title: "Video Render History",
+      url: "/video-history",
+      icon: <ListIcon />,
+    },
+    {
+      title: "Image Render History",
+      url: "/image-history",
       icon: <ListIcon />,
     },
     {
@@ -94,6 +99,11 @@ const data = {
       title: "Media",
       url: "/media",
       icon: <FolderOpenIcon />,
+    },
+    {
+      title: "Video Splits",
+      url: "/youtube-splits",
+      icon: <TvIcon />,
     },
     {
       title: "Font Base",
