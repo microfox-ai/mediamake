@@ -25,6 +25,11 @@ export interface RenderSettings {
     inputProps: string;
     outputLocation?: string; // Only used for local rendering
     isDownloadable?: boolean; // Only used for AWS rendering
+    // AWS region selection for Lambda renders
+    region?: string;
+    // Metadata
+    projectId?: string;
+    tags?: string[];
     
     // Configuration mode
     configMode: ConfigMode;
@@ -132,7 +137,12 @@ const defaultSettings: RenderSettings = {
     helperDuration: 40,
     
     // Still
-    frameTime: 0
+  frameTime: 0,
+
+  // Region (initialized elsewhere from config default if available)
+  region: undefined,
+  projectId: undefined,
+  tags: [],
 };
 
 const RenderContext = createContext<RenderContextType | undefined>(undefined);

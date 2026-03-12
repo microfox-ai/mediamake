@@ -37,8 +37,12 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useRender, ConfigMode } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from '@/components/session-provider';
+import { TagsSelector } from '@/components/ui/tags-selector';
 import {
   AWS_RENDER_CONFIGS,
+  AWS_REGION_OPTIONS,
+  DEFAULT_REGION,
   LAMBDA_MEMORY_OPTIONS,
   LAMBDA_TIMEOUT_OPTIONS,
   LAMBDA_DISK_OPTIONS,
@@ -98,6 +102,7 @@ const presetIcons: Record<string, React.ReactNode> = {
 
 export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   const router = useRouter();
+  const session = useSession();
   const {
     settings,
     updateSetting,
@@ -110,6 +115,34 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
+  const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
+  // Ensure region has a sensible default
+  useEffect(() => {
+    if (!settings.region) {
+      updateSetting('region', DEFAULT_REGION);
+    }
+  }, [settings.region, updateSetting]);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      if (!session?.clientId) return;
+      setProjectsLoading(true);
+      try {
+        const res = await fetch('/api/project', {
+          headers: { 'x-client-id': session.clientId },
+        });
+        const data = res.ok ? await res.json() : [];
+        setProjects(Array.isArray(data) ? data : []);
+      } catch {
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+    void loadProjects();
+  }, [session?.clientId]);
 
   const selectedConfig = useMemo(() => {
     if (settings.configMode === 'custom') {
@@ -221,12 +254,20 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     const requestBody: Record<string, unknown> = {
       id: settings.composition,
       inputProps: parsedInputProps,
-      fileName: settings.isDownloadable ? settings.fileName : undefined,
+      fileName:
+        settings.renderType === 'still'
+          ? settings.fileName
+          : settings.isDownloadable
+            ? settings.fileName
+            : undefined,
       codec: settings.codec,
       audioCodec: settings.audioCodec,
       renderType: settings.renderType,
+      projectId: settings.projectId,
+      tags: settings.tags,
       isDownloadable: settings.isDownloadable,
       configMode: settings.configMode,
+      region: settings.region ?? DEFAULT_REGION,
     };
 
     if (settings.configMode === 'preset') {
@@ -241,6 +282,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.clientId ? { 'x-client-id': session.clientId } : {}),
       },
       body: JSON.stringify(requestBody),
     });
@@ -312,10 +354,11 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Render Video</DialogTitle>
+          <DialogTitle>
+            {settings.renderType === 'still' ? 'Render Image' : 'Render Video'}
+          </DialogTitle>
           <DialogDescription>
-            Configure your render settings and start the video generation
-            process.
+            Configure your render settings and start the generation process.
           </DialogDescription>
         </DialogHeader>
 
@@ -332,6 +375,75 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
             <TabsContent value="aws" className="space-y-4">
               <div className="flex flex-col gap-4 py-4">
+                {/* Render target (video vs image) */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Render</Label>
+                  <div className="col-span-3">
+                    <Tabs
+                      value={settings.renderType === 'still' ? 'image' : 'video'}
+                      onValueChange={(value) => {
+                        if (value === 'image') {
+                          updateSetting('renderType', 'still');
+                          updateSetting('codec', 'png');
+                          // Default to lowest RAM preset for images
+                          updateSetting('awsRenderPreset', 'lightweight');
+                          if (settings.fileName.startsWith('video-')) {
+                            updateSetting('fileName', 'image-' + Date.now().toString().replaceAll('-', '') + '.png');
+                          }
+                        } else {
+                          updateSetting('renderType', 'video');
+                          if (settings.codec === 'png') updateSetting('codec', 'h264');
+                          if (settings.fileName.startsWith('image-')) {
+                            updateSetting('fileName', 'video-' + Date.now().toString().replaceAll('-', '') + '.mp4');
+                          }
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="video">Video</TabsTrigger>
+                        <TabsTrigger value="image">Image (frame 1)</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                </div>
+
+                {/* Project + tags metadata */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Project</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={settings.projectId ?? 'none'}
+                      onValueChange={(value) => updateSetting('projectId', value === 'none' ? undefined : value)}
+                      disabled={projectsLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={projectsLoading ? 'Loading...' : 'No project'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No project</SelectItem>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Tags</Label>
+                  <div className="col-span-3">
+                    <TagsSelector
+                      selectedTags={settings.tags ?? []}
+                      onTagsChange={(t) => updateSetting('tags', t)}
+                      label=""
+                      required={false}
+                      showCreateNew={true}
+                    />
+                  </div>
+                </div>
+
                 {/* Configuration Mode Selector */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Config Mode</Label>
@@ -844,6 +956,29 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
                 {/* Common AWS Settings */}
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="awsRegion" className="text-right">
+                    AWS Region
+                  </Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={settings.region ?? DEFAULT_REGION}
+                      onValueChange={(value) => updateSetting('region', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select region" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AWS_REGION_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label} — {option.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="isDownloadable" className="text-right">
                     Downloadable
                   </Label>
@@ -891,10 +1026,16 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       <SelectValue placeholder="Select codec" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="h264">H.264</SelectItem>
-                      <SelectItem value="h265">H.265</SelectItem>
-                      <SelectItem value="vp8">VP8</SelectItem>
-                      <SelectItem value="vp9">VP9</SelectItem>
+                      {settings.renderType === 'still' ? (
+                        <SelectItem value="png">PNG</SelectItem>
+                      ) : (
+                        <>
+                          <SelectItem value="h264">H.264</SelectItem>
+                          <SelectItem value="h265">H.265</SelectItem>
+                          <SelectItem value="vp8">VP8</SelectItem>
+                          <SelectItem value="vp9">VP9</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
