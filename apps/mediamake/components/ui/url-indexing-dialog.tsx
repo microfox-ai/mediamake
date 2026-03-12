@@ -1,30 +1,42 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { TagsSelector } from "./tags-selector";
-import { cn } from "@/lib/utils";
 import {
-    Link,
-    X,
-    Check,
-    AlertCircle,
-    Loader2
-} from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Link, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMedia } from "@/components/editor/media/media-context";
-import { encrypt } from "@/lib/jwt";
+import { useSession } from "@/components/session-provider";
+
+interface Project {
+  id: string;
+  displayName: string;
+  tags?: string[];
+}
 
 interface UrlIndexingDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onIndexingStart: (indexingId: string, indexingLimit: number, tags: string[]) => void;
+    onSubmit: (params: {
+        url: string;
+        indexingLimit: number;
+        crawlVideos: boolean;
+        tags: string[];
+        projectId: string | null;
+        projectDisplayName: string | null;
+    }) => Promise<void> | void;
+    loading?: boolean;
     preselectedTags?: string[];
 }
 
@@ -38,26 +50,42 @@ interface IndexingProgress {
 export function UrlIndexingDialog({
     isOpen,
     onClose,
-    onIndexingStart,
+    onSubmit,
+    loading = false,
     preselectedTags = []
 }: UrlIndexingDialogProps) {
     const { hashtagFilters } = useMedia();
+    const session = useSession();
     const [url, setUrl] = useState("");
     const [indexingLimit, setIndexingLimit] = useState(10);
     const [crawlVideos, setCrawlVideos] = useState(true);
     const [selectedTags, setSelectedTags] = useState<string[]>(preselectedTags);
-    const [isIndexing, setIsIndexing] = useState(false);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [selectedProject, setSelectedProject] = useState<{ id: string; displayName: string } | null>(null);
 
-    // Reset state when dialog opens/closes
+    useEffect(() => {
+        if (isOpen) {
+            const headers: Record<string, string> = {};
+            if (session?.clientId) headers["x-client-id"] = session.clientId;
+            setProjectsLoading(true);
+            fetch("/api/project", { headers })
+                .then((res) => (res.ok ? res.json() : []))
+                .then((data) => (Array.isArray(data) ? setProjects(data) : setProjects([])))
+                .catch(() => setProjects([]))
+                .finally(() => setProjectsLoading(false));
+        }
+    }, [isOpen, session?.clientId]);
+
     useEffect(() => {
         if (isOpen) {
             setUrl("");
             setIndexingLimit(10);
             setCrawlVideos(true);
-            // Use context tags if available, otherwise use preselected tags
-            const tagsToUse = hashtagFilters.length > 0 ? hashtagFilters : preselectedTags;
+            setSelectedProject(null);
+            const tagsToUse =
+                hashtagFilters.length > 0 ? hashtagFilters : preselectedTags;
             setSelectedTags(tagsToUse);
-            setIsIndexing(false);
         }
     }, [isOpen, preselectedTags, hashtagFilters]);
 
@@ -65,41 +93,17 @@ export function UrlIndexingDialog({
         if (!url.trim() || selectedTags.length === 0) return;
 
         try {
-            setIsIndexing(true);
-            console.log('Starting indexing with tags:', selectedTags);
-
-            const response = await fetch('/api/sparkboard', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    siteLinks: [url.trim()],
-                    indexingLimit,
-                    tags: selectedTags,
-                    crawlVideos,
-                    dbFolder: `mediamake/scraped/${process.env.NEXT_PUBLIC_DEV_CLIENT_ID || 'default'}`,
-                }),
+            await onSubmit({
+                url: url.trim(),
+                indexingLimit,
+                crawlVideos,
+                tags: selectedTags,
+                projectId: selectedProject?.id ?? null,
+                projectDisplayName: selectedProject?.displayName ?? null,
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to start indexing');
-            }
-
-            const data = await response.json();
-            const indexingId = data.indexingId;
-
-            if (!indexingId) {
-                throw new Error('No indexing ID returned');
-            }
-
-            // Call the callback to start progress tracking
-            onIndexingStart(indexingId, indexingLimit, selectedTags);
-
         } catch (error) {
-            console.error('Error starting indexing:', error);
-            toast.error('Failed to start indexing');
-            setIsIndexing(false);
+            console.error("Error starting indexing:", error);
+            toast.error("Failed to start indexing");
         }
     };
 
@@ -108,11 +112,11 @@ export function UrlIndexingDialog({
         setIndexingLimit(10);
         setCrawlVideos(true);
         setSelectedTags([]);
-        setIsIndexing(false);
         onClose();
     };
 
-    const canStartIndexing = url.trim().length > 0 && selectedTags.length > 0 && !isIndexing;
+    const canStartIndexing =
+        url.trim().length > 0 && selectedTags.length > 0 && !loading;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -156,6 +160,38 @@ export function UrlIndexingDialog({
                         </p>
                     </div>
 
+                    {/* Project selector */}
+                    <div className="space-y-2">
+                        <Label>Project (optional)</Label>
+                            <Select
+                                value={selectedProject?.id ?? "stocksearch"}
+                                onValueChange={(value) => {
+                                    if (value === "stocksearch") {
+                                        setSelectedProject(null);
+                                    } else {
+                                        const p = projects.find((x) => x.id === value);
+                                        if (p) setSelectedProject({ id: p.id, displayName: p.displayName });
+                                    }
+                                }}
+                                disabled={projectsLoading}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={projectsLoading ? "Loading..." : "Stocksearch (shared namespace)"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="stocksearch">Stocksearch (shared namespace)</SelectItem>
+                                {projects.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                        {p.displayName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Choose a project to index into, or use Default for the shared stock search.
+                        </p>
+                    </div>
+
                     {/* Crawl Videos Checkbox */}
                     <div className="flex items-center space-x-2">
                         <Checkbox
@@ -186,7 +222,7 @@ export function UrlIndexingDialog({
                             disabled={!canStartIndexing}
                             className="min-w-[120px]"
                         >
-                            {isIndexing ? (
+                            {loading ? (
                                 <>
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     Starting...

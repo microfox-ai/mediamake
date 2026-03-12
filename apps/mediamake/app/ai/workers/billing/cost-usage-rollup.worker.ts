@@ -11,8 +11,8 @@ import type { WorkerHandlerParams } from '@microfox/ai-worker/handler';
 import {
   platformCostUsageDB,
   platformCostUsageAggregatesDB,
-} from '../../../lib/cost-usage-mongodb';
-import type { PeriodType } from '../../../lib/cost-usage-types';
+} from '../../../../lib/cost-usage-mongodb';
+import type { PeriodType } from '../../../../lib/cost-usage-types';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 
 const InputSchema = z.object({}).catchall(z.unknown()).optional().default({});
@@ -42,6 +42,7 @@ function getPeriodValue(date: Date, periodType: PeriodType): string {
 export const workerConfig: WorkerConfig = {
   timeout: 600,
   memorySize: 1024,
+  group: "billing"
 };
 
 export default createWorker<typeof InputSchema, Output>({

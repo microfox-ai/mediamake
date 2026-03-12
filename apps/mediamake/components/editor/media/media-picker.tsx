@@ -38,9 +38,11 @@ import { MediaGrid, MediaOptionsDropdown } from "./media-ui";
 import useSWR from "swr";
 import { MediaSidebar } from "./media-sidebar";
 import { useMedia } from "./media-context";
+import { useSession } from "@/components/session-provider";
 import { MediaEditDialog } from "./media-edit-dialog";
 import { BulkEditToolbar } from "./bulk-edit-toolbar";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 // Pagination component
 interface PaginationProps {
@@ -186,6 +188,7 @@ interface MediaPickerProps {
     onSelect?: (files: MediaFile | MediaFile[]) => void;
     onClose?: () => void;
     selectedTag?: string | null;
+    selectedProjectId?: string | null;
     selectedFile?: MediaFile | null;
     onSelectFile?: (file: MediaFile | null) => void;
     tagToAddToHashtags?: string | null | "CLEAR_ALL";
@@ -193,6 +196,8 @@ interface MediaPickerProps {
     hashtagFilters?: string[];
     onHashtagFiltersChange?: (filters: string[]) => void;
     showSidebar?: boolean;
+    /** Optional handler to clear the selected tag filter from parent (dashboard media page) */
+    onClearSelectedTag?: () => void;
 }
 
 // Content source options for filtering
@@ -216,13 +221,15 @@ export function MediaPicker({
     onSelect,
     onClose,
     selectedTag: propSelectedTag,
+    selectedProjectId: propSelectedProjectId,
     selectedFile: propSelectedFile,
     onSelectFile: propOnSelectFile,
     tagToAddToHashtags: propTagToAddToHashtags,
     onTagAddedToHashtags: propOnTagAddedToHashtags,
     hashtagFilters: propHashtagFilters,
     onHashtagFiltersChange: propOnHashtagFiltersChange,
-    showSidebar = true
+    showSidebar = true,
+    onClearSelectedTag,
 }: MediaPickerProps) {
     const {
         selectedTag: contextSelectedTag,
@@ -237,10 +244,11 @@ export function MediaPicker({
         setSelectedFiles: setContextSelectedFiles
     } = useMedia();
 
-    // Use context values or fallback to props
-    const selectedTag = propSelectedTag || contextSelectedTag;
-    const selectedFile = propSelectedFile || contextSelectedFile;
-    const hashtagFilters = propHashtagFilters || contextHashtagFilters;
+    const session = useSession();
+    const selectedTag = propSelectedTag ?? contextSelectedTag;
+    const selectedProjectId = propSelectedProjectId ?? null;
+    const selectedFile = propSelectedFile ?? contextSelectedFile;
+    const hashtagFilters = propHashtagFilters ?? contextHashtagFilters;
     const selectedFiles = contextSelectedFiles;
 
     // Picker-specific state
@@ -254,10 +262,11 @@ export function MediaPicker({
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(30);
 
-    // Search state
-    const [isClientSearch, setIsClientSearch] = useState(true); // true = clientFiles, false = mediaFiles
+    const [searchProjects, setSearchProjects] = useState<{ id: string; displayName: string }[]>([]);
+    const [selectedSearchProjectId, setSelectedSearchProjectId] = useState<string | null>(null);
     const [searchResults, setSearchResults] = useState<MediaFile[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isClientSearch, setIsClientSearch] = useState(true);
 
     // Edit functionality state
     const [editMode, setEditMode] = useState(false);
@@ -265,13 +274,25 @@ export function MediaPicker({
     const [editingFile, setEditingFile] = useState<MediaFile | null>(null);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isPicking, setIsPicking] = useState(false);
+    const [includeChildMedia, setIncludeChildMedia] = useState(true);
 
-    // Reset page to 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag]);
+    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag, selectedProjectId, includeChildMedia]);
 
-    // Global search function
+    useEffect(() => {
+        const headers: Record<string, string> = {};
+        if (session?.clientId) headers["x-client-id"] = session.clientId;
+        fetch("/api/project", { headers })
+            .then((res) => (res.ok ? res.json() : []))
+            .then((data) => (Array.isArray(data) ? setSearchProjects(data) : setSearchProjects([])))
+            .catch(() => setSearchProjects([]));
+    }, [session?.clientId]);
+
+    useEffect(() => {
+        setSelectedSearchProjectId(selectedProjectId);
+    }, [selectedProjectId]);
+
     const performGlobalSearch = async (query: string) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -286,10 +307,15 @@ export function MediaPicker({
                 searchType,
                 topK: '50',
             });
-
-            // Add selected tags as keywords if any
             if (hashtagFilters.length > 0) {
                 params.append('tags', hashtagFilters.join(','));
+            }
+            if (selectedSearchProjectId && selectedSearchProjectId !== 'default') {
+                params.append('projectId', selectedSearchProjectId);
+                const proj = searchProjects.find((p) => p.id === selectedSearchProjectId);
+                if (proj?.displayName) params.append('projectDisplayName', proj.displayName);
+            } else {
+                params.append('projectId', 'default');
             }
 
             const response = await fetch(`/api/sparkboard/search?${params}`);
@@ -334,10 +360,10 @@ export function MediaPicker({
         }
     }, [pickerMode]);
 
-    // Build API URL with filters
     const buildApiUrl = () => {
         const params = new URLSearchParams();
         if (selectedTag) params.append('tag', selectedTag);
+        if (selectedProjectId) params.append('projectId', selectedProjectId);
         if (contentTypeFilter !== 'all') params.append('contentType', contentTypeFilter);
         if (contentSourceFilter !== 'all') params.append('contentSource', contentSourceFilter);
         if (hashtagFilters.length > 0) {
@@ -350,15 +376,22 @@ export function MediaPicker({
         return `/api/media-files?${params}`;
     };
 
-    // Use SWR for data fetching
+    const isTagMode = Boolean(selectedTag);
+    const filesKey = searchResults.length > 0 ? null : buildApiUrl();
+    const filesFetcher = fetcher;
+
     const { data: filesData, error: filesError, mutate: mutateFiles } = useSWR(
-        searchResults.length > 0 ? null : buildApiUrl(),
-        fetcher
+        filesKey,
+        filesFetcher
     );
     const { data: tagsData, error: tagsError } = useSWR('/api/tags', fetcher);
 
-    // Use search results when available, otherwise use regular files
-    const files = searchResults.length > 0 ? searchResults : (filesData?.files || []);
+    const rawFiles: MediaFile[] = searchResults.length > 0 ? searchResults : (filesData?.files || []);
+    const files = useMemo(() => {
+        if (pickerMode) return rawFiles || [];
+        if (includeChildMedia) return rawFiles || [];
+        return (rawFiles || []).filter((file: MediaFile) => !(file as any).parentMediaId);
+    }, [rawFiles, pickerMode, includeChildMedia]);
     const totalCount = searchResults.length > 0 ? searchResults.length : (filesData?.total || 0);
     const hasMore = searchResults.length > 0 ? false : (filesData?.hasMore || false);
     const tags = tagsData || [];
@@ -664,9 +697,47 @@ export function MediaPicker({
                     {/* Header */}
                     <div className="p-4 border-b bg-muted/30">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">
-                                {pickerMode ? "Select Media" : (selectedTag ? `Files tagged with "${getTagDisplayName(selectedTag)}"` : 'All Files')}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-semibold">
+                                    {pickerMode
+                                        ? "Select Media"
+                                        : (selectedTag
+                                            ? `Files tagged with "${getTagDisplayName(selectedTag)}"`
+                                            : 'All Files')}
+                                </h2>
+                                {!pickerMode && selectedTag && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                        title="Clear tag filter"
+                                        onClick={() => {
+                                            // Clear tag filter in parent page if handler provided,
+                                            // otherwise fall back to clearing hashtag filters only.
+                                            if (onClearSelectedTag) {
+                                                onClearSelectedTag();
+                                            } else {
+                                                setContextSelectedTag(null);
+                                                const newFilters = hashtagFilters.filter(t => t !== selectedTag);
+                                                setContextHashtagFilters(newFilters);
+                                                propOnHashtagFiltersChange?.(newFilters);
+                                            }
+                                        }}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                )}
+                                {!pickerMode && searchResults.length > 0 && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="ml-2 h-7 px-2 text-xs"
+                                        onClick={clearSearch}
+                                    >
+                                        Exit search (back to list)
+                                    </Button>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2">
                                 {!pickerMode && (
                                     <Button
@@ -690,6 +761,7 @@ export function MediaPicker({
                                     }}
                                     preselectedTags={hashtagFilters}
                                     pickerMode={pickerMode}
+                                    selectedProjectId={selectedProjectId}
                                 />
                                 {pickerMode && (
                                     <Button variant="ghost" size="sm" onClick={onClose}>
@@ -700,9 +772,9 @@ export function MediaPicker({
                         </div>
 
                         {/* Filters */}
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-wrap items-start gap-4">
                             {/* Left Side - Hashtag Filters */}
-                            <div className="flex items-center gap-2 flex-1">
+                            <div className="flex items-center gap-2 w-full md:flex-1">
                                 <span className="text-sm font-medium text-muted-foreground">Tags:</span>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {hashtagFilters.map((tag) => (
@@ -732,7 +804,7 @@ export function MediaPicker({
                             </div>
 
                             {/* Right Side - Other Filters */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-start md:justify-end">
                                 {/* Search */}
                                 <div className="relative flex items-center">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -782,6 +854,24 @@ export function MediaPicker({
                                     </Button>
                                 </div>
 
+                                {/* Project filter for search */}
+                                <Select
+                                    value={selectedSearchProjectId ?? 'stocksearch'}
+                                    onValueChange={(v) => setSelectedSearchProjectId(v === 'stocksearch' ? null : v)}
+                                >
+                                    <SelectTrigger className="w-[140px]">
+                                        <SelectValue placeholder="Project" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="stocksearch">Stocksearch</SelectItem>
+                                        {searchProjects.map((p) => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                                {p.displayName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 {/* Content Type Filter */}
                                 <Select value={contentTypeFilter} onValueChange={setContentTypeFilter}>
                                     <SelectTrigger className="w-24">
@@ -808,6 +898,20 @@ export function MediaPicker({
                                         ))}
                                     </SelectContent>
                                 </Select>
+
+                                {/* Child media filter (only in full media library mode) */}
+                                {!pickerMode && (
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="include-children"
+                                            checked={includeChildMedia}
+                                            onCheckedChange={setIncludeChildMedia}
+                                        />
+                                        <span className="text-xs text-muted-foreground">
+                                            Show split/child media
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* Sort Order */}
                                 <Select value={sortOrder} onValueChange={(value: "latest" | "oldest") => setSortOrder(value)}>
@@ -915,6 +1019,7 @@ export function MediaPicker({
                                             dropzoneClassName="min-h-[200px]"
                                             preselectedTags={hashtagFilters}
                                             pickerMode={pickerMode}
+                                            selectedProjectId={selectedProjectId}
                                         />
                                     </div>
                                     <div className="col-span-1">

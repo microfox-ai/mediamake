@@ -7,6 +7,8 @@ import { UrlIndexingDialog } from "./url-indexing-dialog";
 import { cn } from "@/lib/utils";
 import { RagImageMetadata } from "@/app/types/media";
 import { useMedia } from "@/components/editor/media/media-context";
+import { useWorkflowJob } from "@/hooks/useWorkflowJob";
+import { useSession } from "@/components/session-provider";
 
 interface UrlIndexingTriggerProps {
     onIndexingComplete?: (mediaFiles: any[]) => void;
@@ -30,175 +32,27 @@ export function UrlIndexingTrigger({
     preselectedTags = []
 }: UrlIndexingTriggerProps) {
     const { hashtagFilters, indexingLimit, setIndexingLimit } = useMedia();
+    const session = useSession();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isIndexing, setIsIndexing] = useState(false);
     const [indexingStatus, setIndexingStatus] = useState<string>("");
-    const [indexingProgress, setIndexingProgress] = useState<number>(0);
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const dropzoneRef = useRef<HTMLDivElement>(null);
+    const lastProjectIdRef = useRef<string | null>(null);
 
     const handleIndexingComplete = (mediaFiles: any[]) => {
         onIndexingComplete?.(mediaFiles);
         setIsDialogOpen(false);
     };
 
-    // Cleanup polling on unmount
-    useEffect(() => {
-        return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-                pollingIntervalRef.current = null;
-            }
-        };
-    }, []);
-
-    // Poll indexing progress - simple and clean
-    const pollIndexingProgress = async (id: string, limit: number, tags: string[]) => {
-        // Clear any existing polling
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-        }
-
-        const checkProgress = async () => {
-            try {
-                const response = await fetch(`/api/sparkboard/check?indexingId=${id}&topK=${limit}`);
-
-                if (!response.ok) {
-                    throw new Error('Failed to check indexing progress');
-                }
-
-                const data = await response.json();
-
-                if (data.success && data.data?.indexing) {
-                    const progressData = data.data.indexing;
-                    const progress = Math.min(progressData.progress || 0, 100);
-
-                    setIndexingProgress(progress);
-                    setIndexingStatus(`Indexing progress: ${Math.round(progress)}%`);
-
-                    // If indexing is complete, process results and stop polling
-                    if (progressData.isFullyIndexed) {
-                        if (pollingIntervalRef.current) {
-                            clearInterval(pollingIntervalRef.current);
-                            pollingIntervalRef.current = null;
-                        }
-
-                        setIndexingProgress(100);
-                        setIndexingStatus("Indexing completed!");
-
-                        // Process results - backend handles deduplication
-                        // await processIndexingResults(data.data, tags);
-
-                        setIndexingStatus("Indexing completed!");
-                        // onIndexingComplete?.();
-
-                        // Reset after 1 seconds
-                        setTimeout(() => {
-                            setIsIndexing(false);
-                            setIndexingStatus("");
-                            setIndexingProgress(0);
-                        }, 1000);
-                    }
-                } else {
-                    throw new Error('Invalid response format');
-                }
-            } catch (error) {
-                console.error('Error polling indexing progress:', error);
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
-                setIsIndexing(false);
-                setIndexingStatus("Indexing failed");
-            }
-        };
-
-        // Run immediately first
-        await checkProgress();
-
-        // Then start interval polling
-        const pollInterval = setInterval(checkProgress, 10000);
-        pollingIntervalRef.current = pollInterval;
-    };
-
-    const processIndexingResults = async (data: any, tags: string[]) => {
-        try {
-            console.log('Processing indexing results:', data);
-            const results: {
-                id: string;
-                data: string;
-                metadata: RagImageMetadata;
-                score: number;
-            }[] = data.results || [];
-
-            console.log(`Found ${results.length} results to process`, results.map(result => result.metadata.src));
-
-            // Create media file entries for all results in parallel
-            const mediaFilePromises = results.map(async (result) => {
-                const metadata = result.metadata;
-                const mediaUrl = metadata.src;
-
-                if (mediaUrl) {
-                    const mediaFileData = {
-                        tags: metadata.userTags,
-                        contentType: metadata.mediaType || 'image',
-                        contentMimeType: metadata.mimeType || 'image/jpeg',
-                        contentSubType: 'indexed',
-                        contentSource: metadata.platform || 'web',
-                        contentSourceUrl: metadata.pagePermalink || metadata.platformUrl || mediaUrl,
-                        fileName: result.id || `indexed-${Date.now()}`,
-                        fileSize: 0,
-                        filePath: mediaUrl,
-                        metadata: metadata,
-                    };
-
-                    console.log('Creating media file with tags:', metadata.userTags, 'for URL:', mediaUrl);
-
-                    try {
-                        const response = await fetch('/api/media-files', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(mediaFileData),
-                        });
-
-                        if (response.ok) {
-                            const mediaFile = await response.json();
-                            console.log('Successfully created media file:', mediaFile);
-                            return mediaFile;
-                        } else {
-                            console.log('Media file already exists or failed to create');
-                            return null;
-                        }
-                    } catch (error) {
-                        console.error('Error creating media file:', error);
-                        return null;
-                    }
-                }
-                return null;
-            });
-
-            // Wait for all media files to be created in parallel
-            const createdMediaFiles = await Promise.all(mediaFilePromises);
-            const validMediaFiles = createdMediaFiles.filter(file => file !== null);
-
-            setIndexingStatus("Indexing completed!");
-            onIndexingComplete?.(validMediaFiles);
-
-            // Reset after 2 seconds
-            setTimeout(() => {
-                setIsIndexing(false);
-                setIndexingStatus("");
-                setIndexingProgress(0);
-            }, 2000);
-
-        } catch (error) {
-            console.error('Error processing indexing results:', error);
-            setIndexingStatus("Failed to process results");
-            setIsIndexing(false);
-        }
-    };
+    const {
+        trigger,
+        loading,
+    } = useWorkflowJob({
+        type: "worker",
+        workerId: "sparkboard-batch-index",
+        pollIntervalMs: 10000,
+        pollTimeoutMs: 900_000,
+        autoPoll: false,
+    });
 
     // Handle clipboard paste for URLs
     const handlePaste = async (e: ClipboardEvent) => {
@@ -233,16 +87,12 @@ export function UrlIndexingTrigger({
         }
 
         // Handle URLs from clipboard
-        if (urls.length > 0) {
-            console.log('Processing URLs for indexing:', urls);
-            setIsIndexing(true);
-            setIndexingStatus(`Starting indexing for ${urls.length} URL${urls.length > 1 ? 's' : ''}...`);
+            if (urls.length > 0) {
+                console.log('Processing URLs for indexing:', urls);
 
-            // Open dialog with URLs pre-filled
-            setIsDialogOpen(true);
-            setIsIndexing(false);
-            setIndexingStatus("");
-        }
+                // Open dialog with URLs pre-filled
+                setIsDialogOpen(true);
+            }
     };
 
     // Handle paste only when dropzone is focused
@@ -272,40 +122,44 @@ export function UrlIndexingTrigger({
                         </p>
                     </div>
 
-                    {/* Indexing Progress Overlay */}
-                    {isIndexing && (
-                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm border-2 border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center z-10">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                            <p className="text-sm text-muted-foreground text-center px-4">
-                                {indexingStatus}
-                            </p>
-                            {indexingProgress > 0 && (
-                                <div className="w-32 mt-2">
-                                    <div className="w-full bg-secondary rounded-full h-2">
-                                        <div
-                                            className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
-                                            style={{ width: `${indexingProgress}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                    {/* Simple status text (fire-and-forget) */}
+                    {indexingStatus && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded-md border">
+                            {indexingStatus}
                         </div>
                     )}
                 </div>
 
                 <UrlIndexingDialog
                     isOpen={isDialogOpen}
-                    onClose={() => {
-                        setIsDialogOpen(false);
-                    }}
-                    onIndexingStart={(indexingId, indexingLimit, tags) => {
+                    onClose={() => setIsDialogOpen(false)}
+                    onSubmit={async ({ url, indexingLimit, crawlVideos, tags, projectId, projectDisplayName }) => {
                         setIndexingLimit(indexingLimit);
-                        setIsIndexing(true);
-                        setIndexingStatus("Starting indexing...");
-                        setIndexingProgress(0);
-                        setIsDialogOpen(false); // Close dialog immediately
-                        pollIndexingProgress(indexingId, indexingLimit, tags);
-                    }}
+                            setIsDialogOpen(false);
+                            const pid = projectId ?? 'default';
+                            lastProjectIdRef.current = projectId ?? null;
+                            const clientId = session?.clientId ?? "default";
+                            const randomSuffix = Math.random().toString(36).slice(2, 11);
+                            const indexingId = `${clientId}_${pid}_${randomSuffix}`;
+                            try {
+                                await trigger({
+                                    siteLinks: [url],
+                                    projectId: pid,
+                                    projectDisplayName: projectDisplayName ?? undefined,
+                                    indexingId,
+                                    indexingLimit,
+                                    tags,
+                                    crawlVideos,
+                                    dbFolder: `mediamake/scraped/${pid}`,
+                                });
+                                setIndexingStatus("Indexing triggered. It will continue in the background.");
+                                setTimeout(() => setIndexingStatus(""), 5000);
+                            } catch (err) {
+                                console.error('Failed to trigger batch indexing:', err);
+                                setIndexingStatus("Failed to trigger indexing");
+                            }
+                        }}
+                        loading={loading}
                     preselectedTags={hashtagFilters}
                 />
             </>
@@ -331,14 +185,33 @@ export function UrlIndexingTrigger({
             <UrlIndexingDialog
                 isOpen={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
-                onIndexingStart={(indexingId, indexingLimit, tags) => {
+                onSubmit={async ({ url, indexingLimit, crawlVideos, tags, projectId, projectDisplayName }) => {
                     setIndexingLimit(indexingLimit);
-                    setIsIndexing(true);
-                    setIndexingStatus("Starting indexing...");
-                    setIndexingProgress(0);
-                    setIsDialogOpen(false); // Close dialog immediately
-                    pollIndexingProgress(indexingId, indexingLimit, tags);
+                    setIsDialogOpen(false);
+                    const pid = projectId ?? 'default';
+                    lastProjectIdRef.current = projectId ?? null;
+                    const clientId = session?.clientId ?? "default";
+                    const randomSuffix = Math.random().toString(36).slice(2, 11);
+                    const indexingId = `${clientId}_${pid}_${randomSuffix}`;
+                    try {
+                        await trigger({
+                            siteLinks: [url],
+                            projectId: pid,
+                            projectDisplayName: projectDisplayName ?? undefined,
+                            indexingId,
+                            indexingLimit,
+                            tags,
+                            crawlVideos,
+                            dbFolder: `mediamake/scraped/${pid}`,
+                        });
+                        setIndexingStatus("Indexing triggered. It will continue in the background.");
+                        setTimeout(() => setIndexingStatus(""), 5000);
+                    } catch (err) {
+                        console.error('Failed to trigger batch indexing:', err);
+                        setIndexingStatus("Failed to trigger indexing");
+                    }
                 }}
+                loading={loading}
                 preselectedTags={hashtagFilters}
             />
         </>

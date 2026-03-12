@@ -4,7 +4,7 @@ import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { getDatabase } from '@/lib/mongodb';
 import { MediaFile, RagAudioMetadata } from '@/app/types/media';
-import { indexAudio } from '@/lib/sparkboard-lib';
+import { indexAudio } from '@/lib/sparkboard/sparkboard-lib';
 import {
   getAudioMetadata,
   extractAudioAsBase64,

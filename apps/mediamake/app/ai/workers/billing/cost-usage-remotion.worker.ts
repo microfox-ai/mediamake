@@ -12,8 +12,8 @@ import {
   getRenderProgress,
   type AwsRegion,
 } from '@remotion/lambda/client';
-import { renderRequestDB } from '../../../lib/render-mongodb';
-import { platformCostUsageDB } from '../../../lib/cost-usage-mongodb';
+import { renderRequestDB } from '../../../../lib/render-mongodb';
+import { platformCostUsageDB } from '../../../../lib/cost-usage-mongodb';
 
 const InputSchema = z.object({}).catchall(z.unknown()).optional().default({});
 const OutputSchema = z.object({
@@ -43,6 +43,7 @@ function getDefaultAwsRenderConfigs(): Record<string, { disk: number; memory: nu
 export const workerConfig: WorkerConfig = {
   timeout: 300,
   memorySize: 1024,
+  group: "billing"
 };
 
 export default createWorker<typeof InputSchema, Output>({
@@ -76,7 +77,7 @@ export default createWorker<typeof InputSchema, Output>({
       AWS_RENDER_CONFIGS = getDefaultAwsRenderConfigs();
     } else {
       try {
-        const configModule = await import('../../../config.mjs');
+        const configModule = await import('../../../../config.mjs');
         AWS_RENDER_CONFIGS = configModule.AWS_RENDER_CONFIGS as Record<string, { disk: number; memory: number; timeout: number }>;
         REGION = (configModule.REGION ?? 'us-east-2') as AwsRegion;
       } catch {

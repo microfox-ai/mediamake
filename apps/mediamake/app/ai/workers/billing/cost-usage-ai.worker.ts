@@ -9,7 +9,7 @@ import { z } from 'zod';
 import type { WorkerHandlerParams } from '@microfox/ai-worker/handler';
 import { fetchModels } from 'tokenlens';
 import { getTokenCosts } from '@tokenlens/helpers';
-import { platformCostUsageDB } from '../../../lib/cost-usage-mongodb';
+import { platformCostUsageDB } from '../../../../lib/cost-usage-mongodb';
 import type { ObjectId } from 'mongodb';
 
 const InputSchema = z.object({}).catchall(z.unknown()).optional().default({});
@@ -24,6 +24,7 @@ type Output = z.infer<typeof OutputSchema>;
 export const workerConfig: WorkerConfig = {
   timeout: 300,
   memorySize: 1024,
+  group: "billing"
 };
 
 export default createWorker<typeof InputSchema, Output>({

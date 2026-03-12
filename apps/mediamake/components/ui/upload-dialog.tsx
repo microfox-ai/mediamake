@@ -26,7 +26,9 @@ import {
     AlertCircle
 } from "lucide-react";
 import { Tag } from "@/app/types/media";
+import { useSession } from "@/components/session-provider";
 import { callAgent } from "@/components/agents/agent-helper";
+import { useWorkflowJob } from "@/hooks/useWorkflowJob";
 
 interface UploadDialogProps {
     isOpen: boolean;
@@ -35,6 +37,7 @@ interface UploadDialogProps {
     initialFiles?: File[];
     autoUpload?: boolean;
     preselectedTags?: string[];
+    selectedProjectId?: string | null;
 }
 
 interface UploadProgress {
@@ -51,8 +54,10 @@ export function UploadDialog({
     onUploadComplete,
     initialFiles = [],
     autoUpload = false,
-    preselectedTags = []
+    preselectedTags = [],
+    selectedProjectId = null,
 }: UploadDialogProps) {
+    const session = useSession();
     const [files, setFiles] = useState<File[]>(initialFiles);
     const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -69,6 +74,12 @@ export function UploadDialog({
     const [contentSource, setContentSource] = useState<string>('upload');
     const [selectedTags, setSelectedTags] = useState<string[]>(preselectedTags);
     const [analyzeAudio, setAnalyzeAudio] = useState<boolean>(true);
+    const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [selectedProject, setSelectedProject] = useState<{ id: string; displayName: string } | null>(null);
+    const [analyzeImages, setAnalyzeImages] = useState<boolean>(true);
+    const [generateDescription, setGenerateDescription] = useState<boolean>(true);
+    const [generateKeywords, setGenerateKeywords] = useState<boolean>(true);
 
     // Tag management
     const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -78,12 +89,62 @@ export function UploadDialog({
     const abortControllerRef = useRef<AbortController | null>(null);
     const uploadInProgressRef = useRef<boolean>(false);
 
+    const {
+        trigger: triggerMediaIndexWorker,
+        status: mediaIndexStatus,
+        loading: mediaIndexLoading,
+        polling: mediaIndexPolling,
+        reset: resetMediaIndexWorker,
+    } = useWorkflowJob({
+        type: "worker",
+        workerId: "sparkboard-index",
+        pollIntervalMs: 5000,
+        pollTimeoutMs: 900_000,
+        autoPoll: true,
+    });
+
     // Fetch available tags
     useEffect(() => {
         if (isOpen) {
             fetchTags();
         }
     }, [isOpen]);
+
+    // Fetch projects when dialog opens
+    useEffect(() => {
+        if (!isOpen) return;
+        const loadProjects = async () => {
+            try {
+                setProjectsLoading(true);
+                const headers: Record<string, string> = {};
+                if (session?.clientId) {
+                    headers["x-client-id"] = session.clientId;
+                }
+                const res = await fetch("/api/project", { headers });
+                if (!res.ok) {
+                    setProjects([]);
+                    return;
+                }
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setProjects(data);
+                    if (selectedProjectId) {
+                        const match = data.find((p: any) => p.id === selectedProjectId);
+                        if (match) {
+                            setSelectedProject({ id: match.id, displayName: match.displayName });
+                        }
+                    }
+                } else {
+                    setProjects([]);
+                }
+            } catch {
+                setProjects([]);
+            } finally {
+                setProjectsLoading(false);
+            }
+        };
+        loadProjects();
+    }, [isOpen, session?.clientId, selectedProjectId]);
 
     // Update files when initialFiles prop changes, but only if files array is empty
     // This prevents overwriting files that were added via paste or drop
@@ -195,26 +256,24 @@ export function UploadDialog({
             }))
         );
 
-        const uploadedMediaResults: any[] = [];
-
         try {
-            // Upload files one by one (or parallel if needed, but sequential is safer for progress tracking simplicity)
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                
+            // Upload all files in parallel while tracking per-file progress
+            const uploadPromises = files.map((file, index) => (async () => {
                 // 1. Get Presigned URL
-                const presignedResponse = await fetch(`/api/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`, {
-                    signal: abortControllerRef.current.signal
-                });
+                const presignedResponse = await fetch(
+                    `/api/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`,
+                    {
+                        signal: abortControllerRef.current?.signal,
+                    },
+                );
 
                 if (!presignedResponse.ok) {
                     throw new Error(`Failed to get upload URL for ${file.name}`);
                 }
 
-                const { uploadUrl, publicUrl, key } = await presignedResponse.json();
+                const { uploadUrl, publicUrl } = await presignedResponse.json();
 
-                // 2. Upload to S3
-                // Using XMLHttpRequest to track progress
+                // 2. Upload to S3 with progress tracking
                 await new Promise<void>((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.open('PUT', uploadUrl);
@@ -224,10 +283,10 @@ export function UploadDialog({
                     xhr.upload.onprogress = (event) => {
                         if (event.lengthComputable) {
                             const percentComplete = (event.loaded / event.total) * 100;
-                            setUploadProgress(prev => 
-                                prev.map((item, idx) => 
-                                    idx === i ? { ...item, progress: percentComplete } : item
-                                )
+                            setUploadProgress(prev =>
+                                prev.map((item, idx) =>
+                                    idx === index ? { ...item, progress: percentComplete } : item,
+                                ),
                             );
                         }
                     };
@@ -253,21 +312,29 @@ export function UploadDialog({
                     xhr.send(file);
                 });
 
-                // 3. Collect result
-                uploadedMediaResults.push({
+                // Mark as completed for this file
+                setUploadProgress(prev =>
+                    prev.map((item, idx) =>
+                        idx === index
+                            ? {
+                                  ...item,
+                                  status: 'completed' as const,
+                                  progress: 100,
+                                  mediaUrl: publicUrl,
+                              }
+                            : item,
+                    ),
+                );
+
+                return {
                     mediaName: file.name,
                     mediaType: file.type,
                     mediaFormat: file.name.split('.').pop() || 'file',
                     mediaUrl: publicUrl,
-                });
+                };
+            })());
 
-                // Mark as completed
-                setUploadProgress(prev =>
-                    prev.map((item, idx) =>
-                        idx === i ? { ...item, status: 'completed' as const, progress: 100, mediaUrl: publicUrl } : item
-                    )
-                );
-            }
+            const uploadedMediaResults = await Promise.all(uploadPromises);
 
             // Store uploaded media for later use
             setUploadedMedia(uploadedMediaResults);
@@ -303,13 +370,18 @@ export function UploadDialog({
             setIsCreatingEntries(true);
             setEntryCreationProgress(0);
 
-            // Create media file entries in database with progress tracking
-            const mediaFilePromises = uploadedMedia.map(async (media: any, index: number) => {
+            const createdMediaFiles: any[] = [];
+            let completedCount = 0;
+
+            // Trigger indexing for all files in parallel and wait for all to complete
+            const indexingPromises = uploadedMedia.map(async (media, index) => {
                 const file = files[index];
                 const detectedContentType = detectContentType(file);
+                const projectIdToUse = selectedProject?.id ?? null;
 
-                const mediaFileData = {
+                const mediaFileData: Record<string, unknown> = {
                     tags: selectedTags,
+                    clientId: session?.clientId ?? 'default',
                     contentType: detectedContentType,
                     contentMimeType: media.mediaType || file.type || "application/octet-stream",
                     contentSubType,
@@ -318,28 +390,24 @@ export function UploadDialog({
                     fileName: media.mediaName,
                     fileSize: file.size,
                     filePath: media.mediaUrl,
+                    analyzeImage: analyzeImages,
+                    generateDescription,
+                    generateKeywords,
                 };
-
-                const response = await fetch('/api/media-files', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(mediaFileData),
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to create media file entry for ${media.mediaName}`);
+                if (projectIdToUse) {
+                    mediaFileData.projectId = projectIdToUse;
                 }
 
-                const result = await response.json();
+                // Trigger worker and wait for completion for this file
+                const workerResult = await triggerMediaIndexWorker(mediaFileData as Record<string, unknown>);
+
+                const result: any = { input: mediaFileData, workerResult };
 
                 // Run audio analysis if it's an audio file and analyzeAudio is enabled
                 if (detectedContentType === 'audio' && analyzeAudio && media.mediaUrl) {
                     try {
                         console.log('Running audio analysis for:', media.mediaName);
 
-                        // Call the audio analysis agent using the helper function
                         const analysisResult = await callAgent('audio-analysis', {
                             audioUrls: [media.mediaUrl],
                             clientId: 'default',
@@ -354,24 +422,24 @@ export function UploadDialog({
 
                         console.log('Audio analysis completed for:', media.mediaName);
 
-                        // Update the result with analysis data
                         result.analysisResult = analysisResult;
                     } catch (analysisError) {
                         console.warn('Error running audio analysis:', analysisError);
-                        // Don't fail the entire operation if analysis fails
                     }
                 }
 
-                // Update progress
-                setEntryCreationProgress(prev => {
-                    const newProgress = ((index + 1) / uploadedMedia.length) * 100;
+                createdMediaFiles.push(result);
+
+                // Update progress based on number of completed index jobs
+                completedCount += 1;
+                setEntryCreationProgress(() => {
+                    const newProgress = (completedCount / uploadedMedia.length) * 100;
                     return Math.round(newProgress);
                 });
-
-                return result;
             });
 
-            const createdMediaFiles = await Promise.all(mediaFilePromises);
+            await Promise.all(indexingPromises);
+
             setUploadComplete(true);
             setIsCreatingEntries(false);
             onUploadComplete(createdMediaFiles);
@@ -422,6 +490,10 @@ export function UploadDialog({
         setNewTagName("");
         setUploadedMedia([]);
         setCountdown(0);
+                        setSelectedProject(null);
+        setAnalyzeImages(true);
+        setGenerateDescription(true);
+        setGenerateKeywords(true);
         uploadInProgressRef.current = false;
         abortControllerRef.current = null;
         onClose();
@@ -797,6 +869,40 @@ export function UploadDialog({
                         )}
 
 
+                        {/* Project selection */}
+                        <div className="space-y-2">
+                            <Label>Project</Label>
+                            <Select
+                                value={selectedProject?.id ?? 'default'}
+                                onValueChange={(value) => {
+                                    if (value === 'default') {
+                                        setSelectedProject(null);
+                                    } else {
+                                        const p = projects.find((proj) => proj.id === value);
+                                        if (p) {
+                                            setSelectedProject({ id: p.id, displayName: p.displayName });
+                                        }
+                                    }
+                                }}
+                                disabled={projectsLoading}
+                            >
+                                <SelectTrigger className="w-64">
+                                    <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Stocksearch (shared namespace)"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Stocksearch (shared namespace)</SelectItem>
+                                    {projects.map((p) => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.displayName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Choose a project to associate with these media files, or use Default to keep them in the global stocksearch namespace.
+                            </p>
+                        </div>
+
                         {/* Content Sub Type */}
                         <div className="space-y-2">
                             <Label>Content Sub Type</Label>
@@ -817,6 +923,56 @@ export function UploadDialog({
                             />
                         </div>
 
+                        {/* Image AI Analysis */}
+                        <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="analyzeImages"
+                                    checked={analyzeImages}
+                                    onCheckedChange={(checked) => setAnalyzeImages(checked as boolean)}
+                                />
+                                <Label htmlFor="analyzeImages" className="text-sm">
+                                    Analyze Images with AI
+                                </Label>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                When enabled, images will be sent to the AI analysis pipeline for descriptions & tags and indexed into the visual search (RAG) system.
+                            </p>
+
+                            {analyzeImages && (
+                                <div className="ml-6 space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="generateDescription"
+                                            checked={generateDescription}
+                                            onCheckedChange={(checked) => {
+                                                const v = checked as boolean;
+                                                setGenerateDescription(v);
+                                                if (!v && !generateKeywords) setAnalyzeImages(false);
+                                            }}
+                                        />
+                                        <Label htmlFor="generateDescription" className="text-xs">
+                                            Generate description
+                                        </Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id="generateKeywords"
+                                            checked={generateKeywords}
+                                            onCheckedChange={(checked) => {
+                                                const v = checked as boolean;
+                                                setGenerateKeywords(v);
+                                                if (!v && !generateDescription) setAnalyzeImages(false);
+                                            }}
+                                        />
+                                        <Label htmlFor="generateKeywords" className="text-xs">
+                                            Generate keywords
+                                        </Label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Audio Analysis */}
                         <div className="space-y-2">
                             <div className="flex items-center space-x-2">
@@ -830,7 +986,7 @@ export function UploadDialog({
                                 </Label>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Automatically analyze audio files for mood, genre, and technical characteristics
+                                Automatically analyze audio files for mood, genre, and technical characteristics.
                             </p>
                         </div>
 
@@ -876,7 +1032,12 @@ export function UploadDialog({
                     {isCreatingEntries && (
                         <div className="w-full space-y-2">
                             <div className="flex justify-between text-sm text-muted-foreground">
-                                <span>Creating database entries...</span>
+                                <span>
+                                    Creating database entries...
+                                    {mediaIndexStatus && mediaIndexStatus !== 'idle'
+                                        ? ` (${mediaIndexStatus})`
+                                        : null}
+                                </span>
                                 <span>{entryCreationProgress}%</span>
                             </div>
                             <div className="w-full bg-secondary rounded-full h-2">

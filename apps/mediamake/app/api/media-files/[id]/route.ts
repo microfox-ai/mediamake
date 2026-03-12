@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { UpdateMediaFileRequest } from '@/app/types/media';
+import {
+  ragStocksearchVectorbase,
+  DEFAULT_STOCKSEARCH_NAMESPACE,
+  toProjectNamespace,
+  toTagNamespace,
+} from '@/lib/sparkboard/redis';
 
 // GET /api/media-files/[id] - Fetch a specific media file
 export async function GET(
@@ -43,8 +49,17 @@ export async function PUT(
     const db = await getDatabase();
     const collection = db.collection('mediaFiles');
 
+    const updateBody: any = { ...body };
+    if (body.parentMediaId) {
+      try {
+        updateBody.parentMediaId = new ObjectId(body.parentMediaId);
+      } catch {
+        // ignore invalid parentMediaId, leave as-is
+      }
+    }
+
     const updateData = {
-      ...body,
+      ...updateBody,
       updatedAt: new Date(),
     };
 
@@ -84,13 +99,69 @@ export async function DELETE(
     const db = await getDatabase();
     const collection = db.collection('mediaFiles');
 
+    // Load the file first so we know how it was indexed into RAG.
+    // If it's already gone from Mongo, treat the delete as idempotent success.
+    const file = await collection.findOne({ _id: new ObjectId(id) });
+
+    if (file) {
+      // Best-effort: remove the doc from all RAG namespaces where it might exist.
+      // Derive src/platformId from metadata when present, else from document (e.g. uploads with empty metadata).
+      try {
+        if (ragStocksearchVectorbase) {
+          const metadata = (file.metadata ?? {}) as {
+            src?: string;
+            platformId?: string;
+          };
+          const filePath = (file as { filePath?: string }).filePath;
+          const contentSource = (file as { contentSource?: string }).contentSource;
+          const src = metadata.src ?? filePath;
+          const platformId = metadata.platformId ?? contentSource ?? 'upload';
+
+          if (src && platformId) {
+            const docId = `${platformId}:${src}`;
+
+            const projectId: string | undefined =
+              (file as { projectId?: string }).projectId ?? undefined;
+            const baseNamespace =
+              projectId && projectId !== 'default'
+                ? toProjectNamespace(projectId)
+                : DEFAULT_STOCKSEARCH_NAMESPACE;
+
+            const namespaces = new Set<string>();
+            namespaces.add(baseNamespace);
+
+            const tags: string[] = Array.isArray((file as { tags?: string[] }).tags)
+              ? ((file as { tags?: string[] }).tags as string[])
+              : [];
+
+            for (const tag of tags) {
+              if (tag?.trim()) namespaces.add(toTagNamespace(tag.trim()));
+            }
+
+            // Await vector deletes so we know cleanup has been attempted before returning.
+            // RagUpstashSdk uses deleteDocFromRAG(id, namespace) per doc/namespace.
+            const deletePromises: Promise<unknown>[] = [];
+            for (const ns of namespaces) {
+              deletePromises.push(
+                ragStocksearchVectorbase.deleteDocFromRAG(docId, ns)
+              );
+            }
+            await Promise.allSettled(deletePromises);
+          }
+        }
+      } catch (error) {
+        // Log but don't block media deletion if vector cleanup fails
+        console.error('Error removing media from RAG namespaces:', error);
+      }
+    }
+
     const result = await collection.deleteOne({ _id: new ObjectId(id) });
 
+    // Treat "not found" as idempotent success
     if (result.deletedCount === 0) {
-      return NextResponse.json(
-        { error: 'Media file not found' },
-        { status: 404 },
-      );
+      return NextResponse.json({
+        message: 'Media file not found in database; treated as deleted',
+      });
     }
 
     return NextResponse.json({ message: 'Media file deleted successfully' });

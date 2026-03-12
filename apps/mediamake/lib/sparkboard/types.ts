@@ -4,6 +4,12 @@ import { RagImageMetadata } from '@/app/types/media';
 // Search query parameters schema
 export const SearchQuerySchema = z.object({
   q: z.string().min(1, 'Search query is required'),
+  projectId: z.string().optional(),
+  projectDisplayName: z.string().optional(),
+  tags: z
+    .string()
+    .optional()
+    .transform(val => (val ? val.split(',').map(t => t.trim()).filter(Boolean) : undefined)),
   artStyle: z.string().optional(),
   keywords: z.string().optional(),
   audienceKeywords: z.string().optional(),
@@ -55,6 +61,8 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 // Indexing request schema
 export const IndexingRequestSchema = z.object({
   siteLinks: z.array(z.string().url('Must be a valid URL')),
+  projectId: z.string().optional(),
+  projectDisplayName: z.string().optional(),
   indexingLimit: z.number().min(1).max(100).default(10),
   tags: z.array(z.string()).optional().default([]),
   crawlVideos: z.boolean().default(true),
@@ -87,3 +95,49 @@ export const IndexingStatusSchema = z.object({
 export type IndexingRequest = z.infer<typeof IndexingRequestSchema>;
 export type IndexingResponse = z.infer<typeof IndexingResponseSchema>;
 export type IndexingStatus = z.infer<typeof IndexingStatusSchema>;
+
+export type PlatformId =
+  | 'instagram'
+  | 'pinterest'
+  | 'unsplash'
+  | 'pixabay'
+  | 'pexels'
+  | 'midjourney'
+  | 'lummi'
+  | 'lexica'
+  | 'dalle'
+  | 'playground'
+  | 'unknown';
+
+export interface IndexRequest {
+  query?: string;
+  siteLink: string;
+  platform: string;
+  platformId: PlatformId;
+  platformUrl: string;
+  projectId?: string;
+  /** When set, used for RAG project namespace; when absent, default stocksearch namespace is used */
+  projectDisplayName?: string;
+  indexingLimit?: number;
+  indexingId?: string;
+  userTags?: string[];
+  dbFolder?: string;
+  webhookUrl?: string;
+  webhookSecret?: string;
+}
+
+/** Minimal shape for extracted image from crawler (matches @microfox/puppeteer-sls ExtractedImage) */
+export interface ExtractedImage {
+  src?: string | null;
+  responsiveImages?: { url: string; size: string }[] | null;
+  pagePermalink: string;
+  width?: number | null;
+  height?: number | null;
+  alt?: string | null;
+  imgPermalink?: string | null;
+  palette?: string[] | null;
+  dominantColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  [key: string]: unknown;
+}

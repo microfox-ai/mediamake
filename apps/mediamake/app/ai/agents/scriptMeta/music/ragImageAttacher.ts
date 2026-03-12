@@ -10,8 +10,7 @@ import {
   SentenceSchema,
   TranscriptionInfoSchema,
 } from '../zod';
-import { AI_ANALYSIS_CONFIG } from '@/lib/sparkbaord/config';
-import { SearchQuerySchema } from '@/lib/sparkbaord/types';
+import { SearchQuerySchema } from '../../../../../lib/sparkboard/types';
 import dedent from 'dedent';
 
 /**
@@ -89,9 +88,10 @@ async function performRagSearch(
   } = {},
 ): Promise<any[]> {
   try {
-    // Build search parameters
+    // Build search parameters (projectId for namespace-scoped search; optional tags for tag namespaces)
     const searchParams = {
       q: searchQuery,
+      projectId: clientId,
       searchType: 'clientFiles',
       topK: '5',
       ...additionalParams,
@@ -100,21 +100,16 @@ async function performRagSearch(
     // Validate parameters
     const validatedParams = SearchQuerySchema.parse(searchParams);
 
-    // Build the search URL
-    const searchUrl = new URL(`${AI_ANALYSIS_CONFIG.baseUrl}/search/images`);
+    const url = new URL('/api/sparkboard/search', process.env.NEXT_PUBLIC_APP_URL);
     Object.entries(validatedParams).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        searchUrl.searchParams.set(key, String(value));
+        url.searchParams.set(key, String(value));
       }
     });
 
-    // Make the request to the AI analysis service
-    const response = await fetch(searchUrl.toString(), {
+    const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${AI_ANALYSIS_CONFIG.apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
     if (!response.ok) {

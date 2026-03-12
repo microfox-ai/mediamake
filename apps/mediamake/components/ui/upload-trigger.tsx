@@ -19,6 +19,7 @@ interface UploadTriggerProps {
     autoUpload?: boolean;
     preselectedTags?: string[];
     pickerMode?: boolean;
+    selectedProjectId?: string | null;
 }
 
 export function UploadTrigger({
@@ -32,7 +33,8 @@ export function UploadTrigger({
     maxFiles = 10,
     autoUpload = false,
     preselectedTags = [],
-    pickerMode = false
+    pickerMode = false,
+    selectedProjectId = null,
 }: UploadTriggerProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -305,6 +307,7 @@ export function UploadTrigger({
                     initialFiles={selectedFiles}
                     autoUpload={autoUpload}
                     preselectedTags={preselectedTags}
+                    selectedProjectId={selectedProjectId}
                 />
             </>
         );
@@ -332,6 +335,7 @@ export function UploadTrigger({
                 onUploadComplete={handleUploadComplete}
                 autoUpload={autoUpload}
                 preselectedTags={preselectedTags}
+                selectedProjectId={selectedProjectId}
             />
         </>
     );

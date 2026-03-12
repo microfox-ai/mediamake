@@ -3,7 +3,11 @@ import {
   AwsRegion,
   getRenderProgress,
 } from '@remotion/lambda/client';
-import { AWS_RENDER_CONFIGS, REGION } from '../../../../config.mjs';
+import {
+  AWS_RENDER_CONFIGS,
+  AWS_REGIONS,
+  DEFAULT_REGION,
+} from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { getClientId } from '@/lib/auth-utils';
@@ -35,6 +39,15 @@ export const GET = async (req: NextRequest) => {
       AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] ??
       AWS_RENDER_CONFIGS['classic'];
 
+    // Resolve effective region for this render (should match where it actually ran)
+    const envRegion = process.env.REMOTION_AWS_REGION as AwsRegion | undefined;
+    const fallbackRegion = (envRegion ?? DEFAULT_REGION) as AwsRegion;
+    const storedRegion = renderRequest.regionUsed as AwsRegion | undefined;
+    const effectiveRegion = (storedRegion &&
+      (AWS_REGIONS as readonly AwsRegion[]).includes(storedRegion)
+      ? storedRegion
+      : fallbackRegion) as AwsRegion;
+
     const renderProgress = await getRenderProgress({
       bucketName: bucketName,
       functionName: speculateFunctionName({
@@ -42,7 +55,7 @@ export const GET = async (req: NextRequest) => {
         memorySizeInMb: config.memory,
         timeoutInSeconds: config.timeout,
       }),
-      region: REGION as AwsRegion,
+      region: effectiveRegion,
       renderId: id,
     });
 

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { AI_ANALYSIS_CONFIG } from '@/lib/sparkbaord/config';
-import {
-  SearchQuerySchema,
-  SearchResponseSchema,
-  ErrorResponseSchema,
-} from '@/lib/sparkbaord/types';
+import { SearchQuerySchema } from '@/lib/sparkboard/types';
 import { getDatabase } from '@/lib/mongodb';
 import { getClientId } from '@/lib/auth-utils';
-import { MediaFile, RagImageMetadata } from '@/app/types/media';
+import { MediaFile } from '@/app/types/media';
 import { ObjectId } from 'mongodb';
+import {
+  searchSparkboardImagesInNamespaces,
+  DEFAULT_STOCKSEARCH_NAMESPACE,
+  toProjectNamespace,
+} from '@/lib/sparkboard/redis';
 
 // Convert search result to MediaFile format
 function convertSearchResultToMediaFile(
@@ -78,17 +78,6 @@ function convertSearchResultToMediaFile(
 
 export async function GET(req: NextRequest) {
   try {
-    // Check if API key is configured
-    if (!AI_ANALYSIS_CONFIG.apiKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'SPARKBOARD_API_KEY not configured',
-        },
-        { status: 500 },
-      );
-    }
-
     // Get client ID
     const clientId = getClientId(req) || 'default';
 
@@ -97,67 +86,63 @@ export async function GET(req: NextRequest) {
     const queryParams = Object.fromEntries(searchParams.entries());
 
     const validatedParams = SearchQuerySchema.parse(queryParams);
-    const { searchType, ...searchApiParams } = validatedParams;
+    const {
+      searchType,
+      q,
+      projectId: queryProjectId,
+      projectDisplayName: queryProjectDisplayName,
+      tags: queryTags,
+      artStyle,
+      keywords,
+      audienceKeywords,
+      aspectRatioType,
+      mediaType,
+      mimeType,
+      platformId,
+      topK,
+    } = validatedParams;
 
-    // Build the search URL with query parameters (excluding searchType)
-    const searchUrl = new URL(`${AI_ANALYSIS_CONFIG.baseUrl}/search/images`);
+    // Resolve project namespace by projectId (avoids long display names)
+    const projectNamespace =
+      !queryProjectId || queryProjectId === 'default'
+        ? DEFAULT_STOCKSEARCH_NAMESPACE
+        : toProjectNamespace(queryProjectId);
 
-    // Add all validated parameters to the URL (excluding searchType)
-    Object.entries(searchApiParams).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        searchUrl.searchParams.set(key, String(value));
-      }
-    });
+    // Build filter string similar to original Sparkboard search logic
+    const filterConditions: string[] = [];
 
-    // Make the request to the AI analysis service
-    const response = await fetch(searchUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${AI_ANALYSIS_CONFIG.apiKey}`,
-      },
-    });
-
-    // Handle different response status codes
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `Search request failed with status ${response.status}:`,
-        errorText,
-      );
-
-      // Parse error response if possible
-      let errorMessage = `Search failed: ${response.status}`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = `${errorMessage} ${errorText}`;
-      }
-
-      // Return appropriate error response based on status code
-      if (response.status === 400) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: errorMessage,
-          },
-          { status: 400 },
-        );
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorMessage,
-        },
-        { status: response.status },
-      );
+    if (artStyle) {
+      filterConditions.push(`artStyle CONTAINS '${artStyle}'`);
+    }
+    if (keywords) {
+      filterConditions.push(`keywords CONTAINS '${keywords}'`);
+    }
+    if (audienceKeywords) {
+      filterConditions.push(`audienceKeywords CONTAINS '${audienceKeywords}'`);
+    }
+    if (aspectRatioType) {
+      filterConditions.push(`aspectRatioType = '${aspectRatioType}'`);
+    }
+    if (mediaType) {
+      filterConditions.push(`mediaType = '${mediaType}'`);
+    }
+    if (mimeType) {
+      filterConditions.push(`mimeType = '${mimeType}'`);
+    }
+    if (platformId) {
+      filterConditions.push(`platformId = '${platformId}'`);
     }
 
-    // Parse and validate the successful response
-    const responseData = await response.json();
-    const validatedResponse = responseData;
+    const filterString =
+      filterConditions.length > 0 ? filterConditions.join(' AND ') : undefined;
+
+    const ragResults = await searchSparkboardImagesInNamespaces({
+      q,
+      topK,
+      projectNamespace,
+      tags: queryTags,
+      filterString,
+    });
 
     // Get database connection
     const db = await getDatabase();
@@ -166,7 +151,7 @@ export async function GET(req: NextRequest) {
     // Process search results based on searchType
     const processedResults: MediaFile[] = [];
 
-    for (const searchResult of validatedResponse.data.results) {
+    for (const searchResult of ragResults) {
       //   console.log(searchResult);
       // Check if this search result exists in the database
       const existingMediaFile = await collection.findOne({

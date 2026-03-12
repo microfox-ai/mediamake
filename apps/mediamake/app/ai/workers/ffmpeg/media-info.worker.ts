@@ -187,6 +187,7 @@ function parseFps(rate: any): string | null {
 export const workerConfig: WorkerConfig = {
   timeout: 300,
   memorySize: 1024,
+  group: "ffmpeg",
   layers: ['arn:aws:lambda:${aws:region}:${aws:accountId}:layer:ffmpeg:1'],
 };
 

@@ -31,6 +31,10 @@ export interface RenderRequest {
   composition: string;
   status: "pending" | "rendering" | "completed" | "failed";
   createdAt: string;
+  /** Optional project associated with this render (for filtering / grouping). */
+  projectId?: string;
+  /** Optional tags associated with this render (for filtering). */
+  tags?: string[];
   progress?: number;
   error?: string;
   downloadUrl?: string;
@@ -41,6 +45,9 @@ export interface RenderRequest {
   renderType?: "video" | "audio" | "still";
   audioCodec?: string;
   isDownloadable?: boolean;
+
+  /** AWS region used for this render (when using Lambda). */
+  regionUsed?: string;
 
   /** When true, render is archived (hidden from active list but kept for cost/details). */
   isArchived?: boolean;

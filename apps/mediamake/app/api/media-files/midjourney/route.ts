@@ -3,7 +3,7 @@ import { S3Space } from '@microfox/s3-space';
 import { getClientId } from '@/lib/auth-utils';
 import { getDatabase } from '@/lib/mongodb';
 import { MediaFile } from '@/app/types/media';
-import { indexAndAnalyzeImage, hasDescription } from '@/lib/sparkboard-lib';
+import { indexAndAnalyzeImage, hasDescription } from '@/lib/sparkboard/sparkboard-lib';
 
 const s3 = new S3Space({
   forcePathStyle: false,
