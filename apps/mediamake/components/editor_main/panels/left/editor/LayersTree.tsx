@@ -39,6 +39,7 @@ import {
   createVideoLayer,
   createLayoutNode,
 } from "@/lib/editor/layer-templates";
+import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 
 const PREVIEW_TEXT_MAX = 28;
 
@@ -113,10 +114,24 @@ function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
     );
   }
   if (node.componentId === "VideoAtom" && node.previewSrc) {
+    const { thumbnailSrc } = useVideoThumbnail(node.previewSrc, {
+      timeInSeconds: 1,
+      width: 96,
+    });
     return (
       <>
         <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded bg-muted">
-          <video src={node.previewSrc} className="h-full w-full object-cover" muted preload="metadata" />
+          {thumbnailSrc ? (
+            <img
+              src={thumbnailSrc}
+              alt={node.label || node.id}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-black/40">
+              <Video className="h-3 w-3 text-white" />
+            </div>
+          )}
           <span className="absolute inset-0 flex items-center justify-center bg-black/30">
             <Video className="h-3 w-3 text-white" />
           </span>

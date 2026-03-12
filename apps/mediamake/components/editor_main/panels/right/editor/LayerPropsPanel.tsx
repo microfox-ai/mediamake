@@ -25,6 +25,30 @@ import { getRegisteredEffects } from "@microfox/remotion";
 import { MediaPicker } from "@/components/editor/media/media-picker";
 import type { MediaFile } from "@/app/types/media";
 import { GenericEffectEditor } from "./GenericEffectEditor";
+import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
+
+const VideoPreviewThumbnail = ({ src, alt }: { src: string; alt?: string }) => {
+  const { thumbnailSrc } = useVideoThumbnail(src, {
+    timeInSeconds: 1,
+    width: 480,
+  });
+
+  if (thumbnailSrc) {
+    return (
+      <img
+        src={thumbnailSrc}
+        alt={alt ?? "Video thumbnail"}
+        className="max-w-full max-h-[200px] w-auto h-auto object-contain"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-[200px] bg-black flex items-center justify-center">
+      <span className="text-xs text-white/80">Generating thumbnail…</span>
+    </div>
+  );
+};
 
 const LAYER_PROPS_VIEW_KEY = "layerPropsPanelView";
 type LayerPropsViewMode = "single" | "tabs";
@@ -742,9 +766,13 @@ export function LayerPropsPanel() {
                     {primary.previewSrc && (
                       <div className="rounded-md border overflow-hidden bg-muted/30">
                         {primary.componentId === "ImageAtom" ? (
-                          <img src={primary.previewSrc} alt="" className="max-w-full max-h-[280px] w-auto h-auto object-contain" />
+                          <img
+                            src={primary.previewSrc}
+                            alt=""
+                            className="max-w-full max-h-[280px] w-auto h-auto object-contain"
+                          />
                         ) : (
-                          <video src={primary.previewSrc} controls muted className="max-w-full max-h-[200px] w-auto" preload="metadata" />
+                          <VideoPreviewThumbnail src={primary.previewSrc} alt={primary.id} />
                         )}
                       </div>
                     )}
@@ -1190,9 +1218,13 @@ export function LayerPropsPanel() {
                           {primary.previewSrc && (
                             <div className="rounded-md border overflow-hidden bg-muted/30">
                               {primary.componentId === "ImageAtom" ? (
-                                <img src={primary.previewSrc} alt="" className="max-w-full max-h-[200px] w-auto h-auto object-contain" />
+                                <img
+                                  src={primary.previewSrc}
+                                  alt=""
+                                  className="max-w-full max-h-[200px] w-auto h-auto object-contain"
+                                />
                               ) : (
-                                <video src={primary.previewSrc} controls muted className="max-w-full max-h-[200px] w-auto" preload="metadata" />
+                                <VideoPreviewThumbnail src={primary.previewSrc} alt={primary.id} />
                               )}
                             </div>
                           )}
