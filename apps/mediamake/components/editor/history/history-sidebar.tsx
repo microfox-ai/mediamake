@@ -8,6 +8,14 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TagsSelector } from "@/components/ui/tags-selector";
+import {
     Clock,
     CheckCircle,
     XCircle,
@@ -23,6 +31,7 @@ import { useEffect, useState } from "react";
 import { type RenderRequest } from "@/lib/render-history";
 import useLocalState from "@/components/studio/context/hooks/useLocalState";
 import { toast } from "sonner";
+import { useSession } from "@/components/session-provider";
 
 interface HistorySidebarProps {
     selectedRender: string | null;
@@ -30,11 +39,20 @@ interface HistorySidebarProps {
     onClearDeletedId?: () => void;
     onSelectRender: (renderId: string, renderRequest?: RenderRequest) => void;
     onRefreshApiRequest?: (renderId: string, updatedRequest: RenderRequest) => void;
+    /** Server-side filtering for this list. */
+    renderType?: 'any' | 'video' | 'audio' | 'still';
 }
 
 const HISTORY_PAGE_SIZE = 5;
 
-export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeletedId, onSelectRender, onRefreshApiRequest }: HistorySidebarProps) {
+export function HistorySidebar({
+  selectedRender,
+  deletedRenderId,
+  onClearDeletedId,
+  onSelectRender,
+  onRefreshApiRequest,
+  renderType = 'any',
+}: HistorySidebarProps) {
     const [renderRequests, setRenderRequests] = useState<RenderRequest[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(false);
@@ -45,6 +63,30 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
     const [apiError, setApiError] = useState<string | null>(null);
     const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
+    const session = useSession();
+    const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [selectedProjectId, setSelectedProjectId] = useState<string>('any');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    useEffect(() => {
+      const loadProjects = async () => {
+        if (!session?.clientId) return;
+        setProjectsLoading(true);
+        try {
+          const res = await fetch('/api/project', {
+            headers: { 'x-client-id': session.clientId },
+          });
+          const data = res.ok ? await res.json() : [];
+          setProjects(Array.isArray(data) ? data : []);
+        } catch {
+          setProjects([]);
+        } finally {
+          setProjectsLoading(false);
+        }
+      };
+      void loadProjects();
+    }, [session?.clientId]);
 
     // Fetch first page of render history (active or archived)
     const fetchApiHistory = async (key: string, archived = false) => {
@@ -53,9 +95,15 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
         try {
             const params = new URLSearchParams({ limit: String(HISTORY_PAGE_SIZE) });
             if (archived) params.set('archived', 'true');
+            if (renderType !== 'any') params.set('renderType', renderType);
+            if (selectedProjectId !== 'any') params.set('projectId', selectedProjectId);
+            if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
             const url = `/api/remotion/history?${params}`;
             const response = await fetch(url, {
-                headers: { "Authorization": `Bearer ${key}` },
+                headers: {
+                  "Authorization": `Bearer ${key}`,
+                  ...(session?.clientId ? { "x-client-id": session.clientId } : {}),
+                },
             });
             if (!response.ok) throw new Error(`API request failed: ${response.status}`);
             const data = await response.json();
@@ -81,8 +129,14 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
                 cursor: nextCursor,
             });
             if (showArchived) params.set('archived', 'true');
+            if (renderType !== 'any') params.set('renderType', renderType);
+            if (selectedProjectId !== 'any') params.set('projectId', selectedProjectId);
+            if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
             const response = await fetch(`/api/remotion/history?${params}`, {
-                headers: { "Authorization": `Bearer ${apiKey}` },
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  ...(session?.clientId ? { "x-client-id": session.clientId } : {}),
+                },
             });
             if (!response.ok) throw new Error(`API request failed: ${response.status}`);
             const data = await response.json();
@@ -106,7 +160,10 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
             const params = new URLSearchParams({ renderId });
             if (isArchived) params.set('includeArchived', 'true');
             const response = await fetch(`/api/remotion/history?${params}`, {
-                headers: { "Authorization": `Bearer ${apiKey}` },
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  ...(session?.clientId ? { "x-client-id": session.clientId } : {}),
+                },
             });
             if (!response.ok) throw new Error(`API request failed: ${response.status}`);
             const data = await response.json();
@@ -139,7 +196,7 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
             toast.error("Please enter an API key");
             setIsLoading(false);
         }
-    }, [apiKey, showArchived]);
+    }, [apiKey, showArchived, renderType, selectedProjectId, selectedTags, session?.clientId]);
 
     // Remove deleted render from list when parent signals it
     useEffect(() => {
@@ -192,86 +249,122 @@ export function HistorySidebar({ selectedRender, deletedRenderId, onClearDeleted
 
     if (isApiLoading) {
         return (
-            <div className="w-80 border-r bg-background p-4">
-                <h2 className="text-lg font-semibold mb-4">Render History</h2>
-                <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => (
-                        <div key={i} className="h-20 bg-muted animate-pulse rounded" />
-                    ))}
+            <div className="w-80 border-r bg-background flex flex-col h-full">
+                <div className="p-4">
+                    <h2 className="text-lg font-semibold mb-4">Render History</h2>
+                    <div className="space-y-2">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-20 bg-muted animate-pulse rounded" />
+                        ))}
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="w-80 border-r bg-background">
-            <div className="p-4 border-b space-y-4">
-                <div>
-                    <h2 className="text-lg font-semibold">Render History</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {renderRequests?.length || 0} loaded
-                        {hasMore ? " · more available" : ""}
-                        {showArchived ? " (archived)" : ""}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant={showArchived ? "secondary" : "ghost"}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setShowArchived(false)}
-                    >
-                        Active
-                    </Button>
-                    <Button
-                        type="button"
-                        variant={showArchived ? "ghost" : "secondary"}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setShowArchived(true)}
-                    >
-                        <Archive className="h-3 w-3 mr-1" />
-                        Archived
-                    </Button>
-                </div>
+        <div className="w-80 border-r bg-background flex flex-col h-full">
+            <ScrollArea className="flex-1 min-h-0">
+                <div className="p-4 space-y-4">
+                    <div>
+                        <h2 className="text-lg font-semibold">Render History</h2>
+                        <p className="text-sm text-muted-foreground">
+                            {renderRequests?.length || 0} loaded
+                            {hasMore ? " · more available" : ""}
+                            {showArchived ? " (archived)" : ""}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant={showArchived ? "secondary" : "ghost"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setShowArchived(false)}
+                        >
+                            Active
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={showArchived ? "ghost" : "secondary"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setShowArchived(true)}
+                        >
+                            <Archive className="h-3 w-3 mr-1" />
+                            Archived
+                        </Button>
+                    </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="api-key" className="text-xs font-medium">
-                        API Key (optional)
-                    </Label>
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Key className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                            <Input
-                                id="api-key"
-                                type="password"
-                                placeholder="Enter your API key"
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                className="pl-8 text-xs"
-                            />
+                    <div className="space-y-2">
+                        <Label htmlFor="api-key" className="text-xs font-medium">
+                            API Key (optional)
+                        </Label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Key className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                <Input
+                                    id="api-key"
+                                    type="password"
+                                    placeholder="Enter your API key"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    className="pl-8 text-xs"
+                                />
+                            </div>
+                            {apiKey && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => fetchApiHistory(apiKey, showArchived)}
+                                    disabled={isApiLoading}
+                                    className="px-2"
+                                >
+                                    <RefreshCw className={cn("h-3 w-3", isApiLoading && "animate-spin")} />
+                                </Button>
+                            )}
                         </div>
-                        {apiKey && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => fetchApiHistory(apiKey, showArchived)}
-                                disabled={isApiLoading}
-                                className="px-2"
-                            >
-                                <RefreshCw className={cn("h-3 w-3", isApiLoading && "animate-spin")} />
-                            </Button>
+                        {apiError && (
+                            <p className="text-xs text-destructive">{apiError}</p>
                         )}
                     </div>
-                    {apiError && (
-                        <p className="text-xs text-destructive">{apiError}</p>
-                    )}
-                </div>
-            </div>
 
-            <ScrollArea className="h-[calc(100vh-12rem)] overflow-y-auto">
-                <div className="p-4 space-y-3">
+                    <div className="space-y-2">
+                        <Label className="text-xs font-medium">Project</Label>
+                        <Select
+                            value={selectedProjectId}
+                            onValueChange={setSelectedProjectId}
+                            disabled={projectsLoading}
+                        >
+                            <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={projectsLoading ? "Loading..." : "All projects"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="any">All projects</SelectItem>
+                                {projects.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                        {p.displayName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-xs font-medium">Tags</Label>
+                        <div className="rounded-md border p-2">
+                            <TagsSelector
+                                selectedTags={selectedTags}
+                                onTagsChange={setSelectedTags}
+                                label=""
+                                required={false}
+                                showCreateNew={false}
+                            />
+                        </div>
+                    </div>
+
+                    <Separator />
+
                     {renderRequests?.map((request) => (
                         <Card
                             key={request.id}

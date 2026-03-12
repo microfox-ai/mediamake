@@ -393,6 +393,18 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                                 <p className="text-muted-foreground">
                                     Created {formatDate(selectedRequest.createdAt)}
                                 </p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {selectedRequest.projectId && (
+                                        <Badge variant="secondary" className="text-xs">
+                                            Project: {selectedRequest.projectId}
+                                        </Badge>
+                                    )}
+                                    {(selectedRequest.tags ?? []).map((t) => (
+                                        <Badge key={t} variant="outline" className="text-xs">
+                                            #{t}
+                                        </Badge>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
