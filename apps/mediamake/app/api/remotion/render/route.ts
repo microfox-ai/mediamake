@@ -1,9 +1,17 @@
-import { AwsRegion, RenderMediaOnLambdaOutput } from '@remotion/lambda/client';
+import { AwsRegion } from '@remotion/lambda/client';
 import {
   renderMediaOnLambda,
+  renderStillOnLambda,
   speculateFunctionName,
 } from '@remotion/lambda/client';
-import { AWS_RENDER_CONFIGS, REGION, SITE_NAME, CONCURRENCY_LIMITS, FRAMES_PER_LAMBDA_LIMITS } from '../../../../config.mjs';
+import {
+  AWS_RENDER_CONFIGS,
+  AWS_REGIONS,
+  DEFAULT_REGION,
+  SITE_NAME,
+  CONCURRENCY_LIMITS,
+  FRAMES_PER_LAMBDA_LIMITS,
+} from '../../../../config.mjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
@@ -28,6 +36,8 @@ export const POST = async (req: NextRequest) => {
       codec,
       audioCodec,
       renderType,
+      projectId,
+      tags,
       // Configuration mode
       configMode = 'preset',
       // Preset mode settings
@@ -35,6 +45,8 @@ export const POST = async (req: NextRequest) => {
       concurrencyOverride,
       // Custom mode settings
       customConfig,
+      // Region selection (optional - falls back to env/default)
+      region: requestedRegion,
     } = await req.json();
 
     if (
@@ -104,10 +116,25 @@ export const POST = async (req: NextRequest) => {
       timeoutInSeconds: config.timeout,
     });
 
+    // Resolve effective AWS region
+    const envRegion = process.env.REMOTION_AWS_REGION as AwsRegion | undefined;
+    const fallbackRegion = (envRegion ?? DEFAULT_REGION) as AwsRegion;
+    const effectiveRegion = (requestedRegion &&
+      (AWS_REGIONS as readonly AwsRegion[]).includes(
+        requestedRegion as AwsRegion,
+      )
+      ? requestedRegion
+      : fallbackRegion) as AwsRegion;
+
+    const serveUrl =
+      effectiveRegion === DEFAULT_REGION
+        ? SITE_NAME
+        : `${SITE_NAME}-${effectiveRegion}`;
+
     console.log('==========================================');
     console.log('REMOTION LAMBDA RENDER');
     console.log('==========================================');
-    console.log('Region:', process.env.REMOTION_AWS_REGION || REGION);
+    console.log('Region:', effectiveRegion);
     console.log('Config Mode:', configMode);
     console.log('Composition:', id);
     console.log('Codec:', codec);
@@ -126,8 +153,8 @@ export const POST = async (req: NextRequest) => {
     const renderOptions: any = {
       codec: codec ?? 'h264',
       functionName,
-      region: (process.env.REMOTION_AWS_REGION || REGION) as AwsRegion,
-      serveUrl: SITE_NAME,
+      region: effectiveRegion,
+      serveUrl,
       composition: id ?? 'DataMotion',
       inputProps: inputProps,
       audioCodec: audioCodec ?? 'aac',
@@ -145,9 +172,81 @@ export const POST = async (req: NextRequest) => {
       renderOptions.framesPerLambda = config.framesPerLambda;
     }
 
+    const clientId = req.headers.get('x-client-id');
+    const safeTags =
+      Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim() !== '') : undefined;
+    const safeProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
+
+    // Still image render: run to completion and store as completed immediately.
+    if (renderType === 'still') {
+      const stillResult = await renderStillOnLambda({
+        region: effectiveRegion,
+        functionName,
+        serveUrl,
+        composition: id ?? 'DataMotion',
+        inputProps: inputProps,
+        imageFormat: 'png',
+        frame: 0,
+        privacy: 'public',
+      });
+
+      if (clientId) {
+        await renderRequestDB.create({
+          clientId,
+          renderId: stillResult.renderId,
+          fileName: fileName || 'image.png',
+          codec: codec || 'png',
+          composition: id ?? 'DataMotion',
+          status: 'completed',
+          inputProps: inputProps,
+          bucketName: stillResult.bucketName,
+          isDownloadable: isDownloadable,
+          renderType: 'still',
+          audioCodec: audioCodec || 'aac',
+          regionUsed: effectiveRegion,
+          downloadUrl: stillResult.url,
+          fileSize: stillResult.sizeInBytes,
+          projectId: safeProjectId,
+          tags: safeTags,
+          // Store configuration details
+          configMode,
+          awsRenderPreset: configMode === 'preset' ? awsRenderPreset : undefined,
+          customConfig: configMode === 'custom' ? customConfig : undefined,
+          // Actual values used for rendering
+          concurrencyUsed: config.concurrency,
+          framesPerLambdaUsed: config.framesPerLambda,
+          memoryUsed: config.memory,
+          diskUsed: config.disk,
+          timeoutUsed: config.timeout,
+          functionNameUsed: functionName,
+        });
+
+        await platformCostUsageDB.insert({
+          platform: 'aws_render',
+          source: 'remotion_lambda',
+          clientId,
+          metadata: { renderId: stillResult.renderId, bucketName: stillResult.bucketName },
+          isCalculated: false,
+        });
+      }
+
+      return NextResponse.json({
+        ...stillResult,
+        configUsed: {
+          mode: configMode,
+          region: effectiveRegion,
+          functionName,
+          memory: config.memory,
+          disk: config.disk,
+          timeout: config.timeout,
+          concurrency: config.concurrency ?? 'auto',
+          framesPerLambda: config.framesPerLambda ?? 'auto',
+        },
+      });
+    }
+
     const result = await renderMediaOnLambda(renderOptions);
 
-    const clientId = req.headers.get('x-client-id');
     if (clientId) {
       await renderRequestDB.create({
         clientId,
@@ -161,6 +260,9 @@ export const POST = async (req: NextRequest) => {
         isDownloadable: isDownloadable,
         renderType: renderType || 'video',
         audioCodec: audioCodec || 'aac',
+        regionUsed: effectiveRegion,
+        projectId: safeProjectId,
+        tags: safeTags,
         // Store configuration details
         configMode,
         awsRenderPreset: configMode === 'preset' ? awsRenderPreset : undefined,
@@ -186,6 +288,7 @@ export const POST = async (req: NextRequest) => {
       ...result,
       configUsed: {
         mode: configMode,
+        region: effectiveRegion,
         functionName,
         memory: config.memory,
         disk: config.disk,

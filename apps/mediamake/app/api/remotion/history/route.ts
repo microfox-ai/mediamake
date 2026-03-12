@@ -13,6 +13,8 @@ function formatDoc(doc: RenderRequestDocument) {
     composition: doc.composition,
     status: doc.status,
     createdAt: doc.createdAt,
+    projectId: doc.projectId,
+    tags: doc.tags,
     downloadUrl: doc.downloadUrl,
     fileSize: doc.fileSize,
     progress: doc.progress,
@@ -52,6 +54,15 @@ export const GET = async (req: NextRequest) => {
     const inputPropsOnly = searchParams.get('inputPropsOnly') === 'true';
     const includeArchived = searchParams.get('includeArchived') === 'true' || searchParams.get('includeDeleted') === 'true';
     const archivedOnly = searchParams.get('archived') === 'true' || searchParams.get('deleted') === 'true';
+    const renderType = (searchParams.get('renderType') ?? 'any') as 'any' | 'video' | 'audio' | 'still';
+    const projectId = (searchParams.get('projectId') ?? 'any') as string | 'any';
+    const tagsParam = searchParams.get('tags');
+    const tags = tagsParam
+      ? tagsParam
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
 
     // Fetch only inputProps for a single render (on-demand, avoids sending large payload in list/single)
     if (singleRenderId && inputPropsOnly) {
@@ -89,7 +100,12 @@ export const GET = async (req: NextRequest) => {
       clientId,
       limit,
       cursor || null,
-      archivedOnly ? { archivedOnly: true } : undefined,
+      {
+        ...(archivedOnly ? { archivedOnly: true } : {}),
+        ...(renderType !== 'any' ? { renderType } : {}),
+        ...(projectId !== 'any' ? { projectId } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+      },
     );
 
     const formattedHistory = items.map(formatDoc);
