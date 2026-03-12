@@ -42,6 +42,7 @@ import { useSession } from "@/components/session-provider";
 import { MediaEditDialog } from "./media-edit-dialog";
 import { BulkEditToolbar } from "./bulk-edit-toolbar";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 // Pagination component
 interface PaginationProps {
@@ -273,10 +274,11 @@ export function MediaPicker({
     const [editingFile, setEditingFile] = useState<MediaFile | null>(null);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isPicking, setIsPicking] = useState(false);
+    const [includeChildMedia, setIncludeChildMedia] = useState(true);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag, selectedProjectId]);
+    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag, selectedProjectId, includeChildMedia]);
 
     useEffect(() => {
         const headers: Record<string, string> = {};
@@ -384,7 +386,12 @@ export function MediaPicker({
     );
     const { data: tagsData, error: tagsError } = useSWR('/api/tags', fetcher);
 
-    const files = searchResults.length > 0 ? searchResults : (filesData?.files || []);
+    const rawFiles: MediaFile[] = searchResults.length > 0 ? searchResults : (filesData?.files || []);
+    const files = useMemo(() => {
+        if (pickerMode) return rawFiles || [];
+        if (includeChildMedia) return rawFiles || [];
+        return (rawFiles || []).filter((file: MediaFile) => !(file as any).parentMediaId);
+    }, [rawFiles, pickerMode, includeChildMedia]);
     const totalCount = searchResults.length > 0 ? searchResults.length : (filesData?.total || 0);
     const hasMore = searchResults.length > 0 ? false : (filesData?.hasMore || false);
     const tags = tagsData || [];
@@ -765,9 +772,9 @@ export function MediaPicker({
                         </div>
 
                         {/* Filters */}
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-wrap items-start gap-4">
                             {/* Left Side - Hashtag Filters */}
-                            <div className="flex items-center gap-2 flex-1">
+                            <div className="flex items-center gap-2 w-full md:flex-1">
                                 <span className="text-sm font-medium text-muted-foreground">Tags:</span>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {hashtagFilters.map((tag) => (
@@ -797,7 +804,7 @@ export function MediaPicker({
                             </div>
 
                             {/* Right Side - Other Filters */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-start md:justify-end">
                                 {/* Search */}
                                 <div className="relative flex items-center">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -891,6 +898,20 @@ export function MediaPicker({
                                         ))}
                                     </SelectContent>
                                 </Select>
+
+                                {/* Child media filter (only in full media library mode) */}
+                                {!pickerMode && (
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="include-children"
+                                            checked={includeChildMedia}
+                                            onCheckedChange={setIncludeChildMedia}
+                                        />
+                                        <span className="text-xs text-muted-foreground">
+                                            Show split/child media
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* Sort Order */}
                                 <Select value={sortOrder} onValueChange={(value: "latest" | "oldest") => setSortOrder(value)}>

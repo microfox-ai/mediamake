@@ -25,7 +25,41 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 
+const VideoThumbnail = ({
+    src,
+    title,
+}: {
+    src: string;
+    title?: string;
+}) => {
+    const { thumbnailSrc } = useVideoThumbnail(src, {
+        timeInSeconds: 2,
+        width: 240,
+    });
+
+    if (thumbnailSrc) {
+        return (
+            <div className="relative w-full aspect-video bg-black">
+                <img
+                    src={thumbnailSrc}
+                    alt={title ?? "Video thumbnail"}
+                    className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <Play className="w-8 h-8 text-white" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full aspect-video bg-black flex items-center justify-center">
+            <Play className="w-8 h-8 text-white" />
+        </div>
+    );
+};
 
 export type MediaDialogItem = {
     type: "image";
@@ -496,6 +530,8 @@ export const MediaDialog = ({
     const [isGeneratingSegmentation, setIsGeneratingSegmentation] = useState(false);
     const [segmentationError, setSegmentationError] = useState<string | null>(null);
     const [localSegmentation, setLocalSegmentation] = useState<any>(null);
+    const [childSegments, setChildSegments] = useState<MediaFile[] | null>(null);
+    const [childSegmentsLoading, setChildSegmentsLoading] = useState(false);
 
     // Initialize segmentation from metadata when dialog opens
     useEffect(() => {
@@ -510,6 +546,34 @@ export const MediaDialog = ({
             setLocalSegmentation(null);
         }
         setSegmentationError(null);
+        setChildSegments(null);
+        setChildSegmentsLoading(false);
+
+        const loadChildren = async () => {
+            if (!media || (media.type !== 'video-direct' && media.type !== 'video-embed')) {
+                return;
+            }
+            const parentId = (media.video?.metadata as any)?._id as string | undefined;
+            if (!parentId) return;
+            try {
+                setChildSegmentsLoading(true);
+                const res = await fetch(`/api/media-files?parentMediaId=${parentId}&contentType=video&sort=createdAt&order=asc`);
+                if (!res.ok) {
+                    setChildSegments([]);
+                    return;
+                }
+                const data = await res.json();
+                const files: MediaFile[] = Array.isArray(data?.files) ? data.files : [];
+                setChildSegments(files);
+            } catch (e) {
+                console.error('Failed to load child segments', e);
+                setChildSegments([]);
+            } finally {
+                setChildSegmentsLoading(false);
+            }
+        };
+
+        void loadChildren();
     }, [media]);
 
     const handleGenerateSegmentation = async () => {
@@ -885,7 +949,68 @@ export const MediaDialog = ({
                             </DialogClose>
                         </div>
                     </div>
-                    <div className="col-span-1 flex flex-col gap-4 justify-start h-full">
+                    <div className="col-span-1 flex flex-col gap-4 justify-start h-full overflow-y-auto">
+                        {media && (media.type === 'video-direct' || media.type === 'video-embed') && (
+                            <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-neutral-900 rounded-xl p-4 text-white shadow-lg max-w-md"
+                            >
+                                <h3 className="text-sm font-medium mb-1 flex items-center gap-2">
+                                    <Scissors className="w-4 h-4 text-neutral-400" />
+                                    Split scenes
+                                </h3>
+                                {childSegmentsLoading ? (
+                                    <div className="flex items-center gap-2 text-xs text-neutral-400">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        <span>Loading split scenes...</span>
+                                    </div>
+                                ) : !childSegments || childSegments.length === 0 ? (
+                                    <p className="text-xs text-neutral-500">
+                                        No split scenes found for this video.
+                                    </p>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        {childSegments
+                                            .slice()
+                                            .sort((a, b) => {
+                                                const ai = Number((a as any)?.metadata?.sceneIndex ?? 0);
+                                                const bi = Number((b as any)?.metadata?.sceneIndex ?? 0);
+                                                return ai - bi;
+                                            })
+                                            .map((child) => {
+                                                const url = child.filePath ?? '';
+                                                const idx = (child as any)?.metadata?.sceneIndex as number | undefined;
+                                                return (
+                                                    <button
+                                                        key={child._id?.toString() ?? url}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (url) {
+                                                                window.open(url, '_blank');
+                                                            }
+                                                        }}
+                                                        className="flex flex-col gap-1 text-left bg-neutral-800/70 rounded-lg overflow-hidden hover:bg-neutral-700/80 transition-colors"
+                                                    >
+                                                        {url ? (
+                                                            <VideoThumbnail src={url} title={child.fileName} />
+                                                        ) : (
+                                                            <div className="w-full aspect-video bg-black flex items-center justify-center">
+                                                                <Play className="w-6 h-6 text-white" />
+                                                            </div>
+                                                        )}
+                                                        <div className="px-2 pb-2">
+                                                            <p className="text-xs font-medium truncate">
+                                                                Scene {idx ?? '?'}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {media?.image && media?.image?.description && media.image.description.trim() &&
                             <div
                                 onClick={(e) => e.stopPropagation()}
@@ -1129,7 +1254,7 @@ export const mapMediaFileToDialogItem = (mediaFile: MediaFile): MediaDialogItem 
                         creator: metadata?.creator,
                         views: metadata?.views,
                         duration: metadata?.duration,
-                        metadata: { ...metadata, title: fileName },
+                        metadata: { ...metadata, title: fileName, _id: mediaFile._id?.toString(), tags, mediaType: metadata?.mediaType || contentSubType },
                     }
                 };
             } else {
@@ -1140,7 +1265,7 @@ export const mapMediaFileToDialogItem = (mediaFile: MediaFile): MediaDialogItem 
                         creator: metadata?.creator,
                         views: metadata?.views,
                         duration: metadata?.duration,
-                        metadata: { ...metadata, title: fileName, tags: tags, mediaType: metadata?.mediaType || contentSubType },
+                        metadata: { ...metadata, title: fileName, tags: tags, mediaType: metadata?.mediaType || contentSubType, _id: mediaFile._id?.toString() },
                     }
                 };
             }
@@ -1323,6 +1448,13 @@ export const MediaGrid = ({
                                     className={`relative group/media bg-neutral-900 rounded-lg overflow-hidden cursor-pointer ${isSelected ? 'ring-2 ring-primary bg-primary/10' : ''
                                         } ${isBulkSelected ? 'ring-2 ring-blue-500 bg-blue-500/10' : ''}`}
                                 >
+                                    {!!(mediaFile as any)?.parentMediaId && (
+                                        <div className="absolute top-2 right-2 z-20 pointer-events-none">
+                                            <Badge variant="secondary" className="bg-black/70 text-white border border-white/10">
+                                                Split
+                                            </Badge>
+                                        </div>
+                                    )}
                                     {dialogItem.type === 'image' && (
                                         <img
                                             src={dialogItem.image.src ?? ""}
@@ -1336,10 +1468,9 @@ export const MediaGrid = ({
                                         </div>
                                     )}
                                     {dialogItem.type === 'video-direct' && (
-                                        <video
+                                        <VideoThumbnail
                                             src={dialogItem.video.src}
-                                            className="w-full aspect-video object-cover"
-                                            preload="metadata"
+                                            title={dialogItem.video.metadata?.title ?? mediaFile.fileName}
                                         />
                                     )}
                                     {dialogItem.type === 'audio' && (
