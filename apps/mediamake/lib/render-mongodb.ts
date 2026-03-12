@@ -128,7 +128,12 @@ export class RenderRequestMongoDB {
     clientId: string,
     limit: number,
     cursor?: string | null,
-    options?: { archivedOnly?: boolean },
+    options?: {
+      archivedOnly?: boolean;
+      renderType?: RenderRequest['renderType'] | 'any';
+      projectId?: string | 'any';
+      tags?: string[]; // match any tag
+    },
   ): Promise<{
     items: RenderRequestDocument[];
     nextCursor: string | null;
@@ -145,6 +150,17 @@ export class RenderRequestMongoDB {
       clientId,
       ...(options?.archivedOnly ? { isArchived: true } : notArchivedFilter),
     };
+
+    if (options?.renderType && options.renderType !== 'any') {
+      query.renderType = options.renderType as any;
+    }
+    if (options?.projectId && options.projectId !== 'any') {
+      query.projectId = options.projectId as any;
+    }
+    if (options?.tags && options.tags.length > 0) {
+      // Any-tag match (simple filtering, not full-text)
+      query.tags = { $in: options.tags } as any;
+    }
 
     if (cursor) {
       const [createdAt, idStr] = cursor.split('_');
