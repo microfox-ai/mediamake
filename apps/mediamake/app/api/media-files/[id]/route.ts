@@ -49,8 +49,17 @@ export async function PUT(
     const db = await getDatabase();
     const collection = db.collection('mediaFiles');
 
+    const updateBody: any = { ...body };
+    if (body.parentMediaId) {
+      try {
+        updateBody.parentMediaId = new ObjectId(body.parentMediaId);
+      } catch {
+        // ignore invalid parentMediaId, leave as-is
+      }
+    }
+
     const updateData = {
-      ...body,
+      ...updateBody,
       updatedAt: new Date(),
     };
 

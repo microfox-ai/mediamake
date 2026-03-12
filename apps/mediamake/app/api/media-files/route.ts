@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const offset = (page - 1) * limit;
     const fields = searchParams.get('fields');
+    const parentMediaId = searchParams.get('parentMediaId');
 
     const query: any = {};
     if (clientId) query.clientId = clientId;
@@ -51,6 +52,15 @@ export async function GET(request: NextRequest) {
       const objectIds = ids.split(',').map(id => new ObjectId(id.trim()));
       query._id = { $in: objectIds };
     }
+    if (parentMediaId === 'none') {
+      query.parentMediaId = { $exists: false };
+    } else if (parentMediaId) {
+      try {
+        query.parentMediaId = new ObjectId(parentMediaId);
+      } catch {
+        // ignore invalid ObjectId, will just not match anything
+      }
+    }
 
     const sortObject = { [sort]: order as 'asc' | 'desc' };
 
@@ -68,6 +78,7 @@ export async function GET(request: NextRequest) {
         tags: 1,
         clientId: 1,
         projectId: 1,
+        parentMediaId: 1,
         createdAt: 1,
         updatedAt: 1,
         contentType: 1,
@@ -130,6 +141,7 @@ export async function POST(request: NextRequest) {
       fileName,
       fileSize,
       filePath,
+      parentMediaId,
       analyzeImage = true,
       generateDescription = true,
       generateKeywords = true,
@@ -224,6 +236,9 @@ export async function POST(request: NextRequest) {
       tags,
       clientId: clientId || 'default',
       ...(bodyProjectId ? { projectId: bodyProjectId } : {}),
+      ...(parentMediaId
+        ? { parentMediaId: new ObjectId(parentMediaId) }
+        : {}),
       contentType,
       contentMimeType,
       contentSubType: contentSubType || 'unknown',
