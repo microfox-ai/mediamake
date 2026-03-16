@@ -72,6 +72,7 @@ export interface ProcessingData {
 export interface Transcription {
   _id?: ObjectId;
   clientId?: string;
+  projectId?: string;
   assemblyId: string;
   audioUrl: string;
   language?: string;
@@ -97,6 +98,7 @@ export interface Transcription {
 
 export interface CreateTranscriptionRequest {
   clientId?: string;
+  projectId?: string;
   assemblyId: string;
   audioUrl: string;
   language?: string;
@@ -152,6 +154,7 @@ export interface TranscriptionFilters {
 export interface TranscriptionListItem {
   _id?: ObjectId;
   clientId?: string;
+  projectId?: string;
   assemblyId: string;
   audioUrl: string;
   language?: string;

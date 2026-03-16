@@ -136,6 +136,8 @@ export interface MediaFile {
   tags: string[]; // Array of tag IDs
   clientId: string;
   projectId?: string; // Optional project for filtering
+  /** Optional Midjourney job linkage for generated images */
+  midjourneyJobId?: string;
   /** Optional parent media reference for derived/split media */
   parentMediaId?: ObjectId;
   createdAt: Date;
