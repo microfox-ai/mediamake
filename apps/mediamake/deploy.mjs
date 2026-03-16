@@ -16,9 +16,8 @@ import { webpackOverride } from './components/remotion/webpack-override.mjs';
 
 dotenv.config();
 
-const envRegion = process.env.REMOTION_AWS_REGION;
-const defaultRegion =
-  envRegion && AWS_REGIONS.includes(envRegion) ? envRegion : DEFAULT_REGION;
+// const envRegion = process.env.REMOTION_AWS_REGION;
+const defaultRegion = DEFAULT_REGION;
 const regions = AWS_REGIONS;
 
 console.log(
