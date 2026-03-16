@@ -49,12 +49,13 @@ if (
   process.exit(0);
 }
 const configEntries = Object.entries(AWS_RENDER_CONFIGS);
-console.log(
-  `\nDeploying ${configEntries.length} Lambda function preset(s) to ${regions.length} region(s) in parallel...\n`,
-);
 
-await Promise.all(
-  regions.map(async (region) => {
+async function main() {
+  console.log(
+    `\nDeploying ${configEntries.length} Lambda function preset(s) to ${regions.length} region(s)...\n`,
+  );
+
+  for (const region of regions) {
     console.log('========================================');
     console.log(
       `Deploying infrastructure for region: ${
@@ -150,12 +151,17 @@ await Promise.all(
     }
 
     console.log();
-  }),
-);
+  }
 
-console.log('✓ Multi-region deployment complete!');
-console.log('You now have everything you need to render videos!');
-console.log('Re-run this command when:');
-console.log('  1) you changed the video template');
-console.log('  2) you changed config.mjs');
-console.log('  3) you upgraded Remotion to a newer version');
+  console.log('✓ Multi-region deployment complete!');
+  console.log('You now have everything you need to render videos!');
+  console.log('Re-run this command when:');
+  console.log('  1) you changed the video template');
+  console.log('  2) you changed config.mjs');
+  console.log('  3) you upgraded Remotion to a newer version');
+}
+
+main().catch((err) => {
+  console.error('Deployment failed:', err);
+  process.exit(1);
+});
