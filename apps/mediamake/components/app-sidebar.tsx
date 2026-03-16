@@ -114,7 +114,12 @@ const data = {
       title: "Midjourney",
       url: "/midjourney",
       icon: <SparklesIcon />,
-    }
+    },
+    {
+      title: "Midjourney Queue",
+      url: "/midjourney-queue",
+      icon: <ListIcon />,
+    },
     // {
     //   title: "Analytics",
     //   url: "#",
