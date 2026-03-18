@@ -103,6 +103,7 @@ export default function MidjourneyQueuePage() {
   const [priority, setPriority] = useState<string>("1");
   const [projectId, setProjectId] = useState<string>("default");
   const [tagsInput, setTagsInput] = useState("");
+  const [folder, setFolder] = useState("");
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -268,7 +269,7 @@ export default function MidjourneyQueuePage() {
       prompt: trimmedPrompt,
       priority: finalPriority,
       tags,
-      folder: null as string | null,
+      folder: folder.trim() || null,
     };
 
     if (projectId && projectId !== "default") {
@@ -293,6 +294,7 @@ export default function MidjourneyQueuePage() {
 
       setPrompt("");
       setTagsInput("");
+      setFolder("");
       setPriority("1");
       setIsRefreshing(true);
       await loadQueue(1);
@@ -423,6 +425,18 @@ export default function MidjourneyQueuePage() {
                     Choose which project the generated images will belong to.
                   </p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Folder</label>
+                <Input
+                  value={folder}
+                  onChange={(e) => setFolder(e.target.value)}
+                  placeholder="optional Midjourney folder tag"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This folder is used when triggering the request via extension.
+                </p>
               </div>
 
               <div className="space-y-2">
