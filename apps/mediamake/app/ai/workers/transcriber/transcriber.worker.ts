@@ -18,10 +18,11 @@ import {
 const InputSchema = z.object({
   audioUrl: z.string().url(),
   language: z.string().optional(),
-  tag: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  title: z.string().optional(),
+  sunoLyrics: z.string().optional(),
   projectId: z.string().optional().nullable(),
-  clientId: z.string().optional().default('default'),
+  clientId: z.string().optional(),
 });
 
 const OutputSchema = z.object({
@@ -259,22 +260,30 @@ export default createWorker<typeof InputSchema, Output>({
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   handler: async ({ input }: WorkerHandlerParams<Input, Output>) => {
-    console.log('[transcriber.worker] Handler invoked with input', input);
-
+    
     const parsed = InputSchema.parse(input);
     const {
       audioUrl,
       language,
-      tag,
       tags,
+      title,
+      sunoLyrics,
       projectId,
-      clientId = 'default',
+      clientId,
     } = parsed;
 
-    const allTags = [
-      ...(Array.isArray(tags) ? tags : []),
-      ...(tag ? [tag] : []),
-    ];
+    console.log('[transcriber.worker] Handler invoked with input', {
+      audioUrl,
+      language,
+      tags,
+      title,
+      projectId,
+      clientId,
+    });
+
+    console.log('sunoLyrics', sunoLyrics?.slice(0, 100));
+
+    const allTags = Array.isArray(tags) ? tags : [];
 
     try {
       console.log('[transcriber.worker] Parsed input', {
@@ -327,19 +336,22 @@ export default createWorker<typeof InputSchema, Output>({
 
       const now = new Date();
       const transcriptionDoc: Omit<Transcription, '_id'> = {
-        clientId,
+        clientId: clientId ?? undefined,
         projectId: projectId ?? undefined,
         assemblyId,
         audioUrl,
         language: language_code,
         status: 'completed',
         tags: allTags,
+        title: title?.trim() || undefined,
+        sunoLyrics: sunoLyrics?.trim() || undefined,
         captions,
         processingData: {
           step1: {
             rawText: captions.map(c => c.text).join(' '),
             processedCaptions: captions,
             transcript,
+            sunoLyrics: sunoLyrics?.trim() || undefined,
             source: 'elevenlabs-stt',
           },
         },
