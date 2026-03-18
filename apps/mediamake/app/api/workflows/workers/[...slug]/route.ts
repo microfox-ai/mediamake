@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientId } from '@/lib/auth-utils';
 
 /**
  * Worker execution endpoint.
@@ -78,11 +79,23 @@ export async function POST(
     }
 
     const { input, await: shouldAwait = false, jobId: providedJobId } = body;
+    const requestClientId = getClientId(req);
+    const effectiveInput =
+      input && typeof input === 'object' && !Array.isArray(input)
+        ? {
+            ...input,
+            clientId:
+              (input as any).clientId ??
+              (requestClientId && requestClientId.trim()
+                ? requestClientId.trim()
+                : undefined),
+          }
+        : input;
 
     console.log('[Worker] Dispatching worker:', {
       workerId,
       shouldAwait,
-      hasInput: !!input,
+      hasInput: !!effectiveInput,
     });
 
     // Get the worker using registry system
@@ -131,7 +144,7 @@ export async function POST(
         jobId,
         workerId,
         status: 'queued',
-        input: input || {},
+        input: effectiveInput || {},
         metadata: { source: 'workflow-orchestration' },
       });
       console.log('[Worker] Initial job record created:', {
@@ -150,7 +163,7 @@ export async function POST(
     // Dispatch the worker. Job updates use MongoDB only; webhook only if configured.
     let dispatchResult;
     try {
-      dispatchResult = await worker.dispatch(input || {}, {
+      dispatchResult = await worker.dispatch(effectiveInput || {}, {
         mode: 'auto',
         jobId,
         ...(webhookUrl ? { webhookUrl } : {}),

@@ -13,6 +13,10 @@ export function InfoUI() {
     const { transcriptionData, refreshTranscription, setCurrentView } = useTranscriber();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const sunoLyrics =
+        transcriptionData?.sunoLyrics ||
+        transcriptionData?.processingData?.step1?.sunoLyrics ||
+        "";
 
     const handleRefresh = async () => {
         if (!transcriptionData?._id) return;
@@ -191,6 +195,17 @@ export function InfoUI() {
                                     <label className="text-sm font-medium text-muted-foreground">Raw Text</label>
                                     <div className="mt-2 p-3 bg-muted rounded-md max-h-32 overflow-y-auto">
                                         <p className="text-sm whitespace-pre-wrap">{transcriptionData.processingData.step1.rawText}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {sunoLyrics && (
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">
+                                        Suno Lyrics (Source)
+                                    </label>
+                                    <div className="mt-2 p-3 bg-muted rounded-md max-h-48 overflow-y-auto">
+                                        <p className="text-sm whitespace-pre-wrap">{sunoLyrics}</p>
                                     </div>
                                 </div>
                             )}

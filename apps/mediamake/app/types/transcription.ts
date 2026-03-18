@@ -86,6 +86,7 @@ export interface Transcription {
     | 'step4';
   tags: string[];
   title?: string;
+  sunoLyrics?: string;
   description?: string;
   keywords?: string[];
   captions: Caption[];
@@ -112,6 +113,7 @@ export interface CreateTranscriptionRequest {
     | 'step4';
   tags?: string[];
   title?: string;
+  sunoLyrics?: string;
   description?: string;
   keywords?: string[];
   captions?: Caption[];
@@ -122,6 +124,7 @@ export interface UpdateTranscriptionRequest {
   status?: 'processing' | 'completed' | 'failed' | 'step1' | 'step2' | 'step3';
   tags?: string[];
   title?: string;
+  sunoLyrics?: string;
   description?: string;
   keywords?: string[];
   captions?: Caption[];
@@ -161,6 +164,7 @@ export interface TranscriptionListItem {
   status: Transcription['status'];
   tags: string[];
   title?: string;
+  sunoLyrics?: string;
   description?: string;
   keywords?: string[];
   createdAt: Date;

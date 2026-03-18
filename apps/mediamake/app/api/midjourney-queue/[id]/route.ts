@@ -155,12 +155,14 @@ export async function PATCH(req: NextRequest, { params }: any) {
       triggeredAt,
       completedAt,
       errorMessage,
+      folder,
     }: {
       status?: MidjourneyQueueStatus;
       jobId?: string | null;
       triggeredAt?: string | null;
       completedAt?: string | null;
       errorMessage?: string | null;
+      folder?: string | null;
     } = body ?? {};
 
     const collection = await getMidjourneyQueueCollection();
@@ -205,6 +207,13 @@ export async function PATCH(req: NextRequest, { params }: any) {
       update.errorMessage =
         typeof errorMessage === 'string' && errorMessage.trim() !== ''
           ? errorMessage.trim()
+          : null;
+    }
+
+    if (folder !== undefined) {
+      update.folder =
+        typeof folder === 'string' && folder.trim() !== ''
+          ? folder.trim()
           : null;
     }
 
