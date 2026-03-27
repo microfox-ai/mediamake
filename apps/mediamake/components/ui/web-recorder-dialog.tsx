@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagsSelector } from "./tags-selector";
+import { TagMultiSelect } from "./tag-multi-select";
 import { cn } from "@/lib/utils";
 import {
     Video,
@@ -314,7 +314,7 @@ export function WebRecorderDialog({
                         </div>
 
                         {/* Tags Selector */}
-                        <TagsSelector
+                        <TagMultiSelect
                             selectedTags={selectedTags}
                             onTagsChange={setSelectedTags}
                             label="Tags"
@@ -376,7 +376,7 @@ export function WebRecorderDialog({
                         </div>
 
                         {/* Tags Selector */}
-                        <TagsSelector
+                        <TagMultiSelect
                             selectedTags={selectedTags}
                             onTagsChange={setSelectedTags}
                             label="Tags"
