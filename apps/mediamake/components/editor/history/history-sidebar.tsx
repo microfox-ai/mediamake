@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TagsSelector } from "@/components/ui/tags-selector";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import {
     Clock,
     CheckCircle,
@@ -353,7 +353,7 @@ export function HistorySidebar({
                     <div className="space-y-2">
                         <Label className="text-xs font-medium">Tags</Label>
                         <div className="rounded-md border p-2">
-                            <TagsSelector
+                            <TagMultiSelect
                                 selectedTags={selectedTags}
                                 onTagsChange={setSelectedTags}
                                 label=""
