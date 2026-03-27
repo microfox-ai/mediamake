@@ -25,7 +25,7 @@ import {
     Check,
     AlertCircle
 } from "lucide-react";
-import { Tag } from "@/app/types/media";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { useSession } from "@/components/session-provider";
 import { callAgent } from "@/components/agents/agent-helper";
 import { useWorkflowJob } from "@/hooks/useWorkflowJob";
@@ -81,10 +81,6 @@ export function UploadDialog({
     const [generateDescription, setGenerateDescription] = useState<boolean>(true);
     const [generateKeywords, setGenerateKeywords] = useState<boolean>(true);
 
-    // Tag management
-    const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-    const [newTagName, setNewTagName] = useState("");
-
     // Abort controller for upload cancellation
     const abortControllerRef = useRef<AbortController | null>(null);
     const uploadInProgressRef = useRef<boolean>(false);
@@ -102,13 +98,6 @@ export function UploadDialog({
         pollTimeoutMs: 900_000,
         autoPoll: true,
     });
-
-    // Fetch available tags
-    useEffect(() => {
-        if (isOpen) {
-            fetchTags();
-        }
-    }, [isOpen]);
 
     // Fetch projects when dialog opens
     useEffect(() => {
@@ -185,54 +174,6 @@ export function UploadDialog({
             return () => clearInterval(countdownInterval);
         }
     }, [files.length, autoUpload]); // Only depend on files.length and autoUpload
-
-    const fetchTags = async () => {
-        try {
-            const response = await fetch('/api/tags');
-            if (response.ok) {
-                const data = await response.json();
-                setAvailableTags(data);
-            }
-        } catch (error) {
-            console.error('Error fetching tags:', error);
-        }
-    };
-
-    const handleTagToggle = (tagId: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tagId)
-                ? prev.filter(id => id !== tagId)
-                : [...prev, tagId]
-        );
-    };
-
-    const createAndAddTag = async () => {
-        if (!newTagName.trim()) return;
-
-        const generatedId = generateTagId(newTagName.trim());
-
-        try {
-            const response = await fetch('/api/tags', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: generatedId,
-                    displayName: newTagName.trim(),
-                }),
-            });
-
-            if (response.ok) {
-                const newTag = await response.json();
-                setAvailableTags(prev => [...prev, newTag]);
-                setSelectedTags(prev => [...prev, newTag.id]);
-                setNewTagName("");
-            }
-        } catch (error) {
-            console.error('Error creating tag:', error);
-        }
-    };
 
     const uploadFilesToS3 = async () => {
         if (files.length === 0 || uploadInProgressRef.current) return;
@@ -487,7 +428,6 @@ export function UploadDialog({
         setIsUploading(false);
         setUploadComplete(false);
         setSelectedTags([]);
-        setNewTagName("");
         setUploadedMedia([]);
         setCountdown(0);
                         setSelectedProject(null);
@@ -659,15 +599,6 @@ export function UploadDialog({
         if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text/')) return 'document';
 
         return 'unknown';
-    };
-
-    // Function to generate tag ID from display name
-    const generateTagId = (displayName: string): string => {
-        return displayName
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-            .replace(/\s+/g, '') // Remove spaces
-            .trim();
     };
 
     // Internal dropzone functionality
@@ -991,38 +922,12 @@ export function UploadDialog({
                         </div>
 
                         {/* Tags */}
-                        <div className="space-y-2">
-                            <Label>Tags {selectedTags.length === 0 && uploadedMedia.length > 0 && (
-                                <span className="text-red-500 text-sm">(Required to create entries)</span>
-                            )}</Label>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                {availableTags.map((tag) => (
-                                    <div key={tag._id?.toString()} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={tag.id}
-                                            checked={selectedTags.includes(tag.id)}
-                                            onCheckedChange={() => handleTagToggle(tag.id)}
-                                        />
-                                        <Label htmlFor={tag.id} className="text-sm">
-                                            {tag.displayName}
-                                        </Label>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Create New Tag */}
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="Tag Name (ID will be auto-generated)"
-                                    value={newTagName}
-                                    onChange={(e) => setNewTagName(e.target.value)}
-                                    className="flex-1"
-                                />
-                                <Button size="sm" onClick={createAndAddTag}>
-                                    Add Tag
-                                </Button>
-                            </div>
-                        </div>
+                        <TagMultiSelect
+                            selectedTags={selectedTags}
+                            onTagsChange={setSelectedTags}
+                            label={`Tags${selectedTags.length === 0 && uploadedMedia.length > 0 ? ' (Required to create entries)' : ''}`}
+                            required={uploadedMedia.length > 0}
+                        />
 
                     </TabsContent>
                 </Tabs>
