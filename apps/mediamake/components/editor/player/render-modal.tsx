@@ -38,7 +38,7 @@ import { toast } from 'sonner';
 import { useRender, ConfigMode } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/components/session-provider';
-import { TagsSelector } from '@/components/ui/tags-selector';
+import { TagMultiSelect } from '@/components/ui/tag-multi-select';
 import {
   AWS_RENDER_CONFIGS,
   AWS_REGION_OPTIONS,
@@ -434,7 +434,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                 <div className="grid grid-cols-4 items-start gap-4">
                   <Label className="text-right pt-2">Tags</Label>
                   <div className="col-span-3">
-                    <TagsSelector
+                    <TagMultiSelect
                       selectedTags={settings.tags ?? []}
                       onTagsChange={(t) => updateSetting('tags', t)}
                       label=""
