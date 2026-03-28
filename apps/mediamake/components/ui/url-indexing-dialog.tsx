@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { TagsSelector } from "./tags-selector";
+import { TagMultiSelect } from "./tag-multi-select";
 import {
   Select,
   SelectContent,
@@ -203,7 +203,7 @@ export function UrlIndexingDialog({
                     </div>
 
                     {/* Tags Selector */}
-                    <TagsSelector
+                    <TagMultiSelect
                         selectedTags={selectedTags}
                         onTagsChange={setSelectedTags}
                         label="Tags"

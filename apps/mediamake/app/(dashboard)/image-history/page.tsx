@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { TagsSelector } from "@/components/ui/tags-selector";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { useSession } from "@/components/session-provider";
 import useLocalState from "@/components/studio/context/hooks/useLocalState";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -175,7 +175,7 @@ export default function ImageHistoryPage() {
 
               <div className="space-y-2 md:col-span-1">
                 <div className="text-sm font-medium">Tags</div>
-                <TagsSelector
+                <TagMultiSelect
                   selectedTags={selectedTags}
                   onTagsChange={setSelectedTags}
                   label=""

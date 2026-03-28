@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { TagsSelector } from "@/components/ui/tags-selector";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { useWorkflowJob } from "@/hooks/useWorkflowJob";
 import { useSession } from "@/components/session-provider";
 import { toast } from "sonner";
@@ -332,7 +332,7 @@ export default function YoutubeSplitsPage() {
               </Select>
             </div>
 
-            <TagsSelector selectedTags={selectedTags} onTagsChange={setSelectedTags} required />
+            <TagMultiSelect selectedTags={selectedTags} onTagsChange={setSelectedTags} required />
 
             <div className="flex flex-wrap gap-2">
               <Button onClick={runSplit} disabled={!canRun} className="min-w-[160px]">

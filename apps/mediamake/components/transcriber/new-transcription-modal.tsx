@@ -37,7 +37,7 @@ import {
     FileText
 } from "lucide-react";
 import { Transcription } from "@/app/types/transcription";
-import { Tag } from "@/app/types/media";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { generateTextToSpeech, COMMON_VOICES, AVAILABLE_MODELS } from "./new-transcription-ui";
 
 interface NewTranscriptionModalProps {
@@ -77,72 +77,6 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
 
     // Tag management
     const [selectedTags, setSelectedTags] = useState<string[]>(preselectedTags);
-    const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-    const [newTagName, setNewTagName] = useState("");
-
-    // Fetch available tags
-    useEffect(() => {
-        if (isOpen) {
-            fetchTags();
-        }
-    }, [isOpen]);
-
-    const fetchTags = async () => {
-        try {
-            const response = await fetch('/api/tags');
-            if (response.ok) {
-                const data = await response.json();
-                setAvailableTags(data);
-            }
-        } catch (error) {
-            console.error('Error fetching tags:', error);
-        }
-    };
-
-    const handleTagToggle = (tagId: string) => {
-        setSelectedTags(
-            selectedTags.includes(tagId)
-                ? selectedTags.filter(id => id !== tagId)
-                : [...selectedTags, tagId]
-        );
-    };
-
-    const createAndAddTag = async () => {
-        if (!newTagName.trim()) return;
-
-        const generatedId = generateTagId(newTagName.trim());
-
-        try {
-            const response = await fetch('/api/tags', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: generatedId,
-                    displayName: newTagName.trim(),
-                }),
-            });
-
-            if (response.ok) {
-                const newTag = await response.json();
-                setAvailableTags(prev => [...prev, newTag]);
-                setSelectedTags([...selectedTags, newTag.id]);
-                setNewTagName("");
-            }
-        } catch (error) {
-            console.error('Error creating tag:', error);
-        }
-    };
-
-    // Function to generate tag ID from display name
-    const generateTagId = (displayName: string): string => {
-        return displayName
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-            .replace(/\s+/g, '') // Remove spaces
-            .trim();
-    };
 
     const handleTTSSubmit = async () => {
         if (!ttsText.trim()) {
@@ -643,46 +577,11 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
                     {/* Tags Section */}
                     <div className="space-y-3">
                         <Separator />
-                        <div className="space-y-3">
-                            <Label className="text-sm font-semibold">Tags</Label>
-                            <p className="text-xs text-muted-foreground">
-                                Add tags to organize and categorize your transcription
-                            </p>
-
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                {availableTags.map((tag) => (
-                                    <div key={tag._id?.toString()} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={tag.id}
-                                            checked={selectedTags.includes(tag.id)}
-                                            onCheckedChange={() => handleTagToggle(tag.id)}
-                                            disabled={isTranscribing}
-                                        />
-                                        <Label htmlFor={tag.id} className="text-sm">
-                                            {tag.displayName}
-                                        </Label>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Create New Tag */}
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="Tag Name (ID will be auto-generated)"
-                                    value={newTagName}
-                                    onChange={(e) => setNewTagName(e.target.value)}
-                                    className="flex-1"
-                                    disabled={isTranscribing}
-                                />
-                                <Button
-                                    size="sm"
-                                    onClick={createAndAddTag}
-                                    disabled={isTranscribing || !newTagName.trim()}
-                                >
-                                    Add Tag
-                                </Button>
-                            </div>
-                        </div>
+                        <TagMultiSelect
+                            selectedTags={selectedTags}
+                            onTagsChange={setSelectedTags}
+                            label="Tags"
+                        />
                     </div>
 
                     {(isTranscribing || isAutofixing) && progressMessage && (

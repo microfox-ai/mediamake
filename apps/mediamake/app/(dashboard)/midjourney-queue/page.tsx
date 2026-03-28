@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Search, ArrowUpDown } from "lucide-react";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { cn } from "@/lib/utils";
 import { useWorkflowJob } from "@/hooks/useWorkflowJob";
 import { useSession } from "@/components/session-provider";
@@ -102,9 +103,7 @@ export default function MidjourneyQueuePage() {
   const [prompt, setPrompt] = useState("");
   const [priority, setPriority] = useState<string>("1");
   const [projectId, setProjectId] = useState<string>("default");
-  const [tagsInput, setTagsInput] = useState("");
   const [folder, setFolder] = useState("");
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -166,31 +165,6 @@ export default function MidjourneyQueuePage() {
     };
 
     loadProjects();
-  }, []);
-
-  // Load available tags for tag selection
-  useEffect(() => {
-    const loadTags = async () => {
-      try {
-        const res = await fetch("/api/tags");
-        if (!res.ok) {
-          return;
-        }
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setAvailableTags(
-            data
-              .map((t: any) => t.id || t.displayName || "")
-              .filter((t: string) => typeof t === "string" && t.trim() !== "")
-              .sort(),
-          );
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    loadTags();
   }, []);
 
   const loadQueue = async (pageToLoad: number) => {
@@ -255,15 +229,7 @@ export default function MidjourneyQueuePage() {
     const numericPriority = parseInt(priority, 10);
     const finalPriority = Number.isNaN(numericPriority) ? 1 : numericPriority;
 
-    let tags: string[] =
-      tagsInput
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean) || [];
-
-    if (selectedTags.length > 0) {
-      tags = Array.from(new Set([...tags, ...selectedTags]));
-    }
+    const tags = selectedTags;
 
     const body: any = {
       prompt: trimmedPrompt,
@@ -293,7 +259,7 @@ export default function MidjourneyQueuePage() {
       }
 
       setPrompt("");
-      setTagsInput("");
+      setSelectedTags([]);
       setFolder("");
       setPriority("1");
       setIsRefreshing(true);
@@ -439,42 +405,12 @@ export default function MidjourneyQueuePage() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tags</label>
-                <Input
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                  placeholder="Comma-separated tags (optional)"
-                />
-                {availableTags.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs text-muted-foreground">
-                      Click to add or remove tags:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {availableTags.map((tag) => {
-                        const isSelected = selectedTags.includes(tag);
-                        return (
-                          <Badge
-                            key={tag}
-                            variant={isSelected ? "default" : "outline"}
-                            className="cursor-pointer text-[11px]"
-                            onClick={() => {
-                              setSelectedTags((prev) =>
-                                prev.includes(tag)
-                                  ? prev.filter((t) => t !== tag)
-                                  : [...prev, tag],
-                              );
-                            }}
-                          >
-                            {tag}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <TagMultiSelect
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                label="Tags"
+                placeholder="Select tags (optional)"
+              />
 
               <div className="flex items-center justify-between gap-3">
                 <Button

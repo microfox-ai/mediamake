@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { Transcription } from "@/app/types/transcription";
-import { Tag } from "@/app/types/media";
+import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { MediaPicker } from "../../editor/media/media-picker";
 import { MediaFile } from "@/app/types/media";
 import { generateTextToSpeech, COMMON_VOICES, AVAILABLE_MODELS } from "@/components/transcriber/new-transcription-ui";
@@ -101,70 +101,6 @@ export function NewTranscriptionUI() {
 
     // Tag management
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-    const [newTagName, setNewTagName] = useState("");
-
-    // Fetch available tags
-    useEffect(() => {
-        fetchTags();
-    }, []);
-
-    const fetchTags = async () => {
-        try {
-            const response = await fetch('/api/tags');
-            if (response.ok) {
-                const data = await response.json();
-                setAvailableTags(data);
-            }
-        } catch (error) {
-            console.error('Error fetching tags:', error);
-        }
-    };
-
-    const handleTagToggle = (tagId: string) => {
-        setSelectedTags(
-            selectedTags.includes(tagId)
-                ? selectedTags.filter(id => id !== tagId)
-                : [...selectedTags, tagId]
-        );
-    };
-
-    const createAndAddTag = async () => {
-        if (!newTagName.trim()) return;
-
-        const generatedId = generateTagId(newTagName.trim());
-
-        try {
-            const response = await fetch('/api/tags', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: generatedId,
-                    displayName: newTagName.trim(),
-                }),
-            });
-
-            if (response.ok) {
-                const newTag = await response.json();
-                setAvailableTags(prev => [...prev, newTag]);
-                setSelectedTags([...selectedTags, newTag.id]);
-                setNewTagName("");
-            }
-        } catch (error) {
-            console.error('Error creating tag:', error);
-        }
-    };
-
-    // Function to generate tag ID from display name
-    const generateTagId = (displayName: string): string => {
-        return displayName
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-            .replace(/\s+/g, '') // Remove spaces
-            .trim();
-    };
 
     const handleTTSSubmit = async () => {
         if (!ttsText.trim()) {
@@ -658,45 +594,11 @@ export function NewTranscriptionUI() {
                                     <TagIcon className="h-5 w-5" />
                                     Tags
                                 </h3>
-                                <div className="space-y-4">
-                                    <p className="text-xs text-muted-foreground">
-                                        Add tags to organize and categorize your transcription
-                                    </p>
-
-                                    <div className="flex flex-wrap gap-2">
-                                        {availableTags.map((tag) => (
-                                            <div key={tag._id?.toString()} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={tag.id}
-                                                    checked={selectedTags.includes(tag.id)}
-                                                    onCheckedChange={() => handleTagToggle(tag.id)}
-                                                    disabled={isTranscribing}
-                                                />
-                                                <Label htmlFor={tag.id} className="text-sm">
-                                                    {tag.displayName}
-                                                </Label>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Create New Tag */}
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Tag Name (ID will be auto-generated)"
-                                            value={newTagName}
-                                            onChange={(e) => setNewTagName(e.target.value)}
-                                            className="flex-1"
-                                            disabled={isTranscribing}
-                                        />
-                                        <Button
-                                            size="sm"
-                                            onClick={createAndAddTag}
-                                            disabled={isTranscribing || !newTagName.trim()}
-                                        >
-                                            Add Tag
-                                        </Button>
-                                    </div>
-                                </div>
+                                <TagMultiSelect
+                                    selectedTags={selectedTags}
+                                    onTagsChange={setSelectedTags}
+                                    label=""
+                                />
                             </div>
 
                             {/* Start Transcription Section */}
