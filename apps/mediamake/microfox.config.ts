@@ -55,4 +55,33 @@ export const StudioConfig = {
       },
     },
   },
+  deploymentConfig: {
+    projectId: "4f360563-0f8c-4897-88dd-f87e8eb30922",
+    publish: {
+      subdomain: "mediamake",
+      agentName: "mediamake",
+      handles: {
+        agent: "/agent",
+        openapi: "/docs.json",
+        public: "/public"
+      }
+    },
+    deployment: {
+      apiMode: 'staging',
+      apiVersion: 'v2',
+      ignorePatterns: ['.build/**', 'package-lock.json'],
+    },
+    worker: {
+      externalDeps: ["@microfox/puppeteer-sls", "@sparticuz/chromium", "sharp"],
+      includeNodeModules: false,
+      groups: {
+        sparkboard: {
+          includeNodeModules: true
+        },
+        ffmpeg: {
+          includeNodeModules: true
+        }
+      }
+    }
+  },
 };
