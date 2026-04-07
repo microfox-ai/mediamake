@@ -1,14 +1,3 @@
-/**
- * POST /api/editor/autocomplete
- *
- * Fill-in-the-middle autocomplete for the Writepad editor.
- * Gives the AI surrounding context and lets it decide everything about
- * the completion — continuation style, spacing, newlines, formatting.
- *
- * Body:  { prefix: string; suffix: string; fileName?: string }
- * Reply: { completion: string }
- */
-
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,27 +5,47 @@ import { NextRequest, NextResponse } from 'next/server';
 export const maxDuration = 15;
 
 export async function POST(req: NextRequest) {
+  let fileName = 'untitled.md';
   try {
-    const raw = await req.text();
-    if (!raw) return NextResponse.json({ completion: '' });
-    const body = JSON.parse(raw) as { prefix?: string; suffix?: string; fileName?: string };
-    const prefix = (body.prefix ?? '').slice(-1000);
-    const suffix = (body.suffix ?? '').slice(0, 200);
+    const body = await req.json() as {
+      prefix?: string;
+      suffix?: string;
+      fileName?: string;
+      writepadRules?: string;
+    };
 
-    if (prefix.trim().length < 8) {
-      return NextResponse.json({ completion: '' });
-    }
+    const prefix = (body.prefix ?? '').slice(-500);
+    const suffix = (body.suffix ?? '').slice(0, 100);
+    fileName = body.fileName ?? 'untitled.md';
+    const writepadRules = body.writepadRules ?? null;
 
-    const { text } = await generateText({
+    if (prefix.trim().length < 8) return NextResponse.json({ completion: '' });
+
+    const rulesBlock = writepadRules ? `\n\nSTYLE RULES:\n${writepadRules}` : '';
+    const lastChar = prefix.slice(-1);
+    const midWord = /[a-zA-Z0-9']/.test(lastChar);
+    const startHint = midWord
+      ? 'The cursor is mid-word — continue that word directly, no leading space.'
+      : 'Continue seamlessly from the cursor.';
+
+    const { text, usage } = await generateText({
       model: google('gemini-flash-latest'),
-      maxOutputTokens: 180,
-      temperature: 0.55,
-      prompt: buildPrompt(prefix, suffix),
+      maxOutputTokens: 100,
+      temperature: 0.65,
+      providerOptions: {
+        google: { thinkingConfig: { thinkingBudget: 0 } },
+      },
+      prompt: `You are a creative writing autocomplete. Output ONLY the completion text — no preamble, no code fences.
+Complete the current sentence or add one short paragraph. Match the author's voice.${rulesBlock}
+File: ${fileName}
+
+${prefix}[CURSOR]${suffix}
+
+${startHint}`,
     });
 
-    // Strip accidental code fences the model might add, trim trailing whitespace only.
-    // Leading whitespace/newlines are intentional — the model decides whether to
-    // continue inline or start a new line.
+    console.log('[autocomplete] finish', { fileName, usage });
+
     const completion = text
       .replace(/^```[\w]*\n?/, '')
       .replace(/\n?```$/, '')
@@ -44,23 +53,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ completion });
   } catch (err) {
-    console.error('[autocomplete]', err);
-    return NextResponse.json({ completion: '' }, { status: 200 });
+    console.error('[autocomplete] error', { fileName, err });
+    return NextResponse.json({ completion: '' });
   }
-}
-
-function buildPrompt(prefix: string, suffix: string): string {
-  const lastChar = prefix.slice(-1);
-  const midWord = /[a-zA-Z0-9']/.test(lastChar);
-
-  // The only structural constraint the model needs to know: how to begin
-  const startHint = midWord
-    ? 'The cursor is mid-word — continue that word directly with no leading space.'
-    : 'Continue seamlessly from the cursor.';
-
-  return `You are completing a piece of creative writing. Insert text at [CURSOR] that flows naturally from what came before.
-
-${prefix}[CURSOR]${suffix}
-
-${startHint} Write flowing prose — do not add line breaks in the middle of sentences, only at genuine paragraph breaks. Match the author's voice and style. Output only the completion, nothing else.`;
 }

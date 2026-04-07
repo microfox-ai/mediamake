@@ -171,8 +171,8 @@ function makeFetchPlugin(apiUrl: string, getFileName: () => string) {
           if (!res.ok) return;
 
           const data = await res.json() as { completion?: string };
-          // trimEnd only — preserve any leading \n so the completion is
-          // inserted on a new line (and rendered there in the ghost widget).
+          // trimEnd only — preserve any leading \n so next-line completions
+          // render below the cursor in the ghost widget.
           const completion = (data.completion ?? '').trimEnd();
 
           if (completion && view.state.selection.main.head === pos) {

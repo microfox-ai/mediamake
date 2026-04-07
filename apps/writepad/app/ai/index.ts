@@ -7,53 +7,59 @@ import {
   streamText,
 } from 'ai';
 import dedent from 'dedent';
-import { braveResearchAgent } from './agents/braveResearch';
-import { summarizeAgent } from './agents/summarize';
+import { editorAgent } from './agents/editor';
 import { systemAgent } from './agents/system';
-import { thinkerAgent } from './agents/thinker';
 import { contextLimiter } from './middlewares/contextLimiter';
 import { onlyTextParts } from './middlewares/onlyTextParts';
 
 const aiRouter = new AiRouter(undefined, undefined);
 // aiRouter.setLogger(console);
 
-// import { aiWorkflowRouter as workflowRouter } from './agents/workflows/shared';
-
 const aiMainRouter = aiRouter
   .agent('/system', systemAgent)
-  .agent('/summarize', summarizeAgent)
-  .agent('/research', braveResearchAgent)
-  .agent('/thinker', thinkerAgent)
+  .agent('/editor', editorAgent)
   // Mount workflow router as sub-router
   // .agent('/workflows', workflowRouter)
   .before('/', contextLimiter(5))
   .before('/', onlyTextParts(100))
   .agent('/', async (props: any) => {
-    // show a loading indicator
-    props.response.writeMessageMetadata({
-      loader: 'Thinking...',
-    });
+    props.response.writeMessageMetadata({ loader: 'Thinking...' });
 
-    // main orchestration as a stream
     const stream = streamText({
-      model: google('gemini-2.5-pro'),
+      model: google('gemini-pro-latest'),
       system: dedent`
-          You are a helpful assistant that can use the following tools to help the user
-          
-        `,
+        You are an AI orchestrator inside Writepad, a creative writing IDE.
+        Your only job is to route user requests to the correct agent tool.
+
+        ## AVAILABLE AGENTS
+
+        ### editor
+        The primary AI writing assistant. Use it for EVERY request that involves:
+        - Reading, editing, creating, or deleting project files/folders
+        - Writing, rewriting, improving, or expanding prose or content
+        - Suggesting structural changes to a manuscript (chapters, scenes, sections)
+        - Answering questions about the content of the project files
+        - Applying .writepad rules or style guides to the writing
+        - Any other writing or file-management task within the project
+
+        The editor agent has its own sub-tools (read_file, search_file, create_file, delete_file)
+        and produces streaming XML edit blocks that the client renders as diff proposals.
+        Pass the full user message as-is — do not summarise or alter it.
+
+        ## ROUTING RULES
+        - When in doubt, always delegate to the editor agent.
+        - Do NOT answer writing or file questions yourself — always delegate.
+        - Only respond directly for meta questions about Writepad itself (e.g. "what can you do?").
+      `,
       messages: convertToModelMessages(
         props.state.onlyTextMessages || props.request.messages,
       ),
       tools: {
-        // attach the agents you need
-        ...props.next.agentAsTool('/thinker'),
-        ...props.next.agentAsTool('/summarize'),
-        ...props.next.agentAsTool('/research'),
+        ...props.next.agentAsTool('/editor'),
       },
       toolChoice: 'auto',
-      // stop conditions
       stopWhen: [
-        stepCountIs(10),
+        stepCountIs(5),
         ({ steps }) =>
           steps.some((step) =>
             step.toolResults.some((tool: any) => tool.output?._isFinal),
@@ -67,7 +73,6 @@ const aiMainRouter = aiRouter
       },
     });
 
-    // merge the stream to the response
     props.response.merge(
       stream.toUIMessageStream({
         sendFinish: false,
@@ -76,11 +81,8 @@ const aiMainRouter = aiRouter
     );
   });
 
-// console.log('--------REGISTRY--------');
 const aiRouterRegistry = aiMainRouter.registry();
-// console.log('Workflow paths:', Object.keys(aiRouterRegistry.map).filter(p => p.includes('workflow')));
 const aiRouterTools = aiRouterRegistry.tools;
 type AiRouterTools = InferUITools<typeof aiRouterTools>;
-// console.log('--------REGISTRY--------');
 
 export { aiMainRouter, aiRouterRegistry, aiRouterTools, type AiRouterTools };
