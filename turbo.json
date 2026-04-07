@@ -2,6 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": [
     "NODE_ENV",
+    "WORKER_BASE_URL",
+    "WORKER_UPSTASH_REDIS_REST_URL",
+    "WORKER_UPSTASH_REDIS_REST_TOKEN",
+    "WORKER_DATABASE_TYPE",
+    "DATABASE_TYPE",
     "GOOGLE_GENERATIVE_AI_API_KEY",
     "REMOTION_AWS_ACCESS_KEY_ID",
     "REMOTION_AWS_SECRET_ACCESS_KEY",
@@ -19,6 +24,11 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
       "env": [
         "NODE_ENV",
+        "WORKER_BASE_URL",
+        "WORKER_UPSTASH_REDIS_REST_URL",
+        "WORKER_UPSTASH_REDIS_REST_TOKEN",
+        "WORKER_DATABASE_TYPE",
+        "DATABASE_TYPE",
         "GOOGLE_GENERATIVE_AI_API_KEY",
         "REMOTION_AWS_ACCESS_KEY_ID",
         "REMOTION_AWS_SECRET_ACCESS_KEY",

@@ -10,6 +10,15 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer, webpack }) => {
+    if (!isServer) {
+      config.plugins.push(
+        // The browser bundle does not need the Node MongoDB driver.
+        new webpack.IgnorePlugin({ resourceRegExp: /^mongodb$/ }),
+      );
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
