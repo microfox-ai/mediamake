@@ -55,4 +55,30 @@ export const StudioConfig = {
       },
     },
   },
+  deploymentConfig: {
+    projectId: "90697d26-eedd-4049-a767-40290396740f",
+    publish: {
+      subdomain: "writepad",
+      agentName: "writepad",
+      handles: {
+        agent: "/agent",
+        openapi: "/docs.json",
+        public: "/public"
+      }
+    },
+    deployment: {
+      apiMode: 'staging',
+      apiVersion: 'v2',
+      ignorePatterns: ['.build/**', 'package-lock.json'],
+    },
+    worker: {
+      externalDeps: ["@microfox/puppeteer-sls", "@sparticuz/chromium", "sharp"],
+      includeNodeModules: false,
+      groups: {
+        scraper: {
+          includeNodeModules: true
+        }
+      }
+    }
+  },
 };
