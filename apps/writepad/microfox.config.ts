@@ -1,7 +1,7 @@
 export const StudioConfig = {
-  appName: 'Media Make',
+  appName: 'Writepad',
   appDescription:
-    'MediaMake is an opensource project for creating & rendering videos with AIrouter & datamotion which is built on top of remotion.',
+    'AI-powered creative writing studio for scripts, screenplays, ideas, and any creative writing with intelligent workflows, auto-correction, and contextual suggestions.',
   projectInfo: {
     framework: 'next-js',
   },
@@ -34,7 +34,7 @@ export const StudioConfig = {
         db:
           process.env.DATABASE_MONGODB_DB ||
           process.env.MONGODB_DB ||
-          'mediamake',
+          'writepad',
         workerJobsCollection:
           process.env.MONGODB_WORKER_JOBS_COLLECTION || 'worker_jobs',
         workflowStatusCollection:
@@ -56,10 +56,10 @@ export const StudioConfig = {
     },
   },
   deploymentConfig: {
-    projectId: "4f360563-0f8c-4897-88dd-f87e8eb30922",
+    projectId: "90697d26-eedd-4049-a767-40290396740f",
     publish: {
-      subdomain: "mediamake",
-      agentName: "mediamake",
+      subdomain: "writepad",
+      agentName: "writepad",
       handles: {
         agent: "/agent",
         openapi: "/docs.json",
@@ -75,10 +75,7 @@ export const StudioConfig = {
       externalDeps: ["@microfox/puppeteer-sls", "@sparticuz/chromium", "sharp"],
       includeNodeModules: false,
       groups: {
-        sparkboard: {
-          includeNodeModules: true
-        },
-        ffmpeg: {
+        scraper: {
           includeNodeModules: true
         }
       }
