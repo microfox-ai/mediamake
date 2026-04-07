@@ -1,5 +1,4 @@
 import { aiMainRouter } from '@/app/ai';
-import { UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 
 //get example: http://localhost:3000/api/studio/chat/agent/thinker/questions?userIntent=
@@ -48,10 +47,6 @@ export async function POST(req: NextRequest) {
     typeof body?.params === 'object' && body.params !== null
       ? { ...body.params, ...paramsFromQuery }
       : paramsFromQuery;
-
-  const lastMessage = body.messages?.[body.messages.length - 1] as UIMessage<{
-    revalidatePath?: string;
-  }>;
 
   return await aiMainRouter.toAwaitResponse(agentPath, {
     request: {
