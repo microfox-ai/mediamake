@@ -355,7 +355,7 @@ So the AI always sees the **most current version** of every file, including in-p
 
 ---
 
-## 2. Inline Autocomplete — `/api/editor/autocomplete`
+## 2. Inline Autocomplete — `/api/studio/chat/agent/editor/autocomplete`
 
 ### Request body
 

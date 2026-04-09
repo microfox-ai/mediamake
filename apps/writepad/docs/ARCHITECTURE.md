@@ -79,7 +79,7 @@ Loaded via `next/dynamic` with `ssr: false` (requires DOM). Configured in `CodeM
 - `EditorView.theme()` — applies font family, size, line-height to `.cm-content` / `.cm-gutters`
 - `autocompletion` — markdown snippet completions + document word list
 - `@codemirror/search` — integrated with `SearchReplaceBar`
-- `ghostTextExtension` — inline completions from `/api/editor/autocomplete`
+- `ghostTextExtension` — inline completions from `/api/studio/chat/agent/editor/autocomplete`
 - `Prec.highest(keymap)` — custom keybindings take priority over basic setup
 
 **Custom keybindings:**
@@ -135,7 +135,7 @@ Sub-agents: `thinker`, `summarize`, `braveResearch`, `system`.
 
 ### 2. Autocomplete
 
-**Path:** `ghostTextExtension` in CodeMirrorEditor → `POST /api/editor/autocomplete`
+**Path:** `ghostTextExtension` in CodeMirrorEditor → `POST /api/studio/chat/agent/editor/autocomplete`
 
 - Model: `gemini-flash-latest`
 - Max tokens: 120
