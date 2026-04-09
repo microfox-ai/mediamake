@@ -46,9 +46,12 @@ import {
   Minus,
   Save,
   MessageSquare,
+  Wand2,
+  Keyboard,
 } from 'lucide-react';
 import type { CodeMirrorEditorHandle } from './CodeMirrorEditor';
 import type { SelectionContext } from './types';
+import { WORD_HELPERS } from './wordHelpers';
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -58,6 +61,8 @@ interface EditorContextMenuProps {
   onFormat: (type: string) => void;
   onSave: () => void;
   onContextSelect: (ctx: SelectionContext) => void;
+  onWordHelper: (agentId: string) => void;
+  onShowShortcuts: () => void;
 }
 
 export function EditorContextMenu({
@@ -68,6 +73,8 @@ export function EditorContextMenu({
   onFormat,
   onSave,
   onContextSelect,
+  onWordHelper,
+  onShowShortcuts,
 }: EditorContextMenuProps) {
   const [goToLineOpen, setGoToLineOpen] = useState(false);
 
@@ -224,12 +231,39 @@ export function EditorContextMenu({
           <ContextMenuShortcut>Ctrl+S</ContextMenuShortcut>
         </ContextMenuItem>
 
-        {/* ── 5. AI Chat ───────────────────────────────────────────── */}
+        {/* ── 5. Word Tools submenu ────────────────────────────────── */}
+        <ContextMenuSeparator />
+
+        <ContextMenuSub>
+          <ContextMenuSubTrigger disabled={disabled}>
+            <Wand2 size={14} /> Word Tools
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-56">
+            {WORD_HELPERS.map((helper) => (
+              <ContextMenuItem
+                key={helper.id}
+                onClick={() => onWordHelper(helper.id)}
+              >
+                {helper.label}
+                <ContextMenuShortcut>{helper.shortcutDisplay}</ContextMenuShortcut>
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+
+        {/* ── 6. AI Chat ───────────────────────────────────────────── */}
         <ContextMenuSeparator />
 
         <ContextMenuItem disabled={disabled} onClick={handleSendToChat}>
           <MessageSquare size={14} /> Send Selection to Chat
           <ContextMenuShortcut>Ctrl+L</ContextMenuShortcut>
+        </ContextMenuItem>
+
+        {/* ── 7. Help ──────────────────────────────────────────────── */}
+        <ContextMenuSeparator />
+
+        <ContextMenuItem onClick={onShowShortcuts}>
+          <Keyboard size={14} /> Keyboard Shortcuts
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
