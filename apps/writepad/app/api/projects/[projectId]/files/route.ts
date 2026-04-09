@@ -4,6 +4,7 @@ import {
   projectsCol,
   projectFilesCol,
   hasAccess,
+  canEditProject,
   isValidId,
   toObjectId,
   serialize,
@@ -55,8 +56,10 @@ export async function POST(
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!await guardProject(projectId, clientId))
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const project = await guardProject(projectId, clientId);
+  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!canEditProject(project, clientId))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json() as {
     name?: string;
