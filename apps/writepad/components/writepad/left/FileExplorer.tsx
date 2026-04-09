@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, GitBranch, FilePlus, FolderPlus, SearchCode } from 'lucide-react';
+import { Search, GitBranch, FilePlus, FolderPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileTreeNode } from './FileTreeNode';
 import { GlobalSearch } from './GlobalSearch';
+import { AgentsPanel } from './AgentsPanel';
 import { FileOperationDialog, type DialogState } from './FileOperationDialog';
 import { flattenFiles } from '@/components/writepad/utils';
 import type { FileNode } from './types';
@@ -12,6 +13,8 @@ import type { FileContextMenuActions } from './FileContextMenu';
 import type { OpenTab } from '@/components/writepad/middle/types';
 
 interface FileExplorerProps {
+  projectId: string;
+  activeAgentId: string | null;
   files: FileNode[];
   activeFileId: string | null;
   unsavedIds: Set<string>;
@@ -27,11 +30,14 @@ interface FileExplorerProps {
   onRename: (nodeId: string, newName: string) => void;
   onDelete: (nodeId: string) => void;
   onMove: (nodeId: string, newParentId: string | null) => void;
+  onOpenAgent: (agentId: string) => void;
 }
 
-type PanelView = 'explorer' | 'search';
+type PanelView = 'explorer' | 'search' | 'agents';
 
 export function FileExplorer({
+  projectId,
+  activeAgentId,
   files,
   activeFileId,
   unsavedIds,
@@ -47,6 +53,7 @@ export function FileExplorer({
   onRename,
   onDelete,
   onMove,
+  onOpenAgent,
 }: FileExplorerProps) {
   const [view, setView] = useState<PanelView>('explorer');
   const [search, setSearch] = useState('');
@@ -74,32 +81,42 @@ export function FileExplorer({
   return (
     <div className="flex h-full flex-col bg-card select-none">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-2 py-1">
-        {/* View tabs */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setView('explorer')}
-            className={cn(
-              'rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
-              view === 'explorer' ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-muted-foreground',
-            )}
-          >
-            Explorer
-          </button>
-          <button
-            onClick={() => setView('search')}
-            className={cn(
-              'rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
-              view === 'search' ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-muted-foreground',
-            )}
-          >
-            Search
-          </button>
+      <div className="shrink-0 border-b border-border">
+        <div className="flex items-center px-2 py-1">
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setView('explorer')}
+              className={cn(
+                'rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
+                view === 'explorer' ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-muted-foreground',
+              )}
+            >
+              Explorer
+            </button>
+            <button
+              onClick={() => setView('search')}
+              className={cn(
+                'rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
+                view === 'search' ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-muted-foreground',
+              )}
+            >
+              Search
+            </button>
+            <button
+              onClick={() => setView('agents')}
+              className={cn(
+                'rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors',
+                view === 'agents' ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-muted-foreground',
+              )}
+            >
+              Agents
+            </button>
+          </div>
         </div>
 
-        {/* Action buttons (explorer only) */}
+        {/* Explorer-only actions on second row */}
         {view === 'explorer' && (
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 border-t border-border/50 px-2 py-1">
             <button
               title="Toggle diff — unsaved changes"
               onClick={() => setShowDiff((x) => !x)}
@@ -121,13 +138,6 @@ export function FileExplorer({
             >
               <FolderPlus size={13} />
             </button>
-            <button
-              title="Global search"
-              onClick={() => setView('search')}
-              className="rounded p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-            >
-              <SearchCode size={13} />
-            </button>
           </div>
         )}
       </div>
@@ -140,6 +150,10 @@ export function FileExplorer({
           onReplaceOne={onReplaceOne}
           onReplaceAll={onReplaceAll}
         />
+      ) : view === 'agents' ? (
+        <div className="min-h-0 flex-1">
+          <AgentsPanel projectId={projectId} activeAgentId={activeAgentId} onOpenAgent={onOpenAgent} />
+        </div>
       ) : (
         <>
           {/* File name filter */}
