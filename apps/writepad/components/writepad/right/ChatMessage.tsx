@@ -1,7 +1,16 @@
 'use client';
 
 import type { UIMessage } from 'ai';
-import { FilePlus, Trash2, Eye, Search, Loader2, FolderPlus, Check } from 'lucide-react';
+import {
+  FilePlus,
+  Trash2,
+  Eye,
+  Search,
+  Loader2,
+  FolderPlus,
+  Check,
+  Globe,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AIChangeBlock } from './AIChangeBlock';
 import type { AIChange, MessageMeta, ContextAttachment } from './types';
@@ -58,6 +67,23 @@ export function ChatMessage({
       <div className="flex flex-col gap-1.5">
         {message.parts.map((part, i) => {
           if (part.type === 'step-start') return null;
+
+          if (part.type === 'reasoning') {
+            const r = part as { type: 'reasoning'; text: string };
+            const t = r.text?.trim();
+            if (!t) return null;
+            return (
+              <details
+                key={i}
+                className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground/90"
+              >
+                <summary className="cursor-pointer select-none font-medium text-muted-foreground">
+                  Model reasoning
+                </summary>
+                <p className="mt-2 whitespace-pre-wrap leading-relaxed text-muted-foreground/80">{r.text}</p>
+              </details>
+            );
+          }
 
           if (part.type === 'text') {
             const text = (part as { type: 'text'; text: string }).text;
@@ -197,6 +223,47 @@ function ToolWidget({
         {isPending && <Loader2 size={10} className="animate-spin text-muted-foreground/30 shrink-0" />}
         {isDone && matchCount !== null && (
           <span className="shrink-0 text-[10px] text-muted-foreground/50">{matchCount} match{matchCount !== 1 ? 'es' : ''}</span>
+        )}
+      </div>
+    );
+  }
+
+  if (toolName === 'web_search') {
+    const query = String(inp.query ?? out.query ?? '…');
+    const sourceCount = out.sourceCount != null ? Number(out.sourceCount) : null;
+    const summary =
+      typeof out.summary === 'string' && out.summary.trim().length > 0
+        ? out.summary.trim()
+        : '';
+    const preview = summary.length > 180 ? `${summary.slice(0, 177)}…` : summary;
+    return (
+      <div
+        className={cn(
+          'rounded-md border px-2.5 py-2 text-[11px]',
+          isDone ? 'border-sky-500/25 bg-sky-500/5' : 'border-border bg-muted/20',
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Globe size={11} className="shrink-0 text-sky-500/70" />
+          <span className="min-w-0 flex-1 truncate text-foreground/80">
+            Web search: <em className="not-italic text-foreground">"{query}"</em>
+          </span>
+          {isPending && <Loader2 size={10} className="animate-spin text-muted-foreground/30 shrink-0" />}
+          {isDone && sourceCount !== null && (
+            <span className="shrink-0 text-[10px] text-muted-foreground/60">
+              {sourceCount} source{sourceCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {isError && (
+            <span className="shrink-0 rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-500">
+              Failed
+            </span>
+          )}
+        </div>
+        {isDone && preview && (
+          <p className="mt-1.5 whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground/80">
+            {preview}
+          </p>
         )}
       </div>
     );

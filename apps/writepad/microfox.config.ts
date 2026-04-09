@@ -1,3 +1,5 @@
+import { resolveWritepadMongoDbName } from './lib/db/mongoDbName';
+
 export const StudioConfig = {
   appName: 'Writepad',
   appDescription:
@@ -31,10 +33,9 @@ export const StudioConfig = {
           | 'upstash-redis') || 'upstash-redis',
       mongodb: {
         uri: process.env.DATABASE_MONGODB_URI || process.env.MONGODB_URI,
-        db:
-          process.env.DATABASE_MONGODB_DB ||
-          process.env.MONGODB_DB ||
-          'writepad',
+        db: resolveWritepadMongoDbName(
+          process.env.DATABASE_MONGODB_URI || process.env.MONGODB_URI || '',
+        ),
         workerJobsCollection:
           process.env.MONGODB_WORKER_JOBS_COLLECTION || 'worker_jobs',
         workflowStatusCollection:

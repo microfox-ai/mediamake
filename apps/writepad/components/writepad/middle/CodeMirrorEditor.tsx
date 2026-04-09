@@ -33,6 +33,7 @@ import {
   findPrevious,
 } from '@codemirror/search';
 import { ghostTextExtension } from './ghostText';
+import { wordHelperExtension, type WordHelperRequest } from './wordHelperExtension';
 import type { SelectionContext } from './types';
 
 // ─── Markdown snippet completions ────────────────────────────────────────────
@@ -90,6 +91,12 @@ export interface CodeMirrorEditorHandle {
   goToOffset: (offset: number) => void;
   focus: () => void;
   getSelectedText: () => string;
+  /** Replace a range in the document (used by word helper popup to swap words). */
+  replaceRange: (from: number, to: number, text: string) => void;
+  /** CM doc positions of the current main selection. */
+  getSelectionRange: () => { from: number; to: number } | null;
+  /** Screen coords of the current selection start (for popup positioning). */
+  getSelectionCoords: () => { top: number; left: number; bottom: number } | null;
   setSearch: (query: string, caseSensitive: boolean, isRegex: boolean) => void;
   findNextMatch: () => void;
   findPrevMatch: () => void;
@@ -102,16 +109,19 @@ interface CodeMirrorEditorProps {
   content: string;
   fileName: string;
   fileId: string;
+  projectId?: string;
   prefs: EditorPreferences;
   onChange: (value: string) => void;
   onSave: () => void;
   onToggleSearch: () => void;
   onContextSelect: (ctx: SelectionContext) => void;
   onPrefsChange: (update: Partial<EditorPreferences>) => void;
+  onWordHelper: (req: WordHelperRequest) => void;
+  writepadRules?: string | null;
 }
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(
-  function CodeMirrorEditor({ content, fileName, fileId, prefs, onChange, onSave, onToggleSearch, onContextSelect, onPrefsChange }, ref) {
+  function CodeMirrorEditor({ content, fileName, fileId, projectId, prefs, onChange, onSave, onToggleSearch, onContextSelect, onPrefsChange, onWordHelper, writepadRules }, ref) {
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +131,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     const onToggleSearchRef = useRef(onToggleSearch);
     const onContextSelectRef = useRef(onContextSelect);
     const onPrefsChangeRef = useRef(onPrefsChange);
+    const onWordHelperRef = useRef(onWordHelper);
+    const writepadRulesRef = useRef(writepadRules);
+    const projectIdRef = useRef(projectId);
     const prefsRef = useRef(prefs);
     const fileIdRef = useRef(fileId);
     const fileNameRef = useRef(fileName);
@@ -129,6 +142,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     useEffect(() => { onToggleSearchRef.current = onToggleSearch; }, [onToggleSearch]);
     useEffect(() => { onContextSelectRef.current = onContextSelect; }, [onContextSelect]);
     useEffect(() => { onPrefsChangeRef.current = onPrefsChange; }, [onPrefsChange]);
+    useEffect(() => { onWordHelperRef.current = onWordHelper; }, [onWordHelper]);
+    useEffect(() => { writepadRulesRef.current = writepadRules; }, [writepadRules]);
+    useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
     useEffect(() => { prefsRef.current = prefs; }, [prefs]);
     useEffect(() => { fileIdRef.current = fileId; }, [fileId]);
     useEffect(() => { fileNameRef.current = fileName; }, [fileName]);
@@ -198,6 +214,30 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         const sel = view.state.selection.main;
         return view.state.sliceDoc(sel.from, sel.to);
       },
+      replaceRange(from: number, to: number, text: string) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.dispatch({
+          changes: { from, to, insert: text },
+          selection: { anchor: from + text.length },
+        });
+        view.focus();
+      },
+      getSelectionRange() {
+        const view = cmRef.current?.view;
+        if (!view) return null;
+        const sel = view.state.selection.main;
+        if (sel.empty) return null;
+        return { from: sel.from, to: sel.to };
+      },
+      getSelectionCoords() {
+        const view = cmRef.current?.view;
+        if (!view) return null;
+        const pos = view.state.selection.main.from;
+        const coords = view.coordsAtPos(pos);
+        if (!coords) return null;
+        return { top: coords.top, left: coords.left, bottom: coords.bottom };
+      },
       setSearch(query: string, caseSensitive: boolean, isRegex: boolean) {
         const view = cmRef.current?.view;
         if (!view) return;
@@ -254,7 +294,19 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
 
     // Ghost text — recreated per file (component remounts via key={fileId})
     const ghostText = useMemo(
-      () => ghostTextExtension('/api/editor/autocomplete', () => fileNameRef.current),
+      () => ghostTextExtension(
+        '/api/studio/chat/agent/editor/autocomplete',
+        () => fileNameRef.current,
+        () => projectIdRef.current,
+        () => writepadRulesRef.current ?? undefined,
+      ),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [],
+    );
+
+    // Word helper shortcuts (Alt+S, Alt+R, …) — stable, reads callback via ref
+    const wordHelper = useMemo(
+      () => wordHelperExtension((req) => onWordHelperRef.current(req)),
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     );
@@ -293,9 +345,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         autocompletion({ override: [markdownCompletions] }),
         search({ top: false }),
         ghostText,
+        wordHelper,
         customKeymap,
       ],
-      [customKeymap, ghostText, wrapExt, fontTheme],
+      [customKeymap, ghostText, wordHelper, wrapExt, fontTheme],
     );
 
     const cmTheme = prefs.theme === 'light' ? vscodeLight : vscodeDark;

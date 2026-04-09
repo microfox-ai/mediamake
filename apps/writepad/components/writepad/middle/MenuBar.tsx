@@ -45,25 +45,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PreferencesDialog } from './PreferencesDialog';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import type { EditorPreferences, EditorTheme } from '@/hooks/useEditorPreferences';
 import { Loader2 } from 'lucide-react';
 
-// ── Keyboard shortcut dialog ──────────────────────────────────────────────────
-
-const SHORTCUTS = [
-  { key: 'Ctrl+S', desc: 'Save active file' },
-  { key: 'Ctrl+Shift+S', desc: 'Save all files' },
-  { key: 'Ctrl+F', desc: 'Find / replace in file' },
-  { key: 'Ctrl+L', desc: 'Send selected text to AI chat' },
-  { key: 'Ctrl+P', desc: 'Toggle markdown preview' },
-  { key: 'Ctrl+Z', desc: 'Undo' },
-  { key: 'Ctrl+Y', desc: 'Redo' },
-  { key: 'Ctrl+A', desc: 'Select all' },
-  { key: 'Ctrl+B', desc: 'Bold' },
-  { key: 'Ctrl+I', desc: 'Italic' },
-  { key: 'Enter (chat)', desc: 'Send AI message' },
-  { key: 'Shift+Enter (chat)', desc: 'New line in chat' },
-];
+// ── Keyboard shortcut dialog ─── see ShortcutsDialog.tsx ─────────────────────
 
 // ── Project settings dialog ───────────────────────────────────────────────────
 
@@ -253,31 +239,6 @@ function DeleteProjectDialog({ projectName, onClose, onConfirm }: DeleteProjectD
   );
 }
 
-// ── Shortcuts dialog ──────────────────────────────────────────────────────────
-
-function ShortcutsDialog({ onClose }: { onClose: () => void }) {
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Keyboard Shortcuts</DialogTitle></DialogHeader>
-        <div className="py-2">
-          <table className="w-full text-sm">
-            <tbody>
-              {SHORTCUTS.map(({ key, desc }) => (
-                <tr key={key} className="border-b border-border/40 last:border-0">
-                  <td className="py-2 pr-4">
-                    <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{key}</kbd>
-                  </td>
-                  <td className="py-2 text-muted-foreground">{desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── MenuBar props ─────────────────────────────────────────────────────────────
 
@@ -299,6 +260,7 @@ export interface MenuBarProps {
   onDuplicateProject: () => void;
   onDeleteProject: () => void;
   onProjectNameChanged: (name: string) => void;
+  onShare: () => void;
   // Edit actions (forwarded to editor ref)
   onFormat: (type: string) => void;
   onSelectAll: () => void;
@@ -331,6 +293,7 @@ export function MenuBar({
   onDuplicateProject,
   onDeleteProject,
   onProjectNameChanged,
+  onShare,
   onFormat,
   onSelectAll,
   onGoToLine,
@@ -535,6 +498,16 @@ export function MenuBar({
               <MenubarSeparator />
               <MenubarItem onSelect={() => setShowPrefs(true)}>
                 Preferences… <MenubarShortcut>Ctrl+,</MenubarShortcut>
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+
+          {/* ── HELP ─────────────────────────────────────────────────── */}
+          <MenubarMenu>
+            <MenubarTrigger className="text-xs px-2.5 py-1.5 rounded-sm">Share</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem onSelect={onShare}>
+                Manage Project Access…
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>

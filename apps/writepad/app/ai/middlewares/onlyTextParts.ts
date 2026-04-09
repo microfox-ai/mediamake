@@ -1,4 +1,4 @@
-import { AiMiddleware, getTextParts } from '@microfox/ai-router';
+import { AiMiddleware } from '@microfox/ai-router';
 import { UIMessage } from 'ai';
 
 /**
@@ -11,14 +11,16 @@ export const onlyTextParts = (maxTotalTextLength: number) => {
   const middleware: AiMiddleware = async (props, next) => {
     const messages = props.request.messages;
 
-    // First, collect all assistant message text parts and calculate total length
+    // Build a text-only context for the model.
+    // Gemini can reject historical function-call turns if ordering is not exact.
+    // We keep rich/tool parts in UI persistence, but remove them from model context.
     const assistantTextParts: string[] = [];
     let totalAssistantTextLength = 0;
 
     messages.forEach((message) => {
       if (message.role === 'assistant') {
         message.parts
-          .filter((part) => part.type === 'text')
+          .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
           .forEach((part) => {
             assistantTextParts.push(part.text);
             totalAssistantTextLength += part.text.length;
@@ -34,32 +36,25 @@ export const onlyTextParts = (maxTotalTextLength: number) => {
 
     const onlyTextMessages: UIMessage<any, any, any>[] = messages.map(
       (message) => {
-        if (message.role === 'user') {
-          // Keep all text parts for user messages
-          return {
-            ...message,
-            parts: message.parts.filter((part) => part.type === 'text'),
-          };
-        } else if (message.role === 'assistant') {
-          // For assistant messages, truncate text parts proportionally if needed
-          return {
-            ...message,
-            parts: message.parts
-              .filter((part) => part.type === 'text')
-              .map((part) => ({
-                ...part,
-                text: truncationNeeded
-                  ? part.text.slice(
-                      0,
-                      Math.floor(part.text.length * truncationRatio),
-                    )
-                  : part.text,
-              })),
-          };
-        } else {
-          // For other message types, keep as is
-          return message;
-        }
+        // Keep text parts only for all roles in model context.
+        const textParts = message.parts.filter(
+          (part): part is { type: 'text'; text: string } => part.type === 'text',
+        );
+        return {
+          ...message,
+          parts: textParts.map((part) => {
+            if (message.role !== 'assistant') return part;
+            return {
+              type: 'text',
+              text: truncationNeeded
+                ? part.text.slice(
+                    0,
+                    Math.floor(part.text.length * truncationRatio),
+                  )
+                : part.text,
+            };
+          }),
+        };
       },
     );
 

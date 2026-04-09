@@ -7,12 +7,15 @@ import { TabBar } from './TabBar';
 import { EditorToolbar } from './EditorToolbar';
 import { SearchReplaceBar } from './SearchReplaceBar';
 import { EditorContextMenu } from './EditorContextMenu';
+import { WordHelperPopup, type WordHelperState } from './WordHelperPopup';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { MarkdownPreview } from './MarkdownPreview';
 import { DiffPane } from './DiffPane';
 import { AllChangesPane } from './AllChangesPane';
 import { InlineDiffView } from './InlineDiffView';
 import type { OpenTab, SelectionContext, DiffViewState } from './types';
 import type { CodeMirrorEditorHandle } from './CodeMirrorEditor';
+import type { WordHelperRequest } from './wordHelperExtension';
 import type { EditorPreferences } from '@/hooks/useEditorPreferences';
 
 const CodeMirrorEditor = dynamic(
@@ -28,6 +31,7 @@ const CodeMirrorEditor = dynamic(
 );
 
 interface EditorPaneProps {
+  projectId: string;
   tabs: OpenTab[];
   activeTab: OpenTab | null;
   activeFileId: string | null;
@@ -58,9 +62,12 @@ interface EditorPaneProps {
   editorHandleRef?: React.RefObject<CodeMirrorEditorHandle | null>;
   /** Expose search toggle to parent (MenuBar calls it) */
   onToggleSearch?: () => void;
+  /** Content of .writepad/rules.md — injected into all AI prompts. */
+  writepadRules?: string | null;
 }
 
 export function EditorPane({
+  projectId,
   tabs,
   activeTab,
   activeFileId,
@@ -88,12 +95,72 @@ export function EditorPane({
   onShowDraftDiff,
   editorHandleRef,
   onToggleSearch: externalToggleSearch,
+  writepadRules,
 }: EditorPaneProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [reviewingDiff, setReviewingDiff] = useState(false);
+  const [wordHelperState, setWordHelperState] = useState<WordHelperState | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const internalEditorRef = useRef<CodeMirrorEditorHandle>(null);
   // Use external ref if provided (so MenuBar can call editor methods), else internal
   const editorRef = (editorHandleRef ?? internalEditorRef) as React.RefObject<CodeMirrorEditorHandle | null>;
+
+  // ── Word helper flow ───────────────────────────────────────────────────────
+
+  const handleWordHelper = useCallback(async (req: WordHelperRequest) => {
+    // Show popup immediately with loading state
+    setWordHelperState({
+      agentId: req.agentId,
+      word: req.word,
+      from: req.from,
+      to: req.to,
+      coords: req.coords,
+      suggestions: [],
+      loading: true,
+    });
+
+    try {
+      const res = await fetch('/api/studio/chat/agent/editor/word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: req.word,
+          context: req.context,
+          agent: req.agentId,
+          projectId,
+          writepadRules: writepadRules ?? undefined,
+        }),
+      });
+      const data = await res.json() as { suggestions?: string[] };
+      setWordHelperState((prev) =>
+        prev ? { ...prev, loading: false, suggestions: data.suggestions ?? [] } : null,
+      );
+    } catch {
+      setWordHelperState((prev) =>
+        prev ? { ...prev, loading: false, error: 'Failed to fetch suggestions' } : null,
+      );
+    }
+  }, []);
+
+  // Called from context menu — reads selection state directly from the handle
+  const handleWordHelperFromMenu = useCallback((agentId: string) => {
+    const handle = editorRef.current;
+    if (!handle) return;
+    const word = handle.getSelectedText().trim();
+    if (!word) return;
+    const range = handle.getSelectionRange();
+    if (!range) return;
+    const coords = handle.getSelectionCoords();
+    if (!coords) return;
+    handleWordHelper({ agentId, word, from: range.from, to: range.to, context: '', coords });
+  }, [editorRef, handleWordHelper]);
+
+  // Resolve from/to for context-menu-triggered requests (word was not captured via CM)
+  const handleWordHelperSelect = useCallback((suggestion: string, from: number, to: number) => {
+    editorRef.current?.replaceRange(from, to, suggestion);
+    setWordHelperState(null);
+  }, [editorRef]);
+
 
   // Ctrl+S: first press drafts the file; second press (when drafted & not unsaved) commits it.
   const handleSave = useCallback(() => {
@@ -247,6 +314,8 @@ export function EditorPane({
           onFormat={(type) => editorRef.current?.applyFormat(type as Parameters<CodeMirrorEditorHandle['applyFormat']>[0])}
           onSave={handleSave}
           onContextSelect={onContextSelect}
+          onWordHelper={handleWordHelperFromMenu}
+          onShowShortcuts={() => setShowShortcuts(true)}
         >
           <div className="relative flex-1 overflow-hidden">
             {activeTab ? (
@@ -256,12 +325,15 @@ export function EditorPane({
                 content={activeTab.content}
                 fileName={activeTab.name}
                 fileId={activeTab.fileId}
+                projectId={projectId}
                 prefs={prefs}
                 onChange={(value) => onContentChange(activeTab.fileId, value)}
                 onSave={handleSave}
                 onToggleSearch={handleToggleSearch}
                 onContextSelect={onContextSelect}
                 onPrefsChange={onPrefsChange}
+                onWordHelper={handleWordHelper}
+                writepadRules={writepadRules}
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center text-muted-foreground/50">
@@ -269,9 +341,18 @@ export function EditorPane({
                 <p className="mt-1 text-xs">Select a file from the explorer</p>
               </div>
             )}
+            {wordHelperState && (
+              <WordHelperPopup
+                state={wordHelperState}
+                onSelect={handleWordHelperSelect}
+                onClose={() => setWordHelperState(null)}
+              />
+            )}
           </div>
         </EditorContextMenu>
       )}
+
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
 
       {/* Status bar — violet in both themes */}
       <div className="flex shrink-0 items-center justify-between bg-violet-700 px-3 py-0.5 text-[11px] text-white/90">

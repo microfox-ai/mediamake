@@ -4,14 +4,13 @@
  * How it works:
  *  1. A ViewPlugin watches every document/selection change.
  *  2. After 500 ms of inactivity it sends the text before & after the cursor
- *     to /api/editor/autocomplete.
- *  3. The response is stored in a StateField and rendered as a gray italic
+ *     to /api/studio/chat/agent/editor/autocomplete.
+ *  3. The response is stored in a StateField and rendered as a ghost italic
  *     widget after the cursor. `white-space: pre` means any leading \n in the
- *     completion is rendered as a real visual line break, so next-line
- *     suggestions appear below the cursor — not appended on the same line.
- *  4. Tab accepts the suggestion (inserts the FULL text, newlines included).
- *     Escape dismisses it.
- *  5. Any doc change or cursor movement cancels the request and clears ghost.
+ *     completion is rendered as a real visual line break.
+ *  4. Tab accepts the suggestion. Escape dismisses it.
+ *  5. Alt+G manually triggers a new (different) suggestion immediately.
+ *     The keymap and fetch logic share a closure — no fragile StateEffect IPC.
  */
 
 import { Extension, Prec, StateEffect, StateField } from '@codemirror/state';
@@ -50,8 +49,6 @@ class GhostTextWidget extends WidgetType {
     const span = document.createElement('span');
     span.className = 'cm-ghost-suggestion';
     span.setAttribute('aria-hidden', 'true');
-    // white-space: pre (set in theme) means \n is rendered as a real visual
-    // line break, so multi-line completions appear below the cursor correctly.
     span.textContent = this.text;
     return span;
   }
@@ -81,10 +78,8 @@ const ghostDecorationPlugin = ViewPlugin.fromClass(
     build(view: EditorView): DecorationSet {
       const text = view.state.field(ghostSuggestionField);
       if (!text) return Decoration.none;
-
       const sel = view.state.selection.main;
       if (!sel.empty) return Decoration.none;
-
       return Decoration.set([
         Decoration.widget({ widget: new GhostTextWidget(text), side: 1 }).range(sel.head),
       ]);
@@ -93,101 +88,6 @@ const ghostDecorationPlugin = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations },
 );
 
-// ── Keymap ────────────────────────────────────────────────────────────────────
-
-const ghostKeymap = Prec.highest(
-  keymap.of([
-    {
-      key: 'Tab',
-      run(view) {
-        const text = view.state.field(ghostSuggestionField);
-        if (!text) return false;
-        const pos = view.state.selection.main.head;
-        // Insert the FULL text at cursor — leading \n creates a real new line.
-        view.dispatch({
-          changes: { from: pos, insert: text },
-          selection: { anchor: pos + text.length },
-          effects: setGhostSuggestion.of(null),
-        });
-        return true;
-      },
-    },
-    {
-      key: 'Escape',
-      run(view) {
-        const text = view.state.field(ghostSuggestionField);
-        if (!text) return false;
-        view.dispatch({ effects: setGhostSuggestion.of(null) });
-        return true;
-      },
-    },
-  ]),
-);
-
-// ── Async fetch plugin ────────────────────────────────────────────────────────
-
-function makeFetchPlugin(apiUrl: string, getFileName: () => string) {
-  return ViewPlugin.fromClass(
-    class {
-      private timer: ReturnType<typeof setTimeout> | null = null;
-      private abort: AbortController | null = null;
-
-      constructor(private view: EditorView) {}
-
-      update(update: ViewUpdate) {
-        if (!update.docChanged && !update.selectionSet) return;
-        this.cancelFetch();
-        const state = update.state;
-        if (!state.selection.main.empty) return;
-        if (state.doc.length < 15) return;
-        this.timer = setTimeout(() => this.fetch(), 500);
-      }
-
-      private cancelFetch() {
-        if (this.timer !== null) { clearTimeout(this.timer); this.timer = null; }
-        if (this.abort) { this.abort.abort(); this.abort = null; }
-      }
-
-      private async fetch() {
-        const view = this.view;
-        const pos = view.state.selection.main.head;
-        const raw = view.state.doc.toString();
-
-        const prefix = raw.slice(Math.max(0, pos - 1000), pos);
-        const suffix = raw.slice(pos, Math.min(raw.length, pos + 200));
-
-        if (prefix.trimEnd().length < 12) return;
-
-        this.abort = new AbortController();
-
-        try {
-          const res = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prefix, suffix, fileName: getFileName() }),
-            signal: this.abort.signal,
-          });
-
-          if (!res.ok) return;
-
-          const data = await res.json() as { completion?: string };
-          // trimEnd only — preserve any leading \n so next-line completions
-          // render below the cursor in the ghost widget.
-          const completion = (data.completion ?? '').trimEnd();
-
-          if (completion && view.state.selection.main.head === pos) {
-            view.dispatch({ effects: setGhostSuggestion.of(completion) });
-          }
-        } catch {
-          // Aborted or network error — silently swallow.
-        }
-      }
-
-      destroy() { this.cancelFetch(); }
-    },
-  );
-}
-
 // ── Styling ───────────────────────────────────────────────────────────────────
 
 const ghostStyle = EditorView.baseTheme({
@@ -195,24 +95,151 @@ const ghostStyle = EditorView.baseTheme({
     color: 'rgba(180, 165, 215, 0.38)',
     fontStyle: 'italic',
     pointerEvents: 'none',
-    // pre: preserves \n as a real visual line break inside the widget span,
-    // so next-line completions appear below the cursor in the editor view.
     whiteSpace: 'pre',
     userSelect: 'none',
   },
 });
 
+// ── Shared fetch logic + keymaps (built together to share closure) ────────────
+
+function buildGhostFeatures(
+  apiUrl: string,
+  getFileName: () => string,
+  getProjectId: () => string | undefined,
+  getWritepadRules: () => string | undefined,
+): Extension {
+  // Shared mutable state — lives in the closure, not in CM state.
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let abort: AbortController | null = null;
+  let lastSuggestion: string | null = null;
+
+  function cancelPending() {
+    if (timer !== null) { clearTimeout(timer); timer = null; }
+    if (abort) { abort.abort(); abort = null; }
+  }
+
+  async function fetchSuggestion(view: EditorView, manual: boolean) {
+    cancelPending();
+
+    const pos = view.state.selection.main.head;
+    const raw = view.state.doc.toString();
+    const prefix = raw.slice(Math.max(0, pos - 300), pos);
+    const suffix = raw.slice(pos, Math.min(raw.length, pos + 150));
+
+    const minLen = manual ? 8 : 12;
+    if (prefix.trimEnd().length < minLen) return;
+
+    abort = new AbortController();
+    const currentAbort = abort;
+
+    try {
+      const body: Record<string, string> = {
+        prefix,
+        suffix,
+        fileName: getFileName(),
+      };
+      const projectId = getProjectId();
+      if (projectId) body.projectId = projectId;
+      if (manual && lastSuggestion) body.previousSuggestion = lastSuggestion;
+      const rules = getWritepadRules();
+      if (rules) body.writepadRules = rules;
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: currentAbort.signal,
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json() as { completion?: string };
+      const completion = (data.completion ?? '').trimEnd();
+
+      if (!completion) return;
+      // For manual: always show. For auto: only if cursor hasn't moved.
+      if (manual || view.state.selection.main.head === pos) {
+        lastSuggestion = completion;
+        view.dispatch({ effects: setGhostSuggestion.of(completion) });
+      }
+    } catch {
+      // Aborted or network error — swallow silently.
+    }
+  }
+
+  // Debounced auto-trigger on every doc/selection change
+  const fetchPlugin = ViewPlugin.fromClass(
+    class {
+      constructor(private view: EditorView) {}
+
+      update(update: ViewUpdate) {
+        if (!update.docChanged && !update.selectionSet) return;
+        cancelPending();
+        const state = update.state;
+        if (!state.selection.main.empty) return;
+        if (state.doc.length < 15) return;
+        timer = setTimeout(() => fetchSuggestion(this.view, false), 500);
+      }
+
+      destroy() { cancelPending(); }
+    },
+  );
+
+  // Keymap: Tab accepts, Escape dismisses, Ctrl+Enter manually triggers.
+  // Ctrl+Enter calls fetchSuggestion directly — no StateEffect IPC needed.
+  const ghostKeymap = Prec.highest(
+    keymap.of([
+      {
+        key: 'Tab',
+        run(view) {
+          const text = view.state.field(ghostSuggestionField);
+          if (!text) return false;
+          const pos = view.state.selection.main.head;
+          view.dispatch({
+            changes: { from: pos, insert: text },
+            selection: { anchor: pos + text.length },
+            effects: setGhostSuggestion.of(null),
+          });
+          return true;
+        },
+      },
+      {
+        key: 'Escape',
+        run(view) {
+          const text = view.state.field(ghostSuggestionField);
+          if (!text) return false;
+          view.dispatch({ effects: setGhostSuggestion.of(null) });
+          return true;
+        },
+      },
+      {
+        // Alt+G (Generate): clear current ghost immediately, then fetch a new (different) suggestion.
+        // Alt+letter shortcuts are confirmed working in CM (same pattern as word helpers).
+        key: 'Alt-g',
+        run(view) {
+          view.dispatch({ effects: setGhostSuggestion.of(null) });
+          fetchSuggestion(view, true);
+          return true;
+        },
+      },
+    ]),
+  );
+
+  return [fetchPlugin, ghostKeymap];
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function ghostTextExtension(
-  apiUrl = '/api/editor/autocomplete',
+  apiUrl = '/api/studio/chat/agent/editor/autocomplete',
   getFileName: () => string = () => '',
+  getProjectId: () => string | undefined = () => undefined,
+  getWritepadRules: () => string | undefined = () => undefined,
 ): Extension {
   return [
     ghostSuggestionField,
     ghostDecorationPlugin,
-    ghostKeymap,
-    makeFetchPlugin(apiUrl, getFileName),
+    buildGhostFeatures(apiUrl, getFileName, getProjectId, getWritepadRules),
     ghostStyle,
   ];
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ProtectedPage } from '@/components/auth/ProtectedPage';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useSession } from '@/components/session-provider';
+import { ShareProjectDialog } from '@/components/writepad/ShareProjectDialog';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  LogOut, Plus, Search, Loader2, Users, Pencil, Trash2, Copy, ExternalLink,
+  LogOut, Plus, Search, Loader2, Users, Pencil, Trash2, Copy, ExternalLink, UserPlus,
 } from 'lucide-react';
 
 interface Project {
@@ -212,6 +213,7 @@ function ProjectsContent() {
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [shareProject, setShareProject] = useState<Project | null>(null);
 
   useEffect(() => {
     fetch('/api/projects')
@@ -404,6 +406,17 @@ function ProjectsContent() {
                       {isDuplicating ? <Loader2 size={13} className="animate-spin" /> : <Copy size={13} />}
                     </button>
 
+                    {/* Share — owners only */}
+                    {isOwn && (
+                      <button
+                        onClick={() => setShareProject(project)}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        title="Share project"
+                      >
+                        <UserPlus size={13} />
+                      </button>
+                    )}
+
                     {/* Delete — owners only */}
                     {isOwn && (
                       <button
@@ -452,6 +465,14 @@ function ProjectsContent() {
           onDeleted={() =>
             setProjects((prev) => prev.filter((p) => p.id !== deleteProject.id))
           }
+        />
+      )}
+
+      {shareProject && (
+        <ShareProjectDialog
+          projectId={shareProject.id}
+          open={true}
+          onOpenChange={(o) => !o && setShareProject(null)}
         />
       )}
     </div>

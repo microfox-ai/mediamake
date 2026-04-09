@@ -14,7 +14,14 @@ export const contextLimiter = (count: number) => {
     if (messages.length < count) {
       return next();
     } else {
-      props.request.messages = [...messages.slice(-count)];
+      // Keep only the latest messages, but avoid starting the trimmed window
+      // on an assistant turn. Some providers require tool/function turns to be
+      // preceded by a valid user/context turn.
+      const sliced = [...messages.slice(-count)];
+      while (sliced.length > 1 && sliced[0]?.role === 'assistant') {
+        sliced.shift();
+      }
+      props.request.messages = sliced;
       return next();
     }
   };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -13,6 +13,7 @@ import { ProtectedPage } from '@/components/auth/ProtectedPage';
 import { Loader2 } from 'lucide-react';
 import { FileExplorer } from '@/components/writepad/left';
 import { EditorPane } from '@/components/writepad/middle';
+import { AgentEditorPane } from '@/components/writepad/middle/AgentEditorPane';
 import { MenuBar } from '@/components/writepad/middle/MenuBar';
 import { ChatPanel } from '@/components/writepad/right';
 import { useProjectData } from './_hooks/useProjectData';
@@ -20,6 +21,7 @@ import { useEditorPreferences } from '@/hooks/useEditorPreferences';
 import type { SelectionContext, DiffViewState } from '@/components/writepad/middle/types';
 import type { AIChange } from '@/components/writepad/right/types';
 import type { CodeMirrorEditorHandle } from '@/components/writepad/middle/CodeMirrorEditor';
+import { ShareProjectDialog } from '@/components/writepad/ShareProjectDialog';
 
 function ProjectEditorContent() {
   const router = useRouter();
@@ -41,6 +43,8 @@ function ProjectEditorContent() {
   const [searchHighlight, setSearchHighlight] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [projectName, setProjectName] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
 
   // Editor ref — shared between MenuBar (goToLine, selectAll, format) and EditorPane
   const editorRef = useRef<CodeMirrorEditorHandle>(null);
@@ -50,6 +54,20 @@ function ProjectEditorContent() {
   const changeFileMapRef = useRef<Record<string, string>>({});
 
   const displayName = projectName ?? project.projectName;
+
+  // Resolve .writepad/rules.md content from the flat file list for AI context.
+  const writepadRules = useMemo(() => {
+    const all = project.getAllFiles();
+    const writepadFolder = all.find(
+      (f) => f.type === 'folder' && f.fileName.toLowerCase() === '.writepad' && !f.parentId,
+    );
+    const rulesFile = writepadFolder
+      ? all.find(
+          (f) => f.type === 'file' && f.fileName.toLowerCase() === 'rules.md' && f.parentId === writepadFolder.fileId,
+        )
+      : undefined;
+    return rulesFile?.content ?? null;
+  }, [project]);
 
   // ── Diff helpers ──────────────────────────────────────────────────────────
 
@@ -238,6 +256,15 @@ function ProjectEditorContent() {
     router.push('/projects');
   }, [projectId, router]);
 
+  useEffect(() => {
+    const onCreated = (evt: Event) => {
+      const custom = evt as CustomEvent<{ agentId?: string }>;
+      if (custom.detail?.agentId) setActiveAgentId(custom.detail.agentId);
+    };
+    window.addEventListener('writepad:agent-created', onCreated);
+    return () => window.removeEventListener('writepad:agent-created', onCreated);
+  }, []);
+
   // ── Loading / error ───────────────────────────────────────────────────────
 
   if (project.loading) {
@@ -279,6 +306,7 @@ function ProjectEditorContent() {
         onDuplicateProject={handleDuplicateProject}
         onDeleteProject={handleDeleteProject}
         onProjectNameChanged={setProjectName}
+        onShare={() => setShareOpen(true)}
         onFormat={(type) => editorRef.current?.applyFormat(type as Parameters<CodeMirrorEditorHandle['applyFormat']>[0])}
         onSelectAll={handleMenuSelectAll}
         onGoToLine={handleMenuGoToLine}
@@ -297,12 +325,17 @@ function ProjectEditorContent() {
           {/* Left — File Explorer */}
           <ResizablePanel defaultSize={18} minSize={12} maxSize={35}>
             <FileExplorer
+              projectId={projectId}
+              activeAgentId={activeAgentId}
               files={project.files}
               activeFileId={project.activeFileId}
               unsavedIds={project.unsavedIds}
               draftedIds={project.draftedIds}
               openTabs={project.openTabs}
-              onFileOpen={project.openFile}
+              onFileOpen={(node) => {
+                setActiveAgentId(null);
+                project.openFile(node);
+              }}
               onOpenDiff={handleOpenDiff}
               onSearchSelect={handleSearchSelect}
               onReplaceOne={handleReplaceOne}
@@ -312,6 +345,7 @@ function ProjectEditorContent() {
               onRename={project.renameNode}
               onDelete={project.deleteNode}
               onMove={project.moveNode}
+              onOpenAgent={setActiveAgentId}
             />
           </ResizablePanel>
 
@@ -319,34 +353,45 @@ function ProjectEditorContent() {
 
           {/* Center — Editor */}
           <ResizablePanel defaultSize={57}>
-            <EditorPane
-              tabs={project.openTabs}
-              activeTab={project.activeTab}
-              activeFileId={project.activeFileId}
-              unsavedIds={project.unsavedIds}
-              draftedIds={project.draftedIds}
-              diffView={diffView}
-              pendingNavigate={pendingNavigate}
-              searchHighlight={searchHighlight}
-              prefs={prefs}
-              onPrefsChange={setPrefs}
-              previewMode={previewMode}
-              onPreviewModeChange={setPreviewMode}
-              onTabSelect={project.setActiveFileId}
-              onTabClose={project.closeTab}
-              onContentChange={project.updateContent}
-              onSave={project.saveFile}
-              onSaveAll={project.saveAll}
-              onSaveDraft={project.saveDraft}
-              onRevertDraft={handleRevertFileDraft}
-              onSetFileDraft={project.setFileDraft}
-              onContextSelect={setPendingContext}
-              onCloseDiff={() => setDiffView(null)}
-              onNavigated={() => setPendingNavigate(null)}
-              onHighlighted={() => setSearchHighlight(null)}
-              onShowDraftDiff={handleShowDraftDiff}
-              editorHandleRef={editorRef}
-            />
+            {activeAgentId ? (
+              <AgentEditorPane
+                projectId={projectId}
+                agentId={activeAgentId}
+                onClose={() => setActiveAgentId(null)}
+                onDeleted={() => setActiveAgentId(null)}
+              />
+            ) : (
+              <EditorPane
+                projectId={projectId}
+                tabs={project.openTabs}
+                activeTab={project.activeTab}
+                activeFileId={project.activeFileId}
+                unsavedIds={project.unsavedIds}
+                draftedIds={project.draftedIds}
+                diffView={diffView}
+                pendingNavigate={pendingNavigate}
+                searchHighlight={searchHighlight}
+                prefs={prefs}
+                onPrefsChange={setPrefs}
+                previewMode={previewMode}
+                onPreviewModeChange={setPreviewMode}
+                onTabSelect={project.setActiveFileId}
+                onTabClose={project.closeTab}
+                onContentChange={project.updateContent}
+                onSave={project.saveFile}
+                onSaveAll={project.saveAll}
+                onSaveDraft={project.saveDraft}
+                onRevertDraft={handleRevertFileDraft}
+                onSetFileDraft={project.setFileDraft}
+                onContextSelect={setPendingContext}
+                onCloseDiff={() => setDiffView(null)}
+                onNavigated={() => setPendingNavigate(null)}
+                onHighlighted={() => setSearchHighlight(null)}
+                onShowDraftDiff={handleShowDraftDiff}
+                editorHandleRef={editorRef}
+                writepadRules={writepadRules}
+              />
+            )}
           </ResizablePanel>
 
           <ResizableHandle className="w-px bg-border transition-colors hover:bg-violet-500/40" />
@@ -369,6 +414,11 @@ function ProjectEditorContent() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+      <ShareProjectDialog
+        projectId={projectId}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
     </div>
   );
 }

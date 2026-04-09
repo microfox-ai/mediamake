@@ -4,6 +4,7 @@ import {
   projectsCol,
   chatSessionsCol,
   hasAccess,
+  canEditProject,
   isValidId,
   toObjectId,
   serialize,
@@ -30,8 +31,10 @@ export async function GET(
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!await guardProject(projectId, clientId))
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const project = await guardProject(projectId, clientId);
+  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!canEditProject(project, clientId))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const col = await chatSessionsCol();
   const sessions = await col
@@ -40,7 +43,7 @@ export async function GET(
     .project({ messages: 0 })  // omit messages from list
     .toArray();
 
-  return NextResponse.json(sessions.map(serialize));
+  return NextResponse.json(sessions.map((session) => serialize(session as any)));
 }
 
 /**
