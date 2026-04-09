@@ -1,16 +1,33 @@
 import { google } from '@ai-sdk/google';
+import { anthropic } from '@ai-sdk/anthropic';
+import { openai } from '@ai-sdk/openai';
 import { AiRouter } from '@microfox/ai-router';
 import {
   convertToModelMessages,
   InferUITools,
   stepCountIs,
   streamText,
+  type LanguageModel,
 } from 'ai';
 import dedent from 'dedent';
 import { editorAgent } from './agents/editor';
 import { systemAgent } from './agents/system';
 import { contextLimiter } from './middlewares/contextLimiter';
 import { onlyTextParts } from './middlewares/onlyTextParts';
+import { getModelDef, DEFAULT_MODEL_ID } from '@/lib/ai-models';
+import { trackUsage } from './lib/trackUsage';
+
+function resolveModel(modelId: string): LanguageModel {
+  const def = getModelDef(modelId);
+  switch (def.provider) {
+    case 'anthropic':
+      return anthropic(def.modelName);
+    case 'openai':
+      return openai(def.modelName);
+    default:
+      return google(def.modelName);
+  }
+}
 
 const aiRouter = new AiRouter(undefined, undefined);
 // aiRouter.setLogger(console);
@@ -18,15 +35,16 @@ const aiRouter = new AiRouter(undefined, undefined);
 const aiMainRouter = aiRouter
   .agent('/system', systemAgent)
   .agent('/editor', editorAgent)
-  // Mount workflow router as sub-router
-  // .agent('/workflows', workflowRouter)
   .before('/', contextLimiter(5))
   .before('/', onlyTextParts(100))
   .agent('/', async (props: any) => {
-    props.response.writeMessageMetadata({ loader: 'Thinking...' });
+    const modelId: string = props.request.modelId ?? DEFAULT_MODEL_ID;
+    const projectId: string | undefined = props.request.projectId;
+    const clientId: string | undefined = props.request.clientId;
+    const model = resolveModel(modelId);
 
     const stream = streamText({
-      model: google('gemini-pro-latest'),
+      model,
       system: dedent`
         You are an AI orchestrator inside Writepad, a creative writing IDE.
         Your only job is to route user requests to the correct agent tool.
@@ -69,13 +87,18 @@ const aiMainRouter = aiRouter
         console.error('ORCHESTRATION ERROR', error);
       },
       onFinish: (result) => {
-        console.log('ORCHESTRATION USAGE', result.totalUsage);
+        trackUsage({
+          modelId,
+          projectId,
+          clientId,
+          rawUsage: result.totalUsage,
+        }).catch((e) => console.error('[orchestrator] Failed to track usage:', e));
       },
     });
 
     props.response.merge(
       stream.toUIMessageStream({
-        sendFinish: false,
+        sendFinish: true,
         sendStart: true,
       }),
     );
