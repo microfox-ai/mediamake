@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import type { UIMessage } from 'ai';
+import { AlertCircle, X } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { RichChatInput } from './RichChatInput';
 import type {
@@ -14,6 +15,8 @@ import type {
   RichSegment,
   MessageMeta,
 } from './types';
+import { DEFAULT_MODEL_ID } from '@/lib/ai-models';
+import { useProjectAgentsStore } from '@/lib/stores/projectAgentsStore';
 
 interface ChatSessionProps {
   projectId: string;
@@ -44,6 +47,29 @@ export function ChatSession({
   const bottomRef = useRef<HTMLDivElement>(null);
   const messageMetaRef = useRef<Record<string, MessageMeta>>(session.messageMeta ?? {});
   const pendingMetaRef = useRef<MessageMeta | null>(null);
+  const debug = process.env.NODE_ENV !== 'production';
+
+  // ── Model & web-search state (persisted per component lifetime) ───────────
+  const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL_ID);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState('local:writing-assistant');
+  const projectData = useProjectAgentsStore((s) => s.byProjectId[projectId]);
+  const fetchAgents = useProjectAgentsStore((s) => s.fetchAgents);
+  const canUseChat = projectData?.canEdit ?? true;
+  const agentOptions = useMemo(() => {
+    const local = (projectData?.localAgents ?? []).map((a) => ({
+      id: `local:${a.id}`,
+      label: `Local · ${a.name}`,
+    }));
+    const project = (projectData?.projectAgents ?? []).map((a) => ({
+      id: `project:${a.id}`,
+      label: `Project · ${a.name}`,
+    }));
+    const merged = [...local, ...project];
+    return merged.length > 0
+      ? merged
+      : [{ id: 'local:writing-assistant', label: 'Local · Writing Assistant' }];
+  }, [projectData]);
 
   // Guard: only persist messages after the user has actually sent a message.
   // Without this, the component fires onMessagesUpdate on mount with whatever
@@ -62,10 +88,26 @@ export function ChatSession({
     [],
   );
 
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
+  const { messages, sendMessage, status, stop, setMessages, error, clearError } = useChat({
     id: session.id,
     messages: session.messages,
     transport,
+    onError: (e) => {
+      console.error('[writepad chat] useChat error', {
+        sessionId: session.id,
+        message: e.message,
+        error: e,
+      });
+    },
+    onFinish: ({ finishReason, isError, isAbort }) => {
+      if (!debug) return;
+      console.log('[writepad chat] stream finished', {
+        sessionId: session.id,
+        finishReason,
+        isError,
+        isAbort,
+      });
+    },
   });
   const isLoading = status === 'submitted' || status === 'streaming';
 
@@ -90,6 +132,41 @@ export function ChatSession({
   }, [session.messages]);
 
   useEffect(() => {
+    fetchAgents(projectId).catch(() => {});
+  }, [fetchAgents, projectId]);
+
+  useEffect(() => {
+    if (!agentOptions.some((a) => a.id === selectedAgentId)) {
+      setSelectedAgentId(agentOptions[0]?.id ?? 'local:writing-assistant');
+    }
+  }, [agentOptions, selectedAgentId]);
+
+  useEffect(() => {
+    if (error) {
+      if (debug) {
+        console.error('[writepad chat] rendered error state', {
+          sessionId: session.id,
+          message: error.message,
+        });
+      }
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [debug, error, session.id]);
+
+  useEffect(() => {
+    if (!debug) return;
+    const last = messages[messages.length - 1];
+    const parts = last?.parts?.map((p) => p.type) ?? [];
+    console.log('[writepad chat] state', {
+      sessionId: session.id,
+      status,
+      messageCount: messages.length,
+      lastRole: last?.role,
+      lastPartTypes: parts,
+    });
+  }, [debug, messages, session.id, status]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     if (pendingMetaRef.current) {
       const lastUser = [...messages].reverse().find((m) => m.role === 'user');
@@ -109,41 +186,40 @@ export function ChatSession({
 
   const handleSend = useCallback(
     (segments: RichSegment[], plainText: string, attachments: Record<string, ContextAttachment>) => {
+      if (!canUseChat) return;
       if (!plainText.trim() && Object.keys(attachments).length === 0) return;
       pendingMetaRef.current = { segments, attachments };
       hasInteractedRef.current = true;
-
-      const files = getAllFiles();
-
-      // Find .writepad/rules.md — locate the .writepad folder, then find rules.md inside it
-      const writepadFolder = files.find(
-        (f) => f.type === 'folder' && f.fileName.toLowerCase() === '.writepad' && f.parentId === null,
-      );
-      const rulesFile = writepadFolder
-        ? files.find(
-            (f) => f.type === 'file' && f.fileName.toLowerCase() === 'rules.md' && f.parentId === writepadFolder.fileId,
-          )
-        : undefined;
 
       sendMessage(
         { text: buildPromptText(segments, attachments) },
         {
           body: {
             attachments: Object.values(attachments),
-            files,
-            writepadRules: rulesFile?.content ?? null,
             projectId,
             chatId: session.id,
+            modelId: selectedModelId,
+            agentId: selectedAgentId,
+            webSearch: webSearchEnabled,
           },
         },
       );
+      if (debug) {
+        console.log('[writepad chat] sendMessage', {
+          sessionId: session.id,
+          modelId: selectedModelId,
+          webSearch: webSearchEnabled,
+          textLength: plainText.length,
+          attachmentCount: Object.keys(attachments).length,
+        });
+      }
     },
-    [sendMessage, getAllFiles, projectId],
+    [canUseChat, debug, sendMessage, projectId, selectedModelId, selectedAgentId, session.id, webSearchEnabled],
   );
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto p-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground/50">
             <p className="text-sm">New conversation</p>
@@ -185,12 +261,50 @@ export function ChatSession({
         <div ref={bottomRef} />
       </div>
 
+      {error != null && (
+        <div
+          role="alert"
+          className="shrink-0 border-t border-red-500/25 bg-red-500/10 px-3 py-2.5"
+        >
+          <div className="flex gap-2">
+            <AlertCircle
+              className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400"
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-red-700 dark:text-red-300">
+                Assistant could not complete this reply
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-red-600/90 dark:text-red-400/90">
+                {formatChatError(error)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => clearError()}
+              className="shrink-0 rounded p-1 text-red-600/70 transition-colors hover:bg-red-500/15 hover:text-red-700 dark:text-red-400/70 dark:hover:text-red-300"
+              title="Dismiss"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <RichChatInput
         pendingAttachment={pendingAttachment}
         onAttachmentConsumed={onAttachmentConsumed}
         isLoading={isLoading}
         onStop={stop}
         onSend={handleSend}
+        selectedModelId={selectedModelId}
+        onModelChange={setSelectedModelId}
+        selectedAgentId={selectedAgentId}
+        onAgentChange={setSelectedAgentId}
+        agentOptions={agentOptions}
+        webSearchEnabled={webSearchEnabled}
+        onWebSearchToggle={() => setWebSearchEnabled((v) => !v)}
+        canUseChat={canUseChat}
       />
     </div>
   );
@@ -204,4 +318,32 @@ function buildPromptText(segments: RichSegment[], attachments: Record<string, Co
       return a ? `[${a.fileName}:L${a.startLine}-${a.endLine}]` : '[context]';
     })
     .join('');
+}
+
+/** User-visible text from useChat / fetch / AI SDK errors (including nested retry/API errors). */
+function formatChatError(err: Error): string {
+  const msg = err.message?.trim();
+  if (!msg) return 'Something went wrong. Try again in a moment.';
+
+  const any = err as Error & {
+    lastError?: { message?: string };
+    cause?: unknown;
+    data?: { error?: { message?: string } };
+  };
+
+  const fromLast = typeof any.lastError?.message === 'string' ? any.lastError.message.trim() : '';
+  if (fromLast && !msg.includes(fromLast)) {
+    return `${msg}\n\n${fromLast}`;
+  }
+
+  const fromData = typeof any.data?.error?.message === 'string' ? any.data.error.message.trim() : '';
+  if (fromData && !msg.includes(fromData)) {
+    return `${msg}\n\n${fromData}`;
+  }
+
+  if (any.cause instanceof Error && any.cause.message && !msg.includes(any.cause.message)) {
+    return `${msg}\n\n${any.cause.message}`;
+  }
+
+  return msg;
 }

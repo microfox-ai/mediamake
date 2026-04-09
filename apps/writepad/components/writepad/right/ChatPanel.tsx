@@ -60,9 +60,15 @@ export function ChatPanel({
   const [sessions, setSessions] = useState<ChatSessionType[]>([]);
   const sessionsRef = useRef<ChatSessionType[]>([]);
   sessionsRef.current = sessions;
+  /** Chat IDs that already had a lazy GET (or were created empty) — avoids refetch loop when messages stay []. */
+  const messagesHydratedRef = useRef<Set<string>>(new Set());
   const [openTabIds, setOpenTabIds] = useState<string[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [view, setView] = useState<RightPanelView>('chat');
+
+  useEffect(() => {
+    messagesHydratedRef.current.clear();
+  }, [projectId]);
 
   // ── Load sessions from DB on mount / project change ───────────────────────
 
@@ -108,8 +114,11 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!activeChatId || !projectId) return;
+    if (messagesHydratedRef.current.has(activeChatId)) return;
     const session = sessions.find((s) => s.id === activeChatId);
-    if (!session || session.messages.length > 0) return; // already loaded or not found yet
+    if (!session) return;
+
+    messagesHydratedRef.current.add(activeChatId);
 
     fetch(`/api/projects/${projectId}/chats/${activeChatId}`)
       .then((r) => r.json())
@@ -126,7 +135,10 @@ export function ChatPanel({
           ),
         );
       })
-      .catch(console.error);
+      .catch((err) => {
+        messagesHydratedRef.current.delete(activeChatId);
+        console.error(err);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId, projectId, sessions]);
 
@@ -155,6 +167,7 @@ export function ChatPanel({
       body: JSON.stringify({ title: 'New Chat' }),
     });
     const { id } = await res.json() as { id: string };
+    messagesHydratedRef.current.add(id);
     const newSession: ChatSessionType = {
       id,
       title: 'New Chat',
@@ -187,6 +200,7 @@ export function ChatPanel({
       await fetch(`/api/projects/${projectId}/chats/${sessionId}`, { method: 'DELETE' }).catch(
         console.error,
       );
+      messagesHydratedRef.current.delete(sessionId);
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       const next = openTabIds.filter((id) => id !== sessionId);
       setOpenTabIds(next);
