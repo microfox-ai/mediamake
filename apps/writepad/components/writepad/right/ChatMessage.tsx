@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AIChangeBlock } from './AIChangeBlock';
+import { AssistantMarkdown } from './AssistantMarkdown';
 import type { AIChange, MessageMeta, ContextAttachment } from './types';
 
 interface ChatMessageProps {
@@ -363,11 +364,7 @@ function TextWithEdits({
         if (seg.kind === 'text') {
           const clean = seg.content.trim();
           if (!clean) return null;
-          return (
-            <p key={i} className="whitespace-pre-wrap text-[12px] text-foreground/80 leading-relaxed">
-              {clean}
-            </p>
-          );
+          return <AssistantMarkdown key={i} content={clean} />;
         }
         const status = changeStatuses[seg.change.changeId] ?? 'applied';
         return (
