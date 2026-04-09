@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * RichChatInput — contentEditable input that supports inline attachment chips.
+ * RichChatInput — contentEditable input that supports inline attachment chips,
+ * model selection, and a web-search toggle (globe icon).
  *
  * Chips are <span contentEditable="false" data-attachment-id="..."> nodes
  * injected at the cursor position. On submit the DOM is walked to produce a
@@ -10,10 +11,14 @@
  * Keyboard:  Enter → send,  Shift+Enter → newline,  Ctrl+L → attach pending
  */
 
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { Send, Square, FileText } from 'lucide-react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { Send, Square, Globe, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ContextAttachment, RichSegment } from './types';
+import { CHAT_MODELS, getModelDef } from '@/lib/ai-models';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface RichChatInputProps {
   /** New attachment waiting to be inserted into the input. */
@@ -26,6 +31,14 @@ interface RichChatInputProps {
     plainText: string,
     attachments: Record<string, ContextAttachment>,
   ) => void;
+  selectedModelId: string;
+  onModelChange: (id: string) => void;
+  selectedAgentId: string;
+  onAgentChange: (id: string) => void;
+  agentOptions: Array<{ id: string; label: string }>;
+  webSearchEnabled: boolean;
+  onWebSearchToggle: () => void;
+  canUseChat: boolean;
 }
 
 export function RichChatInput({
@@ -34,11 +47,32 @@ export function RichChatInput({
   isLoading,
   onStop,
   onSend,
+  selectedModelId,
+  onModelChange,
+  selectedAgentId,
+  onAgentChange,
+  agentOptions,
+  webSearchEnabled,
+  onWebSearchToggle,
+  canUseChat,
 }: RichChatInputProps) {
   const editableRef = useRef<HTMLDivElement>(null);
   const attachmentsRef = useRef<Record<string, ContextAttachment>>({});
   const savedRangeRef = useRef<Range | null>(null);
   const [hasContent, setHasContent] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [agentScope, setAgentScope] = useState<'all' | 'local' | 'project'>('all');
+
+  const selectedModel = getModelDef(selectedModelId);
+  const selectedAgentLabel =
+    agentOptions.find((a) => a.id === selectedAgentId)?.label ?? 'Select Agent';
+
+  const filteredAgents = useMemo(() => {
+    if (agentScope === 'all') return agentOptions;
+    if (agentScope === 'local') return agentOptions.filter((a) => a.id.startsWith('local:'));
+    return agentOptions.filter((a) => a.id.startsWith('project:'));
+  }, [agentOptions, agentScope]);
 
   // ── Chip builder ─────────────────────────────────────────────────────────
 
@@ -234,7 +268,7 @@ export function RichChatInput({
   // ── Send ─────────────────────────────────────────────────────────────────
 
   const handleSend = useCallback(() => {
-    if (!hasContent || isLoading) return;
+    if (!canUseChat || !hasContent || isLoading) return;
     const { segments, plainText, attachments } = parseDOM();
     if (!plainText.trim() && Object.keys(attachments).length === 0) return;
 
@@ -245,7 +279,7 @@ export function RichChatInput({
     attachmentsRef.current = {};
     savedRangeRef.current = null;
     setHasContent(false);
-  }, [hasContent, isLoading, onSend]);
+  }, [canUseChat, hasContent, isLoading, onSend]);
 
   // ── Keyboard ─────────────────────────────────────────────────────────────
 
@@ -272,14 +306,18 @@ export function RichChatInput({
         {/* ContentEditable area */}
         <div
           ref={editableRef}
-          contentEditable
+          contentEditable={canUseChat}
           suppressContentEditableWarning
           onInput={syncHasContent}
           onKeyDown={handleKeyDown}
           onKeyUp={saveRange}
           onClick={saveRange}
           onBlur={saveRange}
-          data-placeholder="Ask anything… Ctrl+L attaches editor selection inline"
+          data-placeholder={
+            canUseChat
+              ? 'Ask anything… Ctrl+L attaches editor selection inline'
+              : 'View-only access: chat is disabled for this project'
+          }
           className={cn(
             'min-h-[72px] max-h-[200px] overflow-y-auto px-3 py-2.5',
             'text-[12px] text-foreground leading-relaxed outline-none',
@@ -288,13 +326,119 @@ export function RichChatInput({
         />
 
         {/* Toolbar row */}
-        <div className="flex items-center justify-between border-t border-border/60 px-2 py-1">
-          <div className="flex items-center gap-1">
-            <FileText size={10} className="text-muted-foreground/40" />
-            <span className="text-[9px] text-muted-foreground/40">
-              Ctrl+L to attach · Enter to send · Shift+Enter newline
-            </span>
+        <div className="flex items-center justify-between gap-1 border-t border-border/60 px-1.5 py-1">
+          {/* Left: model selector + web search toggle */}
+          <div className="min-w-0 flex items-center gap-1">
+            <Popover open={modelOpen} onOpenChange={setModelOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  disabled={isLoading || !canUseChat}
+                  className="h-5 w-[120px] justify-between px-1 text-[9px] text-muted-foreground"
+                >
+                  <span className="truncate">{selectedModel.label}</span>
+                  <ChevronsUpDown className="ml-1 size-3 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[210px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search models..." className="h-8 text-[11px]" />
+                  <CommandList>
+                    <CommandEmpty>No model found.</CommandEmpty>
+                    <CommandGroup>
+                      {CHAT_MODELS.map((m) => (
+                        <CommandItem
+                          key={m.id}
+                          value={`${m.label} ${m.id}`}
+                          onSelect={() => {
+                            onModelChange(m.id);
+                            setModelOpen(false);
+                          }}
+                        >
+                          <Check className={cn('mr-2 size-3', selectedModelId === m.id ? 'opacity-100' : 'opacity-0')} />
+                          <span className="truncate text-[11px]">{m.label}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={agentOpen} onOpenChange={setAgentOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  disabled={isLoading || !canUseChat}
+                  className="h-5 w-[135px] justify-between px-1 text-[9px] text-muted-foreground"
+                >
+                  <span className="truncate">{selectedAgentLabel}</span>
+                  <ChevronsUpDown className="ml-1 size-3 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[230px] p-0">
+                <div className="flex items-center gap-1 border-b px-2 py-1.5">
+                  {(['all', 'local', 'project'] as const).map((scope) => (
+                    <button
+                      key={scope}
+                      onClick={() => setAgentScope(scope)}
+                      className={cn(
+                        'rounded px-1 py-0.5 text-[9px] capitalize transition-colors',
+                        agentScope === scope
+                          ? 'bg-violet-500/20 text-violet-300'
+                          : 'text-muted-foreground/70 hover:bg-accent',
+                      )}
+                    >
+                      {scope}
+                    </button>
+                  ))}
+                </div>
+                <Command>
+                  <CommandInput placeholder="Search agents..." className="h-8 text-[11px]" />
+                  <CommandList>
+                    <CommandEmpty>No agent found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredAgents.map((a) => (
+                        <CommandItem
+                          key={a.id}
+                          value={`${a.label} ${a.id}`}
+                          onSelect={() => {
+                            onAgentChange(a.id);
+                            setAgentOpen(false);
+                          }}
+                        >
+                          <Check className={cn('mr-2 size-3', selectedAgentId === a.id ? 'opacity-100' : 'opacity-0')} />
+                          <span className="truncate text-[11px]">{a.label}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Web search toggle — only shown if the selected model supports it */}
+            {selectedModel.supportsWebSearch && (
+              <button
+                onClick={onWebSearchToggle}
+                disabled={isLoading || !canUseChat}
+                title={webSearchEnabled ? 'Web search on' : 'Web search off'}
+                className={cn(
+                  'flex items-center justify-center rounded p-0.5 transition-colors',
+                  'disabled:opacity-40 disabled:cursor-not-allowed',
+                  webSearchEnabled
+                    ? 'bg-violet-500/20 text-violet-400 hover:bg-violet-500/30'
+                    : 'text-muted-foreground/40 hover:bg-accent hover:text-muted-foreground',
+                )}
+              >
+                <Globe size={11} />
+              </button>
+            )}
           </div>
+
+          {/* Right: stop / send */}
           {isLoading ? (
             <button
               onClick={onStop}
@@ -306,7 +450,7 @@ export function RichChatInput({
           ) : (
             <button
               onClick={handleSend}
-              disabled={!hasContent}
+              disabled={!canUseChat || !hasContent}
               className="flex items-center justify-center rounded bg-violet-600 p-1.5 text-white transition-colors hover:bg-violet-500 disabled:opacity-25"
               title="Send (Enter)"
             >
@@ -314,6 +458,11 @@ export function RichChatInput({
             </button>
           )}
         </div>
+        {!canUseChat && (
+          <div className="border-t border-border/60 px-2 py-1 text-[10px] text-muted-foreground/70">
+            Viewer permission detected. Ask an editor/owner for edit access to use chat.
+          </div>
+        )}
       </div>
     </div>
   );
