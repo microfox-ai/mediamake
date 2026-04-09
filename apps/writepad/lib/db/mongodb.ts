@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import { resolveWritepadMongoDbName } from './mongoDbName';
 
 const uri =
   process.env.MONGODB_URI ??
@@ -9,7 +10,7 @@ if (!uri) {
   throw new Error('MONGODB_URI environment variable is not set');
 }
 
-const DB_NAME = process.env.DATABASE_MONGODB_DB ?? 'writepad';
+const DB_NAME = resolveWritepadMongoDbName(uri);
 
 let clientPromise: Promise<MongoClient>;
 

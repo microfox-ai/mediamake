@@ -47,11 +47,24 @@ export interface DbChatSession {
   updatedAt: Date;
 }
 
+export interface DbProjectAgent {
+  _id: ObjectId;
+  projectId: string;
+  name: string;
+  prompt: string;
+  /** Optional source template id when duplicated from local predefined agents */
+  baseAgentId?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ─── Serialised (API-facing) shapes ──────────────────────────────────────────
 
 export type ProjectDoc = Omit<DbProject, '_id'> & { id: string };
 export type ProjectFileDoc = Omit<DbProjectFile, '_id'> & { id: string };
 export type ChatSessionDoc = Omit<DbChatSession, '_id'> & { id: string };
+export type ProjectAgentDoc = Omit<DbProjectAgent, '_id'> & { id: string };
 
 // ─── Collection accessors ─────────────────────────────────────────────────────
 
@@ -65,6 +78,10 @@ export async function projectFilesCol(): Promise<Collection<DbProjectFile>> {
 
 export async function chatSessionsCol(): Promise<Collection<DbChatSession>> {
   return (await getDb()).collection<DbChatSession>('project_chats');
+}
+
+export async function projectAgentsCol(): Promise<Collection<DbProjectAgent>> {
+  return (await getDb()).collection<DbProjectAgent>('project_agents');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,4 +113,19 @@ export function hasAccess(project: DbProject, clientId: string): boolean {
 /** Returns true if the clientId is the project owner. */
 export function isOwner(project: DbProject, clientId: string): boolean {
   return project.ownerId === clientId;
+}
+
+export function getMemberRole(
+  project: DbProject,
+  clientId: string,
+): 'owner' | 'editor' | 'viewer' | null {
+  if (project.ownerId === clientId) return 'owner';
+  const member = project.members.find((m) => m.clientId === clientId);
+  return member ? member.role : null;
+}
+
+/** Returns true if caller can mutate project resources. */
+export function canEditProject(project: DbProject, clientId: string): boolean {
+  const role = getMemberRole(project, clientId);
+  return role === 'owner' || role === 'editor';
 }
