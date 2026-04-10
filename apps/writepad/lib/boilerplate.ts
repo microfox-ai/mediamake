@@ -56,6 +56,7 @@ const TYPE_RULES: Record<string, string> = {
 - Each script in: \`scripts/ep-NNN-slug.md\`.
 - Structure: Hook → Context → Main content → CTA → Outro.
 - Include [B-ROLL], [GRAPHIC], and [CUT TO] cues in square brackets.
+- For B-roll stills, use the editor toolbar **Media** (Mediamake library) to insert images; each line carries the CDN URL and Mediamake asset id in the image title.
 
 ## Tone & Style
 - Conversational and energetic — write how you speak, not how you write.
