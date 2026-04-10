@@ -96,7 +96,7 @@ export async function getAudioMetadata(
           '-timeout',
           '30000',
         ],
-        (err, data) => {
+        (err: Error | null, data: any) => {
           clearTimeout(timeout);
 
           if (err) {
@@ -140,7 +140,7 @@ export async function getAudioMetadata(
           }
 
           const audioStream = data.streams.find(
-            stream => stream.codec_type === 'audio',
+            (stream:any) => stream.codec_type === 'audio',
           );
 
           if (!audioStream) {
@@ -245,7 +245,7 @@ export async function downloadAudioFile(audioUrl: string): Promise<string> {
         clearTimeout(timeout);
         resolve(tempAudioPath);
       })
-      .on('error', err => {
+      .on('error', (err: Error) => {
         clearTimeout(timeout);
         console.error('ffmpeg download error for URL:', audioUrl);
         console.error('ffmpeg error details:', err.message);
@@ -381,7 +381,7 @@ export async function analyzeAudioContent(
         .format('s16le') // 16-bit signed little-endian
         .output(tempRawPath)
         .on('end', () => resolve())
-        .on('error', err => reject(err))
+        .on('error', (err: Error) => reject(err))
         .run();
     });
 
