@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Eye, EyeOff } from 'lucide-react';
+import { Search, Eye, EyeOff, Library } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ToolbarAction {
@@ -29,6 +29,7 @@ interface EditorToolbarProps {
   searchActive: boolean;
   previewMode: boolean;
   onTogglePreview: () => void;
+  onOpenMediamakeMedia?: () => void;
 }
 
 export function EditorToolbar({
@@ -37,6 +38,7 @@ export function EditorToolbar({
   searchActive,
   previewMode,
   onTogglePreview,
+  onOpenMediamakeMedia,
 }: EditorToolbarProps) {
   return (
     <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-muted px-2 py-1">
@@ -54,6 +56,23 @@ export function EditorToolbar({
           {item.label}
         </button>
       ))}
+
+      <div className="mx-1 h-3.5 w-px bg-border" />
+
+      {onOpenMediamakeMedia && (
+        <button
+          type="button"
+          title="Insert from Mediamake library"
+          onClick={onOpenMediamakeMedia}
+          disabled={previewMode}
+          className={cn(
+            'flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30',
+          )}
+        >
+          <Library size={11} />
+          <span>Media</span>
+        </button>
+      )}
 
       <div className="mx-1 h-3.5 w-px bg-border" />
 

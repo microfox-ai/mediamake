@@ -9,6 +9,7 @@ import { SearchReplaceBar } from './SearchReplaceBar';
 import { EditorContextMenu } from './EditorContextMenu';
 import { WordHelperPopup, type WordHelperState } from './WordHelperPopup';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { MediamakeMediaDialog } from './MediamakeMediaDialog';
 import { MarkdownPreview } from './MarkdownPreview';
 import { DiffPane } from './DiffPane';
 import { AllChangesPane } from './AllChangesPane';
@@ -101,6 +102,7 @@ export function EditorPane({
   const [reviewingDiff, setReviewingDiff] = useState(false);
   const [wordHelperState, setWordHelperState] = useState<WordHelperState | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [mediamakeOpen, setMediamakeOpen] = useState(false);
   const internalEditorRef = useRef<CodeMirrorEditorHandle>(null);
   // Use external ref if provided (so MenuBar can call editor methods), else internal
   const editorRef = (editorHandleRef ?? internalEditorRef) as React.RefObject<CodeMirrorEditorHandle | null>;
@@ -252,6 +254,7 @@ export function EditorPane({
           searchActive={searchOpen}
           previewMode={previewMode}
           onTogglePreview={handleTogglePreview}
+          onOpenMediamakeMedia={() => setMediamakeOpen(true)}
         />
       )}
 
@@ -353,6 +356,12 @@ export function EditorPane({
       )}
 
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+
+      <MediamakeMediaDialog
+        open={mediamakeOpen}
+        onOpenChange={setMediamakeOpen}
+        onInsert={(markdown) => editorRef.current?.insertText(markdown)}
+      />
 
       {/* Status bar — violet in both themes */}
       <div className="flex shrink-0 items-center justify-between bg-violet-700 px-3 py-0.5 text-[11px] text-white/90">
