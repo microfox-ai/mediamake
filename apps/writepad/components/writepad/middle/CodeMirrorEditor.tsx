@@ -86,6 +86,8 @@ function buildInsertion(type: FormatType, selected: string): { text: string; cur
 
 export interface CodeMirrorEditorHandle {
   applyFormat: (type: FormatType) => void;
+  /** Insert at cursor (replaces current selection). */
+  insertText: (text: string) => void;
   selectAll: () => void;
   goToLine: (line: number) => void;
   goToOffset: (offset: number) => void;
@@ -174,6 +176,16 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         view.dispatch({
           changes: { from: sel.from, to: sel.to, insert: text },
           selection: { anchor: sel.from + cursorOffset },
+        });
+        view.focus();
+      },
+      insertText(text: string) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        const sel = view.state.selection.main;
+        view.dispatch({
+          changes: { from: sel.from, to: sel.to, insert: text },
+          selection: { anchor: sel.from + text.length },
         });
         view.focus();
       },

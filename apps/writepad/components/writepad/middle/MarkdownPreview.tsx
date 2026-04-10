@@ -7,6 +7,13 @@ interface MarkdownPreviewProps {
   content: string;
 }
 
+/** Direct file URLs (e.g. Mediamake CDN .mp4 links) — show inline player in preview. */
+function isDirectVideoFileUrl(href: string | undefined): boolean {
+  if (!href) return false;
+  const pathOnly = href.split('#')[0]?.split('?')[0] ?? '';
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(pathOnly);
+}
+
 export function MarkdownPreview({ content }: MarkdownPreviewProps) {
   return (
     <div className="h-full overflow-y-auto bg-background px-10 py-8">
@@ -80,11 +87,52 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
             td: ({ children }) => (
               <td className="border-b border-border/50 px-3 py-2">{children}</td>
             ),
-            a: ({ children, href }) => (
-              <a href={href} className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-violet-500 dark:hover:text-violet-300" target="_blank" rel="noopener noreferrer">
-                {children}
-              </a>
-            ),
+            a: ({ children, href }) =>
+              isDirectVideoFileUrl(href) ? (
+                <span className="my-4 block space-y-2">
+                  <video
+                    src={href}
+                    controls
+                    className="max-h-[min(70vh,560px)] w-full max-w-full rounded-md border border-border/60 bg-black"
+                    preload="metadata"
+                  />
+                  <a
+                    href={href}
+                    className="inline-block text-[12px] text-violet-600 dark:text-violet-400 underline underline-offset-2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {children}
+                  </a>
+                </span>
+              ) : (
+                <a
+                  href={href}
+                  className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:text-violet-500 dark:hover:text-violet-300"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {children}
+                </a>
+              ),
+            img: ({ src, alt }) =>
+              isDirectVideoFileUrl(src) ? (
+                <video
+                  src={src}
+                  controls
+                  className="my-4 max-h-[min(70vh,560px)] w-full max-w-full rounded-md border border-border/60 bg-black"
+                  preload="metadata"
+                  title={alt ?? undefined}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- external CDN URLs from Mediamake / user markdown
+                <img
+                  src={src}
+                  alt={alt ?? ''}
+                  loading="lazy"
+                  className="my-4 max-h-[min(70vh,560px)] w-auto max-w-full rounded-md border border-border/60 object-contain"
+                />
+              ),
           }}
         >
           {content}
