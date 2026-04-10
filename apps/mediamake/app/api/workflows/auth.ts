@@ -1,5 +1,13 @@
-import { sessionStore } from '@/lib/auth/session-store';
 import type { NextRequest } from 'next/server';
+import { Redis } from '@upstash/redis';
+import { CrudHash } from '@microfox/db-upstash';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+const sessionStore = new CrudHash<any>(redis, 'sessions');
 
 /**
  * Returns the ID of the currently authenticated user for the given request.
