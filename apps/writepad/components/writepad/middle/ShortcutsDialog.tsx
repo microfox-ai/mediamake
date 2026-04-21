@@ -38,6 +38,7 @@ const SHORTCUT_SECTIONS = [
   {
     title: 'AI Autocomplete',
     items: [
+      { key: 'Alt+A', desc: 'Toggle cursor-placement AI auto-complete on / off' },
       { key: 'Alt+G', desc: 'Manually trigger / cycle to a different AI suggestion' },
       { key: 'Tab', desc: 'Accept autocomplete suggestion' },
       { key: 'Escape', desc: 'Dismiss autocomplete suggestion' },
