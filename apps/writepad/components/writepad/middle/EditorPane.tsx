@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { GitBranch, RotateCcw, Save, GitMerge } from 'lucide-react';
 import { TabBar } from './TabBar';
+import type { DiffTabInfo } from './TabBar';
 import { EditorToolbar } from './EditorToolbar';
 import { SearchReplaceBar } from './SearchReplaceBar';
 import { EditorContextMenu } from './EditorContextMenu';
@@ -14,7 +15,8 @@ import { MarkdownPreview } from './MarkdownPreview';
 import { DiffPane } from './DiffPane';
 import { AllChangesPane } from './AllChangesPane';
 import { InlineDiffView } from './InlineDiffView';
-import type { OpenTab, SelectionContext, DiffViewState } from './types';
+import { VcsCommitDiffPane } from './VcsCommitDiffPane';
+import type { OpenTab, SelectionContext, DiffViewState, VcsCommitViewData } from './types';
 import type { CodeMirrorEditorHandle } from './CodeMirrorEditor';
 import type { WordHelperRequest } from './wordHelperExtension';
 import type { EditorPreferences } from '@/hooks/useEditorPreferences';
@@ -59,12 +61,21 @@ interface EditorPaneProps {
   onNavigated: () => void;
   onHighlighted: () => void;
   onShowDraftDiff?: (fileId: string) => void;
+  /** VCS commit diff view — takes over the middle panel (overrides diffView). */
+  vcsCommitView?: VcsCommitViewData | null;
+  onCloseVcsCommitView?: () => void;
   /** Exposed ref so page can call editor methods (goToLine, selectAll, etc.) */
   editorHandleRef?: React.RefObject<CodeMirrorEditorHandle | null>;
   /** Expose search toggle to parent (MenuBar calls it) */
   onToggleSearch?: () => void;
   /** Content of .writepad/rules.md — injected into all AI prompts. */
   writepadRules?: string | null;
+  /** Callback to copy a shareable link to the current editor selection. */
+  onCopySelectionLink?: () => void;
+  /** Batch-close multiple tabs from the tab context menu. */
+  onCloseTabs?: (fileIds: string[]) => void;
+  /** Copy a shareable link for a specific tab's file (used by tab context menu). */
+  onCopyTabLink?: (fileId: string) => void;
 }
 
 export function EditorPane({
@@ -94,9 +105,14 @@ export function EditorPane({
   onNavigated,
   onHighlighted,
   onShowDraftDiff,
+  vcsCommitView,
+  onCloseVcsCommitView,
   editorHandleRef,
   onToggleSearch: externalToggleSearch,
   writepadRules,
+  onCopySelectionLink,
+  onCloseTabs,
+  onCopyTabLink,
 }: EditorPaneProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [reviewingDiff, setReviewingDiff] = useState(false);
@@ -236,6 +252,33 @@ export function EditorPane({
   // Auto-exit inline diff review when switching to a file without changes
   if (reviewingDiff && !hasDraftChanges) setReviewingDiff(false);
 
+  // ── Diff tab ────────────────────────────────────────────────────────────────
+  // Builds a virtual "diff tab" shown in the TabBar when any diff view is active.
+  const closeAnyDiff = useCallback(() => {
+    if (vcsCommitView) onCloseVcsCommitView?.();
+    else onCloseDiff();
+  }, [vcsCommitView, onCloseVcsCommitView, onCloseDiff]);
+
+  const diffTab: DiffTabInfo | null = vcsCommitView
+    ? {
+        label: vcsCommitView.commitMessage.length > 32
+          ? vcsCommitView.commitMessage.slice(0, 32) + '…'
+          : vcsCommitView.commitMessage,
+        kind: 'commit',
+        onClose: closeAnyDiff,
+      }
+    : diffView?.showAll
+    ? { label: 'All Changes', kind: 'all-changes', onClose: onCloseDiff }
+    : diffView
+    ? { label: `Diff: ${diffView.fileName}`, kind: 'diff', onClose: onCloseDiff }
+    : null;
+
+  // Clicking a file tab while a diff is open closes the diff first.
+  const handleTabSelectWithDiffClose = useCallback((fileId: string) => {
+    closeAnyDiff();
+    onTabSelect(fileId);
+  }, [closeAnyDiff, onTabSelect]);
+
   return (
     <div className="flex h-full flex-col bg-background">
       <TabBar
@@ -243,11 +286,17 @@ export function EditorPane({
         activeFileId={activeFileId}
         unsavedIds={unsavedIds}
         draftedIds={draftedIds}
-        onSelect={onTabSelect}
+        onSelect={handleTabSelectWithDiffClose}
         onClose={onTabClose}
+        diffTab={diffTab}
+        onCloseTabs={onCloseTabs}
+        onSaveTab={onSave}
+        onRevertTab={onRevertDraft}
+        onOpenDiff={onShowDraftDiff}
+        onCopyLink={onCopyTabLink}
       />
 
-      {!diffView && !reviewingDiff && (
+      {!vcsCommitView && !diffView && !reviewingDiff && !!activeTab && (
         <EditorToolbar
           onAction={(type) => editorRef.current?.applyFormat(type as Parameters<CodeMirrorEditorHandle['applyFormat']>[0])}
           onToggleSearch={handleToggleSearch}
@@ -259,7 +308,7 @@ export function EditorPane({
       )}
 
       {/* "Review AI Changes" banner — shown when file has draft diffs */}
-      {!diffView && !reviewingDiff && hasDraftChanges && (
+      {!vcsCommitView && !diffView && !reviewingDiff && hasDraftChanges && (
         <div className="flex shrink-0 items-center gap-2 border-b border-violet-500/20 bg-violet-500/5 px-3 py-1">
           <GitMerge size={11} className="text-violet-400 shrink-0" />
           <span className="text-[11px] text-violet-400/80">AI changes applied to draft</span>
@@ -272,7 +321,7 @@ export function EditorPane({
         </div>
       )}
 
-      {searchOpen && !diffView && !reviewingDiff && activeTab && (
+      {searchOpen && !vcsCommitView && !diffView && !reviewingDiff && activeTab && (
         <SearchReplaceBar
           content={activeTab.content}
           onChange={(next) => onContentChange(activeTab.fileId, next)}
@@ -281,8 +330,15 @@ export function EditorPane({
         />
       )}
 
-      {/* Body */}
-      {diffView?.showAll ? (
+      {/* Body — flex-1 min-h-0 ensures this fills remaining height without overflowing */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+      {vcsCommitView ? (
+        <VcsCommitDiffPane
+          projectId={projectId}
+          data={vcsCommitView}
+          onClose={closeAnyDiff}
+        />
+      ) : diffView?.showAll ? (
         <AllChangesPane
           tabs={tabs}
           unsavedIds={unsavedIds}
@@ -297,6 +353,8 @@ export function EditorPane({
           original={diffView.original}
           modified={diffView.modified}
           onClose={onCloseDiff}
+          originalLabel={diffView.originalLabel}
+          modifiedLabel={diffView.modifiedLabel}
         />
       ) : reviewingDiff && activeTab && activeTab.draftContent !== null ? (
         <InlineDiffView
@@ -319,8 +377,15 @@ export function EditorPane({
           onContextSelect={onContextSelect}
           onWordHelper={handleWordHelperFromMenu}
           onShowShortcuts={() => setShowShortcuts(true)}
+          onCopySelectionLink={onCopySelectionLink}
         >
-          <div className="relative flex-1 overflow-hidden">
+          {/* h-full fills the parent body div; onClick focuses editor when clicking below content */}
+          <div
+            className="relative h-full overflow-hidden"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) editorRef.current?.focus();
+            }}
+          >
             {activeTab ? (
               <CodeMirrorEditor
                 ref={editorRef}
@@ -339,9 +404,9 @@ export function EditorPane({
                 writepadRules={writepadRules}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center text-muted-foreground/50">
-                <p className="text-sm">No file open</p>
-                <p className="mt-1 text-xs">Select a file from the explorer</p>
+              <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground/40">
+                <p className="text-sm font-medium">No file open</p>
+                <p className="text-xs">Select a file from the explorer</p>
               </div>
             )}
             {wordHelperState && (
@@ -354,6 +419,7 @@ export function EditorPane({
           </div>
         </EditorContextMenu>
       )}
+      </div>{/* end body flex-1 */}
 
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
 
@@ -370,7 +436,8 @@ export function EditorPane({
             <>
               <span>{activeTab.name}</span>
               {previewMode && <span className="rounded bg-white/15 px-1 text-[10px]">Preview</span>}
-              {diffView && <span className="rounded bg-amber-500/30 px-1 text-[10px] text-amber-300">Diff</span>}
+              {vcsCommitView && <span className="rounded bg-violet-500/30 px-1 text-[10px] text-violet-200">Commit Diff</span>}
+              {!vcsCommitView && diffView && <span className="rounded bg-amber-500/30 px-1 text-[10px] text-amber-300">Diff</span>}
               {isDrafted && !diffView && (
                 <div className="flex items-center gap-1.5">
                   <span className="flex items-center gap-0.5 rounded bg-violet-500/30 px-1.5 py-0.5 text-[10px] text-violet-200">
@@ -416,6 +483,17 @@ export function EditorPane({
               </button>
             </>
           )}
+          <button
+            onClick={() => onPrefsChange({ autoComplete: !prefs.autoComplete })}
+            title={`AI auto-complete: ${prefs.autoComplete ? 'On' : 'Off'} — click or press Alt+A to toggle`}
+            className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+              prefs.autoComplete
+                ? 'bg-white/15 text-white/80 hover:bg-white/25'
+                : 'bg-white/5 text-white/30 hover:bg-white/10'
+            }`}
+          >
+            AI{prefs.autoComplete ? ' ●' : ' ○'}
+          </button>
           <span className="text-white/50">Ctrl+L: chat · Ctrl+P: preview</span>
         </div>
       </div>

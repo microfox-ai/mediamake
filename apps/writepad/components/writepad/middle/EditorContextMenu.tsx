@@ -48,6 +48,7 @@ import {
   MessageSquare,
   Wand2,
   Keyboard,
+  Link,
 } from 'lucide-react';
 import type { CodeMirrorEditorHandle } from './CodeMirrorEditor';
 import type { SelectionContext } from './types';
@@ -63,6 +64,7 @@ interface EditorContextMenuProps {
   onContextSelect: (ctx: SelectionContext) => void;
   onWordHelper: (agentId: string) => void;
   onShowShortcuts: () => void;
+  onCopySelectionLink?: () => void;
 }
 
 export function EditorContextMenu({
@@ -75,6 +77,7 @@ export function EditorContextMenu({
   onContextSelect,
   onWordHelper,
   onShowShortcuts,
+  onCopySelectionLink,
 }: EditorContextMenuProps) {
   const [goToLineOpen, setGoToLineOpen] = useState(false);
 
@@ -258,6 +261,12 @@ export function EditorContextMenu({
           <MessageSquare size={14} /> Send Selection to Chat
           <ContextMenuShortcut>Ctrl+L</ContextMenuShortcut>
         </ContextMenuItem>
+
+        {onCopySelectionLink && (
+          <ContextMenuItem disabled={disabled} onClick={onCopySelectionLink}>
+            <Link size={14} /> Copy Link to Selection
+          </ContextMenuItem>
+        )}
 
         {/* ── 7. Help ──────────────────────────────────────────────── */}
         <ContextMenuSeparator />

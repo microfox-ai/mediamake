@@ -97,6 +97,8 @@ export interface CodeMirrorEditorHandle {
   replaceRange: (from: number, to: number, text: string) => void;
   /** CM doc positions of the current main selection. */
   getSelectionRange: () => { from: number; to: number } | null;
+  /** 1-based line numbers of the current selection (null when empty). */
+  getSelectionLines: () => { startLine: number; endLine: number } | null;
   /** Screen coords of the current selection start (for popup positioning). */
   getSelectionCoords: () => { top: number; left: number; bottom: number } | null;
   setSearch: (query: string, caseSensitive: boolean, isRegex: boolean) => void;
@@ -242,6 +244,15 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         if (sel.empty) return null;
         return { from: sel.from, to: sel.to };
       },
+      getSelectionLines() {
+        const view = cmRef.current?.view;
+        if (!view) return null;
+        const sel = view.state.selection.main;
+        if (sel.empty) return null;
+        const startLine = view.state.doc.lineAt(sel.from).number;
+        const endLine = view.state.doc.lineAt(sel.to).number;
+        return { startLine, endLine };
+      },
       getSelectionCoords() {
         const view = cmRef.current?.view;
         if (!view) return null;
@@ -258,11 +269,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       },
       findNextMatch() {
         const view = cmRef.current?.view;
-        if (view) findNext(view);
+        if (view) findNext(view as unknown as Parameters<typeof findNext>[0]);
       },
       findPrevMatch() {
         const view = cmRef.current?.view;
-        if (view) findPrevious(view);
+        if (view) findPrevious(view as unknown as Parameters<typeof findPrevious>[0]);
       },
       clearSearch() {
         const view = cmRef.current?.view;
@@ -296,6 +307,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
             },
             // Toggle word wrap
             { key: 'Alt-x', run: () => { onPrefsChangeRef.current({ wordWrap: !prefsRef.current.wordWrap }); return true; } },
+            // Toggle AI auto-complete (cursor-triggered)
+            { key: 'Alt-a', run: () => { onPrefsChangeRef.current({ autoComplete: !prefsRef.current.autoComplete }); return true; } },
             // Move current line up/down
             { key: 'Alt-ArrowUp', run: moveLineUp },
             { key: 'Alt-ArrowDown', run: moveLineDown },
@@ -311,6 +324,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         () => fileNameRef.current,
         () => projectIdRef.current,
         () => writepadRulesRef.current ?? undefined,
+        () => prefsRef.current.autoComplete,
       ),
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
