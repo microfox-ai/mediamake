@@ -59,12 +59,67 @@ export interface DbProjectAgent {
   updatedAt: Date;
 }
 
+export interface DbVcsBranch {
+  _id: ObjectId;
+  projectId: string;
+  name: string;
+  headCommitId: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface VcsFileSnapshot {
+  fileId: string;
+  name: string;
+  type: 'file' | 'folder';
+  parentId: string | null;
+  content: string;
+  order: number;
+}
+
+export interface DbVcsCommit {
+  _id: ObjectId;
+  projectId: string;
+  branchName: string;
+  message: string;
+  authorClientId: string;
+  parentCommitId: string | null;
+  mergeParentCommitId: string | null;
+  createdAt: Date;
+}
+
+export interface DbVcsCommitFile {
+  _id: ObjectId;
+  commitId: string;
+  projectId: string;
+  fileId: string;
+  changeType: 'add' | 'modify' | 'delete' | 'rename';
+  snapshot: VcsFileSnapshot | null;
+  previousFileId: string | null;
+  createdAt: Date;
+}
+
+export interface DbVcsFileHead {
+  _id: ObjectId;
+  projectId: string;
+  branchName: string;
+  fileId: string;
+  lastCommitId: string;
+  deleted: boolean;
+  updatedAt: Date;
+}
+
 // ─── Serialised (API-facing) shapes ──────────────────────────────────────────
 
 export type ProjectDoc = Omit<DbProject, '_id'> & { id: string };
 export type ProjectFileDoc = Omit<DbProjectFile, '_id'> & { id: string };
 export type ChatSessionDoc = Omit<DbChatSession, '_id'> & { id: string };
 export type ProjectAgentDoc = Omit<DbProjectAgent, '_id'> & { id: string };
+export type VcsBranchDoc = Omit<DbVcsBranch, '_id'> & { id: string };
+export type VcsCommitDoc = Omit<DbVcsCommit, '_id'> & { id: string };
+export type VcsCommitFileDoc = Omit<DbVcsCommitFile, '_id'> & { id: string };
+export type VcsFileHeadDoc = Omit<DbVcsFileHead, '_id'> & { id: string };
 
 // ─── Collection accessors ─────────────────────────────────────────────────────
 
@@ -82,6 +137,22 @@ export async function chatSessionsCol(): Promise<Collection<DbChatSession>> {
 
 export async function projectAgentsCol(): Promise<Collection<DbProjectAgent>> {
   return (await getDb()).collection<DbProjectAgent>('project_agents');
+}
+
+export async function vcsBranchesCol(): Promise<Collection<DbVcsBranch>> {
+  return (await getDb()).collection<DbVcsBranch>('project_vcs_branches');
+}
+
+export async function vcsCommitsCol(): Promise<Collection<DbVcsCommit>> {
+  return (await getDb()).collection<DbVcsCommit>('project_vcs_commits');
+}
+
+export async function vcsCommitFilesCol(): Promise<Collection<DbVcsCommitFile>> {
+  return (await getDb()).collection<DbVcsCommitFile>('project_vcs_commit_files');
+}
+
+export async function vcsFileHeadsCol(): Promise<Collection<DbVcsFileHead>> {
+  return (await getDb()).collection<DbVcsFileHead>('project_vcs_file_heads');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

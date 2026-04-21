@@ -31,4 +31,23 @@ export interface DiffViewState {
   modified: string;
   /** When true, show all changed files (unsaved + drafted) in a file-list diff view. */
   showAll?: boolean;
+  /** Override label for the left (original) pane. */
+  originalLabel?: string;
+  /** Override label for the right (modified) pane. */
+  modifiedLabel?: string;
+}
+
+/** Data for VS Code-style commit diff view in the middle panel. */
+export interface VcsCommitViewData {
+  commitId: string;
+  commitMessage: string;
+  /** ID of the parent commit — used to fetch "before" content per file. */
+  parentCommitId: string | null;
+  changes: Array<{
+    id: string;
+    fileId: string;
+    changeType: 'add' | 'modify' | 'delete' | 'rename';
+    snapshot: { name: string; content: string; type: string; parentId: string | null; order: number; fileId: string } | null;
+    previousFileId: string | null;
+  }>;
 }

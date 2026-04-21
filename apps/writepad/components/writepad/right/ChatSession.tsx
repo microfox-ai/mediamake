@@ -120,6 +120,15 @@ export function ChatSession({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);
 
+  // Scroll to bottom immediately (no animation) when switching sessions or on
+  // first load — deferred slightly so React has time to paint the messages.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [session.id]);
+
   // When lazy-loaded messages arrive from ChatPanel, inject them into useChat
   // and mark them all as historical (they came from DB, not from streaming).
   useEffect(() => {

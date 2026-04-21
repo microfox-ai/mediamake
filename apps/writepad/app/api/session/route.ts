@@ -1,9 +1,8 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/auth/session-store';
 
-export async function GET() {
-  const sessionId = (await cookies()).get('session_token')?.value;
+export async function GET(req: NextRequest) {
+  const sessionId = req.cookies.get('session_token')?.value;
   if (!sessionId) {
     return NextResponse.json({ isAuthenticated: false }, { status: 401 });
   }

@@ -19,6 +19,8 @@ export interface EditorPreferences {
   lineHeight: number;  // 1.2–2.2 (step 0.1)
   wordWrap: boolean;
   lineNumbers: boolean;
+  /** Whether cursor-placement AI auto-complete is active. Alt+G manual trigger always works. */
+  autoComplete: boolean;
 }
 
 export const FONT_LABELS: Record<EditorFont, string> = {
@@ -37,6 +39,7 @@ const DEFAULTS: EditorPreferences = {
   lineHeight: 1.6,
   wordWrap: true,
   lineNumbers: true,
+  autoComplete: true,
 };
 
 const STORAGE_KEY = 'writepad_editor_prefs';

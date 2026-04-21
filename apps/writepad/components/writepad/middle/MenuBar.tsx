@@ -261,6 +261,8 @@ export interface MenuBarProps {
   onDeleteProject: () => void;
   onProjectNameChanged: (name: string) => void;
   onShare: () => void;
+  onCopyFileLink?: () => void;
+  onCopySelectionLink?: () => void;
   // Edit actions (forwarded to editor ref)
   onFormat: (type: string) => void;
   onSelectAll: () => void;
@@ -294,6 +296,8 @@ export function MenuBar({
   onDeleteProject,
   onProjectNameChanged,
   onShare,
+  onCopyFileLink,
+  onCopySelectionLink,
   onFormat,
   onSelectAll,
   onGoToLine,
@@ -371,6 +375,13 @@ export function MenuBar({
               </MenubarItem>
               <MenubarItem onSelect={onShowDiff}>
                 Show Changes
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={() => router.push(`/projects/${projectId}/usage`)}>
+                Usage &amp; Cost Dashboard
+              </MenubarItem>
+              <MenubarItem onSelect={() => router.push(`/projects/${projectId}/vcs`)}>
+                Branch Graph
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={() => setShowProjectSettings(true)}>
@@ -495,6 +506,12 @@ export function MenuBar({
               >
                 Line Numbers
               </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={prefs.autoComplete}
+                onCheckedChange={(v) => onPrefsChange({ autoComplete: v })}
+              >
+                AI Auto-complete <MenubarShortcut>Alt+A</MenubarShortcut>
+              </MenubarCheckboxItem>
               <MenubarSeparator />
               <MenubarItem onSelect={() => setShowPrefs(true)}>
                 Preferences… <MenubarShortcut>Ctrl+,</MenubarShortcut>
@@ -502,12 +519,19 @@ export function MenuBar({
             </MenubarContent>
           </MenubarMenu>
 
-          {/* ── HELP ─────────────────────────────────────────────────── */}
+          {/* ── SHARE ────────────────────────────────────────────────── */}
           <MenubarMenu>
             <MenubarTrigger className="text-xs px-2.5 py-1.5 rounded-sm">Share</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onSelect={onShare}>
                 Manage Project Access…
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={onCopyFileLink} disabled={!onCopyFileLink}>
+                Copy Link to File
+              </MenubarItem>
+              <MenubarItem onSelect={onCopySelectionLink} disabled={!onCopySelectionLink}>
+                Copy Link to Selection
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
