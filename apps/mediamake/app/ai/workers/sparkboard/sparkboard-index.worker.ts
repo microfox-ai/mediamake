@@ -66,6 +66,8 @@ export default createWorker<typeof InputSchema, Output>({
       generateDescription = true,
       generateKeywords = true,
     } = input;
+    const shouldRunAiAnalysis =
+      analyzeImage && (generateDescription || generateKeywords);
 
     const db = await getDatabase();
     const collection = db.collection<MediaFile>('mediaFiles');
@@ -120,32 +122,38 @@ export default createWorker<typeof InputSchema, Output>({
       effectiveFilePath = uploaded;
     }
 
-    // Start with the provided metadata
-    let finalMetadata: Record<string, unknown> = metadata || {};
+    const incomingMetadata: Record<string, unknown> =
+      metadata && typeof metadata === 'object' ? metadata : {};
+    // Start with metadata sent by caller (extension/API analysis response).
+    let finalMetadata: Record<string, unknown> = { ...incomingMetadata };
     const mediaSourceUrl = effectiveFilePath;
 
     // For images, always index into RAG (project + tag namespaces).
     if (contentType === 'image') {
       try {
         if (mediaSourceUrl) {
-          console.log('[media-index] Performing AI indexing for image:', mediaSourceUrl);
+          if (shouldRunAiAnalysis) {
+            console.log('[media-index] Performing AI indexing for image:', mediaSourceUrl);
+          } else {
+            console.log('[media-index] Indexing image without AI generation:', mediaSourceUrl);
+          }
           const aiMetadata = await indexAndAnalyzeImage(mediaSourceUrl, clientId || 'default', {
             platform: contentSource,
             platformUrl: effectiveSourceUrl,
             imageLink: mediaSourceUrl,
             tags,
             projectId: projectId ?? undefined,
-            metadata: finalMetadata as any,
-            analyzeImage,
+            metadata: incomingMetadata as any,
+            analyzeImage: shouldRunAiAnalysis,
             generateDescription,
             generateKeywords,
           });
 
           if (aiMetadata) {
-            // When AI is disabled, preserve any precomputed analysis metadata from the API.
+            // Preserve caller-provided analysis metadata from extension/API.
             finalMetadata = {
               ...aiMetadata,
-              ...finalMetadata,
+              ...incomingMetadata,
             };
             console.log('[media-index] Indexing completed, metadata updated');
           } else {
@@ -167,56 +175,12 @@ export default createWorker<typeof InputSchema, Output>({
       console.log('[media-index] Video analysis not yet supported, skipping AI analysis');
     }
 
-    // Check if media file already exists for this client by uploaded file path
-    // or by source reference (when the same web image is re-submitted).
-    const existingFilter: Record<string, unknown> = {
-      clientId: clientId || 'default',
-      $or: [
-        { filePath: effectiveFilePath },
-        ...(contentSourceUrl ? [{ contentSource: contentSource, contentSourceUrl }] : []),
-      ],
-    };
-    const existingFile = await collection.findOne(existingFilter as any);
-
-    if (existingFile) {
-      const shouldUpdateMetadata =
-        finalMetadata &&
-        typeof finalMetadata === 'object' &&
-        Object.keys(finalMetadata).length > 0;
-
-      if (shouldUpdateMetadata) {
-        const mergedMetadata = {
-          ...((existingFile.metadata as Record<string, unknown>) || {}),
-          ...finalMetadata,
-        };
-        await collection.updateOne(
-          { _id: existingFile._id } as any,
-          {
-            $set: {
-              metadata: mergedMetadata,
-              updatedAt: new Date(),
-            },
-          },
-        );
-        return {
-          status: 'skipped',
-          message: 'Media file already exists; metadata updated',
-          mediaFile: {
-            ...existingFile,
-            metadata: mergedMetadata,
-            updatedAt: new Date(),
-          },
-        };
-      }
-
-      console.log(
-        '[media-index] Media file with URL already exists, skipping creation:',
-        contentSourceUrl,
-      );
-      return {
-        status: 'skipped',
-        message: 'Media file already exists',
-        mediaFile: existingFile,
+    // Explicit guarantee: if worker AI generation is disabled, keep precomputed
+    // analysis fields from caller metadata (from separate analyze-image API call).
+    if (!shouldRunAiAnalysis) {
+      finalMetadata = {
+        ...finalMetadata,
+        ...incomingMetadata,
       };
     }
 
@@ -230,7 +194,7 @@ export default createWorker<typeof InputSchema, Output>({
       contentMimeType: effectiveMimeType,
       contentSubType: contentSubType || 'unknown',
       contentSource,
-      contentSourceUrl: contentSourceUrl || effectiveSourceUrl,
+      contentSourceUrl: sourceUrl || contentSourceUrl || effectiveSourceUrl,
       metadata: finalMetadata,
       fileName: effectiveFileName || `upload-${Date.now()}`,
       fileSize: effectiveFileSize,
