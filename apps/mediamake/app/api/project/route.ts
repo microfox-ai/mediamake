@@ -16,17 +16,17 @@ interface ProjectDocument {
 // - With ?search=...&tag=...&page=...&limit=...: return paginated projects with search and tag filter
 // - Without query: return all projects (metadata only)
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('search');
+  const tag = searchParams.get('tag');
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '20', 10);
   try {
     const db = await getDatabase();
     const clientId = request.headers.get('x-client-id') || undefined;
     const collection = db.collection<ProjectDocument>('projects');
 
-    const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const search = searchParams.get('search');
-    const tag = searchParams.get('tag');
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
     const skip = (page - 1) * limit;
 
     // If id is provided, return the specific project
@@ -118,6 +118,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching projects:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    const isDbConnectivityIssue =
+      message.includes('ECONNREFUSED') ||
+      message.includes('querySrv') ||
+      message.includes('ENOTFOUND');
+
+    if (isDbConnectivityIssue) {
+      if (search || tag) {
+        return NextResponse.json({
+          projects: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      return NextResponse.json([]);
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch projects' },
       { status: 500 },
