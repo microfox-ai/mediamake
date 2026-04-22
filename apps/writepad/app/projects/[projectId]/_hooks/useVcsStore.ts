@@ -1,17 +1,21 @@
 'use client';
 
 import { create } from 'zustand';
-import type { LocalCommit } from '@/lib/localRepo';
+import type { LocalCommit, LocalBranchMeta } from '@/lib/localRepo';
 import {
   saveLocalCommit,
   clearLocalCommits,
   loadLocalCommits,
   loadPulledHead,
   savePulledHead,
+  saveLocalBranch,
+  loadLocalBranch,
+  loadAllLocalBranches,
+  deleteLocalBranch,
 } from '@/lib/localRepo';
 
-// Re-export so VcsPanel and other consumers can import LocalCommit from here
-export type { LocalCommit } from '@/lib/localRepo';
+// Re-export so consumers can import these types from here
+export type { LocalCommit, LocalBranchMeta } from '@/lib/localRepo';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -23,6 +27,8 @@ export interface VcsBranch {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Client-side flag — true for branches that exist only locally (not yet pushed). */
+  isLocalOnly?: boolean;
 }
 
 export interface VcsCommit {
@@ -93,35 +99,17 @@ export interface VcsFileSnapshotForCommit {
 
 export type HeadSnapshotArray = Array<{ fileId: string; snapshot: VcsFileSnapshot | null }>;
 
-/**
- * A single file entry in a fetch preview.
- * kind:
- *   'added'    — file exists on server HEAD but NOT in our pulledHead (new remote file)
- *   'modified' — file changed on server HEAD vs our pulledHead
- *   'deleted'  — file removed from server HEAD vs our pulledHead
- */
 export interface FetchPreviewEntry {
   fileId: string;
   fileName: string;
   kind: 'added' | 'modified' | 'deleted';
-  /** Server snapshot (null for remote deletions). */
   serverSnapshot: VcsFileSnapshot | null;
-  /** Our pulled-head snapshot at last pull (null for remote additions). */
   pulledSnapshot: VcsFileSnapshot | null;
-  /**
-   * Whether this file has local uncommitted edits.
-   * If true AND kind !== 'added', the pull would be a conflict.
-   */
   hasLocalChanges: boolean;
 }
 
-/**
- * A single file update produced by pull() or restoreFilesFromHead().
- * The caller (useProjectData) applies these to its local state.
- */
 export interface PullFileUpdate {
   fileId: string;
-  /** null → delete this file from local working directory */
   snapshot: VcsFileSnapshot | null;
 }
 
@@ -141,58 +129,25 @@ interface VcsStore {
   commits: VcsCommit[];
   commitsPage: number;
   commitsHasMore: boolean;
-
-  /**
-   * VCS status entries — computed client-side in page.tsx using localHead.
-   * Call setStatusEntries() to update.
-   */
   statusEntries: VcsStatusEntry[];
-
-  /**
-   * The branch HEAD snapshot most recently fetched from the server.
-   * Updated by refreshPanel() and fetch().
-   */
   headSnapshot: HeadSnapshotArray | null;
-
-  /**
-   * The branch HEAD snapshot at the time of the last pull (or initial load).
-   * Acts as the "remote-tracking branch HEAD" (like origin/main in git).
-   * Comparing headSnapshot vs pulledHead reveals what changed since last pull.
-   * Persisted to IndexedDB via savePulledHead().
-   */
   pulledHead: HeadSnapshotArray | null;
-
-  /**
-   * Locally-created commits not yet pushed to the server, sorted oldest-first.
-   * Stored in IndexedDB. Cleared after a successful push().
-   */
   localCommits: LocalCommit[];
-
-  /**
-   * The effective local HEAD = pulledHead with localCommits applied on top.
-   * Used for VCS status computation (what changed since last commit).
-   * null if not yet computed.
-   */
   localHead: HeadSnapshotArray | null;
-
-  /** Preview computed after fetch() — entries that differ between headSnapshot and pulledHead. */
   fetchPreview: FetchPreviewEntry[] | null;
-
-  /** ISO timestamp of last fetch() call. */
   lastFetchedAt: string | null;
-
-  /** ISO timestamp of last successful pull or push. */
   lastPulledAt: string | null;
-
   activeCommitChanges: VcsCommitFile[];
   mergePreview: MergePreviewData | null;
 
+  /** Names of branches that exist only locally (not yet pushed to server). */
+  localOnlyBranches: Set<string>;
+
   // Derived helpers
   isLoading: (key?: OpKey) => boolean;
-  /** Number of remote changes detected but not yet pulled. */
   pendingPullCount: () => number;
-  /** Whether there are un-pulled remote changes (fetch detected new commits). */
   hasPendingPull: () => boolean;
+  isBranchLocalOnly: (branchName: string) => boolean;
 
   // Lifecycle
   init: (projectId: string) => void;
@@ -200,19 +155,10 @@ interface VcsStore {
   clearMergePreview: () => void;
   setActiveCommitChanges: (changes: VcsCommitFile[]) => void;
   setStatusEntries: (entries: VcsStatusEntry[]) => void;
-
-  /**
-   * Mark the current headSnapshot as "pulled" — call this after the initial
-   * server load (so the first fetch correctly shows what's NEW since load).
-   * Skips if pulledHead was already loaded from IndexedDB.
-   */
   markPulled: () => void;
-
-  /**
-   * Load pulledHead and localCommits from IndexedDB for the current
-   * project + branch. Called internally by refreshPanel().
-   */
   loadLocalState: () => Promise<void>;
+  /** Load local-only branch metadata from IDB. Call after refreshPanel. */
+  loadLocalBranches: () => Promise<void>;
 
   // ── Batch data fetching ────────────────────────────────────────────────────
   refreshPanel: (branch?: string, page?: number) => Promise<void>;
@@ -223,34 +169,27 @@ interface VcsStore {
   refreshBranches: () => Promise<void>;
   refreshCommits: (branch?: string) => Promise<void>;
 
-  // ── Fetch / Pull (git-style) ───────────────────────────────────────────────
-
-  /**
-   * `git fetch` — download the latest server HEAD without applying changes.
-   * Sets headSnapshot and computes fetchPreview by comparing vs pulledHead.
-   */
+  // ── Fetch / Pull ───────────────────────────────────────────────────────────
   fetch: (getLocalStatus: () => VcsStatusEntry[]) => Promise<void>;
-
-  /**
-   * `git pull` — apply fetched remote changes to local files.
-   *
-   * For each entry in fetchPreview:
-   *   - No local changes → auto-apply (fast-forward)
-   *   - Local changes + conflict resolution provided → use resolution
-   *   - Local changes + no resolution → skip (leave as conflict)
-   */
   pull: (
     resolutions: Array<{ fileId: string; resolution: 'keepLocal' | 'takeServer' }>,
     onApplied: (updates: PullFileUpdate[]) => Promise<void>,
   ) => Promise<void>;
 
   /**
-   * `git push` — send all local (unpushed) commits to the server in order,
-   * then clear the local commit queue and advance pulledHead.
+   * Push local commits (and the branch itself if local-only) to the server.
+   * - If current branch is local-only: creates it on server first, then pushes commits.
+   * - If current branch is a server branch: pushes accumulated local commits only.
    */
   push: (onPushed?: () => Promise<void>) => Promise<void>;
 
   // ── Branch operations ──────────────────────────────────────────────────────
+  /**
+   * Create a new branch locally (no server call).
+   * The branch is stored in IDB and marked as local-only.
+   * Local commits from the source branch are carried forward.
+   * Call push() while on the new branch to publish it to the server.
+   */
   createBranch: (name: string, sourceBranch: string) => Promise<void>;
   checkoutBranch: (
     branchName: string,
@@ -258,10 +197,6 @@ interface VcsStore {
   ) => Promise<void>;
 
   // ── Commit ─────────────────────────────────────────────────────────────────
-  /**
-   * Create a local commit (stored in IndexedDB only — NOT sent to server).
-   * Call push() to send accumulated local commits to the server.
-   */
   commit: (
     message: string,
     files: VcsFileSnapshotForCommit[],
@@ -270,6 +205,10 @@ interface VcsStore {
   loadCommitDetail: (commitId: string) => Promise<VcsCommitFile[]>;
 
   // ── Merge ──────────────────────────────────────────────────────────────────
+  /**
+   * Preview a merge. If sourceBranch is local-only, the merge is computed
+   * locally from IDB state without any server calls.
+   */
   previewMerge: (sourceBranch: string, targetBranch: string) => Promise<void>;
   executeMerge: (
     sourceBranch: string,
@@ -327,7 +266,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 /**
  * Apply local commits (oldest-first) on top of pulledHead to produce the
- * effective local HEAD. This is analogous to `git log` showing unpushed commits.
+ * effective local HEAD.
  */
 function computeLocalHead(
   pulledHead: HeadSnapshotArray,
@@ -373,10 +312,8 @@ function diffSnapshots(
     const oldSnap = oldMap.has(fileId) ? oldMap.get(fileId) ?? null : undefined;
     const newSnap = newMap.has(fileId) ? newMap.get(fileId) ?? null : undefined;
 
-    // Both sides absent — shouldn't happen but guard anyway
     if (oldSnap === undefined && newSnap === undefined) continue;
 
-    // No change
     if (oldSnap !== undefined && newSnap !== undefined) {
       if (oldSnap === null && newSnap === null) continue;
       if (
@@ -389,18 +326,13 @@ function diffSnapshots(
     }
 
     const fileName = newSnap?.name ?? oldSnap?.name ?? fileId;
-
     const kind: FetchPreviewEntry['kind'] =
-      oldSnap === undefined || oldSnap === null
-        ? 'added'
-        : newSnap === undefined || newSnap === null
-        ? 'deleted'
-        : 'modified';
+      oldSnap === undefined || oldSnap === null ? 'added'
+      : newSnap === undefined || newSnap === null ? 'deleted'
+      : 'modified';
 
     entries.push({
-      fileId,
-      fileName,
-      kind,
+      fileId, fileName, kind,
       serverSnapshot: newSnap ?? null,
       pulledSnapshot: oldSnap ?? null,
       hasLocalChanges: locallyChanged.has(fileId),
@@ -408,6 +340,137 @@ function diffSnapshots(
   }
 
   return entries.sort((a, b) => a.fileName.localeCompare(b.fileName));
+}
+
+/**
+ * Snapshot equality check (content + structural fields).
+ */
+function snapshotsEqual(
+  a: VcsFileSnapshot | null | undefined,
+  b: VcsFileSnapshot | null | undefined,
+): boolean {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  return (
+    a.content === b.content &&
+    a.name === b.name &&
+    a.parentId === b.parentId &&
+    a.type === b.type
+  );
+}
+
+/**
+ * Detect whether ALL files changed by local commits are already reflected in
+ * serverHead with the same content. Returns true → local commits are stale
+ * (already on server via a merge or push from another device) and can be
+ * auto-discarded.
+ */
+function localCommitsAlreadyOnServer(
+  pulledHead: HeadSnapshotArray,
+  localHead: HeadSnapshotArray,
+  serverHead: HeadSnapshotArray,
+): boolean {
+  const pulledMap = new Map(pulledHead.map(({ fileId, snapshot }) => [fileId, snapshot]));
+  const localMap  = new Map(localHead.map(({ fileId, snapshot })  => [fileId, snapshot]));
+  const serverMap = new Map(serverHead.map(({ fileId, snapshot }) => [fileId, snapshot]));
+
+  let changedCount = 0;
+
+  // Files added or modified by local commits
+  for (const [fileId, localSnap] of localMap) {
+    const pulledSnap = pulledMap.get(fileId) ?? null;
+    if (snapshotsEqual(localSnap, pulledSnap)) continue; // unchanged by local commits
+
+    changedCount++;
+    const serverSnap = serverMap.has(fileId) ? (serverMap.get(fileId) ?? null) : undefined;
+    if (serverSnap === undefined) return false; // file missing in server HEAD
+    if (!snapshotsEqual(localSnap, serverSnap)) return false; // different content
+  }
+
+  // Files deleted by local commits
+  for (const { fileId } of pulledHead) {
+    const localSnap = localMap.has(fileId) ? (localMap.get(fileId) ?? null) : undefined;
+    if (localSnap !== undefined) continue; // still present locally — handled above
+    // locally deleted
+    changedCount++;
+    const serverSnap = serverMap.has(fileId) ? (serverMap.get(fileId) ?? null) : undefined;
+    if (serverSnap !== undefined && serverSnap !== null) return false; // server still has it
+  }
+
+  return changedCount > 0;
+}
+
+/**
+ * Three-way merge for local branches.
+ * base    = common ancestor (source branch's pulledHead at creation time)
+ * theirs  = source branch's localHead
+ * ours    = current (target) branch's localHead
+ * Returns auto-merged result + conflict list.
+ */
+function computeLocalMerge(
+  base: HeadSnapshotArray,
+  theirs: HeadSnapshotArray,
+  ours: HeadSnapshotArray,
+  resolutions: Array<{ fileId: string; resolution: 'useSource' | 'useTarget' }>,
+): {
+  result: HeadSnapshotArray;
+  autoMergedFiles: MergePreviewData['autoMergedFiles'];
+  conflicts: MergePreviewData['conflicts'];
+  alreadyUpToDate: boolean;
+} {
+  const baseMap   = new Map(base.map(({ fileId, snapshot }) => [fileId, snapshot]));
+  const theirMap  = new Map(theirs.map(({ fileId, snapshot }) => [fileId, snapshot]));
+  const ourMap    = new Map(ours.map(({ fileId, snapshot }) => [fileId, snapshot]));
+  const resMap    = new Map(resolutions.map(({ fileId, resolution }) => [fileId, resolution]));
+
+  const result = new Map<string, VcsFileSnapshot | null>(ourMap);
+  const autoMergedFiles: MergePreviewData['autoMergedFiles'] = [];
+  const conflicts: MergePreviewData['conflicts'] = [];
+
+  const allIds = new Set([...baseMap.keys(), ...theirMap.keys(), ...ourMap.keys()]);
+
+  for (const fileId of allIds) {
+    const baseSnap  = baseMap.has(fileId)  ? (baseMap.get(fileId)  ?? null) : undefined;
+    const theirSnap = theirMap.has(fileId) ? (theirMap.get(fileId) ?? null) : undefined;
+    const ourSnap   = ourMap.has(fileId)   ? (ourMap.get(fileId)   ?? null) : undefined;
+
+    const theyChanged = !snapshotsEqual(theirSnap, baseSnap);
+    const weChanged   = !snapshotsEqual(ourSnap,   baseSnap);
+
+    if (!theyChanged) {
+      // Source didn't change this file — keep ours
+      result.set(fileId, ourSnap ?? null);
+      continue;
+    }
+
+    if (!weChanged) {
+      // Only source changed — auto take theirs
+      result.set(fileId, theirSnap ?? null);
+      autoMergedFiles.push({ fileId, source: theirSnap ?? null, target: ourSnap ?? null });
+      continue;
+    }
+
+    // Both changed — conflict or resolution
+    const resolution = resMap.get(fileId);
+    if (resolution === 'useSource') {
+      result.set(fileId, theirSnap ?? null);
+    } else if (resolution === 'useTarget') {
+      result.set(fileId, ourSnap ?? null);
+    } else {
+      // Unresolved conflict — keep ours for now, flag it
+      result.set(fileId, ourSnap ?? null);
+      conflicts.push({ fileId, source: theirSnap ?? null, target: ourSnap ?? null });
+    }
+  }
+
+  const hasChanges = autoMergedFiles.length > 0 || conflicts.length > 0;
+
+  return {
+    result: Array.from(result.entries()).map(([fileId, snapshot]) => ({ fileId, snapshot })),
+    autoMergedFiles,
+    conflicts,
+    alreadyUpToDate: !hasChanges,
+  };
 }
 
 // ─── Store creation ───────────────────────────────────────────────────────────
@@ -463,14 +526,15 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
     lastPulledAt: null,
     activeCommitChanges: [],
     mergePreview: null,
+    localOnlyBranches: new Set(),
 
     isLoading: (key?: OpKey) => {
       const { ops } = get();
       return key ? ops.has(key) : ops.size > 0;
     },
-
     pendingPullCount: () => get().fetchPreview?.length ?? 0,
     hasPendingPull: () => (get().fetchPreview?.length ?? 0) > 0,
+    isBranchLocalOnly: (branchName: string) => get().localOnlyBranches.has(branchName),
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -493,6 +557,7 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         lastPulledAt: null,
         activeCommitChanges: [],
         mergePreview: null,
+        localOnlyBranches: new Set(),
         error: null,
         ops: new Set(),
       });
@@ -506,9 +571,7 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
     markPulled: () => {
       const { headSnapshot, pulledHead, projectId, currentBranch, localCommits } = get();
       if (!headSnapshot || !projectId) return;
-      // If pulledHead was already loaded from IndexedDB by loadLocalState, don't overwrite it.
       if (pulledHead) return;
-      // First visit — set pulledHead to current server HEAD and persist it.
       savePulledHead(projectId, currentBranch, headSnapshot).catch(() => {});
       const localHead = computeLocalHead(headSnapshot, localCommits);
       set({ pulledHead: headSnapshot, localHead, lastPulledAt: new Date().toISOString() });
@@ -537,6 +600,48 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
       } catch { /* ignore IDB errors */ }
     },
 
+    // ── Load local-only branches from IDB ──────────────────────────────────────
+
+    loadLocalBranches: async () => {
+      const { projectId } = get();
+      if (!projectId) return;
+      try {
+        const metas = await loadAllLocalBranches(projectId);
+        if (metas.length === 0) return;
+
+        const localNames = new Set(metas.map((m) => m.branchName));
+
+        // Merge local branches into the branch list (add any that aren't already there)
+        set((s) => {
+          const existing = new Set(s.branches.map((b) => b.name));
+          const toAdd: VcsBranch[] = metas
+            .filter((m) => !existing.has(m.branchName))
+            .map((m) => ({
+              id: `local::${m.branchName}`,
+              projectId: m.projectId,
+              name: m.branchName,
+              headCommitId: null,
+              createdBy: 'local',
+              createdAt: m.createdAt,
+              updatedAt: m.createdAt,
+              isLocalOnly: true,
+            }));
+
+          const updatedBranches = [
+            ...s.branches.map((b) =>
+              localNames.has(b.name) ? { ...b, isLocalOnly: true } : b,
+            ),
+            ...toAdd,
+          ];
+
+          return {
+            branches: updatedBranches,
+            localOnlyBranches: new Set([...s.localOnlyBranches, ...localNames]),
+          };
+        });
+      } catch { /* ignore IDB errors */ }
+    },
+
     // ── Batch panel refresh ────────────────────────────────────────────────────
 
     refreshPanel: (branchOverride?: string, pageOverride?: number) =>
@@ -544,6 +649,27 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         const projectId = pid();
         const branchName = branch(branchOverride);
         const page = pageOverride ?? 1;
+
+        // Local-only branches have no server panel data — only load IDB state
+        if (get().localOnlyBranches.has(branchName)) {
+          const [savedHead, savedCommits] = await Promise.all([
+            loadPulledHead(projectId, branchName) as Promise<HeadSnapshotArray | null>,
+            loadLocalCommits(projectId, branchName),
+          ]);
+          const pulledHead = (savedHead ?? []) as HeadSnapshotArray;
+          const localHead = computeLocalHead(pulledHead, savedCommits);
+          set((s) => ({
+            headSnapshot: pulledHead,
+            pulledHead,
+            localHead,
+            localCommits: savedCommits,
+            commits: [], // no server commits yet
+            commitsPage: 1,
+            commitsHasMore: false,
+          }));
+          return;
+        }
+
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -567,11 +693,12 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           };
         });
 
-        // Restore pulledHead + localCommits from IndexedDB if not yet in memory.
-        // This handles page reloads where the Zustand store is fresh.
         if (!get().pulledHead) {
           await get().loadLocalState();
         }
+
+        // Overlay local-only branch markers on top of server branch list
+        await get().loadLocalBranches();
       }),
 
     loadMoreCommits: () => {
@@ -606,12 +733,17 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           if (!stillExists) persistBranch(projectId, 'main');
           return { branches: data, currentBranch };
         });
+        await get().loadLocalBranches();
       }),
 
     refreshCommits: (branchOverride?: string) =>
       run('commits', async () => {
         const projectId = pid();
         const branchName = branch(branchOverride);
+        if (get().localOnlyBranches.has(branchName)) {
+          set({ commits: [], commitsPage: 1, commitsHasMore: false });
+          return;
+        }
         const data = await apiFetch<VcsCommit[]>(
           `/api/projects/${projectId}/vcs/commits?branch=${encodeURIComponent(branchName)}`,
         );
@@ -620,10 +752,9 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     refreshStatus: (branchOverride?: string) =>
       run('status', async () => {
-        // Status is computed client-side from localHead.
-        // Refresh panel to get latest headSnapshot; status recomputes in page.tsx.
         const projectId = pid();
         const branchName = branch(branchOverride);
+        if (get().localOnlyBranches.has(branchName)) return; // status computed locally
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -636,14 +767,19 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         }));
       }),
 
-    // ── Fetch / Pull ───────────────────────────────────────────────────────────
+    // ── Fetch ──────────────────────────────────────────────────────────────────
 
     fetch: (getLocalStatus) =>
       run('fetch', async () => {
         const projectId = pid();
         const branchName = branch();
 
-        // Download latest server HEAD — do NOT apply to local files.
+        // Local-only branches have nothing to fetch from the server
+        if (get().localOnlyBranches.has(branchName)) {
+          set({ fetchPreview: [], lastFetchedAt: new Date().toISOString() });
+          return;
+        }
+
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -656,9 +792,34 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         const newHead = data.headSnapshot ?? [];
         const now = new Date().toISOString();
 
+        // ── Stale-commit detection ─────────────────────────────────────────────
+        // If all locally-changed files are already present with the same content
+        // in the new server HEAD (e.g. after another device pushed/merged them),
+        // discard the local commits and treat as "already up to date".
+        const { pulledHead: currentPulled, localCommits } = get();
+        if (localCommits.length > 0) {
+          const baseline = currentPulled ?? [];
+          const currentLocalHead = computeLocalHead(baseline, localCommits);
+          if (localCommitsAlreadyOnServer(baseline, currentLocalHead, newHead)) {
+            await clearLocalCommits(projectId, branchName);
+            await savePulledHead(projectId, branchName, newHead);
+            set({
+              branches: data.branches,
+              headSnapshot: newHead,
+              commits: data.commits ?? [],
+              commitsHasMore: data.commitsHasMore ?? false,
+              pulledHead: newHead,
+              localHead: newHead,
+              localCommits: [],
+              fetchPreview: [], // nothing pending — already up to date
+              lastFetchedAt: now,
+            });
+            await get().loadLocalBranches();
+            return;
+          }
+        }
+
         set((s) => {
-          // Compare against pulledHead (the last-actually-pulled baseline), not headSnapshot.
-          // This prevents unfetched remote changes from making local files appear modified.
           const pulledHead = s.pulledHead ?? s.headSnapshot ?? [];
           const preview = diffSnapshots(pulledHead, newHead, getLocalStatus());
           return {
@@ -670,7 +831,10 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
             lastFetchedAt: now,
           };
         });
+        await get().loadLocalBranches();
       }),
+
+    // ── Pull ───────────────────────────────────────────────────────────────────
 
     pull: (resolutions, onApplied) =>
       run('pull', async () => {
@@ -682,28 +846,20 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         );
 
         const updates: PullFileUpdate[] = [];
-
         for (const entry of fetchPreview) {
           const { fileId, hasLocalChanges, serverSnapshot } = entry;
           const resolution = resolutionMap.get(fileId);
-
-          if (hasLocalChanges && !resolution) continue; // unresolved conflict — skip
-          if (hasLocalChanges && resolution === 'keepLocal') continue; // user keeps local
-
-          // Fast-forward (no local changes) or user chose 'takeServer'
+          if (hasLocalChanges && !resolution) continue;
+          if (hasLocalChanges && resolution === 'keepLocal') continue;
           updates.push({ fileId, snapshot: serverSnapshot });
         }
 
-        // Apply to local working directory
         await onApplied(updates);
 
         const projectId = pid();
         const branchName = branch();
-
-        // Persist new pulledHead so it survives page reloads
         await savePulledHead(projectId, branchName, headSnapshot);
 
-        // Recompute localHead = new pulledHead + any local commits on top
         const { localCommits } = get();
         const localHead = computeLocalHead(headSnapshot, localCommits);
 
@@ -719,14 +875,43 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     push: (onPushed) =>
       run('push', async () => {
-        const { localCommits } = get();
-        if (localCommits.length === 0) return;
-
+        const { localCommits, currentBranch, localOnlyBranches } = get();
         const projectId = pid();
-        const branchName = branch();
+        const branchName = currentBranch;
 
-        // Send commits to server in chronological order (oldest first)
-        for (const commit of localCommits) {
+        const isLocalOnly = localOnlyBranches.has(branchName);
+        if (!isLocalOnly && localCommits.length === 0) return;
+
+        // ── Step 1: If branch is local-only, create it on the server first ──────
+        if (isLocalOnly) {
+          const meta = await loadLocalBranch(projectId, branchName);
+          if (!meta) throw new Error(`Local branch metadata not found for "${branchName}"`);
+
+          await apiFetch(`/api/projects/${projectId}/vcs/branches`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: branchName, sourceBranch: meta.serverSourceBranch }),
+          });
+
+          // Remove from IDB + local state
+          await deleteLocalBranch(projectId, branchName);
+          set((s) => {
+            const next = new Set(s.localOnlyBranches);
+            next.delete(branchName);
+            return {
+              localOnlyBranches: next,
+              branches: s.branches.map((b) =>
+                b.name === branchName
+                  ? { ...b, isLocalOnly: false, id: branchName }
+                  : b,
+              ),
+            };
+          });
+        }
+
+        // ── Step 2: Push local commits to server (oldest first) ─────────────────
+        const commitsToSend = get().localCommits; // re-read after possible state change
+        for (const commit of commitsToSend) {
           await apiFetch(`/api/projects/${projectId}/vcs/commit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -738,10 +923,9 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           });
         }
 
-        // Clear local commits from IndexedDB
         await clearLocalCommits(projectId, branchName);
 
-        // Refresh panel to get the updated server HEAD (now reflects pushed commits)
+        // ── Step 3: Refresh panel to get updated server HEAD ────────────────────
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -752,8 +936,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         );
 
         const newHead = data.headSnapshot ?? [];
-
-        // Persist the new pulledHead
         await savePulledHead(projectId, branchName, newHead);
 
         set({
@@ -773,25 +955,87 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     // ── Branch operations ──────────────────────────────────────────────────────
 
+    /**
+     * Create a new branch LOCALLY — no server call.
+     *
+     * The new branch starts from the source branch's current localHead so all
+     * uncommitted work is carried forward. Local commits from the source branch
+     * are copied to the new branch under its own name (independent history).
+     *
+     * The branch is marked as local-only; call push() while on it to publish.
+     */
     createBranch: (name: string, sourceBranch: string) =>
       run('action', async () => {
+        const { localCommits, currentBranch, pulledHead, headSnapshot, localOnlyBranches } = get();
         const projectId = pid();
-        await apiFetch(`/api/projects/${projectId}/vcs/branches`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, sourceBranch }),
-        });
-        await get().refreshPanel();
+
+        // ── Resolve the server source branch ──────────────────────────────────
+        // If sourceBranch is itself local-only, traverse to find the underlying
+        // server branch (so we know where to fork from when we eventually push).
+        let serverSourceBranch = sourceBranch;
+        if (localOnlyBranches.has(sourceBranch)) {
+          const srcMeta = await loadLocalBranch(projectId, sourceBranch);
+          serverSourceBranch = srcMeta?.serverSourceBranch ?? sourceBranch;
+        }
+
+        // ── Get source branch's server HEAD (our fork baseline) ───────────────
+        // This is what the server will fork from when we later push.
+        const sourcePulledHead: HeadSnapshotArray =
+          sourceBranch === currentBranch
+            ? ((pulledHead ?? headSnapshot ?? []) as HeadSnapshotArray)
+            : ((await loadPulledHead(projectId, sourceBranch)) as HeadSnapshotArray | null) ?? [];
+
+        // ── Get source branch's local commits to carry forward ────────────────
+        const sourceLocalCommits: LocalCommit[] =
+          sourceBranch === currentBranch
+            ? localCommits
+            : await loadLocalCommits(projectId, sourceBranch);
+
+        // ── Persist new branch's IDB state ────────────────────────────────────
+        const meta: LocalBranchMeta = {
+          projectId,
+          branchName: name,
+          serverSourceBranch,
+          createdAt: new Date().toISOString(),
+        };
+        await saveLocalBranch(meta);
+
+        // New branch's pulledHead = source's server HEAD (fork baseline)
+        await savePulledHead(projectId, name, sourcePulledHead);
+
+        // Copy source commits to new branch (independent copies, new branchName)
+        for (const commit of sourceLocalCommits) {
+          await saveLocalCommit({
+            ...commit,
+            branchName: name,
+            // Append branch suffix to keep IDB keys unique
+            localId: `${commit.localId}::${name}`,
+          });
+        }
+
+        // ── Update store state ────────────────────────────────────────────────
+        const newBranch: VcsBranch = {
+          id: `local::${name}`,
+          projectId,
+          name,
+          headCommitId: null,
+          createdBy: 'local',
+          createdAt: meta.createdAt,
+          updatedAt: meta.createdAt,
+          isLocalOnly: true,
+        };
+
+        set((s) => ({
+          branches: [...s.branches, newBranch],
+          localOnlyBranches: new Set([...s.localOnlyBranches, name]),
+        }));
       }),
 
     checkoutBranch: (branchName, onApplySnapshot) =>
       run('action', async () => {
+        const { localOnlyBranches } = get();
         const projectId = pid();
-        await apiFetch(`/api/projects/${projectId}/vcs/checkout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branchName }),
-        });
+
         persistBranch(projectId, branchName);
         set({
           currentBranch: branchName,
@@ -803,7 +1047,27 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           fetchPreview: null,
         });
 
-        // Get the new branch's HEAD snapshot
+        if (localOnlyBranches.has(branchName)) {
+          // ── Local-only branch: load entirely from IDB, no server calls ─────
+          const [savedHead, savedCommits] = await Promise.all([
+            loadPulledHead(projectId, branchName) as Promise<HeadSnapshotArray | null>,
+            loadLocalCommits(projectId, branchName),
+          ]);
+          const pulledHead = (savedHead ?? []) as HeadSnapshotArray;
+          const localHead = computeLocalHead(pulledHead, savedCommits);
+
+          set({
+            headSnapshot: pulledHead,
+            pulledHead,
+            localHead,
+            localCommits: savedCommits,
+          });
+
+          await onApplySnapshot(localHead);
+          return;
+        }
+
+        // ── Server branch: fetch HEAD snapshot ────────────────────────────────
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -814,12 +1078,9 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         );
 
         const newHead = data.headSnapshot ?? [];
-
-        // Load any local commits already saved for this branch in IDB
         const newBranchCommits = await loadLocalCommits(projectId, branchName);
         const localHead = computeLocalHead(newHead, newBranchCommits);
 
-        // Persist pulledHead for the new branch
         await savePulledHead(projectId, branchName, newHead);
 
         set({
@@ -832,8 +1093,9 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           commitsHasMore: data.commitsHasMore ?? false,
         });
 
-        // Apply server HEAD to local working directory
-        await onApplySnapshot(newHead);
+        // Apply localHead (server HEAD + any existing IDB commits for this branch)
+        // so switching back to a branch preserves locally-committed file states.
+        await onApplySnapshot(localHead);
       }),
 
     // ── Commit (local-only — call push() to send to server) ────────────────────
@@ -843,7 +1105,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         const projectId = pid();
         const branchName = branch();
 
-        // Generate a stable local ID (timestamp + random suffix)
         const localId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
         const newCommit: LocalCommit = {
@@ -851,12 +1112,10 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           projectId,
           branchName,
           message,
-          // VcsFileSnapshotForCommit is structurally identical to LocalCommitFile
           files: files as LocalCommit['files'],
           createdAt: new Date().toISOString(),
         };
 
-        // Persist to IndexedDB — NOT sent to server yet
         await saveLocalCommit(newCommit);
 
         const committedIds = new Set(files.map((f) => f.fileId));
@@ -868,8 +1127,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           return {
             localCommits,
             localHead,
-            // Optimistically clear committed files from status so the panel
-            // feels responsive before the status effect re-runs.
             statusEntries: s.statusEntries.filter((e) => !committedIds.has(e.fileId)),
           };
         });
@@ -892,7 +1149,39 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     previewMerge: (sourceBranch, targetBranch) =>
       run('action', async () => {
+        const { localOnlyBranches, localHead: targetLocalHead, pulledHead: targetPulled, localCommits: targetCommits } = get();
         const projectId = pid();
+
+        if (localOnlyBranches.has(sourceBranch)) {
+          // ── Local merge: compute entirely from IDB ───────────────────────────
+          const [sourceSavedHead, sourceCommits] = await Promise.all([
+            loadPulledHead(projectId, sourceBranch) as Promise<HeadSnapshotArray | null>,
+            loadLocalCommits(projectId, sourceBranch),
+          ]);
+          const sourcePulledHead = (sourceSavedHead ?? []) as HeadSnapshotArray;
+          const sourceLocalHead = computeLocalHead(sourcePulledHead, sourceCommits);
+
+          // Merge base = source's pulledHead (the server HEAD it was forked from)
+          const base = sourcePulledHead;
+          const ours = targetLocalHead ?? computeLocalHead(targetPulled ?? [], targetCommits);
+
+          const { autoMergedFiles, conflicts, alreadyUpToDate } = computeLocalMerge(
+            base, sourceLocalHead, ours, [],
+          );
+
+          set({
+            mergePreview: {
+              sourceBranch,
+              targetBranch,
+              autoMergedFiles,
+              conflicts,
+              alreadyUpToDate,
+            },
+          });
+          return;
+        }
+
+        // ── Server merge preview ─────────────────────────────────────────────
         const data = await apiFetch<{
           autoMergedFiles: MergePreviewData['autoMergedFiles'];
           conflicts: MergePreviewData['conflicts'];
@@ -915,8 +1204,74 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     executeMerge: (sourceBranch, targetBranch, conflictResolutions, onApplySnapshot) =>
       run('action', async () => {
+        const { localOnlyBranches, localHead: targetLocalHead, pulledHead: targetPulled, localCommits: targetCommits } = get();
         const projectId = pid();
         const currentBranch = branch();
+
+        if (localOnlyBranches.has(sourceBranch)) {
+          // ── Local merge: apply result as a local commit ──────────────────────
+          const [sourceSavedHead, sourceCommits] = await Promise.all([
+            loadPulledHead(projectId, sourceBranch) as Promise<HeadSnapshotArray | null>,
+            loadLocalCommits(projectId, sourceBranch),
+          ]);
+          const sourcePulledHead = (sourceSavedHead ?? []) as HeadSnapshotArray;
+          const sourceLocalHead  = computeLocalHead(sourcePulledHead, sourceCommits);
+
+          const base = sourcePulledHead;
+          const ours = targetLocalHead ?? computeLocalHead(targetPulled ?? [], targetCommits);
+
+          const { result, conflicts, alreadyUpToDate } = computeLocalMerge(
+            base, sourceLocalHead, ours, conflictResolutions,
+          );
+
+          if (conflicts.length > 0) {
+            throw new Error(`Merge has ${conflicts.length} unresolved conflict(s). Resolve them first.`);
+          }
+
+          set({ mergePreview: null });
+
+          if (alreadyUpToDate) {
+            // Nothing to do — branches are already in sync
+            return;
+          }
+
+          // Create a local merge commit that encodes the merged state
+          const localId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          const mergeFiles = result
+            .filter(({ fileId, snapshot }) => {
+              const prev = new Map(ours.map((e) => [e.fileId, e.snapshot]));
+              return !snapshotsEqual(snapshot, prev.get(fileId) ?? null);
+            })
+            .map(({ fileId, snapshot }) =>
+              snapshot === null
+                ? { fileId, deleted: true }
+                : { fileId, name: snapshot.name, type: snapshot.type, parentId: snapshot.parentId, content: snapshot.content, order: snapshot.order },
+            );
+
+          const mergeCommit: LocalCommit = {
+            localId,
+            projectId,
+            branchName: currentBranch,
+            message: `Merge branch '${sourceBranch}' into '${targetBranch}'`,
+            files: mergeFiles,
+            createdAt: new Date().toISOString(),
+          };
+          await saveLocalCommit(mergeCommit);
+
+          const pulledHead = targetPulled ?? [];
+          const newLocalCommits = [...targetCommits, mergeCommit];
+          const newLocalHead = computeLocalHead(pulledHead, newLocalCommits);
+
+          set({
+            localCommits: newLocalCommits,
+            localHead: newLocalHead,
+          });
+
+          await onApplySnapshot(newLocalHead);
+          return;
+        }
+
+        // ── Server merge ──────────────────────────────────────────────────────
         await apiFetch(`/api/projects/${projectId}/vcs/merge/execute`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -924,7 +1279,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         });
         set({ mergePreview: null });
 
-        // Refresh panel to get post-merge headSnapshot
         const data = await apiFetch<{
           branches: VcsBranch[];
           headSnapshot: HeadSnapshotArray;
@@ -935,7 +1289,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         );
         const newHead = data.headSnapshot ?? [];
 
-        // Persist new pulledHead; merge = implicit pull, clear local commits
         await savePulledHead(projectId, currentBranch, newHead);
 
         set({
@@ -974,7 +1327,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         );
         const newHead = data.headSnapshot ?? [];
 
-        // Persist new pulledHead; revert = implicit pull, clear local commits
         await savePulledHead(projectId, branchName, newHead);
 
         set({
@@ -998,13 +1350,14 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         const projectId = pid();
         const branchName = branch();
 
-        await apiFetch(`/api/projects/${projectId}/vcs/restore`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branchName, fileIds }),
-        });
+        if (!get().localOnlyBranches.has(branchName)) {
+          await apiFetch(`/api/projects/${projectId}/vcs/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ branchName, fileIds }),
+          });
+        }
 
-        // Build updates from current localHead (includes local commits)
         const { localHead, headSnapshot } = get();
         const headMap = new Map(
           (localHead ?? headSnapshot ?? []).map(({ fileId, snapshot }) => [fileId, snapshot]),
@@ -1015,7 +1368,6 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           snapshot: headMap.get(fileId) ?? null,
         }));
 
-        // Optimistic: remove restored files from status
         set((s) => ({
           statusEntries: s.statusEntries.filter((e) => !fileIds.includes(e.fileId)),
         }));
@@ -1029,6 +1381,9 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
       run('fileHistory', async () => {
         const projectId = pid();
         const branchName = branch();
+        if (get().localOnlyBranches.has(branchName)) {
+          return { entries: [], hasMore: false }; // no server history for local branches
+        }
         const data = await apiFetch<{ entries: VcsFileHistoryEntry[]; hasMore: boolean }>(
           `/api/projects/${projectId}/vcs/files/${fileId}/history?limit=${limit}&branch=${encodeURIComponent(branchName)}`,
         );
@@ -1054,6 +1409,11 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
       run('action', async () => {
         const projectId = pid();
         const branchName = branch(branchOverride);
+        if (get().localOnlyBranches.has(branchName)) {
+          const { localHead } = get();
+          const snap = localHead?.find((e) => e.fileId === fileId)?.snapshot ?? null;
+          return { fileId, branchName, snapshot: snap };
+        }
         return apiFetch<{ fileId: string; branchName: string; snapshot: VcsFileSnapshot | null }>(
           `/api/projects/${projectId}/vcs/files/${fileId}/head?branch=${encodeURIComponent(branchName)}`,
         );
