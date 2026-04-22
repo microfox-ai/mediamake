@@ -242,6 +242,11 @@ function BranchCombobox({
                     <GitBranch size={11} className="flex-shrink-0 text-muted-foreground" />
                   )}
                   <span className="flex-1 truncate text-left">{b.name}</span>
+                  {b.isLocalOnly && (
+                    <span className="flex-shrink-0 rounded bg-amber-500/20 px-1 py-px text-[9px] font-medium text-amber-400">
+                      local
+                    </span>
+                  )}
                 </button>
               ))}
               {canCreate && (
@@ -701,11 +706,13 @@ function FetchPullPanel({
   getLocalStatus,
   onOpenConflictDiff,
   currentBranch,
+  isBranchLocalOnly,
 }: {
   onApplyPullUpdates: (updates: PullFileUpdate[]) => Promise<void>;
   getLocalStatus: () => VcsStatusEntry[];
   onOpenConflictDiff: VcsPanelProps['onOpenConflictDiff'];
   currentBranch: string;
+  isBranchLocalOnly: boolean;
 }) {
   const vcs = useVcsStore();
   const { fetchPreview, lastFetchedAt, lastPulledAt, isLoading, hasPendingPull, localCommits } = vcs;
@@ -733,13 +740,22 @@ function FetchPullPanel({
   }, [canPull, resolutions, vcs, onApplyPullUpdates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePush = useCallback(async () => {
-    if (localCommits.length === 0) return;
-    if (!window.confirm(
-      `Push ${localCommits.length} local commit${localCommits.length !== 1 ? 's' : ''} to the server?\n\n` +
-      localCommits.map((c) => `  • ${c.message}`).join('\n'),
-    )) return;
+    if (localCommits.length === 0 && !isBranchLocalOnly) return;
+    let confirmMsg: string;
+    if (isBranchLocalOnly && localCommits.length === 0) {
+      confirmMsg = `Push branch "${currentBranch}" to the server?\n\nThis will create the branch on the server.`;
+    } else if (isBranchLocalOnly) {
+      confirmMsg =
+        `Push branch "${currentBranch}" and ${localCommits.length} local commit${localCommits.length !== 1 ? 's' : ''} to the server?\n\n` +
+        localCommits.map((c) => `  • ${c.message}`).join('\n');
+    } else {
+      confirmMsg =
+        `Push ${localCommits.length} local commit${localCommits.length !== 1 ? 's' : ''} to the server?\n\n` +
+        localCommits.map((c) => `  • ${c.message}`).join('\n');
+    }
+    if (!window.confirm(confirmMsg)) return;
     await vcs.push();
-  }, [localCommits, vcs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [localCommits, isBranchLocalOnly, currentBranch, vcs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatTime = (iso: string | null) => {
     if (!iso) return 'Never';
@@ -758,23 +774,25 @@ function FetchPullPanel({
           Sync
         </span>
 
-        {/* Fetch button */}
-        <button
-          className={cn(
-            'flex items-center gap-1 rounded px-2 py-0.5 text-[10px] border border-border/50',
-            'hover:border-border hover:bg-accent/30 transition-colors disabled:opacity-40',
-          )}
-          disabled={syncBusy}
-          onClick={handleFetch}
-          title={`Fetch from remote\nLast fetched: ${formatTime(lastFetchedAt)}`}
-        >
-          {isLoading('fetch') ? (
-            <Loader2 size={10} className="animate-spin" />
-          ) : (
-            <Download size={10} />
-          )}
-          Fetch
-        </button>
+        {/* Fetch button — hidden for local-only branches (no remote counterpart yet) */}
+        {!isBranchLocalOnly && (
+          <button
+            className={cn(
+              'flex items-center gap-1 rounded px-2 py-0.5 text-[10px] border border-border/50',
+              'hover:border-border hover:bg-accent/30 transition-colors disabled:opacity-40',
+            )}
+            disabled={syncBusy}
+            onClick={handleFetch}
+            title={`Fetch from remote\nLast fetched: ${formatTime(lastFetchedAt)}`}
+          >
+            {isLoading('fetch') ? (
+              <Loader2 size={10} className="animate-spin" />
+            ) : (
+              <Download size={10} />
+            )}
+            Fetch
+          </button>
+        )}
 
         {/* Pull button — only shows when there are pending changes */}
         {hasPendingPull() && (
@@ -802,36 +820,52 @@ function FetchPullPanel({
           </button>
         )}
 
-        {/* Push button — shows when there are local (unpushed) commits */}
-        {localCommits.length > 0 && (
+        {/* Push button — shows when there are local commits OR the branch is local-only */}
+        {(localCommits.length > 0 || isBranchLocalOnly) && (
           <button
             className={cn(
               'flex items-center gap-1 rounded px-2 py-0.5 text-[10px]',
-              'bg-violet-600/90 text-white hover:bg-violet-600 transition-colors',
+              isBranchLocalOnly
+                ? 'bg-amber-600/90 text-white hover:bg-amber-600 transition-colors'
+                : 'bg-violet-600/90 text-white hover:bg-violet-600 transition-colors',
               'disabled:opacity-40',
             )}
             disabled={syncBusy}
             onClick={handlePush}
-            title={`Push ${localCommits.length} local commit${localCommits.length !== 1 ? 's' : ''} to server`}
+            title={
+              isBranchLocalOnly && localCommits.length === 0
+                ? `Push branch "${currentBranch}" to server`
+                : isBranchLocalOnly
+                ? `Push branch "${currentBranch}" + ${localCommits.length} commit${localCommits.length !== 1 ? 's' : ''} to server`
+                : `Push ${localCommits.length} local commit${localCommits.length !== 1 ? 's' : ''} to server`
+            }
           >
             {isLoading('push') ? (
               <Loader2 size={10} className="animate-spin" />
             ) : (
               <ArrowUpFromLine size={10} />
             )}
-            Push
-            <span className="ml-0.5 rounded bg-white/20 px-1 text-[9px] tabular-nums">
-              {localCommits.length}
-            </span>
+            {isBranchLocalOnly ? 'Push Branch' : 'Push'}
+            {localCommits.length > 0 && (
+              <span className="ml-0.5 rounded bg-white/20 px-1 text-[9px] tabular-nums">
+                {localCommits.length}
+              </span>
+            )}
           </button>
         )}
       </div>
 
       {/* Status line */}
-      {(lastFetchedAt || lastPulledAt) && !fetchPreview && (
+      {!isBranchLocalOnly && (lastFetchedAt || lastPulledAt) && !fetchPreview && (
         <p className="px-3 pb-1.5 text-[10px] text-muted-foreground">
           {lastPulledAt ? `Pulled ${formatTime(lastPulledAt)}` : `Fetched ${formatTime(lastFetchedAt)}`}
           {' · '}branch <span className="font-medium text-foreground/70">{currentBranch}</span>
+        </p>
+      )}
+      {/* Local-only branch hint */}
+      {isBranchLocalOnly && (
+        <p className="px-3 pb-1.5 text-[10px] text-amber-400/80">
+          Local branch — push to publish to server.
         </p>
       )}
 
@@ -1242,6 +1276,7 @@ export function VcsPanel({
           getLocalStatus={getLocalStatus}
           onOpenConflictDiff={onOpenConflictDiff}
           currentBranch={vcs.currentBranch}
+          isBranchLocalOnly={vcs.isBranchLocalOnly(vcs.currentBranch)}
         />
 
         {/* ── Commit input ───────────────────────────────────────────────────── */}

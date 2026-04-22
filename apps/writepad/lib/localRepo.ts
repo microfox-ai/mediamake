@@ -5,8 +5,9 @@
  *   - Files are persisted locally across page refreshes
  *   - Server is the "remote" — the user explicitly fetches/pulls/pushes
  *   - Commits are staged locally and only sent to the server on Push
+ *   - Branches can be created locally and pushed to server independently
  *
- * DB layout (version 2)
+ * DB layout (version 3)
  * ─────────────────────
  * DB name  : writepad_local_repo
  *
@@ -21,13 +22,19 @@
  * Store "meta"
  *   keyPath : "key"  (arbitrary string key, stores any JSON blob)
  *   Used for pulledHead: key = `ph_${projectId}_${branchName}`
+ *
+ * Store "localBranches"  [new in v3]
+ *   keyPath : "localKey"  (`${projectId}::${branchName}`)
+ *   index   : "by_project" on "projectId"
+ *   Tracks branches that exist only locally (not yet pushed to server).
  */
 
 const DB_NAME = 'writepad_local_repo';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const FILES_STORE = 'files';
 const COMMITS_STORE = 'localCommits';
 const META_STORE = 'meta';
+const BRANCHES_STORE = 'localBranches';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -66,6 +73,22 @@ export interface LocalCommitFile {
   deleted?: boolean;
 }
 
+/**
+ * Metadata for a branch that exists only locally (not yet pushed to server).
+ * Stored in IDB; removed when the branch is pushed.
+ */
+export interface LocalBranchMeta {
+  projectId: string;
+  branchName: string;
+  /**
+   * The server branch this local branch should be forked from when pushed.
+   * If this was created from another local branch, this is that branch's
+   * serverSourceBranch (transitively resolved to a real server branch).
+   */
+  serverSourceBranch: string;
+  createdAt: string;
+}
+
 // ─── DB singleton ─────────────────────────────────────────────────────────────
 
 let _db: IDBDatabase | null = null;
@@ -89,6 +112,11 @@ function getDB(): Promise<IDBDatabase> {
         commitsStore.createIndex('by_project_branch', ['projectId', 'branchName'], { unique: false });
         db.createObjectStore(META_STORE, { keyPath: 'key' });
       }
+
+      if (oldVersion < 3) {
+        const branchesStore = db.createObjectStore(BRANCHES_STORE, { keyPath: 'localKey' });
+        branchesStore.createIndex('by_project', 'projectId', { unique: false });
+      }
     };
 
     req.onsuccess = () => {
@@ -110,6 +138,9 @@ function commitKey(projectId: string, branchName: string, localId: string) {
 }
 function pulledHeadKey(projectId: string, branchName: string) {
   return `ph_${projectId}_${branchName}`;
+}
+function localBranchKey(projectId: string, branchName: string) {
+  return `${projectId}::${branchName}`;
 }
 
 // ─── Files ────────────────────────────────────────────────────────────────────
@@ -309,6 +340,78 @@ export async function savePulledHead(
     return new Promise((resolve, reject) => {
       const tx = db.transaction(META_STORE, 'readwrite');
       tx.objectStore(META_STORE).put({ key: pulledHeadKey(projectId, branchName), data: head });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* ignore */ }
+}
+
+// ─── Local branches ───────────────────────────────────────────────────────────
+
+/** Persist a local-only branch's metadata. */
+export async function saveLocalBranch(meta: LocalBranchMeta): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BRANCHES_STORE, 'readwrite');
+      tx.objectStore(BRANCHES_STORE).put({
+        localKey: localBranchKey(meta.projectId, meta.branchName),
+        ...meta,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* ignore */ }
+}
+
+/** Load a single local branch's metadata, or null if not found / not local. */
+export async function loadLocalBranch(
+  projectId: string,
+  branchName: string,
+): Promise<LocalBranchMeta | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(BRANCHES_STORE, 'readonly');
+      const req = tx.objectStore(BRANCHES_STORE).get(localBranchKey(projectId, branchName));
+      req.onsuccess = () => {
+        const row = req.result as (LocalBranchMeta & { localKey: string }) | undefined;
+        if (!row) { resolve(null); return; }
+        const { localKey: _k, ...meta } = row;
+        resolve(meta);
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+
+/** Load all local-only branches for a project. */
+export async function loadAllLocalBranches(projectId: string): Promise<LocalBranchMeta[]> {
+  if (typeof indexedDB === 'undefined') return [];
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BRANCHES_STORE, 'readonly');
+      const req = tx.objectStore(BRANCHES_STORE).index('by_project').getAll(IDBKeyRange.only(projectId));
+      req.onsuccess = () =>
+        resolve(
+          (req.result as (LocalBranchMeta & { localKey: string })[]).map(({ localKey: _k, ...m }) => m),
+        );
+      req.onerror = () => reject(req.error);
+    });
+  } catch { return []; }
+}
+
+/** Remove a local branch record (called after a successful server push). */
+export async function deleteLocalBranch(projectId: string, branchName: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BRANCHES_STORE, 'readwrite');
+      tx.objectStore(BRANCHES_STORE).delete(localBranchKey(projectId, branchName));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
