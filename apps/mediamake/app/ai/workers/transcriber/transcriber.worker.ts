@@ -15,6 +15,11 @@ import {
 
 // --- Input/Output schemas ---
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
+if (!GEMINI_API_KEY) {
+  throw new Error('GEMINI_API_KEY is not set');
+}
+
 const InputSchema = z.object({
   audioUrl: z.string().url(),
   language: z.string().optional(),
