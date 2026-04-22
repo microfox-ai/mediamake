@@ -57,12 +57,18 @@ export async function POST(
     }
 
     const { input, await: shouldAwait = false, jobId: providedJobId } = body;
-    const userId = await getClientId(req);
+    const middlewareClientId = req.headers.get('x-client-id') || undefined;
+    const sessionClientId = await getClientId(req);
+    const userId = middlewareClientId || sessionClientId;
+    const workerInput = input && typeof input === 'object' ? { ...input } : {};
+    if (userId && !(workerInput as any).clientId) {
+      (workerInput as any).clientId = userId;
+    }
 
     console.log('[Worker] Dispatching worker:', {
       workerId,
       shouldAwait,
-      hasInput: !!input,
+      hasInput: !!workerInput,
     });
 
     // Webhook optional. Job updates use MongoDB only; never pass jobStoreUrl.
@@ -86,7 +92,7 @@ export async function POST(
         jobId,
         workerId,
         status: 'queued',
-        input: input || {},
+        input: workerInput,
         metadata: { source: 'workflow-orchestration' },
       });
       console.log('[Worker] Initial job record created:', {
@@ -107,7 +113,7 @@ export async function POST(
     try {
       dispatchResult = await dispatchWorker(
         workerId,
-        (input || {}) as Record<string, unknown>,
+        workerInput as Record<string, unknown>,
         {
           jobId,
           ...(webhookUrl ? { webhookUrl } : {}),
