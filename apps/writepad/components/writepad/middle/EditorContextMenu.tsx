@@ -49,9 +49,12 @@ import {
   Wand2,
   Keyboard,
   Link,
+  BookOpen,
+  Layers,
+  FilePlus,
 } from 'lucide-react';
 import type { CodeMirrorEditorHandle } from './CodeMirrorEditor';
-import type { SelectionContext } from './types';
+import type { SelectionContext, WikiTerm } from './types';
 import { WORD_HELPERS } from './wordHelpers';
 
 interface EditorContextMenuProps {
@@ -65,6 +68,14 @@ interface EditorContextMenuProps {
   onWordHelper: (agentId: string) => void;
   onShowShortcuts: () => void;
   onCopySelectionLink?: () => void;
+  /** Called when "Find All References" is selected for a wiki term. */
+  onFindAllRefs?: (term: WikiTerm) => void;
+  /** Called when "Go to Definition" is selected for a wiki term. */
+  onGoToDefinition?: (fileId: string) => void;
+  /** Called when "Create Wiki Entry" is selected for a word. */
+  onCreateWikiEntry?: (word: string) => void;
+  /** Called when "Add comment" is selected — passes the current cursor's 1-based line number. */
+  onAddComment?: (lineNumber: number, lineContent: string) => void;
 }
 
 export function EditorContextMenu({
@@ -78,8 +89,15 @@ export function EditorContextMenu({
   onWordHelper,
   onShowShortcuts,
   onCopySelectionLink,
+  onFindAllRefs,
+  onGoToDefinition,
+  onCreateWikiEntry,
+  onAddComment,
 }: EditorContextMenuProps) {
   const [goToLineOpen, setGoToLineOpen] = useState(false);
+  // Captured wiki term at the time the context menu opens
+  const [activeWikiTerm, setActiveWikiTerm] = useState<WikiTerm | null>(null);
+  const [activeWord, setActiveWord] = useState<string>('');
 
   // ── Clipboard ──────────────────────────────────────────────────────────
 
@@ -131,8 +149,34 @@ export function EditorContextMenu({
 
   const disabled = !activeFileName;
 
+  // ── Wiki actions ───────────────────────────────────────────────────────────
+
+  const handleFindAllRefs = useCallback(() => {
+    if (activeWikiTerm) onFindAllRefs?.(activeWikiTerm);
+  }, [activeWikiTerm, onFindAllRefs]);
+
+  const handleGoToDefinition = useCallback(() => {
+    if (activeWikiTerm) onGoToDefinition?.(activeWikiTerm.fileId);
+  }, [activeWikiTerm, onGoToDefinition]);
+
+  const handleCreateWikiEntry = useCallback(() => {
+    if (activeWord) onCreateWikiEntry?.(activeWord);
+  }, [activeWord, onCreateWikiEntry]);
+
+  const showWikiActions = !!(onFindAllRefs || onGoToDefinition || onCreateWikiEntry);
+
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open && activeFileName) {
+          // Capture wiki term + word at cursor when the menu opens
+          const term = editorRef.current?.getWikiTermAtCursor() ?? null;
+          const word = editorRef.current?.getWordAtCursor() ?? '';
+          setActiveWikiTerm(term);
+          setActiveWord(word);
+        }
+      }}
+    >
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 
       <ContextMenuContent className="w-60">
@@ -268,7 +312,60 @@ export function EditorContextMenu({
           </ContextMenuItem>
         )}
 
-        {/* ── 7. Help ──────────────────────────────────────────────── */}
+        {/* ── 7. Wiki / References ─────────────────────────────────── */}
+        {showWikiActions && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuLabel>References</ContextMenuLabel>
+
+            {activeWikiTerm ? (
+              <>
+                {onFindAllRefs && (
+                  <ContextMenuItem disabled={disabled} onClick={handleFindAllRefs}>
+                    <Layers size={14} /> Find All References
+                  </ContextMenuItem>
+                )}
+                {onGoToDefinition && (
+                  <ContextMenuItem disabled={disabled} onClick={handleGoToDefinition}>
+                    <BookOpen size={14} /> Go to Definition
+                  </ContextMenuItem>
+                )}
+              </>
+            ) : (
+              onCreateWikiEntry && activeWord && (
+                <ContextMenuItem disabled={disabled} onClick={handleCreateWikiEntry}>
+                  <FilePlus size={14} /> Create Wiki Entry for &quot;{activeWord.slice(0, 24)}&quot;
+                </ContextMenuItem>
+              )
+            )}
+
+            {!activeWikiTerm && !activeWord && onCreateWikiEntry && (
+              <ContextMenuItem disabled onClick={() => {}}>
+                <FilePlus size={14} />
+                <span className="text-muted-foreground/50">No word at cursor</span>
+              </ContextMenuItem>
+            )}
+          </>
+        )}
+
+        {/* ── 8. Comment ───────────────────────────────────────────── */}
+        {onAddComment && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              disabled={disabled}
+              onClick={() => {
+                const lines = editorRef.current?.getSelectionLines();
+                const lineNum = lines?.startLine ?? 1;
+                onAddComment(lineNum, '');
+              }}
+            >
+              <MessageSquare size={14} /> Add Comment on This Line
+            </ContextMenuItem>
+          </>
+        )}
+
+        {/* ── 9. Help ──────────────────────────────────────────────── */}
         <ContextMenuSeparator />
 
         <ContextMenuItem onClick={onShowShortcuts}>
