@@ -78,6 +78,13 @@ export const StudioConfig = {
       groups: {
         scraper: {
           includeNodeModules: true
+        },
+        // Continuity-check workers — heavier memory + longer timeout to handle
+        // large projects analyzed via long-context models (Gemini 2.5 Pro, etc.)
+        continuity: {
+          memorySize: 2048,
+          timeout: 900,
+          includeNodeModules: true
         }
       }
     }
