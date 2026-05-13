@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  LogOut, Plus, Search, Loader2, Users, Pencil, Trash2, Copy, ExternalLink, UserPlus,
+  LogOut, Plus, Search, Loader2, Users, Pencil, Trash2, Copy, ExternalLink, UserPlus, Upload,
 } from 'lucide-react';
 
 interface Project {
@@ -214,6 +214,9 @@ function ProjectsContent() {
   const [deleteProject, setDeleteProject] = useState<Project | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [shareProject, setShareProject] = useState<Project | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/projects')
@@ -237,6 +240,29 @@ function ProjectsContent() {
     } finally {
       router.push('/login');
       router.refresh();
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const res = await fetch('/api/projects/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: text,
+      });
+      const json = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !json.id) {
+        setImportError(json.error ?? 'Import failed.');
+        return;
+      }
+      router.push(`/projects/${json.id}`);
+    } catch {
+      setImportError('Could not read or upload backup file.');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -301,11 +327,37 @@ function ProjectsContent() {
               {loading ? 'Loading…' : `${projects.length} project${projects.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <Button onClick={() => router.push('/projects/new')} className="gap-1.5">
-            <Plus size={15} />
-            New Project
-          </Button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".wpkg,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+                e.target.value = '';
+              }}
+            />
+            <Button
+              variant="outline"
+              onClick={() => importInputRef.current?.click()}
+              disabled={importing}
+              className="gap-1.5"
+              title="Import a .wpkg backup file"
+            >
+              {importing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {importing ? 'Importing…' : 'Import'}
+            </Button>
+            <Button onClick={() => router.push('/projects/new')} className="gap-1.5">
+              <Plus size={15} />
+              New Project
+            </Button>
+          </div>
         </div>
+        {importError && (
+          <p className="mb-4 text-sm text-destructive">{importError}</p>
+        )}
 
         {/* Search */}
         <div className="relative mb-6 max-w-sm">
