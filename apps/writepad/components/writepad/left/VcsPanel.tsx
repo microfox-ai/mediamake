@@ -40,6 +40,8 @@ import type {
   HeadSnapshotArray,
   LocalCommit,
 } from '@/app/projects/[projectId]/_hooks/useVcsStore';
+import { RevertConfirmDialog } from './RevertConfirmDialog';
+import type { RevertPreviewData } from './RevertConfirmDialog';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -671,15 +673,21 @@ function CommitRow({
             size="sm"
             variant="outline"
             className="h-7 w-full text-xs border-rose-500/40 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
-            disabled={vcs.isLoading('action')}
+            disabled={vcs.isLoading('action') || vcs.isLoading('revertPreview')}
             onClick={async () => {
-              if (!window.confirm(
-                'Reset branch to this commit?\n\nCommits after this point will be permanently removed. This cannot be undone.',
-              )) return;
-              await onRevert(); // onRevert applies snapshot to local files internally
+              try {
+                await onRevert();
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                window.alert(`Failed to load revert preview: ${msg}`);
+              }
             }}
           >
-            <RotateCcw size={11} className="mr-1.5" />
+            {vcs.isLoading('revertPreview') ? (
+              <Loader2 size={11} className="mr-1.5 animate-spin" />
+            ) : (
+              <RotateCcw size={11} className="mr-1.5" />
+            )}
             Reset branch to this commit
           </Button>
         </div>
@@ -1018,6 +1026,8 @@ export function VcsPanel({
     Record<string, 'useSource' | 'useTarget'>
   >({});
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
+  const [revertPreview, setRevertPreview] = useState<RevertPreviewData | null>(null);
+  const [pendingRevertCommitId, setPendingRevertCommitId] = useState<string | null>(null);
 
   // ── File history state ─────────────────────────────────────────────────────
   const [fileHistoryEntries, setFileHistoryEntries] = useState<VcsFileHistoryEntry[]>([]);
@@ -1103,9 +1113,20 @@ export function VcsPanel({
     if (files.length === 0) return;
 
     // After commit, local files are already up to date — no server re-fetch needed.
-    await vcs.commit(commitMessage.trim(), files, async () => {});
-    setCommitMessage('');
-    setSelectedFiles(new Set());
+    try {
+      await vcs.commit(commitMessage.trim(), files, async () => {});
+      setCommitMessage('');
+      setSelectedFiles(new Set());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('No material file changes to commit')) {
+        // Benign race/stale-status case: treat as no-op and reset staged UI.
+        setCommitMessage('');
+        setSelectedFiles(new Set());
+        return;
+      }
+      throw error;
+    }
   }, [commitMessage, selectedEntries, stagedHasUnsaved, vcs, onGetFileSnapshot]);
 
   const handleGenerate = useCallback(async () => {
@@ -1630,8 +1651,15 @@ export function VcsPanel({
                     }
                   }}
                   onRevert={async () => {
-                    await vcs.revertCommit(commit.id, undefined, onApplySnapshot);
-                    setSelectedCommitId(null);
+                    const preview = await vcs.previewRevert(commit.id);
+                    setPendingRevertCommitId(commit.id);
+                    setRevertPreview({
+                      commitId: commit.id,
+                      commitMessage: preview.commitMessage,
+                      toDelete: preview.toDelete,
+                      toRestore: preview.toRestore,
+                      toModify: preview.toModify,
+                    });
                   }}
                   onOpenCommitDiff={onOpenCommitDiff}
                 />
@@ -1785,6 +1813,18 @@ export function VcsPanel({
         </Section>
 
       </div>
+
+      <RevertConfirmDialog
+        data={revertPreview}
+        onClose={() => { setRevertPreview(null); setPendingRevertCommitId(null); }}
+        onConfirm={async () => {
+          if (!pendingRevertCommitId) return;
+          await vcs.revertCommit(pendingRevertCommitId, undefined, onApplySnapshot);
+          setRevertPreview(null);
+          setPendingRevertCommitId(null);
+          setSelectedCommitId(null);
+        }}
+      />
     </div>
   );
 }
