@@ -13,7 +13,7 @@
 
 import { Extension, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { WORD_HELPERS } from './wordHelpers';
+import { WORD_HELPERS, type WordHelper } from './wordHelpers';
 
 export interface WordHelperRequest {
   agentId: string;
@@ -62,10 +62,11 @@ function triggerHelper(
 
 export function wordHelperExtension(
   onRequest: (req: WordHelperRequest) => void,
+  resolvedHelpers: WordHelper[] = WORD_HELPERS,
 ): Extension {
   return Prec.highest(
     keymap.of(
-      WORD_HELPERS.map(({ id, shortcut }) => ({
+      resolvedHelpers.map(({ id, shortcut }) => ({
         key: shortcut,
         run: (view: EditorView) => triggerHelper(view, id, onRequest),
       })),

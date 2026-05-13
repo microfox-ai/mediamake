@@ -15,91 +15,32 @@ export interface WordHelper {
   shortcut: string;
   shortcutDisplay: string;
   description: string;
+  /** Original hardcoded shortcut — used for display and reset. */
+  defaultShortcut: string;
+  defaultShortcutDisplay: string;
+}
+
+function h(
+  id: string,
+  label: string,
+  shortcut: string,
+  shortcutDisplay: string,
+  description: string,
+): WordHelper {
+  return { id, label, shortcut, shortcutDisplay, description, defaultShortcut: shortcut, defaultShortcutDisplay: shortcutDisplay };
 }
 
 export const WORD_HELPERS: WordHelper[] = [
-  {
-    id: 'synonyms',
-    label: 'Synonyms',
-    shortcut: 'Alt-s',
-    shortcutDisplay: 'Alt+S',
-    description: 'Words with the same or similar meaning',
-  },
-  {
-    id: 'rhymes',
-    label: 'Rhymes',
-    shortcut: 'Alt-r',
-    shortcutDisplay: 'Alt+R',
-    description: 'Words that rhyme',
-  },
-  {
-    id: 'antonyms',
-    label: 'Antonyms',
-    shortcut: 'Alt-a',
-    shortcutDisplay: 'Alt+A',
-    description: 'Words with the opposite meaning',
-  },
-  {
-    id: 'stronger',
-    label: 'Stronger',
-    shortcut: 'Alt-w',
-    shortcutDisplay: 'Alt+W',
-    description: 'More powerful or impactful alternatives',
-  },
-  {
-    id: 'simpler',
-    label: 'Simpler',
-    shortcut: 'Alt-p',
-    shortcutDisplay: 'Alt+P',
-    description: 'Plainer, more accessible alternatives',
-  },
-  {
-    id: 'formal',
-    label: 'More Formal',
-    shortcut: 'Alt-f',
-    shortcutDisplay: 'Alt+F',
-    description: 'Elevated register alternatives',
-  },
-  {
-    id: 'casual',
-    label: 'More Casual',
-    shortcut: 'Alt-c',
-    shortcutDisplay: 'Alt+C',
-    description: 'Conversational, informal alternatives',
-  },
-  {
-    id: 'descriptors',
-    label: 'Descriptors',
-    shortcut: 'Alt-d',
-    shortcutDisplay: 'Alt+D',
-    description: 'Adjectives and descriptive words',
-  },
-  {
-    id: 'related',
-    label: 'Related Words',
-    shortcut: 'Alt-t',
-    shortcutDisplay: 'Alt+T',
-    description: 'Semantically related words',
-  },
-  {
-    id: 'emotional',
-    label: 'More Emotional',
-    shortcut: 'Alt-e',
-    shortcutDisplay: 'Alt+E',
-    description: 'More evocative or emotionally charged alternatives',
-  },
-  {
-    id: 'metaphors',
-    label: 'Metaphors',
-    shortcut: 'Alt-m',
-    shortcutDisplay: 'Alt+M',
-    description: 'Figurative or metaphorical alternatives',
-  },
-  {
-    id: 'alliterative',
-    label: 'Alliterative',
-    shortcut: 'Alt-i',
-    shortcutDisplay: 'Alt+I',
-    description: 'Alternatives that start with the same sound',
-  },
+  h('synonyms',    'Synonyms',       'Alt-s', 'Alt+S', 'Words with the same or similar meaning'),
+  h('rhymes',      'Rhymes',         'Alt-r', 'Alt+R', 'Words that rhyme'),
+  h('antonyms',    'Antonyms',       'Alt-a', 'Alt+A', 'Words with the opposite meaning'),
+  h('stronger',    'Stronger',       'Alt-w', 'Alt+W', 'More powerful or impactful alternatives'),
+  h('simpler',     'Simpler',        'Alt-p', 'Alt+P', 'Plainer, more accessible alternatives'),
+  h('formal',      'More Formal',    'Alt-f', 'Alt+F', 'Elevated register alternatives'),
+  h('casual',      'More Casual',    'Alt-c', 'Alt+C', 'Conversational, informal alternatives'),
+  h('descriptors', 'Descriptors',    'Alt-d', 'Alt+D', 'Adjectives and descriptive words'),
+  h('related',     'Related Words',  'Alt-t', 'Alt+T', 'Semantically related words'),
+  h('emotional',   'More Emotional', 'Alt-e', 'Alt+E', 'More evocative or emotionally charged alternatives'),
+  h('metaphors',   'Metaphors',      'Alt-m', 'Alt+M', 'Figurative or metaphorical alternatives'),
+  h('alliterative','Alliterative',   'Alt-i', 'Alt+I', 'Alternatives that start with the same sound'),
 ];
