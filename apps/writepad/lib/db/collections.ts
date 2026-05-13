@@ -110,6 +110,92 @@ export interface DbVcsFileHead {
   updatedAt: Date;
 }
 
+export interface DbWordHelperEntry {
+  helperType: string;
+  suggestions: string[];
+  chosenSuggestion: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DbWordFileRef {
+  fileId: string;
+  /** Full path, e.g. chapter1/scene1.md */
+  filePath: string;
+}
+
+export interface DbWordGeneration {
+  _id: ObjectId;
+  projectId: string;
+  userId: string;
+  /** Unique per (projectId, word) */
+  word: string;
+  /** All files where this word was looked up */
+  files: DbWordFileRef[];
+  entries: DbWordHelperEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DbProjectComment {
+  _id: ObjectId;
+  projectId: string;
+  fileId: string;
+  authorId: string;
+  text: string;
+  /** 1-based line number where the comment is anchored */
+  lineNumber: number;
+  /** Snapshot of the line text at comment creation time — shown for context */
+  lineContent: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DbContinuityReport {
+  _id: ObjectId;
+  projectId: string;
+  /** ID of the worker job that produced this report */
+  jobId: string;
+  /** clientId who triggered the check */
+  triggeredBy: string;
+  scope: { type: 'all' } | { type: 'folders'; folderIds: string[] };
+  modelId: string;
+  status: 'completed' | 'failed';
+  /** Array of Issue objects matching lib/continuity/types.ts → IssueSchema */
+  issues: unknown[];
+  stats: {
+    totalFiles: number;
+    totalShards: number;
+    durationMs: number;
+    tokenEstimate: number;
+  };
+  errorMessage?: string;
+  /** Per-shard failures (if any) — surfaced in the report viewer. */
+  shardErrors?: Array<{ shardIndex: number; message: string }>;
+  createdAt: Date;
+  completedAt: Date;
+}
+
+export interface DbProjectExport {
+  _id: ObjectId;
+  projectId: string;
+  /** Random UUID used as the public share token */
+  shareToken: string;
+  format: 'pdf' | 'docx' | 'epub';
+  /**
+   * For pdf/docx: the full HTML document string.
+   * For epub: the EPUB zip bytes encoded as base64.
+   */
+  content: string;
+  /** Suggested download filename, e.g. "my-novel.pdf" */
+  fileName: string;
+  projectName: string;
+  createdAt: Date;
+  /** Auto-expires 30 days after creation */
+  expiresAt: Date;
+}
+
 // ─── Serialised (API-facing) shapes ──────────────────────────────────────────
 
 export type ProjectDoc = Omit<DbProject, '_id'> & { id: string };
@@ -153,6 +239,22 @@ export async function vcsCommitFilesCol(): Promise<Collection<DbVcsCommitFile>> 
 
 export async function vcsFileHeadsCol(): Promise<Collection<DbVcsFileHead>> {
   return (await getDb()).collection<DbVcsFileHead>('project_vcs_file_heads');
+}
+
+export async function wordGenerationsCol(): Promise<Collection<DbWordGeneration>> {
+  return (await getDb()).collection<DbWordGeneration>('word_generations');
+}
+
+export async function projectCommentsCol(): Promise<Collection<DbProjectComment>> {
+  return (await getDb()).collection<DbProjectComment>('project_comments');
+}
+
+export async function projectExportsCol(): Promise<Collection<DbProjectExport>> {
+  return (await getDb()).collection<DbProjectExport>('project_exports');
+}
+
+export async function continuityReportsCol(): Promise<Collection<DbContinuityReport>> {
+  return (await getDb()).collection<DbContinuityReport>('continuity_reports');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
