@@ -173,10 +173,55 @@ export function snapshotFromFileEffective(file: DbProjectFile): VcsFileSnapshot 
   };
 }
 
+/**
+ * Walk the commit DAG backward from `commitId` and return, for every file that
+ * was ever touched, the most recent snapshot at or before that commit together
+ * with the commitId that last changed it.
+ *
+ * Walking newest-first means first-seen per fileId = most recent state.
+ * Follows both parentCommitId and mergeParentCommitId chains.
+ */
+export async function getFullSnapshotAtCommit(
+  projectId: string,
+  commitId: string,
+): Promise<Map<string, { snapshot: VcsFileSnapshot | null; lastCommitId: string }>> {
+  const result = new Map<string, { snapshot: VcsFileSnapshot | null; lastCommitId: string }>();
+  const col = await vcsCommitsCol();
+  const cfCol = await vcsCommitFilesCol();
+  const visited = new Set<string>();
+  let frontier: string[] = [commitId];
+
+  while (frontier.length > 0) {
+    const batch = frontier.filter((id) => !visited.has(id));
+    if (batch.length === 0) break;
+    for (const id of batch) visited.add(id);
+
+    const rows = await cfCol.find({ projectId, commitId: { $in: batch } }).toArray();
+    for (const row of rows) {
+      if (!result.has(row.fileId)) {
+        result.set(row.fileId, { snapshot: row.snapshot, lastCommitId: row.commitId });
+      }
+    }
+
+    const commits = await col
+      .find({ projectId, _id: { $in: batch.map(toObjectId) } })
+      .toArray();
+    frontier = [];
+    for (const c of commits) {
+      if (c.parentCommitId && !visited.has(c.parentCommitId))
+        frontier.push(c.parentCommitId);
+      if (c.mergeParentCommitId && !visited.has(c.mergeParentCommitId))
+        frontier.push(c.mergeParentCommitId);
+    }
+  }
+
+  return result;
+}
+
 export async function applySnapshotToProjectFiles(
   projectId: string,
   snapshotsByFile: Map<string, VcsFileSnapshot | null>,
-  session?: ClientSession,
+  session?: ClientSession | null,
 ) {
   const col = await projectFilesCol();
   const existing = await col.find({ projectId }, { ...(session ? { session } : {}) }).toArray();

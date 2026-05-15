@@ -17,11 +17,13 @@ export const publicPagePatterns: RegExp[] = [
 
 /**
  * API auth endpoints are intentionally excluded from middleware auth checks.
+ * Also includes public share endpoints that must be accessible without auth.
  */
 export const authApiExemptPatterns: RegExp[] = [
   /^\/api\/login$/,
   /^\/api\/logout$/,
   /^\/api\/session$/,
+  /^\/api\/share\//,
 ];
 
 /**

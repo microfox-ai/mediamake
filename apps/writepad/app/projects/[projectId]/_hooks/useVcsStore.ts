@@ -115,7 +115,7 @@ export interface PullFileUpdate {
 
 // ─── Loading state ─────────────────────────────────────────────────────────────
 
-type OpKey = 'panel' | 'status' | 'commits' | 'action' | 'generate' | 'fileHistory' | 'fetch' | 'pull' | 'push';
+type OpKey = 'panel' | 'status' | 'commits' | 'action' | 'generate' | 'fileHistory' | 'fetch' | 'pull' | 'push' | 'commitDetail' | 'revertPreview';
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +218,14 @@ interface VcsStore {
   ) => Promise<void>;
 
   // ── Revert ─────────────────────────────────────────────────────────────────
+  previewRevert: (
+    commitId: string,
+  ) => Promise<{
+    toDelete: Array<{ fileId: string; name: string }>;
+    toRestore: Array<{ fileId: string; name: string }>;
+    toModify: Array<{ fileId: string; name: string }>;
+    commitMessage: string;
+  }>;
   revertCommit: (
     commitId: string,
     fileId: string | undefined,
@@ -912,15 +920,24 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
         // ── Step 2: Push local commits to server (oldest first) ─────────────────
         const commitsToSend = get().localCommits; // re-read after possible state change
         for (const commit of commitsToSend) {
-          await apiFetch(`/api/projects/${projectId}/vcs/commit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              branchName: commit.branchName,
-              message: commit.message,
-              files: commit.files,
-            }),
-          });
+          try {
+            await apiFetch(`/api/projects/${projectId}/vcs/commit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                branchName: commit.branchName,
+                message: commit.message,
+                files: commit.files,
+              }),
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes('No material file changes to commit')) {
+              // Benign stale/no-op commit: skip and continue pushing the rest.
+              continue;
+            }
+            throw error;
+          }
         }
 
         await clearLocalCommits(projectId, branchName);
@@ -1135,7 +1152,7 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
       }),
 
     loadCommitDetail: (commitId: string) =>
-      run('action', async () => {
+      run('commitDetail', async () => {
         const projectId = pid();
         const data = await apiFetch<{ changes: VcsCommitFile[] }>(
           `/api/projects/${projectId}/vcs/commits/${commitId}`,
@@ -1307,10 +1324,26 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
 
     // ── Revert ─────────────────────────────────────────────────────────────────
 
+    previewRevert: (commitId) =>
+      run('revertPreview', async () => {
+        const projectId = pid();
+        const branchName = branch();
+        return apiFetch<{
+          toDelete: Array<{ fileId: string; name: string }>;
+          toRestore: Array<{ fileId: string; name: string }>;
+          toModify: Array<{ fileId: string; name: string }>;
+          commitMessage: string;
+        }>(
+          `/api/projects/${projectId}/vcs/revert-preview?branch=${encodeURIComponent(branchName)}&commitId=${encodeURIComponent(commitId)}`,
+        );
+      }),
+
     revertCommit: (commitId, fileId, onApplySnapshot) =>
       run('action', async () => {
         const projectId = pid();
         const branchName = branch();
+        const oldHead = get().headSnapshot ?? [];
+
         await apiFetch(`/api/projects/${projectId}/vcs/revert`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1340,7 +1373,14 @@ export const useVcsStore = create<VcsStore>()((set, get) => {
           fetchPreview: null,
         });
 
-        await onApplySnapshot(newHead);
+        // Files that were in the old HEAD but not in the new HEAD were deleted by the
+        // revert — pass them as explicit null entries so applySnapshotToLocal removes them.
+        const newHeadIds = new Set(newHead.map((e) => e.fileId));
+        const deletedEntries: HeadSnapshotArray = oldHead
+          .filter((e) => !newHeadIds.has(e.fileId))
+          .map((e) => ({ fileId: e.fileId, snapshot: null }));
+
+        await onApplySnapshot([...newHead, ...deletedEntries]);
       }),
 
     // ── Restore working directory ──────────────────────────────────────────────

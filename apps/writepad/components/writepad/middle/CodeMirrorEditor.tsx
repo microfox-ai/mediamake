@@ -34,7 +34,11 @@ import {
 } from '@codemirror/search';
 import { ghostTextExtension } from './ghostText';
 import { wordHelperExtension, type WordHelperRequest } from './wordHelperExtension';
-import type { SelectionContext } from './types';
+import { WORD_HELPERS } from './wordHelpers';
+import { useKeymapStore } from '@/lib/stores/keymapStore';
+import type { SelectionContext, WikiTerm } from './types';
+import { wikiDecorationsExtension, setWikiTermsEffect, setWikiGoToDefEffect, getWikiTermAtPos } from './wikiDecorations';
+import { commentDecorationsExtension, setCommentLinesEffect, type CommentLineMeta } from './commentDecorations';
 
 // ─── Markdown snippet completions ────────────────────────────────────────────
 
@@ -105,6 +109,12 @@ export interface CodeMirrorEditorHandle {
   findNextMatch: () => void;
   findPrevMatch: () => void;
   clearSearch: () => void;
+  /** Returns the wiki term at the current cursor position, or null. */
+  getWikiTermAtCursor: () => WikiTerm | null;
+  /** Returns the word (identifier) at the current cursor position, or ''. */
+  getWordAtCursor: () => string;
+  /** Update which lines show comment decorations (amber highlight + badge). */
+  setCommentLines: (metas: CommentLineMeta[]) => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -122,10 +132,16 @@ interface CodeMirrorEditorProps {
   onPrefsChange: (update: Partial<EditorPreferences>) => void;
   onWordHelper: (req: WordHelperRequest) => void;
   writepadRules?: string | null;
+  /** Wiki terms to highlight in this editor (underlined with hover tooltips). */
+  wikiTerms?: WikiTerm[];
+  /** Called when the user Ctrl/Cmd+clicks a decorated wiki term. */
+  onGoToDefinition?: (fileId: string) => void;
+  /** Called when the user clicks a line that has comment decorations. */
+  onCommentLineClick?: (lineNumber: number) => void;
 }
 
 export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEditorProps>(
-  function CodeMirrorEditor({ content, fileName, fileId, projectId, prefs, onChange, onSave, onToggleSearch, onContextSelect, onPrefsChange, onWordHelper, writepadRules }, ref) {
+  function CodeMirrorEditor({ content, fileName, fileId, projectId, prefs, onChange, onSave, onToggleSearch, onContextSelect, onPrefsChange, onWordHelper, writepadRules, wikiTerms, onGoToDefinition, onCommentLineClick }, ref) {
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -152,6 +168,39 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
     useEffect(() => { prefsRef.current = prefs; }, [prefs]);
     useEffect(() => { fileIdRef.current = fileId; }, [fileId]);
     useEffect(() => { fileNameRef.current = fileName; }, [fileName]);
+
+    // Stable ref for the comment line click callback.
+    const onCommentLineClickRef = useRef(onCommentLineClick);
+    useEffect(() => { onCommentLineClickRef.current = onCommentLineClick; }, [onCommentLineClick]);
+
+    // Stable ref for the goToDef callback — kept in sync so the closure never goes stale.
+    const onGoToDefinitionRef = useRef(onGoToDefinition);
+    useEffect(() => { onGoToDefinitionRef.current = onGoToDefinition; }, [onGoToDefinition]);
+
+    // Stable wrapper passed into CM state — identity never changes, so CM never sees a new fn.
+    const goToDefCbRef = useRef<((fileId: string) => void) | null>(null);
+    useEffect(() => {
+      goToDefCbRef.current = onGoToDefinition
+        ? (fileId: string) => onGoToDefinitionRef.current?.(fileId)
+        : null;
+    }, [onGoToDefinition]);
+
+    // Push updated wiki terms into the running view whenever they change.
+    // Exclude the term for this file so a wiki entry doesn't highlight itself.
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      if (!view) return;
+      const filtered = (wikiTerms ?? []).filter((wt) => wt.fileId !== fileId);
+      view.dispatch({ effects: setWikiTermsEffect.of(filtered) });
+    }, [wikiTerms, fileId]);
+
+    // Push the callback whenever its presence toggles (on → off or vice-versa).
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      if (!view) return;
+      view.dispatch({ effects: setWikiGoToDefEffect.of(goToDefCbRef.current) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [!!onGoToDefinition]);
 
     // Ctrl+Wheel — increase/decrease font size
     useEffect(() => {
@@ -280,6 +329,28 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         if (!view) return;
         view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) });
       },
+      getWikiTermAtCursor() {
+        const view = cmRef.current?.view;
+        if (!view) return null;
+        const pos = view.state.selection.main.head;
+        return getWikiTermAtPos(view, pos);
+      },
+      getWordAtCursor() {
+        const view = cmRef.current?.view;
+        if (!view) return '';
+        const pos = view.state.selection.main.head;
+        // Try selected text first; fall back to word at cursor
+        const sel = view.state.selection.main;
+        if (!sel.empty) return view.state.sliceDoc(sel.from, sel.to).trim();
+        const wordRange = view.state.wordAt(pos);
+        if (!wordRange) return '';
+        return view.state.sliceDoc(wordRange.from, wordRange.to);
+      },
+      setCommentLines(metas: CommentLineMeta[]) {
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.dispatch({ effects: [setCommentLinesEffect.of(metas)] });
+      },
     }));
 
     // All callbacks go through refs → keymap can use empty deps and never go stale.
@@ -317,6 +388,20 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       [], // empty — everything reads through refs
     );
 
+    // Wiki decorations — created once per file instance (state pushed via effect)
+    const wikiExt = useMemo(
+      () => wikiDecorationsExtension(),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [],
+    );
+
+    // Comment decorations — amber highlight + badge on commented lines; stable ref for callback.
+    const commentExt = useMemo(
+      () => commentDecorationsExtension((ln) => onCommentLineClickRef.current?.(ln)),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [], // stable — callback always read through ref
+    );
+
     // Ghost text — recreated per file (component remounts via key={fileId})
     const ghostText = useMemo(
       () => ghostTextExtension(
@@ -330,11 +415,32 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
       [],
     );
 
-    // Word helper shortcuts (Alt+S, Alt+R, …) — stable, reads callback via ref
+    // Word helper shortcuts — rebuilt only when the user actually remaps a key.
+    // Select the raw overrides object (stable reference) to avoid calling a
+    // function inside the selector (which would return a new array every render
+    // and cause an infinite re-render loop).
+    const keymapOverrides = useKeymapStore((s) => s.overrides);
+    const resolvedHelpers = useMemo(
+      () =>
+        WORD_HELPERS.map((h) =>
+          keymapOverrides[h.id]
+            ? {
+                ...h,
+                shortcut: keymapOverrides[h.id],
+                shortcutDisplay: keymapOverrides[h.id]
+                  .replace('Alt-', 'Alt+')
+                  .replace('Ctrl-', 'Ctrl+')
+                  .replace('Shift-', 'Shift+')
+                  .toUpperCase(),
+              }
+            : h,
+        ),
+      [keymapOverrides],
+    );
     const wordHelper = useMemo(
-      () => wordHelperExtension((req) => onWordHelperRef.current(req)),
+      () => wordHelperExtension((req) => onWordHelperRef.current(req), resolvedHelpers),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [],
+      [resolvedHelpers.map((h) => h.shortcut).join(',')],
     );
 
     // Word wrap extension — recreated when pref changes
@@ -372,9 +478,11 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         search({ top: false }),
         ghostText,
         wordHelper,
+        wikiExt,
+        commentExt,
         customKeymap,
       ],
-      [customKeymap, ghostText, wordHelper, wrapExt, fontTheme],
+      [customKeymap, ghostText, wordHelper, wikiExt, commentExt, wrapExt, fontTheme],
     );
 
     const cmTheme = prefs.theme === 'light' ? vscodeLight : vscodeDark;
@@ -387,6 +495,18 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, CodeMirrorEdi
         onChange={onChange}
         theme={cmTheme}
         extensions={extensions}
+        onCreateEditor={(view) => {
+          // Eagerly seed wiki state into the brand-new view.
+          // This runs synchronously when the view is constructed — before the first
+          // useEffect fires — so highlighting is present from the very first paint
+          // even when `wikiTerms` hasn't changed since the last file was open.
+          view.dispatch({
+            effects: [
+              setWikiTermsEffect.of((wikiTerms ?? []).filter((wt) => wt.fileId !== fileId)),
+              setWikiGoToDefEffect.of(goToDefCbRef.current),
+            ],
+          });
+        }}
         basicSetup={{
           lineNumbers: prefs.lineNumbers,
           highlightActiveLineGutter: true,

@@ -63,7 +63,13 @@ export function FileTreeNode({
       return;
     }
     e.dataTransfer.setData('text/plain', node.id);
-    e.dataTransfer.effectAllowed = 'move';
+    // Custom MIME type so drop targets (e.g. the chat input) can distinguish
+    // an in-app file/folder drag from a real OS file or plain text drag.
+    e.dataTransfer.setData(
+      'application/x-writepad-file',
+      JSON.stringify({ id: node.id, name: node.name, type: node.type }),
+    );
+    e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleDragOver = (e: React.DragEvent) => {

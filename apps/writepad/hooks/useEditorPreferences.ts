@@ -21,6 +21,8 @@ export interface EditorPreferences {
   lineNumbers: boolean;
   /** Whether cursor-placement AI auto-complete is active. Alt+G manual trigger always works. */
   autoComplete: boolean;
+  /** Show .writepad/plans/ files in the file explorer. Hidden by default. */
+  showPlanFiles: boolean;
 }
 
 export const FONT_LABELS: Record<EditorFont, string> = {
@@ -40,6 +42,7 @@ const DEFAULTS: EditorPreferences = {
   wordWrap: true,
   lineNumbers: true,
   autoComplete: true,
+  showPlanFiles: false,
 };
 
 const STORAGE_KEY = 'writepad_editor_prefs';
