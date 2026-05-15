@@ -41,6 +41,8 @@ export interface WorkersConfig {
   stage?: string;
   region?: string;
   workers: Record<string, { queueUrl: string; region: string }>;
+  /** JSON Schemas for each worker's input, keyed by worker ID. Embedded at CLI build time. */
+  schemas?: Record<string, unknown>;
   queues?: QueueConfig[];
 }
 
@@ -270,6 +272,15 @@ export async function getQueueRegistry(): Promise<WorkerQueueRegistry> {
     },
   };
   return registry as WorkerQueueRegistry;
+}
+
+/**
+ * Returns the JSON Schema for a worker's input, or null if not available.
+ * Schema is embedded in the workers-config response at CLI build time — no dynamic imports needed.
+ */
+export async function getWorkerSchema(workerId: string): Promise<unknown | null> {
+  const config = await fetchWorkersConfig();
+  return config.schemas?.[workerId] ?? null;
 }
 
 /**
