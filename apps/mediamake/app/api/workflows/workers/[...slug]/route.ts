@@ -186,9 +186,36 @@ export async function GET(
   try {
     const { slug: slugParam } = await params;
     slug = slugParam || [];
-    const [workerId, jobId] = slug;
+    const [workerId, jobIdOrAction] = slug;
 
-    if (!workerId || !jobId) {
+    if (!workerId) {
+      return NextResponse.json(
+        { error: 'Worker ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // GET /api/workflows/workers/:workerId/schema — return JSON schema of worker input
+    if (jobIdOrAction === 'schema') {
+      return handleGetSchema(workerId);
+    }
+
+    // GET /api/workflows/workers/:workerId/history — list all jobs for a worker
+    if (jobIdOrAction === 'history') {
+      const { listJobsByWorker } = await import('../../stores/jobStore');
+      const jobs = await listJobsByWorker(workerId);
+      // Sort newest first
+      const sorted = [...jobs].sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+      return NextResponse.json({ jobs: sorted }, { status: 200 });
+    }
+
+    const jobId = jobIdOrAction;
+
+    if (!jobId) {
       return NextResponse.json(
         { error: 'Worker ID and job ID are required' },
         { status: 400 }
@@ -367,6 +394,20 @@ async function handleJobUpdate(req: NextRequest, workerId: string) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Return the JSON Schema for a worker's input.
+ * Schema is embedded in the workers-config response at CLI build time — no dynamic imports.
+ * GET /api/workflows/workers/:workerId/schema
+ */
+async function handleGetSchema(workerId: string) {
+  const { getWorkerSchema } = await import('../../registry/workers');
+  const schema = await getWorkerSchema(workerId);
+  if (!schema) {
+    return NextResponse.json({ error: `No schema found for worker "${workerId}"` }, { status: 404 });
+  }
+  return NextResponse.json(schema, { status: 200 });
 }
 
 /**
