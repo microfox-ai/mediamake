@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
     ContextMenu,
@@ -22,9 +22,22 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PresetItem } from "./PresetItem";
 import { TimelineAddPresetMenu } from "./TimelineAddPresetMenu";
-import { Preset, DatabasePreset } from "@/components/editor/presets/types";
+import { Preset, DatabasePreset, ReferenceItem } from "@/components/editor/presets/types";
 import { PresetLibraryDialog } from "./PresetLibraryDialog";
 import { Library } from "lucide-react";
+import {
+    getDefaultDataTypeForReferenceType,
+    getDefaultValueForReferenceType,
+    getDataTypeById,
+    getReferenceTypeOptions,
+    predefinedDataTypes,
+} from "@/components/editor/presets/dataTypes";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     DndContext,
     closestCenter,
@@ -46,22 +59,26 @@ interface TimelineItemProps {
 
 export function TimelineItem({ timeline }: TimelineItemProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isReferencesOpen, setIsReferencesOpen] = useState(false);
+    const [isBlocksOpen, setIsBlocksOpen] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
     const [showPresetLibrary, setShowPresetLibrary] = useState(false);
-    const { loadTimeline, loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
-    const { selectTimeline, selectedItem } = useEditorStore();
-    const { getEditedTimeline, reorderPresets, addPresetToTimeline } = useTimelineEditsStore();
+    const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
+    const { selectTimeline, selectReference, selectedItem } = useEditorStore();
+    const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
     const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
     const session = useSession();
     const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
 
     // Get edited timeline if it exists, otherwise use original
     const editedTimeline = getEditedTimeline(timeline.id);
-    const displayTimeline = editedTimeline || timeline;
+    const loadedOrOriginalTimeline = loadedTimeline?.id === timeline.id ? loadedTimeline : timeline;
+    const displayTimeline = editedTimeline || loadedOrOriginalTimeline;
 
     const isLoaded = loadedTimeline?.id === timeline.id;
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
     const presets = displayTimeline.presets || [];
+    const references = (displayTimeline.defaultData?.references || []) as ReferenceItem[];
 
     const ensureTimelineLoaded = async () => {
         if (loadedTimeline?.id === timeline.id) {
@@ -162,6 +179,76 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         addPresetToTimeline(timeline.id, preset);
     };
 
+    const upsertReferences = (nextReferences: ReferenceItem[]) => {
+        updateTimeline(timeline.id, {
+            defaultData: {
+                ...(displayTimeline.defaultData || {}),
+                references: nextReferences,
+            },
+        });
+    };
+
+    const createNewReference = (type: ReferenceItem["type"]) => {
+        const referencesList = [...references];
+        const nextIndex = referencesList.length + 1;
+        const defaultDataType = getDefaultDataTypeForReferenceType(type);
+        const newReference: ReferenceItem = {
+            key: `reference_${nextIndex}`,
+            type,
+            dataType: defaultDataType?.id,
+            value: getDefaultValueForReferenceType(type),
+        };
+        const nextReferences = [...referencesList, newReference];
+        upsertReferences(nextReferences);
+        setIsReferencesOpen(true);
+        selectReference(newReference, displayTimeline, nextReferences.length - 1);
+    };
+
+    const duplicateReference = (referenceIndex: number) => {
+        const sourceReference = references[referenceIndex] as ReferenceItem | undefined;
+        if (!sourceReference) {
+            return;
+        }
+        const duplicate: ReferenceItem = {
+            ...JSON.parse(JSON.stringify(sourceReference)),
+            key: sourceReference.key ? `${sourceReference.key}_copy` : `reference_${referenceIndex + 1}_copy`,
+        };
+        const nextReferences = [...references];
+        nextReferences.splice(referenceIndex + 1, 0, duplicate);
+        upsertReferences(nextReferences);
+        selectReference(duplicate, displayTimeline, referenceIndex + 1);
+    };
+
+    const removeReference = (referenceIndex: number) => {
+        const sourceReference = references[referenceIndex];
+        if (!sourceReference) {
+            return;
+        }
+        const nextReferences = references.filter((_, index: number) => index !== referenceIndex);
+        upsertReferences(nextReferences);
+        selectTimeline(displayTimeline);
+    };
+
+    const createReferenceFromDataType = (dataTypeId: string) => {
+        const selectedDataType = getDataTypeById(dataTypeId);
+        const referenceType: ReferenceItem["type"] =
+            selectedDataType?.referenceType || "object";
+
+        const referencesList = [...references];
+        const nextIndex = referencesList.length + 1;
+        const newReference: ReferenceItem = {
+            key: `${dataTypeId}_${nextIndex}`,
+            type: referenceType,
+            dataType: dataTypeId,
+            value: getDefaultValueForReferenceType(referenceType),
+        };
+
+        const nextReferences = [...referencesList, newReference];
+        upsertReferences(nextReferences);
+        setIsReferencesOpen(true);
+        selectReference(newReference, displayTimeline, nextReferences.length - 1);
+    };
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
@@ -182,6 +269,8 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
             }
         }
     }
+
+    const referenceTypeOptions = getReferenceTypeOptions();
 
     return (
         <>
@@ -220,6 +309,24 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     <Copy className="h-4 w-4 mr-2" />
                                     Duplicate Timeline
                                 </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuSub>
+                                    <ContextMenuSubTrigger>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        New Reference
+                                    </ContextMenuSubTrigger>
+                                    <ContextMenuSubContent>
+                                        {referenceTypeOptions.map((option) => (
+                                            <ContextMenuItem
+                                                key={option.value}
+                                                onClick={() => createNewReference(option.value)}
+                                            >
+                                                {option.label}
+                                            </ContextMenuItem>
+                                        ))}
+                                    </ContextMenuSubContent>
+                                </ContextMenuSub>
+
                                 <ContextMenuSeparator />
                                 {/* Add Basic Block Submenu */}
                                 <ContextMenuSub>
@@ -296,6 +403,126 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <div className="ml-4 space-y-1 border-l">
+                        {!isLoadingTimeline && (
+                            <Collapsible
+                                open={isReferencesOpen}
+                                onOpenChange={setIsReferencesOpen}
+                            >
+                                <ContextMenu>
+                                    <ContextMenuTrigger asChild>
+                                        <div
+                                            onClick={() => setIsReferencesOpen((prev) => !prev)}
+                                            className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none"
+                                        >
+                                            {isReferencesOpen ? (
+                                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                            ) : (
+                                                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                            )}
+                                            <FolderTree className="h-3 w-3 text-muted-foreground" />
+                                            <span className="flex-1">References</span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {references.length}
+                                            </span>
+                                        </div>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent>
+                                        <ContextMenuSub>
+                                            <ContextMenuSubTrigger>
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                New Reference
+                                            </ContextMenuSubTrigger>
+                                            <ContextMenuSubContent>
+                                                {referenceTypeOptions.map((option) => (
+                                                    <ContextMenuItem
+                                                        key={option.value}
+                                                        onClick={() => createNewReference(option.value)}
+                                                    >
+                                                        {option.label}
+                                                    </ContextMenuItem>
+                                                ))}
+                                            </ContextMenuSubContent>
+                                        </ContextMenuSub>
+                                    </ContextMenuContent>
+                                </ContextMenu>
+                                <CollapsibleContent>
+                                    <div className="ml-5 border-l space-y-1 py-1">
+                                        {references.length > 0 ? (
+                                            references.map((reference, index: number) => (
+                                                <ContextMenu key={`${reference.key || "reference"}-${index}`}>
+                                                    <ContextMenuTrigger asChild>
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                selectReference(reference, displayTimeline, index);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                selectedItem?.type === "reference" &&
+                                                                    selectedItem.timeline.id === displayTimeline.id &&
+                                                                    selectedItem.referenceIndex === index
+                                                                    ? "bg-blue-100 text-blue-950"
+                                                                    : "text-muted-foreground",
+                                                            )}
+                                                        >
+                                                            <Link2 className="h-3 w-3" />
+                                                            <span className="truncate">
+                                                                {reference.key || `reference_${index + 1}`}
+                                                            </span>
+                                                        </div>
+                                                    </ContextMenuTrigger>
+                                                    <ContextMenuContent>
+                                                        <ContextMenuItem onClick={() => duplicateReference(index)}>
+                                                            <Copy className="h-4 w-4 mr-2" />
+                                                            Duplicate
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => removeReference(index)}
+                                                            variant="destructive"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Delete
+                                                        </ContextMenuItem>
+                                                    </ContextMenuContent>
+                                                </ContextMenu>
+                                            ))
+                                        ) : (
+                                            <div className="px-2 py-1 text-[11px] text-muted-foreground">
+                                                No references
+                                            </div>
+                                        )}
+
+                                        <div className="px-1 pt-1">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <div className="flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent rounded-sm transition-colors select-none text-muted-foreground">
+                                                        <Plus className="h-3 w-3" />
+                                                        <span>Add Data</span>
+                                                    </div>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start" side="left">
+                                                    {predefinedDataTypes.length > 0 ? (
+                                                        predefinedDataTypes.map((dataType) => (
+                                                            <DropdownMenuItem
+                                                                key={dataType.id}
+                                                                onClick={() => createReferenceFromDataType(dataType.id)}
+                                                            >
+                                                                {dataType.title}
+                                                            </DropdownMenuItem>
+                                                        ))
+                                                    ) : (
+                                                        <DropdownMenuItem disabled>
+                                                            No data types available
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+                        )}
+
                         {isLoadingTimeline && presets.length === 0 && (
                             <div className="space-y-1 py-2 pl-2">
                                 {Array.from({ length: 3 }).map((_, index) => (
@@ -311,37 +538,89 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                         )}
 
                         {!isLoadingTimeline && presets.length > 1 && (
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
+                            <Collapsible
+                                open={isBlocksOpen}
+                                onOpenChange={setIsBlocksOpen}
                             >
-                                <SortableContext
-                                    items={presets.slice(1).map(preset => preset.id)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    {presets.slice(1).map((preset, index) => (
-                                        <PresetItem
-                                            key={`${preset.presetId}-${index + 1}`}
-                                            preset={preset}
+                                <CollapsibleTrigger asChild>
+                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
+                                        {isBlocksOpen ? (
+                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        )}
+                                        <FolderTree className="h-3 w-3 text-muted-foreground" />
+                                        <span className="flex-1">Blocks</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            {Math.max(presets.length - 1, 0)}
+                                        </span>
+                                    </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="ml-5 border-l space-y-1 py-1">
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={presets.slice(1).map(preset => preset.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {presets.slice(1).map((preset, index) => (
+                                                    <PresetItem
+                                                        key={`${preset.presetId}-${index + 1}`}
+                                                        preset={preset}
+                                                        timeline={timeline}
+                                                        index={index + 1}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </DndContext>
+
+                                        <TimelineAddPresetMenu
                                             timeline={timeline}
-                                            index={index + 1}
+                                            isHovered={isHovered}
+                                            onOpenPresetLibrary={() => setShowPresetLibrary(true)}
+                                            label="Add Block"
                                         />
-                                    ))}
-                                </SortableContext>
-                            </DndContext>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
                         )}
+
                         {!isLoadingTimeline && presets.length === 1 && (
-                            <div className="text-xs text-muted-foreground px-2 py-1">
-                                First preset is configured in Timeline Properties
-                            </div>
+                            <Collapsible
+                                open={isBlocksOpen}
+                                onOpenChange={setIsBlocksOpen}
+                            >
+                                <CollapsibleTrigger asChild>
+                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
+                                        {isBlocksOpen ? (
+                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        )}
+                                        <FolderTree className="h-3 w-3 text-muted-foreground" />
+                                        <span className="flex-1">Blocks</span>
+                                        <span className="text-[10px] text-muted-foreground">0</span>
+                                    </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="ml-5 border-l py-1">
+                                        <div className="text-xs text-muted-foreground px-2 py-1">
+                                            First preset is configured in Timeline Properties
+                                        </div>
+                                        <TimelineAddPresetMenu
+                                            timeline={timeline}
+                                            isHovered={isHovered}
+                                            onOpenPresetLibrary={() => setShowPresetLibrary(true)}
+                                            label="Add Block"
+                                        />
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
                         )}
-                        {/* Add Item */}
-                        <TimelineAddPresetMenu
-                            timeline={timeline}
-                            isHovered={isHovered}
-                            onOpenPresetLibrary={() => setShowPresetLibrary(true)}
-                        />
                     </div>
                 </CollapsibleContent>
             </Collapsible>

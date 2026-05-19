@@ -22,9 +22,15 @@ interface TimelineAddPresetMenuProps {
     timeline: Timeline;
     isHovered: boolean;
     onOpenPresetLibrary?: () => void;
+    label?: string;
 }
 
-export function TimelineAddPresetMenu({ timeline, isHovered, onOpenPresetLibrary }: TimelineAddPresetMenuProps) {
+export function TimelineAddPresetMenu({
+    timeline,
+    isHovered,
+    onOpenPresetLibrary,
+    label = "Add Item",
+}: TimelineAddPresetMenuProps) {
     const {
         basicBlocksPresets,
         captionPresets,
@@ -54,7 +60,7 @@ export function TimelineAddPresetMenu({ timeline, isHovered, onOpenPresetLibrary
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <span className="flex-1 text-muted-foreground hover:text-foreground">
-                            Add Item
+                            {label}
                         </span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" side="left" className="max-w-xs">

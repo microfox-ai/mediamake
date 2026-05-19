@@ -11,11 +11,36 @@ export interface ReferenceItem {
     | 'boolean'
     | 'object'
     | 'objects';
+  dataType?: string;
   value: any;
 }
 
 export interface DefaultPresetData {
   references: ReferenceItem[];
+}
+
+export interface ResolvedPresetInputData {
+  processedInputData: any;
+  dataItemIds: string[];
+  dataSourceKeys: string[];
+  dataReferenceBindings: Record<string, string[]>;
+  dataReferenceKeyByPath: Record<string, string>;
+  dataMutationContext: DataMutationContext;
+}
+
+export interface DataMutationContext {
+  dataItemIds: string[];
+  dataSourceKeys: string[];
+  dataReferenceBindings: Record<string, string[]>;
+  dataReferenceKeyByPath: Record<string, string>;
+}
+
+export interface BuildDataItemIdsOptions {
+  paramKeys?: string[];
+  dataSourceKeys?: string[];
+  arrayIndex?: number;
+  nestedPath?: string;
+  fallbackToAll?: boolean;
 }
 
 /**
@@ -206,8 +231,13 @@ function processArrayRange(
     return array;
   }
 
-  // Auto-detect time range format (MM:SS-MM:SS) vs index range format (N-N)
-  const isTimeRange = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(range);
+  // Auto-detect time range format (MM:SS-MM:SS / HH:MM:SS-HH:MM:SS / multi-segment)
+  const isTimeRange =
+    type === 'captions' &&
+    range
+      .split(',')
+      .map(segment => segment.trim())
+      .every(segment => isSupportedTimeRangeSegment(segment));
   const isIndexRange = /^\d+-\d+$/.test(range);
 
   if (isTimeRange) {
@@ -247,40 +277,102 @@ function processIndexRange(array: any[], range: string): any[] {
  * Processes time-based range selection for captions (e.g., "1:04-2:03")
  */
 function processTimeRange(captions: any[], range: string): any[] {
-  // More flexible regex to handle different time formats
-  const timeRangeMatch = range.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
-  if (!timeRangeMatch) {
+  const segments = range
+    .split(',')
+    .map(segment => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    return captions;
+  }
+
+  const parsedSegments = segments
+    .map(parseTimeRangeSegmentToSeconds)
+    .filter((segment): segment is { startTime: number; endTime: number } => {
+      return Boolean(segment);
+    });
+
+  if (parsedSegments.length === 0) {
     console.warn(
-      `Invalid time range format: ${range}. Expected format: MM:SS-MM:SS`,
+      `Invalid time range format: ${range}. Expected format: HH:MM:SS-HH:MM:SS (supports decimals)`,
     );
     return captions;
   }
 
-  const startMinutes = parseInt(timeRangeMatch[1], 10);
-  const startSeconds = parseInt(timeRangeMatch[2], 10);
-  const endMinutes = parseInt(timeRangeMatch[3], 10);
-  const endSeconds = parseInt(timeRangeMatch[4], 10);
-
-  const startTime = startMinutes * 60 + startSeconds;
-  const endTime = endMinutes * 60 + endSeconds;
-
   return captions.filter((caption: any) => {
-    // Check if caption has absoluteStart and absoluteEnd properties
-    if (
-      typeof caption.absoluteStart === 'number' &&
+    const captionStart =
+      typeof caption.absoluteStart === 'number'
+        ? caption.absoluteStart
+        : typeof caption.start === 'number'
+          ? caption.start
+          : undefined;
+    const captionEnd =
       typeof caption.absoluteEnd === 'number'
-    ) {
-      // Check if caption overlaps with the time range
-      return caption.absoluteStart < endTime && caption.absoluteEnd > startTime;
+        ? caption.absoluteEnd
+        : typeof caption.end === 'number'
+          ? caption.end
+          : undefined;
+
+    if (captionStart === undefined || captionEnd === undefined) {
+      return false;
     }
 
-    // Fallback to start/end if absoluteStart/absoluteEnd not available
-    if (typeof caption.start === 'number' && typeof caption.end === 'number') {
-      return caption.start < endTime && caption.end > startTime;
-    }
-
-    return false;
+    return parsedSegments.some(({ startTime, endTime }) => {
+      return captionStart < endTime && captionEnd > startTime;
+    });
   });
+}
+
+function isSupportedTimeRangeSegment(segment: string): boolean {
+  const parts = segment.split('-').map(part => part.trim());
+  if (parts.length !== 2) return false;
+  return (
+    parseTimeToSeconds(parts[0]) !== null &&
+    parseTimeToSeconds(parts[1]) !== null
+  );
+}
+
+function parseTimeRangeSegmentToSeconds(
+  segment: string,
+): { startTime: number; endTime: number } | null {
+  const parts = segment.split('-').map(part => part.trim());
+  if (parts.length !== 2) return null;
+  const startTime = parseTimeToSeconds(parts[0]);
+  const endTime = parseTimeToSeconds(parts[1]);
+  if (startTime === null || endTime === null || startTime > endTime) {
+    return null;
+  }
+  return { startTime, endTime };
+}
+
+/**
+ * Supports:
+ * - HH:MM:SS(.sss)
+ * - MM:SS(.sss)
+ * - SS(.sss)
+ */
+function parseTimeToSeconds(input: string): number | null {
+  const parts = input.split(':').map(part => part.trim());
+  if (parts.length === 0 || parts.length > 3) {
+    return null;
+  }
+
+  const nums = parts.map(part => Number(part));
+  if (nums.some(num => Number.isNaN(num) || num < 0)) {
+    return null;
+  }
+
+  if (nums.length === 3) {
+    const [hours, minutes, seconds] = nums;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  if (nums.length === 2) {
+    const [minutes, seconds] = nums;
+    return minutes * 60 + seconds;
+  }
+
+  return nums[0];
 }
 
 /**
@@ -367,6 +459,224 @@ export function processPresetInputData(
   }
 
   return processDataReferences(inputData, baseData);
+}
+
+export function resolvePresetInputData(
+  inputData: any,
+  baseData: Record<string, any>,
+): ResolvedPresetInputData {
+  const dataReferenceBindings: Record<string, string[]> = {};
+  const dataReferenceKeyByPath: Record<string, string> = {};
+  const dataSourceKeys = new Set<string>();
+  const allDataItemIds = new Set<string>();
+
+  const visit = (value: any, path: string[]) => {
+    if (typeof value === 'string') {
+      const references = extractDataReferencesFromString(value);
+      if (references.length === 0) return;
+      const pathKey = path.join('.');
+      const pathIds = new Set<string>();
+      references.forEach(({ key, range }) => {
+        dataSourceKeys.add(key);
+        if (!dataReferenceKeyByPath[pathKey]) {
+          dataReferenceKeyByPath[pathKey] = key;
+        }
+        const ids = buildDataItemIdsFromReference(key, range, baseData[key]);
+        ids.forEach(id => {
+          pathIds.add(id);
+          allDataItemIds.add(id);
+        });
+      });
+      dataReferenceBindings[pathKey] = Array.from(pathIds);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => visit(item, [...path, String(index)]));
+      return;
+    }
+
+    if (value && typeof value === 'object') {
+      Object.entries(value).forEach(([k, nested]) =>
+        visit(nested, [...path, k]),
+      );
+    }
+  };
+
+  visit(inputData, []);
+
+  const dataMutationContext: DataMutationContext = {
+    dataItemIds: Array.from(allDataItemIds),
+    dataSourceKeys: Array.from(dataSourceKeys),
+    dataReferenceBindings,
+    dataReferenceKeyByPath,
+  };
+
+  return {
+    processedInputData: processPresetInputData(inputData, baseData),
+    dataItemIds: dataMutationContext.dataItemIds,
+    dataSourceKeys: dataMutationContext.dataSourceKeys,
+    dataReferenceBindings,
+    dataReferenceKeyByPath,
+    dataMutationContext,
+  };
+}
+
+/**
+ * Resolves stable data-item id strings from the pre-mutation `data:[...]` scan.
+ * Returns an empty array when nothing matched — callers must not use `||` with
+ * array fallbacks (empty `[]` is truthy in JavaScript); check `.length` instead.
+ */
+export function buildDataItemIds(
+  context: DataMutationContext | undefined,
+  options: BuildDataItemIdsOptions = {},
+): string[] {
+  if (!context) return [];
+  const {
+    paramKeys = [],
+    dataSourceKeys = [],
+    arrayIndex,
+    nestedPath,
+    fallbackToAll = false,
+  } = options;
+  const out = new Set<string>();
+
+  const addIds = (ids: string[] | undefined) => {
+    if (!ids || ids.length === 0) return;
+    const selected =
+      typeof arrayIndex === 'number' && arrayIndex >= 0
+        ? ids[arrayIndex]
+          ? [ids[arrayIndex]]
+          : []
+        : ids;
+    selected.forEach(id =>
+      out.add(appendNestedPathToDataItemId(id, nestedPath)),
+    );
+  };
+
+  paramKeys.forEach(paramKey => {
+    addIds(context.dataReferenceBindings[paramKey]);
+  });
+
+  dataSourceKeys.forEach(sourceKey => {
+    context.dataReferenceBindings &&
+      Object.entries(context.dataReferenceBindings).forEach(([, ids]) => {
+        addIds(
+          ids?.filter(id => id === sourceKey || id.startsWith(`${sourceKey}.`)),
+        );
+      });
+  });
+
+  if (fallbackToAll && out.size === 0) {
+    addIds(context.dataItemIds);
+  }
+
+  return Array.from(out);
+}
+
+function appendNestedPathToDataItemId(
+  dataItemId: string,
+  nestedPath?: string,
+): string {
+  if (!nestedPath) return dataItemId;
+  return `${dataItemId}.${nestedPath}`;
+}
+
+function extractDataReferencesFromString(
+  value: string,
+): Array<{ key: string; range?: string }> {
+  const matches: Array<{ key: string; range?: string }> = [];
+  const pattern = /data:\[([^\]]+)\](?:\[([^\]]+)\])?/g;
+  let match: RegExpExecArray | null = null;
+  while ((match = pattern.exec(value)) !== null) {
+    matches.push({
+      key: match[1].trim(),
+      range: match[2],
+    });
+  }
+  return matches;
+}
+
+function buildDataItemIdsFromReference(
+  key: string,
+  range: string | undefined,
+  referenceValue: any,
+): string[] {
+  if (!range) {
+    if (
+      referenceValue &&
+      typeof referenceValue === 'object' &&
+      Array.isArray(referenceValue.captions)
+    ) {
+      return referenceValue.captions.map(
+        (_: unknown, index: number) => `${key}.[${index}]`,
+      );
+    }
+    if (Array.isArray(referenceValue)) {
+      return referenceValue.map(
+        (_: unknown, index: number) => `${key}.[${index}]`,
+      );
+    }
+    return [key];
+  }
+
+  if (/^\d+-\d+$/.test(range)) {
+    const [startStr, endStr] = range.split('-');
+    const start = Number.parseInt(startStr, 10);
+    const end = Number.parseInt(endStr, 10);
+    if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+      const ids: string[] = [];
+      for (let i = start; i <= end; i += 1) {
+        ids.push(`${key}.[${i}]`);
+      }
+      return ids;
+    }
+  }
+
+  return [`${key}[${range}]`];
+}
+
+export function remapDataReferenceKeys(
+  inputData: any,
+  keyMapping: Record<string, string>,
+): any {
+  if (!inputData || Object.keys(keyMapping).length === 0) {
+    return inputData;
+  }
+  return remapDataReferenceKeysRecursive(inputData, keyMapping);
+}
+
+function remapDataReferenceKeysRecursive(
+  value: any,
+  keyMapping: Record<string, string>,
+): any {
+  if (typeof value === 'string') {
+    const match = value.match(/^data:\[([^\]]+)\](?:\[([^\]]+)\])?$/);
+    if (!match) {
+      return value;
+    }
+    const oldKey = match[1];
+    const range = match[2];
+    const mappedKey = keyMapping[oldKey];
+    if (!mappedKey || mappedKey === oldKey) {
+      return value;
+    }
+    return range ? `data:[${mappedKey}][${range}]` : `data:[${mappedKey}]`;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => remapDataReferenceKeysRecursive(item, keyMapping));
+  }
+
+  if (value && typeof value === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      result[key] = remapDataReferenceKeysRecursive(nested, keyMapping);
+    }
+    return result;
+  }
+
+  return value;
 }
 
 /**

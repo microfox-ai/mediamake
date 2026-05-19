@@ -298,6 +298,22 @@ function tagNodesWithPresetItemId(
   }
 }
 
+function tagNodesWithDataItemIds(
+  nodes: RenderableComponentData[],
+  dataItemIds: string[],
+): void {
+  if (!dataItemIds.length) return;
+  for (const node of nodes) {
+    const typedNode = node as RenderableComponentData & { _dataItemIds?: string[] };
+    if (!Array.isArray(typedNode._dataItemIds) || typedNode._dataItemIds.length === 0) {
+      typedNode._dataItemIds = [...dataItemIds];
+    }
+    if (node.childrenData && node.childrenData.length > 0) {
+      tagNodesWithDataItemIds(node.childrenData, typedNode._dataItemIds || dataItemIds);
+    }
+  }
+}
+
 export const insertPresetToComposition = (
   data: InputCompositionProps,
   options: {
@@ -305,18 +321,23 @@ export const insertPresetToComposition = (
     presetType: 'children' | 'data' | 'context' | 'effects' | 'full';
     /** Timeline preset item id; used to tag output nodes for "not in sync" indicator. */
     presetItemId?: string;
+    dataItemIds?: string[];
   },
 ) => {
   // Extract the output data from the new PresetOutput structure
   const outputData = options.presetOutput.output;
   const outputOptions = options.presetOutput.options;
   const presetItemId = options.presetItemId;
+  const dataItemIds = outputOptions?.dataItemIds || options.dataItemIds || [];
 
   if (!data.childrenData || data.childrenData.length === 0) {
     if (options.presetType === 'full') {
       data.childrenData = outputData.childrenData || [];
       if (presetItemId && data.childrenData.length > 0) {
         tagNodesWithPresetItemId(data.childrenData, presetItemId);
+      }
+      if (dataItemIds.length > 0 && data.childrenData.length > 0) {
+        tagNodesWithDataItemIds(data.childrenData, dataItemIds);
       }
       if (outputData.config) {
         data.config = outputData.config;
@@ -333,6 +354,9 @@ export const insertPresetToComposition = (
     data.childrenData = outputData.childrenData || [];
     if (presetItemId && data.childrenData.length > 0) {
       tagNodesWithPresetItemId(data.childrenData, presetItemId);
+    }
+    if (dataItemIds.length > 0 && data.childrenData.length > 0) {
+      tagNodesWithDataItemIds(data.childrenData, dataItemIds);
     }
     if (outputData.config) {
       data.config = {
@@ -371,6 +395,7 @@ export const insertPresetToComposition = (
     if (targetComponent) {
       const newChildren = [...outputData.childrenData];
       if (presetItemId) tagNodesWithPresetItemId(newChildren, presetItemId);
+      if (dataItemIds.length > 0) tagNodesWithDataItemIds(newChildren, dataItemIds);
       targetComponent.childrenData = [
         ...(targetComponent.childrenData || []),
         ...newChildren,
@@ -401,6 +426,9 @@ export const insertPresetToComposition = (
       if (presetItemId && data.childrenData.length > 0) {
         tagNodesWithPresetItemId(data.childrenData, presetItemId);
       }
+      if (dataItemIds.length > 0 && data.childrenData.length > 0) {
+        tagNodesWithDataItemIds(data.childrenData, dataItemIds);
+      }
       if (outputData.config) {
         data.config = outputData.config;
       }
@@ -415,6 +443,10 @@ export const insertPresetToComposition = (
   if (presetItemId && componeents[0]) {
     (componeents[0] as RenderableComponentData & { _presetItemId?: string })._presetItemId =
       presetItemId;
+  }
+  if (dataItemIds.length > 0 && componeents[0]) {
+    (componeents[0] as RenderableComponentData & { _dataItemIds?: string[] })._dataItemIds =
+      dataItemIds;
   }
 
   if (options.presetType === 'data') {

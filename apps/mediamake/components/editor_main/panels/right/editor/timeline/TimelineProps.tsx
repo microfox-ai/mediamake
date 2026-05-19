@@ -9,13 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Check, X, Loader2 } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
-import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
-import type { Timeline } from "../../../stores/project-store";
-import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
-import { useCompileStore, usePresetReady } from "../../../stores/compile-store";
+import { createBaseDataFromReferences, remapDataReferenceKeys } from "@/components/editor/presets/engine/preset-data-mutation";
+import type { Timeline } from "../../../../stores/project-store";
+import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
+import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Separator } from "@/components/ui/separator";
+import {
+  getDefaultDataTypeForReferenceType,
+  getDefaultValueForReferenceType,
+} from "@/components/editor/presets/dataTypes";
+import { useEditorStore } from "../../../../stores/editor-store";
+import { useEditorUIStore } from "../../../../stores/editor-ui-store";
 
 interface TimelinePropsProps {
   timeline: Timeline;
@@ -34,6 +40,8 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
   const defaultDataDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromStoreRef = useRef(false);
   const lastSyncedInputDataRef = useRef<string>("");
+  const { selectReference, selectPreset } = useEditorStore();
+  const { setFilePanelTab } = useEditorUIStore();
 
   // Get edited timeline if it exists, otherwise use original
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -111,6 +119,53 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
 
   // Default data (references) for this timeline
   const defaultData = displayTimeline.defaultData || { references: [] };
+
+  const handleCreateReference = useCallback((referenceType: string) => {
+    const typedReference = referenceType as any;
+    const defaultDataType = getDefaultDataTypeForReferenceType(typedReference);
+    const randomSuffix = Math.random().toString(36).slice(2, 8);
+    const newKey = `${referenceType}_${randomSuffix}`;
+    const nextReferences = [
+      ...(displayTimeline.defaultData?.references || []),
+      {
+        key: newKey,
+        type: typedReference,
+        dataType: defaultDataType?.id,
+        value: getDefaultValueForReferenceType(typedReference),
+      },
+    ];
+
+    updateTimeline(timeline.id, {
+      defaultData: {
+        ...(displayTimeline.defaultData || {}),
+        references: nextReferences,
+      },
+    });
+
+    const refreshedTimeline = useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || displayTimeline;
+    const compileStore = useCompileStore.getState();
+    if (compileStore.currentTimeline?.id === refreshedTimeline.id) {
+      useCompileStore.setState({ currentTimeline: refreshedTimeline });
+    }
+
+    return newKey;
+  }, [displayTimeline.defaultData, timeline.id, updateTimeline]);
+
+  const handleSelectReferenceKey = useCallback((referenceKey: string) => {
+    const sourceTimeline = getEditedTimeline(timeline.id) || timeline;
+    const references = sourceTimeline.defaultData?.references || [];
+    const index = references.findIndex((ref: any) => ref?.key === referenceKey);
+    if (index === -1) return;
+    selectReference(references[index], sourceTimeline, index);
+    setFilePanelTab("timelines");
+  }, [getEditedTimeline, selectReference, setFilePanelTab, timeline]);
+
+  const handleRequestRangeEditor = useCallback(() => {
+    if (firstPreset) {
+      selectPreset(firstPreset as any, displayTimeline);
+    }
+    setFilePanelTab("timelines");
+  }, [displayTimeline, firstPreset, selectPreset, setFilePanelTab]);
 
   // Fetch preset info if not ready
   useEffect(() => {
@@ -291,8 +346,33 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
 
     // Debounce both store update and compilation
     defaultDataDebounceTimeoutRef.current = setTimeout(() => {
+      const previousReferences = (displayTimeline.defaultData?.references || []) as Array<{ key?: string }>;
+      const nextReferences = (newDefaultData.references || []) as Array<{ key?: string }>;
+      const keyMapping: Record<string, string> = {};
+      previousReferences.forEach((ref, index) => {
+        const oldKey = ref?.key;
+        const newKey = nextReferences[index]?.key;
+        if (oldKey && newKey && oldKey !== newKey) {
+          keyMapping[oldKey] = newKey;
+        }
+      });
+
+      const migratedPresets =
+        Object.keys(keyMapping).length > 0
+          ? (displayTimeline.presets || []).map((preset) => ({
+              ...preset,
+              presetInputData: remapDataReferenceKeys(
+                preset.presetInputData || {},
+                keyMapping,
+              ),
+            }))
+          : displayTimeline.presets;
+
       // Update store
-      updateTimeline(timeline.id, { defaultData: newDefaultData });
+      updateTimeline(timeline.id, {
+        defaultData: newDefaultData,
+        ...(migratedPresets ? { presets: migratedPresets } : {}),
+      });
 
       // Get updated timeline from edits store
       const { getEditedTimeline } = useTimelineEditsStore.getState();
@@ -322,7 +402,7 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
         }
       }
     }, 800); // 800ms debounce
-  }, [timeline.id, updateTimeline, generateOutput]);
+  }, [displayTimeline.defaultData?.references, displayTimeline.presets, timeline.id, updateTimeline, generateOutput]);
 
   // Handle default data changes - debounce store update and compilation
   const handleDefaultDataChange = useCallback((newDefaultData: typeof defaultData) => {
@@ -561,6 +641,10 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                 availableReferences={(displayTimeline.defaultData?.references || []).map((ref: any) => ref.key)}
                 baseData={createBaseDataFromReferences(displayTimeline.defaultData?.references || [])}
                 showTabs={true}
+                showReferencableAuto={true}
+                onCreateReference={handleCreateReference}
+                onSelectReferenceKey={handleSelectReferenceKey}
+                onRequestRangeEditor={handleRequestRangeEditor}
               />
             </div>
           )}

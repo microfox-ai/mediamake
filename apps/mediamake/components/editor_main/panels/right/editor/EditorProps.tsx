@@ -2,9 +2,10 @@
 
 import { useEditorStore } from "../../../stores/editor-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
-import { TimelineProps } from "./TimelineProps";
-import { GeneralPresetProps } from "./GeneralPresetProps";
-import { LayerPropsPanel } from "./LayerPropsPanel";
+import { TimelineProps } from "./timeline/TimelineProps";
+import { GeneralPresetProps } from "./preset/GeneralPresetProps";
+import { LayerPropsPanel } from "./layer/LayerPropsPanel";
+import { ReferenceProps } from "./reference/ReferenceProps";
 import { useEffect } from "react";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
@@ -39,11 +40,27 @@ export function EditorProps() {
   let content: React.ReactNode;
   if (filePanelTab === "timelines" && selectedItem?.type === "timeline") {
     content = <TimelineProps timeline={selectedItem.item} />;
+  } else if (filePanelTab === "timelines" && selectedItem?.type === "reference") {
+    content = (
+      <ReferenceProps
+        reference={selectedItem.item}
+        timeline={selectedItem.timeline}
+        referenceIndex={selectedItem.referenceIndex}
+      />
+    );
   } else if (filePanelTab === "layers" && selectedLayerIds.length > 0) {
     content = <LayerPropsPanel />;
   } else if (selectedItem?.type === "timeline") {
     // Fallback: show timeline props when a timeline is selected but layers tab has no selection.
     content = <TimelineProps timeline={selectedItem.item} />;
+  } else if (selectedItem?.type === "reference") {
+    content = (
+      <ReferenceProps
+        reference={selectedItem.item}
+        timeline={selectedItem.timeline}
+        referenceIndex={selectedItem.referenceIndex}
+      />
+    );
   } else if (!selectedItem) {
     content = (
       <div className="flex-1 flex items-center justify-center p-4 text-sm text-muted-foreground">

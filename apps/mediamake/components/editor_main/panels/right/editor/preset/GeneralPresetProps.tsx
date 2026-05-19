@@ -7,18 +7,24 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
-import { useCompileStore, usePresetReady } from "../../../stores/compile-store";
-import { useProjectStore } from "../../../stores/project-store";
-import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
+import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
+import { useProjectStore } from "../../../../stores/project-store";
+import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { PresetSkeleton } from "./PresetSkeleton";
-import type { Preset } from "../../../stores/editor-store";
-import type { Timeline } from "../../../stores/project-store";
+import type { Preset } from "../../../../stores/editor-store";
+import type { Timeline } from "../../../../stores/project-store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Check, X } from "lucide-react";
+import {
+  getDefaultDataTypeForReferenceType,
+  getDefaultValueForReferenceType,
+} from "@/components/editor/presets/dataTypes";
+import { useEditorStore } from "../../../../stores/editor-store";
+import { useEditorUIStore } from "../../../../stores/editor-ui-store";
 
 interface GeneralPresetPropsProps {
   preset: Preset;
@@ -35,6 +41,8 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromStoreRef = useRef(false);
   const lastSyncedInputDataRef = useRef<string>("");
+  const { selectReference } = useEditorStore();
+  const { setFilePanelTab } = useEditorUIStore();
 
   // Get the current preset from edited timeline or original
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -215,9 +223,55 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     );
   }
 
-  // Get default data from timeline
-  const defaultData = timeline.defaultData || { references: [] };
+  // Get default data from latest edited timeline
+  const effectiveTimeline = getEditedTimeline(timeline.id) || timeline;
+  const defaultData = effectiveTimeline.defaultData || { references: [] };
   const availableReferences = defaultData.references?.map((ref: any) => ref.key) || [];
+
+  const handleCreateReference = useCallback((referenceType: string) => {
+    const typedReference = referenceType as any;
+    const sourceTimeline = getEditedTimeline(timeline.id) || timeline;
+    const defaultDataType = getDefaultDataTypeForReferenceType(typedReference);
+    const randomSuffix = Math.random().toString(36).slice(2, 8);
+    const newKey = `${referenceType}_${randomSuffix}`;
+    const nextReferences = [
+      ...(sourceTimeline.defaultData?.references || []),
+      {
+        key: newKey,
+        type: typedReference,
+        dataType: defaultDataType?.id,
+        value: getDefaultValueForReferenceType(typedReference),
+      },
+    ];
+
+    useTimelineEditsStore.getState().updateTimeline(timeline.id, {
+      defaultData: {
+        ...(sourceTimeline.defaultData || {}),
+        references: nextReferences,
+      },
+    });
+
+    const refreshedTimeline = useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || sourceTimeline;
+    const compileStore = useCompileStore.getState();
+    if (compileStore.currentTimeline?.id === refreshedTimeline.id) {
+      useCompileStore.setState({ currentTimeline: refreshedTimeline });
+    }
+
+    return newKey;
+  }, [getEditedTimeline, timeline]);
+
+  const handleSelectReferenceKey = useCallback((referenceKey: string) => {
+    const sourceTimeline = getEditedTimeline(timeline.id) || timeline;
+    const references = sourceTimeline.defaultData?.references || [];
+    const index = references.findIndex((ref: any) => ref?.key === referenceKey);
+    if (index === -1) return;
+    selectReference(references[index], sourceTimeline, index);
+    setFilePanelTab("timelines");
+  }, [getEditedTimeline, selectReference, setFilePanelTab, timeline]);
+
+  const handleRequestRangeEditor = useCallback(() => {
+    setFilePanelTab("timelines");
+  }, [setFilePanelTab]);
 
   return (
     <ScrollArea className="flex-1 overflow-y-auto">
@@ -309,6 +363,10 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
           availableReferences={availableReferences}
           baseData={createBaseDataFromReferences(defaultData.references || [])}
           showTabs={true}
+          showReferencableAuto={true}
+          onCreateReference={handleCreateReference}
+          onSelectReferenceKey={handleSelectReferenceKey}
+          onRequestRangeEditor={handleRequestRangeEditor}
         />
       </div>
     </ScrollArea>

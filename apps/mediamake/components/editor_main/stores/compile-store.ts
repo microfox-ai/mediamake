@@ -7,13 +7,69 @@ import {
 } from "@microfox/remotion";
 import { runPreset, insertPresetToComposition } from "@/components/editor/presets/engine/preset-helpers";
 import { buildPresetItemIdByNodeId, useLayerStateStore } from "./layer-state-store";
-import { processPresetInputData, createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
+import {
+  buildDataItemIds,
+  resolvePresetInputData,
+  createBaseDataFromReferences,
+} from "@/components/editor/presets/engine/preset-data-mutation";
+import { presetStdLib } from "@/components/editor/presets/engine/preset-stdlib";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { createCachedFetcher } from "@/lib/audio-cache";
 import AudioScene from "@/components/remotion/test.json";
 import { toast } from "sonner";
 import type { Timeline } from "./project-store";
 import { Preset, DatabasePreset } from "@/components/editor/presets/types";
+
+const getValueAtPath = (obj: any, path: string): any => {
+  if (!path) return obj;
+  return path.split('.').reduce((acc: any, key: string) => {
+    if (acc == null) return undefined;
+    return acc[key];
+  }, obj);
+};
+
+const setValueAtPath = (obj: any, path: string, value: any): void => {
+  const parts = path.split('.');
+  if (parts.length === 0) return;
+  let cursor = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i];
+    if (cursor[key] == null || typeof cursor[key] !== 'object') {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  }
+  cursor[parts[parts.length - 1]] = value;
+};
+
+const hydrateEmptyReferenceArrays = (
+  processedInputData: any,
+  dataReferenceKeyByPath: Record<string, string>,
+  baseData: Record<string, any>,
+) => {
+  if (!processedInputData || !dataReferenceKeyByPath) return processedInputData;
+  const hydrated = structuredClone(processedInputData);
+  Object.entries(dataReferenceKeyByPath).forEach(([path, sourceKey]) => {
+    const currentVal = getValueAtPath(hydrated, path);
+    if (Array.isArray(currentVal) && currentVal.length > 0) {
+      return;
+    }
+    const source = baseData[sourceKey];
+    if (Array.isArray(source) && source.length > 0) {
+      setValueAtPath(hydrated, path, source);
+      return;
+    }
+    if (
+      source &&
+      typeof source === 'object' &&
+      Array.isArray((source as any).captions) &&
+      (source as any).captions.length > 0
+    ) {
+      setValueAtPath(hydrated, path, (source as any).captions);
+    }
+  });
+  return hydrated;
+};
 
 /**
  * Post-process composition props for initial timeline generation:
@@ -418,12 +474,25 @@ export const useCompileStore = create<CompileState>((set, get) => ({
 
   generateOutput: async (timeline: Timeline) => {
     const state = get();
+    let effectiveTimeline = timeline;
+
+    try {
+      const { useTimelineEditsStore } = require('./timeline-edits-store');
+      const editedTimeline = useTimelineEditsStore
+        .getState()
+        .getEditedTimeline(timeline.id);
+      if (editedTimeline) {
+        effectiveTimeline = editedTimeline;
+      }
+    } catch (_error) {
+      // Ignore if timeline edits store isn't available for any reason.
+    }
     
     if (state.isGenerating) {
       return; // Already generating
     }
 
-    if (!timeline.presets || timeline.presets.length === 0) {
+    if (!effectiveTimeline.presets || effectiveTimeline.presets.length === 0) {
       set({ generatedOutput: null, calculatedMetadata: null });
       return;
     }
@@ -440,18 +509,20 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         childrenData: defaultInputProps.childrenData,
         config: {
           ...defaultInputProps.config,
-          ...(timeline.configuration?.config || {})
+          ...(effectiveTimeline.configuration?.config || {})
         },
         style: {
           ...defaultInputProps.style,
-          ...(timeline.configuration?.style || {})
+          ...(effectiveTimeline.configuration?.style || {})
         }
       };
 
       let clip = {};
 
       // Create base data from references
-      const baseData = createBaseDataFromReferences(timeline.defaultData?.references || []);
+      const baseData = createBaseDataFromReferences(
+        effectiveTimeline.defaultData?.references || [],
+      );
 
       // Capture which nodes have an explicit duration in the original
       // timeline/preset data before any metadata calculations. Used so that
@@ -478,11 +549,11 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         }
       };
 
-      const totalPresets = timeline.presets.filter(p => !p.disabled).length;
+      const totalPresets = effectiveTimeline.presets.filter(p => !p.disabled).length;
       let processedCount = 0;
 
       // Apply all presets in sequence (skip disabled presets)
-      for (const presetItem of timeline.presets) {
+      for (const presetItem of effectiveTimeline.presets) {
         // Skip disabled presets
         if (presetItem.disabled) {
           continue;
@@ -506,9 +577,14 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         }
 
         // Process input data with base data references
-        const processedInputData = processPresetInputData(
+        const resolvedInput = resolvePresetInputData(
           presetItem.presetInputData || {},
           baseData
+        );
+        const hydratedProcessedInputData = hydrateEmptyReferenceArrays(
+          resolvedInput.processedInputData,
+          resolvedInput.dataReferenceKeyByPath,
+          baseData,
         );
 
         // Update progress
@@ -517,13 +593,21 @@ export const useCompileStore = create<CompileState>((set, get) => ({
 
         // Run the preset function with processed input data
         const presetOutput = await runPreset(
-          processedInputData,
+          hydratedProcessedInputData,
           actualPreset.presetFunction,
           {
             config: baseComposition.config,
             style: baseComposition.style,
             clip: clip,
             baseData: baseData,
+            dataItemIds: resolvedInput.dataItemIds,
+            dataSourceKeys: resolvedInput.dataSourceKeys,
+            dataReferenceBindings: resolvedInput.dataReferenceBindings,
+            dataReferenceKeyByPath: resolvedInput.dataReferenceKeyByPath,
+            dataMutationContext: resolvedInput.dataMutationContext,
+            buildDataItemIds: (options) =>
+              buildDataItemIds(resolvedInput.dataMutationContext, options),
+            applyDataItemIdsToNodeTree: presetStdLib.applyDataItemIdsToNodeTree,
             fetcher: createCachedFetcher((url: string, data: any) =>
               fetch(url, {
                 method: 'POST',
@@ -546,6 +630,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             presetOutput: presetOutput,
             presetType: actualPreset.metadata.presetType,
             presetItemId: presetItem.id,
+            dataItemIds: resolvedInput.dataItemIds,
           });
         }
       }

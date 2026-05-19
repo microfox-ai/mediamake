@@ -71,6 +71,9 @@ export function BottomPanel() {
     if (selectedItem.type === "timeline") {
       return "Timeline";
     }
+    if (selectedItem.type === "reference") {
+      return selectedItem.item.key || "Reference";
+    }
     return selectedItem.item.label || "Preset";
   };
 
@@ -137,60 +140,62 @@ export function BottomPanel() {
 
   return (
     <div className="flex h-full flex-col border-t bg-background">
-      <div className="border-b px-4 py-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{getTitle()}</h2>
-        {currentPattern === "edit" && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleGoToStart}
-              disabled={startFrame == null}
-              title="Go to start of selected layer"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleGoToEnd}
-              disabled={endFrame == null}
-              title="Go to end of selected layer"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => resetLayerStateToGenerated()}
-              title="Reset all layers to timeline output (clear position, timing, and layer edits)"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Reset to timeline</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSaveLayerState}
-              disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
-              title="Save current layers (positions, visibility, etc.) for this timeline"
-            >
-              {isSavingLayerState ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span className="ml-1.5 hidden sm:inline">Save layer state</span>
-            </Button>
-            <Button size="sm" variant="outline" onClick={handlePlay} title="Play">
-              <Play className="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="outline" onClick={handlePause} title="Pause">
-              <Pause className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
+      {currentPattern === "edit" && filePanelTab === "layers" && (
+        <div className="border-b px-4 py-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">{getTitle()}</h2>
+          {currentPattern === "edit" && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGoToStart}
+                disabled={startFrame == null}
+                title="Go to start of selected layer"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGoToEnd}
+                disabled={endFrame == null}
+                title="Go to end of selected layer"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => resetLayerStateToGenerated()}
+                title="Reset all layers to timeline output (clear position, timing, and layer edits)"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Reset to timeline</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSaveLayerState}
+                disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
+                title="Save current layers (positions, visibility, etc.) for this timeline"
+              >
+                {isSavingLayerState ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span className="ml-1.5 hidden sm:inline">Save layer state</span>
+              </Button>
+              <Button size="sm" variant="outline" onClick={handlePlay} title="Play">
+                <Play className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={handlePause} title="Pause">
+                <Pause className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       {renderPatternContent()}
     </div>
   );
