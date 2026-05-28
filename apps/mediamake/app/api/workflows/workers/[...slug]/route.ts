@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dispatchWorker } from '@microfox/ai-worker';
 import { getClientId } from '../../auth';
+import { isAdmin } from '@/lib/admin-utils';
+import { userQuotaDB } from '@/lib/quota-mongodb';
 
 /**
  * Worker execution endpoint.
@@ -60,6 +62,17 @@ export async function POST(
     const middlewareClientId = req.headers.get('x-client-id') || undefined;
     const sessionClientId = await getClientId(req);
     const userId = middlewareClientId || sessionClientId;
+
+    // ── Worker permission check ──────────────────────────────────────────
+    if (userId && !isAdmin(userId)) {
+      const quota = await userQuotaDB.getByClientId(userId);
+      const permCheck = userQuotaDB.checkWorkerPermission(quota?.workerPermissions, 'worker');
+      if (!permCheck.allowed) {
+        return NextResponse.json({ error: permCheck.reason }, { status: 403 });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const workerInput = input && typeof input === 'object' ? { ...input } : {};
     if (userId && !(workerInput as any).clientId) {
       (workerInput as any).clientId = userId;
