@@ -22,14 +22,15 @@ import {
   Loader2, ChevronDown, Trash2, Sun, ArrowLeft,
   Play, Pause, Square, Diamond, Film, Package, Image,
   LayoutTemplate, Clapperboard, Type, Sparkles, Spline,
-  Lightbulb, Zap, MonitorSpeaker, Cloud,
-  FolderOpen, FolderMinus,
+  Lightbulb, Zap, MonitorSpeaker, Cloud, Snowflake, CloudRain, Moon, CloudSun,
+  FolderOpen, FolderMinus, Magnet, Undo2, Redo2, Save, MapPin,
 } from 'lucide-react'
+import type { SkyPreset } from './scene-store'
 import { useSceneStore } from './scene-store'
 import type { ViewportHandle } from './viewport'
 import type { ObjectType } from './types'
 import { OBJECT_LABELS, OBJECT_ICONS } from './types'
-import { ALL_TEMPLATES } from './animation-templates'
+import { getTemplateGroups } from './animation-templates'
 import { gltfFileCache } from './gltf-cache'
 
 const SHAPES: ObjectType[] = [
@@ -38,24 +39,34 @@ const SHAPES: ObjectType[] = [
 ]
 
 const ENVIRONMENTS = [
-  { value: 'none',      label: 'None (lights only)' },
-  { value: 'sunset',    label: 'Sunset' },
-  { value: 'dawn',      label: 'Dawn' },
-  { value: 'night',     label: 'Night' },
-  { value: 'warehouse', label: 'Warehouse' },
-  { value: 'forest',    label: 'Forest' },
-  { value: 'apartment', label: 'Apartment' },
-  { value: 'studio',    label: 'Studio' },
-  { value: 'city',      label: 'City' },
-  { value: 'park',      label: 'Park' },
-  { value: 'lobby',     label: 'Lobby' },
+  { value: 'none',      label: 'None (lights only)', emoji: '💡' },
+  { value: 'sunset',    label: 'Sunset',             emoji: '🌅' },
+  { value: 'dawn',      label: 'Dawn',               emoji: '🌄' },
+  { value: 'night',     label: 'Night',              emoji: '🌙' },
+  { value: 'warehouse', label: 'Warehouse',          emoji: '🏭' },
+  { value: 'forest',    label: 'Forest',             emoji: '🌲' },
+  { value: 'apartment', label: 'Apartment',          emoji: '🏠' },
+  { value: 'studio',    label: 'Studio',             emoji: '🎬' },
+  { value: 'city',      label: 'City',               emoji: '🏙️' },
+  { value: 'park',      label: 'Park',               emoji: '🌳' },
+  { value: 'lobby',     label: 'Lobby',              emoji: '🏛️' },
+]
+
+const SKY_PRESETS: { value: SkyPreset; label: string; icon: React.ReactNode; desc: string }[] = [
+  { value: 'sunny',    label: 'Sunny',    icon: <Sun className="h-3.5 w-3.5 text-yellow-500" />,  desc: 'Clear blue sky, high sun' },
+  { value: 'cloudy',   label: 'Cloudy',   icon: <Cloud className="h-3.5 w-3.5 text-slate-400" />, desc: 'Overcast, soft diffuse light' },
+  { value: 'rainy',    label: 'Rainy',    icon: <CloudRain className="h-3.5 w-3.5 text-blue-400" />, desc: 'Dark storm clouds with rain' },
+  { value: 'snowfall', label: 'Snowfall', icon: <Snowflake className="h-3.5 w-3.5 text-cyan-300" />, desc: 'White sky with falling snow' },
+  { value: 'night',    label: 'Night',    icon: <Moon className="h-3.5 w-3.5 text-indigo-400" />, desc: 'Dark sky with stars' },
 ]
 
 interface ToolbarProps {
   viewportRef: React.RefObject<ViewportHandle | null>
+  onOpenScenePresets?: () => void
+  onOpenHQRender?: () => void
 }
 
-export function Toolbar({ viewportRef }: ToolbarProps) {
+export function Toolbar({ viewportRef, onOpenScenePresets, onOpenHQRender }: ToolbarProps) {
   const router = useRouter()
 
   // Scene
@@ -78,11 +89,19 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
   const captureCameraKeyframe = useSceneStore(s => s.captureCameraKeyframe)
   const loadTemplate    = useSceneStore(s => s.loadTemplate)
   const skyEnabled      = useSceneStore(s => s.skyEnabled)
+  const skyPreset       = useSceneStore(s => s.skyPreset)
   const setSkyEnabled   = useSceneStore(s => s.setSkyEnabled)
+  const setSkyPreset    = useSceneStore(s => s.setSkyPreset)
   const selectedIds     = useSceneStore(s => s.selectedIds)
   const objects         = useSceneStore(s => s.objects)
   const groupSelected   = useSceneStore(s => s.groupSelected)
   const ungroupObject   = useSceneStore(s => s.ungroupObject)
+  const undoStack       = useSceneStore(s => s.undoStack)
+  const redoStack       = useSceneStore(s => s.redoStack)
+  const undo            = useSceneStore(s => s.undo)
+  const redo            = useSceneStore(s => s.redo)
+  const snapEnabled     = useSceneStore(s => s.snapEnabled)
+  const toggleSnap      = useSceneStore(s => s.toggleSnap)
 
   // Animation
   const isPlaying      = useSceneStore(s => s.isPlaying)
@@ -282,6 +301,9 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
           <DropdownMenuItem onClick={() => addObject('spline')} className="gap-2 text-sm">
             <Spline className="h-3.5 w-3.5" /> Spline Path
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addObject('annotation')} className="gap-2 text-sm">
+            <MapPin className="h-3.5 w-3.5" /> Annotation Pin
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -366,25 +388,33 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
             <ChevronDown className="h-3 w-3 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64">
+        <DropdownMenuContent className="w-72 max-h-[70vh] overflow-y-auto">
           <DropdownMenuLabel className="text-xs">Load Template</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {ALL_TEMPLATES.map(tpl => (
-            <DropdownMenuItem
-              key={tpl.id}
-              className="flex flex-col items-start gap-0.5 py-2"
-              onClick={() => {
-                if (confirm(`Load "${tpl.name}"? This will replace your current scene.`)) {
-                  loadTemplate(tpl)
-                }
-              }}
-            >
-              <div className="flex items-center gap-2 w-full">
-                <span className="text-base leading-none">{tpl.emoji}</span>
-                <span className="font-medium text-sm">{tpl.name}</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground pl-6 leading-snug">{tpl.description}</p>
-            </DropdownMenuItem>
+          {getTemplateGroups().map((group, gi) => (
+            <div key={group.category}>
+              {gi > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider px-2 py-1">
+                {group.label}
+              </DropdownMenuLabel>
+              {group.templates.map(tpl => (
+                <DropdownMenuItem
+                  key={tpl.id}
+                  className="flex flex-col items-start gap-0.5 py-2"
+                  onClick={() => {
+                    if (confirm(`Load "${tpl.name}"? This will replace your current scene.`)) {
+                      loadTemplate(tpl)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <span className="text-base leading-none">{tpl.emoji}</span>
+                    <span className="font-medium text-sm">{tpl.name}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground pl-6 leading-snug">{tpl.description}</p>
+                </DropdownMenuItem>
+              ))}
+            </div>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -433,38 +463,90 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
         <TooltipContent>Toggle Axes</TooltipContent>
       </Tooltip>
 
-      {/* Sky toggle */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button size="sm" variant={skyEnabled ? 'secondary' : 'ghost'} className="h-7 gap-1.5 text-xs" onClick={() => setSkyEnabled(!skyEnabled)}>
-            <Cloud className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Sky</span>
+          <Button size="sm" variant={snapEnabled ? 'secondary' : 'ghost'} className="h-7 w-7 p-0" onClick={toggleSnap}>
+            <Magnet className="h-3.5 w-3.5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Toggle procedural sky background</TooltipContent>
+        <TooltipContent>Snap to Grid ({snapEnabled ? 'On' : 'Off'})</TooltipContent>
       </Tooltip>
 
-      {/* Environment */}
+      {/* Sky preset dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant={skyEnabled ? 'secondary' : 'ghost'}
+            className="gap-1.5 h-7 text-xs"
+          >
+            {skyEnabled
+              ? SKY_PRESETS.find(p => p.value === skyPreset)?.icon ?? <CloudSun className="h-3.5 w-3.5" />
+              : <CloudSun className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">
+              {skyEnabled ? (SKY_PRESETS.find(p => p.value === skyPreset)?.label ?? 'Sky') : 'Sky'}
+            </span>
+            <ChevronDown className="h-3 w-3 opacity-70" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-52">
+          <DropdownMenuLabel className="text-xs">Sky Preset</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setSkyEnabled(false)}
+            className={`text-sm gap-2 ${!skyEnabled ? 'text-primary font-medium' : ''}`}
+          >
+            <span className="w-4 text-center opacity-50">—</span>
+            <div className="flex flex-col">
+              <span>Off</span>
+              <span className="text-[10px] text-muted-foreground font-normal">No sky background</span>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {SKY_PRESETS.map(p => (
+            <DropdownMenuItem
+              key={p.value}
+              onClick={() => setSkyPreset(p.value)}
+              className={`text-sm gap-2 ${skyEnabled && skyPreset === p.value ? 'text-primary font-medium bg-primary/5' : ''}`}
+            >
+              <span className="w-4 flex-shrink-0">{p.icon}</span>
+              <div className="flex flex-col">
+                <span>{p.label}</span>
+                <span className="text-[10px] text-muted-foreground font-normal">{p.desc}</span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Environment / HDRI */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className="gap-1.5 h-7 text-xs">
             <Sun className="h-3.5 w-3.5" />
-            <span className="capitalize hidden sm:inline">{environment === 'none' ? 'Env' : environment}</span>
+            <span className="capitalize hidden sm:inline">
+              {environment === 'none' ? 'Env' : (ENVIRONMENTS.find(e => e.value === environment)?.emoji + ' ' + environment)}
+            </span>
             <ChevronDown className="h-3 w-3 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent className="w-52">
           <DropdownMenuLabel className="text-xs">HDRI Environment</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {ENVIRONMENTS.map(e => (
             <DropdownMenuItem
               key={e.value}
               onClick={() => setEnvironment(e.value as any)}
-              className={`text-sm ${environment === e.value ? 'text-primary font-medium' : ''}`}
+              className={`text-sm gap-2 ${environment === e.value ? 'text-primary font-medium bg-primary/5' : ''}`}
             >
-              {e.label}
+              <span className="w-5 text-center text-base">{e.emoji}</span>
+              <span>{e.label}</span>
             </DropdownMenuItem>
           ))}
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5 text-[10px] text-muted-foreground leading-relaxed">
+            Selecting an environment also updates the sky automatically.
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -480,6 +562,19 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
         </TooltipTrigger>
         <TooltipContent>Export current frame as PNG</TooltipContent>
       </Tooltip>
+
+      {/* High-quality offline render */}
+      {onOpenHQRender && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs" onClick={onOpenHQRender}>
+              <Film className="h-3.5 w-3.5 text-emerald-500" />
+              HQ
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>High-quality offline render (custom resolution + fps)</TooltipContent>
+        </Tooltip>
+      )}
 
       {/* Record video */}
       {!isRecording ? (
@@ -589,6 +684,37 @@ export function Toolbar({ viewportRef }: ToolbarProps) {
       )}
 
       <div className="flex-1" />
+
+      {/* Undo / Redo */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={undo} disabled={undoStack.length === 0}>
+            <Undo2 className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Undo  Ctrl+Z</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={redo} disabled={redoStack.length === 0}>
+            <Redo2 className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Redo  Ctrl+Y</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-5 mx-1" />
+
+      {/* Scene presets */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs" onClick={onOpenScenePresets}>
+            <Save className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Scenes</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Save / Load scene slots and import JSON</TooltipContent>
+      </Tooltip>
 
       {/* Clear scene */}
       <Tooltip>

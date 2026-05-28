@@ -2,11 +2,14 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Toolbar } from './toolbar'
 import { ObjectListPanel } from './object-list-panel'
 import { Viewport } from './viewport'
 import { PropertiesPanel } from './properties-panel'
 import { TimelinePanel } from './timeline-panel'
+import { ScenePresetsDialog } from './scene-presets-dialog'
+import { HighQualityRenderDialog } from './high-quality-render-dialog'
 import { useSceneStore } from './scene-store'
 import type { ViewportHandle } from './viewport'
 
@@ -23,6 +26,9 @@ function useKeyboardShortcuts() {
   const captureKeyframe        = useSceneStore(s => s.captureKeyframe)
   const captureCameraKeyframe  = useSceneStore(s => s.captureCameraKeyframe)
   const toggleTimeline         = useSceneStore(s => s.toggleTimeline)
+  const undo                   = useSceneStore(s => s.undo)
+  const redo                   = useSceneStore(s => s.redo)
+  const triggerFocus           = useSceneStore(s => s.triggerFocus)
 
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
@@ -32,6 +38,18 @@ function useKeyboardShortcuts() {
       const s = useSceneStore.getState()
 
       switch (e.key) {
+        case 'z': case 'Z':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            if (e.shiftKey) redo(); else undo()
+          }
+          break
+        case 'y': case 'Y':
+          if (e.ctrlKey || e.metaKey) { e.preventDefault(); redo() }
+          break
+        case 'f': case 'F':
+          if (!e.ctrlKey && !e.metaKey && s.selectedId) { e.preventDefault(); triggerFocus() }
+          break
         case 'g': case 'G':
           if (!e.ctrlKey && !e.metaKey) { e.preventDefault(); setTransformMode('translate') }
           break
@@ -75,7 +93,8 @@ function useKeyboardShortcuts() {
     }
     window.addEventListener('keydown', handle)
     return () => window.removeEventListener('keydown', handle)
-  }, [setTransformMode, removeObject, duplicateObject, selectObject, setIsPlaying, stopAnimation, captureKeyframe, captureCameraKeyframe, toggleTimeline])
+  }, [setTransformMode, removeObject, duplicateObject, selectObject, setIsPlaying, stopAnimation,
+      captureKeyframe, captureCameraKeyframe, toggleTimeline, undo, redo, triggerFocus])
 }
 
 // ─── Resize handle ────────────────────────────────────────────────────────────
@@ -129,6 +148,8 @@ export function Studio3DPage() {
 
   const [leftWidth,  setLeftWidth]  = useState(208)
   const [rightWidth, setRightWidth] = useState(240)
+  const [showPresetsDialog, setShowPresetsDialog] = useState(false)
+  const [showHQRender, setShowHQRender] = useState(false)
 
   const handleLeftResize  = useCallback((delta: number) => {
     setLeftWidth(w => Math.max(MIN_SIDEBAR, Math.min(MAX_SIDEBAR, w + delta)))
@@ -140,36 +161,56 @@ export function Studio3DPage() {
   return (
     <TooltipProvider delayDuration={400}>
       <div className="fixed inset-0 z-[40] flex flex-col overflow-hidden bg-background">
-        <Toolbar viewportRef={viewportRef} />
+        <Toolbar
+          viewportRef={viewportRef}
+          onOpenScenePresets={() => setShowPresetsDialog(true)}
+          onOpenHQRender={() => setShowHQRender(true)}
+        />
 
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Left sidebar */}
-          <div
-            className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden border-r"
-            style={{ width: leftWidth }}
-          >
-            <ObjectListPanel />
-          </div>
+        <ResizablePanelGroup direction="vertical" className="flex-1 min-h-0" autoSaveId="studio3d-v-split">
+          <ResizablePanel id="main-content" order={1} minSize={25}>
+            <div className="flex h-full overflow-hidden">
+              {/* Left sidebar */}
+              <div
+                className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden border-r"
+                style={{ width: leftWidth }}
+              >
+                <ObjectListPanel />
+              </div>
 
-          <ResizeHandle onDrag={handleLeftResize} side="left" />
+              <ResizeHandle onDrag={handleLeftResize} side="left" />
 
-          {/* Viewport */}
-          <div className="flex-1 min-w-0 relative overflow-hidden">
-            <Viewport ref={viewportRef} />
-          </div>
+              {/* Viewport */}
+              <div className="flex-1 min-w-0 relative overflow-hidden">
+                <Viewport ref={viewportRef} />
+              </div>
 
-          <ResizeHandle onDrag={handleRightResize} side="right" />
+              <ResizeHandle onDrag={handleRightResize} side="right" />
 
-          {/* Right sidebar */}
-          <div
-            className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden border-l"
-            style={{ width: rightWidth }}
-          >
-            <PropertiesPanel />
-          </div>
-        </div>
+              {/* Right sidebar */}
+              <div
+                className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden border-l"
+                style={{ width: rightWidth }}
+              >
+                <PropertiesPanel />
+              </div>
+            </div>
+          </ResizablePanel>
 
-        {showTimeline && <TimelinePanel />}
+          {showTimeline && (
+            <>
+              <ResizableHandle
+                withHandle
+                className="data-[panel-group-direction=vertical]:h-1.5 data-[panel-group-direction=vertical]:hover:bg-primary/20 transition-colors"
+              />
+              <ResizablePanel id="timeline" order={2} defaultSize={28} minSize={8} maxSize={65}>
+                <TimelinePanel />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+        <ScenePresetsDialog open={showPresetsDialog} onClose={() => setShowPresetsDialog(false)} />
+        <HighQualityRenderDialog open={showHQRender} onClose={() => setShowHQRender(false)} viewportRef={viewportRef} />
       </div>
     </TooltipProvider>
   )
