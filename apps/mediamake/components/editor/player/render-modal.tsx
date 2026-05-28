@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { useRender, ConfigMode } from './render-provider';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/components/session-provider';
+import { useQuotaExhaustedDialog, extractQuotaError } from '@/components/quota-exhausted-dialog';
 import { TagMultiSelect } from '@/components/ui/tag-multi-select';
 import {
   AWS_RENDER_CONFIGS,
@@ -117,6 +118,9 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   const [showJson, setShowJson] = useState(false);
   const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+
+  // Quota-exhausted modal for 403/429 responses from /api/remotion/render
+  const { setQuotaError, dialog: quotaDialog } = useQuotaExhaustedDialog();
 
   // Ensure region has a sensible default
   useEffect(() => {
@@ -288,6 +292,12 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     });
 
     if (!response.ok) {
+      const quotaErr = await extractQuotaError(response);
+      if (quotaErr) {
+        setQuotaError(quotaErr);
+        onClose(); // close the render modal so the quota modal is unambiguous
+        return;
+      }
       const errorData = await response.json();
       throw new Error(errorData.message || 'Render request failed');
     }
@@ -351,6 +361,8 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   };
 
   return (
+    <>
+    {quotaDialog}
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -1267,5 +1279,6 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import { aiRouterRegistry } from "@/app/ai";
-import { callAgent } from "@/components/agents/agent-helper";
+import { callAgent, QuotaExhaustedError } from "@/components/agents/agent-helper";
 import { AgentInterface } from "@/components/agents/agent-interface";
 import { AgentOutput } from "@/components/agents/agent-output";
 import { SiteHeader } from "@/components/site-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { SidebarInset } from "@/components/ui/sidebar";
+import { useQuotaExhaustedDialog } from "@/components/quota-exhausted-dialog";
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ export function AgentPageClient({ agentPath }: AgentPageClientProps) {
     const [output, setOutput] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { setQuotaError, dialog: quotaDialog } = useQuotaExhaustedDialog();
 
     // Find the agent configuration
     const agentConfig = aiRouterRegistry.map["/" + agentPath];
@@ -53,6 +55,11 @@ export function AgentPageClient({ agentPath }: AgentPageClientProps) {
             setOutput(result);
             return result;
         } catch (err) {
+            // AI quota blocked the call → show the dedicated modal instead of an inline error
+            if (err instanceof QuotaExhaustedError) {
+                setQuotaError(err.quotaError);
+                return;
+            }
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
             setIsLoading(false);
@@ -65,6 +72,7 @@ export function AgentPageClient({ agentPath }: AgentPageClientProps) {
 
     return (
         <SidebarInset>
+            {quotaDialog}
             <SiteHeader title={agent.actAsTool.name} />
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
