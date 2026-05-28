@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type {
   SceneObject, TransformMode, EnvironmentPreset, ObjectType,
   AnimationClip, AnimationTrack, Keyframe, EasingType, CameraKeyframe,
+  ClipMarker, CurveChannel,
 } from './types'
 import { OBJECT_DEFAULTS, MODEL_TYPES, LIGHT_TYPES, typeSpecificDefaults, OBJECT_LABELS } from './types'
 import type { SceneTemplate } from './animation-templates'
@@ -30,6 +31,23 @@ const ENV_SKY_MAP: Partial<Record<string, { turbidity: number; rayleigh: number;
   city:      { turbidity: 3,  rayleigh: 1.5, inclination: 0.35, azimuth: 0.25, preset: 'sunny' },
   park:      { turbidity: 2,  rayleigh: 1,   inclination: 0.30, azimuth: 0.25, preset: 'sunny' },
   lobby:     { turbidity: 6,  rayleigh: 2,   inclination: 0.40, azimuth: 0.25, preset: 'sunny' },
+}
+
+// ─── Undo / Redo ─────────────────────────────────────────────────────────────
+
+type UndoEntry = { objects: SceneObject[]; clips: AnimationClip[]; activeClipId: string | null }
+
+// ─── Scene save slots ─────────────────────────────────────────────────────────
+
+export type SceneSlot = { id: string; name: string; timestamp: number; snapshot: Snapshot }
+const SLOTS_KEY = 'mediamake_scene_slots_v1'
+function loadSlots(): SceneSlot[] {
+  if (typeof window === 'undefined') return []
+  try { const r = localStorage.getItem(SLOTS_KEY); return r ? JSON.parse(r) : [] } catch { return [] }
+}
+function persistSlots(slots: SceneSlot[]) {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)) } catch { }
 }
 
 let nextId = 1
@@ -64,6 +82,11 @@ type Snapshot = {
   skyRayleigh: number
   skyInclination: number
   skyAzimuth: number
+  autoKeyframe: boolean
+  snapEnabled: boolean
+  snapTranslate: number
+  snapRotate: number
+  snapScale: number
 }
 
 function loadFromStorage(): Snapshot | null {
@@ -105,10 +128,15 @@ function buildInit(): Snapshot {
       // default sky fields for snapshots saved before sky feature was added
       skyEnabled: saved.skyEnabled ?? false,
       skyPreset: (saved as any).skyPreset ?? 'custom',
+      autoKeyframe: (saved as any).autoKeyframe ?? false,
       skyTurbidity: saved.skyTurbidity ?? 10,
       skyRayleigh: saved.skyRayleigh ?? 3,
       skyInclination: saved.skyInclination ?? 0.49,
       skyAzimuth: saved.skyAzimuth ?? 0.25,
+      snapEnabled: (saved as any).snapEnabled ?? false,
+      snapTranslate: (saved as any).snapTranslate ?? 0.25,
+      snapRotate: (saved as any).snapRotate ?? 0.2618,
+      snapScale: (saved as any).snapScale ?? 0.1,
     }
   }
   const t = DEFAULT_TEMPLATE
@@ -127,10 +155,15 @@ function buildInit(): Snapshot {
     showAxes: false,
     skyEnabled: false,
     skyPreset: 'sunny' as SkyPreset,
+    autoKeyframe: false,
     skyTurbidity: 10,
     skyRayleigh: 3,
     skyInclination: 0.49,
     skyAzimuth: 0.25,
+    snapEnabled: false,
+    snapTranslate: 0.25,
+    snapRotate: 0.2618,
+    snapScale: 0.1,
   }
 }
 
@@ -161,6 +194,24 @@ interface SceneState {
   sequenceMode: boolean
   showTimeline: boolean
   viewportCamera: { position: [number, number, number]; target: [number, number, number]; fov: number }
+
+  autoKeyframe: boolean
+
+  // Undo / Redo (non-persisted)
+  undoStack: UndoEntry[]
+  redoStack: UndoEntry[]
+
+  // Snap
+  snapEnabled: boolean
+  snapTranslate: number
+  snapRotate: number
+  snapScale: number
+
+  // Focus (non-persisted counter)
+  focusRequest: number
+
+  // Scene save slots (non-persisted in main state)
+  savedSlots: SceneSlot[]
 
   // Sky
   skyEnabled: boolean
@@ -207,6 +258,31 @@ interface SceneState {
   setSkyPreset: (preset: SkyPreset) => void
   setSkyParams: (p: Partial<Pick<SceneState, 'skyTurbidity' | 'skyRayleigh' | 'skyInclination' | 'skyAzimuth'>>) => void
 
+  pushUndo: () => void
+  undo: () => void
+  redo: () => void
+
+  toggleSnap: () => void
+  setSnapTranslate: (v: number) => void
+  setSnapRotate: (v: number) => void
+  setSnapScale: (v: number) => void
+
+  triggerFocus: () => void
+
+  saveSceneSlot: (name: string) => void
+  loadSceneSlot: (id: string) => void
+  deleteSceneSlot: (id: string) => void
+  importSceneJSON: (json: string) => string | null
+
+  reparentObject: (objectId: string, newParentId: string | null) => void
+
+  toggleAutoKeyframe: () => void
+  setKeyframeValue: (clipId: string, objectId: string, kfId: string, channel: CurveChannel, value: number) => void
+  addClipMarker: (clipId: string, time: number) => void
+  updateClipMarker: (clipId: string, markerId: string, updates: Partial<Pick<ClipMarker, 'label' | 'time' | 'color'>>) => void
+  removeClipMarker: (clipId: string, markerId: string) => void
+  applyRigPreset: (preset: 'handheld' | 'dolly-zoom' | 'orbit') => void
+
   addClip: () => void
   removeClip: (id: string) => void
   duplicateClip: (id: string) => void
@@ -247,7 +323,9 @@ export const useSceneStore = create<SceneState>()((set, get) => {
       showGrid: s.showGrid, showAxes: s.showAxes,
       skyEnabled: s.skyEnabled, skyPreset: s.skyPreset, skyTurbidity: s.skyTurbidity,
       skyRayleigh: s.skyRayleigh, skyInclination: s.skyInclination,
-      skyAzimuth: s.skyAzimuth,
+      skyAzimuth: s.skyAzimuth, autoKeyframe: s.autoKeyframe,
+      snapEnabled: s.snapEnabled, snapTranslate: s.snapTranslate,
+      snapRotate: s.snapRotate, snapScale: s.snapScale,
     }
   }
 
@@ -276,6 +354,15 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     sequenceMode: init.sequenceMode,
     showTimeline: init.showTimeline,
     viewportCamera: { position: [5, 4, 6], target: [0, 0, 0], fov: 55 },
+    autoKeyframe: init.autoKeyframe,
+    undoStack: [],
+    redoStack: [],
+    snapEnabled: init.snapEnabled,
+    snapTranslate: init.snapTranslate,
+    snapRotate: init.snapRotate,
+    snapScale: init.snapScale,
+    focusRequest: 0,
+    savedSlots: loadSlots(),
     skyEnabled: init.skyEnabled,
     skyPreset: init.skyPreset,
     skyTurbidity: init.skyTurbidity,
@@ -286,6 +373,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     // ── Object actions ────────────────────────────────────────────────────────────
 
     addObject: (type) => {
+      get().pushUndo()
       const { objects } = get()
       const id = genId()
       const offset = objects.length * 0.1
@@ -307,6 +395,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     },
 
     addGltfObject: (url, name, cacheKey) => {
+      get().pushUndo()
       const { objects } = get()
       const id = genId()
       set({
@@ -317,6 +406,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     },
 
     addModelObject: (url, name, type, cacheKey) => {
+      get().pushUndo()
       const { objects } = get()
       const id = genId()
       set({
@@ -337,6 +427,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     },
 
     removeObject: (id) => {
+      get().pushUndo()
       set(s => {
         const obj = s.objects.find(o => o.id === id)
         let objs = s.objects.filter(o => o.id !== id)
@@ -354,6 +445,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     },
 
     duplicateObject: (id) => {
+      get().pushUndo()
       const src = get().objects.find(o => o.id === id)
       if (!src) return
       const newId = genId()
@@ -369,8 +461,13 @@ export const useSceneStore = create<SceneState>()((set, get) => {
       persist(snap())
     },
 
-    updateObject: (id, updates) =>
-      set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, ...updates } : o) })),
+    updateObject: (id, updates) => {
+      set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, ...updates } : o) }))
+      const s = get()
+      if (s.autoKeyframe && s.activeClipId && !s.isPlaying && (updates.position || updates.rotation || updates.scale || updates.pathProgress !== undefined)) {
+        get().captureKeyframe(id)
+      }
+    },
 
     selectObject: (id) => {
       if (!id) { set({ selectedId: null, selectedIds: [] }); return }
@@ -396,6 +493,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     setSelectedIds: (ids) => set({ selectedIds: ids, selectedId: ids[ids.length - 1] ?? null }),
 
     groupSelected: () => {
+      get().pushUndo()
       const { objects, selectedIds } = get()
       if (selectedIds.length < 2) return
       const id = genId()
@@ -469,6 +567,7 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     },
 
     clearScene: () => {
+      get().pushUndo()
       set({ objects: [], selectedId: null, selectedIds: [], paintObjectId: null })
       persist(snap())
     },
@@ -508,6 +607,245 @@ export const useSceneStore = create<SceneState>()((set, get) => {
 
     updateViewportCamera: (position, target, fov) =>
       set({ viewportCamera: { position, target, fov } }),
+
+    // ── Undo / Redo ───────────────────────────────────────────────────────────────
+
+    pushUndo: () => {
+      const { objects, clips, activeClipId, undoStack } = get()
+      set({ undoStack: [...undoStack.slice(-49), { objects, clips, activeClipId }], redoStack: [] })
+    },
+
+    undo: () => {
+      const { undoStack, objects, clips, activeClipId } = get()
+      if (undoStack.length === 0) return
+      const prev = undoStack[undoStack.length - 1]
+      set(s => ({
+        undoStack: s.undoStack.slice(0, -1),
+        redoStack: [...s.redoStack.slice(-49), { objects, clips, activeClipId }],
+        objects: prev.objects, clips: prev.clips, activeClipId: prev.activeClipId,
+        selectedId: null, selectedIds: [],
+      }))
+      persist(snap())
+    },
+
+    redo: () => {
+      const { redoStack, objects, clips, activeClipId } = get()
+      if (redoStack.length === 0) return
+      const next = redoStack[redoStack.length - 1]
+      set(s => ({
+        redoStack: s.redoStack.slice(0, -1),
+        undoStack: [...s.undoStack.slice(-49), { objects, clips, activeClipId }],
+        objects: next.objects, clips: next.clips, activeClipId: next.activeClipId,
+        selectedId: null, selectedIds: [],
+      }))
+      persist(snap())
+    },
+
+    // ── Snap ─────────────────────────────────────────────────────────────────────
+
+    toggleSnap: () => { set(s => ({ snapEnabled: !s.snapEnabled })); persist(snap()) },
+    setSnapTranslate: (v) => { set({ snapTranslate: v }); persist(snap()) },
+    setSnapRotate: (v) => { set({ snapRotate: v }); persist(snap()) },
+    setSnapScale: (v) => { set({ snapScale: v }); persist(snap()) },
+
+    // ── Focus ─────────────────────────────────────────────────────────────────────
+
+    triggerFocus: () => set(s => ({ focusRequest: s.focusRequest + 1 })),
+
+    // ── Scene slots ───────────────────────────────────────────────────────────────
+
+    saveSceneSlot: (name) => {
+      const slot: SceneSlot = { id: `slot_${Date.now()}`, name, timestamp: Date.now(), snapshot: snap() }
+      set(s => {
+        const slots = [...s.savedSlots, slot]
+        persistSlots(slots)
+        return { savedSlots: slots }
+      })
+    },
+
+    loadSceneSlot: (id) => {
+      const { savedSlots } = get()
+      const slot = savedSlots.find(s => s.id === id)
+      if (!slot) return
+      get().pushUndo()
+      const s = slot.snapshot
+      set({
+        objects: s.objects ?? [], clips: s.clips ?? [], activeClipId: s.activeClipId ?? null,
+        background: s.background, environment: s.environment,
+        ambientIntensity: s.ambientIntensity, directionalIntensity: s.directionalIntensity,
+        directionalPosition: s.directionalPosition, showGrid: s.showGrid, showAxes: s.showAxes,
+        skyEnabled: s.skyEnabled ?? false, skyPreset: s.skyPreset ?? 'sunny',
+        skyTurbidity: s.skyTurbidity ?? 10, skyRayleigh: s.skyRayleigh ?? 3,
+        skyInclination: s.skyInclination ?? 0.49, skyAzimuth: s.skyAzimuth ?? 0.25,
+        selectedId: null, selectedIds: [], isPlaying: false, currentTime: 0,
+      })
+      persist(snap())
+    },
+
+    deleteSceneSlot: (id) => {
+      set(s => {
+        const slots = s.savedSlots.filter(x => x.id !== id)
+        persistSlots(slots)
+        return { savedSlots: slots }
+      })
+    },
+
+    importSceneJSON: (json) => {
+      try {
+        const parsed = JSON.parse(json) as Partial<Snapshot>
+        if (!Array.isArray(parsed.objects)) return 'Invalid JSON: missing objects array'
+        get().pushUndo()
+        set({
+          objects: parsed.objects, clips: parsed.clips ?? [],
+          activeClipId: parsed.activeClipId ?? null,
+          background: parsed.background ?? '#1a1a2e',
+          environment: parsed.environment ?? 'none',
+          ambientIntensity: parsed.ambientIntensity ?? 0.5,
+          directionalIntensity: parsed.directionalIntensity ?? 1.5,
+          directionalPosition: parsed.directionalPosition ?? [5, 10, 5],
+          showGrid: parsed.showGrid ?? true, showAxes: parsed.showAxes ?? false,
+          skyEnabled: parsed.skyEnabled ?? false,
+          selectedId: null, selectedIds: [], isPlaying: false, currentTime: 0,
+        })
+        persist(snap())
+        return null
+      } catch (e) { return String(e) }
+    },
+
+    // ── Hierarchy ─────────────────────────────────────────────────────────────────
+
+    reparentObject: (objectId, newParentId) => {
+      set(s => ({
+        objects: s.objects.map(o => o.id === objectId ? { ...o, groupId: newParentId ?? undefined } : o),
+      }))
+      persist(snap())
+    },
+
+    toggleAutoKeyframe: () => { set(s => ({ autoKeyframe: !s.autoKeyframe })); persist(snap()) },
+
+    setKeyframeValue: (clipId, objectId, kfId, channel, value) => {
+      set(s => {
+        const ci = s.clips.findIndex(c => c.id === clipId)
+        if (ci < 0) return s
+        const ti = s.clips[ci].tracks.findIndex(t => t.objectId === objectId)
+        if (ti < 0) return s
+        const ki = s.clips[ci].tracks[ti].keyframes.findIndex(k => k.id === kfId)
+        if (ki < 0) return s
+        const kf = s.clips[ci].tracks[ti].keyframes[ki]
+        let newKf: Keyframe
+        if (channel === 'pathProgress') {
+          newKf = { ...kf, pathProgress: value }
+        } else {
+          const [prop, ax] = channel.split('.') as ['position' | 'rotation' | 'scale', 'x' | 'y' | 'z']
+          const ai = ax === 'x' ? 0 : ax === 'y' ? 1 : 2
+          const arr = [...(kf[prop] ?? [0, 0, 0])] as [number, number, number]
+          arr[ai] = value
+          newKf = { ...kf, [prop]: arr }
+        }
+        const newClips = s.clips.map((c, ci2) => ci2 !== ci ? c : {
+          ...c, tracks: c.tracks.map((t, ti2) => ti2 !== ti ? t : {
+            ...t, keyframes: t.keyframes.map((k, ki2) => ki2 !== ki ? k : newKf),
+          }),
+        })
+        return { clips: newClips }
+      })
+      persist(snap())
+    },
+
+    addClipMarker: (clipId, time) => {
+      const id = genKfId()
+      const COLORS = ['#f87171','#fb923c','#facc15','#4ade80','#60a5fa','#a78bfa','#f472b6']
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)]
+      set(s => ({
+        clips: s.clips.map(c => c.id !== clipId ? c : {
+          ...c, markers: [...(c.markers ?? []), { id, time: parseFloat(time.toFixed(3)), label: 'Marker', color }],
+        }),
+      }))
+      persist(snap())
+    },
+
+    updateClipMarker: (clipId, markerId, updates) => {
+      set(s => ({
+        clips: s.clips.map(c => c.id !== clipId ? c : {
+          ...c, markers: (c.markers ?? []).map(m => m.id !== markerId ? m : { ...m, ...updates }),
+        }),
+      }))
+      persist(snap())
+    },
+
+    removeClipMarker: (clipId, markerId) => {
+      set(s => ({
+        clips: s.clips.map(c => c.id !== clipId ? c : {
+          ...c, markers: (c.markers ?? []).filter(m => m.id !== markerId),
+        }),
+      }))
+      persist(snap())
+    },
+
+    applyRigPreset: (preset) => {
+      const s = get()
+      if (!s.activeClipId) return
+      const clip = s.clips.find(c => c.id === s.activeClipId)
+      if (!clip) return
+      const { position, target, fov } = s.viewportCamera
+      const steps = preset === 'handheld' ? Math.ceil(clip.duration * 8) : 30
+      const keyframes: CameraKeyframe[] = []
+
+      if (preset === 'handheld') {
+        const interval = clip.duration / steps
+        for (let i = 0; i <= steps; i++) {
+          const shake = 0.06
+          keyframes.push({
+            id: genKfId(), time: parseFloat((i * interval).toFixed(3)),
+            position: [
+              position[0] + (Math.random() - 0.5) * shake * 2,
+              position[1] + (Math.random() - 0.5) * shake,
+              position[2] + (Math.random() - 0.5) * shake * 2,
+            ],
+            target: [
+              target[0] + (Math.random() - 0.5) * shake * 0.3,
+              target[1] + (Math.random() - 0.5) * shake * 0.3,
+              target[2] + (Math.random() - 0.5) * shake * 0.3,
+            ],
+            fov: fov + (Math.random() - 0.5) * 2,
+            easing: 'linear',
+          })
+        }
+      } else if (preset === 'dolly-zoom') {
+        const dx = position[0] - target[0], dy = position[1] - target[1], dz = position[2] - target[2]
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz)
+        const endDist = dist * 0.3
+        const endFov  = Math.min(110, fov * (dist / endDist))
+        const dirN    = [dx / dist, dy / dist, dz / dist]
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps
+          const d = dist + (endDist - dist) * t
+          keyframes.push({
+            id: genKfId(), time: parseFloat((t * clip.duration).toFixed(3)),
+            position: [target[0] + dirN[0]*d, target[1] + dirN[1]*d, target[2] + dirN[2]*d],
+            target, fov: fov + (endFov - fov) * t, easing: 'ease-in-out',
+          })
+        }
+      } else { // orbit
+        const dx = position[0] - target[0], dz = position[2] - target[2]
+        const radius = Math.sqrt(dx*dx + dz*dz)
+        const startAngle = Math.atan2(dz, dx)
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps
+          const angle = startAngle + t * Math.PI * 2
+          keyframes.push({
+            id: genKfId(), time: parseFloat((t * clip.duration).toFixed(3)),
+            position: [target[0] + Math.cos(angle)*radius, position[1], target[2] + Math.sin(angle)*radius],
+            target, fov, easing: 'linear',
+          })
+        }
+      }
+
+      set(s => ({
+        clips: s.clips.map(c => c.id !== s.activeClipId ? c : { ...c, cameraTrack: keyframes }),
+      }))
+      persist(snap())
+    },
 
     setSkyEnabled: (v) => { set({ skyEnabled: v }); persist(snap()) },
     setSkyPreset: (preset) => {
@@ -690,17 +1028,21 @@ export const useSceneStore = create<SceneState>()((set, get) => {
     // ── Templates ─────────────────────────────────────────────────────────────────
 
     loadTemplate: (template) => {
+      get().pushUndo()
+      const s = template.settings
       set({
         objects: template.objects,
         clips: template.clips,
         activeClipId: template.clips[0]?.id ?? null,
         showTimeline: template.clips.length > 0,
-        background: template.settings.background,
-        environment: template.settings.environment,
-        ambientIntensity: template.settings.ambientIntensity,
-        directionalIntensity: template.settings.directionalIntensity,
-        directionalPosition: template.settings.directionalPosition,
-        showGrid: template.settings.showGrid,
+        background: s.background,
+        environment: s.environment,
+        ambientIntensity: s.ambientIntensity,
+        directionalIntensity: s.directionalIntensity,
+        directionalPosition: s.directionalPosition,
+        showGrid: s.showGrid,
+        ...(s.skyEnabled !== undefined ? { skyEnabled: s.skyEnabled } : {}),
+        ...(s.skyPreset ? { skyPreset: s.skyPreset } : {}),
         selectedId: null,
         selectedIds: [],
         paintObjectId: null,
