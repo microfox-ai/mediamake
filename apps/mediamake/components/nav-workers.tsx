@@ -101,16 +101,25 @@ export function NavWorkers() {
   const [error, setError] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  // Fetch worker list once on mount
+  // Fetch worker list once on mount.
+  // The upstream workers-config endpoint returns `workers` as an object map
+  // keyed by worker id (e.g. `{ "sparkboard-index": {...}, "wan-video": {...} }`).
+  // Some older responses returned a plain string array — accept either shape.
   React.useEffect(() => {
     let cancelled = false
     fetch('/api/workflows/workers-config')
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled) {
-          setWorkerIds((data.workers ?? []).sort())
-          setLoading(false)
+        if (cancelled) return
+        const raw: unknown = data?.workers
+        let ids: string[] = []
+        if (Array.isArray(raw)) {
+          ids = raw.filter((x): x is string => typeof x === 'string')
+        } else if (raw && typeof raw === 'object') {
+          ids = Object.keys(raw as Record<string, unknown>)
         }
+        setWorkerIds(ids.slice().sort())
+        setLoading(false)
       })
       .catch((err) => {
         if (!cancelled) {
