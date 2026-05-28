@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo, Suspense, Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import { useThree, useLoader, useFrame } from '@react-three/fiber'
-import { TransformControls, Text3D, Center, CatmullRomLine } from '@react-three/drei'
+import { TransformControls, Text3D, Center, CatmullRomLine, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
@@ -14,6 +14,7 @@ import type { SceneObject, TransformMode } from './types'
 import { PRIMITIVE_TYPES } from './types'
 import { useSceneStore } from './scene-store'
 import { gltfFileCache } from './gltf-cache'
+import { meshRegistry } from './mesh-registry'
 import {
   getOrCreatePaintCanvas, getOrCreatePaintTexture,
   generateProceduralTexture,
@@ -130,14 +131,72 @@ function suppressGltfAssetErrors(loader: GLTFLoader) {
 
 // ─── GLTF loader ─────────────────────────────────────────────────────────────
 
-function GltfInner({ url, castShadow, receiveShadow, cacheKey, customTexture }: {
+function GltfInner({ url, castShadow, receiveShadow, cacheKey, customTexture,
+  gltfAnimationIndex, gltfAnimationPlay, gltfAnimationSpeed, morphInfluences, onMetaReady,
+}: {
   url: string; castShadow: boolean; receiveShadow: boolean; cacheKey?: string; customTexture?: string
+  gltfAnimationIndex?: number; gltfAnimationPlay?: boolean; gltfAnimationSpeed?: number
+  morphInfluences?: Record<string, number>
+  onMetaReady?: (animationNames: string[], morphTargetNames: string[]) => void
 }) {
   const { invalidate } = useThree()
   const gltf = useLoader(GLTFLoader, url, (loader) => {
     suppressGltfAssetErrors(loader)
     const fileMap = cacheKey ? gltfFileCache.get(cacheKey) : undefined
     if (fileMap) loader.manager.setURLModifier(makeUrlModifierFn(fileMap))
+  })
+
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
+
+  // Init AnimationMixer
+  useEffect(() => {
+    const mixer = new THREE.AnimationMixer(gltf.scene)
+    mixerRef.current = mixer
+    return () => { mixer.stopAllAction(); mixerRef.current = null }
+  }, [gltf.scene])
+
+  // Report animation names + morph target names to parent (once per GLTF load)
+  useEffect(() => {
+    if (!onMetaReady) return
+    const animNames = gltf.animations.map(a => a.name)
+    const morphSet = new Set<string>()
+    gltf.scene.traverse(node => {
+      const m = node as THREE.Mesh
+      if (m.isMesh && m.morphTargetDictionary) Object.keys(m.morphTargetDictionary).forEach(n => morphSet.add(n))
+    })
+    onMetaReady(animNames, [...morphSet])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gltf])
+
+  // Animation playback control
+  useEffect(() => {
+    const mixer = mixerRef.current
+    if (!mixer) return
+    mixer.stopAllAction()
+    if (gltfAnimationPlay && gltf.animations.length > 0) {
+      const idx = Math.min(gltfAnimationIndex ?? 0, gltf.animations.length - 1)
+      const action = mixer.clipAction(gltf.animations[idx])
+      action.timeScale = gltfAnimationSpeed ?? 1
+      action.play()
+    }
+  }, [gltf, gltfAnimationIndex, gltfAnimationPlay, gltfAnimationSpeed])
+
+  // Apply morph target influences
+  useEffect(() => {
+    if (!morphInfluences) return
+    gltf.scene.traverse(node => {
+      const m = node as THREE.Mesh
+      if (!m.isMesh || !m.morphTargetDictionary || !m.morphTargetInfluences) return
+      for (const [name, value] of Object.entries(morphInfluences)) {
+        const idx = m.morphTargetDictionary[name]
+        if (idx !== undefined) m.morphTargetInfluences[idx] = value
+      }
+    })
+  }, [gltf, morphInfluences])
+
+  // Update mixer every frame
+  useFrame((_, delta) => {
+    if (mixerRef.current && gltfAnimationPlay) mixerRef.current.update(delta)
   })
 
   useEffect(() => {
@@ -238,14 +297,20 @@ function ObjInner({ url, castShadow, receiveShadow, cacheKey, customTexture }: {
 
 // ─── FBX loader ──────────────────────────────────────────────────────────────
 
-function FbxInner({ url, castShadow, receiveShadow, cacheKey, customTexture }: {
+function FbxInner({ url, castShadow, receiveShadow, cacheKey, customTexture,
+  gltfAnimationIndex, gltfAnimationPlay, gltfAnimationSpeed, onMetaReady,
+}: {
   url: string; castShadow: boolean; receiveShadow: boolean; cacheKey?: string; customTexture?: string
+  gltfAnimationIndex?: number; gltfAnimationPlay?: boolean; gltfAnimationSpeed?: number
+  onMetaReady?: (animationNames: string[], morphTargetNames: string[]) => void
 }) {
   const { invalidate } = useThree()
   const fbx = useLoader(FBXLoader, url, (loader) => {
     const fileMap = cacheKey ? gltfFileCache.get(cacheKey) : undefined
     if (fileMap) loader.manager.setURLModifier(makeUrlModifierFn(fileMap))
   })
+
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
 
   useEffect(() => {
     fbx.traverse((node: THREE.Object3D) => {
@@ -266,6 +331,37 @@ function FbxInner({ url, castShadow, receiveShadow, cacheKey, customTexture }: {
     const maxDim = Math.max(size.x, size.y, size.z)
     if (maxDim > 50) fbx.scale.setScalar(0.01)
   }, [fbx, castShadow, receiveShadow])
+
+  // Init AnimationMixer
+  useEffect(() => {
+    const mixer = new THREE.AnimationMixer(fbx)
+    mixerRef.current = mixer
+    return () => { mixer.stopAllAction(); mixerRef.current = null }
+  }, [fbx])
+
+  // Report animation names to parent
+  useEffect(() => {
+    if (!onMetaReady) return
+    onMetaReady(fbx.animations.map(a => a.name), [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fbx])
+
+  // Animation playback control
+  useEffect(() => {
+    const mixer = mixerRef.current
+    if (!mixer) return
+    mixer.stopAllAction()
+    if (gltfAnimationPlay && fbx.animations.length > 0) {
+      const idx = Math.min(gltfAnimationIndex ?? 0, fbx.animations.length - 1)
+      const action = mixer.clipAction(fbx.animations[idx])
+      action.timeScale = gltfAnimationSpeed ?? 1
+      action.play()
+    }
+  }, [fbx, gltfAnimationIndex, gltfAnimationPlay, gltfAnimationSpeed])
+
+  useFrame((_, delta) => {
+    if (mixerRef.current && gltfAnimationPlay) mixerRef.current.update(delta)
+  })
 
   useEffect(() => {
     if (!customTexture) return
@@ -690,6 +786,7 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
   const meshRef = useRef<THREE.Object3D>(null)
   const [attachedMesh, setAttachedMesh] = useState<THREE.Object3D | null>(null)
   const lastPosRef = useRef<[number, number, number]>([...object.position])
+  const curveRef   = useRef<THREE.CatmullRomCurve3 | null>(null)
 
   const updateObject       = useSceneStore(s => s.updateObject)
   const selectObject       = useSceneStore(s => s.selectObject)
@@ -698,22 +795,77 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
   const paintObjectId      = useSceneStore(s => s.paintObjectId)
   const paintBrushColor    = useSceneStore(s => s.paintBrushColor)
   const paintBrushSize     = useSceneStore(s => s.paintBrushSize)
+  const snapEnabled        = useSceneStore(s => s.snapEnabled)
+  const snapTranslate      = useSceneStore(s => s.snapTranslate)
+  const snapRotate         = useSceneStore(s => s.snapRotate)
+  const snapScale          = useSceneStore(s => s.snapScale)
   const { invalidate } = useThree()
 
   const meshCallback = useCallback((node: THREE.Object3D | null) => {
+    const prev = meshRef.current
     meshRef.current = node
     setAttachedMesh(node)
-  }, [])
+    if (prev && prev !== node) meshRegistry.unregister(object.id, prev)
+    if (node) meshRegistry.register(object.id, node)
+  }, [object.id])
+
+  // Unregister on unmount so stale entries can't leak into AnimationPlayer.
+  useEffect(() => {
+    return () => {
+      const node = meshRef.current
+      if (node) meshRegistry.unregister(object.id, node)
+    }
+  }, [object.id])
+
+  // Build spline curve when pathFollowId changes
+  useEffect(() => {
+    if (!object.pathFollowId) {
+      curveRef.current = null
+      meshRegistry.setPathCurve(object.id, null)
+      return
+    }
+    const spline = useSceneStore.getState().objects.find(o => o.id === object.pathFollowId)
+    if (!spline?.splinePoints || spline.splinePoints.length < 2) return
+    const curve = new THREE.CatmullRomCurve3(
+      spline.splinePoints.map(p => new THREE.Vector3(p[0], p[1], p[2])),
+      spline.splineClosed ?? false,
+    )
+    curveRef.current = curve
+    meshRegistry.setPathCurve(object.id, curve)
+  }, [object.id, object.pathFollowId])
+
+  // Drive position along path every frame. During playback AnimationPlayer
+  // sets the position directly, so we only run this when there's no transient
+  // override (avoids fighting the player).
+  useFrame(() => {
+    if (!object.pathFollowId || !curveRef.current || !meshRef.current) return
+    const entry = meshRegistry.getEntry(object.id)
+    if (entry && entry.transientPathProgress != null) return  // player owns this frame
+    const t = Math.max(0, Math.min(1, object.pathProgress ?? 0))
+    const pt = curveRef.current.getPointAt(t)
+    meshRef.current.position.set(pt.x, pt.y, pt.z)
+  })
+
+  // Callback so GltfInner/FbxInner can report discovered animation & morph names
+  const handleGltfMetaReady = useCallback((animationNames: string[], morphNames: string[]) => {
+    if (
+      JSON.stringify(animationNames) !== JSON.stringify(object.gltfAnimationNames) ||
+      JSON.stringify(morphNames)     !== JSON.stringify(object.gltfMorphNames)
+    ) {
+      updateObject(object.id, { gltfAnimationNames: animationNames, gltfMorphNames: morphNames })
+    }
+  }, [object.id, object.gltfAnimationNames, object.gltfMorphNames, updateObject])
 
   useEffect(() => {
     const node = meshRef.current
     if (!node) return
-    node.position.set(...object.position)
+    // Skip position sync when path-following (useFrame drives position)
+    if (!object.pathFollowId) node.position.set(...object.position)
     node.rotation.set(...object.rotation)
     node.scale.set(...object.scale)
     lastPosRef.current = [...object.position]
     invalidate()
-  }, [object.position, object.rotation, object.scale, invalidate])
+  }, [object.position, object.rotation, object.scale, object.pathFollowId, invalidate])
 
   const handleTransformChange = useCallback(() => {
     const node = meshRef.current
@@ -825,7 +977,18 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
             {object.type === 'gltf' && object.url && (
               <GltfErrorBoundary key={object.url} name={object.name}>
                 <Suspense fallback={null}>
-                  <GltfInner url={object.url} castShadow={object.castShadow} receiveShadow={object.receiveShadow} cacheKey={object.cacheKey} customTexture={object.customTexture} />
+                  <GltfInner
+                    url={object.url}
+                    castShadow={object.castShadow}
+                    receiveShadow={object.receiveShadow}
+                    cacheKey={object.cacheKey}
+                    customTexture={object.customTexture}
+                    gltfAnimationIndex={object.gltfAnimationIndex}
+                    gltfAnimationPlay={object.gltfAnimationPlay}
+                    gltfAnimationSpeed={object.gltfAnimationSpeed}
+                    morphInfluences={object.morphInfluences}
+                    onMetaReady={handleGltfMetaReady}
+                  />
                 </Suspense>
               </GltfErrorBoundary>
             )}
@@ -839,7 +1002,17 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
             {object.type === 'fbx' && object.url && (
               <GltfErrorBoundary key={object.url} name={object.name}>
                 <Suspense fallback={null}>
-                  <FbxInner url={object.url} castShadow={object.castShadow} receiveShadow={object.receiveShadow} cacheKey={object.cacheKey} customTexture={object.customTexture} />
+                  <FbxInner
+                    url={object.url}
+                    castShadow={object.castShadow}
+                    receiveShadow={object.receiveShadow}
+                    cacheKey={object.cacheKey}
+                    customTexture={object.customTexture}
+                    gltfAnimationIndex={object.gltfAnimationIndex}
+                    gltfAnimationPlay={object.gltfAnimationPlay}
+                    gltfAnimationSpeed={object.gltfAnimationSpeed}
+                    onMetaReady={handleGltfMetaReady}
+                  />
                 </Suspense>
               </GltfErrorBoundary>
             )}
@@ -873,6 +1046,36 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
             {object.type === 'pointlight' && <PointLightInner object={object} />}
             {object.type === 'spotlight'  && <SpotLightInner object={object} />}
             {object.type === 'rectlight'  && <RectLightInner object={object} />}
+
+            {/* ── Annotation pin ── */}
+            {object.type === 'annotation' && (
+              <>
+                <Html
+                  center
+                  distanceFactor={object.annotationAlwaysVisible ? undefined : 10}
+                  occlude={!object.annotationAlwaysVisible}
+                >
+                  <div style={{
+                    background: object.annotationBgColor ?? 'rgba(15,15,30,0.85)',
+                    color: '#fff',
+                    padding: '3px 9px',
+                    borderRadius: '5px',
+                    fontSize: '11px',
+                    whiteSpace: 'nowrap',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(4px)',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}>
+                    {object.annotationText || 'Annotation'}
+                  </div>
+                </Html>
+                <mesh>
+                  <sphereGeometry args={[0.06, 8, 8]} />
+                  <meshBasicMaterial color={object.annotationBgColor ?? '#60a5fa'} />
+                </mesh>
+              </>
+            )}
 
           </group>
         </group>
@@ -910,13 +1113,16 @@ export function SceneObjectMesh({ object, isSelected, transformMode }: SceneObje
         </>
       )}
 
-      {/* Transform gizmo */}
-      {isSelected && attachedMesh && !isPaintActive && (
+      {/* Transform gizmo — hidden when locked */}
+      {isSelected && attachedMesh && !isPaintActive && !object.locked && (
         <TransformControls
           object={attachedMesh}
           mode={transformMode}
+          translationSnap={snapEnabled && transformMode === 'translate' ? snapTranslate : undefined}
+          rotationSnap={snapEnabled && transformMode === 'rotate' ? snapRotate : undefined}
+          scaleSnap={snapEnabled && transformMode === 'scale' ? snapScale : undefined}
           onObjectChange={handleTransformChange}
-          onMouseDown={() => {}}
+          onMouseDown={() => useSceneStore.getState().pushUndo()}
         />
       )}
     </>

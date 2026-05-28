@@ -18,6 +18,7 @@ import { SceneObjectMesh } from './scene-object-mesh'
 import { useSceneStore } from './scene-store'
 import type { SkyPreset } from './scene-store'
 import { interpolateTrack, interpolateCameraTrack } from './types'
+import { meshRegistry } from './mesh-registry'
 
 // ─── Weather particle systems ─────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ function SnowEffect() {
 }
 
 function WeatherEffects({ preset }: { preset: SkyPreset }) {
-  if (preset === 'rain')     return <RainEffect />
+  if (preset === 'rainy')    return <RainEffect />
   if (preset === 'snowfall') return <SnowEffect />
   if (preset === 'night')    return <Stars radius={80} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
   return null
@@ -112,18 +113,94 @@ export interface ViewportHandle {
   exportPng: () => string | null
   startRecording: (durationMs: number, onDone: (blob: Blob) => void) => void
   stopRecording: () => void
+  /**
+   * Apply interpolated state for the given clip at `time` and synchronously
+   * render one frame. Used by the high-quality offline renderer.
+   * Returns true on success, false if no clip/canvas is ready.
+   */
+  renderFrameAt: (clipId: string, time: number) => boolean
+  /** Resize the underlying canvas + renderer; pass null to restore the size to its container's CSS bounds. */
+  setRenderSize: (size: { width: number; height: number } | null) => void
+  /** Get the underlying canvas element (used by offline encoder). */
+  getCanvas: () => HTMLCanvasElement | null
+}
+
+// ─── Focus-selected camera effect ────────────────────────────────────────────
+
+function FocusCameraEffect({ orbitRef }: { orbitRef: React.RefObject<OrbitControlsImpl | null> }) {
+  const focusRequest = useSceneStore(s => s.focusRequest)
+  const { camera } = useThree()
+
+  useEffect(() => {
+    if (focusRequest === 0) return
+    const s = useSceneStore.getState()
+    const obj = s.objects.find(o => o.id === s.selectedId)
+    if (!obj) return
+    const target = new THREE.Vector3(...obj.position)
+    const orbit = orbitRef.current as any
+    if (orbit) orbit.target.copy(target)
+    const dir = new THREE.Vector3().subVectors(camera.position, target)
+    const dist = Math.max(2, dir.length() * 0.4)
+    camera.position.copy(target.clone().add(dir.normalize().multiplyScalar(dist)))
+    camera.updateProjectionMatrix()
+    s.updateViewportCamera(
+      camera.position.toArray() as [number, number, number],
+      target.toArray() as [number, number, number],
+      (camera as THREE.PerspectiveCamera).fov,
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest])
+
+  return null
 }
 
 // ─── Animation playback engine (lives inside Canvas for useFrame) ─────────────
 
+/**
+ * Hot path: writes interpolated `position/rotation/scale` directly to mesh refs
+ * via `meshRegistry`, bypassing the Zustand store entirely. This is what keeps
+ * preview at 60fps even on scenes with 200+ animated objects.
+ *
+ * Trade-off: while playing, the store's `object.position` is stale relative to
+ * the visible mesh. On stop we sync each tracked mesh's transform back to the
+ * store so `Properties Panel`, `captureKeyframe` and other store-reading code
+ * see the actual final frame.
+ */
 function AnimationPlayer({ orbitRef }: { orbitRef: React.RefObject<OrbitControlsImpl | null> }) {
   const isPlaying = useSceneStore(s => s.isPlaying)
   const { camera } = useThree()
 
-  useFrame((_, delta) => {
-    if (!isPlaying) return
+  const wasPlayingRef = useRef(false)
 
+  useFrame((_, delta) => {
     const s = useSceneStore.getState()
+
+    // ── Just-stopped: commit current mesh transforms back to the store ──────
+    if (!s.isPlaying) {
+      if (wasPlayingRef.current) {
+        wasPlayingRef.current = false
+        const tracked = new Set<string>()
+        for (const c of s.clips) for (const t of c.tracks) tracked.add(t.objectId)
+        const updates: Array<[string, { position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number] }]> = []
+        tracked.forEach(id => {
+          const m = meshRegistry.get(id)
+          if (!m) return
+          updates.push([id, {
+            position: m.position.toArray() as [number, number, number],
+            rotation: [m.rotation.x, m.rotation.y, m.rotation.z],
+            scale:    m.scale.toArray() as [number, number, number],
+          }])
+          // Release transient path override so manual scrubbing works normally.
+          meshRegistry.setTransientPathProgress(id, null)
+        })
+        // Apply as a single batch — Zustand merges this into one notification.
+        for (const [id, props] of updates) s.updateObject(id, props)
+      }
+      return
+    }
+
+    wasPlayingRef.current = true
+
     const { activeClipId, clips, currentTime, sequenceMode } = s
     if (!activeClipId) return
 
@@ -150,7 +227,7 @@ function AnimationPlayer({ orbitRef }: { orbitRef: React.RefObject<OrbitControls
 
     s.setCurrentTime(nextTime)
 
-    // Drive viewport camera from cameraTrack if present
+    // ── Camera ────────────────────────────────────────────────────────────
     if (clip.cameraTrack && clip.cameraTrack.length > 0) {
       const camState = interpolateCameraTrack(clip.cameraTrack, nextTime)
       if (camState) {
@@ -164,10 +241,24 @@ function AnimationPlayer({ orbitRef }: { orbitRef: React.RefObject<OrbitControls
       }
     }
 
-    // Apply interpolated transforms for every object track
+    // ── Object tracks: write directly to mesh refs ────────────────────────
     for (const track of clip.tracks) {
       const props = interpolateTrack(track, nextTime)
-      if (Object.keys(props).length > 0) s.updateObject(track.objectId, props)
+      const entry = meshRegistry.getEntry(track.objectId)
+      if (!entry) continue
+      const mesh = entry.mesh
+
+      // Path-following objects: re-evaluate the curve from progress directly.
+      if (props.pathProgress !== undefined && entry.pathCurve) {
+        const t = Math.max(0, Math.min(1, props.pathProgress))
+        const pt = entry.pathCurve.getPointAt(t)
+        mesh.position.set(pt.x, pt.y, pt.z)
+        meshRegistry.setTransientPathProgress(track.objectId, t)
+      } else if (props.position) {
+        mesh.position.set(props.position[0], props.position[1], props.position[2])
+      }
+      if (props.rotation) mesh.rotation.set(props.rotation[0], props.rotation[1], props.rotation[2])
+      if (props.scale)    mesh.scale.set(props.scale[0], props.scale[1], props.scale[2])
     }
   })
 
@@ -299,16 +390,31 @@ function SceneContent() {
       </GizmoHelper>
 
       <AnimationPlayer orbitRef={orbitRef} />
+      <FocusCameraEffect orbitRef={orbitRef} />
     </>
   )
 }
 
 // ─── Capture helpers ──────────────────────────────────────────────────────────
 
-function CaptureController({ onReady }: { onReady: (fn: () => string | null, canvas: HTMLCanvasElement) => void }) {
+interface ThreeRefs {
+  gl: THREE.WebGLRenderer
+  scene: THREE.Scene
+  camera: THREE.Camera
+}
+
+function CaptureController({
+  onReady,
+}: {
+  onReady: (fn: () => string | null, canvas: HTMLCanvasElement, refs: ThreeRefs) => void
+}) {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
-    onReady(() => { gl.render(scene, camera); return gl.domElement.toDataURL('image/png') }, gl.domElement)
+    onReady(
+      () => { gl.render(scene, camera); return gl.domElement.toDataURL('image/png') },
+      gl.domElement,
+      { gl, scene, camera },
+    )
   }, [gl, scene, camera, onReady])
   return null
 }
@@ -316,9 +422,10 @@ function CaptureController({ onReady }: { onReady: (fn: () => string | null, can
 // ─── Viewport ─────────────────────────────────────────────────────────────────
 
 const Viewport = forwardRef<ViewportHandle>((_, ref) => {
-  const exportFnRef = useRef<(() => string | null) | null>(null)
-  const canvasRef   = useRef<HTMLCanvasElement | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
+  const exportFnRef  = useRef<(() => string | null) | null>(null)
+  const canvasRef    = useRef<HTMLCanvasElement | null>(null)
+  const recorderRef  = useRef<MediaRecorder | null>(null)
+  const threeRefsRef = useRef<ThreeRefs | null>(null)
   const selectObject = useSceneStore(s => s.selectObject)
 
   useImperativeHandle(ref, () => ({
@@ -342,6 +449,76 @@ const Viewport = forwardRef<ViewportHandle>((_, ref) => {
     stopRecording: () => {
       if (recorderRef.current?.state === 'recording') recorderRef.current.stop()
     },
+
+    renderFrameAt: (clipId: string, time: number) => {
+      const refs = threeRefsRef.current
+      if (!refs) return false
+      const { gl, scene, camera } = refs
+
+      const s = useSceneStore.getState()
+      const clip = s.clips.find(c => c.id === clipId)
+      if (!clip) return false
+
+      // 1) Apply object transforms directly to meshes
+      for (const track of clip.tracks) {
+        const props = interpolateTrack(track, time)
+        const entry = meshRegistry.getEntry(track.objectId)
+        if (!entry) continue
+        const m = entry.mesh
+        if (props.pathProgress !== undefined && entry.pathCurve) {
+          const t = Math.max(0, Math.min(1, props.pathProgress))
+          const pt = entry.pathCurve.getPointAt(t)
+          m.position.set(pt.x, pt.y, pt.z)
+          meshRegistry.setTransientPathProgress(track.objectId, t)
+        } else if (props.position) {
+          m.position.set(props.position[0], props.position[1], props.position[2])
+        }
+        if (props.rotation) m.rotation.set(props.rotation[0], props.rotation[1], props.rotation[2])
+        if (props.scale)    m.scale.set(props.scale[0], props.scale[1], props.scale[2])
+      }
+
+      // 2) Apply camera track if present
+      if (clip.cameraTrack && clip.cameraTrack.length > 0) {
+        const cs = interpolateCameraTrack(clip.cameraTrack, time)
+        if (cs) {
+          camera.position.set(cs.position[0], cs.position[1], cs.position[2])
+          camera.lookAt(cs.target[0], cs.target[1], cs.target[2])
+          ;(camera as THREE.PerspectiveCamera).fov = cs.fov
+          camera.updateProjectionMatrix()
+        }
+      }
+
+      // 3) Force one render
+      gl.render(scene, camera)
+      return true
+    },
+
+    setRenderSize: (size) => {
+      const refs = threeRefsRef.current
+      if (!refs) return
+      const { gl, camera } = refs
+      if (size) {
+        gl.setSize(size.width, size.height, false)
+        if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+          ;(camera as THREE.PerspectiveCamera).aspect = size.width / size.height
+          ;(camera as THREE.PerspectiveCamera).updateProjectionMatrix()
+        }
+      } else {
+        // Restore CSS-driven size
+        const canvas = gl.domElement
+        const parent = canvas.parentElement
+        if (parent) {
+          const r = parent.getBoundingClientRect()
+          gl.setSize(r.width, r.height, false)
+          if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+            ;(camera as THREE.PerspectiveCamera).aspect = r.width / Math.max(1, r.height)
+            ;(camera as THREE.PerspectiveCamera).updateProjectionMatrix()
+          }
+        }
+      }
+    },
+
+    getCanvas: () => canvasRef.current,
   }))
 
   return (
@@ -352,7 +529,11 @@ const Viewport = forwardRef<ViewportHandle>((_, ref) => {
       onPointerMissed={() => selectObject(null)}
       className="w-full h-full"
     >
-      <CaptureController onReady={(fn, canvas) => { exportFnRef.current = fn; canvasRef.current = canvas }} />
+      <CaptureController onReady={(fn, canvas, refs) => {
+        exportFnRef.current = fn
+        canvasRef.current = canvas
+        threeRefsRef.current = refs
+      }} />
       <SceneContent />
     </Canvas>
   )

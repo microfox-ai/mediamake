@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Upload, X, Plus, Minus, Paintbrush, Save, Trash2, RefreshCw } from 'lucide-react'
 import { useSceneStore } from './scene-store'
@@ -283,6 +282,109 @@ function ObjectProperties({ obj }: { obj: SceneObject }) {
               Shifts the geometry relative to the move/rotate gizmo.
             </p>
           </div>
+        </>
+      )}
+
+      {/* ── GLTF / FBX skeletal animations ──────────────────────────────────── */}
+      {(obj.type === 'gltf' || obj.type === 'fbx') && (
+        <>
+          <Separator className="my-1" />
+          <SectionHeader>Animations</SectionHeader>
+          {!obj.gltfAnimationNames || obj.gltfAnimationNames.length === 0 ? (
+            <div className="px-3 py-1">
+              <p className="text-[10px] text-muted-foreground">
+                {obj.url ? 'No animations found in this model.' : 'Load a model to see its animations.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="px-3 py-1 flex flex-col gap-1">
+                {obj.gltfAnimationNames.map((name, i) => {
+                  const isActive = obj.gltfAnimationIndex === i && obj.gltfAnimationPlay
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => up({
+                        gltfAnimationIndex: i,
+                        gltfAnimationPlay: obj.gltfAnimationIndex !== i ? true : !obj.gltfAnimationPlay,
+                      })}
+                      className={`h-6 px-2 text-[11px] rounded border text-left truncate transition-colors ${
+                        isActive ? 'bg-primary text-primary-foreground border-primary' : 'border-input hover:bg-muted'
+                      }`}
+                    >
+                      {isActive ? '▶ ' : ''}{name || `Clip ${i + 1}`}
+                    </button>
+                  )
+                })}
+              </div>
+              <SliderRow
+                label="Speed"
+                value={obj.gltfAnimationSpeed ?? 1}
+                min={0.1} max={3} step={0.05}
+                onChange={v => up({ gltfAnimationSpeed: v })}
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Morph targets ────────────────────────────────────────────────────── */}
+      {obj.type === 'gltf' && obj.gltfMorphNames && obj.gltfMorphNames.length > 0 && (
+        <>
+          <Separator className="my-1" />
+          <SectionHeader>Morph Targets</SectionHeader>
+          {obj.gltfMorphNames.map(name => (
+            <SliderRow
+              key={name}
+              label={name}
+              value={obj.morphInfluences?.[name] ?? 0}
+              min={0} max={1} step={0.01}
+              onChange={v => up({ morphInfluences: { ...obj.morphInfluences, [name]: v } })}
+            />
+          ))}
+          {obj.morphInfluences && Object.keys(obj.morphInfluences).length > 0 && (
+            <div className="px-3 py-0.5">
+              <Button
+                size="sm" variant="ghost"
+                className="h-6 text-xs text-muted-foreground justify-start px-1"
+                onClick={() => up({ morphInfluences: {} })}
+              >
+                Reset all
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Path Follow ──────────────────────────────────────────────────────── */}
+      {!isLight && !isSpline && !isGroup && (
+        <>
+          <Separator className="my-1" />
+          <SectionHeader>Path Follow</SectionHeader>
+          <div className="px-3 py-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">Follow Spline</Label>
+            <select
+              value={obj.pathFollowId ?? ''}
+              onChange={e => up({ pathFollowId: e.target.value || undefined, pathProgress: 0 })}
+              className="w-full h-7 text-xs rounded border border-input bg-background px-2 text-foreground"
+            >
+              <option value="">None</option>
+              {objects.filter(o => o.type === 'spline' && o.id !== obj.id).map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            {objects.filter(o => o.type === 'spline').length === 0 && (
+              <p className="text-[10px] text-muted-foreground mt-1">Add a Spline object to enable path following.</p>
+            )}
+          </div>
+          {obj.pathFollowId && (
+            <SliderRow
+              label="Progress"
+              value={obj.pathProgress ?? 0}
+              min={0} max={1} step={0.001}
+              onChange={v => up({ pathProgress: v })}
+            />
+          )}
         </>
       )}
 
@@ -655,6 +757,30 @@ function ObjectProperties({ obj }: { obj: SceneObject }) {
 
       {!isGroup && <Separator className="my-1" />}
 
+      {/* ── Annotation properties ─────────────────────────────────────────── */}
+      {obj.type === 'annotation' && (
+        <>
+          <Separator className="my-1" />
+          <SectionHeader>Annotation</SectionHeader>
+          <div className="px-3 py-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">Label Text</Label>
+            <Input
+              value={obj.annotationText ?? 'Label'}
+              onChange={e => up({ annotationText: e.target.value })}
+              className="h-7 text-xs"
+              placeholder="Annotation text..."
+            />
+          </div>
+          <ColorRow label="Background" value={obj.annotationBgColor ?? '#1e293b'} onChange={v => up({ annotationBgColor: v })} />
+          <SwitchRow label="Always Visible" checked={obj.annotationAlwaysVisible ?? true} onChange={v => up({ annotationAlwaysVisible: v })} />
+          <div className="px-3 pb-1">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              When &quot;Always Visible&quot; is off the label fades with distance and can be occluded by geometry.
+            </p>
+          </div>
+        </>
+      )}
+
       {/* Flags — not for group */}
       {!isGroup && (
         <>
@@ -663,6 +789,7 @@ function ObjectProperties({ obj }: { obj: SceneObject }) {
             <SwitchRow label="Wireframe" checked={obj.wireframe} onChange={v => up({ wireframe: v })} />
           )}
           <SwitchRow label="Visible" checked={obj.visible} onChange={v => up({ visible: v })} />
+          <SwitchRow label="Locked" checked={obj.locked ?? false} onChange={v => up({ locked: v })} />
           {!isLight && (
             <>
               <SwitchRow label="Cast Shadow" checked={obj.castShadow} onChange={v => up({ castShadow: v })} />
@@ -683,14 +810,14 @@ export function PropertiesPanel() {
   const selectedObj = objects.find(o => o.id === selectedId) ?? null
 
   return (
-    <div className="flex flex-col h-full border-l bg-background">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       <div className="flex items-center justify-between px-3 h-9 border-b flex-shrink-0">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           {selectedObj ? selectedObj.name : 'Scene'}
         </span>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="py-1">
           {selectedObj ? (
             <ObjectProperties obj={selectedObj} />
@@ -698,7 +825,7 @@ export function PropertiesPanel() {
             <SceneSettings />
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }

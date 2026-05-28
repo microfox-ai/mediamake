@@ -3,12 +3,12 @@
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
   Eye, EyeOff, Trash2, Copy, ChevronUp, ChevronDown, Pencil, Check, X, ChevronRight,
+  Lock, Unlock,
 } from 'lucide-react'
 import { useSceneStore } from './scene-store'
 import { OBJECT_ICONS } from './types'
@@ -24,10 +24,13 @@ export function ObjectListPanel() {
   const duplicateObject = useSceneStore(s => s.duplicateObject)
   const updateObject    = useSceneStore(s => s.updateObject)
   const moveObject      = useSceneStore(s => s.moveObject)
+  const reparentObject  = useSceneStore(s => s.reparentObject)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const toggleCollapse = (id: string) => {
@@ -53,8 +56,24 @@ export function ObjectListPanel() {
 
   const cancelEdit = () => setEditingId(null)
 
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    setDragOverId(null)
+    if (!dragId || dragId === targetId) { setDragId(null); return }
+    const targetObj = objects.find(o => o.id === targetId)
+    if (!targetObj) { setDragId(null); return }
+    if (targetObj.type === 'group') {
+      reparentObject(dragId, targetId)
+    } else if (targetObj.groupId) {
+      reparentObject(dragId, targetObj.groupId)
+    } else {
+      reparentObject(dragId, null)
+    }
+    setDragId(null)
+  }
+
   return (
-    <div className="flex flex-col h-full border-r bg-background">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-9 border-b flex-shrink-0">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -63,8 +82,12 @@ export function ObjectListPanel() {
         <span className="text-xs text-muted-foreground">{objects.length}</span>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-1 space-y-0.5">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div
+          className="p-1 space-y-0.5"
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); if (dragId) { reparentObject(dragId, null); setDragId(null); setDragOverId(null) } }}
+        >
           {objects.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-8 px-3">
               No objects. Use Add in the toolbar.
@@ -77,16 +100,24 @@ export function ObjectListPanel() {
             const isEditing   = editingId === obj.id
             const isGroupType = obj.type === 'group'
             const isCollapsed = collapsedGroups.has(obj.id)
+            const isDragOver  = dragOverId === obj.id && dragId !== obj.id
             const indent      = obj.groupId ? 'pl-4' : ''
-            // Hide children of collapsed groups
             if (obj.groupId && collapsedGroups.has(obj.groupId)) return null
 
             return (
               <div
                 key={obj.id}
+                draggable={!isEditing}
+                onDragStart={e => { setDragId(obj.id); e.dataTransfer.effectAllowed = 'move' }}
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverId(obj.id) }}
+                onDragLeave={() => setDragOverId(null)}
+                onDrop={e => { e.stopPropagation(); handleDrop(e, obj.id) }}
+                onDragEnd={() => { setDragId(null); setDragOverId(null) }}
                 className={cn(
                   'group flex items-center gap-1.5 rounded px-2 py-1 cursor-pointer text-xs transition-colors select-none',
                   indent,
+                  isDragOver && 'ring-1 ring-primary/50 bg-primary/5',
+                  dragId === obj.id && 'opacity-40',
                   isSelected
                     ? 'bg-accent text-accent-foreground'
                     : isInSel
@@ -110,6 +141,11 @@ export function ObjectListPanel() {
                 )}
                 {!isGroupType && obj.groupId && (
                   <span className="w-3 flex-shrink-0" />
+                )}
+
+                {/* Lock indicator */}
+                {obj.locked && (
+                  <Lock className="h-2.5 w-2.5 flex-shrink-0 text-amber-500" />
                 )}
 
                 {/* Type icon */}
@@ -149,9 +185,7 @@ export function ObjectListPanel() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5"
+                        size="icon" variant="ghost" className="h-5 w-5"
                         onClick={e => { e.stopPropagation(); updateObject(obj.id, { visible: !obj.visible }) }}
                       >
                         {obj.visible
@@ -162,14 +196,27 @@ export function ObjectListPanel() {
                     <TooltipContent side="top">{obj.visible ? 'Hide' : 'Show'}</TooltipContent>
                   </Tooltip>
 
+                  {/* Lock / Unlock */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon" variant="ghost" className="h-5 w-5"
+                        onClick={e => { e.stopPropagation(); updateObject(obj.id, { locked: !obj.locked }) }}
+                      >
+                        {obj.locked
+                          ? <Lock className="h-3 w-3 text-amber-500" />
+                          : <Unlock className="h-3 w-3" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{obj.locked ? 'Unlock' : 'Lock'}</TooltipContent>
+                  </Tooltip>
+
                   {/* Rename */}
                   {!isEditing && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
+                          size="icon" variant="ghost" className="h-5 w-5"
                           onClick={e => { e.stopPropagation(); startEdit(obj.id, obj.name) }}
                         >
                           <Pencil className="h-3 w-3" />
@@ -183,9 +230,7 @@ export function ObjectListPanel() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5"
+                        size="icon" variant="ghost" className="h-5 w-5"
                         onClick={e => { e.stopPropagation(); duplicateObject(obj.id) }}
                       >
                         <Copy className="h-3 w-3" />
@@ -198,9 +243,7 @@ export function ObjectListPanel() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5"
+                        size="icon" variant="ghost" className="h-5 w-5"
                         onClick={e => { e.stopPropagation(); moveObject(obj.id, 'up') }}
                       >
                         <ChevronUp className="h-3 w-3" />
@@ -212,9 +255,7 @@ export function ObjectListPanel() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5"
+                        size="icon" variant="ghost" className="h-5 w-5"
                         onClick={e => { e.stopPropagation(); moveObject(obj.id, 'down') }}
                       >
                         <ChevronDown className="h-3 w-3" />
@@ -227,9 +268,7 @@ export function ObjectListPanel() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5 hover:text-destructive"
+                        size="icon" variant="ghost" className="h-5 w-5 hover:text-destructive"
                         onClick={e => { e.stopPropagation(); removeObject(obj.id) }}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -242,7 +281,7 @@ export function ObjectListPanel() {
             )
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }
