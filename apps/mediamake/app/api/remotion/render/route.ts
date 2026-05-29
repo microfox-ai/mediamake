@@ -116,7 +116,7 @@ export const POST = async (req: NextRequest) => {
     // 1. Quota: soft-cap on TRIGGER COUNT.  2. Config: check Lambda settings against user's limits.
     // Admins bypass entirely.
     const requestClientId = req.headers.get('x-client-id');
-    if (requestClientId && !isAdmin(requestClientId)) {
+    if (requestClientId && !(await isAdmin(requestClientId))) {
       // 1. Trigger count quota
       const check = await userQuotaDB.checkPlatform(requestClientId, 'render');
       if (!check.allowed) {
@@ -263,7 +263,7 @@ export const POST = async (req: NextRequest) => {
           isCalculated: false,
         });
         // Increment quota usage after successful dispatch (soft-cap: render already running)
-        if (clientId && !isAdmin(clientId)) {
+        if (clientId && !(await isAdmin(clientId))) {
           await userQuotaDB.incrementUsage(clientId, 'render');
         }
       }
@@ -321,7 +321,7 @@ export const POST = async (req: NextRequest) => {
         isCalculated: false,
       });
       // Increment quota usage after successful dispatch (soft-cap: render already sent to Lambda)
-      if (clientId && !isAdmin(clientId)) {
+      if (clientId && !(await isAdmin(clientId))) {
         await userQuotaDB.incrementUsage(clientId, 'render');
       }
     }

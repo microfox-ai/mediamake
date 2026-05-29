@@ -64,7 +64,7 @@ export async function POST(
     const userId = middlewareClientId || sessionClientId;
 
     // ── Worker permission check ──────────────────────────────────────────
-    if (userId && !isAdmin(userId)) {
+    if (userId && !(await isAdmin(userId))) {
       const quota = await userQuotaDB.getByClientId(userId);
       const permCheck = userQuotaDB.checkWorkerPermission(quota?.workerPermissions, 'worker');
       if (!permCheck.allowed) {

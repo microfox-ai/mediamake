@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const quota = await userQuotaDB.getByClientId(clientId);
-  const admin = isAdmin(clientId);
+  const admin = await isAdmin(clientId);
 
   // Decorate each platform with its next-reset date for the UI
   const platforms = quota?.platforms
