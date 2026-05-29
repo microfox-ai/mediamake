@@ -74,7 +74,7 @@ export async function persistUsageEntries(
   // Sum total tokens across all entries and bump the user's AI quota usage.
   // Also increment per-provider usage if per-provider limits are configured.
   // Admins bypass quota tracking entirely.
-  if (clientId && !isAdmin(clientId)) {
+  if (clientId && !(await isAdmin(clientId))) {
     const totalTokens = entries.reduce((sum, e) => {
       const u = e.usage ?? {};
       return sum + (u.totalTokens ?? ((u.inputTokens ?? u.promptTokens ?? 0) + (u.outputTokens ?? u.completionTokens ?? 0)));

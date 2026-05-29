@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   // ── AI quota & permission enforcement ────────────────────────────────────
   // 1. Agent call permission toggle.  2. Global AI token quota.  3. Per-provider token quota.
   // Admins bypass all checks.
-  if (clientId && !isAdmin(clientId)) {
+  if (clientId && !(await isAdmin(clientId))) {
     // 1. Check worker/agent permissions
     const quota = await userQuotaDB.getByClientId(clientId);
     const permCheck = userQuotaDB.checkWorkerPermission(quota?.workerPermissions, 'agent');

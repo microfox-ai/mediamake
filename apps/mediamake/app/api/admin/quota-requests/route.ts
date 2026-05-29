@@ -5,7 +5,7 @@ import { quotaRequestDB, type QuotaRequestStatus } from '@/lib/quota-mongodb';
 // GET /api/admin/quota-requests?status=pending|approved|rejected
 export async function GET(req: NextRequest) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }

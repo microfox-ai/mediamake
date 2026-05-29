@@ -18,7 +18,7 @@ export async function PATCH(
 ) {
   let adminId: string;
   try {
-    adminId = requireAdmin(req);
+    adminId = await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
