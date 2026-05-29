@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation"
 
 import { NavAgents } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
+import { NavWorkers } from "@/components/nav-workers"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -37,7 +38,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { StudioConfig } from "@/microfox.config"
-import { MagnetIcon, LayoutDashboardIcon, ListIcon, KeyIcon, AudioLinesIcon, FolderOpenIcon, TvIcon, TextIcon, TypeIcon, SparklesIcon, CreditCardIcon } from "lucide-react"
+import { MagnetIcon, ListIcon, KeyIcon, AudioLinesIcon, FolderOpenIcon, TvIcon, TypeIcon, SparklesIcon, CreditCardIcon, BoxIcon, GaugeIcon, FolderIcon, FilmIcon } from "lucide-react"
 import { aiRouterRegistry } from "@/app/ai"
 
 const aiagents = Object.entries(aiRouterRegistry.map).map(([path, value]) => {
@@ -61,9 +62,19 @@ const data = {
   },
   navMain: [
     {
-      title: "Player",
-      url: "/",
-      icon: <LayoutDashboardIcon />,
+      title: "Projects",
+      url: "/projects",
+      icon: <FolderIcon />,
+    },
+    {
+      title: "Editor",
+      url: "/editor",
+      icon: <FilmIcon />,
+    },
+    {
+      title: "Quota",
+      url: "/quota",
+      icon: <GaugeIcon />,
     },
     {
       title: "Video Render History",
@@ -119,6 +130,11 @@ const data = {
       title: "Midjourney Queue",
       url: "/midjourney-queue",
       icon: <ListIcon />,
+    },
+    {
+      title: "3D Studio",
+      url: "/studio-3d",
+      icon: <BoxIcon />,
     },
     // {
     //   title: "Analytics",
@@ -246,6 +262,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavAgents items={data.documents} />
+        <NavWorkers />
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>

@@ -7,8 +7,26 @@ interface ProjectDocument {
   clientId?: string;
   displayName: string;
   tags?: string[];
+  sharedWith?: Array<{ clientId: string; role: 'editor' | 'viewer'; grantId?: string; addedAt: string }>;
   createdAt: Date;
   updatedAt: Date;
+}
+
+function projectToResponse(doc: ProjectDocument, requestingClientId?: string) {
+  const isOwned = !requestingClientId || doc.clientId === requestingClientId;
+  const sharedEntry = !isOwned
+    ? doc.sharedWith?.find((m) => m.clientId === requestingClientId)
+    : undefined;
+  return {
+    id: doc._id?.toString(),
+    displayName: doc.displayName,
+    tags: doc.tags || [],
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    isOwned,
+    sharedRole: sharedEntry?.role,
+    sharedWith: isOwned ? (doc.sharedWith ?? []) : undefined,
+  };
 }
 
 // GET /api/project
@@ -29,27 +47,23 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const skip = (page - 1) * limit;
 
+    // Build base access filter: owned OR shared with the requesting user
+    const accessFilter: any = clientId
+      ? { $or: [{ clientId }, { 'sharedWith.clientId': clientId }] }
+      : {};
+
     // If id is provided, return the specific project
     if (id) {
       try {
         const objectId = new ObjectId(id);
-        const doc = await collection.findOne({
-          _id: objectId,
-          ...(clientId ? { clientId } : {}),
-        });
+        const doc = await collection.findOne({ _id: objectId, ...accessFilter });
         if (!doc) {
           return NextResponse.json(
             { error: 'Project not found' },
             { status: 404 },
           );
         }
-        return NextResponse.json({
-          id: doc._id?.toString(),
-          displayName: doc.displayName,
-          tags: doc.tags || [],
-          createdAt: doc.createdAt,
-          updatedAt: doc.updatedAt,
-        });
+        return NextResponse.json(projectToResponse(doc, clientId));
       } catch {
         return NextResponse.json(
           { error: 'Invalid project ID' },
@@ -59,22 +73,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query for search/list
-    const query: any = {};
-    if (clientId) {
-      query.clientId = clientId;
-    }
+    const query: any = { ...accessFilter };
     if (search) {
       query.displayName = { $regex: search, $options: 'i' };
     }
     if (tag) {
-      query.tags = tag; // MongoDB will match if tag exists in the tags array
+      query.tags = tag;
     }
 
     // If search or tag is provided, return paginated results
     if (search || tag) {
       const [projects, total] = await Promise.all([
         collection
-          .find(query, { projection: { displayName: 1, tags: 1, createdAt: 1, updatedAt: 1 } })
+          .find(query)
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
@@ -82,40 +93,24 @@ export async function GET(request: NextRequest) {
         collection.countDocuments(query),
       ]);
 
-      const response = {
-        projects: projects.map((d: any) => ({
-          id: d._id.toString(),
-          displayName: d.displayName,
-          tags: d.tags || [],
-          createdAt: d.createdAt,
-          updatedAt: d.updatedAt,
-        })),
+      return NextResponse.json({
+        projects: projects.map((d) => projectToResponse(d, clientId)),
         pagination: {
           page,
           limit,
           total,
           totalPages: Math.ceil(total / limit),
         },
-      };
-
-      return NextResponse.json(response);
+      });
     }
 
-    // Otherwise, return all projects
+    // Otherwise, return all accessible projects
     const projects = await collection
       .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
-    const response = projects.map((d: any) => ({
-      id: d._id.toString(),
-      displayName: d.displayName,
-      tags: d.tags || [],
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-    }));
-
-    return NextResponse.json(response);
+    return NextResponse.json(projects.map((d) => projectToResponse(d, clientId)));
   } catch (error) {
     console.error('Error fetching projects:', error);
     const message = error instanceof Error ? error.message : String(error);

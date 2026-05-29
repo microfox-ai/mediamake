@@ -80,6 +80,18 @@ export const StudioConfig = {
         },
         ffmpeg: {
           includeNodeModules: true
+        },
+        'ai-video': {
+          includeNodeModules: false
+        },
+        'ai-image': {
+          includeNodeModules: false
+        },
+        audio: {
+          includeNodeModules: false
+        },
+        helpers: {
+          includeNodeModules: false
         }
       }
     }

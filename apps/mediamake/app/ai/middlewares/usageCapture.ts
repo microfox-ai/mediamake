@@ -6,6 +6,8 @@
 import type { AiMiddleware } from '@microfox/ai-router';
 import type { TokenUsage, UsageEntry } from '@/lib/cost-usage-types';
 import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
+import { userQuotaDB } from '@/lib/quota-mongodb';
+import { isAdmin } from '@/lib/admin-utils';
 
 /** State shape: usage is an array of UsageEntry, append-only */
 export interface UsageCaptureState {
@@ -65,6 +67,44 @@ export async function persistUsageEntries(
       });
     } catch (err) {
       console.error('[usageCapture] Failed to insert usage for', modelId, err);
+    }
+  }
+
+  // ── AI quota increment (soft-cap) ───────────────────────────────────────
+  // Sum total tokens across all entries and bump the user's AI quota usage.
+  // Also increment per-provider usage if per-provider limits are configured.
+  // Admins bypass quota tracking entirely.
+  if (clientId && !isAdmin(clientId)) {
+    const totalTokens = entries.reduce((sum, e) => {
+      const u = e.usage ?? {};
+      return sum + (u.totalTokens ?? ((u.inputTokens ?? u.promptTokens ?? 0) + (u.outputTokens ?? u.completionTokens ?? 0)));
+    }, 0);
+    if (totalTokens > 0) {
+      try {
+        await userQuotaDB.incrementUsageBy(clientId, 'ai', totalTokens);
+      } catch (err) {
+        console.error('[usageCapture] Failed to increment AI quota for', clientId, err);
+      }
+    }
+
+    // Per-provider token tracking: group entries by provider prefix (e.g. "anthropic", "google")
+    // and increment per-provider usage if a limit exists for that provider.
+    const byProvider = new Map<string, number>();
+    for (const { modelId, usage: u } of entries) {
+      if (!modelId) continue;
+      const provider = modelId.split('/')[0]?.toLowerCase();
+      if (!provider) continue;
+      const tokens = (u?.totalTokens ?? ((u?.inputTokens ?? u?.promptTokens ?? 0) + (u?.outputTokens ?? u?.completionTokens ?? 0)));
+      if (tokens > 0) {
+        byProvider.set(provider, (byProvider.get(provider) ?? 0) + tokens);
+      }
+    }
+    for (const [provider, tokens] of byProvider) {
+      try {
+        await userQuotaDB.incrementAiProviderUsage(clientId, provider, tokens);
+      } catch (err) {
+        console.error('[usageCapture] Failed to increment provider quota for', provider, err);
+      }
     }
   }
 }
