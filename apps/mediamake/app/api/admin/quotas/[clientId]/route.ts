@@ -10,7 +10,7 @@ export async function DELETE(
   { params }: { params: Promise<{ clientId: string }> },
 ) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }

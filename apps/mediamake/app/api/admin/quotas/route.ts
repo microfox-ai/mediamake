@@ -10,7 +10,7 @@ import {
 // GET /api/admin/quotas  — list all user quotas (admin)
 export async function GET(req: NextRequest) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let adminId: string;
   try {
-    adminId = requireAdmin(req);
+    adminId = await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }

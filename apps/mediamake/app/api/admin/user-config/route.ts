@@ -21,7 +21,7 @@ import {
 export async function POST(req: NextRequest) {
   let adminId: string;
   try {
-    adminId = requireAdmin(req);
+    adminId = await requireAdmin(req);
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
