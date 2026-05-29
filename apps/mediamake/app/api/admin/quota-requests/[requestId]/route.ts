@@ -14,7 +14,7 @@ import {
 // Admin may override the user's requested limit (custom increase/decrease).
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { requestId: string } },
+  { params }: { params: Promise<{ requestId: string }> },
 ) {
   let adminId: string;
   try {
@@ -23,6 +23,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
+  const { requestId } = await params;
   const body = await req.json();
   const { action, reviewNote } = body as { action: 'approve' | 'reject'; reviewNote?: string };
 
@@ -30,14 +31,14 @@ export async function PATCH(
     return NextResponse.json({ error: "action must be 'approve' or 'reject'" }, { status: 400 });
   }
 
-  const quotaReq = await quotaRequestDB.getById(params.requestId);
+  const quotaReq = await quotaRequestDB.getById(requestId);
   if (!quotaReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
   if (quotaReq.status !== 'pending') {
     return NextResponse.json({ error: `Request is already '${quotaReq.status}'` }, { status: 409 });
   }
 
   const reviewAction = action === 'approve' ? 'approved' : 'rejected';
-  const updated = await quotaRequestDB.review(params.requestId, adminId, reviewAction, reviewNote);
+  const updated = await quotaRequestDB.review(requestId, adminId, reviewAction, reviewNote);
 
   let quota = null;
   if (action === 'approve') {

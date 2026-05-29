@@ -7,7 +7,7 @@ import { userQuotaDB, ALL_PLATFORMS, type Platform } from '@/lib/quota-mongodb';
 //   - Without            removes the user's entire quota document
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { clientId: string } },
+  { params }: { params: Promise<{ clientId: string }> },
 ) {
   try {
     requireAdmin(req);
@@ -15,17 +15,18 @@ export async function DELETE(
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
+  const { clientId } = await params;
   const platform = new URL(req.url).searchParams.get('platform') as Platform | null;
 
   if (platform) {
     if (!ALL_PLATFORMS.includes(platform)) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
-    await userQuotaDB.removePlatform(params.clientId, platform);
+    await userQuotaDB.removePlatform(clientId, platform);
     return NextResponse.json({ success: true });
   }
 
-  const deleted = await userQuotaDB.deleteQuota(params.clientId);
+  const deleted = await userQuotaDB.deleteQuota(clientId);
   if (!deleted) return NextResponse.json({ error: 'Quota not found' }, { status: 404 });
   return NextResponse.json({ success: true });
 }
