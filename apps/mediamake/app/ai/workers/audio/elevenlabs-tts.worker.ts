@@ -38,7 +38,7 @@ const InputSchema = z.object({
     similarityBoost: z.number().min(0).max(1).optional().default(0.75),
     style: z.number().min(0).max(1).optional().default(0),
     useSpeakerBoost: z.boolean().optional().default(true),
-  }).optional().default({}),
+  }).optional().default({ stability: 0.5, similarityBoost: 0.75, style: 0, useSpeakerBoost: true }),
   /** Pronunciation dictionary locators — override specific word pronunciations */
   pronunciationDictionaryLocators: z.array(z.object({
     pronunciation_dictionary_id: z.string(),

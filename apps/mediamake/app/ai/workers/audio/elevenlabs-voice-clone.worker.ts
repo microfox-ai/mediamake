@@ -28,7 +28,7 @@ const InputSchema = z.object({
    */
   sampleUrls: z.array(z.string().url()).min(1).max(25),
   /** Labels for categorization */
-  labels: z.record(z.string()).optional(),
+  labels: z.record(z.string(), z.string()).optional(),
   clientId: z.string().optional().default('default'),
   projectId: z.string().optional().nullable(),
 });
