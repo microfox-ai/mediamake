@@ -483,8 +483,9 @@ const Viewport = forwardRef<ViewportHandle>((_, ref) => {
         if (cs) {
           camera.position.set(cs.position[0], cs.position[1], cs.position[2])
           camera.lookAt(cs.target[0], cs.target[1], cs.target[2])
-          ;(camera as THREE.PerspectiveCamera).fov = cs.fov
-          camera.updateProjectionMatrix()
+          const perspCam = camera as THREE.PerspectiveCamera
+          perspCam.fov = cs.fov
+          perspCam.updateProjectionMatrix()
         }
       }
 
