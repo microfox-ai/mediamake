@@ -76,16 +76,30 @@ interface DiffPaneProps {
   onClose: () => void;
   /** Optional action buttons rendered in the header (used by AllChangesPane). */
   extraActions?: Array<{ label: string; onClick: () => void; className: string }>;
+  /** Override panel labels (default: "Original (last saved)" / "Current (unsaved)") */
+  originalLabel?: string;
+  modifiedLabel?: string;
+  /** Hide the top-level diff header (used when embedded inside VcsCommitDiffPane). */
+  hideHeader?: boolean;
 }
 
-export function DiffPane({ fileName, original, modified, onClose, extraActions }: DiffPaneProps) {
+export function DiffPane({
+  fileName,
+  original,
+  modified,
+  onClose,
+  extraActions,
+  originalLabel = 'Original (last saved)',
+  modifiedLabel = 'Current (unsaved)',
+  hideHeader = false,
+}: DiffPaneProps) {
   const { left, right } = useMemo(() => {
     const diff = computeDiff(original, modified);
     return splitDiff(diff);
   }, [original, modified]);
 
-  const addedCount = left.filter((l) => l.text === '' && right[left.indexOf(l)]?.type === 'added').length;
-  const removedCount = right.filter((r) => r.text === '' && left[right.indexOf(r)]?.type === 'removed').length;
+  const addedCount = right.filter((l) => l.type === 'added').length;
+  const removedCount = left.filter((l) => l.type === 'removed').length;
 
   // Synced scroll
   const leftScrollRef = useRef<HTMLDivElement>(null);
@@ -104,34 +118,36 @@ export function DiffPane({ fileName, original, modified, onClose, extraActions }
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Diff header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted px-4 py-2">
-        <span className="text-[11px] text-foreground/60 font-medium">Diff: {fileName}</span>
-        <div className="flex items-center gap-2 text-[10px]">
-          <span className="text-green-600 dark:text-green-400">+{addedCount} added</span>
-          <span className="text-red-600 dark:text-red-400">-{removedCount} removed</span>
+      {!hideHeader && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted px-4 py-2">
+          <span className="text-[11px] text-foreground/60 font-medium">Diff: {fileName}</span>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-green-600 dark:text-green-400">+{addedCount} added</span>
+            <span className="text-red-600 dark:text-red-400">-{removedCount} removed</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="rounded border border-border px-1.5 py-0.5">Saved</span>
+            <span className="text-muted-foreground/40">←→</span>
+            <span className="rounded border border-violet-500/30 px-1.5 py-0.5 text-violet-600 dark:text-violet-400">Current</span>
+            {extraActions?.map((a) => (
+              <button key={a.label} onClick={a.onClick} className={a.className}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={onClose} className="ml-3 rounded p-1 text-muted-foreground hover:text-foreground transition-colors" title="Close diff">
+            <X size={13} />
+          </button>
         </div>
-        <div className="ml-auto flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span className="rounded border border-border px-1.5 py-0.5">Saved</span>
-          <span className="text-muted-foreground/40">←→</span>
-          <span className="rounded border border-violet-500/30 px-1.5 py-0.5 text-violet-600 dark:text-violet-400">Current</span>
-          {extraActions?.map((a) => (
-            <button key={a.label} onClick={a.onClick} className={a.className}>
-              {a.label}
-            </button>
-          ))}
-        </div>
-        <button onClick={onClose} className="ml-3 rounded p-1 text-muted-foreground hover:text-foreground transition-colors" title="Close diff">
-          <X size={13} />
-        </button>
-      </div>
+      )}
 
       {/* Two-pane diff */}
       <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-        {/* Left — original (saved) */}
+        {/* Left — original */}
         <ResizablePanel defaultSize={50} minSize={25}>
           <div className="flex h-full flex-col">
             <div className="shrink-0 border-b border-border bg-background px-4 py-1 text-[10px] text-muted-foreground">
-              Original (last saved)
+              {originalLabel}
             </div>
             <DiffSidePanel lines={left} side="left" scrollRef={leftScrollRef} onScroll={syncScroll('left')} />
           </div>
@@ -139,11 +155,11 @@ export function DiffPane({ fileName, original, modified, onClose, extraActions }
 
         <ResizableHandle className="w-px bg-border transition-colors hover:bg-violet-500/40" />
 
-        {/* Right — modified (current) */}
+        {/* Right — modified */}
         <ResizablePanel defaultSize={50} minSize={25}>
           <div className="flex h-full flex-col">
             <div className="shrink-0 border-b border-border bg-background px-4 py-1 text-[10px] text-violet-600 dark:text-violet-400/70">
-              Current (unsaved)
+              {modifiedLabel}
             </div>
             <DiffSidePanel lines={right} side="right" scrollRef={rightScrollRef} onScroll={syncScroll('right')} />
           </div>

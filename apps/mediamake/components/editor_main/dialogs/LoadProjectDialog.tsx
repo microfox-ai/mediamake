@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Search, Share2Icon } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { useProjectStore } from "../stores/project-store";
 import {
@@ -23,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ShareProjectDialog } from "./ShareProjectDialog";
 
 interface Project {
   id: string;
@@ -30,6 +32,9 @@ interface Project {
   tags?: string[];
   createdAt: string;
   updatedAt: string;
+  isOwned?: boolean;
+  sharedRole?: 'editor' | 'viewer';
+  sharedWith?: Array<{ clientId: string; role: string }>;
 }
 
 interface PaginationInfo {
@@ -54,6 +59,7 @@ export function LoadProjectDialog({ open, onOpenChange }: LoadProjectDialogProps
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [shareTarget, setShareTarget] = useState<Project | null>(null);
   const router = useRouter();
   const { setCurrentProjectId, loadProjectTimelines } = useProjectStore();
   const session = useSession();
@@ -226,16 +232,31 @@ export function LoadProjectDialog({ open, onOpenChange }: LoadProjectDialogProps
             ) : (
               <div className="space-y-1">
                 {projects.map((project) => (
-                  <Button
+                  <div
                     key={project.id}
-                    variant="ghost"
-                    className="w-full justify-start text-left"
-                    onClick={() => handleLoadProject(project.id)}
-                    disabled={isLoading}
+                    className="flex items-center gap-1 rounded-md hover:bg-accent transition-colors group"
                   >
-                    <div className="flex flex-col items-start">
-                      <div className="font-medium">{project.displayName}</div>
-                      <div className="flex items-center gap-2 mt-1">
+                    {/* Clickable load area */}
+                    <button
+                      className="flex-1 flex flex-col items-start text-left px-3 py-2 min-w-0"
+                      onClick={() => handleLoadProject(project.id)}
+                      disabled={isLoading}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{project.displayName}</span>
+                        {project.isOwned === false && project.sharedRole && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {project.sharedRole}
+                          </Badge>
+                        )}
+                        {project.isOwned && project.sharedWith && project.sharedWith.length > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
+                            <Share2Icon className="h-2.5 w-2.5" />
+                            {project.sharedWith.length}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {project.tags && project.tags.length > 0 && (
                           <div className="flex gap-1 flex-wrap">
                             {project.tags.map((tag) => (
@@ -248,12 +269,28 @@ export function LoadProjectDialog({ open, onOpenChange }: LoadProjectDialogProps
                             ))}
                           </div>
                         )}
-                        <div className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           Updated {new Date(project.updatedAt).toLocaleDateString()}
-                        </div>
+                        </span>
                       </div>
-                    </div>
-                  </Button>
+                    </button>
+
+                    {/* Share button — only for owned projects */}
+                    {project.isOwned !== false && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground mr-1"
+                        title="Share project"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShareTarget(project);
+                        }}
+                      >
+                        <Share2Icon className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -290,6 +327,16 @@ export function LoadProjectDialog({ open, onOpenChange }: LoadProjectDialogProps
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Share project dialog — rendered outside the scroll area to avoid z-index issues */}
+      {shareTarget && (
+        <ShareProjectDialog
+          open={!!shareTarget}
+          onOpenChange={(v) => { if (!v) setShareTarget(null); }}
+          projectId={shareTarget.id}
+          projectName={shareTarget.displayName}
+        />
+      )}
     </Dialog>
   );
 }

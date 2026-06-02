@@ -1,6 +1,20 @@
 import { AiRouterTools } from '@/app/ai';
 import { isToolUIPart, UIMessage } from 'ai';
 import { aiRouterRegistry } from '@/app/ai';
+import type { QuotaError } from '@/components/quota-exhausted-dialog';
+
+/**
+ * Thrown by callAgent when the AI quota check rejects the call (403 / 429).
+ * Catch this in UI to show the QuotaExhaustedDialog.
+ */
+export class QuotaExhaustedError extends Error {
+  quotaError: QuotaError;
+  constructor(quotaError: QuotaError, message?: string) {
+    super(message ?? 'AI quota exhausted');
+    this.name = 'QuotaExhaustedError';
+    this.quotaError = quotaError;
+  }
+}
 
 /**
  * Generic helper function to call any agent API endpoint
@@ -21,6 +35,19 @@ export async function callAgent(
       body: JSON.stringify(params),
     });
     if (!response.ok) {
+      // 403/429 with structured quotaError → throw a typed error so callers
+      // can pop the QuotaExhaustedDialog instead of a generic toast.
+      if (response.status === 403 || response.status === 429) {
+        try {
+          const json = await response.clone().json();
+          if (json?.quotaError) {
+            throw new QuotaExhaustedError(json.quotaError as QuotaError, json.message);
+          }
+        } catch (e) {
+          if (e instanceof QuotaExhaustedError) throw e;
+          // not JSON / no quotaError — fall through to generic error below
+        }
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const result = (await response.json()) as UIMessage<any, any, any>[];

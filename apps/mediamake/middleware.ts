@@ -27,9 +27,13 @@ export default async function middleware(request: NextRequest) {
     if (session && session.expires > Date.now()) {
       // If a valid session exists, authenticate the request and bypass API key logic.
       // console.log(`[Middleware] ✅ Valid session found for client: ${session.clientId}`);
-      const response = NextResponse.next();
-      response.headers.set('x-client-id', session.clientId);
-      return response;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-client-id', session.clientId);
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
     // console.log(`[Middleware] Session invalid or expired`);
   }
@@ -54,13 +58,14 @@ export default async function middleware(request: NextRequest) {
     if (devApiKey) {
       bearer = devApiKey;
     }
-    const response = NextResponse.next();
-    response.headers.set(
-      'x-client-id',
-      process.env.NEXT_PUBLIC_DEV_CLIENT_ID ?? 'dev',
-    );
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-client-id', process.env.NEXT_PUBLIC_DEV_CLIENT_ID ?? 'dev');
     // console.log(`[Middleware] ✅ Dev mode authenticated`);
-    return response;
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
     //return NextResponse.next();
   }
 
@@ -115,10 +120,13 @@ export default async function middleware(request: NextRequest) {
 
   // Pass the clientId as a header to the next request
   // console.log(`[Middleware] ✅✅✅ Authentication successful for client: ${apiKeyInfo.clientId}`);
-  const response = NextResponse.next();
-  response.headers.set('x-client-id', apiKeyInfo.clientId);
-
-  return response;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-client-id', apiKeyInfo.clientId);
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

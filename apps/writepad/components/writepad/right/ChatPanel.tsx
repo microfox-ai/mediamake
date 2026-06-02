@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Plus, History, X, MessageSquare, Loader2 } from 'lucide-react';
+import { Plus, History, X, MessageSquare, Loader2, Sparkles } from 'lucide-react';
 import type { UIMessage } from 'ai';
 import { cn } from '@/lib/utils';
 import { ChatSession } from './ChatSession';
 import { ChatSessionList } from './ChatSessionList';
+import { WordGenerationsPanel } from './WordGenerationsPanel';
 import type {
   ChatSession as ChatSessionType,
   AIChange,
@@ -37,11 +38,23 @@ interface ChatPanelProps {
   onContextConsumed: () => void;
   getAllFiles: () => ProjectFile[];
   getFileContent: (fileId: string) => string;
+  /** Set a file's full draft content (used for safe-revert of AI changes). */
+  setFileContent: (fileId: string, content: string) => Promise<void>;
   changeStatuses: Record<string, 'applied' | 'declined'>;
   onApplyChange: (change: AIChange) => void;
   onDeclineChange: (change: AIChange) => void;
   /** Called after AI finishes a response — re-fetches files to pick up AI-created files. */
   onFilesChanged: () => Promise<void>;
+  activeFileId: string | null;
+  activeFileName: string | null;
+  allBranches?: string[];
+  currentBranch?: string;
+  /** File IDs with unsaved in-memory edits — forwarded to ChatSession for revert safety. */
+  unsavedIds?: Set<string>;
+  /** Apply a batch of file snapshot updates to local state — forwarded to ChatSession. */
+  onApplyFileSnapshot?: (updates: Array<{ fileId: string; snapshot: { fileId: string; name: string; type: 'file' | 'folder'; parentId: string | null; content: string; order: number } | null }>) => Promise<void>;
+  /** Called when the active chat session starts or stops streaming. */
+  onChatStreamingChange?: (isStreaming: boolean) => void;
 }
 
 export function ChatPanel({
@@ -52,10 +65,18 @@ export function ChatPanel({
   onContextConsumed,
   getAllFiles,
   getFileContent,
+  setFileContent,
   changeStatuses,
   onApplyChange,
   onDeclineChange,
   onFilesChanged,
+  activeFileId,
+  activeFileName,
+  allBranches = [],
+  currentBranch = '',
+  unsavedIds = new Set(),
+  onApplyFileSnapshot = async () => {},
+  onChatStreamingChange,
 }: ChatPanelProps) {
   const [sessions, setSessions] = useState<ChatSessionType[]>([]);
   const sessionsRef = useRef<ChatSessionType[]>([]);
@@ -194,6 +215,47 @@ export function ChatPanel({
     [openTabIds, activeChatId, onActiveChatChange],
   );
 
+  /**
+   * Fork a slice of an existing chat into a new session.
+   * - targetUserId undefined → fork for the current user (opens new tab).
+   * - targetUserId provided → fork for another project member (no tab opened).
+   */
+  const handleForkSession = useCallback(
+    async (
+      messages: UIMessage[],
+      messageMeta: Record<string, MessageMeta>,
+      title: string,
+      targetUserId?: string,
+    ) => {
+      const res = await fetch(`/api/projects/${projectId}/chats/fork`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, messages, messageMeta, targetUserId }),
+      });
+      if (!res.ok) { console.error('[ChatPanel] fork failed', await res.text()); return; }
+      const { id } = await res.json() as { id: string };
+
+      if (!targetUserId) {
+        // Self-fork: add to local state and open tab
+        messagesHydratedRef.current.add(id);
+        const newSession: ChatSessionType = {
+          id,
+          title,
+          messages,
+          messageMeta,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        setSessions((prev) => [newSession, ...prev]);
+        setOpenTabIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+        onActiveChatChange(id);
+        setView('chat');
+      }
+      // For shares to other users we do nothing locally — they will see it in their chat history
+    },
+    [projectId, onActiveChatChange],
+  );
+
   /** Permanently delete a session from DB and remove from all state. */
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -325,13 +387,31 @@ export function ChatPanel({
             >
               <History size={13} />
             </button>
+            <button
+              onClick={() => setView((v) => (v === 'generations' ? 'chat' : 'generations'))}
+              className={cn(
+                'rounded p-1 transition-colors',
+                view === 'generations'
+                  ? 'text-violet-500 dark:text-violet-400'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
+              title="Word generations"
+            >
+              <Sparkles size={13} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Body */}
       <div className="flex-1 overflow-hidden">
-        {view === 'history' ? (
+        {view === 'generations' ? (
+          <WordGenerationsPanel
+            projectId={projectId}
+            activeFileId={activeFileId}
+            activeFileName={activeFileName}
+          />
+        ) : view === 'history' ? (
           <ChatSessionList
             sessions={sessions}
             activeSessionId={activeChatId ?? ''}
@@ -378,9 +458,16 @@ export function ChatPanel({
             onMessagesUpdate={handleMessagesUpdate}
             getAllFiles={getAllFiles}
             getFileContent={getFileContent}
+            setFileContent={setFileContent}
             changeStatuses={changeStatuses}
             onApplyChange={onApplyChange}
             onDeclineChange={onDeclineChange}
+            allBranches={allBranches}
+            currentBranch={currentBranch}
+            unsavedFileIds={unsavedIds}
+            onApplyFileSnapshot={onApplyFileSnapshot}
+            onForkSession={handleForkSession}
+            onChatStreamingChange={onChatStreamingChange}
           />
         )}
       </div>

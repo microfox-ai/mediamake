@@ -39,6 +39,7 @@ export async function indexAndAnalyzeImage(
   clientId: string,
   additionalData?: Partial<AnalysisRequestBody> & {
     projectId?: string | null;
+    metadata?: Partial<RagImageMetadata>;
     analyzeImage?: boolean;
     generateDescription?: boolean;
     generateKeywords?: boolean;
@@ -62,6 +63,7 @@ export async function indexAndAnalyzeImage(
       pageLink: additionalData?.pageLink,
       imageLink: additionalData?.imageLink,
       promptUsed: additionalData?.promptUsed,
+      metadata: additionalData?.metadata,
       analyzeImage: additionalData?.analyzeImage ?? true,
       generateDescription: additionalData?.generateDescription ?? true,
       generateKeywords: additionalData?.generateKeywords ?? true,
