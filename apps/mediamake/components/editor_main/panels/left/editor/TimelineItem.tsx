@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
     ContextMenu,
@@ -63,6 +64,9 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const [isBlocksOpen, setIsBlocksOpen] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
     const [showPresetLibrary, setShowPresetLibrary] = useState(false);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [renameValue, setRenameValue] = useState("");
+    const renameInputRef = useRef<HTMLInputElement>(null);
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
@@ -79,6 +83,15 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
     const presets = displayTimeline.presets || [];
     const references = (displayTimeline.defaultData?.references || []) as ReferenceItem[];
+
+    // Auto-focus the rename input when it becomes visible
+    useEffect(() => {
+        if (isRenaming) {
+            requestAnimationFrame(() => {
+                renameInputRef.current?.select();
+            });
+        }
+    }, [isRenaming]);
 
     const ensureTimelineLoaded = async () => {
         if (loadedTimeline?.id === timeline.id) {
@@ -173,6 +186,43 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
             console.error("Error deleting timeline:", error);
             alert("Failed to delete timeline. Please try again.");
         }
+    };
+
+    const handleStartRename = () => {
+        setRenameValue(displayTimeline.displayName ?? "");
+        setIsRenaming(true);
+    };
+
+    const handleCommitRename = async () => {
+        const trimmed = renameValue.trim();
+        if (!trimmed || trimmed === displayTimeline.displayName) {
+            setIsRenaming(false);
+            return;
+        }
+        updateTimeline(timeline.id, { displayName: trimmed });
+        setIsRenaming(false);
+        // Persist to server in the background
+        try {
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (session?.clientId) headers["x-client-id"] = session.clientId;
+            await fetch("/api/project/timeline", {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({
+                    timeline: {
+                        ...(getEditedTimeline(timeline.id) || displayTimeline),
+                        displayName: trimmed,
+                    },
+                }),
+            });
+        } catch (err) {
+            console.error("Failed to save timeline rename", err);
+        }
+    };
+
+    const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") { e.preventDefault(); handleCommitRename(); }
+        if (e.key === "Escape") { setIsRenaming(false); }
     };
 
     const handleAddPreset = (preset: Preset | DatabasePreset) => {
@@ -298,13 +348,29 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     ) : (
                                         <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                     )}
-                                    <HashIcon className="h-3 w-3 text-muted-foreground" />
-                                    <span className="flex-1">
-                                        {displayTimeline.displayName ?? "Untitled"}
-                                    </span>
+                                    <HashIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    {isRenaming ? (
+                                        <Input
+                                            ref={renameInputRef}
+                                            value={renameValue}
+                                            onChange={(e) => setRenameValue(e.target.value)}
+                                            onBlur={handleCommitRename}
+                                            onKeyDown={handleRenameKeyDown}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="h-5 flex-1 min-w-0 text-xs px-1 py-0 border-primary"
+                                        />
+                                    ) : (
+                                        <span className="flex-1 truncate">
+                                            {displayTimeline.displayName ?? "Untitled"}
+                                        </span>
+                                    )}
                                 </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent>
+                                <ContextMenuItem onClick={handleStartRename}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Rename
+                                </ContextMenuItem>
                                 <ContextMenuItem onClick={handleDuplicateTimeline}>
                                     <Copy className="h-4 w-4 mr-2" />
                                     Duplicate Timeline

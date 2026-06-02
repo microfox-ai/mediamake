@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { File, Eye, EyeOff, Play, DivideIcon, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
+import { File, Eye, EyeOff, Play, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
@@ -10,7 +10,6 @@ import { useProjectStore } from "../../../stores/project-store";
 import { type Timeline } from "../../../stores/project-store";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -67,7 +66,6 @@ export function PresetItem({
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        // Use the edited preset if available
         selectPreset(displayPreset, displayTimeline);
     };
 
