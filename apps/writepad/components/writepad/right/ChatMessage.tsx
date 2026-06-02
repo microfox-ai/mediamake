@@ -1,5 +1,6 @@
 'use client';
 
+import type React from 'react';
 import type { UIMessage } from 'ai';
 import {
   FilePlus,
@@ -10,11 +11,25 @@ import {
   FolderPlus,
   Check,
   Globe,
+  RotateCcw,
+  Undo2,
+  GitFork,
+  Share2,
+  Hammer,
+  ChevronDown,
 } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AIChangeBlock } from './AIChangeBlock';
 import { AssistantMarkdown } from './AssistantMarkdown';
 import type { AIChange, MessageMeta, ContextAttachment } from './types';
+
+const MODE_LABELS: Record<string, { label: string; color: string }> = {
+  ask: { label: 'Ask', color: 'bg-sky-500/15 text-sky-400' },
+  agent: { label: 'Agent', color: 'bg-violet-500/15 text-violet-400' },
+  auto: { label: 'Auto', color: 'bg-emerald-500/15 text-emerald-400' },
+  plan: { label: 'Plan', color: 'bg-amber-500/15 text-amber-400' },
+};
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -23,6 +38,16 @@ interface ChatMessageProps {
   changeStatuses: Record<string, 'applied' | 'declined'>;
   onApplyChange: (change: AIChange) => void;
   onDeclineChange: (change: AIChange) => void;
+  isStreaming?: boolean;
+  onRetry?: () => void;
+  onRetryWithTweaks?: () => void;
+  onRevert?: () => void;
+  onFork?: () => void;
+  onShare?: () => void;
+  /** Chat mode of the preceding user message — used to show build-plan widget. */
+  precedingChatMode?: string;
+  /** If set, shows a "Build this plan" widget below the AI response. */
+  onBuildPlan?: () => void;
 }
 
 export function ChatMessage({
@@ -32,8 +57,17 @@ export function ChatMessage({
   changeStatuses,
   onApplyChange,
   onDeclineChange,
+  isStreaming = false,
+  onRetry,
+  onRetryWithTweaks,
+  onRevert,
+  onFork,
+  onShare,
+  precedingChatMode,
+  onBuildPlan,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const [retryOpen, setRetryOpen] = useState(false);
 
   function renderUserContent() {
     if (!meta?.segments?.length) {
@@ -119,8 +153,21 @@ export function ChatMessage({
     );
   }
 
+  const hasActions = onRetry || onRevert || onFork || onShare;
+  const modeInfo = meta?.chatMode ? MODE_LABELS[meta.chatMode] : undefined;
+  // Badge shown on AI responses that came from plan mode
+  const isPlanResponse = !isUser && precedingChatMode === 'plan';
+
   return (
-    <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
+    <div className={cn('group/msg flex flex-col gap-0.5', isUser ? 'items-end' : 'items-start')}>
+      {/* Mode badge on user messages */}
+      {isUser && modeInfo && (
+        <span className={cn('rounded px-1.5 py-0.5 text-[9px] font-medium mb-0.5', modeInfo.color)}>
+          {modeInfo.label}
+          {meta?.agentId ? ` · ${meta.agentId.replace(/^(local:|project:)/, '')}` : ''}
+        </span>
+      )}
+
       <div
         className={cn(
           'rounded-lg px-3 py-2',
@@ -131,10 +178,101 @@ export function ChatMessage({
       >
         {isUser ? renderUserContent() : renderAssistantContent()}
       </div>
-      <span className="text-[9px] text-muted-foreground/40">
-        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </span>
+
+      {/* Plan mode badge on AI responses */}
+      {isPlanResponse && (
+        <span className="rounded px-1.5 py-0.5 text-[9px] font-medium mb-0.5 bg-amber-500/15 text-amber-400">
+          Plan
+        </span>
+      )}
+
+      {/* Build plan widget — shown below plan-mode AI responses */}
+      {!isUser && onBuildPlan && !isStreaming && (
+        <div className="flex items-center gap-2 mt-1 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 w-full">
+          <Hammer size={12} className="text-amber-400 shrink-0" />
+          <span className="flex-1 text-[11px] text-amber-300/80">Plan saved to <code className="text-amber-400">.writepad/plans/</code></span>
+          <button
+            onClick={onBuildPlan}
+            className="shrink-0 rounded border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[10px] font-medium text-amber-300 hover:bg-amber-500/30 transition-colors"
+          >
+            Build this plan
+          </button>
+        </div>
+      )}
+
+      {/* Action bar — visible on group hover, hidden while streaming */}
+      {hasActions && !isStreaming && (
+        <div
+          className={cn(
+            'flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100',
+            isUser ? 'flex-row-reverse' : 'flex-row',
+          )}
+        >
+          {isUser && onRetry && (
+            <div className="relative flex items-center">
+              <MessageAction icon={RotateCcw} label="Retry" onClick={onRetry} />
+              {onRetryWithTweaks && (
+                <button
+                  onClick={() => setRetryOpen((v) => !v)}
+                  title="Retry options"
+                  className="flex items-center rounded px-0.5 py-0.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ChevronDown size={8} />
+                </button>
+              )}
+              {retryOpen && onRetryWithTweaks && (
+                <div className="absolute bottom-full right-0 mb-1 z-20 rounded border border-border bg-popover shadow-md min-w-[120px]">
+                  <button
+                    onClick={() => { setRetryOpen(false); onRetry(); }}
+                    className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-foreground hover:bg-accent transition-colors"
+                  >
+                    <RotateCcw size={9} /> Retry same
+                  </button>
+                  <button
+                    onClick={() => { setRetryOpen(false); onRetryWithTweaks(); }}
+                    className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-foreground hover:bg-accent transition-colors"
+                  >
+                    <RotateCcw size={9} /> Retry with tweaks
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {onRevert && (
+            <MessageAction icon={Undo2} label="Revert" onClick={onRevert} />
+          )}
+          {onFork && (
+            <MessageAction icon={GitFork} label="Fork" onClick={onFork} />
+          )}
+          {onShare && (
+            <MessageAction icon={Share2} label="Share" onClick={onShare} />
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── Message action button ─────────────────────────────────────────────────────
+
+function MessageAction({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+    >
+      <Icon size={9} />
+      <span>{label}</span>
+    </button>
   );
 }
 

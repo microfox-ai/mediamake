@@ -15,6 +15,8 @@ import {
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
+import { userQuotaDB } from '@/lib/quota-mongodb';
+import { isAdmin } from '@/lib/admin-utils';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -110,6 +112,38 @@ export const POST = async (req: NextRequest) => {
       }
     }
 
+    // ── Render quota & config enforcement ─────────────────────────────────
+    // 1. Quota: soft-cap on TRIGGER COUNT.  2. Config: check Lambda settings against user's limits.
+    // Admins bypass entirely.
+    const requestClientId = req.headers.get('x-client-id');
+    if (requestClientId && !(await isAdmin(requestClientId))) {
+      // 1. Trigger count quota
+      const check = await userQuotaDB.checkPlatform(requestClientId, 'render');
+      if (!check.allowed) {
+        return NextResponse.json(
+          { type: 'error', message: check.reason, quotaError: check.detail },
+          { status: check.status },
+        );
+      }
+
+      // 2. Lambda config limits (advanced per-user setting)
+      const quota = await userQuotaDB.getByClientId(requestClientId);
+      const configCheck = userQuotaDB.checkRenderConfig(quota?.renderConfig, {
+        memory: config.memory,
+        timeout: config.timeout,
+        concurrency: config.concurrency,
+        disk: config.disk,
+        preset: configMode === 'preset' ? awsRenderPreset : undefined,
+      });
+      if (!configCheck.allowed) {
+        return NextResponse.json(
+          { type: 'error', message: configCheck.reason },
+          { status: 403 },
+        );
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     const functionName = speculateFunctionName({
       diskSizeInMb: config.disk,
       memorySizeInMb: config.memory,
@@ -172,7 +206,7 @@ export const POST = async (req: NextRequest) => {
       renderOptions.framesPerLambda = config.framesPerLambda;
     }
 
-    const clientId = req.headers.get('x-client-id');
+    const clientId = requestClientId;
     const safeTags =
       Array.isArray(tags) ? tags.filter((t: any) => typeof t === 'string' && t.trim() !== '') : undefined;
     const safeProjectId = typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined;
@@ -228,6 +262,10 @@ export const POST = async (req: NextRequest) => {
           metadata: { renderId: stillResult.renderId, bucketName: stillResult.bucketName },
           isCalculated: false,
         });
+        // Increment quota usage after successful dispatch (soft-cap: render already running)
+        if (clientId && !(await isAdmin(clientId))) {
+          await userQuotaDB.incrementUsage(clientId, 'render');
+        }
       }
 
       return NextResponse.json({
@@ -282,8 +320,12 @@ export const POST = async (req: NextRequest) => {
         metadata: { renderId: result.renderId, bucketName: result.bucketName },
         isCalculated: false,
       });
+      // Increment quota usage after successful dispatch (soft-cap: render already sent to Lambda)
+      if (clientId && !(await isAdmin(clientId))) {
+        await userQuotaDB.incrementUsage(clientId, 'render');
+      }
     }
-    
+
     return NextResponse.json({
       ...result,
       configUsed: {

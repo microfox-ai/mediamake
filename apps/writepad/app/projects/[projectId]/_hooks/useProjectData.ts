@@ -1,31 +1,56 @@
 'use client';
 
 /**
- * useProjectData — API-backed project state with localStorage UI persistence.
+ * useProjectData — Local-first project state backed by IndexedDB.
  *
- * Three file states:
- *   unsaved  — in-memory content (lost on refresh, prompt before leaving)
- *   draft    — staged changes (AI edits land here automatically; manual "Save Draft" too)
- *   saved    — committed to DB
+ * Storage model (git analogy)
+ * ──────────────────────────
+ *   IndexedDB       ←  local working directory (persists across page loads)
+ *   server VCS      ←  remote repository (user explicitly fetches / pulls / pushes)
+ *   headSnapshot    ←  remote HEAD (used for VCS status & pull baseline)
  *
- * AI edits use applyAIDraftEdit() → applies sequentially to draft via functional
- * state update so concurrent edits don't race.
+ * File states (still maintained for UI indicators)
+ *   unsaved  — in-memory content differs from the last locally-saved version
+ *   draft    — AI-staged edit (localStorage, not server)
+ *   saved    — persisted to IndexedDB (no longer a server write)
+ *
+ * What still calls the server
+ * ──────────────────────────
+ *   addFile / addFolder / renameNode / deleteNode / moveNode
+ *     → server manages file entity IDs and metadata in project_files
+ *   VCS commit (in useVcsStore) → server writes committed content to project_files
+ *   VCS checkout / restore / merge (in useVcsStore) → server updates project_files
+ *     but we immediately apply the result locally via applySnapshotToLocal
+ *
+ * What no longer calls the server
+ * ────────────────────────────────
+ *   saveFile / saveDraft / setFileDraft / revertFileDraft / applyAIDraftEdit
+ *     → all local-only; content stays in IndexedDB until VCS commit
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { FileNode } from '@/components/writepad/left/types';
 import type { OpenTab } from '@/components/writepad/middle/types';
 import type { AIChange } from '@/components/writepad/right/types';
+import {
+  loadLocalFiles,
+  saveLocalFiles,
+  upsertLocalFile,
+  deleteLocalFile,
+  hasLocalFiles,
+  type LocalFile,
+} from '@/lib/localRepo';
+import type { HeadSnapshotArray, PullFileUpdate } from './useVcsStore';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface FlatFile {
+/** Raw file as returned by the server /files endpoint. */
+interface ServerFile {
   id: string;
   name: string;
   type: 'file' | 'folder';
   parentId: string | null;
   content: string;
-  /** Staged draft content from DB, null if no draft exists. */
   draft: string | null;
   order: number;
 }
@@ -44,27 +69,20 @@ export interface ProjectDataState {
   openTabs: OpenTab[];
   activeFileId: string | null;
   activeTab: OpenTab | null;
-  /** fileIds with unsaved edits (content !== draftContent ?? savedContent). */
   unsavedIds: Set<string>;
-  /** fileIds with staged draft changes (draftContent !== null && !== savedContent). */
   draftedIds: Set<string>;
   activeChatId: string | null;
   setActiveChatId: (id: string | null) => void;
   openFile: (node: FileNode) => void;
   closeTab: (fileId: string) => void;
+  /** Batch-close multiple tabs; active file switches to nearest remaining tab. */
+  closeTabs: (fileIds: string[]) => void;
   setActiveFileId: (id: string) => void;
   updateContent: (fileId: string, content: string) => void;
-  /** Commit current editor content to saved state in DB. Clears draft. */
   saveFile: (fileId: string) => void;
   saveAll: () => void;
-  /** Stage current editor content as draft (without committing to saved). */
   saveDraft: (fileId: string) => void;
-  /** Revert draft to saved state, clearing all AI edits for this file. */
   revertFileDraft: (fileId: string) => void;
-  /**
-   * Apply an AI-proposed edit to the draft state.
-   * Uses functional state update so sequential calls don't race.
-   */
   applyAIDraftEdit: (change: AIChange) => void;
   addFile: (parentId: string | null, name: string) => void;
   addFolder: (parentId: string | null, name: string) => void;
@@ -72,14 +90,25 @@ export interface ProjectDataState {
   deleteNode: (nodeId: string) => void;
   moveNode: (nodeId: string, newParentId: string | null) => void;
   getFileContent: (fileId: string) => string;
-  getAllFiles: () => Array<{ fileId: string; fileName: string; content: string; type: 'file' | 'folder'; parentId: string | null }>;
-  /** Re-fetch files from server (call after AI creates/deletes files). */
+  getAllFiles: () => Array<{
+    fileId: string;
+    fileName: string;
+    content: string;
+    type: 'file' | 'folder';
+    parentId: string | null;
+  }>;
   refreshFiles: () => Promise<void>;
-  /** Directly set draft content for a file (used by inline diff decline). */
+  /**
+   * Apply a VCS snapshot (from checkout / merge / revert / pull) to the local
+   * working directory.  Updates IndexedDB and React state in one shot.
+   *
+   * @param updates  Array from useVcsStore — snapshot=null means delete the file.
+   */
+  applySnapshotToLocal: (updates: PullFileUpdate[]) => Promise<void>;
   setFileDraft: (fileId: string, newDraft: string) => Promise<void>;
 }
 
-// ─── localStorage ─────────────────────────────────────────────────────────────
+// ─── localStorage UI persistence ──────────────────────────────────────────────
 
 const uiKey = (projectId: string) => `writepad_ui_${projectId}`;
 
@@ -98,23 +127,34 @@ function saveUIState(projectId: string, state: UIState) {
   try { localStorage.setItem(uiKey(projectId), JSON.stringify(state)); } catch { /* ignore */ }
 }
 
-// ─── Tree builder ─────────────────────────────────────────────────────────────
+// ─── Tree builder ──────────────────────────────────────────────────────────────
 
-function buildTree(flat: FlatFile[]): FileNode[] {
+function sortNodes(nodes: FileNode[]): void {
+  nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+  for (const node of nodes) {
+    if (node.children) sortNodes(node.children);
+  }
+}
+
+function buildTree(flat: LocalFile[]): FileNode[] {
   const map = new Map<string, FileNode>();
   const roots: FileNode[] = [];
   for (const f of flat) {
-    map.set(f.id, {
-      id: f.id, name: f.name, type: f.type,
+    map.set(f.fileId, {
+      id: f.fileId, name: f.name, type: f.type,
       content: f.type === 'file' ? (f.draft ?? f.content) : undefined,
       children: f.type === 'folder' ? [] : undefined,
     });
   }
   for (const f of flat) {
-    const node = map.get(f.id)!;
+    const node = map.get(f.fileId)!;
     if (f.parentId && map.has(f.parentId)) map.get(f.parentId)!.children!.push(node);
     else roots.push(node);
   }
+  sortNodes(roots);
   return roots;
 }
 
@@ -127,7 +167,7 @@ export function flattenFiles(nodes: FileNode[]): FileNode[] {
   return out;
 }
 
-// ─── Apply AI edit helper (pure) ──────────────────────────────────────────────
+// ─── Apply AI edit helper ──────────────────────────────────────────────────────
 
 function applyEditToContent(base: string, change: AIChange): string {
   const lines = base.split('\n');
@@ -142,65 +182,95 @@ function applyEditToContent(base: string, change: AIChange): string {
   return result.join('\n');
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── server file → LocalFile ───────────────────────────────────────────────────
+
+function serverToLocal(projectId: string, f: ServerFile): LocalFile {
+  return {
+    projectId,
+    fileId: f.id,
+    name: f.name,
+    type: f.type,
+    parentId: f.parentId,
+    content: f.content,
+    draft: f.draft ?? null,
+    order: f.order,
+  };
+}
+
+// ─── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useProjectData(projectId: string): ProjectDataState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
-  const [flatFiles, setFlatFiles] = useState<FlatFile[]>([]);
+  const [flatFiles, setFlatFiles] = useState<LocalFile[]>([]);
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [activeFileId, setActiveFileIdState] = useState<string | null>(null);
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
 
-  const flatFilesRef = useRef<FlatFile[]>([]);
+  const flatFilesRef = useRef<LocalFile[]>([]);
   flatFilesRef.current = flatFiles;
 
   const openTabsRef = useRef<OpenTab[]>([]);
   openTabsRef.current = openTabs;
 
-  // Debounced draft persist — avoids a flood of PUTs when AI applies many edits
-  const draftTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const scheduleDraftPersist = useCallback((fileId: string) => {
-    const existing = draftTimers.current.get(fileId);
+  // Debounced IndexedDB persist — write local edits to IndexedDB 1.5 s after idle
+  const idbTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const scheduleIdbPersist = useCallback((fileId: string) => {
+    const existing = idbTimers.current.get(fileId);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
-      draftTimers.current.delete(fileId);
-      const flat = flatFilesRef.current.find((f) => f.id === fileId);
-      if (flat && flat.draft !== null) {
-        fetch(`/api/projects/${projectId}/files/${fileId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ draft: flat.draft }),
-        }).catch(console.error);
-      }
+      idbTimers.current.delete(fileId);
+      const flat = flatFilesRef.current.find((f) => f.fileId === fileId);
+      if (flat) upsertLocalFile(flat).catch(console.error);
     }, 1500);
-    draftTimers.current.set(fileId, timer);
-  }, [projectId]);
+    idbTimers.current.set(fileId, timer);
+  }, []);
 
-  // ── Initial load ────────────────────────────────────────────────────────────
+  // ── Initial load ─────────────────────────────────────────────────────────────
+  // Strategy: try IndexedDB first (instant); if empty → fetch from server + seed IndexedDB.
 
   useEffect(() => {
     if (!projectId) return;
-    Promise.all([
-      fetch(`/api/projects/${projectId}`).then((r) => r.json()),
-      fetch(`/api/projects/${projectId}/files`).then((r) => r.json()),
-    ])
-      .then(([project, files]: [{ name?: string; error?: string }, FlatFile[]]) => {
-        if (project.error) { setError(project.error); return; }
-        setProjectName(project.name ?? '');
-        setFlatFiles(files ?? []);
+
+    async function load() {
+      try {
+        // 1. Always fetch project metadata (name) from server — cheap
+        const projectRes = await fetch(`/api/projects/${projectId}`);
+        const projectData = await projectRes.json() as { name?: string; error?: string };
+        if (projectData.error) { setError(projectData.error); return; }
+        setProjectName(projectData.name ?? '');
+
+        // 2. Try local IndexedDB first
+        const hasLocal = await hasLocalFiles(projectId);
+        let localFiles: LocalFile[];
+
+        if (hasLocal) {
+          localFiles = await loadLocalFiles(projectId);
+        } else {
+          // First visit: seed from server
+          const filesRes = await fetch(`/api/projects/${projectId}/files`);
+          const serverFiles: ServerFile[] = await filesRes.json();
+          localFiles = (serverFiles ?? []).map((f) => serverToLocal(projectId, f));
+          // Persist to IndexedDB so next load is instant
+          await saveLocalFiles(projectId, localFiles);
+        }
+
+        setFlatFiles(localFiles);
 
         const ui = loadUIState(projectId);
         setActiveChatIdState(ui.activeChatId);
 
-        const fileMap = new Map((files ?? []).map((f) => [f.id, f]));
+        const fileMap = new Map(localFiles.map((f) => [f.fileId, f]));
         const restoredTabs: OpenTab[] = (ui.openTabIds ?? [])
           .map((id) => {
             const f = fileMap.get(id);
             if (!f || f.type !== 'file') return null;
             const base = f.draft ?? f.content;
-            return { fileId: f.id, name: f.name, content: base, savedContent: f.content, draftContent: f.draft ?? null };
+            return {
+              fileId: f.fileId, name: f.name,
+              content: base, savedContent: f.content, draftContent: f.draft ?? null,
+            };
           })
           .filter(Boolean) as OpenTab[];
 
@@ -211,27 +281,39 @@ export function useProjectData(projectId: string): ProjectDataState {
             : restoredTabs[0].fileId;
           setActiveFileIdState(activeId);
         } else {
-          const first = (files ?? []).find((f) => f.type === 'file');
+          const first = localFiles.find((f) => f.type === 'file');
           if (first) {
             const base = first.draft ?? first.content;
-            setOpenTabs([{ fileId: first.id, name: first.name, content: base, savedContent: first.content, draftContent: first.draft ?? null }]);
-            setActiveFileIdState(first.id);
+            setOpenTabs([{
+              fileId: first.fileId, name: first.name,
+              content: base, savedContent: first.content, draftContent: first.draft ?? null,
+            }]);
+            setActiveFileIdState(first.fileId);
           }
         }
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  // ── Persist UI state ─────────────────────────────────────────────────────────
+  // ── Persist UI state ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (loading) return;
-    saveUIState(projectId, { openTabIds: openTabs.map((t) => t.fileId), activeFileId, activeChatId });
+    saveUIState(projectId, {
+      openTabIds: openTabs.map((t) => t.fileId),
+      activeFileId,
+      activeChatId,
+    });
   }, [projectId, openTabs, activeFileId, activeChatId, loading]);
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────────
 
   const files = useMemo(() => buildTree(flatFiles), [flatFiles]);
   const activeTab = useMemo(
@@ -256,7 +338,7 @@ export function useProjectData(projectId: string): ProjectDataState {
     return s;
   }, [openTabs]);
 
-  // ── Tab management ───────────────────────────────────────────────────────────
+  // ── Tab management ────────────────────────────────────────────────────────────
 
   const setActiveFileId = useCallback((id: string) => setActiveFileIdState(id), []);
 
@@ -264,7 +346,7 @@ export function useProjectData(projectId: string): ProjectDataState {
     if (node.type !== 'file') return;
     setOpenTabs((prev) => {
       if (prev.some((t) => t.fileId === node.id)) return prev;
-      const flat = flatFilesRef.current.find((f) => f.id === node.id);
+      const flat = flatFilesRef.current.find((f) => f.fileId === node.id);
       const base = flat?.draft ?? node.content ?? '';
       return [...prev, {
         fileId: node.id, name: node.name,
@@ -287,21 +369,37 @@ export function useProjectData(projectId: string): ProjectDataState {
     });
   }, []);
 
-  const updateContent = useCallback((fileId: string, content: string) => {
-    setOpenTabs((prev) => prev.map((t) => (t.fileId === fileId ? { ...t, content } : t)));
+  const closeTabs = useCallback((fileIds: string[]) => {
+    const toClose = new Set(fileIds);
+    setOpenTabs((prev) => {
+      const next = prev.filter((t) => !toClose.has(t.fileId));
+      setActiveFileIdState((active) => {
+        if (!active || !toClose.has(active)) return active;
+        return next[0]?.fileId ?? null;
+      });
+      return next;
+    });
   }, []);
 
-  // ── Save (commit draft → saved, clear draft) ─────────────────────────────────
+  const updateContent = useCallback((fileId: string, content: string) => {
+    setOpenTabs((prev) => prev.map((t) => (t.fileId === fileId ? { ...t, content } : t)));
+    // Also keep flatFiles in sync so getAllFiles() returns fresh content
+    setFlatFiles((prev) =>
+      prev.map((f) => (f.fileId === fileId ? { ...f, content } : f)),
+    );
+    scheduleIdbPersist(fileId);
+  }, [scheduleIdbPersist]);
 
-  const saveFile = useCallback(async (fileId: string) => {
-    // Read current content from ref — avoids stale-closure bug when openTabs updates
+  // ── Save (local-only — no server write) ───────────────────────────────────────
+
+  const saveFile = useCallback((fileId: string) => {
     const tab = openTabsRef.current.find((t) => t.fileId === fileId);
     if (!tab) return;
     const contentToSave = tab.content;
 
-    // Clear any pending draft-persist timer for this file
-    const existing = draftTimers.current.get(fileId);
-    if (existing) { clearTimeout(existing); draftTimers.current.delete(fileId); }
+    // Clear any pending IDB persist timer — we're saving now
+    const existing = idbTimers.current.get(fileId);
+    if (existing) { clearTimeout(existing); idbTimers.current.delete(fileId); }
 
     setOpenTabs((prev) =>
       prev.map((t) =>
@@ -309,78 +407,71 @@ export function useProjectData(projectId: string): ProjectDataState {
       ),
     );
     setFlatFiles((prev) =>
-      prev.map((f) => (f.id === fileId ? { ...f, content: contentToSave, draft: null } : f)),
+      prev.map((f) => {
+        if (f.fileId !== fileId) return f;
+        const updated = { ...f, content: contentToSave, draft: null };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
     );
-    await fetch(`/api/projects/${projectId}/files/${fileId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: contentToSave, draft: null }),
-    }).catch(console.error);
-  }, [projectId, draftTimers]);
+  }, [idbTimers]);
 
-  const saveAll = useCallback(async () => {
+  const saveAll = useCallback(() => {
     for (const tab of openTabsRef.current) {
       const base = tab.draftContent ?? tab.savedContent;
       if (tab.content !== base || tab.draftContent !== null) {
-        await saveFile(tab.fileId);
+        saveFile(tab.fileId);
       }
     }
   }, [saveFile]);
 
-  // ── Draft management ─────────────────────────────────────────────────────────
+  // ── Draft management (local-only) ─────────────────────────────────────────────
 
-  const saveDraft = useCallback(async (fileId: string) => {
-    let newDraft = '';
-    setOpenTabs((prev) => {
-      return prev.map((t) => {
-        if (t.fileId !== fileId) return t;
-        newDraft = t.content;
-        return { ...t, draftContent: t.content };
-      });
-    });
-    setFlatFiles((prev) =>
-      prev.map((f) => (f.id === fileId ? { ...f, draft: newDraft } : f)),
+  const saveDraft = useCallback((fileId: string) => {
+    const tab = openTabsRef.current.find((t) => t.fileId === fileId);
+    if (!tab) return;
+    const newDraft = tab.content;
+
+    setOpenTabs((prev) =>
+      prev.map((t) => (t.fileId === fileId ? { ...t, draftContent: newDraft } : t)),
     );
-    await fetch(`/api/projects/${projectId}/files/${fileId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draft: newDraft }),
-    }).catch(console.error);
-  }, [projectId]);
+    setFlatFiles((prev) =>
+      prev.map((f) => {
+        if (f.fileId !== fileId) return f;
+        const updated = { ...f, draft: newDraft };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
+    );
+  }, []);
 
-  const revertFileDraft = useCallback(async (fileId: string) => {
+  const revertFileDraft = useCallback((fileId: string) => {
     setOpenTabs((prev) =>
       prev.map((t) =>
         t.fileId === fileId ? { ...t, content: t.savedContent, draftContent: null } : t,
       ),
     );
     setFlatFiles((prev) =>
-      prev.map((f) => (f.id === fileId ? { ...f, draft: null } : f)),
+      prev.map((f) => {
+        if (f.fileId !== fileId) return f;
+        const updated = { ...f, draft: null };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
     );
-    await fetch(`/api/projects/${projectId}/files/${fileId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draft: null }),
-    }).catch(console.error);
-  }, [projectId]);
+  }, []);
 
-  /**
-   * Apply an AI edit to the draft state using a functional update — each
-   * sequential call operates on the result of the previous one, eliminating
-   * the race condition when multiple edits arrive for the same file.
-   */
   const applyAIDraftEdit = useCallback((change: AIChange) => {
-    // Open the file tab if not already open (so the edit is visible)
     setOpenTabs((prev) => {
       const existing = prev.find((t) => t.fileId === change.fileId);
       let tabs = prev;
 
       if (!existing) {
-        const flat = flatFilesRef.current.find((f) => f.id === change.fileId);
+        const flat = flatFilesRef.current.find((f) => f.fileId === change.fileId);
         if (flat && flat.type === 'file') {
           const base = flat.draft ?? flat.content;
           tabs = [...prev, {
-            fileId: flat.id, name: flat.name,
+            fileId: flat.fileId, name: flat.name,
             content: base, savedContent: flat.content, draftContent: flat.draft ?? null,
           }];
         }
@@ -388,28 +479,26 @@ export function useProjectData(projectId: string): ProjectDataState {
 
       return tabs.map((t) => {
         if (t.fileId !== change.fileId) return t;
-        // Apply to current draft (or saved if no draft) — respects prior edits
         const base = t.draftContent ?? t.savedContent;
         const newContent = applyEditToContent(base, change);
         return { ...t, content: newContent, draftContent: newContent };
       });
     });
 
-    // Sync flatFiles so getFileContent / tree stays fresh
     setFlatFiles((prev) =>
       prev.map((f) => {
-        if (f.id !== change.fileId) return f;
+        if (f.fileId !== change.fileId) return f;
         const base = f.draft ?? f.content;
         const newDraft = applyEditToContent(base, change);
-        return { ...f, draft: newDraft };
+        const updated = { ...f, draft: newDraft };
+        // Debounce IDB write — AI edits can be rapid
+        scheduleIdbPersist(change.fileId);
+        return updated;
       }),
     );
+  }, [scheduleIdbPersist]);
 
-    // Debounced persist — coalesces rapid sequential AI edits into a single PUT
-    scheduleDraftPersist(change.fileId);
-  }, [projectId, scheduleDraftPersist]);
-
-  // ── Tree mutations ────────────────────────────────────────────────────────────
+  // ── Tree mutations — still call server for entity management ─────────────────
 
   const addFile = useCallback(async (parentId: string | null, name: string) => {
     const res = await fetch(`/api/projects/${projectId}/files`, {
@@ -418,9 +507,16 @@ export function useProjectData(projectId: string): ProjectDataState {
       body: JSON.stringify({ name, type: 'file', parentId }),
     });
     const { id } = await res.json() as { id: string };
-    setFlatFiles((prev) => [...prev, { id, name, type: 'file', parentId, content: '', draft: null, order: Date.now() }]);
-    setOpenTabs((prev) => [...prev, { fileId: id, name, content: '', savedContent: '', draftContent: null }]);
+    const newFile: LocalFile = {
+      projectId, fileId: id, name, type: 'file',
+      parentId, content: '', draft: null, order: Date.now(),
+    };
+    setFlatFiles((prev) => [...prev, newFile]);
+    setOpenTabs((prev) => [...prev, {
+      fileId: id, name, content: '', savedContent: '', draftContent: null,
+    }]);
     setActiveFileIdState(id);
+    await upsertLocalFile(newFile);
   }, [projectId]);
 
   const addFolder = useCallback(async (parentId: string | null, name: string) => {
@@ -430,11 +526,23 @@ export function useProjectData(projectId: string): ProjectDataState {
       body: JSON.stringify({ name, type: 'folder', parentId }),
     });
     const { id } = await res.json() as { id: string };
-    setFlatFiles((prev) => [...prev, { id, name, type: 'folder', parentId, content: '', draft: null, order: Date.now() }]);
+    const newFolder: LocalFile = {
+      projectId, fileId: id, name, type: 'folder',
+      parentId, content: '', draft: null, order: Date.now(),
+    };
+    setFlatFiles((prev) => [...prev, newFolder]);
+    await upsertLocalFile(newFolder);
   }, [projectId]);
 
   const renameNode = useCallback(async (nodeId: string, newName: string) => {
-    setFlatFiles((prev) => prev.map((f) => (f.id === nodeId ? { ...f, name: newName } : f)));
+    setFlatFiles((prev) =>
+      prev.map((f) => {
+        if (f.fileId !== nodeId) return f;
+        const updated = { ...f, name: newName };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
+    );
     setOpenTabs((prev) => prev.map((t) => (t.fileId === nodeId ? { ...t, name: newName } : t)));
     await fetch(`/api/projects/${projectId}/files/${nodeId}`, {
       method: 'PUT',
@@ -449,9 +557,11 @@ export function useProjectData(projectId: string): ProjectDataState {
     while (queue.length) {
       const id = queue.shift()!;
       toRemove.add(id);
-      flatFilesRef.current.filter((f) => f.parentId === id).forEach((f) => queue.push(f.id));
+      flatFilesRef.current
+        .filter((f) => f.parentId === id)
+        .forEach((f) => queue.push(f.fileId));
     }
-    setFlatFiles((prev) => prev.filter((f) => !toRemove.has(f.id)));
+    setFlatFiles((prev) => prev.filter((f) => !toRemove.has(f.fileId)));
     setOpenTabs((prev) => {
       const next = prev.filter((t) => !toRemove.has(t.fileId));
       setActiveFileIdState((active) =>
@@ -459,12 +569,21 @@ export function useProjectData(projectId: string): ProjectDataState {
       );
       return next;
     });
+    // Remove from IndexedDB
+    for (const id of toRemove) {
+      deleteLocalFile(projectId, id).catch(console.error);
+    }
     await fetch(`/api/projects/${projectId}/files/${nodeId}`, { method: 'DELETE' }).catch(console.error);
   }, [projectId]);
 
   const moveNode = useCallback(async (nodeId: string, newParentId: string | null) => {
     setFlatFiles((prev) =>
-      prev.map((f) => (f.id === nodeId ? { ...f, parentId: newParentId } : f)),
+      prev.map((f) => {
+        if (f.fileId !== nodeId) return f;
+        const updated = { ...f, parentId: newParentId };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
     );
     await fetch(`/api/projects/${projectId}/files/${nodeId}`, {
       method: 'PUT',
@@ -473,51 +592,149 @@ export function useProjectData(projectId: string): ProjectDataState {
     }).catch(console.error);
   }, [projectId]);
 
-  // ── Set draft directly (used by inline diff decline) ─────────────────────────
+  // ── Set draft directly (inline diff decline) ──────────────────────────────────
 
   const setFileDraft = useCallback(async (fileId: string, newDraft: string) => {
-    setOpenTabs((prev) => prev.map((t) =>
-      t.fileId === fileId ? { ...t, content: newDraft, draftContent: newDraft } : t,
-    ));
-    setFlatFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, draft: newDraft } : f));
-    await fetch(`/api/projects/${projectId}/files/${fileId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draft: newDraft }),
-    }).catch(console.error);
+    setOpenTabs((prev) =>
+      prev.map((t) =>
+        t.fileId === fileId ? { ...t, content: newDraft, draftContent: newDraft } : t,
+      ),
+    );
+    setFlatFiles((prev) =>
+      prev.map((f) => {
+        if (f.fileId !== fileId) return f;
+        const updated = { ...f, draft: newDraft };
+        upsertLocalFile(updated).catch(console.error);
+        return updated;
+      }),
+    );
+  }, []);
+
+  // ── Apply VCS snapshot to local working directory ─────────────────────────────
+  // Called after: pull, checkout, merge, revert, restoreFilesFromHead.
+  // Replaces local file content with the committed version from VCS HEAD.
+
+  const applySnapshotToLocal = useCallback(async (updates: PullFileUpdate[]) => {
+    const deleteIds = new Set(
+      updates.filter((u) => u.snapshot === null).map((u) => u.fileId),
+    );
+    const upsertMap = new Map(
+      updates
+        .filter((u) => u.snapshot !== null)
+        .map((u) => [u.fileId, u.snapshot!]),
+    );
+
+    // Batch IDB writes
+    const idbOps: Promise<void>[] = [];
+
+    setFlatFiles((prev) => {
+      const next: LocalFile[] = [];
+      for (const f of prev) {
+        if (deleteIds.has(f.fileId)) {
+          idbOps.push(deleteLocalFile(projectId, f.fileId));
+          continue;
+        }
+        const snap = upsertMap.get(f.fileId);
+        if (snap) {
+          const updated: LocalFile = {
+            ...f,
+            name: snap.name,
+            type: snap.type,
+            parentId: snap.parentId,
+            content: snap.content,
+            draft: null, // clear any local draft — HEAD is now the baseline
+            order: snap.order,
+          };
+          idbOps.push(upsertLocalFile(updated));
+          next.push(updated);
+        } else {
+          next.push(f);
+        }
+      }
+      // New files added by the snapshot that didn't exist locally
+      for (const [fileId, snap] of upsertMap) {
+        if (!prev.some((f) => f.fileId === fileId)) {
+          const newFile: LocalFile = {
+            projectId,
+            fileId,
+            name: snap.name,
+            type: snap.type,
+            parentId: snap.parentId,
+            content: snap.content,
+            draft: null,
+            order: snap.order,
+          };
+          idbOps.push(upsertLocalFile(newFile));
+          next.push(newFile);
+        }
+      }
+      return next;
+    });
+
+    // Update open tabs to reflect snapshot changes
+    setOpenTabs((prev) => {
+      const next = prev.filter((t) => !deleteIds.has(t.fileId));
+      return next.map((t) => {
+        const snap = upsertMap.get(t.fileId);
+        if (!snap) return t;
+        return {
+          ...t,
+          name: snap.name,
+          content: snap.content,
+          savedContent: snap.content,
+          draftContent: null,
+        };
+      });
+    });
+
+    // Close active tab if its file was removed
+    setActiveFileIdState((active) => {
+      if (!active || !deleteIds.has(active)) return active;
+      return openTabsRef.current.find((t) => !deleteIds.has(t.fileId))?.fileId ?? null;
+    });
+
+    await Promise.all(idbOps).catch(console.error);
   }, [projectId]);
 
-  // ── File refresh (after AI creates files) ────────────────────────────────────
+  // ── Soft file refresh (after AI creates/renames files server-side) ────────────
+  // Merges server changes into local state without overwriting local content edits.
 
   const refreshFiles = useCallback(async () => {
     try {
       const res = await fetch(`/api/projects/${projectId}/files`);
-      const files: FlatFile[] = await res.json();
+      const serverFiles: ServerFile[] = await res.json();
       setFlatFiles((prev) => {
-        const prevMap = new Map(prev.map((f) => [f.id, f]));
-        // Keep local draft state for existing files; add new files at their server state
-        return files.map((f) => {
-          const existing = prevMap.get(f.id);
-          return existing ? { ...f, draft: existing.draft } : f;
+        const prevMap = new Map(prev.map((f) => [f.fileId, f]));
+        const merged = serverFiles.map((sf) => {
+          const existing = prevMap.get(sf.id);
+          if (existing) {
+            // Keep local content/draft; sync metadata changes (name, parentId, order)
+            return { ...existing, name: sf.name, parentId: sf.parentId, order: sf.order };
+          }
+          return serverToLocal(projectId, sf);
         });
+        // Persist any new files to IDB
+        const newFiles = merged.filter((f) => !prevMap.has(f.fileId));
+        for (const nf of newFiles) upsertLocalFile(nf).catch(console.error);
+        return merged;
       });
     } catch { /* ignore */ }
   }, [projectId]);
 
-  // ── Content accessors ─────────────────────────────────────────────────────────
+  // ── Content accessors ──────────────────────────────────────────────────────────
 
   const getFileContent = useCallback((fileId: string): string => {
     const tab = openTabs.find((t) => t.fileId === fileId);
     if (tab) return tab.content;
-    const flat = flatFilesRef.current.find((f) => f.id === fileId);
+    const flat = flatFilesRef.current.find((f) => f.fileId === fileId);
     return flat?.draft ?? flat?.content ?? '';
   }, [openTabs]);
 
   const getAllFiles = useCallback(() => {
     return flatFilesRef.current.map((f) => {
-      const tab = openTabs.find((t) => t.fileId === f.id);
+      const tab = openTabs.find((t) => t.fileId === f.fileId);
       return {
-        fileId: f.id,
+        fileId: f.fileId,
         fileName: f.name,
         type: f.type,
         parentId: f.parentId,
@@ -533,10 +750,13 @@ export function useProjectData(projectId: string): ProjectDataState {
     files, openTabs, activeFileId, activeTab,
     unsavedIds, draftedIds,
     activeChatId, setActiveChatId,
-    openFile, closeTab, setActiveFileId,
+    openFile, closeTab, closeTabs, setActiveFileId,
     updateContent, saveFile, saveAll,
     saveDraft, revertFileDraft, applyAIDraftEdit,
     addFile, addFolder, renameNode, deleteNode, moveNode,
-    getFileContent, getAllFiles, refreshFiles, setFileDraft,
+    getFileContent, getAllFiles,
+    refreshFiles,
+    applySnapshotToLocal,
+    setFileDraft,
   };
 }

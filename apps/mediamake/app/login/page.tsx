@@ -36,7 +36,7 @@ export default function LoginForm() {
       });
 
       if (response.ok) {
-        router.push('/player');
+        router.push('/projects');
         router.refresh();
       } else {
         const data = await response.json();

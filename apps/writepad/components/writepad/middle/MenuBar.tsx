@@ -46,7 +46,9 @@ import {
 } from '@/components/ui/select';
 import { PreferencesDialog } from './PreferencesDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { ExportDialog } from './ExportDialog';
 import type { EditorPreferences, EditorTheme } from '@/hooks/useEditorPreferences';
+import type { ProjectFile } from '../right/types';
 import { Loader2 } from 'lucide-react';
 
 // ── Keyboard shortcut dialog ─── see ShortcutsDialog.tsx ─────────────────────
@@ -258,9 +260,15 @@ export interface MenuBarProps {
   onShowDiff: () => void;
   onCloseTab: () => void;
   onDuplicateProject: () => void;
+  onBackupProject: () => void;
   onDeleteProject: () => void;
   onProjectNameChanged: (name: string) => void;
   onShare: () => void;
+  onCopyFileLink?: () => void;
+  onCopySelectionLink?: () => void;
+  /** Provided so ExportDialog can read current in-memory file content */
+  getAllFiles?: () => ProjectFile[];
+  filePathMap?: Record<string, string>;
   // Edit actions (forwarded to editor ref)
   onFormat: (type: string) => void;
   onSelectAll: () => void;
@@ -270,6 +278,8 @@ export interface MenuBarProps {
   // View actions
   previewMode: boolean;
   onTogglePreview: () => void;
+  focusMode: boolean;
+  onToggleFocusMode: () => void;
   wordWrap: boolean;
   lineNumbers: boolean;
   // Preferences
@@ -291,9 +301,14 @@ export function MenuBar({
   onShowDiff,
   onCloseTab,
   onDuplicateProject,
+  onBackupProject,
   onDeleteProject,
   onProjectNameChanged,
   onShare,
+  onCopyFileLink,
+  onCopySelectionLink,
+  getAllFiles,
+  filePathMap,
   onFormat,
   onSelectAll,
   onGoToLine,
@@ -301,6 +316,8 @@ export function MenuBar({
   onSendToChat,
   previewMode,
   onTogglePreview,
+  focusMode,
+  onToggleFocusMode,
   wordWrap,
   lineNumbers,
   prefs,
@@ -312,6 +329,7 @@ export function MenuBar({
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [showGoToLine, setShowGoToLine] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   return (
     <>
@@ -371,6 +389,20 @@ export function MenuBar({
               </MenubarItem>
               <MenubarItem onSelect={onShowDiff}>
                 Show Changes
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={() => setShowExport(true)}>
+                Export…
+              </MenubarItem>
+              <MenubarItem onSelect={onBackupProject}>
+                Backup Project…
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={() => router.push(`/projects/${projectId}/usage`)}>
+                Usage &amp; Cost Dashboard
+              </MenubarItem>
+              <MenubarItem onSelect={() => router.push(`/projects/${projectId}/vcs`)}>
+                Branch Graph
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={() => setShowProjectSettings(true)}>
@@ -466,6 +498,9 @@ export function MenuBar({
               <MenubarCheckboxItem checked={previewMode} onCheckedChange={onTogglePreview}>
                 Markdown Preview <MenubarShortcut>Ctrl+P</MenubarShortcut>
               </MenubarCheckboxItem>
+              <MenubarCheckboxItem checked={focusMode} onCheckedChange={onToggleFocusMode}>
+                Focus Mode <MenubarShortcut>F11</MenubarShortcut>
+              </MenubarCheckboxItem>
               <MenubarItem onSelect={onShowDiff}>
                 Show Changes
               </MenubarItem>
@@ -495,6 +530,12 @@ export function MenuBar({
               >
                 Line Numbers
               </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={prefs.autoComplete}
+                onCheckedChange={(v) => onPrefsChange({ autoComplete: v })}
+              >
+                AI Auto-complete <MenubarShortcut>Alt+A</MenubarShortcut>
+              </MenubarCheckboxItem>
               <MenubarSeparator />
               <MenubarItem onSelect={() => setShowPrefs(true)}>
                 Preferences… <MenubarShortcut>Ctrl+,</MenubarShortcut>
@@ -502,12 +543,19 @@ export function MenuBar({
             </MenubarContent>
           </MenubarMenu>
 
-          {/* ── HELP ─────────────────────────────────────────────────── */}
+          {/* ── SHARE ────────────────────────────────────────────────── */}
           <MenubarMenu>
             <MenubarTrigger className="text-xs px-2.5 py-1.5 rounded-sm">Share</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onSelect={onShare}>
                 Manage Project Access…
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={onCopyFileLink} disabled={!onCopyFileLink}>
+                Copy Link to File
+              </MenubarItem>
+              <MenubarItem onSelect={onCopySelectionLink} disabled={!onCopySelectionLink}>
+                Copy Link to Selection
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
@@ -576,6 +624,17 @@ export function MenuBar({
           projectName={projectName}
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={onDeleteProject}
+        />
+      )}
+
+      {showExport && getAllFiles && filePathMap && (
+        <ExportDialog
+          open={showExport}
+          onClose={() => setShowExport(false)}
+          getAllFiles={getAllFiles}
+          filePathMap={filePathMap}
+          projectName={projectName}
+          projectId={projectId}
         />
       )}
     </>

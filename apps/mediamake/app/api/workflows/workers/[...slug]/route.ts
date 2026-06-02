@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dispatchWorker } from '@microfox/ai-worker';
 import { getClientId } from '../../auth';
+import { isAdmin } from '@/lib/admin-utils';
+import { userQuotaDB } from '@/lib/quota-mongodb';
 
 /**
  * Worker execution endpoint.
@@ -57,12 +59,29 @@ export async function POST(
     }
 
     const { input, await: shouldAwait = false, jobId: providedJobId } = body;
-    const userId = await getClientId(req);
+    const middlewareClientId = req.headers.get('x-client-id') || undefined;
+    const sessionClientId = await getClientId(req);
+    const userId = middlewareClientId || sessionClientId;
+
+    // ── Worker permission check ──────────────────────────────────────────
+    if (userId && !(await isAdmin(userId))) {
+      const quota = await userQuotaDB.getByClientId(userId);
+      const permCheck = userQuotaDB.checkWorkerPermission(quota?.workerPermissions, 'worker');
+      if (!permCheck.allowed) {
+        return NextResponse.json({ error: permCheck.reason }, { status: 403 });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
+    const workerInput = input && typeof input === 'object' ? { ...input } : {};
+    if (userId && !(workerInput as any).clientId) {
+      (workerInput as any).clientId = userId;
+    }
 
     console.log('[Worker] Dispatching worker:', {
       workerId,
       shouldAwait,
-      hasInput: !!input,
+      hasInput: !!workerInput,
     });
 
     // Webhook optional. Job updates use MongoDB only; never pass jobStoreUrl.
@@ -86,7 +105,7 @@ export async function POST(
         jobId,
         workerId,
         status: 'queued',
-        input: input || {},
+        input: workerInput,
         metadata: { source: 'workflow-orchestration' },
       });
       console.log('[Worker] Initial job record created:', {
@@ -107,7 +126,7 @@ export async function POST(
     try {
       dispatchResult = await dispatchWorker(
         workerId,
-        (input || {}) as Record<string, unknown>,
+        workerInput as Record<string, unknown>,
         {
           jobId,
           ...(webhookUrl ? { webhookUrl } : {}),
@@ -180,9 +199,36 @@ export async function GET(
   try {
     const { slug: slugParam } = await params;
     slug = slugParam || [];
-    const [workerId, jobId] = slug;
+    const [workerId, jobIdOrAction] = slug;
 
-    if (!workerId || !jobId) {
+    if (!workerId) {
+      return NextResponse.json(
+        { error: 'Worker ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // GET /api/workflows/workers/:workerId/schema — return JSON schema of worker input
+    if (jobIdOrAction === 'schema') {
+      return handleGetSchema(workerId);
+    }
+
+    // GET /api/workflows/workers/:workerId/history — list all jobs for a worker
+    if (jobIdOrAction === 'history') {
+      const { listJobsByWorker } = await import('../../stores/jobStore');
+      const jobs = await listJobsByWorker(workerId);
+      // Sort newest first
+      const sorted = [...jobs].sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+      return NextResponse.json({ jobs: sorted }, { status: 200 });
+    }
+
+    const jobId = jobIdOrAction;
+
+    if (!jobId) {
       return NextResponse.json(
         { error: 'Worker ID and job ID are required' },
         { status: 400 }
@@ -361,6 +407,20 @@ async function handleJobUpdate(req: NextRequest, workerId: string) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Return the JSON Schema for a worker's input.
+ * Schema is embedded in the workers-config response at CLI build time — no dynamic imports.
+ * GET /api/workflows/workers/:workerId/schema
+ */
+async function handleGetSchema(workerId: string) {
+  const { getWorkerSchema } = await import('../../registry/workers');
+  const schema = await getWorkerSchema(workerId);
+  if (!schema) {
+    return NextResponse.json({ error: `No schema found for worker "${workerId}"` }, { status: 404 });
+  }
+  return NextResponse.json(schema, { status: 200 });
 }
 
 /**

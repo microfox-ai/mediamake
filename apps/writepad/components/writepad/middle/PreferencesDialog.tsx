@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import type { EditorPreferences, EditorFont, EditorTheme } from '@/hooks/useEditorPreferences';
 import { FONT_LABELS } from '@/hooks/useEditorPreferences';
-import { Sun, Moon, AlignLeft, Hash } from 'lucide-react';
+import { Sun, Moon, AlignLeft, Hash, ClipboardList } from 'lucide-react';
 
 interface PreferencesDialogProps {
   open: boolean;
@@ -144,6 +144,25 @@ export function PreferencesDialog({ open, prefs, onClose, onChange }: Preference
                 />
               </label>
             </div>
+          </Row>
+
+          {/* Plans */}
+          <Row label="Plans">
+            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border px-4 py-2.5 transition-colors hover:bg-accent/40">
+              <div className="flex items-center gap-2 text-sm">
+                <ClipboardList size={14} className="text-muted-foreground" />
+                <div>
+                  <div>Show plan files in explorer</div>
+                  <div className="text-[10px] text-muted-foreground/60">.writepad/plans/ — created by Plan mode</div>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={prefs.showPlanFiles}
+                onChange={(e) => onChange({ showPlanFiles: e.target.checked })}
+                className="h-4 w-4 accent-primary cursor-pointer"
+              />
+            </label>
           </Row>
 
           {/* Preview */}

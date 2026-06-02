@@ -37,7 +37,7 @@ export default function LoginPage() {
         setError(data.message ?? 'Invalid credentials');
         return;
       }
-      router.push('/dashboard');
+      router.push('/projects');
       router.refresh();
     } catch {
       setError('An error occurred. Please try again.');

@@ -107,6 +107,7 @@ function buildGhostFeatures(
   getFileName: () => string,
   getProjectId: () => string | undefined,
   getWritepadRules: () => string | undefined,
+  getEnabled: () => boolean,
 ): Extension {
   // Shared mutable state — lives in the closure, not in CM state.
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -174,6 +175,9 @@ function buildGhostFeatures(
 
       update(update: ViewUpdate) {
         if (!update.docChanged && !update.selectionSet) return;
+        // When auto-complete is disabled, cancel any pending fetch and bail out.
+        // Alt+G (manual) still works — it calls fetchSuggestion directly.
+        if (!getEnabled()) { cancelPending(); return; }
         cancelPending();
         const state = update.state;
         if (!state.selection.main.empty) return;
@@ -235,11 +239,12 @@ export function ghostTextExtension(
   getFileName: () => string = () => '',
   getProjectId: () => string | undefined = () => undefined,
   getWritepadRules: () => string | undefined = () => undefined,
+  getEnabled: () => boolean = () => true,
 ): Extension {
   return [
     ghostSuggestionField,
     ghostDecorationPlugin,
-    buildGhostFeatures(apiUrl, getFileName, getProjectId, getWritepadRules),
+    buildGhostFeatures(apiUrl, getFileName, getProjectId, getWritepadRules, getEnabled),
     ghostStyle,
   ];
 }

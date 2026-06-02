@@ -53,6 +53,30 @@ import { paramMetaTypes } from "../dataTypes";
 
 const availableFonts = getAvailableFonts();
 
+// Standard JSON Schema keywords — everything else in a Zod-generated schema is
+// .meta() data that Zod inlines at the top level of the property object.
+const JSON_SCHEMA_STANDARD_KEYS = new Set([
+    "type", "title", "description", "enum", "default", "properties", "items",
+    "required", "anyOf", "allOf", "oneOf", "$ref", "const", "pattern",
+    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+    "minLength", "maxLength", "minItems", "maxItems", "uniqueItems",
+    "format", "examples", "additionalProperties", "$schema", "definitions",
+    "$defs", "not", "if", "then", "else",
+]);
+
+/**
+ * Extract Zod .meta() annotations from a JSON-schema property object.
+ * Zod writes metadata at the top level (e.g. { rangeField: true, type: "string" }),
+ * so we collect all non-standard keys into a plain object.
+ */
+function extractZodMeta(field: Record<string, any>): Record<string, any> | undefined {
+    const meta: Record<string, any> = {};
+    for (const [k, v] of Object.entries(field)) {
+        if (!JSON_SCHEMA_STANDARD_KEYS.has(k)) meta[k] = v;
+    }
+    return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
 interface SchemaFormProps {
     initialTab?: "form" | "json" | "media";
     showReferencableAuto?: boolean;
@@ -86,6 +110,7 @@ interface FormField {
     required?: boolean;
     properties?: Record<string, any>;
     items?: any;
+    /** Zod .meta() object — carries paramMetaTypes annotations */
     meta?: Record<string, any>;
 }
 
@@ -148,6 +173,14 @@ function isLargeTextField(fieldKey: string, field: FormField): boolean {
 // Helper function to detect if a field is data-referrable
 function isDataReferrableField(field: FormField): boolean {
     return typeof field.meta?.[paramMetaTypes.referrableDataType] === "string";
+}
+
+// Helper function to detect if a string field is a range field (MM:SS-MM:SS format)
+function isRangeField(field: FormField): boolean {
+    if (field.meta?.[paramMetaTypes.rangeField] === true) return true;
+    // Name-based fallback so unannotated range fields still get the custom UI
+    const n = field.key.toLowerCase().replace(/[-_]/g, "");
+    return n === "rangestring" || n === "range" || n.endsWith("rangestring");
 }
 
 function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
@@ -1373,42 +1406,182 @@ function LinkedReferenceValueView({
     const parsed = parseDataReferenceValue(value);
     if (!parsed) return null;
 
-    const resolvedText =
-        typeof resolvedValue === "string"
-            ? resolvedValue
-            : resolvedValue === undefined
-                ? "No resolved value found"
-                : JSON.stringify(resolvedValue);
+    // Summarise the resolved data so the user knows what's linked
+    const resolvedSummary = (() => {
+        if (resolvedValue === undefined || resolvedValue === null) return null;
+        if (Array.isArray(resolvedValue)) return `${resolvedValue.length} item${resolvedValue.length !== 1 ? "s" : ""}`;
+        if (typeof resolvedValue === "string") return resolvedValue.slice(0, 60) + (resolvedValue.length > 60 ? "…" : "");
+        if (typeof resolvedValue === "object") {
+            const captions = (resolvedValue as any).captions;
+            if (Array.isArray(captions)) return `${captions.length} caption${captions.length !== 1 ? "s" : ""}`;
+        }
+        return null;
+    })();
 
     return (
-        <div className="space-y-2">
-            <Input value={resolvedText} disabled className="opacity-80" />
-            <div className="flex items-center gap-2">
-                <Input
+        <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
+            {/* Reference badge + resolved data summary */}
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5 gap-1">
+                    <span className="text-muted-foreground">ref:</span>
+                    <span>{parsed.key}</span>
+                </Badge>
+                {resolvedSummary && (
+                    <span className="text-xs text-muted-foreground">{resolvedSummary}</span>
+                )}
+                {onOpenRangeEditor && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => onOpenRangeEditor(parsed.key, fieldPath)}
+                        title="Edit range in timeline"
+                    >
+                        <Clock3 className="h-3 w-3 mr-1" />
+                        Timeline
+                    </Button>
+                )}
+            </div>
+
+            {/* Range editor — uses the same RangeStringInput as rangeField fields */}
+            <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Time filter</span>
+                    <span className="text-[10px] text-muted-foreground/50">— leave empty to use all data</span>
+                </div>
+                <RangeStringInput
                     value={parsed.range}
-                    onChange={(e) =>
-                        onChange(buildDataReferenceValue(parsed.key, e.target.value))
-                    }
-                    placeholder="HH:MM:SS-HH:MM:SS,HH:MM:SS-HH:MM:SS"
-                    className="text-xs"
+                    onChange={(newRange) => onChange(buildDataReferenceValue(parsed.key, newRange))}
                 />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => {
-                        const ensuredRange = parsed.range || "0-5";
-                        if (!parsed.range) {
-                            onChange(buildDataReferenceValue(parsed.key, ensuredRange));
-                        }
-                        onOpenRangeEditor?.(parsed.key, fieldPath);
-                    }}
-                    title="Open range editor in timeline"
-                >
-                    <Clock3 className="h-4 w-4" />
+            </div>
+        </div>
+    );
+}
+
+// ─── RangeStringInput ─────────────────────────────────────────────────────────
+// Custom UI for fields marked with paramMetaTypes.rangeField = true.
+// Renders a compact start/end time pair for each comma-separated segment.
+
+interface RangeSegment { start: string; end: string; }
+
+function parseRangeSegments(raw: string): RangeSegment[] {
+    if (!raw || !raw.trim()) return [];
+    return raw.split(",").map(s => s.trim()).filter(Boolean).map(seg => {
+        const dash = seg.indexOf("-", 1);
+        if (dash === -1) return { start: seg, end: "" };
+        return { start: seg.slice(0, dash).trim(), end: seg.slice(dash + 1).trim() };
+    });
+}
+
+function serializeRangeSegments(segs: RangeSegment[]): string {
+    return segs
+        .filter(s => s.start || s.end)
+        .map(s => `${s.start}-${s.end}`)
+        .join(",");
+}
+
+/** Accepts "MM:SS", "M:SS", "S", bare seconds, or empty. */
+function normalizeTimeInput(raw: string): string {
+    const s = raw.trim();
+    if (!s) return "";
+    // Already has colon — keep as-is (user is typing or it's already formatted)
+    if (s.includes(":")) return s;
+    // Bare number of seconds → format as MM:SS
+    const n = parseFloat(s);
+    if (Number.isNaN(n) || n < 0) return s;
+    const m = Math.floor(n / 60);
+    const sec = (n % 60).toFixed(0).padStart(2, "0");
+    return `${m}:${sec}`;
+}
+
+function RangeStringInput({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    const [segs, setSegs] = useState<RangeSegment[]>(() => parseRangeSegments(value || ""));
+
+    // Sync when parent value changes externally
+    useEffect(() => {
+        setSegs(parseRangeSegments(value || ""));
+    }, [value]);
+
+    const commit = (nextSegs: RangeSegment[]) => {
+        setSegs(nextSegs);
+        onChange(serializeRangeSegments(nextSegs));
+    };
+
+    const updateSeg = (i: number, part: "start" | "end", raw: string) => {
+        const next = segs.map((s, idx) => idx === i ? { ...s, [part]: raw } : s);
+        setSegs(next);
+    };
+
+    const blurSeg = (i: number, part: "start" | "end") => {
+        const next = segs.map((s, idx) =>
+            idx === i ? { ...s, [part]: normalizeTimeInput(s[part]) } : s
+        );
+        commit(next);
+    };
+
+    const addSeg = () => {
+        commit([...segs, { start: "", end: "" }]);
+    };
+
+    const removeSeg = (i: number) => {
+        commit(segs.filter((_, idx) => idx !== i));
+    };
+
+    if (segs.length === 0) {
+        return (
+            <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex-1">No range set — full duration used</span>
+                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addSeg}>
+                    <Plus className="h-3 w-3 mr-1" /> Add range
                 </Button>
             </div>
+        );
+    }
+
+    return (
+        <div className="space-y-1.5">
+            {segs.map((seg, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                    <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <Input
+                        value={seg.start}
+                        onChange={e => updateSeg(i, "start", e.target.value)}
+                        onBlur={() => blurSeg(i, "start")}
+                        placeholder="0:00"
+                        className="h-7 text-xs w-20 shrink-0 font-mono"
+                        title="Start time (MM:SS)"
+                    />
+                    <span className="text-muted-foreground text-xs">–</span>
+                    <Input
+                        value={seg.end}
+                        onChange={e => updateSeg(i, "end", e.target.value)}
+                        onBlur={() => blurSeg(i, "end")}
+                        placeholder="0:30"
+                        className="h-7 text-xs w-20 shrink-0 font-mono"
+                        title="End time (MM:SS)"
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => removeSeg(i)}
+                        title="Remove segment"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            ))}
+            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={addSeg}>
+                <Plus className="h-3 w-3 mr-1" /> Add segment
+            </Button>
         </div>
     );
 }
@@ -1566,7 +1739,18 @@ function renderField(
                 const isFont = isFontField(fieldKey, field);
                 const isLargeText = isLargeTextField(fieldKey, field);
                 const isDataReferrable = isDataReferrableField(field);
+                const isRange = isRangeField(field);
                 const isTranscriptionIdField = fieldKey.toLowerCase() === 'transcriptionid';
+
+                // Range string field (e.g. rangeString / range annotated with paramMetaTypes.rangeField)
+                if (isRange) {
+                    return (
+                        <RangeStringInput
+                            value={typeof fieldValue === "string" ? fieldValue : ""}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                        />
+                    );
+                }
 
                 // Legacy reference dropdown UI intentionally disabled.
                 // if (isDataReferrable && showReferencesDropdown && !showReferencableAuto) {
@@ -2067,7 +2251,12 @@ function NestedForm({
             default: field.default,
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
-            items: field.items
+            items: field.items,
+            // Zod's .meta() data is written at the TOP LEVEL of the JSON schema property
+            // (e.g. { rangeField: true, type: "string" }), NOT under a "meta" sub-key.
+            // Extract all non-standard JSON Schema keywords into a synthetic "meta" object so
+            // paramMetaTypes checks like isRangeField() work for nested fields too.
+            meta: extractZodMeta(field),
         }));
     };
 
@@ -2568,7 +2757,7 @@ export function SchemaForm({
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
             items: field.items,
-            meta: field.meta,
+            meta: extractZodMeta(field),
         }));
     };
 

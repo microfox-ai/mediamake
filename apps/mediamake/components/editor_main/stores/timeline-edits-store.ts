@@ -78,7 +78,10 @@ const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsSta
     const toStore = {
       editedTimelines: Array.from(state.editedTimelines?.entries() || []),
       currentProjectId: state.currentProjectId,
-      isDirty: (state.editedTimelines?.size || 0) > 0, // Calculate isDirty based on edited timelines
+      // Use the actual isDirty value, not a recalculation from map size.
+      // editedTimelines keeps entries even after save (to avoid UI reverts),
+      // so size > 0 no longer means "dirty".
+      isDirty: state.isDirty ?? false,
       // Don't persist history to avoid storage bloat
     };
     localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
@@ -97,13 +100,11 @@ const createHistoryEntry = (timeline: Timeline): HistoryEntry => ({
 export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
   // Initialize from storage if available
   const stored = loadFromStorage(null);
-  
-  // Calculate isDirty based on whether there are edited timelines
-  const hasEdits = (stored?.editedTimelines?.size || 0) > 0;
-  
+
   const initialState: TimelineEditsState = {
     editedTimelines: stored?.editedTimelines || new Map(),
-    isDirty: stored?.isDirty || hasEdits, // Use stored isDirty or calculate from edits
+    // Restore the stored flag directly — do not recalculate from map size.
+    isDirty: stored?.isDirty ?? false,
     history: [],
     historyIndex: -1,
     maxHistorySize: 50,
@@ -532,25 +533,35 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         
         const savedTimeline = await response.json();
         console.log('✅ Timeline saved successfully:', savedTimeline);
-        
-        // Mark as clean for this timeline
+
+        // The canonical saved version to keep in memory.
+        // Prefer the API response (it may include server-set fields like updatedAt),
+        // fall back to what we sent if the API returns something unexpected.
+        const canonicalTimeline: Timeline =
+          savedTimeline && typeof savedTimeline === 'object' && savedTimeline.id
+            ? savedTimeline
+            : editedTimeline;
+
+        // Keep the entry in editedTimelines (updated with saved data).
+        // Deleting it would cause components to fall back to the stale `timeline` prop
+        // that was captured at selection time, making the UI appear to revert.
         set(state => {
           const newEdited = new Map(state.editedTimelines);
-          newEdited.delete(timelineId); // Remove from edits since it's saved
+          newEdited.set(timelineId, canonicalTimeline);
           const newState = {
             editedTimelines: newEdited,
-            isDirty: newEdited.size > 0,
+            isDirty: false, // we just saved — no unsaved changes
           };
-          
+
           // Persist to storage
           saveToStorage(state.currentProjectId, newState);
-          
+
           return newState;
         });
-        
-        // Update project store
+
+        // Update project store so other parts of the UI (left sidebar etc.) see the latest.
         const { useProjectStore } = require('./project-store');
-        useProjectStore.getState().updateTimeline(timelineId, editedTimeline);
+        useProjectStore.getState().updateTimeline(timelineId, canonicalTimeline);
       } catch (error) {
         console.error('Error saving timeline:', error);
         throw error;
@@ -559,13 +570,15 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
     loadFromPersistence: (projectId) => {
       const stored = loadFromStorage(projectId);
-      const hasEdits = (stored?.editedTimelines?.size || 0) > 0;
       if (stored) {
         const editedTimelines = stored.editedTimelines || new Map();
         set({
           editedTimelines: editedTimelines,
           currentProjectId: projectId,
-          isDirty: stored.isDirty || hasEdits, // Restore isDirty from storage
+          // Restore the persisted isDirty flag directly.
+          // Do NOT recalculate from editedTimelines.size — the map now keeps entries
+          // even for clean (already-saved) timelines to avoid UI state resets.
+          isDirty: stored.isDirty ?? false,
         });
         
         // Sync edited timelines back to project store

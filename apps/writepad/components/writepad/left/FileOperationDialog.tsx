@@ -22,9 +22,9 @@ import { Button } from '@/components/ui/button';
 import type { FileNode } from './types';
 
 export type DialogState =
-  | { type: 'new-file'; parentId: string | null }
-  | { type: 'new-folder'; parentId: string | null }
-  | { type: 'rename'; node: FileNode }
+  | { type: 'new-file'; parentId: string | null; existingNames: string[] }
+  | { type: 'new-folder'; parentId: string | null; existingNames: string[] }
+  | { type: 'rename'; node: FileNode; existingNames: string[] }
   | { type: 'delete'; node: FileNode }
   | null;
 
@@ -46,10 +46,12 @@ export function FileOperationDialog({
   onDelete,
 }: FileOperationDialogProps) {
   const [inputValue, setInputValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!state) return;
+    setError(null);
     if (state.type === 'rename') {
       setInputValue(state.node.name);
     } else {
@@ -106,6 +108,21 @@ export function FileOperationDialog({
   const handleSubmit = () => {
     const name = inputValue.trim();
     if (!name) return;
+
+    // For rename: if the name is unchanged (including case), allow it through as a no-op.
+    const isUnchangedRename = state.type === 'rename' && state.node.name === name;
+
+    if (!isUnchangedRename) {
+      // Case-insensitive duplicate check against siblings at the same level.
+      const duplicate = state.existingNames.find(
+        (n) => n.toLowerCase() === name.toLowerCase(),
+      );
+      if (duplicate) {
+        setError(`"${duplicate}" already exists here. Choose a different name.`);
+        return;
+      }
+    }
+
     if (state.type === 'new-file') onNewFile(state.parentId, name);
     if (state.type === 'new-folder') onNewFolder(state.parentId, name);
     if (state.type === 'rename') onRename(state.node.id, name);
@@ -118,15 +135,21 @@ export function FileOperationDialog({
         <DialogHeader>
           <DialogTitle className="text-foreground text-sm">{titles[state.type]}</DialogTitle>
         </DialogHeader>
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onClose(); }}
-          placeholder={state.type === 'new-file' ? 'filename.md' : state.type === 'new-folder' ? 'folder-name' : ''}
-          className="w-full rounded border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none focus:border-violet-500/60"
-        />
+        <div className="space-y-1.5">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => { setInputValue(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onClose(); }}
+            placeholder={state.type === 'new-file' ? 'filename.md' : state.type === 'new-folder' ? 'folder-name' : ''}
+            className="w-full rounded border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none focus:border-violet-500/60 data-[error]:border-rose-500/60"
+            data-error={error ? '' : undefined}
+          />
+          {error && (
+            <p className="text-[11px] text-rose-400">{error}</p>
+          )}
+        </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             Cancel
