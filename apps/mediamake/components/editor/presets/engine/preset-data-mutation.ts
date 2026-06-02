@@ -231,7 +231,9 @@ function processArrayRange(
     return array;
   }
 
-  // Auto-detect time range format (MM:SS-MM:SS / HH:MM:SS-HH:MM:SS / multi-segment)
+  // Auto-detect time range format (MM:SS-MM:SS / HH:MM:SS-HH:MM:SS / multi-segment).
+  // Plain "N-N" (e.g. "0-5") is also treated as a time range (seconds 0–5) when
+  // type is 'captions', because bare numbers parse as seconds.
   const isTimeRange =
     type === 'captions' &&
     range
