@@ -28,11 +28,19 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
           setSession(data);
         } else {
           setSession({ isAuthenticated: false });
-          router.push('/login');
+          const currentPath = window.location.pathname + window.location.search;
+          const loginUrl = currentPath !== '/login'
+            ? `/login?redirectTo=${encodeURIComponent(currentPath)}`
+            : '/login';
+          router.push(loginUrl);
         }
       } catch (error) {
         setSession({ isAuthenticated: false });
-        router.push('/login');
+        const currentPath = window.location.pathname + window.location.search;
+        const loginUrl = currentPath !== '/login'
+          ? `/login?redirectTo=${encodeURIComponent(currentPath)}`
+          : '/login';
+        router.push(loginUrl);
       } finally {
         setLoading(false);
       }
