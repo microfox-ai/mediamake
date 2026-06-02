@@ -51,9 +51,24 @@ const hydrateEmptyReferenceArrays = (
   const hydrated = structuredClone(processedInputData);
   Object.entries(dataReferenceKeyByPath).forEach(([path, sourceKey]) => {
     const currentVal = getValueAtPath(hydrated, path);
-    if (Array.isArray(currentVal) && currentVal.length > 0) {
+
+    // If processDataReferences already resolved the value to an array — even an
+    // intentionally-empty one (e.g. a range filter that matched 0 items) — leave
+    // it alone.  Overwriting here would undo the range filtering.
+    if (Array.isArray(currentVal)) {
       return;
     }
+
+    // If the value is still a data:[key][range] reference string, resolution
+    // failed (key not found in baseData).  Fall back to the raw source data so
+    // the preset at least has something to work with.
+    const isUnresolvedRef =
+      typeof currentVal === 'string' && currentVal.startsWith('data:[');
+    if (!isUnresolvedRef) {
+      // Value was resolved to a non-array (e.g. a scalar or object) — leave it.
+      return;
+    }
+
     const source = baseData[sourceKey];
     if (Array.isArray(source) && source.length > 0) {
       setValueAtPath(hydrated, path, source);
