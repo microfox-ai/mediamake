@@ -27,6 +27,7 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 // Define the schema for image sources
 const imageSourceSchema = z.object({
@@ -39,6 +40,7 @@ const imageSourceSchema = z.object({
   rangeString: z
     .string()
     .optional()
+    .meta({ [paramMetaTypes.rangeField]: true })
     .describe('Range in MM:SS-MM:SS format like 01:00-02:00'),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
@@ -109,6 +111,7 @@ const effectSchema = z.object({
   range: z
     .string()
     .optional()
+    .meta({ [paramMetaTypes.rangeField]: true })
     .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
   // Pan effect options
   pan: z
@@ -362,8 +365,16 @@ const presetParams = z.object({
     .number()
     .optional()
     .describe('Container bottom position in pixels or percentage'),
-  images: z.array(imageSourceSchema).min(1).describe('Array of image sources'),
-  effects: z.array(effectSchema).min(1).describe('Array of effects to apply'),
+  images: z
+    .array(imageSourceSchema)
+    .min(1)
+    .meta({ [paramMetaTypes.nestedRangeField]: '[].rangeString' })
+    .describe('Array of image sources'),
+  effects: z
+    .array(effectSchema)
+    .min(1)
+    .meta({ [paramMetaTypes.nestedRangeField]: '[].range' })
+    .describe('Array of effects to apply'),
 });
 
 // Preset execution function
