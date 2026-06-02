@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Play, Pause, Save, Loader2, RotateCcw, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Save, Loader2, RotateCcw, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useViewPatternStore } from "../../stores/view-pattern-store";
 import { useEditorStore } from "../../stores/editor-store";
 import { useEditorUIStore } from "../../stores/editor-ui-store";
-import { usePlayerRefStore } from "../../stores/player-ref-store";
 import { useProjectStore } from "../../stores/project-store";
 import { useCompileStore } from "../../stores/compile-store";
 import { useLayerStateStore } from "../../stores/layer-state-store";
@@ -29,7 +28,6 @@ export function BottomPanel() {
   const getMergedChildren = useLayerStateStore((s) => s.getMergedChildren);
   const loadedChildrenData = useLayerStateStore((s) => s.loadedChildrenData);
   const seekToFrame = useLayerStateStore((s) => s.seekToFrame);
-  const playerRef = usePlayerRefStore((s) => s.playerRef);
   const [isSavingLayerState, setIsSavingLayerState] = useState(false);
 
   const mergedChildren = useMemo(
@@ -76,9 +74,6 @@ export function BottomPanel() {
     }
     return selectedItem.item.label || "Preset";
   };
-
-  const handlePlay = () => playerRef.current?.play();
-  const handlePause = () => playerRef.current?.pause();
 
   const handleGoToStart = () => {
     if (startFrame != null) {
@@ -185,12 +180,6 @@ export function BottomPanel() {
                   <Save className="h-4 w-4" />
                 )}
                 <span className="ml-1.5 hidden sm:inline">Save layer state</span>
-              </Button>
-              <Button size="sm" variant="outline" onClick={handlePlay} title="Play">
-                <Play className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" onClick={handlePause} title="Pause">
-                <Pause className="h-4 w-4" />
               </Button>
             </div>
           )}

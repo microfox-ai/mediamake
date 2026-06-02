@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useCallback, useRef, useState } from "react";
-import { Eye, EyeOff, Lock, Unlock, VolumeX, Volume2, Magnet, Scissors } from "lucide-react";
+import { useMemo, useCallback, useRef, useState, useEffect } from "react";
+import {
+  Eye, EyeOff, Lock, Unlock, VolumeX, Volume2,
+  Magnet, Scissors, ZoomIn, ZoomOut, Play, Pause,
+} from "lucide-react";
 import {
   flattenLayers,
   filterEditableLayers,
@@ -13,16 +16,67 @@ import { useLayerStateStore } from "../../../stores/layer-state-store";
 import type { RenderableComponentData } from "@microfox/remotion";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const TRACK_HEIGHT = 36;
+const RULER_HEIGHT = 30;
+const LABEL_WIDTH = 160;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatTime = (frame: number, fps: number): string => {
-  const minutes = Math.floor(frame / fps / 60);
-  const seconds = Math.floor((frame / fps) % 60);
-  const frameAfterSec = Math.round(frame % fps);
-  return `${minutes}:${String(seconds).padStart(2, "0")}.${String(frameAfterSec).padStart(2, "0")}`;
+  const totalSec = frame / fps;
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = Math.floor(totalSec % 60);
+  const frames = Math.round(frame % fps);
+  return `${minutes}:${String(seconds).padStart(2, "0")}.${String(frames).padStart(2, "0")}`;
 };
 
-const TRACK_HEIGHT = 28;
-const RULER_HEIGHT = 24;
+const formatSecondsTick = (sec: number): string => {
+  const minutes = Math.floor(sec / 60);
+  const seconds = sec % 60;
+  if (minutes > 0) return `${minutes}:${String(seconds.toFixed(seconds % 1 === 0 ? 0 : 1)).padStart(2, "0")}`;
+  return `${seconds % 1 === 0 ? seconds : seconds.toFixed(1)}s`;
+};
+
+// ─── Clip color by component type ─────────────────────────────────────────────
+
+const CLIP_STYLE: Record<string, { clip: string; clipSel: string; label: string }> = {
+  TextAtom: {
+    clip: "border-blue-500/50 bg-blue-500/15 hover:bg-blue-500/25",
+    clipSel: "border-blue-400 bg-blue-500/35",
+    label: "text-blue-200",
+  },
+  ImageAtom: {
+    clip: "border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25",
+    clipSel: "border-emerald-400 bg-emerald-500/35",
+    label: "text-emerald-200",
+  },
+  VideoAtom: {
+    clip: "border-amber-500/50 bg-amber-500/15 hover:bg-amber-500/25",
+    clipSel: "border-amber-400 bg-amber-500/35",
+    label: "text-amber-200",
+  },
+  AudioAtom: {
+    clip: "border-violet-500/50 bg-violet-500/15 hover:bg-violet-500/25",
+    clipSel: "border-violet-400 bg-violet-500/35",
+    label: "text-violet-200",
+  },
+};
+const DEFAULT_CLIP_STYLE = {
+  clip: "border-border/50 bg-muted/30 hover:bg-muted/50",
+  clipSel: "border-primary bg-primary/25",
+  label: "text-muted-foreground",
+};
+
+function getClipStyle(componentId: string) {
+  return CLIP_STYLE[componentId] ?? DEFAULT_CLIP_STYLE;
+}
+
+// ─── TimelineClipBlock ────────────────────────────────────────────────────────
 
 function TimelineClipBlock({
   layer,
@@ -32,7 +86,6 @@ function TimelineClipBlock({
   onClick,
   onTrimLeftPointerDown,
   onTrimRightPointerDown,
-  title,
 }: {
   layer: FlatLayer;
   isSelected: boolean;
@@ -41,17 +94,15 @@ function TimelineClipBlock({
   onClick: () => void;
   onTrimLeftPointerDown: (e: React.PointerEvent) => void;
   onTrimRightPointerDown: (e: React.PointerEvent) => void;
-  title: string;
 }) {
+  const style = getClipStyle(layer.componentId);
   const isText = layer.componentId === "TextAtom";
-  const isImage = layer.componentId === "ImageAtom";
-  const isVideo = layer.componentId === "VideoAtom";
+  const isMedia = layer.componentId === "ImageAtom" || layer.componentId === "VideoAtom";
   const previewText = layer.previewText;
   const previewSrc = layer.previewSrc;
-
-  const labelFallback = layer.label || layer.id;
-  const displayLabel = isText && (previewText?.trim()) ? String(previewText).trim().slice(0, 80) : labelFallback;
-  const showThumb = (isImage || isVideo) && previewSrc;
+  const displayLabel = isText && previewText?.trim()
+    ? String(previewText).trim().slice(0, 80)
+    : (layer.label || layer.id);
 
   return (
     <>
@@ -61,56 +112,42 @@ function TimelineClipBlock({
         onPointerDown={(e) => { if (!stateLocked) onPointerDown(e); }}
         onClick={onClick}
         className={cn(
-          "absolute top-1 bottom-1 left-0 right-0 rounded overflow-hidden flex items-center text-[10px] border cursor-pointer transition-colors",
-          isSelected
-            ? "border-primary bg-primary/25 text-primary-foreground z-10"
-            : "border-border bg-muted/60 hover:bg-muted"
+          "absolute inset-y-1 rounded border text-[10px] overflow-hidden cursor-pointer transition-colors",
+          isSelected ? style.clipSel : style.clip,
+          stateLocked && "opacity-60 cursor-default",
         )}
-        style={{ minWidth: 20 }}
-        title={title}
+        style={{ minWidth: 4 }}
       >
-        {showThumb ? (
-          <div className="absolute inset-0 flex items-stretch bg-muted/80">
-            {isVideo ? (
-              <video
-                src={previewSrc}
-                className="w-full h-full object-cover"
-                style={{ objectFit: "cover", minWidth: "100%", minHeight: "100%" }}
-                muted
-                playsInline
-                preload="metadata"
-              />
+        {isMedia && previewSrc ? (
+          <div className="absolute inset-0">
+            {layer.componentId === "VideoAtom" ? (
+              <video src={previewSrc} className="w-full h-full object-cover" muted playsInline preload="metadata" />
             ) : (
               <div
-                className="w-full h-full bg-center"
-                style={{
-                  backgroundImage: `url(${previewSrc})`,
-                  backgroundSize: "auto 100%",
-                  backgroundRepeat: "repeat-x",
-                }}
+                className="w-full h-full"
+                style={{ backgroundImage: `url(${previewSrc})`, backgroundSize: "auto 100%", backgroundRepeat: "repeat-x" }}
               />
             )}
             <span className="absolute bottom-0 left-0 right-0 py-0.5 px-1 bg-black/60 text-white truncate text-[9px]">
-              {labelFallback}
+              {layer.label || layer.id}
             </span>
           </div>
         ) : (
-          <span className="truncate pl-1 pr-4 w-full" title={displayLabel}>
+          <span className={cn("flex items-center h-full truncate px-1.5", style.label)}>
             {displayLabel}
           </span>
         )}
       </div>
+
       {!stateLocked && (
         <>
           <div
-            className="absolute top-1 bottom-1 left-0 w-1.5 rounded-l cursor-ew-resize bg-background/80 border border-r-0 border-border z-20 opacity-0 hover:opacity-100"
-            onPointerDown={(e) => onTrimLeftPointerDown(e)}
-            title="Trim start"
+            className="absolute inset-y-1.5 left-0 w-1.5 rounded-l cursor-ew-resize bg-white/5 hover:bg-white/20 z-20 opacity-0 hover:opacity-100 transition-opacity"
+            onPointerDown={(e) => { e.stopPropagation(); onTrimLeftPointerDown(e); }}
           />
           <div
-            className="absolute top-1 bottom-1 right-0 w-1.5 rounded-r cursor-ew-resize bg-background/80 border border-l-0 border-border z-20 opacity-0 hover:opacity-100"
-            onPointerDown={(e) => onTrimRightPointerDown(e)}
-            title="Trim end"
+            className="absolute inset-y-1.5 right-0 w-1.5 rounded-r cursor-ew-resize bg-white/5 hover:bg-white/20 z-20 opacity-0 hover:opacity-100 transition-opacity"
+            onPointerDown={(e) => { e.stopPropagation(); onTrimRightPointerDown(e); }}
           />
         </>
       )}
@@ -118,15 +155,7 @@ function TimelineClipBlock({
   );
 }
 
-function Playhead({ durationInFrames, fps }: { durationInFrames: number, fps: number }) {
-  const currentFrame = useLayerStateStore((s) => s.currentFrame);
-  const pct = Math.min(100, Math.max(0, (currentFrame / durationInFrames) * 100));
-  return (
-    <div className="absolute top-0 left-[140px] right-0 bottom-0 pointer-events-none z-20" aria-hidden>
-      <div className="absolute top-0 bottom-0 w-0.5 bg-primary" style={{ left: `${pct}%` }} />
-    </div>
-  );
-}
+// ─── Main LayeredTimeline ──────────────────────────────────────────────────────
 
 export function LayeredTimeline() {
   const { calculatedMetadata } = useCompileStore();
@@ -145,6 +174,7 @@ export function LayeredTimeline() {
     addNode,
     getMergedChildren,
     loadedChildrenData,
+    currentFrame,
   } = useLayerStateStore();
 
   const mergedChildren = useMemo(
@@ -152,436 +182,360 @@ export function LayeredTimeline() {
     [calculatedMetadata?.props?.childrenData, getMergedChildren, overrides, addedNodes, childrenOrderByParentId, loadedChildrenData]
   );
 
-  const layers = useMemo(() => {
-    if (!mergedChildren) return [];
-    const fps = calculatedMetadata?.fps ?? 30;
-    const w = calculatedMetadata?.width ?? 1920;
-    const h = calculatedMetadata?.height ?? 1080;
-    const allLayers = filterEditableLayers(
-      flattenLayers(mergedChildren, { fps, compositionWidth: w, compositionHeight: h })
-    );
-    return filterLeafLayers(allLayers).filter((l) => !hiddenLayerIds.has(l.id));
-  }, [
-    mergedChildren,
-    calculatedMetadata?.fps,
-    calculatedMetadata?.width,
-    calculatedMetadata?.height,
-    hiddenLayerIds,
-  ]);
-
+  const fps = calculatedMetadata?.fps ?? 30;
   const durationInFrames = useMemo(
-    () =>
-      calculatedMetadata?.durationInFrames && calculatedMetadata.durationInFrames > 0
-        ? calculatedMetadata.durationInFrames
-        : 1,
+    () => (calculatedMetadata?.durationInFrames && calculatedMetadata.durationInFrames > 0)
+      ? calculatedMetadata.durationInFrames : 1,
     [calculatedMetadata?.durationInFrames]
   );
-  const fps = calculatedMetadata?.fps ?? 30;
+
+  const layers = useMemo(() => {
+    if (!mergedChildren) return [];
+    const w = calculatedMetadata?.width ?? 1920;
+    const h = calculatedMetadata?.height ?? 1080;
+    const all = filterEditableLayers(flattenLayers(mergedChildren, { fps, compositionWidth: w, compositionHeight: h }));
+    return filterLeafLayers(all).filter((l) => !hiddenLayerIds.has(l.id));
+  }, [mergedChildren, fps, calculatedMetadata?.width, calculatedMetadata?.height, hiddenLayerIds]);
+
+  // ─── Zoom & pixel conversion ────────────────────────────────────────────────
+
+  const totalSeconds = durationInFrames / fps;
+
+  // Measure the right-side track column with a callback ref so the observer is
+  // set up regardless of when the element first mounts (e.g. after the
+  // early-return guard is lifted once calculatedMetadata loads).
+  const [containerWidth, setContainerWidth] = useState(800);
+  const _roRef = useRef<ResizeObserver | null>(null);
+  const trackRightRef = useCallback((el: HTMLDivElement | null) => {
+    _roRef.current?.disconnect();
+    _roRef.current = null;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 800;
+      setContainerWidth(Math.max(1, w));
+    });
+    ro.observe(el);
+    _roRef.current = ro;
+  }, []);
+
+  // Minimum pps: the zoom level at which the whole video fits in the visible area.
+  const MAX_PPS = 400;
+  const minPps = useMemo(
+    () => Math.max(0.5, containerWidth / Math.max(1, totalSeconds)),
+    [containerWidth, totalSeconds],
+  );
+
+  // Start at "fit" (whole video visible) and re-clamp whenever limits shift.
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(() => minPps);
+  useEffect(() => {
+    setPixelsPerSecond((p) => Math.min(MAX_PPS, Math.max(minPps, p)));
+  }, [minPps]);
+
+  const totalWidth = Math.max(containerWidth, totalSeconds * pixelsPerSecond);
+
+  // Log-scale so the slider feels linear across the full zoom range.
+  const ppsToSlider = useCallback(
+    (pps: number) => {
+      if (minPps >= MAX_PPS) return 0;
+      const t = (Math.log(pps) - Math.log(minPps)) / (Math.log(MAX_PPS) - Math.log(minPps));
+      return Math.round(Math.min(100, Math.max(0, t * 100)));
+    },
+    [minPps],
+  );
+  const sliderToPps = useCallback(
+    (v: number) => Math.exp(Math.log(minPps) + (v / 100) * (Math.log(MAX_PPS) - Math.log(minPps))),
+    [minPps],
+  );
+
+  const fitToView = useCallback(() => setPixelsPerSecond(minPps), [minPps]);
+
+  const frameToPx = useCallback((frame: number) => (frame / fps) * pixelsPerSecond, [fps, pixelsPerSecond]);
+  const pxToFrame = useCallback((px: number) => Math.round((px / pixelsPerSecond) * fps), [fps, pixelsPerSecond]);
+
+  // ─── Scroll refs & sync ──────────────────────────────────────────────────────
+
+  const labelColRef = useRef<HTMLDivElement>(null);
+  const rulerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const trackAreaRef = useRef<HTMLDivElement>(null);
+
+  const onScroll = useCallback(() => {
+    const s = scrollRef.current;
+    if (!s) return;
+    if (rulerRef.current) rulerRef.current.scrollLeft = s.scrollLeft;
+    if (labelColRef.current) labelColRef.current.scrollTop = s.scrollTop;
+  }, []);
+
+  // Auto-scroll playhead into view when it moves
+  const prevFrameRef = useRef(currentFrame);
+  useEffect(() => {
+    if (currentFrame === prevFrameRef.current) return;
+    prevFrameRef.current = currentFrame;
+    const s = scrollRef.current;
+    if (!s) return;
+    const px = frameToPx(currentFrame);
+    if (px < s.scrollLeft + 40 || px > s.scrollLeft + s.clientWidth - 40) {
+      s.scrollLeft = Math.max(0, px - s.clientWidth * 0.35);
+    }
+  }, [currentFrame, frameToPx]);
+
+  // ─── Track grouping ──────────────────────────────────────────────────────────
 
   const groupedTracks = useMemo(() => {
     const videoLayers = layers.filter((l) => l.componentId !== "AudioAtom");
     const audioLayers = layers.filter((l) => l.componentId === "AudioAtom");
 
-    /**
-     * Assign layers to track rows in DOM / JSON order:
-     * - Iterate layers in the order provided (matches left sidebar tree order)
-     * - Place each layer into the highest row where it does not overlap in time
-     *   (regardless of parent container)
-     * - If it overlaps in all existing rows, create a new lower row
-     * - After packing, sort rows by the *largest* original index (latest DOM position)
-     *   of any layer in the row, so stacks follow "later in DOM = visually above".
-     */
-    const assignRows = (
-      list: FlatLayer[],
-      prefix: "V" | "A"
-    ): { trackId: string; stateKey: string; zIndex: number; rowIndex: number; layers: FlatLayer[] }[] => {
+    const assignRows = (list: FlatLayer[], prefix: "V" | "A") => {
       const indexMap = new Map<string, number>();
-      list.forEach((layer, idx) => {
-        indexMap.set(layer.id, idx);
-      });
+      list.forEach((l, idx) => indexMap.set(l.id, idx));
 
-      // Certain "background" image layers should stay anchored on their own
-      // bottom row and never be merged with later DOM layers, even if they
-      // don't overlap in time. We treat as background any ImageAtom that:
-      // - is a direct child of a top-level layout/scene (depth === 1)
-      // - starts at frame 0.
-      const pinnedLayerIds = new Set<string>();
-      for (const layer of list) {
-        if (
-          layer.componentId === "ImageAtom" &&
-          layer.depth === 1 &&
-          (layer.timing.startInFrames ?? 0) === 0
-        ) {
-          pinnedLayerIds.add(layer.id);
+      const pinnedIds = new Set<string>();
+      for (const l of list) {
+        if (l.componentId === "ImageAtom" && l.depth === 1 && (l.timing.startInFrames ?? 0) === 0) {
+          pinnedIds.add(l.id);
         }
       }
 
       const rows: FlatLayer[][] = [];
-
       for (const layer of list) {
         const start = layer.timing.startInFrames ?? 0;
         const dur = Math.max(1, layer.timing.durationInFrames ?? 1);
         const end = start + dur;
-
         let placed = false;
-        // Try to stack onto the highest (visually top) existing row first,
-        // so non-overlapping clips combine into upper stacks instead of
-        // always filling from the bottom.
         for (let idx = rows.length - 1; idx >= 0; idx--) {
           const row = rows[idx];
           let overlaps = false;
-
           for (const other of row) {
-            // Never merge anything into a row that contains a pinned layer,
-            // and never merge a pinned layer into an existing row.
-            if (pinnedLayerIds.has(other.id) || pinnedLayerIds.has(layer.id)) {
-              overlaps = true;
-              break;
-            }
-
+            if (pinnedIds.has(other.id) || pinnedIds.has(layer.id)) { overlaps = true; break; }
             const oStart = other.timing.startInFrames ?? 0;
-            const oDur = Math.max(1, other.timing.durationInFrames ?? 1);
-            const oEnd = oStart + oDur;
-            // Overlap if they intersect in time
-            if (!(end <= oStart || start >= oEnd)) {
-              overlaps = true;
-              break;
-            }
+            const oEnd = oStart + Math.max(1, other.timing.durationInFrames ?? 1);
+            if (!(end <= oStart || start >= oEnd)) { overlaps = true; break; }
           }
-
-          if (!overlaps) {
-            row.push(layer);
-            placed = true;
-            break;
-          }
+          if (!overlaps) { row.push(layer); placed = true; break; }
         }
-
-        if (!placed) {
-          rows.push([layer]);
-        }
+        if (!placed) rows.push([layer]);
       }
 
-      // Sort rows by the largest DOM index of any layer in the row.
-      // We intentionally sort DESC so that rows containing the latest DOM layers
-      // end up visually on top (higher V indices).
       const withOrder = rows.map((rowLayers, rowIndex) => {
-        const maxIndex = rowLayers.reduce((max, l) => {
-          const idx = indexMap.get(l.id) ?? -1;
-          return idx > max ? idx : max;
-        }, -1);
-        return { rowLayers, rowIndex, maxIndex };
+        const maxIdx = rowLayers.reduce((max, l) => Math.max(max, indexMap.get(l.id) ?? -1), -1);
+        return { rowLayers, rowIndex, maxIdx };
       });
+      withOrder.sort((a, b) => b.maxIdx - a.maxIdx);
 
-      withOrder.sort((a, b) => b.maxIndex - a.maxIndex);
-
-      return withOrder.map(({ rowLayers }, rowIndex) => {
-        const representative = rowLayers[0];
-        const z = representative?.boundaries?.zIndex ?? 0;
-        const idSuffix = `${rowIndex}`;
-        return {
-          trackId: `${prefix}${idSuffix}`,
-          stateKey: `${prefix}${idSuffix}`,
-          zIndex: z,
-          rowIndex,
-          layers: rowLayers,
-        };
-      });
+      return withOrder.map(({ rowLayers }, rowIndex) => ({
+        trackId: `${prefix}${rowIndex}`,
+        stateKey: `${prefix}${rowIndex}`,
+        zIndex: rowLayers[0]?.boundaries?.zIndex ?? 0,
+        rowIndex,
+        layers: rowLayers,
+      }));
     };
 
-    const vRows = assignRows(videoLayers, "V");
-    const aRows = assignRows(audioLayers, "A");
-    const vKeys = vRows.length > 0 ? vRows.map((_, idx) => idx) : [0];
-    const aKeys = aRows.length > 0 ? aRows.map((_, idx) => idx) : [0];
-    return { vRows, aRows, vKeys, aKeys };
+    return { vRows: assignRows(videoLayers, "V"), aRows: assignRows(audioLayers, "A") };
   }, [layers]);
 
-  const trackAreaRef = useRef<HTMLDivElement>(null);
-  const tracksContainerRef = useRef<HTMLDivElement>(null);
-  const [draggingLayerId, setDraggingLayerId] = useState<string | null>(null);
-  const [dragStartFrame, setDragStartFrame] = useState(0);
-  const [trimMode, setTrimMode] = useState<"left" | "right" | null>(null);
-  const [trimLayerId, setTrimLayerId] = useState<string | null>(null);
+  // ─── Ruler ───────────────────────────────────────────────────────────────────
+
+  const rulerTicks = useMemo(() => {
+    const interval = pixelsPerSecond > 200 ? 0.5
+      : pixelsPerSecond > 100 ? 1
+      : pixelsPerSecond > 50 ? 2
+      : pixelsPerSecond > 25 ? 5 : 10;
+    const ticks: number[] = [];
+    for (let t = 0; t <= totalSeconds + 0.001; t += interval) {
+      ticks.push(parseFloat(t.toFixed(3)));
+    }
+    return { ticks, interval };
+  }, [pixelsPerSecond, totalSeconds]);
+
+  const handleRulerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // getBoundingClientRect() already accounts for the parent's scrollLeft,
+    // so no need to add scrollLeft separately.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const frame = Math.max(0, Math.min(durationInFrames - 1, pxToFrame(px)));
+    playerRef.current?.seekTo(frame);
+    setCurrentFrame(frame);
+  }, [durationInFrames, pxToFrame, playerRef, setCurrentFrame]);
+
+  // ─── Snapping ──────────────────────────────────────────────────────────────
+
   const [snappingEnabled, setSnappingEnabled] = useState(true);
+  const SNAP_THRESHOLD = Math.round(fps * 0.2);
 
-  const SNAP_THRESHOLD = Math.round(fps * 0.2); // approx 200ms
-
-  const getSnappedFrame = useCallback((targetFrame: number, ignoreLayerId?: string) => {
+  const getSnappedFrame = useCallback((targetFrame: number, ignoreId?: string) => {
     if (!snappingEnabled) return targetFrame;
-    const currentFrame = useLayerStateStore.getState().currentFrame;
-    let closestFrame = targetFrame;
+    const snapPoints = new Set<number>([0, durationInFrames, useLayerStateStore.getState().currentFrame]);
+    for (const l of layers) {
+      if (l.id === ignoreId) continue;
+      const s = l.timing.startInFrames ?? 0;
+      snapPoints.add(s);
+      snapPoints.add(s + (l.timing.durationInFrames ?? 1));
+    }
+    let closest = targetFrame;
     let minDiff = SNAP_THRESHOLD;
-
-    const snapPoints = new Set<number>();
-    snapPoints.add(currentFrame);
-    snapPoints.add(0);
-    snapPoints.add(durationInFrames);
-
-    for (const layer of layers) {
-      if (layer.id === ignoreLayerId) continue;
-      const start = layer.timing.startInFrames ?? 0;
-      const end = start + (layer.timing.durationInFrames ?? 1);
-      snapPoints.add(start);
-      snapPoints.add(end);
+    for (const p of snapPoints) {
+      const d = Math.abs(p - targetFrame);
+      if (d < minDiff) { minDiff = d; closest = p; }
     }
-
-    for (const point of snapPoints) {
-      const diff = Math.abs(point - targetFrame);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestFrame = point;
-      }
-    }
-    return closestFrame;
+    return closest;
   }, [snappingEnabled, layers, durationInFrames, SNAP_THRESHOLD]);
+
+  // ─── Drag state ────────────────────────────────────────────────────────────
+
+  const dragStateRef = useRef<{
+    type: "move" | "trim-left" | "trim-right";
+    layerId: string;
+    startClientX: number;
+    startFrame: number;  // original startInFrames
+    startDuration: number;
+  } | null>(null);
+
+  const [dragging, setDragging] = useState<string | null>(null);
+
+  const handleBlockPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStateRef.current = {
+      type: "move",
+      layerId: layer.id,
+      startClientX: e.clientX,
+      startFrame: layer.timing.startInFrames ?? 0,
+      startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+    };
+    setDragging(layer.id);
+  }, []);
+
+  const handleTrimLeftPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
+    if (e.button !== 0) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStateRef.current = {
+      type: "trim-left",
+      layerId: layer.id,
+      startClientX: e.clientX,
+      startFrame: layer.timing.startInFrames ?? 0,
+      startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+    };
+    setDragging(layer.id);
+  }, []);
+
+  const handleTrimRightPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
+    if (e.button !== 0) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStateRef.current = {
+      type: "trim-right",
+      layerId: layer.id,
+      startClientX: e.clientX,
+      startFrame: layer.timing.startInFrames ?? 0,
+      startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+    };
+    setDragging(layer.id);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = dragStateRef.current;
+    if (!drag) return;
+
+    const deltaX = e.clientX - drag.startClientX;
+    const deltaFrames = Math.round((deltaX / pixelsPerSecond) * fps);
+
+    if (drag.type === "move") {
+      let newStart = Math.max(0, Math.min(durationInFrames - drag.startDuration, drag.startFrame + deltaFrames));
+      if (snappingEnabled) {
+        const snappedStart = getSnappedFrame(newStart, drag.layerId);
+        const snappedEnd = getSnappedFrame(newStart + drag.startDuration, drag.layerId) - drag.startDuration;
+        newStart = Math.abs(snappedStart - newStart) <= Math.abs(snappedEnd - newStart)
+          ? snappedStart : snappedEnd;
+      }
+      setOverride(drag.layerId, {
+        context: { timing: { startInFrames: newStart, durationInFrames: drag.startDuration } },
+      });
+      playerRef.current?.seekTo(newStart);
+      setCurrentFrame(newStart);
+
+    } else if (drag.type === "trim-left") {
+      const end = drag.startFrame + drag.startDuration;
+      let newStart = Math.max(0, Math.min(end - 1, drag.startFrame + deltaFrames));
+      if (snappingEnabled) {
+        const snapped = getSnappedFrame(newStart, drag.layerId);
+        if (snapped < end) newStart = snapped;
+      }
+      const newDur = end - newStart;
+      setOverride(drag.layerId, {
+        context: { timing: { startInFrames: newStart, durationInFrames: newDur } },
+      });
+      playerRef.current?.seekTo(newStart);
+      setCurrentFrame(newStart);
+
+    } else if (drag.type === "trim-right") {
+      let newEnd = Math.max(drag.startFrame + 1, Math.min(durationInFrames, drag.startFrame + drag.startDuration + deltaFrames));
+      if (snappingEnabled) {
+        const snapped = getSnappedFrame(newEnd, drag.layerId);
+        if (snapped > drag.startFrame) newEnd = snapped;
+      }
+      const newDur = newEnd - drag.startFrame;
+      setOverride(drag.layerId, {
+        context: { timing: { startInFrames: drag.startFrame, durationInFrames: newDur } },
+      });
+    }
+  }, [pixelsPerSecond, fps, durationInFrames, snappingEnabled, getSnappedFrame, setOverride, playerRef, setCurrentFrame]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    dragStateRef.current = null;
+    setDragging(null);
+  }, []);
+
+  // ─── Click layer ──────────────────────────────────────────────────────────
+
+  const handleLayerClick = useCallback((layer: FlatLayer) => {
+    selectLayer(layer.id, false);
+    const start = layer.timing.startInFrames ?? 0;
+    playerRef.current?.seekTo(start);
+    setCurrentFrame(start);
+  }, [selectLayer, playerRef, setCurrentFrame]);
+
+  // ─── Split ──────────────────────────────────────────────────────────────────
 
   const handleSplit = useCallback(() => {
     if (selectedLayerIds.length !== 1) return;
-    const currentFrame = useLayerStateStore.getState().currentFrame;
+    const cf = useLayerStateStore.getState().currentFrame;
     const layerId = selectedLayerIds[0];
     const layer = layers.find((l) => l.id === layerId);
     if (!layer) return;
-
     const start = layer.timing.startInFrames ?? 0;
-    const duration = layer.timing.durationInFrames ?? 1;
-    const end = start + duration;
+    const dur = layer.timing.durationInFrames ?? 1;
+    if (cf <= start || cf >= start + dur) return;
 
-    // Must be inside the clip
-    if (currentFrame <= start || currentFrame >= end) return;
-
-    // helper
-    const findNodeById = (nodes: RenderableComponentData[] | undefined, id: string): RenderableComponentData | null => {
-      if (!nodes?.length) return null;
-      for (const node of nodes) {
-        if (node.id === id) return node;
-        const found = findNodeById(node.childrenData, id);
+    const findNode = (nodes: RenderableComponentData[] | undefined, id: string): RenderableComponentData | null => {
+      if (!nodes) return null;
+      for (const n of nodes) {
+        if (n.id === id) return n;
+        const found = findNode(n.childrenData, id);
         if (found) return found;
       }
       return null;
     };
 
-    const node = findNodeById(mergedChildren, layerId);
+    const node = findNode(mergedChildren, layerId);
     if (!node) return;
 
-    const leftDuration = currentFrame - start;
-    const rightDuration = end - currentFrame;
-    
-    // 1. Modify existing clip duration to end at currentFrame
-    setOverride(layerId, {
-      context: { timing: { startInFrames: start, durationInFrames: leftDuration } },
-    });
+    setOverride(layerId, { context: { timing: { startInFrames: start, durationInFrames: cf - start } } });
 
-    // 2. Create right clip
     const newId = `${node.id}-split-${Date.now()}`;
-    const rightNode: RenderableComponentData = JSON.parse(JSON.stringify(node));
-    rightNode.id = newId;
-    rightNode.context = rightNode.context || {};
-    rightNode.context.timing = rightNode.context.timing || {};
-    rightNode.context.timing.startInFrames = currentFrame;
-    rightNode.context.timing.durationInFrames = rightDuration;
-
-    // Hardcode its absolute boundaries so it stays exactly where it was rendered
-    rightNode.data = rightNode.data || {};
-    rightNode.data.boundaries = layer.boundaries;
-    if ((rightNode.data as any).containerProps) {
-       (rightNode.data as any).containerProps.style = {
-           ...((rightNode.data as any).containerProps.style || {}),
-           position: "absolute",
-           left: `${layer.boundaries.left}px`,
-           top: `${layer.boundaries.top}px`,
-           width: `${layer.boundaries.width}px`,
-           height: `${layer.boundaries.height}px`,
-       };
-    }
-
-    const isMedia = rightNode.componentId === "VideoAtom" || rightNode.componentId === "AudioAtom" || rightNode.componentId === "ImageAtom";
-    if (isMedia && rightNode.data) {
-       const existingStartFrom = (rightNode.data as any).startFrom ?? 0;
-       (rightNode.data as any).startFrom = existingStartFrom + (leftDuration / fps);
-    }
-
-    addNode(rightNode);
+    const right: RenderableComponentData = JSON.parse(JSON.stringify(node));
+    right.id = newId;
+    right.context = { ...(right.context ?? {}), timing: { startInFrames: cf, durationInFrames: start + dur - cf } };
+    right.data = right.data ?? {};
+    right.data.boundaries = layer.boundaries;
+    const isMedia = ["VideoAtom", "AudioAtom", "ImageAtom"].includes(right.componentId);
+    if (isMedia) (right.data as any).startFrom = ((right.data as any).startFrom ?? 0) + (cf - start) / fps;
+    addNode(right);
     selectLayer(newId, false);
   }, [selectedLayerIds, layers, mergedChildren, setOverride, addNode, selectLayer, fps]);
 
-  const handleLayerClick = useCallback(
-    (layer: FlatLayer) => {
-      selectLayer(layer.id, false);
-      const start = layer.timing.startInFrames ?? 0;
-      playerRef.current?.seekTo(start);
-      setCurrentFrame(start);
-    },
-    [selectLayer, playerRef, setCurrentFrame]
-  );
-
-  const frameToPct = useCallback(
-    (frame: number) => Math.min(100, Math.max(0, (frame / durationInFrames) * 100)),
-    [durationInFrames]
-  );
-
-  const pctToFrame = useCallback(
-    (pct: number) => Math.round((pct / 100) * durationInFrames),
-    [durationInFrames]
-  );
-
-  const handleBlockPointerDown = useCallback(
-    (e: React.PointerEvent, layer: FlatLayer) => {
-      e.stopPropagation();
-      if (e.button !== 0) return;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      setDraggingLayerId(layer.id);
-      setDragStartFrame(layer.timing.startInFrames ?? 0);
-    },
-    []
-  );
-
-  const handleBlockPointerMove = useCallback(
-    (e: React.PointerEvent, layer: FlatLayer) => {
-      if (draggingLayerId !== layer.id) return;
-      const el = trackAreaRef.current;
-      const container = tracksContainerRef.current;
-      if (!el || !container) return;
-      const rect = el.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      let newStart = Math.max(0, Math.min(durationInFrames - (layer.timing.durationInFrames ?? 1), pctToFrame(pct)));
-      const duration = layer.timing.durationInFrames ?? 1;
-
-      if (snappingEnabled) {
-        const snappedStart = getSnappedFrame(newStart, layer.id);
-        const snappedEnd = getSnappedFrame(newStart + duration, layer.id) - duration;
-        if (Math.abs(snappedStart - newStart) <= Math.abs(snappedEnd - newStart)) {
-          newStart = snappedStart;
-        } else {
-          newStart = snappedEnd;
-        }
-      }
-
-      // Vertical drag
-      const containerRect = container.getBoundingClientRect();
-      const y = e.clientY - containerRect.top + container.scrollTop;
-      const isAudio = layer.componentId === "AudioAtom";
-      
-      let newZIndex = layer.boundaries?.zIndex ?? 0;
-      const videoTracksHeight = groupedTracks.vRows.length * TRACK_HEIGHT;
-      if (isAudio) {
-        if (y >= videoTracksHeight + 4) {
-           const aIndex = Math.floor((y - videoTracksHeight - 4) / TRACK_HEIGHT);
-           if (aIndex >= 0 && aIndex < groupedTracks.aRows.length) {
-              newZIndex = groupedTracks.aRows[aIndex].zIndex;
-           } else if (aIndex >= groupedTracks.aRows.length) {
-              newZIndex = (groupedTracks.aRows[groupedTracks.aRows.length - 1]?.zIndex ?? 0) + 1;
-           }
-        } else if (y < videoTracksHeight) {
-           newZIndex = (groupedTracks.aRows[0]?.zIndex ?? 0) - 1;
-        }
-      } else {
-        if (y < videoTracksHeight) {
-           const vIndex = Math.floor(y / TRACK_HEIGHT);
-           if (vIndex >= 0 && vIndex < groupedTracks.vRows.length) {
-              newZIndex = groupedTracks.vRows[vIndex].zIndex;
-           }
-        } else {
-           newZIndex = (groupedTracks.vRows[groupedTracks.vRows.length - 1]?.zIndex ?? 0) - 1;
-        }
-      }
-
-      setOverride(layer.id, {
-        data: {
-           boundaries: {
-              ...(layer.boundaries as any),
-              zIndex: newZIndex
-           }
-        },
-        context: { timing: { startInFrames: newStart, durationInFrames: duration } },
-      });
-      setCurrentFrame(newStart);
-      playerRef.current?.seekTo(newStart);
-    },
-    [draggingLayerId, setOverride, setCurrentFrame, playerRef, pctToFrame, durationInFrames, groupedTracks]
-  );
-
-  const handleBlockPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      try {
-        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore if release fails (e.g. target no longer in document)
-      }
-      setDraggingLayerId(null);
-      setTrimMode(null);
-      setTrimLayerId(null);
-    },
-    []
-  );
-
-  const handleTrimLeftPointerDown = useCallback(
-    (e: React.PointerEvent, layer: FlatLayer) => {
-      e.stopPropagation();
-      if (e.button !== 0) return;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      setTrimMode("left");
-      setTrimLayerId(layer.id);
-    },
-    []
-  );
-
-  const handleTrimRightPointerDown = useCallback(
-    (e: React.PointerEvent, layer: FlatLayer) => {
-      e.stopPropagation();
-      if (e.button !== 0) return;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      setTrimMode("right");
-      setTrimLayerId(layer.id);
-    },
-    []
-  );
-
-    const handleTrimMove = useCallback(
-    (e: React.PointerEvent, layer: FlatLayer) => {
-      const currentFrame = useLayerStateStore.getState().currentFrame;
-      if (trimMode === null || trimLayerId !== layer.id) return;
-      const el = trackAreaRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      const frame = pctToFrame(pct);
-      const start = layer.timing.startInFrames ?? 0;
-      const duration = layer.timing.durationInFrames ?? 1;
-      const end = start + duration;
-      if (trimMode === "left") {
-        let newStart = Math.max(0, Math.min(end - 1, frame));
-        if (snappingEnabled) {
-           const snappedStart = getSnappedFrame(newStart, layer.id);
-           if (snappedStart < end) newStart = snappedStart;
-        }
-        const newDuration = end - newStart;
-        setOverride(layer.id, {
-          context: { timing: { startInFrames: newStart, durationInFrames: newDuration } },
-        });
-        if (currentFrame >= newStart && currentFrame < newStart + newDuration) {
-          setCurrentFrame(currentFrame);
-        } else {
-          setCurrentFrame(newStart);
-          playerRef.current?.seekTo(newStart);
-        }
-      } else {
-        let newEnd = Math.max(start + 1, Math.min(durationInFrames, frame));
-        if (snappingEnabled) {
-           const snappedEnd = getSnappedFrame(newEnd, layer.id);
-           if (snappedEnd > start) newEnd = snappedEnd;
-        }
-        const newDuration = newEnd - start;
-        setOverride(layer.id, {
-          context: { timing: { startInFrames: start, durationInFrames: newDuration } },
-        });
-        if (currentFrame >= start && currentFrame < newEnd) {
-          setCurrentFrame(currentFrame);
-        } else {
-          playerRef.current?.seekTo(Math.min(currentFrame, newEnd - 1));
-        }
-      }
-    },
-    [trimMode, trimLayerId, setOverride, pctToFrame, setCurrentFrame, playerRef, durationInFrames, snappingEnabled, getSnappedFrame]
-  );
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (!calculatedMetadata || layers.length === 0) {
     return (
@@ -591,165 +545,290 @@ export function LayeredTimeline() {
     );
   }
 
-  const renderTrackRow = (trackId: string, stateKey: string, type: "video" | "audio", trackLayers: FlatLayer[], displayLabel?: string) => {
+  const playheadPx = frameToPx(currentFrame);
+
+  const renderTrackLabel = (trackId: string, stateKey: string, type: "video" | "audio", displayLabel: string) => {
     const state = trackStates[stateKey] || { hidden: false, muted: false, solo: false, locked: false };
-    const label = displayLabel ?? stateKey;
     return (
       <div
         key={trackId}
-        className="flex shrink-0 border-b border-border/50 hover:bg-muted/10 relative"
+        className="shrink-0 flex items-center gap-1 px-2 border-b border-border/40 bg-background"
         style={{ height: TRACK_HEIGHT }}
       >
-        <div
-          className="shrink-0 w-[140px] border-r flex items-center px-2 text-xs truncate bg-background z-30"
-          title={label}
-        >
-          <span className="flex-1 font-medium">{label}</span>
-          <div className="flex items-center gap-0.5">
-            {type === "video" && (
-              <button
-                type="button"
-                className="p-1 rounded hover:bg-accent"
-                onClick={() => setTrackState(stateKey, { hidden: !state.hidden })}
-                title={state.hidden ? "Show track" : "Hide track"}
-              >
-                {state.hidden ? <EyeOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
-              </button>
-            )}
-            {type === "audio" && (
-              <>
-                <button
-                  type="button"
-                  className={cn("p-1 rounded hover:bg-accent", state.muted && "text-destructive")}
-                  onClick={() => setTrackState(stateKey, { muted: !state.muted })}
-                  title={state.muted ? "Unmute track" : "Mute track"}
-                >
-                  {state.muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />}
-                </button>
-                <button
-                  type="button"
-                  className={cn("p-1 rounded font-bold text-[10px]", state.solo ? "text-yellow-500 bg-yellow-500/10" : "text-muted-foreground hover:bg-accent")}
-                  onClick={() => setTrackState(stateKey, { solo: !state.solo })}
-                  title={state.solo ? "Unsolo track" : "Solo track"}
-                >
-                  S
-                </button>
-              </>
-            )}
+        <span className="flex-1 text-xs font-medium truncate text-muted-foreground">{displayLabel}</span>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {type === "video" && (
             <button
               type="button"
-              className="p-1 rounded hover:bg-accent"
-              onClick={() => setTrackState(stateKey, { locked: !state.locked })}
-              title={state.locked ? "Unlock track" : "Lock track"}
+              className={cn("p-0.5 rounded hover:bg-accent/60 transition-colors", state.hidden && "text-muted-foreground/40")}
+              onClick={() => setTrackState(stateKey, { hidden: !state.hidden })}
+              title={state.hidden ? "Show" : "Hide"}
             >
-              {state.locked ? <Lock className="h-3 w-3 text-muted-foreground" /> : <Unlock className="h-3 w-3 text-muted-foreground" />}
+              {state.hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3 text-muted-foreground" />}
             </button>
-          </div>
-        </div>
-        <div
-          className="flex-1 relative min-w-0 bg-muted/5"
-        >
-          {trackLayers.map((layer) => {
-            const start = layer.timing.startInFrames ?? 0;
-            const duration = Math.max(1, layer.timing.durationInFrames ?? 10);
-            const leftPct = frameToPct(start);
-            const widthPct = frameToPct(start + duration) - leftPct;
-            const isSelected = selectedLayerIds.includes(layer.id);
-
-            return (
-              <div
-                key={layer.id}
-                className="absolute top-0 bottom-0"
-                style={{
-                  left: `${Math.min(leftPct, 99)}%`,
-                  width: `${Math.max(2, widthPct)}%`,
-                }}
-                onPointerMove={(e) => {
-                  if (state.locked) return;
-                  if (draggingLayerId === layer.id) handleBlockPointerMove(e, layer);
-                  if (trimLayerId === layer.id && trimMode) handleTrimMove(e, layer);
-                }}
-                onPointerUp={handleBlockPointerUp}
-                onPointerLeave={handleBlockPointerUp}
+          )}
+          {type === "audio" && (
+            <>
+              <button
+                type="button"
+                className={cn("p-0.5 rounded hover:bg-accent/60 transition-colors", state.muted && "text-destructive")}
+                onClick={() => setTrackState(stateKey, { muted: !state.muted })}
+                title={state.muted ? "Unmute" : "Mute"}
               >
-                <TimelineClipBlock
-                  layer={layer}
-                  isSelected={isSelected}
-                  stateLocked={state.locked}
-                  onPointerDown={(e) => handleBlockPointerDown(e, layer)}
-                  onClick={() => handleLayerClick(layer)}
-                  onTrimLeftPointerDown={(e) => handleTrimLeftPointerDown(e, layer)}
-                  onTrimRightPointerDown={(e) => handleTrimRightPointerDown(e, layer)}
-                  title={`${layer.label} (${start}–${start + duration})`}
-                />
-              </div>
-            );
-          })}
+                {state.muted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3 text-muted-foreground" />}
+              </button>
+              <button
+                type="button"
+                className={cn("p-0.5 rounded text-[9px] font-bold", state.solo ? "text-yellow-400 bg-yellow-400/10" : "text-muted-foreground hover:bg-accent/60")}
+                onClick={() => setTrackState(stateKey, { solo: !state.solo })}
+                title={state.solo ? "Unsolo" : "Solo"}
+              >
+                S
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="p-0.5 rounded hover:bg-accent/60 transition-colors"
+            onClick={() => setTrackState(stateKey, { locked: !state.locked })}
+            title={state.locked ? "Unlock" : "Lock"}
+          >
+            {state.locked
+              ? <Lock className="h-3 w-3 text-amber-400" />
+              : <Unlock className="h-3 w-3 text-muted-foreground" />}
+          </button>
         </div>
       </div>
     );
   };
 
-  return (
-    <div className="flex flex-1 flex-col min-h-0 relative">
-      {/* Time ruler */}
-      <div className="flex shrink-0 border-b bg-muted/20" style={{ height: RULER_HEIGHT }}>
-        <div className="shrink-0 w-[140px] border-r flex items-center px-2 text-[10px] font-medium text-muted-foreground justify-between">
-          <span>Time</span>
-          <div className="flex gap-1">
-            <button
-              className={cn("p-1 rounded text-muted-foreground hover:bg-accent", snappingEnabled && "bg-accent text-accent-foreground")}
-              onClick={() => setSnappingEnabled((s) => !s)}
-              title="Snap (Magnet)"
-            >
-              <Magnet className="w-3 h-3" />
-            </button>
-            <button 
-              className={cn("p-1 hover:bg-accent rounded text-muted-foreground", selectedLayerIds.length !== 1 && "opacity-50 cursor-not-allowed")} 
-              title="Split (Razor)"
-              onClick={handleSplit}
-              disabled={selectedLayerIds.length !== 1}
-            >
-              <Scissors className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-        <div ref={trackAreaRef} className="flex-1 relative">
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+  const renderTrackRow = (trackId: string, stateKey: string, type: "video" | "audio", trackLayers: FlatLayer[]) => {
+    const state = trackStates[stateKey] || { hidden: false, muted: false, solo: false, locked: false };
+    return (
+      <div
+        key={trackId}
+        className="relative shrink-0 border-b border-border/40"
+        style={{ height: TRACK_HEIGHT }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      >
+        {trackLayers.map((layer) => {
+          const start = layer.timing.startInFrames ?? 0;
+          const dur = Math.max(1, layer.timing.durationInFrames ?? 10);
+          const left = frameToPx(start);
+          const width = Math.max(4, frameToPx(dur));
+          const isSelected = selectedLayerIds.includes(layer.id);
+
+          return (
             <div
-              key={t}
-              className="absolute top-0 bottom-0 w-px bg-border"
-              style={{ left: `${t * 100}%` }}
-            />
-          ))}
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-            <span
-              key={`label-${t}`}
-              className="absolute top-0.5 text-[10px] text-muted-foreground"
-              style={{ left: `${t * 100}%`, transform: "translateX(-50%)" }}
+              key={layer.id}
+              className="absolute top-0 bottom-0"
+              style={{ left, width }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
             >
-              {formatTime(Math.round(t * durationInFrames), fps)}
-            </span>
-          ))}
-        </div>
+              <TimelineClipBlock
+                layer={layer}
+                isSelected={isSelected}
+                stateLocked={state.locked}
+                onPointerDown={(e) => handleBlockPointerDown(e, layer)}
+                onClick={() => handleLayerClick(layer)}
+                onTrimLeftPointerDown={(e) => handleTrimLeftPointerDown(e, layer)}
+                onTrimRightPointerDown={(e) => handleTrimRightPointerDown(e, layer)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-full min-h-0 bg-background select-none">
+      {/* ── Top control bar ── */}
+      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b bg-muted/10">
+        {/* Play/Pause */}
+        <Button size="icon" variant="ghost" className="h-6 w-6"
+          onClick={() => playerRef.current?.play()} title="Play">
+          <Play className="h-3 w-3" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-6 w-6"
+          onClick={() => playerRef.current?.pause()} title="Pause">
+          <Pause className="h-3 w-3" />
+        </Button>
+
+        {/* Current time */}
+        <span className="text-xs font-mono text-muted-foreground min-w-[64px]">
+          {formatTime(currentFrame, fps)}
+        </span>
+        <span className="text-xs text-muted-foreground/40">/</span>
+        <span className="text-xs font-mono text-muted-foreground/60">
+          {formatTime(durationInFrames, fps)}
+        </span>
+
+        <div className="h-4 w-px bg-border mx-1" />
+
+        {/* Snap */}
+        <button
+          className={cn("p-1 rounded text-muted-foreground hover:bg-accent transition-colors", snappingEnabled && "bg-accent text-accent-foreground")}
+          onClick={() => setSnappingEnabled((s) => !s)}
+          title="Snap to grid"
+        >
+          <Magnet className="h-3 w-3" />
+        </button>
+
+        {/* Split */}
+        <button
+          className={cn("p-1 rounded text-muted-foreground hover:bg-accent transition-colors", selectedLayerIds.length !== 1 && "opacity-40 cursor-not-allowed")}
+          onClick={handleSplit}
+          disabled={selectedLayerIds.length !== 1}
+          title="Split at playhead"
+        >
+          <Scissors className="h-3 w-3" />
+        </button>
+
+        <div className="flex-1" />
+
+        {/* Zoom */}
+        <Button
+          size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-muted-foreground"
+          onClick={fitToView} title="Fit full timeline in view"
+        >
+          Fit
+        </Button>
+        <Button size="icon" variant="ghost" className="h-6 w-6"
+          onClick={() => setPixelsPerSecond((p) => Math.min(MAX_PPS, Math.max(minPps, p / 1.5)))} title="Zoom out">
+          <ZoomOut className="h-3 w-3" />
+        </Button>
+        <Slider
+          min={0} max={100} step={1}
+          value={[ppsToSlider(pixelsPerSecond)]}
+          onValueChange={(v) => setPixelsPerSecond(sliderToPps(v[0] ?? 0))}
+          className="w-24"
+        />
+        <Button size="icon" variant="ghost" className="h-6 w-6"
+          onClick={() => setPixelsPerSecond((p) => Math.min(MAX_PPS, Math.max(minPps, p * 1.5)))} title="Zoom in">
+          <ZoomIn className="h-3 w-3" />
+        </Button>
       </div>
 
-      {/* Tracks + playhead container */}
-      <div className="flex-1 overflow-auto relative min-h-0 flex flex-col pb-4 bg-background" ref={tracksContainerRef}>
-        {groupedTracks.vRows.map((row, i) =>
-          renderTrackRow(row.trackId, row.stateKey, "video", row.layers, `V${groupedTracks.vRows.length - 1 - i}`)
-        )}
-        
-        {groupedTracks.aRows.length > 0 && (
-          <div className="h-1 bg-muted/20 border-y shrink-0" />
-        )}
-        
-        {groupedTracks.aRows.map((row, i) =>
-          renderTrackRow(row.trackId, row.stateKey, "audio", row.layers, `A${groupedTracks.aRows.length - 1 - i}`)
-        )}
+      {/* ── Main timeline body ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Playhead: positioned over track area */}
-        <Playhead durationInFrames={durationInFrames} fps={fps} />
+        {/* Fixed label column */}
+        <div
+          className="shrink-0 border-r border-border/60 flex flex-col bg-background"
+          style={{ width: LABEL_WIDTH }}
+        >
+          {/* Ruler placeholder */}
+          <div
+            className="shrink-0 border-b border-border/40 bg-muted/20"
+            style={{ height: RULER_HEIGHT }}
+          />
+          {/* Labels — vertically synced with scrollRef */}
+          <div className="flex-1 overflow-y-hidden" ref={labelColRef}>
+            {groupedTracks.vRows.map((row, i) =>
+              renderTrackLabel(row.trackId, row.stateKey, "video", `V${groupedTracks.vRows.length - 1 - i}`)
+            )}
+            {groupedTracks.aRows.length > 0 && (
+              <div className="shrink-0 h-px bg-border/60" />
+            )}
+            {groupedTracks.aRows.map((row, i) =>
+              renderTrackLabel(row.trackId, row.stateKey, "audio", `A${groupedTracks.aRows.length - 1 - i}`)
+            )}
+          </div>
+        </div>
+
+        {/* Right side: ruler + tracks — ref used by ResizeObserver for dynamic min zoom */}
+        <div className="flex flex-col flex-1 min-w-0" ref={trackRightRef}>
+
+          {/* Ruler row (not scrollable; inner is synced via scrollLeft) */}
+          <div
+            className="shrink-0 overflow-hidden border-b border-border/40 bg-muted/20 cursor-pointer relative"
+            style={{ height: RULER_HEIGHT }}
+            ref={rulerRef}
+          >
+            <div
+              className="absolute inset-0"
+              style={{ width: totalWidth, minWidth: "100%" }}
+              onClick={handleRulerClick}
+            >
+              {rulerTicks.ticks.map((tick) => {
+                const px = tick * pixelsPerSecond;
+                const isMajor = tick % (rulerTicks.interval * 5) < 0.001 || rulerTicks.interval >= 5;
+                return (
+                  <div
+                    key={tick}
+                    className="absolute top-0 flex flex-col items-center"
+                    style={{ left: px }}
+                  >
+                    <div className={cn("w-px", isMajor ? "h-3 bg-muted-foreground/50" : "h-1.5 bg-muted-foreground/25")} />
+                    {isMajor && (
+                      <span className="absolute top-3 text-[9px] text-muted-foreground/70 translate-x-1 whitespace-nowrap">
+                        {formatSecondsTick(tick)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Playhead triangle on ruler */}
+              <div
+                className="absolute top-0 z-10 pointer-events-none"
+                style={{ left: playheadPx }}
+              >
+                <div className="relative">
+                  <div
+                    className="absolute w-0 h-0 -translate-x-1/2"
+                    style={{
+                      borderLeft: "5px solid transparent",
+                      borderRight: "5px solid transparent",
+                      borderTop: "8px solid hsl(var(--primary))",
+                    }}
+                  />
+                  <div className="absolute top-2 -translate-x-1/2 w-px h-5 bg-primary/70" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Scrollable track area */}
+          <div
+            className="flex-1 overflow-auto relative"
+            ref={scrollRef}
+            onScroll={onScroll}
+          >
+            <div
+              className="relative"
+              style={{ width: totalWidth, minWidth: "100%" }}
+              ref={trackAreaRef}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+            >
+              {/* Video tracks */}
+              {groupedTracks.vRows.map((row, i) =>
+                renderTrackRow(row.trackId, row.stateKey, "video", row.layers)
+              )}
+
+              {/* Audio divider */}
+              {groupedTracks.aRows.length > 0 && (
+                <div className="h-px bg-border/60 shrink-0" />
+              )}
+
+              {/* Audio tracks */}
+              {groupedTracks.aRows.map((row) =>
+                renderTrackRow(row.trackId, row.stateKey, "audio", row.layers)
+              )}
+
+              {/* Playhead vertical line */}
+              <div
+                className="absolute top-0 bottom-0 w-px bg-primary/80 pointer-events-none z-20"
+                style={{ left: playheadPx }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
