@@ -230,11 +230,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const handleLogout = async () => {
     try {
+      const currentPath = window.location.pathname + window.location.search;
       await fetch('/api/logout', {
         method: 'POST',
       });
-      // Redirect to login page after successful logout
-      router.push('/login');
+      router.push(`/login?redirectTo=${encodeURIComponent(currentPath)}`);
       router.refresh();
     } catch (error) {
       console.error('Failed to logout:', error);
