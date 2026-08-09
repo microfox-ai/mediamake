@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dispatchWorker } from '@microfox/ai-worker';
-import { getClientId } from '../../auth';
+import { authorizeWorkflowRequest } from '../../auth';
 import { isAdmin } from '@/lib/admin-utils';
 import { userQuotaDB } from '@/lib/quota-mongodb';
 
@@ -21,6 +21,14 @@ export async function POST(
     const { slug: slugParam } = await params;
     slug = slugParam || [];
     const [workerId, action] = slug;
+
+    // Every mutating worker route requires a user session, the internal shared
+    // secret (Lambda callbacks), or an explicit public opt-out.
+    const auth = await authorizeWorkflowRequest(req);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const userId = auth.userId;
 
     // Handle webhook endpoint
     if (action === 'webhook') {
@@ -59,24 +67,24 @@ export async function POST(
     }
 
     const { input, await: shouldAwait = false, jobId: providedJobId } = body;
-    const middlewareClientId = req.headers.get('x-client-id') || undefined;
-    const sessionClientId = await getClientId(req);
-    const userId = middlewareClientId || sessionClientId;
 
-    // ── Worker permission check ──────────────────────────────────────────
+    // ── Worker permission / quota check (mediamake) ──────────────────────
     if (userId && !(await isAdmin(userId))) {
       const quota = await userQuotaDB.getByClientId(userId);
-      const permCheck = userQuotaDB.checkWorkerPermission(quota?.workerPermissions, 'worker');
+      const permCheck = userQuotaDB.checkWorkerPermission(
+        quota?.workerPermissions,
+        'worker'
+      );
       if (!permCheck.allowed) {
         return NextResponse.json({ error: permCheck.reason }, { status: 403 });
       }
     }
-    // ─────────────────────────────────────────────────────────────────────
-
+    // Attach the resolved client id to the worker input (unless already set).
     const workerInput = input && typeof input === 'object' ? { ...input } : {};
     if (userId && !(workerInput as any).clientId) {
       (workerInput as any).clientId = userId;
     }
+    // ─────────────────────────────────────────────────────────────────────
 
     console.log('[Worker] Dispatching worker:', {
       workerId,
@@ -306,6 +314,20 @@ export async function GET(
 }
 
 /**
+ * Return the JSON Schema for a worker's input.
+ * Schema is embedded in the workers-config response at CLI build time — no dynamic imports.
+ * GET /api/workflows/workers/:workerId/schema
+ */
+async function handleGetSchema(workerId: string) {
+  const { getWorkerSchema } = await import('../../registry/workers');
+  const schema = await getWorkerSchema(workerId);
+  if (!schema) {
+    return NextResponse.json({ error: `No schema found for worker "${workerId}"` }, { status: 404 });
+  }
+  return NextResponse.json(schema, { status: 200 });
+}
+
+/**
  * Create job record before polling (trigger-only flow).
  * POST /api/workflows/workers/:workerId/job
  * Body: { jobId, input }
@@ -407,20 +429,6 @@ async function handleJobUpdate(req: NextRequest, workerId: string) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Return the JSON Schema for a worker's input.
- * Schema is embedded in the workers-config response at CLI build time — no dynamic imports.
- * GET /api/workflows/workers/:workerId/schema
- */
-async function handleGetSchema(workerId: string) {
-  const { getWorkerSchema } = await import('../../registry/workers');
-  const schema = await getWorkerSchema(workerId);
-  if (!schema) {
-    return NextResponse.json({ error: `No schema found for worker "${workerId}"` }, { status: 404 });
-  }
-  return NextResponse.json(schema, { status: 200 });
 }
 
 /**
