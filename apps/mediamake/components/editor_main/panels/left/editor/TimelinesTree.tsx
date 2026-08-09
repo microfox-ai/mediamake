@@ -4,17 +4,23 @@ import { useState, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, History } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useProjectStore } from "../../../stores/project-store";
+import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { TimelineItem } from "./TimelineItem";
+import { TimelineHistoryPanel } from "./TimelineHistoryPanel";
 import { useSession } from "@/components/session-provider";
 
 export function TimelinesTree() {
     const { timelines, currentProjectId, setTimelines } = useProjectStore();
     const session = useSession();
+    const historyCount = useTimelineEditsStore((s) => s.history.length);
+    const isDirty = useTimelineEditsStore((s) => s.isDirty);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearching, setIsSearching] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
 
     const runSearch = useCallback(async () => {
         if (!currentProjectId) return;
@@ -76,8 +82,8 @@ export function TimelinesTree() {
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-1 border-b">
-                <div className="relative">
+            <div className="p-1 border-b flex items-center gap-1">
+                <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Search timelines..."
@@ -85,6 +91,7 @@ export function TimelinesTree() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={handleSearchKeyDown}
                         className="h-7 pl-7 pr-16 text-xs"
+                        disabled={showHistory}
                     />
                     {searchQuery && (
                         <Button
@@ -111,14 +118,34 @@ export function TimelinesTree() {
                         )}
                     </Button>
                 </div>
+                <Button
+                    type="button"
+                    variant={showHistory ? "default" : "outline"}
+                    size="icon"
+                    className="h-7 w-7 shrink-0 relative"
+                    title={showHistory ? "Back to timelines" : "View timeline history"}
+                    onClick={() => setShowHistory((v) => !v)}
+                >
+                    <History className="h-3.5 w-3.5" />
+                    {!showHistory && (historyCount > 0 || isDirty) && (
+                        <span className={cn(
+                            "absolute -top-1 -right-1 h-2 w-2 rounded-full",
+                            isDirty ? "bg-amber-400" : "bg-primary"
+                        )} />
+                    )}
+                </Button>
             </div>
-            <ScrollArea className="flex-1 overflow-y-auto">
-                <div className="p-1 space-y-1">
-                    {timelines.map((timeline) => (
-                        <TimelineItem key={timeline.id} timeline={timeline} />
-                    ))}
-                </div>
-            </ScrollArea>
+            {showHistory ? (
+                <TimelineHistoryPanel />
+            ) : (
+                <ScrollArea className="flex-1 overflow-y-auto">
+                    <div className="p-1 space-y-1">
+                        {timelines.map((timeline) => (
+                            <TimelineItem key={timeline.id} timeline={timeline} />
+                        ))}
+                    </div>
+                </ScrollArea>
+            )}
         </div>
     );
 }
