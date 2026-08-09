@@ -46,13 +46,25 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
   const mergedProps = useMemo(() => {
     if (!calculatedMetadata?.props) return null;
     const base = calculatedMetadata.props;
-    const mergedChildren = getMergedChildren(base.childrenData) ?? [];
-    const visibleChildren = filterHiddenChildrenData(mergedChildren, hiddenLayerIds, trackStates) ?? [];
-    const interactionsEnabled = filePanelTab === "layers" && editModeEnabled;
+    const isLayersTab = filePanelTab === "layers";
+
+    // Timeline tab → show the raw timeline output (pure preset compile, no layer
+    // overlays). Layers tab → show the layer output (timeline base + overrides,
+    // added/removed/reordered nodes, hidden-layer filtering).
+    const childrenForPreview = isLayersTab
+      ? (filterHiddenChildrenData(
+          getMergedChildren(base.childrenData) ?? [],
+          hiddenLayerIds,
+          trackStates
+        ) ?? [])
+      : (base.childrenData ?? []);
+
+    const interactionsEnabled = isLayersTab && editModeEnabled;
     return {
       ...base,
-      childrenData: visibleChildren,
-      selectedLayerIds,
+      childrenData: childrenForPreview,
+      // Selection / drag overlays only make sense on the layers output.
+      selectedLayerIds: isLayersTab ? selectedLayerIds : [],
       currentFrame,
       editModeEnabled: interactionsEnabled,
       onSelectLayer: (id: string, addToSelection: boolean) => {
