@@ -20,12 +20,15 @@ import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers } from "@/lib/editor/flatten-layers";
 import type { FlatLayer } from "@/lib/editor/flatten-layers";
 import type { LayerOverride } from "../../../../stores/layer-state-store";
-import type { RenderableComponentData } from "@microfox/remotion";
+import type { CanvasPipelineData, RenderableComponentData } from "@microfox/remotion";
 import { getRegisteredEffects } from "@microfox/remotion";
 import { MediaPicker } from "@/components/editor/media/media-picker";
 import type { MediaFile } from "@/app/types/media";
 import { GenericEffectEditor } from "./GenericEffectEditor";
 import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
+import { ColorInput } from "@/components/editor/presets/form/inputs/color-input";
+import { parseColor } from "@/components/editor/presets/form/inputs/color-utils";
+import { CanvasPipelineEditor } from "./CanvasPipelineEditor";
 
 const VideoPreviewThumbnail = ({ src, alt }: { src: string; alt?: string }) => {
   const { thumbnailSrc } = useVideoThumbnail(src, {
@@ -133,7 +136,102 @@ function formatCssValue(value: string, important: boolean): string {
   return important && value ? `${value} !important` : value;
 }
 
+/** CSS properties whose value is a bare colour, so the row gets a colour picker. */
+const COLOR_CSS_KEYS = new Set([
+  "color",
+  "backgroundColor",
+  "background-color",
+  "borderColor",
+  "border-color",
+  "outlineColor",
+  "outline-color",
+  "caretColor",
+  "caret-color",
+  "textDecorationColor",
+  "text-decoration-color",
+  "fill",
+  "stroke",
+  "accentColor",
+  "accent-color",
+]);
+
+/**
+ * Shorthands like `background` or `border` accept a colour but also much more
+ * (images, widths, styles), so we only offer the picker when the current value
+ * actually parses as a colour and keep the text box authoritative.
+ */
+function isColorCssRow(key: string, value: string): boolean {
+  if (COLOR_CSS_KEYS.has(key)) return true;
+  return parseColor(value) !== null;
+}
+
+/** One editable `key: value` row of a style object, with !important + remove. */
+function StylePropertyRow({
+  propertyKey,
+  rawValue,
+  onChange,
+  onRemove,
+  disabled,
+}: {
+  propertyKey: string;
+  rawValue: string | number | undefined;
+  onChange: (value: string) => void;
+  onRemove: () => void;
+  disabled?: boolean;
+}) {
+  const { value, important } = parseCssValue(rawValue);
+  const isColor = isColorCssRow(propertyKey, value);
+
+  return (
+    <div className="flex gap-1 items-center flex-wrap">
+      <span className="text-xs text-muted-foreground w-24 shrink-0 truncate" title={propertyKey}>
+        {propertyKey}
+      </span>
+      {isColor ? (
+        <ColorInput
+          value={value}
+          onChange={(next) => onChange(formatCssValue(next, important))}
+          disabled={disabled}
+          compact
+          className="flex-1 min-w-0"
+          placeholder={propertyKey}
+        />
+      ) : (
+        <Input
+          className="h-8 flex-1 font-mono text-xs min-w-0"
+          value={value}
+          onChange={(e) => onChange(formatCssValue(e.target.value, important))}
+          disabled={disabled}
+          placeholder={propertyKey}
+        />
+      )}
+      <label className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
+        <Checkbox
+          checked={important}
+          onCheckedChange={(checked) => onChange(formatCssValue(value, !!checked))}
+          disabled={disabled}
+        />
+        !important
+      </label>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={onRemove}
+        disabled={disabled}
+        title="Remove property"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 const COMMON_CSS_PROPERTIES: { key: string; defaultValue: string; label?: string }[] = [
+  { key: "color", defaultValue: "#ffffff" },
+  { key: "backgroundColor", defaultValue: "#000000" },
+  { key: "borderColor", defaultValue: "#ffffff" },
   { key: "gap", defaultValue: "0" },
   { key: "opacity", defaultValue: "1" },
   { key: "transform", defaultValue: "none" },
@@ -674,6 +772,10 @@ export function LayerPropsPanel() {
   const dataStyle = (rawNode?.data as { style?: Record<string, unknown> } | undefined)?.style ?? {};
   const dataFont = (rawNode?.data as { font?: { family?: string; weights?: string[] } })?.font ?? {};
   const isMediaAtom = primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom";
+  const isCanvasPipeline = primary.componentId === "CanvasPipeline";
+  // The atom's own data doubles as its pipeline config, so the editor patches
+  // the same object the rest of this panel writes through updateData().
+  const canvasPipelineData = (rawNode?.data ?? {}) as Partial<CanvasPipelineData>;
 
   const containerProps = (rawNode?.data as { containerProps?: { style?: Record<string, unknown>; className?: string } })?.containerProps;
   const containerStyle = containerProps?.style ?? {};
@@ -802,7 +904,13 @@ export function LayerPropsPanel() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Color</Label>
-                    <Input type="text" value={String(dataStyle.color ?? "#000000")} onChange={(e) => updateData({ style: { ...dataStyle, color: e.target.value } })} className="h-8" disabled={isLocked} placeholder="#000000" />
+                    <ColorInput
+                      value={String(dataStyle.color ?? "")}
+                      onChange={(next) => updateData({ style: { ...dataStyle, color: next } })}
+                      disabled={isLocked}
+                      compact
+                      placeholder="#000000"
+                    />
                   </div>
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">Letter spacing</Label>
@@ -821,6 +929,17 @@ export function LayerPropsPanel() {
                     <Input type="text" value={Array.isArray(dataFont.weights) ? dataFont.weights.join(", ") : String(dataFont.weights ?? "")} onChange={(e) => updateData({ font: { ...dataFont, weights: e.target.value ? e.target.value.split(",").map((w) => w.trim()) : undefined } })} className="h-8" disabled={isLocked} placeholder="e.g. 400, 700" />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {isCanvasPipeline && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-muted-foreground">Canvas pipeline</h4>
+                <CanvasPipelineEditor
+                  data={canvasPipelineData}
+                  onChange={updateData}
+                  disabled={isLocked}
+                />
               </div>
             )}
 
@@ -888,27 +1007,21 @@ export function LayerPropsPanel() {
               </div>
             </div>
 
-            {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+            {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || isCanvasPipeline) && (
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-muted-foreground">Custom CSS (style)</h4>
                 {Object.keys(dataStyle).length > 0 && (
                   <div className="space-y-1">
-                    {Object.keys(dataStyle).map((k) => {
-                      const { value, important } = parseCssValue(dataStyle[k] as string | number | undefined);
-                      return (
-                        <div key={k} className="flex gap-1 items-center flex-wrap">
-                          <span className="text-xs text-muted-foreground w-24 shrink-0 truncate" title={k}>{k}</span>
-                          <Input className="h-8 flex-1 font-mono text-xs min-w-0" value={value} onChange={(e) => updateDataStyle(k, formatCssValue(e.target.value, important))} disabled={isLocked} />
-                          <label className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
-                            <Checkbox checked={important} onCheckedChange={(checked) => updateDataStyle(k, formatCssValue(value, !!checked))} disabled={isLocked} />
-                            !important
-                          </label>
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateDataStyle(k, undefined)} disabled={isLocked} title="Remove property">
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      );
-                    })}
+                    {Object.keys(dataStyle).map((k) => (
+                      <StylePropertyRow
+                        key={k}
+                        propertyKey={k}
+                        rawValue={dataStyle[k] as string | number | undefined}
+                        onChange={(next) => updateDataStyle(k, next)}
+                        onRemove={() => updateDataStyle(k, undefined)}
+                        disabled={isLocked}
+                      />
+                    ))}
                   </div>
                 )}
                 <AddStylePropertyButton containerStyle={dataStyle as Record<string, unknown>} onAdd={(key, value) => updateDataStyle(key, value)} disabled={isLocked} />
@@ -1083,22 +1196,16 @@ export function LayerPropsPanel() {
                     {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).length > 0 && (
                       <div className="space-y-1 pt-1">
                         <Label className="text-xs">Custom CSS</Label>
-                        {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).map((k) => {
-                          const { value, important } = parseCssValue(containerStyle[k] as string | number | undefined);
-                          return (
-                            <div key={k} className="flex gap-1 items-center flex-wrap">
-                              <span className="text-xs text-muted-foreground w-24 shrink-0 truncate" title={k}>{k}</span>
-                              <Input className="h-8 flex-1 font-mono text-xs min-w-0" value={value} onChange={(e) => updateContainerStyle(k, formatCssValue(e.target.value, important))} disabled={isLocked} placeholder={k} />
-                              <label className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
-                                <Checkbox checked={important} onCheckedChange={(checked) => updateContainerStyle(k, formatCssValue(value, !!checked))} disabled={isLocked} />
-                                !important
-                              </label>
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateContainerStyle(k, undefined)} disabled={isLocked} title="Remove property">
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          );
-                        })}
+                        {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).map((k) => (
+                          <StylePropertyRow
+                            key={k}
+                            propertyKey={k}
+                            rawValue={containerStyle[k] as string | number | undefined}
+                            onChange={(next) => updateContainerStyle(k, next)}
+                            onRemove={() => updateContainerStyle(k, undefined)}
+                            disabled={isLocked}
+                          />
+                        ))}
                       </div>
                     )}
                     <AddStylePropertyButton containerStyle={containerStyle} onAdd={(key, value) => { updateContainerStyle(key, value); }} disabled={isLocked} />
@@ -1240,12 +1347,22 @@ export function LayerPropsPanel() {
                       <h4 className="text-xs font-medium text-muted-foreground">Text style</h4>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1"><Label className="text-xs">Font size</Label><Input type="number" value={Number(dataStyle.fontSize) ?? 16} onChange={(e) => updateData({ style: { ...dataStyle, fontSize: Number(e.target.value) || 16 } })} className="h-8" disabled={isLocked} /></div>
-                        <div className="space-y-1"><Label className="text-xs">Color</Label><Input type="text" value={String(dataStyle.color ?? "#000000")} onChange={(e) => updateData({ style: { ...dataStyle, color: e.target.value } })} className="h-8" disabled={isLocked} placeholder="#000000" /></div>
+                        <div className="space-y-1"><Label className="text-xs">Color</Label><ColorInput value={String(dataStyle.color ?? "")} onChange={(next) => updateData({ style: { ...dataStyle, color: next } })} disabled={isLocked} compact placeholder="#000000" /></div>
                         <div className="space-y-1 col-span-2"><Label className="text-xs">Letter spacing</Label><Input type="text" value={String(dataStyle.letterSpacing ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, letterSpacing: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 5px" /></div>
                         <div className="space-y-1 col-span-2"><Label className="text-xs">Text shadow</Label><Input type="text" value={String(dataStyle.textShadow ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, textShadow: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 0 2px 4px rgba(0,0,0,0.5)" /></div>
                         <div className="space-y-1 col-span-2"><Label className="text-xs">Font family</Label><Input type="text" value={String(dataFont.family ?? "")} onChange={(e) => updateData({ font: { ...dataFont, family: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. Inter" /></div>
                         <div className="space-y-1 col-span-2"><Label className="text-xs">Font weights (comma-separated)</Label><Input type="text" value={Array.isArray(dataFont.weights) ? dataFont.weights.join(", ") : String(dataFont.weights ?? "")} onChange={(e) => updateData({ font: { ...dataFont, weights: e.target.value ? e.target.value.split(",").map((w) => w.trim()) : undefined } })} className="h-8" disabled={isLocked} placeholder="e.g. 400, 700" /></div>
                       </div>
+                    </div>
+                  )}
+                  {isCanvasPipeline && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-medium text-muted-foreground">Canvas pipeline</h4>
+                      <CanvasPipelineEditor
+                        data={canvasPipelineData}
+                        onChange={updateData}
+                        disabled={isLocked}
+                      />
                     </div>
                   )}
                   <div className="space-y-2">
@@ -1307,22 +1424,16 @@ export function LayerPropsPanel() {
                           {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).length > 0 && (
                             <div className="space-y-1 pt-1">
                               <Label className="text-xs">Custom CSS</Label>
-                              {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).map((k) => {
-                                const { value, important } = parseCssValue(containerStyle[k] as string | number | undefined);
-                                return (
-                                  <div key={k} className="flex gap-1 items-center flex-wrap">
-                                    <span className="text-xs text-muted-foreground w-24 shrink-0 truncate" title={k}>{k}</span>
-                                    <Input className="h-8 flex-1 font-mono text-xs min-w-0" value={value} onChange={(e) => updateContainerStyle(k, formatCssValue(e.target.value, important))} disabled={isLocked} placeholder={k} />
-                                    <label className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
-                                      <Checkbox checked={important} onCheckedChange={(checked) => updateContainerStyle(k, formatCssValue(value, !!checked))} disabled={isLocked} />
-                                      !important
-                                    </label>
-                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateContainerStyle(k, undefined)} disabled={isLocked} title="Remove property">
-                                      <X className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                );
-                              })}
+                              {Object.keys(containerStyle).filter((k) => !["display", "flexDirection", "alignItems", "justifyContent"].includes(k)).map((k) => (
+                                <StylePropertyRow
+                                  key={k}
+                                  propertyKey={k}
+                                  rawValue={containerStyle[k] as string | number | undefined}
+                                  onChange={(next) => updateContainerStyle(k, next)}
+                                  onRemove={() => updateContainerStyle(k, undefined)}
+                                  disabled={isLocked}
+                                />
+                              ))}
                             </div>
                           )}
                           <AddStylePropertyButton containerStyle={containerStyle} onAdd={(k, v) => updateContainerStyle(k, v)} disabled={isLocked} />
@@ -1330,27 +1441,21 @@ export function LayerPropsPanel() {
                       )}
                     </>
                   )}
-                  {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+                  {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || isCanvasPipeline) && (
                     <div className="space-y-2">
                       <h4 className="text-xs font-medium text-muted-foreground">Custom CSS (style)</h4>
                       {Object.keys(dataStyle).length > 0 && (
                         <div className="space-y-1">
-                          {Object.keys(dataStyle).map((k) => {
-                            const { value, important } = parseCssValue(dataStyle[k] as string | number | undefined);
-                            return (
-                              <div key={k} className="flex gap-1 items-center flex-wrap">
-                                <span className="text-xs text-muted-foreground w-24 shrink-0 truncate" title={k}>{k}</span>
-                                <Input className="h-8 flex-1 font-mono text-xs min-w-0" value={value} onChange={(e) => updateDataStyle(k, formatCssValue(e.target.value, important))} disabled={isLocked} />
-                                <label className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
-                                  <Checkbox checked={important} onCheckedChange={(checked) => updateDataStyle(k, formatCssValue(value, !!checked))} disabled={isLocked} />
-                                  !important
-                                </label>
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => updateDataStyle(k, undefined)} disabled={isLocked} title="Remove property">
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            );
-                          })}
+                          {Object.keys(dataStyle).map((k) => (
+                            <StylePropertyRow
+                              key={k}
+                              propertyKey={k}
+                              rawValue={dataStyle[k] as string | number | undefined}
+                              onChange={(next) => updateDataStyle(k, next)}
+                              onRemove={() => updateDataStyle(k, undefined)}
+                              disabled={isLocked}
+                            />
+                          ))}
                         </div>
                       )}
                       <AddStylePropertyButton containerStyle={dataStyle as Record<string, unknown>} onAdd={(key, value) => updateDataStyle(key, value)} disabled={isLocked} />
