@@ -21,11 +21,8 @@ export {
   config as LottieAtomConfig,
   type LottieAtomDataProps,
 } from './LottieAtom';
-export {
-  Atom as CanvasAtom,
-  config as CanvasAtomConfig,
-  type CanvasAtomDataProps,
-} from './CanvasAtom';
+// CanvasAtom removed — a bare <canvas> is not drivable from preset JSON.
+// Use the `CanvasPipeline` atom (src/canvas) instead.
 export {
   Atom as HTMLBlockAtom,
   config as HTMLBlockAtomConfig,
@@ -42,7 +39,6 @@ import { Atom as TextAtom, config as TextAtomConfig } from './TextAtom';
 import { Atom as VideoAtom, config as VideoAtomConfig } from './VideoAtom';
 import { Atom as AudioAtom, config as AudioAtomConfig } from './AudioAtom';
 import { Atom as LottieAtom, config as LottieAtomConfig } from './LottieAtom';
-import { Atom as CanvasAtom, config as CanvasAtomConfig } from './CanvasAtom';
 import {
   Atom as HTMLBlockAtom,
   config as HTMLBlockAtomConfig,
@@ -79,12 +75,6 @@ registerComponent(
   LottieAtom,
   'atom',
   LottieAtomConfig
-);
-registerComponent(
-  CanvasAtomConfig.displayName,
-  CanvasAtom,
-  'atom',
-  CanvasAtomConfig
 );
 registerComponent(
   HTMLBlockAtomConfig.displayName,
