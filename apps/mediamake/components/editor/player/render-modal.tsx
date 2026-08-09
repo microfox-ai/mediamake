@@ -35,7 +35,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useRender, ConfigMode } from './render-provider';
+import { useRender, ConfigMode, RenderMethod } from './render-provider';
+import { useBrowserRender } from './use-browser-render';
+import { Progress } from '@/components/ui/progress';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/components/session-provider';
 import { useQuotaExhaustedDialog, extractQuotaError } from '@/components/quota-exhausted-dialog';
@@ -72,6 +74,7 @@ import {
   Clock,
   Layers,
   Info,
+  Globe,
 } from 'lucide-react';
 import {
   calculateCompositionLayoutMetadata,
@@ -113,6 +116,12 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     isLoading,
     setIsLoading,
   } = useRender();
+
+  const {
+    state: browserRender,
+    startBrowserRender,
+    cancel: cancelBrowserRender,
+  } = useBrowserRender();
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
@@ -232,17 +241,71 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     try {
       if (renderMethod === 'aws') {
         await handleAWSRender();
+      } else if (renderMethod === 'browser') {
+        await handleBrowserRender();
       } else {
         await handleLocalRender();
       }
     } catch (error) {
       console.error('Render error:', error);
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to start render',
-      );
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        toast.info('Browser render cancelled');
+      } else {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to start render',
+        );
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleBrowserRender = async () => {
+    if (!session?.clientId) {
+      toast.error('You must be signed in to render in the browser');
+      return;
+    }
+
+    let parsedInputProps;
+    try {
+      parsedInputProps = JSON.parse(settings.inputProps);
+    } catch (error) {
+      toast.error('Invalid JSON in input props');
+      return;
+    }
+
+    const isStill = settings.renderType === 'still';
+    const ext = isStill ? settings.browserImageFormat : settings.browserContainer;
+    const fileName = settings.fileName.includes('.')
+      ? settings.fileName
+      : `${settings.fileName}.${ext}`;
+
+    const result = await startBrowserRender({
+      inputProps: parsedInputProps,
+      compositionId: settings.composition || 'DataMotion',
+      renderType: isStill ? 'still' : 'video',
+      container: settings.browserContainer,
+      imageFormat: settings.browserImageFormat,
+      fileName,
+      frameTime: settings.frameTime,
+      projectId: settings.projectId,
+      tags: settings.tags,
+      clientId: session.clientId,
+    });
+
+    toast.success(
+      isStill
+        ? 'Image rendered in browser and saved!'
+        : 'Video rendered in browser and saved!',
+    );
+    if (result?.url) {
+      toast.info(
+        isStill
+          ? 'Find it in Image Render History.'
+          : 'Find it in Video Render History.',
+      );
+    }
+    onClose();
   };
 
   const handleAWSRender = async () => {
@@ -377,11 +440,15 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         <div className="flex-1 overflow-y-auto">
           <Tabs
             value={renderMethod}
-            onValueChange={value => setRenderMethod(value as 'aws' | 'local')}
+            onValueChange={value => setRenderMethod(value as RenderMethod)}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="aws">AWS Lambda</TabsTrigger>
+              <TabsTrigger value="browser" className="flex items-center gap-1">
+                <Globe className="h-4 w-4" />
+                Browser
+              </TabsTrigger>
               <TabsTrigger value="local">Local Render</TabsTrigger>
             </TabsList>
 
@@ -1096,6 +1163,214 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
               </div>
             </TabsContent>
 
+            <TabsContent value="browser" className="space-y-4">
+              <div className="flex flex-col gap-4 py-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Renders on this device</AlertTitle>
+                  <AlertDescription>
+                    The video is rendered with WebCodecs in this browser tab and
+                    then uploaded to storage — no Lambda cost. Keep this tab
+                    open until it finishes. Requires a Chromium-based browser.
+                  </AlertDescription>
+                </Alert>
+
+                {/* Render target (video vs image) */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Render</Label>
+                  <div className="col-span-3">
+                    <Tabs
+                      value={settings.renderType === 'still' ? 'image' : 'video'}
+                      onValueChange={(value) => {
+                        if (value === 'image') {
+                          updateSetting('renderType', 'still');
+                          if (settings.fileName.startsWith('video-')) {
+                            updateSetting('fileName', 'image-' + Date.now().toString().replaceAll('-', ''));
+                          }
+                        } else {
+                          updateSetting('renderType', 'video');
+                          if (settings.fileName.startsWith('image-')) {
+                            updateSetting('fileName', 'video-' + Date.now().toString().replaceAll('-', ''));
+                          }
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="video">Video</TabsTrigger>
+                        <TabsTrigger value="image">Image</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                </div>
+
+                {/* Project + tags metadata */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Project</Label>
+                  <div className="col-span-3">
+                    <Select
+                      value={settings.projectId ?? 'none'}
+                      onValueChange={(value) => updateSetting('projectId', value === 'none' ? undefined : value)}
+                      disabled={projectsLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={projectsLoading ? 'Loading...' : 'No project'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No project</SelectItem>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Tags</Label>
+                  <div className="col-span-3">
+                    <TagMultiSelect
+                      selectedTags={settings.tags ?? []}
+                      onTagsChange={(t) => updateSetting('tags', t)}
+                      label=""
+                      required={false}
+                      showCreateNew={true}
+                    />
+                  </div>
+                </div>
+
+                {settings.renderType !== 'still' ? (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Format</Label>
+                    <Select
+                      value={settings.browserContainer}
+                      onValueChange={value =>
+                        updateSetting('browserContainer', value as 'mp4' | 'webm')
+                      }
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mp4">MP4 (H.264 + AAC)</SelectItem>
+                        <SelectItem value="webm">WebM (VP9 + Opus)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Format</Label>
+                      <Select
+                        value={settings.browserImageFormat}
+                        onValueChange={value =>
+                          updateSetting('browserImageFormat', value as 'png' | 'jpeg')
+                        }
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="png">PNG</SelectItem>
+                          <SelectItem value="jpeg">JPEG</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="browserFrameTime" className="text-right">
+                        Frame Time (seconds)
+                      </Label>
+                      <Input
+                        id="browserFrameTime"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={settings.frameTime || 0}
+                        onChange={e =>
+                          updateSetting('frameTime', parseFloat(e.target.value) || 0)
+                        }
+                        className="col-span-3"
+                        placeholder="0"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="browserFileName" className="text-right">
+                    File Name
+                  </Label>
+                  <Input
+                    id="browserFileName"
+                    value={settings.fileName}
+                    onChange={e => updateSetting('fileName', e.target.value)}
+                    className="col-span-3"
+                    placeholder="video"
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Input Props</Label>
+                  <div className="col-span-3 space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowJson(!showJson)}
+                      className="w-full justify-between"
+                    >
+                      <span>{showJson ? 'Hide JSON' : 'Show JSON'}</span>
+                      {showJson ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                    {showJson && (
+                      <Textarea
+                        id="browserInputProps"
+                        value={settings.inputProps}
+                        onChange={e => updateSetting('inputProps', e.target.value)}
+                        className="min-h-[120px] font-mono text-sm max-h-[200px] overflow-y-auto"
+                        placeholder="Enter JSON input props..."
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {browserRender.phase !== 'idle' && browserRender.phase !== 'done' && (
+                  <div className="space-y-2 rounded-md border p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">
+                        {browserRender.phase === 'preparing' && 'Preparing composition...'}
+                        {browserRender.phase === 'rendering' &&
+                          `Rendering... ${Math.round(browserRender.progress * 100)}%`}
+                        {browserRender.phase === 'uploading' && 'Uploading to storage...'}
+                        {browserRender.phase === 'error' && 'Render failed'}
+                      </span>
+                      {(browserRender.phase === 'rendering' ||
+                        browserRender.phase === 'preparing') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={cancelBrowserRender}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                    {browserRender.phase !== 'error' && (
+                      <Progress value={browserRender.progress * 100} />
+                    )}
+                    {browserRender.error && (
+                      <p className="text-sm text-destructive">{browserRender.error}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
             <TabsContent value="local" className="space-y-4">
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -1274,7 +1549,11 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
             Cancel
           </Button>
           <Button onClick={handleRender} disabled={isLoading}>
-            {isLoading ? 'Starting Render...' : 'Start Render'}
+            {isLoading
+              ? renderMethod === 'browser'
+                ? 'Rendering in browser...'
+                : 'Starting Render...'
+              : 'Start Render'}
           </Button>
         </DialogFooter>
       </DialogContent>
