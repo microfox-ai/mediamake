@@ -4,7 +4,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useViewPatternStore } from "../../stores/view-pattern-store";
+import { useEditorUIStore } from "../../stores/editor-ui-store";
 import { EditorProps } from "./editor/EditorProps";
+import { RenderDetailsPanel } from "./editor/RenderDetailsPanel";
 
 // Placeholder component that will be replaced later
 function PropsContent() {
@@ -30,10 +32,15 @@ function PropsContent() {
 
 export function RightPanel() {
   const { currentPattern } = useViewPatternStore();
+  const filePanelTab = useEditorUIStore((s) => s.filePanelTab);
 
   // For now, render the same component for all patterns
   // This will be replaced with different components later
   const renderPatternContent = () => {
+    // The Renders tab shows full render details (reused from the render pages).
+    if (filePanelTab === 'renders') {
+      return <RenderDetailsPanel />;
+    }
     switch (currentPattern) {
       case 'edit':
         return (

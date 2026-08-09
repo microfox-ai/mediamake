@@ -57,9 +57,15 @@ interface HistoryContentProps {
     selectedRequest?: RenderRequest | null;
     onRefreshApiRequest?: (renderId: string, updatedRequest: RenderRequest) => void;
     onRenderDeleted?: (renderId: string) => void;
+    /**
+     * Optional session clientId. When provided, live-progress polling, input-props
+     * loading and delete work via x-client-id (session cookie) without requiring an
+     * API key. The render-history pages omit this and keep API-key-only behavior.
+     */
+    clientId?: string;
 }
 
-export function HistoryContent({ selectedRender, selectedRequest: propSelectedRequest, onRefreshApiRequest, onRenderDeleted }: HistoryContentProps) {
+export function HistoryContent({ selectedRender, selectedRequest: propSelectedRequest, onRefreshApiRequest, onRenderDeleted, clientId }: HistoryContentProps) {
     const [selectedRequest, setSelectedRequest] = useState<RenderRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -71,6 +77,15 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
     const [isLoadingInputProps, setIsLoadingInputProps] = useState(false);
     const { fetchAndUpdateProgress } = useProgress();
     const [apiKey, setApiKey] = useLocalState("apiKey", process.env.NEXT_PUBLIC_DEV_API_KEY ?? "");
+    // Auth for progress/detail calls: an API key OR a session clientId is enough.
+    const hasAuth = Boolean(apiKey?.trim() || clientId);
+    const progressAuth = { apiKey, clientId };
+    const buildAuthHeaders = (base: Record<string, string> = {}) => {
+        const headers = { ...base };
+        if (apiKey?.trim()) headers.Authorization = `Bearer ${apiKey}`;
+        if (clientId) headers["x-client-id"] = clientId;
+        return headers;
+    };
     const selectedRenderIdRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -94,7 +109,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
 
     // When selection changes, fetch fresh details. Skip progress API only when we already have full data from DB.
     useEffect(() => {
-        if (!selectedRender || !propSelectedRequest || !apiKey?.trim()) return;
+        if (!selectedRender || !propSelectedRequest || !hasAuth) return;
         if (!propSelectedRequest.bucketName || !propSelectedRequest.renderId) return;
         // Completed/failed with full data already in DB: skip fetch to avoid unnecessary Lambda calls.
         const hasProgressData = Boolean(propSelectedRequest.progressData);
@@ -111,7 +126,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         const doFetch = async () => {
             setIsRefreshing(true);
             try {
-                const result = await fetchAndUpdateProgress(propSelectedRequest, apiKey);
+                const result = await fetchAndUpdateProgress(propSelectedRequest, progressAuth);
                 if (cancelled) return;
                 if (selectedRenderIdRef.current !== renderIdForThisEffect) return;
                 if (result.success && result.updatedRequest) {
@@ -133,7 +148,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when selection identity changes, not when callbacks change
-    }, [selectedRender, propSelectedRequest?.id, apiKey]);
+    }, [selectedRender, propSelectedRequest?.id, apiKey, clientId]);
 
     // Check progress for the selected rendering request (only while status is "rendering")
     useEffect(() => {
@@ -141,7 +156,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
             return;
         }
 
-        if (!apiKey?.trim()) {
+        if (!hasAuth) {
             return;
         }
 
@@ -149,7 +164,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
 
         const checkProgress = async () => {
             try {
-                const result = await fetchAndUpdateProgress(selectedRequest, apiKey);
+                const result = await fetchAndUpdateProgress(selectedRequest, progressAuth);
                 if (selectedRenderIdRef.current !== requestId) return;
                 if (result.success && result.updatedRequest) {
                     setSelectedRequest(result.updatedRequest);
@@ -177,7 +192,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
                 setIsRefreshing(false);
             }
         };
-    }, [selectedRequest?.id, selectedRequest?.status, selectedRequest?.bucketName, selectedRequest?.renderId, apiKey, fetchAndUpdateProgress, onRefreshApiRequest]);
+    }, [selectedRequest?.id, selectedRequest?.status, selectedRequest?.bucketName, selectedRequest?.renderId, apiKey, clientId, fetchAndUpdateProgress, onRefreshApiRequest]);
 
     const getStatusIcon = (status: RenderRequest["status"]) => {
         switch (status) {
@@ -237,8 +252,8 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
             return;
         }
 
-        if (!apiKey) {
-            toast.error("API key is not valid");
+        if (!hasAuth) {
+            toast.error("Not authenticated");
             return;
         }
 
@@ -247,7 +262,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         setError(null);
 
         try {
-            const result = await fetchAndUpdateProgress(propSelectedRequest, apiKey);
+            const result = await fetchAndUpdateProgress(propSelectedRequest, progressAuth);
             if (result.success && result.updatedRequest) {
                 console.log('Refresh successful, updating with fresh data:', result.updatedRequest);
                 setSelectedRequest(result.updatedRequest);
@@ -268,8 +283,8 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
     };
 
     const handleLoadInputProps = async () => {
-        if (!selectedRender || !apiKey?.trim()) {
-            toast.error("Missing selection or API key");
+        if (!selectedRender || !hasAuth) {
+            toast.error("Missing selection or authentication");
             return;
         }
         setIsLoadingInputProps(true);
@@ -280,7 +295,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
             });
             if (selectedRequest?.isArchived) params.set("includeArchived", "true");
             const res = await fetch(`/api/remotion/history?${params}`, {
-                headers: { Authorization: `Bearer ${apiKey}` },
+                headers: buildAuthHeaders(),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
@@ -301,8 +316,8 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
     };
 
     const handleDeleteConfirm = async () => {
-        if (!selectedRender || !selectedRequest || !apiKey?.trim()) {
-            toast.error("Missing selection or API key");
+        if (!selectedRender || !selectedRequest || !hasAuth) {
+            toast.error("Missing selection or authentication");
             return;
         }
         if (!selectedRequest.bucketName) {
@@ -313,10 +328,7 @@ export function HistoryContent({ selectedRender, selectedRequest: propSelectedRe
         try {
             const res = await fetch('/api/remotion/render/delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
+                headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     renderId: selectedRender,
                     bucketName: selectedRequest.bucketName,
