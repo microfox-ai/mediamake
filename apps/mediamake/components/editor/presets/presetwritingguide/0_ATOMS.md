@@ -108,16 +108,24 @@ Atoms are the fundamental building blocks of Remotion compositions. Each atom re
 
 ---
 
-### 🎨 CanvasAtom
+### 🎨 CanvasPipeline
 
-**When to use:** Custom canvas-based effects (typically used indirectly through effect components)
+**When to use:** Particle systems, reveals with custom geometry (organic/burn
+edges), glitch treatments, procedural graphics — anything not expressible with
+CSS on an image/video. See `ATOM_CANVAS_PIPELINE.md` for the op catalogue.
 
 ```typescript
 {
-  className?: string;              // CSS class names
-  style?: Record<string, any>;    // CSS styles object
+  sources?: Record<string, { type: 'image'; src: string }>; // named inputs
+  pipeline: CanvasOpNode[];        // ordered draw operations
+  background?: string;             // fill colour; transparent when omitted
+  seed?: number | string;          // deterministic randomness
+  renderScale?: number;            // backing-resolution cap
 }
 ```
+
+Related: `effect-CanvasFx` applies the same pipelines to wrapped children as a
+mask / overlay / underlay.
 
 ---
 
@@ -161,7 +169,7 @@ Atoms are the fundamental building blocks of Remotion compositions. Each atom re
 | TextAtom      | Typography        | Font loading, gradients, styling      |
 | AudioAtom     | Audio playback    | Trimming, muting ranges, volume       |
 | LottieAtom    | Animated graphics | JSON animations, playback control     |
-| CanvasAtom    | Custom effects    | Canvas manipulation, advanced visuals |
+| CanvasPipeline | Custom effects   | Particles, reveals, glitch, procedural graphics |
 | HTMLBlockAtom | Raw HTML          | Custom HTML injection                 |
 | ShapeAtom     | Simple shapes     | Basic geometric shapes                |
 
