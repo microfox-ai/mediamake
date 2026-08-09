@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type FilePanelTab = 'timelines' | 'layers';
+export type FilePanelTab = 'timelines' | 'layers' | 'renders';
 
 interface EditorUIState {
   filePanelTab: FilePanelTab;
