@@ -1,6 +1,9 @@
 // Core exports
 export * from './core';
 
+// Canvas pipeline system (registers CanvasPipeline atom + CanvasFx effect + op stdlib)
+export * from './canvas';
+
 // Component exports
 export * from './components';
 
