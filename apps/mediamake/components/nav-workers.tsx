@@ -47,14 +47,14 @@ const GROUPS: WorkerGroup[] = [
     pattern: /elevenlabs|udio|stability[-_]audio/i,
   },
   {
-    label: 'Helpers',
-    icon: '🔧',
-    pattern: /pexels|creatomate/i,
-  },
-  {
     label: 'FFmpeg',
     icon: '⚙️',
     pattern: /ffmpeg|subtitle|media[-_]info|video[-_]split/i,
+  },
+  {
+    label: 'Usage',
+    icon: '💰',
+    pattern: /usage/i,
   },
 ]
 
