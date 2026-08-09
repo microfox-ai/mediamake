@@ -17,7 +17,7 @@
     "@codemirror/language-data": "^6.5.2",
     "@hookform/resolvers": "^5.2.2",
     "@microfox/ai-router": "latest",
-    "@microfox/ai-worker": "^1.0.5",
+    "@microfox/ai-worker": "^1.1.2",
     "@microfox/brave": "^1.2.3",
     "@microfox/db-upstash": "^1.1.8",
     "@microfox/puppeteer-sls": "^1.2.10",
