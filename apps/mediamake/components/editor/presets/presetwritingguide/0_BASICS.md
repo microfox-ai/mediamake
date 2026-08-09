@@ -423,6 +423,56 @@ export const myPreset = {
 };
 ```
 
+## 7b. Editor Input Widgets (`paramMetaTypes.inputType`)
+
+`presetParams` fields render in the editor with a widget chosen automatically
+from the field's type and name. Annotate a field to override that choice:
+
+```ts
+import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
+
+const presetParams = z.object({
+  // Full colour picker: SV plane, hue/alpha sliders, screen eyedropper,
+  // harmony + shade ramps, preset swatches and recent colours.
+  glowColor: z.string().meta({
+    [paramMetaTypes.inputType]: paramInputTypes.color,
+  }),
+
+  // Widget config goes in `inputOptions`.
+  brandColor: z.string().meta({
+    [paramMetaTypes.inputType]: paramInputTypes.color,
+    [paramMetaTypes.inputOptions]: {
+      allowAlpha: false,              // hide the alpha slider
+      format: "hex",                  // force the written notation
+      presets: ["#0ea5e9", "#f43f5e"] // brand swatches shown first
+    },
+  }),
+
+  // Slider instead of a number box.
+  intensity: z.number().meta({
+    [paramMetaTypes.inputType]: paramInputTypes.slider,
+    [paramMetaTypes.inputOptions]: { min: 0, max: 3, step: 0.1, unit: "x" },
+  }),
+});
+```
+
+Available `paramInputTypes`: `color`, `slider`, `textarea`, `text`.
+
+**Auto-detection — you usually do not need the annotation.**
+
+- **Colour:** any string field whose name contains the word `color`/`colour`,
+  or ends in `fill`/`stroke`/`tint`/`shade`/`hue`/`background`/`accent`/
+  `primary`/`secondary`, or whose `.default()` parses as a CSS colour.
+  Word-based, so `artistColor` and `burn_glow_color` match while `colorMode`,
+  `borderRadius` and `backgroundImage` do not. Enums are never converted.
+- **Slider:** any number field with both `.min()` and `.max()`.
+
+Use `paramInputTypes.text` to opt a field **out** of a wrong auto-detection.
+
+The colour widget always keeps a text box alongside the swatch, so values the
+picker cannot parse (`var(--brand)`, `currentColor`, gradients) stay editable —
+the swatch shows a `CSS` badge in that case.
+
 ## 8. Best Practices
 
 1. **⚠️ Helper functions** - ONLY define in: `preset-stdlib`, separate preset, or inside `presetExecution`
