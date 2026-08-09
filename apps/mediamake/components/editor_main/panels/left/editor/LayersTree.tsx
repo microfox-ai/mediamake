@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, GripVertical, Type, Music, ArrowUp, ArrowDown, Copy, Trash2, Edit2 } from "lucide-react";
+import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, GripVertical, Type, Music, ArrowUp, ArrowDown, Copy, Trash2, Edit2, History, Users, Loader2 } from "lucide-react";
+import { LayerHistoryPanel } from "./LayerHistoryPanel";
+import { useLayerHistoryStore } from "../../../stores/layer-history-store";
 import {
   flattenLayers,
   filterEditableLayers,
@@ -12,6 +14,7 @@ import {
 import type { RenderableComponentData } from "@microfox/remotion";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { useProjectStore } from "../../../stores/project-store";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
@@ -39,8 +42,6 @@ import {
   createVideoLayer,
   createLayoutNode,
 } from "@/lib/editor/layer-templates";
-import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
-
 const PREVIEW_TEXT_MAX = 28;
 
 function findNodeInTree(
@@ -89,19 +90,21 @@ function findParentAndSiblings(
 
 function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
   if (node.componentId === "TextAtom") {
-    const text = node.previewText != null && node.previewText !== "" ? (node.previewText.length > PREVIEW_TEXT_MAX ? node.previewText.slice(0, PREVIEW_TEXT_MAX) + "…" : node.previewText) : (node.label || node.id);
+    const text =
+      node.previewText != null && node.previewText !== ""
+        ? node.previewText.length > PREVIEW_TEXT_MAX
+          ? node.previewText.slice(0, PREVIEW_TEXT_MAX) + "…"
+          : node.previewText
+        : node.label || node.id;
     return (
       <>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground" title="Text">T</span>
+        <span
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground"
+          title="Text"
+        >
+          T
+        </span>
         <span className="min-w-0 truncate">{text}</span>
-      </>
-    );
-  }
-  if (node.componentId === "ImageAtom" && node.previewSrc) {
-    return (
-      <>
-        <img src={node.previewSrc} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
-        <span className="min-w-0 truncate">{node.label || node.id}</span>
       </>
     );
   }
@@ -109,33 +112,6 @@ function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
     return (
       <>
         <Image className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 truncate">{node.label || node.id}</span>
-      </>
-    );
-  }
-  if (node.componentId === "VideoAtom" && node.previewSrc) {
-    const { thumbnailSrc } = useVideoThumbnail(node.previewSrc, {
-      timeInSeconds: 1,
-      width: 96,
-    });
-    return (
-      <>
-        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded bg-muted">
-          {thumbnailSrc ? (
-            <img
-              src={thumbnailSrc}
-              alt={node.label || node.id}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center bg-black/40">
-              <Video className="h-3 w-3 text-white" />
-            </div>
-          )}
-          <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <Video className="h-3 w-3 text-white" />
-          </span>
-        </div>
         <span className="min-w-0 truncate">{node.label || node.id}</span>
       </>
     );
@@ -164,6 +140,7 @@ function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
  */
 export function LayersTree() {
   const { calculatedMetadata } = useCompileStore();
+  const { currentProjectId, loadedTimeline } = useProjectStore();
   const {
     overrides,
     selectedLayerIds,
@@ -185,8 +162,11 @@ export function LayersTree() {
     setParentChildrenOrder,
     addChildNode,
     removeNode,
+    revertToTeamBase,
   } = useLayerStateStore();
   const { editModeEnabled, toggleEditMode } = useEditorUIStore();
+  const [isReverting, setIsReverting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   // Expand all nodes by default for better visibility
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -194,6 +174,8 @@ export function LayersTree() {
     return initial;
   });
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const historyCount = useLayerHistoryStore((s) => s.entries.length);
 
   const mergedChildren = useMemo(
     () => getMergedChildren(calculatedMetadata?.props?.childrenData),
@@ -665,10 +647,24 @@ export function LayersTree() {
     );
   };
 
-  if (layers.length === 0) {
+  if (layers.length === 0 && !showHistory) {
     return (
-      <div className="flex-1 min-h-0 overflow-auto">
-        <div className="p-4 space-y-2">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Same toolbar so History is always reachable */}
+        <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 shrink-0">
+          <span className="text-sm font-medium">Output layers</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 p-0 shrink-0"
+            title="View layer history"
+            onClick={() => setShowHistory(true)}
+          >
+            <History className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex-1 p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <File className="h-4 w-4" />
             <span>No layers</span>
@@ -682,65 +678,123 @@ export function LayersTree() {
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto">
-      <div className="p-4 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium">Output layers</span>
-          <div className="flex items-center gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0 shrink-0"
-                  title="Add layer at root"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleAddLayer(createImageLayer)}>
-                  <Image className="h-3.5 w-3.5 mr-2" />
-                  Image
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddLayer(createAudioLayer)}>
-                  <Music className="h-3.5 w-3.5 mr-2" />
-                  Audio
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddLayer(createTextLayer)}>
-                  <Type className="h-3.5 w-3.5 mr-2" />
-                  Text
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddLayer(createVideoLayer)}>
-                  <Video className="h-3.5 w-3.5 mr-2" />
-                  Video
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAddLayer(createLayoutNode)}>
-                  <File className="h-3.5 w-3.5 mr-2" />
-                  Layout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {/* ── Toolbar ── */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 shrink-0">
+        <span className="text-sm font-medium">
+          {showHistory ? "Layer History" : "Output layers"}
+        </span>
+        <div className="flex items-center gap-1">
+          {/* Revert to team base — pulls the last published team state into local */}
+          {!showHistory && (
             <Button
               type="button"
               size="sm"
-              variant={editModeEnabled ? "default" : "outline"}
+              variant="outline"
               className="h-8 w-8 p-0 shrink-0"
-              title={editModeEnabled ? "Disable canvas editing" : "Enable canvas editing"}
-              onClick={toggleEditMode}
+              disabled={isReverting || !currentProjectId || !loadedTimeline}
+              title="Revert to team base — discards unpublished local edits and loads the last published team state. Undoable (Ctrl+Z)."
+              onClick={async () => {
+                if (!currentProjectId || !loadedTimeline) return;
+                setIsReverting(true);
+                try {
+                  await revertToTeamBase(currentProjectId, loadedTimeline.id);
+                } finally {
+                  setIsReverting(false);
+                }
+              }}
             >
-              <Edit2 className="h-3.5 w-3.5" />
+              {isReverting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Users className="h-3.5 w-3.5" />
+              )}
             </Button>
-          </div>
-        </div>
-        <div className="space-y-0.5">
-          {layerTree
-            .slice()
-            .reverse()
-            .map((node) => renderLayerNode(node, 0))}
+          )}
+
+          {/* History toggle */}
+          <Button
+            type="button"
+            size="sm"
+            variant={showHistory ? "default" : "outline"}
+            className="h-8 w-8 p-0 shrink-0 relative"
+            title={showHistory ? "Back to layers" : "View layer history"}
+            onClick={() => setShowHistory((v) => !v)}
+          >
+            <History className="h-3.5 w-3.5" />
+            {historyCount > 0 && !showHistory && (
+              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground leading-none">
+                {historyCount > 99 ? "99+" : historyCount}
+              </span>
+            )}
+          </Button>
+
+          {/* Add layer — only shown in layers view */}
+          {!showHistory && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 shrink-0"
+                    title="Add layer at root"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAddLayer(createImageLayer)}>
+                    <Image className="h-3.5 w-3.5 mr-2" />
+                    Image
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAddLayer(createAudioLayer)}>
+                    <Music className="h-3.5 w-3.5 mr-2" />
+                    Audio
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAddLayer(createTextLayer)}>
+                    <Type className="h-3.5 w-3.5 mr-2" />
+                    Text
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAddLayer(createVideoLayer)}>
+                    <Video className="h-3.5 w-3.5 mr-2" />
+                    Video
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAddLayer(createLayoutNode)}>
+                    <File className="h-3.5 w-3.5 mr-2" />
+                    Layout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                type="button"
+                size="sm"
+                variant={editModeEnabled ? "default" : "outline"}
+                className="h-8 w-8 p-0 shrink-0"
+                title={editModeEnabled ? "Disable canvas editing" : "Enable canvas editing"}
+                onClick={toggleEditMode}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* ── Content ── */}
+      {showHistory ? (
+        <LayerHistoryPanel />
+      ) : (
+        <div className="flex-1 min-h-0 overflow-auto px-4 pb-4">
+          <div className="space-y-0.5">
+            {layerTree
+              .slice()
+              .reverse()
+              .map((node) => renderLayerNode(node, 0))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
