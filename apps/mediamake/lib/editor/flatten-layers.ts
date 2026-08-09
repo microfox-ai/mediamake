@@ -204,6 +204,86 @@ function readableLayerId(id: string): string {
   return last || id;
 }
 
+// ---------------------------------------------------------------------------
+// ID deduplication
+// ---------------------------------------------------------------------------
+
+/**
+ * Update effect targetIds using a local remap of old→new IDs.
+ */
+function remapEffectTargetIds(
+  effects: RenderableComponentData["effects"],
+  remap: Map<string, string>
+): RenderableComponentData["effects"] {
+  if (!effects?.length || remap.size === 0) return effects;
+  return effects.map((effect) => {
+    if (typeof effect === "string") return effect;
+    const targetIds = (effect.data as Record<string, unknown> | undefined)?.targetIds;
+    if (!Array.isArray(targetIds)) return effect;
+    const updated = targetIds.map((id: unknown) =>
+      typeof id === "string" ? (remap.get(id) ?? id) : id
+    );
+    if (updated.every((v, i) => v === (targetIds as unknown[])[i])) return effect;
+    return { ...effect, data: { ...(effect.data as object), targetIds: updated } };
+  });
+}
+
+function _deduplicateRecursive(
+  nodes: RenderableComponentData[],
+  parentId: string | undefined,
+  seen: Set<string>
+): RenderableComponentData[] {
+  // First pass: assign new IDs and build a sibling-local remap.
+  const localRemap = new Map<string, string>();
+  const assignments: Array<{ node: RenderableComponentData; newId: string }> = [];
+
+  for (const node of nodes) {
+    let newId = node.id;
+    if (seen.has(node.id)) {
+      const candidate = parentId ? `${node.id}-${parentId}` : node.id;
+      newId = seen.has(candidate)
+        ? `${candidate}-${Math.random().toString(36).slice(2, 6)}`
+        : candidate;
+      localRemap.set(node.id, newId);
+    }
+    seen.add(newId);
+    assignments.push({ node, newId });
+  }
+
+  // Second pass: apply new IDs, patch effect targetIds, recurse into children.
+  return assignments.map(({ node, newId }) => {
+    const result: RenderableComponentData = {
+      ...node,
+      id: newId,
+      ...(node.effects?.length
+        ? { effects: remapEffectTargetIds(node.effects, localRemap) }
+        : {}),
+    };
+    if (node.childrenData?.length) {
+      result.childrenData = _deduplicateRecursive(node.childrenData, newId, seen);
+    }
+    return result;
+  });
+}
+
+/**
+ * Walk a childrenData tree and make every node ID globally unique.
+ * Any node whose ID collides with an already-seen ID is renamed to
+ * `${id}-${parentId}`. Effect targetIds within the same sibling group
+ * are updated to match so animations keep targeting the correct nodes.
+ *
+ * This is called automatically at the root of flattenLayers, so no preset
+ * or consumer code needs to ensure uniqueness manually.
+ */
+export function deduplicateNodeIds(
+  childrenData: RenderableComponentData[]
+): RenderableComponentData[] {
+  if (!childrenData.length) return childrenData;
+  return _deduplicateRecursive(childrenData, undefined, new Set<string>());
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * Flatten childrenData tree into a list of layers with resolved absolute boundaries and timing.
  * Order follows timeline (preset order); each layer includes depth and parent path for display.
@@ -232,11 +312,17 @@ export function flattenLayers(
     parentTiming,
   } = options;
 
-  if (!childrenData || childrenData.length === 0) return [];
+  // At the root call, normalise all node IDs so duplicate IDs produced by any
+  // preset are made globally unique before we build the flat list.
+  const data = depth === 0
+    ? deduplicateNodeIds(childrenData ?? [])
+    : childrenData;
+
+  if (!data || data.length === 0) return [];
 
   const result: FlatLayer[] = [];
 
-  for (const node of childrenData) {
+  for (const node of data) {
     const boundaries = getBoundaries(
       node,
       parentBounds,
@@ -327,31 +413,40 @@ export interface LayerTreeNode extends FlatLayer {
 
 /**
  * Build a tree structure from flattened layers, preserving parent-child relationships.
+ *
+ * Uses full ancestor-path keys (parentIds.join('/') + '/' + id) so nodes with
+ * duplicate IDs across different subtrees (e.g. "part-0" appearing under every
+ * caption) each get their own slot and the correct timing/children.
  */
 export function buildLayerTree(layers: FlatLayer[]): LayerTreeNode[] {
-  const nodeMap = new Map<string, LayerTreeNode>();
-  const roots: LayerTreeNode[] = [];
+  // Create one TreeNode per flat-list entry (preserves duplicates).
+  const nodes: LayerTreeNode[] = layers.map((layer) => ({ ...layer, children: [] }));
 
-  // First pass: create all nodes
-  for (const layer of layers) {
-    nodeMap.set(layer.id, { ...layer, children: [] });
+  // Map: canonical path key → index into `nodes`.
+  // Key format: "grandparentId/.../parentId/nodeId"
+  const pathToIndex = new Map<string, number>();
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    const key = [...layer.parentIds, layer.id].join("/");
+    // In the rare case of two identically-pathed layers, first one wins.
+    if (!pathToIndex.has(key)) pathToIndex.set(key, i);
   }
 
-  // Second pass: build parent-child relationships
-  for (const layer of layers) {
-    const node = nodeMap.get(layer.id)!;
+  const roots: LayerTreeNode[] = [];
+
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
     if (layer.parentIds.length === 0) {
-      // Root node
-      roots.push(node);
+      roots.push(nodes[i]);
     } else {
-      // Find parent (use last parentId as immediate parent)
-      const parentId = layer.parentIds[layer.parentIds.length - 1];
-      const parent = nodeMap.get(parentId);
-      if (parent) {
-        parent.children.push(node);
+      // Parent's path key is the child's parentIds joined (without the child's own id).
+      const parentKey = layer.parentIds.join("/");
+      const parentIndex = pathToIndex.get(parentKey);
+      if (parentIndex !== undefined) {
+        nodes[parentIndex].children.push(nodes[i]);
       } else {
-        // Parent not found (might be filtered), treat as root
-        roots.push(node);
+        // Parent was filtered out — surface this node as a root.
+        roots.push(nodes[i]);
       }
     }
   }
@@ -361,16 +456,22 @@ export function buildLayerTree(layers: FlatLayer[]): LayerTreeNode[] {
 
 /**
  * Filter layers to only leaf nodes (nodes without children).
+ * Uses full ancestor-path keys to avoid false positives when duplicate node IDs
+ * appear under different parents (e.g. "part-0" under every caption node).
  */
 export function filterLeafLayers(layers: FlatLayer[]): FlatLayer[] {
-  const hasChildren = new Set<string>();
+  // Build the set of full paths that are known parents.
+  const parentPaths = new Set<string>();
   for (const layer of layers) {
     if (layer.parentIds.length > 0) {
-      const parentId = layer.parentIds[layer.parentIds.length - 1];
-      hasChildren.add(parentId);
+      // The parent's full path is layer.parentIds joined.
+      parentPaths.add(layer.parentIds.join("/"));
     }
   }
-  return layers.filter((layer) => !hasChildren.has(layer.id));
+  return layers.filter((layer) => {
+    const layerPath = [...layer.parentIds, layer.id].join("/");
+    return !parentPaths.has(layerPath);
+  });
 }
 
 /**
