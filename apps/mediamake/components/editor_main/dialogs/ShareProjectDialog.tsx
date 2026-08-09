@@ -19,7 +19,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, UserPlusIcon, Trash2Icon, ShieldIcon } from "lucide-react";
+import { Loader2, UserPlusIcon, Trash2Icon, ShieldIcon, LockIcon } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -51,10 +51,12 @@ export function ShareProjectDialog({
 
   // Member list state
   const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [myRole, setMyRole] = useState<string | null>(null);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
 
-  // All client IDs (for picker)
+  // All client IDs (for picker — only needed by owner)
   const [allClientIds, setAllClientIds] = useState<string[]>([]);
 
   // Add-member form state
@@ -87,6 +89,7 @@ export function ShareProjectDialog({
   }, [headers]);
 
   const loadMembers = useCallback(async () => {
+    if (!projectId) return;
     setLoadingMembers(true);
     setMembersError(null);
     try {
@@ -100,6 +103,8 @@ export function ShareProjectDialog({
         return;
       }
       setMembers(json.members ?? []);
+      setIsOwner(json.isOwner ?? false);
+      setMyRole(json.myRole ?? null);
     } catch {
       setMembersError("Failed to load members");
     } finally {
@@ -110,6 +115,7 @@ export function ShareProjectDialog({
   useEffect(() => {
     if (open) {
       loadMembers();
+      // Only owners need the full user picker list
       loadAllClientIds();
     }
   }, [open, loadMembers, loadAllClientIds]);
@@ -165,6 +171,11 @@ export function ShareProjectDialog({
     }
   };
 
+  const roleBadgeClass = (role: MemberRole) =>
+    role === "editor"
+      ? "self-start border-blue-500/40 text-blue-700 dark:text-blue-400 text-xs"
+      : "self-start text-xs";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" onClick={(e) => e.stopPropagation()}>
@@ -174,15 +185,28 @@ export function ShareProjectDialog({
             Share "{projectName}"
           </DialogTitle>
           <DialogDescription>
-            Invite users to view or edit this project.
+            {isOwner
+              ? "Invite users to view or edit this project."
+              : myRole
+              ? `You have ${myRole} access to this project.`
+              : "View who has access to this project."}
           </DialogDescription>
         </DialogHeader>
 
         {/* ── Current members ── */}
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Current members
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Members
+            </p>
+            {!isOwner && myRole && (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <LockIcon className="h-2.5 w-2.5" />
+                You · {myRole}
+              </Badge>
+            )}
+          </div>
+
           {loadingMembers && (
             <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -193,7 +217,7 @@ export function ShareProjectDialog({
           )}
           {!loadingMembers && !membersError && members.length === 0 && (
             <p className="text-sm text-muted-foreground py-1">
-              No members yet — invite someone below.
+              {isOwner ? "No members yet — invite someone below." : "No other members."}
             </p>
           )}
           {!loadingMembers && members.length > 0 && (
@@ -204,101 +228,110 @@ export function ShareProjectDialog({
                   className="flex items-center justify-between gap-2 px-3 py-2"
                 >
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="font-mono text-xs truncate">{m.clientId}</span>
-                    <Badge
-                      variant="outline"
-                      className={
-                        m.role === "editor"
-                          ? "self-start border-blue-500/40 text-blue-700 dark:text-blue-400 text-xs"
-                          : "self-start text-xs"
-                      }
-                    >
+                    <span className="font-mono text-xs truncate">
+                      {m.clientId}
+                      {m.clientId === session?.clientId && (
+                        <span className="ml-1 text-muted-foreground">(you)</span>
+                      )}
+                    </span>
+                    <Badge variant="outline" className={roleBadgeClass(m.role)}>
                       {m.role}
                     </Badge>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                    disabled={removingId === m.clientId}
-                    onClick={() => handleRemove(m.clientId)}
-                  >
-                    {removingId === m.clientId ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2Icon className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
+
+                  {/* Remove button — owner only */}
+                  {isOwner && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                      disabled={removingId === m.clientId}
+                      onClick={() => handleRemove(m.clientId)}
+                    >
+                      {removingId === m.clientId ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2Icon className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <Separator />
+        {/* ── Add member form — owner only ── */}
+        {isOwner ? (
+          <>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Add member
+              </p>
 
-        {/* ── Add member form ── */}
-        <div className="flex flex-col gap-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Add member
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="sp-userSelect" className="text-xs">User</Label>
+                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                    <SelectTrigger id="sp-userSelect" className="h-8 text-sm">
+                      <SelectValue placeholder={
+                        eligibleClientIds.length === 0
+                          ? "No eligible users"
+                          : "Select a user…"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleClientIds.length === 0 ? (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No eligible users to share with.
+                        </div>
+                      ) : (
+                        eligibleClientIds.map((id) => (
+                          <SelectItem key={id} value={id} className="font-mono text-xs">
+                            {id}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="sp-role" className="text-xs">Role</Label>
+                  <Select value={newRole} onValueChange={(v) => setNewRole(v as MemberRole)}>
+                    <SelectTrigger id="sp-role" className="h-8 w-28 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="editor">Editor</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {addError && <p className="text-sm text-destructive">{addError}</p>}
+
+              <Button
+                size="sm"
+                onClick={handleAdd}
+                disabled={addLoading || !selectedClientId}
+                className="gap-2 self-end"
+              >
+                {addLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UserPlusIcon className="h-4 w-4" />
+                )}
+                Add member
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground pt-1">
+            Only the project owner can add or remove members.
           </p>
-
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="sp-userSelect" className="text-xs">User</Label>
-              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                <SelectTrigger id="sp-userSelect" className="h-8 text-sm">
-                  <SelectValue placeholder={
-                    eligibleClientIds.length === 0
-                      ? "No eligible users"
-                      : "Select a user…"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {eligibleClientIds.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      No eligible users to share with.
-                    </div>
-                  ) : (
-                    eligibleClientIds.map((id) => (
-                      <SelectItem key={id} value={id} className="font-mono text-xs">
-                        {id}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="sp-role" className="text-xs">Role</Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as MemberRole)}>
-                <SelectTrigger id="sp-role" className="h-8 w-28 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {addError && <p className="text-sm text-destructive">{addError}</p>}
-
-          <Button
-            size="sm"
-            onClick={handleAdd}
-            disabled={addLoading || !selectedClientId}
-            className="gap-2 self-end"
-          >
-            {addLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UserPlusIcon className="h-4 w-4" />
-            )}
-            Add member
-          </Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
