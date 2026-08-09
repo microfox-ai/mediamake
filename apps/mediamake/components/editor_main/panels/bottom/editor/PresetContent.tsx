@@ -371,7 +371,15 @@ export function PresetContent() {
   const preset = effectiveTimeline?.presets?.find((p: any) => p.id === selectedPreset?.id) || selectedPreset;
   const presetInputData = preset?.presetInputData || {};
 
-  const totalDuration = Math.max(1, Number(effectiveTimeline?.configuration?.config?.duration || 60));
+  // Prefer the ACTUAL compiled length (durationInFrames) so the ruler/fit reflect
+  // the real timeline — not a hard-coded 1-minute fallback when config.duration
+  // is 0 / auto. Fall back to the configured duration, then 60s.
+  const compiledSec =
+    calculatedMetadata?.durationInFrames && calculatedMetadata.durationInFrames > 0
+      ? calculatedMetadata.durationInFrames / fps
+      : 0;
+  const configSec = Number(effectiveTimeline?.configuration?.config?.duration || 0);
+  const totalDuration = Math.max(1, compiledSec || configSec || 60);
 
   // ─── Collect ranges & build track groups ────────────────────────────────────
 
@@ -398,7 +406,7 @@ export function PresetContent() {
 
   /** Minimum pps so the whole timeline fits exactly in the visible area. */
   const minPps = useMemo(
-    () => Math.max(0.5, containerWidth / totalDuration),
+    () => Math.max(0.05, containerWidth / totalDuration),
     [containerWidth, totalDuration]
   );
   const MAX_PPS = 2000;
@@ -663,15 +671,25 @@ export function PresetContent() {
   // ─── Scroll sync ───────────────────────────────────────────────────────────
 
   const rulerRef = useRef<HTMLDivElement>(null);
+  const rulerInnerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const labelScrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync the ruler to the track area's horizontal scroll. We translate the inner
+  // content (reliable across browsers) rather than setting scrollLeft on an
+  // overflow-hidden element.
+  const syncRulerScroll = useCallback((scrollLeft: number) => {
+    if (rulerInnerRef.current) {
+      rulerInnerRef.current.style.transform = `translateX(${-scrollLeft}px)`;
+    }
+  }, []);
 
   const onScroll = useCallback(() => {
     const s = scrollRef.current;
     if (!s) return;
-    if (rulerRef.current) rulerRef.current.scrollLeft = s.scrollLeft;
+    syncRulerScroll(s.scrollLeft);
     if (labelScrollRef.current) labelScrollRef.current.scrollTop = s.scrollTop;
-  }, []);
+  }, [syncRulerScroll]);
 
   // ── Stable refs (avoid stale closures in scroll-to-playhead) ─────────────
   const pixelsPerSecondRef = useRef(pixelsPerSecond);
@@ -690,9 +708,9 @@ export function PresetContent() {
       const px = currentTimeSecRef.current * pixelsPerSecondRef.current;
       const target = Math.max(0, px - s.clientWidth * 0.35);
       s.scrollLeft = target;
-      if (rulerRef.current) rulerRef.current.scrollLeft = target;
+      syncRulerScroll(target);
     });
-  }, []); // intentionally stable — reads from refs
+  }, [syncRulerScroll]);
 
   // On mount → jump to playhead
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -719,9 +737,9 @@ export function PresetContent() {
     if (px < visL || px > visR) {
       const target = Math.max(0, px - s.clientWidth * 0.35);
       s.scrollLeft = target;
-      if (rulerRef.current) rulerRef.current.scrollLeft = target;
+      syncRulerScroll(target);
     }
-  }, [currentFrame, currentTimeSec, secToPx]);
+  }, [currentFrame, currentTimeSec, secToPx, syncRulerScroll]);
 
   // ─── Ruler click → seek ──────────────────────────────────────────────────
 
@@ -909,7 +927,8 @@ export function PresetContent() {
             ref={rulerRef}
           >
             <div
-              className="absolute top-0 left-0 bottom-0"
+              ref={rulerInnerRef}
+              className="absolute top-0 left-0 bottom-0 will-change-transform"
               style={{ width: totalWidth, minWidth: "100%" }}
               onClick={handleRulerClick}
             >

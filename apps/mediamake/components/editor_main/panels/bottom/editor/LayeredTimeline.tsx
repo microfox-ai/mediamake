@@ -221,7 +221,7 @@ export function LayeredTimeline() {
   // Minimum pps: the zoom level at which the whole video fits in the visible area.
   const MAX_PPS = 400;
   const minPps = useMemo(
-    () => Math.max(0.5, containerWidth / Math.max(1, totalSeconds)),
+    () => Math.max(0.05, containerWidth / Math.max(1, totalSeconds)),
     [containerWidth, totalSeconds],
   );
 
@@ -256,15 +256,24 @@ export function LayeredTimeline() {
 
   const labelColRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
+  const rulerInnerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackAreaRef = useRef<HTMLDivElement>(null);
+
+  // Sync the ruler horizontally by translating its inner content (reliable across
+  // browsers, unlike setting scrollLeft on an overflow-hidden element).
+  const syncRulerScroll = useCallback((scrollLeft: number) => {
+    if (rulerInnerRef.current) {
+      rulerInnerRef.current.style.transform = `translateX(${-scrollLeft}px)`;
+    }
+  }, []);
 
   const onScroll = useCallback(() => {
     const s = scrollRef.current;
     if (!s) return;
-    if (rulerRef.current) rulerRef.current.scrollLeft = s.scrollLeft;
+    syncRulerScroll(s.scrollLeft);
     if (labelColRef.current) labelColRef.current.scrollTop = s.scrollTop;
-  }, []);
+  }, [syncRulerScroll]);
 
   // Auto-scroll playhead into view when it moves
   const prevFrameRef = useRef(currentFrame);
@@ -750,7 +759,8 @@ export function LayeredTimeline() {
             ref={rulerRef}
           >
             <div
-              className="absolute inset-0"
+              ref={rulerInnerRef}
+              className="absolute inset-0 will-change-transform"
               style={{ width: totalWidth, minWidth: "100%" }}
               onClick={handleRulerClick}
             >
