@@ -4,6 +4,33 @@ import type {
   CalculatedBoundaries,
   RenderableContext,
 } from "@microfox/remotion";
+import {
+  useLayerHistoryStore,
+  assignLayerItemIds,
+  makeLayerItemId,
+  hashLayerSnapshot,
+} from "./layer-history-store";
+import type { LayerHistorySnapshot } from "@/lib/editor/layer-types";
+import { mergeLayerSnapshots, type LayerConflict, type MergeSide } from "@/lib/editor/layer-state-merge";
+
+/** Outcome of a manual publish attempt. */
+export type PublishResult =
+  | { ok: true; version: number }
+  | { ok: true; merged: true; version: number }
+  | { ok: false; reason: "conflict"; lastClientId?: string }
+  | { ok: false; reason: "merge"; conflicts: number }
+  | { ok: false; reason: "nochange" }
+  | { ok: false; reason: "error"; message?: string };
+
+export type { LayerConflict, MergeSide };
+
+/** Pending layer merge surfaced to the conflict dialog. */
+export interface PendingLayerMerge {
+  conflicts: LayerConflict[];
+  autoMerged: string[];
+  remoteVersion: number;
+  build: (choices: Record<string, MergeSide>) => LayerStateSnapshot;
+}
 
 /** Build a map of output node id → timeline preset item id from a composition tree. */
 export function buildPresetItemIdByNodeId(
@@ -37,10 +64,17 @@ export interface TrackState {
   locked: boolean;
 }
 
-/** Whole state snapshot for persistence (localStorage + API). No deltas—only full tree + UI state. */
+/**
+ * State snapshot for persistence (localStorage + API).
+ * `childrenData` is the layer STRUCTURE only (added/removed/reordered nodes) —
+ * overrides are NOT baked in; they live in `overrides` and are re-applied over
+ * the live timeline output at render time so timeline edits flow through.
+ */
 export interface LayerStateSnapshot {
-  /** Full merged layer tree. */
+  /** Layer structure (added/removed/reordered nodes). Omitted when there are no structural edits. */
   childrenData?: RenderableComponentData[];
+  /** Serialized override map (id-keyed layer customizations) re-applied over the live base. */
+  overrides?: [string, unknown][];
   trackStates: Record<string, TrackState>;
   hiddenLayerIds: string[];
   lockedLayerIds: string[];
@@ -49,6 +83,22 @@ export interface LayerStateSnapshot {
 interface LayerState {
   trackStates: Record<string, TrackState>;
   setTrackState: (trackId: string, state: Partial<TrackState>) => void;
+
+  /**
+   * The `version` value returned by the last successful GET or PUT of
+   * `/api/project/timeline/layer-state`. Sent back on the next PUT so
+   * the server can detect when another client saved in between (409 conflict).
+   */
+  stateVersion: number;
+  setStateVersion: (version: number) => void;
+
+  /**
+   * When true (default, new diff format), the layer structure is rebased onto
+   * the live compiled timeline output so timeline-tab edits flow into the
+   * preview. Set false only for legacy baked saves (childrenData with no
+   * separate `overrides`) to avoid stripping their baked-in customizations.
+   */
+  rebaseFromBase: boolean;
 
   selectedLayerIds: string[];
   overrides: Map<string, LayerOverride>;
@@ -121,6 +171,163 @@ interface LayerState {
 
   /** Remove a layer by id (from addedNodes or from loaded/base tree). Clears override and updates order. */
   removeNode: (nodeId: string, baseFromCompile?: RenderableComponentData[] | undefined) => void;
+
+  /**
+   * Restore all layer state from a LayerHistorySnapshot directly (no history entry recorded).
+   * Used exclusively by undo/redo so the act of restoring doesn't push new history.
+   */
+  applyHistorySnapshot: (snapshot: LayerHistorySnapshot) => void;
+  /** Undo the last layer change. Returns true if anything was undone. */
+  undoLayerChange: () => boolean;
+  /** Redo the next layer change. Returns true if anything was redone. */
+  redoLayerChange: () => boolean;
+
+  /** True while a historical/team state is being temporarily previewed. */
+  isLayerPreviewActive: boolean;
+  /**
+   * Temporarily show a historical state in the preview (backs up the real state
+   * once). Safe + non-destructive — `endLayerPreview` restores exactly.
+   */
+  startLayerPreview: (snapshot: LayerHistorySnapshot) => void;
+  /** Restore the real state after a preview. */
+  endLayerPreview: () => void;
+  /**
+   * Revert to a historical/team state by APPENDING a new history entry — the
+   * changes made after that state are preserved (non-destructive). Undoable.
+   */
+  revertToHistorySnapshot: (snapshot: LayerHistorySnapshot, label?: string) => void;
+  /**
+   * Destructively reset to a local historical state: applies the snapshot, then
+   * removes all unpublished local history entries that came AFTER `entryId`.
+   * Published entries are kept. The cursor moves to `entryId` — no new entry is created.
+   */
+  resetToLayerHistoryEntry: (entryId: string, snapshot: LayerHistorySnapshot) => void;
+  /**
+   * Remove every unpublished local history entry and restore the layer state to the
+   * last published snapshot (or the baseline if nothing was ever published).
+   */
+  discardAllLocalLayerChanges: () => void;
+
+  /**
+   * Publish the current local layer state to the team. Writes the canonical
+   * state (version-locked) and appends an audit entry. Nothing is sent to the
+   * team until this is called — all edits stay local until published.
+   */
+  publishLayerState: (
+    projectId: string,
+    timelineId: string,
+    baseFromCompile?: RenderableComponentData[]
+  ) => Promise<PublishResult>;
+
+  /**
+   * Fetch the team's canonical (last published) layer state, apply it locally,
+   * and record a "Reverted to team base" history entry so the action can be
+   * undone with Ctrl+Z. Discards unpublished local edits from the working view.
+   */
+  revertToTeamBase: (projectId: string, timelineId: string) => Promise<void>;
+
+  /** Last-synced team layer state — the base for a 3-way merge on conflict. */
+  mergeBaseSnapshot: LayerStateSnapshot | null;
+  setMergeBaseSnapshot: (snapshot: LayerStateSnapshot | null) => void;
+  /** Set when a publish hit conflicting concurrent changes (drives the merge dialog). */
+  pendingLayerMerge: PendingLayerMerge | null;
+  /** Apply the user's conflict choices, then publish the merged layer state. */
+  resolveLayerMerge: (
+    projectId: string,
+    timelineId: string,
+    baseFromCompile: RenderableComponentData[] | undefined,
+    choices: Record<string, MergeSide>
+  ) => Promise<PublishResult>;
+  /** Dismiss the merge dialog without publishing (keeps local edits). */
+  cancelLayerMerge: () => void;
+}
+
+/** Backup of the real layer state while a temporary preview is active. */
+let _layerPreviewBackup: LayerHistorySnapshot | null = null;
+
+/** Guards against infinite re-merge loops if a new concurrent publish slips in. */
+let _layerMergeRetry = false;
+
+function findNodeInFlatTree(
+  nodes: RenderableComponentData[],
+  nodeId: string
+): RenderableComponentData | null {
+  for (const node of nodes) {
+    if (node.id === nodeId) return node;
+    if (node.childrenData?.length) {
+      const found = findNodeInFlatTree(node.childrenData, nodeId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Refresh timeline-owned fields (data, context, effects) on a layer structure
+ * from the latest compiled timeline output, matched by node id. Preserves the
+ * layer tree's structure (added / removed / reordered nodes) and any layer-only
+ * nodes, while letting timeline-tab edits (preset data, timing, layout) flow
+ * into the preview. Layer overrides are applied separately, on top of this.
+ */
+function rebaseChildrenDataOntoBase(
+  loaded: RenderableComponentData[],
+  base: RenderableComponentData[] | undefined
+): RenderableComponentData[] {
+  if (!base || base.length === 0) return loaded;
+
+  const baseById = new Map<string, RenderableComponentData>();
+  const index = (nodes: RenderableComponentData[]) => {
+    for (const n of nodes) {
+      baseById.set(n.id, n);
+      if (n.childrenData?.length) index(n.childrenData);
+    }
+  };
+  index(base);
+
+  const rebase = (nodes: RenderableComponentData[]): RenderableComponentData[] =>
+    nodes.map((node) => {
+      const fresh = baseById.get(node.id);
+      let next: RenderableComponentData = node;
+      if (fresh) {
+        // Node exists in the live timeline output → take its timeline-owned
+        // fields, keep the layer node's identity + structure.
+        next = {
+          ...node,
+          data: fresh.data,
+          context: fresh.context,
+          ...(fresh.effects !== undefined ? { effects: fresh.effects } : {}),
+        } as RenderableComponentData;
+      }
+      // Layer-only nodes (not in base) keep their own data/context.
+      if (node.childrenData?.length) {
+        next = { ...next, childrenData: rebase(node.childrenData) };
+      }
+      return next;
+    });
+
+  return rebase(loaded);
+}
+
+function snapshotFromLayerState(s: {
+  loadedChildrenData: RenderableComponentData[] | null;
+  addedNodes: RenderableComponentData[];
+  overrides: Map<string, LayerOverride>;
+  childrenOrderByParentId: Map<string, string[]>;
+  hiddenLayerIds: Set<string>;
+  lockedLayerIds: Set<string>;
+}): LayerHistorySnapshot {
+  return {
+    loadedChildrenData: s.loadedChildrenData
+      ? JSON.parse(JSON.stringify(s.loadedChildrenData))
+      : null,
+    addedNodes: JSON.parse(JSON.stringify(s.addedNodes)),
+    overrides: Array.from(s.overrides.entries()),
+    childrenOrderByParentId: Array.from(s.childrenOrderByParentId.entries()).map(
+      ([k, v]) => [k, [...v]]
+    ),
+    hiddenLayerIds: Array.from(s.hiddenLayerIds),
+    lockedLayerIds: Array.from(s.lockedLayerIds),
+  };
 }
 
 export const useLayerStateStore = create<LayerState>((set, get) => ({
@@ -132,6 +339,16 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
         [trackId]: { ...(prev.trackStates[trackId] || { hidden: false, muted: false, solo: false, locked: false }), ...state },
       },
     })),
+
+  stateVersion: 0,
+  setStateVersion: (version) => set({ stateVersion: version }),
+
+  rebaseFromBase: true,
+
+  isLayerPreviewActive: false,
+  mergeBaseSnapshot: null,
+  setMergeBaseSnapshot: (snapshot) => set({ mergeBaseSnapshot: snapshot }),
+  pendingLayerMerge: null,
 
   selectedLayerIds: [],
   overrides: new Map(),
@@ -178,12 +395,21 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   },
 
   toggleLayerHidden: (nodeId) => {
+    const wasHidden = get().hiddenLayerIds.has(nodeId);
     set((state) => {
       const next = new Set(state.hiddenLayerIds);
       if (next.has(nodeId)) next.delete(nodeId);
       else next.add(nodeId);
       return { hiddenLayerIds: next };
     });
+    const s = get();
+    useLayerHistoryStore.getState().recordChange(wasHidden ? 'Show layer' : 'Hide layer', [{
+      layerItemId: makeLayerItemId(nodeId),
+      nodeId,
+      changeType: 'visibility',
+      prevValue: wasHidden,
+      nextValue: !wasHidden,
+    }], snapshotFromLayerState(s));
   },
 
   isLayerHidden: (nodeId) => get().hiddenLayerIds.has(nodeId),
@@ -198,18 +424,28 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   },
 
   toggleLayerLocked: (nodeId) => {
+    const wasLocked = get().lockedLayerIds.has(nodeId);
     set((state) => {
       const next = new Set(state.lockedLayerIds);
       if (next.has(nodeId)) next.delete(nodeId);
       else next.add(nodeId);
       return { lockedLayerIds: next };
     });
+    const s = get();
+    useLayerHistoryStore.getState().recordChange(wasLocked ? 'Unlock layer' : 'Lock layer', [{
+      layerItemId: makeLayerItemId(nodeId),
+      nodeId,
+      changeType: 'lock',
+      prevValue: wasLocked,
+      nextValue: !wasLocked,
+    }], snapshotFromLayerState(s));
   },
 
   isLayerLocked: (nodeId) => get().lockedLayerIds.has(nodeId),
 
   setOverride: (nodeId, override) => {
     if (get().lockedLayerIds.has(nodeId)) return;
+    const prevOverride = get().overrides.get(nodeId);
     set((state) => {
       const next = new Map(state.overrides);
       const existing = next.get(nodeId) || {};
@@ -223,6 +459,14 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
       });
       return { overrides: next };
     });
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Override layer', [{
+      layerItemId: makeLayerItemId(nodeId),
+      nodeId,
+      changeType: 'override',
+      prevOverride: prevOverride as Record<string, unknown> | undefined,
+      nextOverride: s.overrides.get(nodeId) as Record<string, unknown> | undefined,
+    }], snapshotFromLayerState(s));
   },
 
   clearOverride: (nodeId) => {
@@ -269,18 +513,39 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   getOverride: (nodeId) => get().overrides.get(nodeId),
 
   addedNodes: [],
-  addNode: (node) => set((state) => ({ addedNodes: [...state.addedNodes, node] })),
+  addNode: (node) => {
+    const nodeWithId = { ...node, _layerItemId: makeLayerItemId(node.id) } as unknown as RenderableComponentData;
+    set((state) => ({ addedNodes: [...state.addedNodes, nodeWithId] }));
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Add layer', [{
+      layerItemId: makeLayerItemId(node.id),
+      nodeId: node.id,
+      changeType: 'add_node',
+      nodeData: nodeWithId,
+    }], snapshotFromLayerState(s));
+  },
   removeAddedNode: (id) => set((state) => ({ addedNodes: state.addedNodes.filter((n) => n.id !== id) })),
   reorderAddedNodes: (fromIndex, toIndex) => {
+    const prevOrder = get().addedNodes.map((n) => n.id);
     set((state) => {
       const list = [...state.addedNodes];
       const [removed] = list.splice(fromIndex, 1);
       if (removed) list.splice(toIndex, 0, removed);
       return { addedNodes: list };
     });
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Reorder added layers', [{
+      layerItemId: makeLayerItemId(prevOrder[fromIndex] ?? ''),
+      nodeId: prevOrder[fromIndex] ?? '',
+      changeType: 'reorder',
+      parentId: '__root__',
+      prevOrder,
+      nextOrder: s.addedNodes.map((n) => n.id),
+    }], snapshotFromLayerState(s));
   },
 
   addChildNode: (baseFromCompile, parentId, node) => {
+    const nodeWithId = { ...node, _layerItemId: makeLayerItemId(node.id) } as unknown as RenderableComponentData;
     set((state) => {
       const base = state.loadedChildrenData ?? baseFromCompile;
       const source = base && base.length > 0 ? base : [];
@@ -299,7 +564,7 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
       const insert = (nodes: RenderableComponentData[]) => {
         for (const n of nodes) {
           if (n.id === parentId) {
-            const children = Array.isArray(n.childrenData) ? [...n.childrenData, node] : [node];
+            const children = Array.isArray(n.childrenData) ? [...n.childrenData, nodeWithId] : [nodeWithId];
             n.childrenData = children;
             inserted = true;
             return;
@@ -312,21 +577,28 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
       };
 
       if (parentId === "__root__") {
-        root.push(node);
+        root.push(nodeWithId);
         inserted = true;
       } else if (root.length > 0) {
         insert(root);
       }
 
       if (!inserted) {
-        // Fallback: append at root
-        root.push(node);
+        root.push(nodeWithId);
       }
 
       return {
         loadedChildrenData: root,
       };
     });
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Add child layer', [{
+      layerItemId: makeLayerItemId(node.id),
+      nodeId: node.id,
+      changeType: 'add_child',
+      nodeData: nodeWithId,
+      parentId,
+    }], snapshotFromLayerState(s));
   },
 
   childrenOrderByParentId: new Map(),
@@ -362,13 +634,36 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
     const state = get();
     const base = state.loadedChildrenData ?? baseFromCompile;
     if (!base?.length) return;
+    // Capture previous order before mutation
+    const prevParent = parentId === '__root__'
+      ? (base[0]?.childrenData ?? [])
+      : (findNodeInFlatTree(base, parentId)?.childrenData ?? []);
+    const prevOrder = prevParent.map((n) => n.id);
     const newTree = replaceParentChildrenInTree(base, parentId, reorderedChildren);
-    if (newTree) set({ loadedChildrenData: newTree });
+    if (newTree) {
+      set({ loadedChildrenData: newTree });
+      const s = get();
+      useLayerHistoryStore.getState().recordChange('Reorder layers', [{
+        layerItemId: makeLayerItemId(parentId),
+        nodeId: parentId,
+        changeType: 'reorder',
+        parentId,
+        prevOrder,
+        nextOrder: reorderedChildren.map((n) => n.id),
+      }], snapshotFromLayerState(s));
+    }
   },
 
   getMergedChildren: (baseFromCompile) => {
     const state = get();
-    const base = state.loadedChildrenData ?? baseFromCompile;
+    // Rebase the layer structure onto the LIVE timeline output so timeline-tab
+    // edits flow into the preview. Overrides are applied on top, below.
+    const loaded = state.loadedChildrenData;
+    const base = loaded
+      ? state.rebaseFromBase
+        ? rebaseChildrenDataOntoBase(loaded, baseFromCompile)
+        : loaded
+      : baseFromCompile;
     const mergedBase = base?.length
       ? mergeOverridesIntoChildrenData(
           base,
@@ -393,30 +688,40 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
 
   getLayerStateSnapshot: (baseFromCompile) => {
     const state = get();
-    const base = state.loadedChildrenData ?? baseFromCompile;
+    // Persist the layer STRUCTURE only when there are structural edits
+    // (added / removed / reordered nodes). Overrides are stored separately and
+    // re-applied over the live timeline output — never baked in — so timeline
+    // edits keep flowing through after a reload.
+    const hasStructuralEdits =
+      state.loadedChildrenData != null || state.addedNodes.length > 0;
+
     let childrenData: RenderableComponentData[] | undefined;
-    const mergedBase = base?.length
-      ? mergeOverridesIntoChildrenData(
-          base,
-          state.overrides,
-          state.childrenOrderByParentId,
-          "__root__"
-        ) ?? []
-      : [];
-    const mergedAdded =
-      state.addedNodes.length > 0
+    if (hasStructuralEdits) {
+      const EMPTY_OVERRIDES = new Map<string, LayerOverride>();
+      const base = state.loadedChildrenData ?? baseFromCompile;
+      const structBase = base?.length
         ? mergeOverridesIntoChildrenData(
-            state.addedNodes,
-            state.overrides,
-            state.childrenOrderByParentId
+            base,
+            EMPTY_OVERRIDES,
+            state.childrenOrderByParentId,
+            "__root__"
           ) ?? []
         : [];
-    const combined = [...mergedBase, ...mergedAdded];
-    if (combined.length) {
-      childrenData = combined;
+      const structAdded =
+        state.addedNodes.length > 0
+          ? mergeOverridesIntoChildrenData(
+              state.addedNodes,
+              EMPTY_OVERRIDES,
+              state.childrenOrderByParentId
+            ) ?? []
+          : [];
+      const combined = [...structBase, ...structAdded];
+      if (combined.length) childrenData = combined;
     }
+
     return {
       ...(childrenData?.length ? { childrenData } : {}),
+      overrides: Array.from(state.overrides.entries()),
       trackStates: { ...state.trackStates },
       hiddenLayerIds: Array.from(state.hiddenLayerIds),
       lockedLayerIds: Array.from(state.lockedLayerIds),
@@ -424,62 +729,369 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   },
 
   loadLayerState: (snapshot) => {
+    const rawChildren = Array.isArray(snapshot.childrenData) && snapshot.childrenData.length > 0
+      ? snapshot.childrenData
+      : null;
+    // Ensure all loaded nodes have _layerItemId
+    const loadedChildrenData = rawChildren ? assignLayerItemIds(rawChildren) : null;
+    // Legacy detection: an old save baked overrides into childrenData and has no
+    // separate `overrides` field — for those we must NOT rebase (it would strip
+    // the baked customizations). New saves always carry `overrides`.
+    const isLegacyBaked = rawChildren != null && snapshot.overrides === undefined;
+    const restoredOverrides = Array.isArray(snapshot.overrides)
+      ? new Map(snapshot.overrides as [string, LayerOverride][])
+      : new Map<string, LayerOverride>();
     set({
-      loadedChildrenData: Array.isArray(snapshot.childrenData) && snapshot.childrenData.length > 0 ? snapshot.childrenData : null,
-      overrides: new Map(),
+      loadedChildrenData,
+      overrides: restoredOverrides,
       addedNodes: [],
       childrenOrderByParentId: new Map(),
+      rebaseFromBase: !isLegacyBaked,
       trackStates: snapshot.trackStates && typeof snapshot.trackStates === "object" ? snapshot.trackStates : {},
       hiddenLayerIds: new Set(Array.isArray(snapshot.hiddenLayerIds) ? snapshot.hiddenLayerIds : []),
       lockedLayerIds: new Set(Array.isArray(snapshot.lockedLayerIds) ? snapshot.lockedLayerIds : []),
     });
+    // Mark the just-loaded state as the clean published baseline so there are
+    // no spurious "unpublished changes" right after a load.
+    const baseline = snapshotFromLayerState(get());
+    useLayerHistoryStore.getState().initBaseline(hashLayerSnapshot(baseline), baseline);
   },
 
   resetLayerStateToGenerated: () => {
+    // Apply the reset (clear all user edits)
     set({
       overrides: new Map(),
       addedNodes: [],
       childrenOrderByParentId: new Map(),
       loadedChildrenData: null,
     });
+    // Record as a history entry — NOT clearHistory — so it can be undone.
+    // The snapshot IS the empty/reset state.
+    const emptySnapshot: LayerHistorySnapshot = {
+      loadedChildrenData: null,
+      addedNodes: [],
+      overrides: [],
+      childrenOrderByParentId: [],
+      hiddenLayerIds: Array.from(get().hiddenLayerIds),
+      lockedLayerIds: Array.from(get().lockedLayerIds),
+    };
+    useLayerHistoryStore.getState().recordChange(
+      "Reset to timeline",
+      [{ layerItemId: "__root__", nodeId: "__root__", changeType: "reset" }],
+      emptySnapshot
+    );
   },
 
   removeNode: (nodeId, baseFromCompile) => {
     const state = get();
-    const inAdded = state.addedNodes.some((n) => n.id === nodeId);
+    // Capture node data before removal for history
+    const nodeInAdded = state.addedNodes.find((n) => n.id === nodeId);
+    const nodeInBase = !nodeInAdded
+      ? findNodeInFlatTree(state.loadedChildrenData ?? baseFromCompile ?? [], nodeId)
+      : null;
+    const removedNode = nodeInAdded ?? nodeInBase;
+
+    const inAdded = !!nodeInAdded;
     if (inAdded) {
       set((s) => ({
         addedNodes: s.addedNodes.filter((n) => n.id !== nodeId),
         selectedLayerIds: s.selectedLayerIds.filter((id) => id !== nodeId),
       }));
       get().clearOverride(nodeId);
-      return;
-    }
-    const base = state.loadedChildrenData ?? baseFromCompile;
-    if (!base?.length) return;
-    const treeWithoutNode = removeNodeFromTree(base, nodeId);
-    if (treeWithoutNode === null) return;
-    set((s) => {
-      const nextOverrides = new Map(s.overrides);
-      nextOverrides.delete(nodeId);
-      const nextHidden = new Set(s.hiddenLayerIds);
-      nextHidden.delete(nodeId);
-      const nextLocked = new Set(s.lockedLayerIds);
-      nextLocked.delete(nodeId);
-      const nextOrder = new Map(s.childrenOrderByParentId);
-      nextOrder.forEach((order, pid) => {
-        nextOrder.set(pid, order.filter((id) => id !== nodeId));
+    } else {
+      const base = state.loadedChildrenData ?? baseFromCompile;
+      if (!base?.length) return;
+      const treeWithoutNode = removeNodeFromTree(base, nodeId);
+      if (treeWithoutNode === null) return;
+      set((s) => {
+        const nextOverrides = new Map(s.overrides);
+        nextOverrides.delete(nodeId);
+        const nextHidden = new Set(s.hiddenLayerIds);
+        nextHidden.delete(nodeId);
+        const nextLocked = new Set(s.lockedLayerIds);
+        nextLocked.delete(nodeId);
+        const nextOrder = new Map(s.childrenOrderByParentId);
+        nextOrder.forEach((order, pid) => {
+          nextOrder.set(pid, order.filter((id) => id !== nodeId));
+        });
+        return {
+          loadedChildrenData: treeWithoutNode,
+          overrides: nextOverrides,
+          hiddenLayerIds: nextHidden,
+          lockedLayerIds: nextLocked,
+          childrenOrderByParentId: nextOrder,
+          selectedLayerIds: s.selectedLayerIds.filter((id) => id !== nodeId),
+        };
       });
-      return {
-        loadedChildrenData: treeWithoutNode,
-        overrides: nextOverrides,
-        hiddenLayerIds: nextHidden,
-        lockedLayerIds: nextLocked,
-        childrenOrderByParentId: nextOrder,
-        selectedLayerIds: s.selectedLayerIds.filter((id) => id !== nodeId),
-      };
+    }
+
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Remove layer', [{
+      layerItemId: makeLayerItemId(nodeId),
+      nodeId,
+      changeType: 'remove_node',
+      ...(removedNode ? { nodeData: removedNode } : {}),
+    }], snapshotFromLayerState(s));
+  },
+
+  applyHistorySnapshot: (snapshot) => {
+    // Direct state restoration — does NOT call recordChange to keep history clean.
+    set({
+      loadedChildrenData: snapshot.loadedChildrenData,
+      addedNodes: snapshot.addedNodes,
+      overrides: new Map(snapshot.overrides as [string, LayerOverride][]),
+      childrenOrderByParentId: new Map(snapshot.childrenOrderByParentId),
+      hiddenLayerIds: new Set(snapshot.hiddenLayerIds),
+      lockedLayerIds: new Set(snapshot.lockedLayerIds),
     });
   },
+
+  undoLayerChange: () => {
+    const snapshot = useLayerHistoryStore.getState().undo();
+    if (!snapshot) return false;
+    get().applyHistorySnapshot(snapshot);
+    return true;
+  },
+
+  redoLayerChange: () => {
+    const snapshot = useLayerHistoryStore.getState().redo();
+    if (!snapshot) return false;
+    get().applyHistorySnapshot(snapshot);
+    return true;
+  },
+
+  startLayerPreview: (snapshot) => {
+    // Back up the real state once (first preview), then show the historical one.
+    if (_layerPreviewBackup === null) {
+      _layerPreviewBackup = snapshotFromLayerState(get());
+    }
+    get().applyHistorySnapshot(snapshot);
+    set({ isLayerPreviewActive: true });
+  },
+  endLayerPreview: () => {
+    if (_layerPreviewBackup !== null) {
+      get().applyHistorySnapshot(_layerPreviewBackup);
+      _layerPreviewBackup = null;
+    }
+    set({ isLayerPreviewActive: false });
+  },
+  revertToHistorySnapshot: (snapshot, label) => {
+    // Make sure we revert from the REAL state, not a transient preview.
+    get().endLayerPreview();
+    get().applyHistorySnapshot(snapshot);
+    const applied = snapshotFromLayerState(get());
+    useLayerHistoryStore.getState().appendChange(
+      label ?? "Reverted to earlier state",
+      [{ layerItemId: "__root__", nodeId: "__root__", changeType: "reset" }],
+      applied
+    );
+  },
+
+  resetToLayerHistoryEntry: (entryId, snapshot) => {
+    get().endLayerPreview();
+    get().applyHistorySnapshot(snapshot);
+    useLayerHistoryStore.getState().resetToHistoryEntry(entryId);
+  },
+
+  discardAllLocalLayerChanges: () => {
+    const histStore = useLayerHistoryStore.getState();
+    const { entries, publishedEntryIds, baselineSnapshot } = histStore;
+    const published = entries.filter((e) => publishedEntryIds.has(e.id));
+    const lastPublished = published[published.length - 1];
+    const snapshotToRestore = lastPublished?.snapshot ?? baselineSnapshot;
+    if (snapshotToRestore) {
+      get().endLayerPreview();
+      get().applyHistorySnapshot(snapshotToRestore);
+    }
+    histStore.discardAllLocalChanges();
+  },
+
+  publishLayerState: async (projectId, timelineId, baseFromCompile) => {
+    const historyStore = useLayerHistoryStore.getState();
+
+    // Nothing changed since last publish/load → no-op
+    if (!historyStore.hasUnpublishedChanges()) {
+      return { ok: false, reason: "nochange" };
+    }
+
+    historyStore.setIsPublishing(true);
+    try {
+      const snapshot = get().getLayerStateSnapshot(baseFromCompile);
+      const res = await fetch("/api/project/timeline/layer-state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          timelineId,
+          ...snapshot,
+          version: get().stateVersion,
+          clientId: historyStore.clientId ?? undefined,
+        }),
+      });
+
+      if (res.status === 409) {
+        // Concurrent publish — 3-way merge instead of a destructive revert.
+        if (_layerMergeRetry) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, reason: "conflict", lastClientId: err.lastClientId };
+        }
+        let remote: (LayerStateSnapshot & { version?: number }) | null = null;
+        try {
+          const rr = await fetch(
+            `/api/project/timeline/layer-state?projectId=${encodeURIComponent(projectId)}&timelineId=${encodeURIComponent(timelineId)}`
+          );
+          if (rr.ok) remote = await rr.json();
+        } catch {
+          // fall through
+        }
+        if (!remote) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, reason: "conflict", lastClientId: err.lastClientId };
+        }
+        const mr = mergeLayerSnapshots(get().mergeBaseSnapshot, snapshot, remote);
+        const remoteVersion = typeof remote.version === "number" ? remote.version : 0;
+
+        if (mr.conflicts.length > 0) {
+          set({
+            pendingLayerMerge: {
+              conflicts: mr.conflicts,
+              autoMerged: mr.autoMerged,
+              remoteVersion,
+              build: mr.build,
+            },
+          });
+          return { ok: false, reason: "merge", conflicts: mr.conflicts.length };
+        }
+
+        // No conflicts → auto-merge + re-publish at the remote version.
+        const merged = mr.build({});
+        get().loadLayerState(merged); // applies merged + resets baseline (clean)
+        get().setStateVersion(remoteVersion);
+        // Force "dirty" so the recursive publish actually PUTs the merged state.
+        useLayerHistoryStore.getState().setPublishedHash(null);
+        _layerMergeRetry = true;
+        try {
+          const r = await get().publishLayerState(projectId, timelineId, baseFromCompile);
+          return r.ok ? { ok: true, merged: true, version: (r as { version?: number }).version ?? remoteVersion + 1 } : r;
+        } finally {
+          _layerMergeRetry = false;
+        }
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return { ok: false, reason: "error", message: err.error };
+      }
+
+      const result = await res.json().catch(() => ({}));
+      const newVersion =
+        typeof result.version === "number" ? result.version : get().stateVersion;
+      get().setStateVersion(newVersion);
+      // Advance the merge base to the just-published state.
+      set({ mergeBaseSnapshot: snapshot });
+
+      // Append audit entry + mark current state as the published baseline
+      await historyStore.commitPublish(projectId, timelineId);
+
+      return { ok: true, version: newVersion };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: "error",
+        message: error instanceof Error ? error.message : "Publish failed",
+      };
+    } finally {
+      historyStore.setIsPublishing(false);
+    }
+  },
+
+  revertToTeamBase: async (projectId, timelineId) => {
+    const historyStore = useLayerHistoryStore.getState();
+
+    // Fetch the team canonical (last published) layer state
+    let canonical: {
+      childrenData?: RenderableComponentData[];
+      overrides?: [string, unknown][];
+      trackStates?: Record<string, TrackState>;
+      hiddenLayerIds?: string[];
+      lockedLayerIds?: string[];
+      version?: number;
+    } | null = null;
+    try {
+      const res = await fetch(
+        `/api/project/timeline/layer-state?projectId=${encodeURIComponent(projectId)}&timelineId=${encodeURIComponent(timelineId)}`
+      );
+      if (res.ok) canonical = await res.json();
+    } catch {
+      return; // network failure — leave local state untouched
+    }
+    if (!canonical) return; // nothing published yet — nothing to revert to
+
+    const rawChildren =
+      Array.isArray(canonical.childrenData) && canonical.childrenData.length > 0
+        ? assignLayerItemIds(canonical.childrenData)
+        : null;
+    const isLegacyBaked = rawChildren != null && canonical.overrides === undefined;
+
+    // Apply canonical as the new working base; restore its overlay overrides
+    set({
+      loadedChildrenData: rawChildren,
+      overrides: Array.isArray(canonical.overrides)
+        ? new Map(canonical.overrides as [string, LayerOverride][])
+        : new Map(),
+      addedNodes: [],
+      childrenOrderByParentId: new Map(),
+      rebaseFromBase: !isLegacyBaked,
+      trackStates:
+        canonical.trackStates && typeof canonical.trackStates === "object"
+          ? canonical.trackStates
+          : {},
+      hiddenLayerIds: new Set(
+        Array.isArray(canonical.hiddenLayerIds) ? canonical.hiddenLayerIds : []
+      ),
+      lockedLayerIds: new Set(
+        Array.isArray(canonical.lockedLayerIds) ? canonical.lockedLayerIds : []
+      ),
+    });
+    if (typeof canonical.version === "number") {
+      get().setStateVersion(canonical.version);
+    }
+
+    // Record as an undoable entry so Ctrl+Z restores the user's previous edits
+    const appliedSnapshot = snapshotFromLayerState(get());
+    historyStore.recordChange(
+      "Reverted to team base",
+      [{ layerItemId: "__root__", nodeId: "__root__", changeType: "reset" }],
+      appliedSnapshot
+    );
+    // Current state now equals the team base → mark synced (no unpublished diff)
+    historyStore.markSyncedToTeam();
+    // Advance the merge base to the team state.
+    set({ mergeBaseSnapshot: get().getLayerStateSnapshot(undefined) });
+    // Refresh team audit list for the panel
+    historyStore.loadDbHistory();
+  },
+
+  resolveLayerMerge: async (projectId, timelineId, baseFromCompile, choices) => {
+    const pending = get().pendingLayerMerge;
+    if (!pending) return { ok: false, reason: "error", message: "No pending merge" };
+    const merged = pending.build(choices);
+    get().loadLayerState(merged);
+    get().setStateVersion(pending.remoteVersion);
+    set({ pendingLayerMerge: null });
+    // Force "dirty" so the publish actually PUTs the merged state.
+    useLayerHistoryStore.getState().setPublishedHash(null);
+    _layerMergeRetry = true;
+    try {
+      const r = await get().publishLayerState(projectId, timelineId, baseFromCompile);
+      return r.ok
+        ? { ok: true, merged: true, version: (r as { version?: number }).version ?? pending.remoteVersion + 1 }
+        : r;
+    } finally {
+      _layerMergeRetry = false;
+    }
+  },
+
+  cancelLayerMerge: () => set({ pendingLayerMerge: null }),
 }));
 
 /**
