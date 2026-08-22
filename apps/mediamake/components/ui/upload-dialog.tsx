@@ -29,6 +29,7 @@ import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { useSession } from "@/components/session-provider";
 import { callAgent } from "@/components/agents/agent-helper";
 import { useWorkflowJob } from "@/hooks/useWorkflowJob";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 interface UploadDialogProps {
     isOpen: boolean;
@@ -47,6 +48,47 @@ interface UploadProgress {
     mediaUrl?: string;
     error?: string;
 }
+
+/**
+ * Everything in the Parameters tab that should survive a reload or a
+ * close/reopen of the dialog. Files themselves are deliberately not persisted.
+ */
+interface UploadDialogConfig {
+    contentSubType: string;
+    contentSource: string;
+    analyzeAudio: boolean;
+    analyzeImages: boolean;
+    generateDescription: boolean;
+    generateKeywords: boolean;
+    tags: string[];
+    projectId: string | null;
+}
+
+const UPLOAD_DIALOG_CONFIG_KEY = "mediamake.upload-dialog.config.v1";
+
+const DEFAULT_UPLOAD_DIALOG_CONFIG: UploadDialogConfig = {
+    contentSubType: 'full',
+    contentSource: 'upload',
+    analyzeAudio: true,
+    analyzeImages: true,
+    generateDescription: true,
+    generateKeywords: true,
+    tags: [],
+    projectId: null,
+};
+
+const fileKey = (file: File) => `${file.name}|${file.size}|${file.lastModified}`;
+
+const detectContentType = (file: File): 'video' | 'audio' | 'image' | 'document' | 'unknown' => {
+    const mimeType = file.type.toLowerCase();
+
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text/')) return 'document';
+
+    return 'unknown';
+};
 
 export function UploadDialog({
     isOpen,
@@ -69,17 +111,55 @@ export function UploadDialog({
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadStatus, setDownloadStatus] = useState<string>("");
 
-    // File parameters
-    const [contentSubType, setContentSubType] = useState<string>('full');
-    const [contentSource, setContentSource] = useState<string>('upload');
+    // File parameters — persisted in localStorage so a reload (or simply closing
+    // and reopening the dialog) keeps the last-used configuration.
+    const [storedConfig, setStoredConfig, configHydrated] = useLocalStorage<Partial<UploadDialogConfig>>(
+        UPLOAD_DIALOG_CONFIG_KEY,
+        {},
+    );
+    const config: UploadDialogConfig = { ...DEFAULT_UPLOAD_DIALOG_CONFIG, ...storedConfig };
+    const updateConfig = useCallback(
+        (patch: Partial<UploadDialogConfig>) => {
+            setStoredConfig(prev => ({ ...DEFAULT_UPLOAD_DIALOG_CONFIG, ...prev, ...patch }));
+        },
+        [setStoredConfig],
+    );
+
+    const { contentSubType, contentSource, analyzeAudio, analyzeImages, generateDescription, generateKeywords } = config;
+    const setContentSubType = (value: string) => updateConfig({ contentSubType: value });
+    const setContentSource = (value: string) => updateConfig({ contentSource: value });
+    const setAnalyzeAudio = (value: boolean) => updateConfig({ analyzeAudio: value });
+    const setAnalyzeImages = (value: boolean) => updateConfig({ analyzeImages: value });
+    const setGenerateDescription = (value: boolean) => updateConfig({ generateDescription: value });
+    const setGenerateKeywords = (value: boolean) => updateConfig({ generateKeywords: value });
+
     const [selectedTags, setSelectedTags] = useState<string[]>(preselectedTags);
-    const [analyzeAudio, setAnalyzeAudio] = useState<boolean>(true);
     const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [selectedProject, setSelectedProject] = useState<{ id: string; displayName: string } | null>(null);
-    const [analyzeImages, setAnalyzeImages] = useState<boolean>(true);
-    const [generateDescription, setGenerateDescription] = useState<boolean>(true);
-    const [generateKeywords, setGenerateKeywords] = useState<boolean>(true);
+    // Per-file display names for audio uploads, keyed by file identity so that
+    // removing a file from the list does not shift names onto another file.
+    const [audioNames, setAudioNames] = useState<Record<string, string>>({});
+
+    const hasImageFiles = files.some(file => detectContentType(file) === 'image');
+    const hasAudioFiles = files.some(file => detectContentType(file) === 'audio');
+    // Image analysis is a no-op for an audio-only batch, so switch it off and lock
+    // the toggle rather than letting it look like it will do something.
+    const imageAnalysisDisabled = hasAudioFiles && !hasImageFiles;
+    const effectiveAnalyzeImages = analyzeImages && !imageAnalysisDisabled;
+
+    const resolveAudioFileName = (file: File, fallback: string) => {
+        const custom = (audioNames[fileKey(file)] ?? "").trim();
+        if (!custom) return fallback;
+        const ext = file.name.includes('.') ? file.name.split('.').pop() ?? '' : '';
+        if (!ext) return custom;
+        return custom.toLowerCase().endsWith(`.${ext.toLowerCase()}`) ? custom : `${custom}.${ext}`;
+    };
+
+    const handleTagsChange = (tags: string[]) => {
+        setSelectedTags(tags);
+        updateConfig({ tags });
+    };
 
     // Abort controller for upload cancellation
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -115,17 +195,7 @@ export function UploadDialog({
                     return;
                 }
                 const data = await res.json();
-                if (Array.isArray(data)) {
-                    setProjects(data);
-                    if (selectedProjectId) {
-                        const match = data.find((p: any) => p.id === selectedProjectId);
-                        if (match) {
-                            setSelectedProject({ id: match.id, displayName: match.displayName });
-                        }
-                    }
-                } else {
-                    setProjects([]);
-                }
+                setProjects(Array.isArray(data) ? data : []);
             } catch {
                 setProjects([]);
             } finally {
@@ -133,7 +203,32 @@ export function UploadDialog({
             }
         };
         loadProjects();
-    }, [isOpen, session?.clientId, selectedProjectId]);
+    }, [isOpen, session?.clientId]);
+
+    // Resolve the selected project once the list is in: an explicit prop from the
+    // caller wins, otherwise fall back to the project remembered from last time.
+    useEffect(() => {
+        if (!isOpen || !configHydrated || projects.length === 0) return;
+        const desiredProjectId = selectedProjectId ?? config.projectId;
+        if (!desiredProjectId || selectedProject?.id === desiredProjectId) return;
+        const match = projects.find(p => p.id === desiredProjectId);
+        if (match) {
+            setSelectedProject({ id: match.id, displayName: match.displayName });
+        }
+        // config.projectId is read through `config`, which is rebuilt every render;
+        // depending on it directly would loop, and the guard above covers re-runs.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, configHydrated, projects, selectedProjectId, selectedProject?.id]);
+
+    // Seed the tag selection when the dialog opens. A caller-supplied preselection
+    // wins; otherwise reuse the tags from the last upload.
+    useEffect(() => {
+        if (!isOpen || !configHydrated) return;
+        setSelectedTags(preselectedTags.length > 0 ? preselectedTags : config.tags);
+        // Intentionally keyed on open/hydration only — re-seeding on every render
+        // would fight the user's selection.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, configHydrated]);
 
     // Update files when initialFiles prop changes, but only if files array is empty
     // This prevents overwriting files that were added via paste or drop
@@ -318,6 +413,7 @@ export function UploadDialog({
             const indexingPromises = uploadedMedia.map(async (media, index) => {
                 const file = files[index];
                 const detectedContentType = detectContentType(file);
+                const isAudioFile = detectedContentType === 'audio';
                 const projectIdToUse = selectedProject?.id ?? null;
 
                 const mediaFileData: Record<string, unknown> = {
@@ -328,10 +424,10 @@ export function UploadDialog({
                     contentSubType,
                     contentSource,
                     contentSourceUrl: contentSource !== 'upload' ? media.mediaUrl : "upload",
-                    fileName: media.mediaName,
+                    fileName: isAudioFile ? resolveAudioFileName(file, media.mediaName) : media.mediaName,
                     fileSize: file.size,
                     filePath: media.mediaUrl,
-                    analyzeImage: analyzeImages,
+                    analyzeImage: effectiveAnalyzeImages,
                     generateDescription,
                     generateKeywords,
                 };
@@ -339,13 +435,37 @@ export function UploadDialog({
                     mediaFileData.projectId = projectIdToUse;
                 }
 
-                // Trigger worker and wait for completion for this file
-                const workerResult = await triggerMediaIndexWorker(mediaFileData as Record<string, unknown>);
+                const result: any = { input: mediaFileData };
 
-                const result: any = { input: mediaFileData, workerResult };
+                if (isAudioFile) {
+                    // The sparkboard index worker only does image work and is dispatched
+                    // fire-and-forget, so with analysis switched off an audio file never
+                    // reliably reached the DB. Create the entry directly instead; the
+                    // route de-dupes on filePath, and the analysis agent below finds and
+                    // updates this same document when it runs.
+                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                    if (session?.clientId) {
+                        headers['x-client-id'] = session.clientId;
+                    }
+                    const response = await fetch('/api/media-files', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(mediaFileData),
+                    });
+                    if (!response.ok) {
+                        const errorBody = await response.json().catch(() => ({}));
+                        throw new Error(
+                            errorBody?.error ?? `Failed to create media file entry for ${mediaFileData.fileName}`,
+                        );
+                    }
+                    result.mediaFile = await response.json();
+                } else {
+                    // Trigger worker and wait for completion for this file
+                    result.workerResult = await triggerMediaIndexWorker(mediaFileData as Record<string, unknown>);
+                }
 
                 // Run audio analysis if it's an audio file and analyzeAudio is enabled
-                if (detectedContentType === 'audio' && analyzeAudio && media.mediaUrl) {
+                if (isAudioFile && analyzeAudio && media.mediaUrl) {
                     try {
                         console.log('Running audio analysis for:', media.mediaName);
 
@@ -353,7 +473,7 @@ export function UploadDialog({
                             audioUrls: [media.mediaUrl],
                             clientId: 'default',
                             tags: selectedTags,
-                            userRequest: `Analyze audio file: ${media.mediaName}`,
+                            userRequest: `Analyze audio file: ${mediaFileData.fileName}`,
                             analysisOptions: {
                                 extractWaveform: true,
                                 analyzeFrequency: true,
@@ -423,17 +543,15 @@ export function UploadDialog({
             abortControllerRef.current.abort();
         }
 
+        // Only per-upload state is cleared here. The Parameters tab (tags, project,
+        // toggles) is persisted on purpose so reopening the dialog restores it.
         setFiles([]);
         setUploadProgress([]);
         setIsUploading(false);
         setUploadComplete(false);
-        setSelectedTags([]);
         setUploadedMedia([]);
         setCountdown(0);
-                        setSelectedProject(null);
-        setAnalyzeImages(true);
-        setGenerateDescription(true);
-        setGenerateKeywords(true);
+        setAudioNames({});
         uploadInProgressRef.current = false;
         abortControllerRef.current = null;
         onClose();
@@ -589,18 +707,6 @@ export function UploadDialog({
     const canUpload = files.length > 0 && !isUploading && !uploadInProgressRef.current;
     const canCreateEntries = files.length > 0 && selectedTags.length > 0 && !isUploading && !uploadInProgressRef.current && !isCreatingEntries;
 
-    // Function to detect content type from file
-    const detectContentType = (file: File): 'video' | 'audio' | 'image' | 'document' | 'unknown' => {
-        const mimeType = file.type.toLowerCase();
-
-        if (mimeType.startsWith('video/')) return 'video';
-        if (mimeType.startsWith('audio/')) return 'audio';
-        if (mimeType.startsWith('image/')) return 'image';
-        if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text/')) return 'document';
-
-        return 'unknown';
-    };
-
     // Internal dropzone functionality
     const onDrop = useCallback((acceptedFiles: File[]) => {
         setFiles(prev => [...prev, ...acceptedFiles]);
@@ -739,6 +845,29 @@ export function UploadDialog({
                                                             </Badge>
                                                         </div>
 
+                                                        {isAudio && (
+                                                            <div className="space-y-1">
+                                                                <Label htmlFor={`audio-name-${index}`} className="text-xs text-muted-foreground">
+                                                                    Audio file name
+                                                                </Label>
+                                                                <Input
+                                                                    id={`audio-name-${index}`}
+                                                                    value={audioNames[fileKey(item.file)] ?? ""}
+                                                                    onChange={(e) =>
+                                                                        setAudioNames(prev => ({
+                                                                            ...prev,
+                                                                            [fileKey(item.file)]: e.target.value,
+                                                                        }))
+                                                                    }
+                                                                    placeholder={item.file.name}
+                                                                    className="h-8 text-xs"
+                                                                />
+                                                                <p className="text-[10px] text-muted-foreground">
+                                                                    Leave blank to keep the original name. The file extension is added back automatically.
+                                                                </p>
+                                                            </div>
+                                                        )}
+
                                                         {item.status === 'uploading' && (
                                                             <div className="space-y-1">
                                                                 <Progress value={item.progress} className="h-2" />
@@ -808,10 +937,12 @@ export function UploadDialog({
                                 onValueChange={(value) => {
                                     if (value === 'default') {
                                         setSelectedProject(null);
+                                        updateConfig({ projectId: null });
                                     } else {
                                         const p = projects.find((proj) => proj.id === value);
                                         if (p) {
                                             setSelectedProject({ id: p.id, displayName: p.displayName });
+                                            updateConfig({ projectId: p.id });
                                         }
                                     }
                                 }}
@@ -859,7 +990,8 @@ export function UploadDialog({
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id="analyzeImages"
-                                    checked={analyzeImages}
+                                    checked={effectiveAnalyzeImages}
+                                    disabled={imageAnalysisDisabled}
                                     onCheckedChange={(checked) => setAnalyzeImages(checked as boolean)}
                                 />
                                 <Label htmlFor="analyzeImages" className="text-sm">
@@ -869,8 +1001,13 @@ export function UploadDialog({
                             <p className="text-xs text-muted-foreground">
                                 When enabled, images will be sent to the AI analysis pipeline for descriptions & tags and indexed into the visual search (RAG) system.
                             </p>
+                            {imageAnalysisDisabled && (
+                                <p className="text-xs text-amber-600">
+                                    Turned off automatically: this batch only contains audio files, which image analysis does not apply to.
+                                </p>
+                            )}
 
-                            {analyzeImages && (
+                            {effectiveAnalyzeImages && (
                                 <div className="ml-6 space-y-2">
                                     <div className="flex items-center space-x-2">
                                         <Checkbox
@@ -924,7 +1061,7 @@ export function UploadDialog({
                         {/* Tags */}
                         <TagMultiSelect
                             selectedTags={selectedTags}
-                            onTagsChange={setSelectedTags}
+                            onTagsChange={handleTagsChange}
                             label={`Tags${selectedTags.length === 0 && uploadedMedia.length > 0 ? ' (Required to create entries)' : ''}`}
                             required={uploadedMedia.length > 0}
                         />
