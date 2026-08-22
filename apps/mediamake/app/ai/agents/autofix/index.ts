@@ -7,8 +7,36 @@ import sentenceStructureFixerAgent from './fixers/sentenceStructureFixer';
 import punctuationFixerAgent from './fixers/punctuationFixer';
 import timingOptimizerAgent from './fixers/timingOptimizer';
 import contextualFixerAgent from './fixers/contextualFixer';
+import { STRUCTURE_PROFILE_IDS } from './lib/structureProfiles';
 
 const aiRouter = new AiRouter();
+
+/**
+ * The order fixers must run in, regardless of the order they were requested.
+ *
+ * Word-level work comes first: correcting or deleting a word changes the line's
+ * character count and word count, so segmenting before that leaves lines
+ * outside their profile budget. Sentence structure therefore runs last of the
+ * text passes, and timing runs after it — the timing optimizer reasons about
+ * gaps *between sentences*, which only exist once the sentences are final.
+ */
+const AGENT_PIPELINE_ORDER = [
+  'spelling',
+  'word-boundary',
+  'punctuation',
+  'sentence-structure',
+  'timing',
+];
+
+const orderAgents = (agents: string[]) =>
+  [...new Set(agents)].sort((a, b) => {
+    const ia = AGENT_PIPELINE_ORDER.indexOf(a);
+    const ib = AGENT_PIPELINE_ORDER.indexOf(b);
+    return (
+      (ia === -1 ? AGENT_PIPELINE_ORDER.length : ia) -
+      (ib === -1 ? AGENT_PIPELINE_ORDER.length : ib)
+    );
+  });
 
 /**
  * Autofix Orchestrator
@@ -41,12 +69,25 @@ export const autofixOrchestrator = aiRouter
         userWrittenTranscription,
         agents = ['spelling', 'word-boundary', 'punctuation'],
         applyToDatabase = false,
+        // Forwarded verbatim to the fixers that understand them.
+        structureStyle,
+        splitDensity,
+        maxCharsPerLine,
+        maxWordsPerLine,
+        useReferenceLyrics,
+        allowWordRemoval,
       } = ctx.request.params as {
         transcriptionId: string;
         userRequest?: string;
         userWrittenTranscription?: string;
         agents?: string[];
         applyToDatabase?: boolean;
+        structureStyle?: string;
+        splitDensity?: string;
+        maxCharsPerLine?: number;
+        maxWordsPerLine?: number;
+        useReferenceLyrics?: boolean;
+        allowWordRemoval?: boolean;
       };
 
       // If user provided written transcription, use contextual fixer
@@ -69,7 +110,10 @@ export const autofixOrchestrator = aiRouter
         if (
           request.includes('spell') ||
           request.includes('typo') ||
-          request.includes('mistake')
+          request.includes('mistake') ||
+          request.includes('lyric') ||
+          request.includes('suno') ||
+          request.includes('hallucinat')
         ) {
           agentsToRun.push('spelling');
         }
@@ -84,6 +128,9 @@ export const autofixOrchestrator = aiRouter
         if (
           request.includes('sentence') ||
           request.includes('structure') ||
+          request.includes('segment') ||
+          request.includes('split') ||
+          request.includes('line') ||
           request.includes('long') ||
           request.includes('short')
         ) {
@@ -111,6 +158,12 @@ export const autofixOrchestrator = aiRouter
         }
       }
 
+      // An explicit structure style is only meaningful if that fixer runs.
+      if (structureStyle && !agentsToRun.includes('sentence-structure')) {
+        agentsToRun.push('sentence-structure');
+      }
+      agentsToRun = orderAgents(agentsToRun);
+
       console.log('AUTOFIX ORCHESTRATOR: Running agents:', agentsToRun);
 
       // Run selected agents in sequence
@@ -118,6 +171,7 @@ export const autofixOrchestrator = aiRouter
       let currentTranscription = ctx.state.transcription;
       let allChanges: any[] = [];
       let allUsage: any[] = [];
+      let mutated = false;
 
       for (const agentName of agentsToRun) {
         try {
@@ -128,6 +182,12 @@ export const autofixOrchestrator = aiRouter
             transcriptionId,
             userRequest,
             applyToDatabase: false, // Don't apply individually
+            structureStyle,
+            splitDensity,
+            maxCharsPerLine,
+            maxWordsPerLine,
+            useReferenceLyrics,
+            allowWordRemoval,
           });
 
           // Handle both wrapped and direct responses
@@ -135,20 +195,21 @@ export const autofixOrchestrator = aiRouter
             ? (response as any).data
             : response;
 
-          if (
-            result &&
-            result.success &&
-            result.changes &&
-            result.changes.length > 0
-          ) {
-            // Update current transcription with fixes
+          if (result && result.success && result.transcription?.captions) {
+            // Always carry the result forward. The sentence-structure fixer
+            // rewrites line boundaries without changing any word, so gating on
+            // `changes.length` used to silently discard its whole output.
             currentTranscription = result.transcription;
-            allChanges.push({
-              agent: agentName,
-              changes: result.changes,
-              confidence: result.confidence,
-              summary: result.summary,
-            });
+            mutated = true;
+
+            if (result.changes && result.changes.length > 0) {
+              allChanges.push({
+                agent: agentName,
+                changes: result.changes,
+                confidence: result.confidence,
+                summary: result.summary,
+              });
+            }
             if (result.usage) {
               allUsage.push(result.usage);
             }
@@ -167,7 +228,7 @@ export const autofixOrchestrator = aiRouter
       }
 
       // Apply final result to database if requested
-      if (applyToDatabase && allChanges.length > 0) {
+      if (applyToDatabase && mutated) {
         const { saveTranscriptionFix } = await import('./helpers');
         await saveTranscriptionFix(
           transcriptionId,
@@ -234,6 +295,38 @@ export const autofixOrchestrator = aiRouter
         .describe(
           'Specific agents to run (default: spelling, word-boundary, punctuation)',
         ),
+      structureStyle: z
+        .string()
+        .optional()
+        .describe(
+          `Delivery/segmentation profile for the sentence-structure fixer. Setting it also enables that fixer. One of: ${STRUCTURE_PROFILE_IDS.join(', ')}`,
+        ),
+      splitDensity: z
+        .enum(['auto', 'much-finer', 'finer', 'coarser', 'much-coarser'])
+        .optional()
+        .describe('Override how many caption divisions the structure style makes'),
+      maxCharsPerLine: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Hard character cap per caption line'),
+      maxWordsPerLine: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Hard word cap per caption line'),
+      useReferenceLyrics: z
+        .boolean()
+        .optional()
+        .describe(
+          "Use the transcription's Suno lyrics as the authority on wording (spelling fixer) and line structure",
+        ),
+      allowWordRemoval: z
+        .boolean()
+        .optional()
+        .describe('Let the spelling fixer delete clearly hallucinated words'),
       applyToDatabase: z
         .boolean()
         .optional()

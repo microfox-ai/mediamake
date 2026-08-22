@@ -33,11 +33,19 @@ export const loadTranscription: AiMiddleware<any, any, any, any, any> = async (
     throw new Error('No captions found in transcription');
   }
 
-  // Store transcription in context state
+  // Store transcription in context state.
+  //
+  // `captions` is the live state: every autofix run, and every manual edit,
+  // writes there. `step1.processedCaptions` is a snapshot taken once when the
+  // transcription was created and never updated again — reading it first meant
+  // each fixer silently started from the raw ElevenLabs chunking and saved that
+  // back, discarding whatever the previous fixer had done. It stays only as a
+  // fallback for documents whose `captions` never got populated.
   props.state.transcription = transcription;
   props.state.captions =
-    transcription.processingData?.step1?.processedCaptions ??
-    transcription.captions;
+    transcription.captions?.length > 0
+      ? transcription.captions
+      : transcription.processingData?.step1?.processedCaptions;
 
   return next();
 };

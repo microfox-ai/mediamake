@@ -3,15 +3,16 @@ import type { WorkerHandlerParams } from '@microfox/ai-worker/handler';
 import { z } from 'zod';
 import { getDatabase } from '@/lib/mongodb';
 import type { Transcription, Caption, CaptionWord } from '@/app/types/transcription';
-import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
-import dedent from 'dedent';
+import { saveTranscriptionFix } from '@/app/ai/agents/autofix/helpers';
+import { runSentenceStructureFix } from '@/app/ai/agents/autofix/lib/sentenceStructureCore';
+import { runSpellingFix } from '@/app/ai/agents/autofix/lib/spellingCore';
+import { parseReferenceLyrics } from '@/app/ai/agents/autofix/lib/lyricsReference';
+import type { CaptionChange } from '@/app/ai/agents/autofix/lib/segmentation';
 import {
-  formatCaptionsForAI,
-  parseAIOutputToCaptions,
-  detectChanges,
-  saveTranscriptionFix,
-} from '@/app/ai/agents/autofix/helpers';
+  DEFAULT_STRUCTURE_PROFILE_ID,
+  STRUCTURE_PROFILE_IDS,
+  type SplitDensity,
+} from '@/app/ai/agents/autofix/lib/structureProfiles';
 
 // --- Input/Output schemas ---
 
@@ -28,6 +29,20 @@ const InputSchema = z.object({
   sunoLyrics: z.string().optional(),
   projectId: z.string().optional().nullable(),
   clientId: z.string().optional(),
+  /** Delivery/segmentation profile for the initial caption structure pass. */
+  structureStyle: z
+    .enum(STRUCTURE_PROFILE_IDS as [string, ...string[]])
+    .optional()
+    .default(DEFAULT_STRUCTURE_PROFILE_ID),
+  /** Override how many caption divisions the chosen style makes. */
+  splitDensity: z
+    .enum(['auto', 'much-finer', 'finer', 'coarser', 'much-coarser'])
+    .optional()
+    .default('auto'),
+  /** Correct mistranscribed words against `sunoLyrics` before segmenting. */
+  applySpellingFix: z.boolean().optional().default(true),
+  /** Let the spelling pass delete clearly hallucinated words. */
+  allowWordRemoval: z.boolean().optional().default(false),
 });
 
 const OutputSchema = z.object({
@@ -182,73 +197,102 @@ async function transcribeWithElevenLabs(
   };
 }
 
-// --- Sentence structure autofix (inlined from autofix/sentenceStructureFixer) ---
+// --- Autofix pipeline (shared engine, see agents/autofix/lib) ---
 
-const SENTENCE_STRUCTURE_SYSTEM_PROMPT = dedent`You are a sentence structure expert specializing in optimizing transcriptions for subtitle display.
+interface AutofixPipelineOptions {
+  structureStyle?: string;
+  splitDensity?: SplitDensity;
+  sunoLyrics?: string;
+  applySpellingFix?: boolean;
+  allowWordRemoval?: boolean;
+}
 
-TASK: Improve sentence structure for better readability in subtitles.
-
-RULES:
-1. Split run-on sentences that are too long for one subtitle screen
-   - Keep each sentence under 50-60 characters ideally
-   - Split at natural breaks (commas, conjunctions, pauses)
-2. Merge sentence fragments that belong together
-3. Ensure each sentence forms a complete, coherent thought
-4. Preserve ALL timing information
-5. Do NOT fix spelling errors
-6. Do NOT change word boundaries
-7. Keep the same words in the same order
-
-SUBTITLE OPTIMIZATION:
-- Each sentence appears on one screen
-- Long sentences reduce readability
-- Split at logical breaks: after phrases, before conjunctions
-- Aim for 1-2 lines per subtitle (max ~70 characters)
-
-TIMING PRESERVATION:
-- Maintain exact word-level timing
-- Only reorganize which words belong to which sentence
-- Do not modify individual word timings
-
-OUTPUT FORMAT:
-Return the corrected captions in the exact same format as input:
-- Each sentence starts with a dash (-)
-- Words are separated by <$>
-- Each word has timestamps in brackets: word[absoluteStart-absoluteEnd]
-- Example: -hello[1.2-1.5]<$>world[1.6-2.0]
-
-Do not include any other text, explanations, or formatting. Only return the corrected captions.`;
-
-async function runSentenceStructureAutofix(
+/**
+ * Spelling first, then structure.
+ *
+ * Correcting or deleting a word changes a line's character and word count, so
+ * segmenting first would leave lines outside the profile's budget. The spelling
+ * pass preserves the grouping it is given, which makes it safe to run before the
+ * segmentation is decided but wasteful to run after it.
+ *
+ * The spelling pass is skipped without Suno lyrics: with no reference to check
+ * against, an unattended model is as likely to normalise deliberate slang as it
+ * is to fix a genuine mishearing.
+ */
+async function runAutofixPipeline(
   transcriptionId: string,
   captions: Caption[],
-): Promise<{ fixedCaptions: Caption[]; changes: any[]; confidence: number }> {
+  options: AutofixPipelineOptions,
+): Promise<{ fixedCaptions: Caption[]; changes: CaptionChange[]; confidence: number }> {
+  const reference = options.sunoLyrics
+    ? parseReferenceLyrics(options.sunoLyrics)
+    : undefined;
+
+  let working = captions;
+  const changes: CaptionChange[] = [];
+  const confidences: number[] = [];
+
+  if (reference && options.applySpellingFix !== false) {
+    console.log('[transcriber.worker] Running spelling autofix', transcriptionId, {
+      captionsCount: working.length,
+      lyricWords: reference.wordCount,
+      allowWordRemoval: options.allowWordRemoval === true,
+    });
+
+    const spelling = await runSpellingFix(working, {
+      referenceLyrics: reference,
+      allowWordRemoval: options.allowWordRemoval === true,
+    });
+
+    console.log('[transcriber.worker] Spelling result', {
+      proposed: spelling.proposedCount,
+      applied: spelling.changes.length,
+      rejected: spelling.rejected.length,
+      removed: spelling.removedCount,
+    });
+
+    working = spelling.fixedCaptions;
+    changes.push(...spelling.changes);
+    if (spelling.changes.length > 0) confidences.push(spelling.confidence);
+  } else if (!reference) {
+    console.log(
+      '[transcriber.worker] Skipping spelling autofix — no Suno lyrics to check against',
+      transcriptionId,
+    );
+  }
+
   console.log(
     '[transcriber.worker] Running sentence structure autofix',
     transcriptionId,
-    { captionsCount: captions.length },
+    {
+      captionsCount: working.length,
+      structureStyle: options.structureStyle ?? DEFAULT_STRUCTURE_PROFILE_ID,
+      splitDensity: options.splitDensity ?? 'auto',
+    },
   );
 
-  const formattedCaptions = formatCaptionsForAI(captions);
-  const prompt = dedent`TRANSCRIPTION DATA:
-${formattedCaptions}
-
-Optimize sentence structure for subtitle display while preserving all timing.`;
-
-  const result = await generateText({
-    model: google('gemini-2.5-pro'),
-    system: SENTENCE_STRUCTURE_SYSTEM_PROMPT,
-    prompt,
-    maxRetries: 2,
+  const structure = await runSentenceStructureFix(working, {
+    structureStyle: options.structureStyle,
+    splitDensity: options.splitDensity,
+    referenceLyrics: reference?.text,
   });
 
-  const fixedCaptions = parseAIOutputToCaptions(result.text, captions);
-  const changes = detectChanges(captions, fixedCaptions, 'sentence_structure_fix');
+  console.log('[transcriber.worker] Segmentation result', {
+    profile: structure.profile.id,
+    usedModel: structure.usedModel,
+    wordsPerSecond: Number(structure.wordsPerSecond.toFixed(2)),
+    ...structure.stats,
+  });
+
+  changes.push(...structure.changes);
+  confidences.push(structure.confidence);
 
   return {
-    fixedCaptions,
+    fixedCaptions: structure.fixedCaptions,
     changes,
-    confidence: 0.85,
+    confidence: confidences.length
+      ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+      : structure.confidence,
   };
 }
 
@@ -275,6 +319,10 @@ export default createWorker<typeof InputSchema, Output>({
       sunoLyrics,
       projectId,
       clientId,
+      structureStyle,
+      splitDensity,
+      applySpellingFix,
+      allowWordRemoval,
     } = parsed;
 
     console.log('[transcriber.worker] Handler invoked with input', {
@@ -320,15 +368,22 @@ export default createWorker<typeof InputSchema, Output>({
         );
 
         const existingId = String(existing._id);
-        const autofixResult = await runSentenceStructureAutofix(
+        const autofixResult = await runAutofixPipeline(
           existingId,
           existing.captions ?? [],
+          {
+            structureStyle,
+            splitDensity: splitDensity as SplitDensity,
+            sunoLyrics: sunoLyrics?.trim() || existing.sunoLyrics,
+            applySpellingFix,
+            allowWordRemoval,
+          },
         );
         await saveTranscriptionFix(
           existingId,
           autofixResult.fixedCaptions,
           autofixResult.changes,
-          'Sentence Structure Fixer',
+          'Transcriber autofix (spelling → sentence structure)',
           undefined,
         );
         return {
@@ -367,17 +422,20 @@ export default createWorker<typeof InputSchema, Output>({
       const insertResult = await collection.insertOne(transcriptionDoc);
       const transcriptionId = String(insertResult.insertedId);
 
-      // 2. Sentence structure autofix in-process (no API call)
-      const autofixResult = await runSentenceStructureAutofix(
-        transcriptionId,
-        captions,
-      );
+      // 2. Autofix in-process (no API call): spelling, then sentence structure
+      const autofixResult = await runAutofixPipeline(transcriptionId, captions, {
+        structureStyle,
+        splitDensity: splitDensity as SplitDensity,
+        sunoLyrics: sunoLyrics?.trim(),
+        applySpellingFix,
+        allowWordRemoval,
+      });
 
       await saveTranscriptionFix(
         transcriptionId,
         autofixResult.fixedCaptions,
         autofixResult.changes,
-        'Sentence Structure Fixer',
+        'Transcriber autofix (spelling → sentence structure)',
         undefined,
       );
 
