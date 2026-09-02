@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X, Loader2 } from "lucide-react";
 import { useProjectStore } from "../../../stores/project-store";
+import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { TimelineItem } from "./TimelineItem";
 import { useSession } from "@/components/session-provider";
 
 export function TimelinesTree() {
     const { timelines, currentProjectId, setTimelines } = useProjectStore();
+    const { registerCloudTimelines } = useTimelineEditsStore();
     const session = useSession();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -49,12 +51,13 @@ export function TimelinesTree() {
             const data = await response.json();
             const nextTimelines = Array.isArray(data) ? data : data.timelines || [];
             setTimelines(nextTimelines);
+            registerCloudTimelines(nextTimelines);
         } catch (error) {
             console.error("Error searching timelines:", error);
         } finally {
             setIsSearching(false);
         }
-    }, [currentProjectId, searchQuery, session?.clientId, setTimelines]);
+    }, [currentProjectId, searchQuery, session?.clientId, setTimelines, registerCloudTimelines]);
 
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {

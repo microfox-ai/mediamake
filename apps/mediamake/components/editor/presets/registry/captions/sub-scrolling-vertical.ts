@@ -23,10 +23,13 @@
 import { RenderableComponentData } from '@microfox/datamotion';
 import { GenericEffectData, TextAtomData } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { PresetMetadata, PresetOutput, PresetPassedProps } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 const presetParams = z.object({
-  inputCaptions: z.array(z.any()),
+  inputCaptions: z.array(z.any()).meta({
+    [paramMetaTypes.referrableDataType]: 'captions',
+  }),
   position: z.object({
     align: z.enum(['left', 'center', 'right']).default('center'),
     margin: z.number().default(80).describe('margin from edges'),
@@ -111,6 +114,7 @@ const presetParams = z.object({
 
 const presetExecution = (
   params: z.infer<typeof presetParams>,
+  props?: Partial<PresetPassedProps>,
 ): PresetOutput => {
   const {
     inputCaptions,
@@ -758,7 +762,17 @@ const presetExecution = (
       style,
     ),
   );
-
+  captionsData.forEach((captionNode, index) => {
+    const built = props?.buildDataItemIds?.({
+      paramKeys: ['inputCaptions'],
+      arrayIndex: index,
+    });
+    const ids =
+      built != null && built.length > 0
+        ? built
+        : [`inputCaptions.[${index}]`];
+    props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
+  });
   // Create scroll effect for the main container
   const scrollEffect = createScrollEffect(
     'ScrollingSubtitles',

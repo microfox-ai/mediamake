@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JsonEditor } from "../../player/json-editor";
-import { Eye, Code, HelpCircle, Plus, Trash2, GripVertical, ChevronUp, ChevronDown, RotateCcw, Image, FileAudio, FormInputIcon, ImageIcon } from "lucide-react";
+import { Eye, Code, HelpCircle, Plus, Trash2, GripVertical, ChevronUp, ChevronDown, RotateCcw, Image, FileAudio, FormInputIcon, ImageIcon, ArrowLeftRight, Clock3, X, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PresetMetadata } from "../types";
@@ -25,6 +25,7 @@ import { MediaFile } from "@/app/types/media";
 import { getAvailableFonts } from "@remotion/google-fonts";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TranscriptionPicker } from "../../../transcriber/picker/transcription-picker";
 import { Transcription } from "@/app/types/transcription";
 import { FlexibleObjectField } from "./flexible-object-field";
@@ -48,11 +49,38 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { paramMetaTypes } from "../dataTypes";
 
 const availableFonts = getAvailableFonts();
 
+// Standard JSON Schema keywords — everything else in a Zod-generated schema is
+// .meta() data that Zod inlines at the top level of the property object.
+const JSON_SCHEMA_STANDARD_KEYS = new Set([
+    "type", "title", "description", "enum", "default", "properties", "items",
+    "required", "anyOf", "allOf", "oneOf", "$ref", "const", "pattern",
+    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+    "minLength", "maxLength", "minItems", "maxItems", "uniqueItems",
+    "format", "examples", "additionalProperties", "$schema", "definitions",
+    "$defs", "not", "if", "then", "else",
+]);
+
+/**
+ * Extract Zod .meta() annotations from a JSON-schema property object.
+ * Zod writes metadata at the top level (e.g. { rangeField: true, type: "string" }),
+ * so we collect all non-standard keys into a plain object.
+ */
+function extractZodMeta(field: Record<string, any>): Record<string, any> | undefined {
+    const meta: Record<string, any> = {};
+    for (const [k, v] of Object.entries(field)) {
+        if (!JSON_SCHEMA_STANDARD_KEYS.has(k)) meta[k] = v;
+    }
+    return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
 interface SchemaFormProps {
-    showReferencesDropdown?: boolean;
+    initialTab?: "form" | "json" | "media";
+    showReferencableAuto?: boolean;
+    showReferencesDropdown?: boolean; // deprecated fallback
     metadata?: PresetMetadata;
     schema: any;
     value: any;
@@ -67,6 +95,9 @@ interface SchemaFormProps {
     description?: string;
     availableReferences?: string[]; // Available reference keys for data-referrable fields
     baseData?: Record<string, any>; // Base data for flexible object fields
+    onCreateReference?: (referenceType: string) => string | null;
+    onSelectReferenceKey?: (referenceKey: string) => void;
+    onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
 }
 
 interface FormField {
@@ -79,6 +110,8 @@ interface FormField {
     required?: boolean;
     properties?: Record<string, any>;
     items?: any;
+    /** Zod .meta() object — carries paramMetaTypes annotations */
+    meta?: Record<string, any>;
 }
 
 interface NestedFormProps {
@@ -89,6 +122,10 @@ interface NestedFormProps {
     depth?: number;
     availableReferences?: string[];
     baseData?: Record<string, any>;
+    showReferencableAuto?: boolean;
+    onCreateReference?: (referenceType: string) => string | null;
+    onSelectReferenceKey?: (referenceKey: string) => void;
+    onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
 }
 
 // Helper function to detect if a field is URL/src related
@@ -135,7 +172,165 @@ function isLargeTextField(fieldKey: string, field: FormField): boolean {
 
 // Helper function to detect if a field is data-referrable
 function isDataReferrableField(field: FormField): boolean {
-    return field.description?.includes('data-referrable') || false;
+    return typeof field.meta?.[paramMetaTypes.referrableDataType] === "string";
+}
+
+// Helper function to detect if a string field is a range field (MM:SS-MM:SS format)
+function isRangeField(field: FormField): boolean {
+    if (field.meta?.[paramMetaTypes.rangeField] === true) return true;
+    // Name-based fallback so unannotated range fields still get the custom UI
+    const n = field.key.toLowerCase().replace(/[-_]/g, "");
+    return n === "rangestring" || n === "range" || n.endsWith("rangestring");
+}
+
+function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
+    if (typeof value !== "string") return null;
+    const match = value.match(/^data:\[([^\]]+)\](?:\[([^\]]+)\])?$/);
+    if (!match) return null;
+    return { key: match[1], range: match[2] || "" };
+}
+
+function buildDataReferenceValue(key: string, range?: string): string {
+    return range ? `data:[${key}][${range}]` : `data:[${key}]`;
+}
+
+const REFERENCE_TYPE_OPTIONS = [
+    { value: "string", label: "String" },
+    { value: "number", label: "Number" },
+    { value: "boolean", label: "Boolean" },
+    { value: "object", label: "Object" },
+    { value: "objects", label: "Objects" },
+    { value: "media", label: "Media" },
+    { value: "medias", label: "Medias" },
+    { value: "captions", label: "Captions" },
+];
+
+interface FieldLabelProps {
+    fieldKey: string;
+    title?: string;
+    isRequired?: boolean;
+    description?: string;
+    canAutoReference: boolean;
+    isReferenceLinked: boolean;
+    availableReferences?: string[];
+    onLinkToReference: (referenceKey: string) => void;
+    onCreateReference?: (referenceType: string) => string | null;
+    onUnlinkReference: () => void;
+    onEditLinkedReference: () => void;
+}
+
+function FieldLabel({
+    fieldKey,
+    title,
+    isRequired,
+    description,
+    canAutoReference,
+    isReferenceLinked,
+    availableReferences,
+    onLinkToReference,
+    onCreateReference,
+    onUnlinkReference,
+    onEditLinkedReference,
+}: FieldLabelProps) {
+    return (
+        <div className="flex items-center gap-2">
+            <Label htmlFor={fieldKey} className="text-sm font-medium">
+                {title || fieldKey}
+                {isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            {description && (
+                <Tooltip>
+                    <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="max-w-xs">{description}</p>
+                    </TooltipContent>
+                </Tooltip>
+            )}
+            {canAutoReference && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0">
+                            {isReferenceLinked ? (
+                                <ArrowLeftRight className="h-3.5 w-3.5" />
+                            ) : (
+                                <Plus className="h-3.5 w-3.5" />
+                            )}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="bottom">
+                        {availableReferences?.map((refKey) => (
+                            <DropdownMenuItem key={refKey} onClick={() => onLinkToReference(refKey)}>
+                                {refKey}
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                                {REFERENCE_TYPE_OPTIONS.map((option) => (
+                                    <DropdownMenuItem
+                                        key={option.value}
+                                        onClick={() => {
+                                            const createdKey = onCreateReference?.(option.value);
+                                            if (createdKey) {
+                                                onLinkToReference(createdKey);
+                                            }
+                                        }}
+                                    >
+                                        {option.label}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+            {canAutoReference && isReferenceLinked && (
+                <>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={onUnlinkReference}
+                        title="Unlink reference"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={onEditLinkedReference}
+                        title="Edit linked reference"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                </>
+            )}
+        </div>
+    );
+}
+
+function resolveUnlinkedValue(
+    fieldType: string,
+    fallbackValue: unknown,
+): unknown {
+    if (fallbackValue !== undefined) return fallbackValue;
+    switch (fieldType) {
+        case "number":
+            return 0;
+        case "boolean":
+            return false;
+        case "array":
+            return [];
+        case "object":
+            return {};
+        default:
+            return "";
+    }
 }
 
 // Helper function to detect if an object field should use flexible object field
@@ -1181,7 +1376,7 @@ function DataReferrableDropdown({
                     <Input
                         value={currentRange}
                         onChange={(e) => handleRangeChange(e.target.value)}
-                        placeholder="Range (e.g., 2-33 or 1:04-2:03)"
+                        placeholder="HH:MM:SS-HH:MM:SS,HH:MM:SS-HH:MM:SS"
                         className="flex-1 text-sm"
                     />
                     <div className="text-xs text-muted-foreground flex items-center">
@@ -1191,6 +1386,202 @@ function DataReferrableDropdown({
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function LinkedReferenceValueView({
+    value,
+    onChange,
+    resolvedValue,
+    onOpenRangeEditor,
+    fieldPath,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    resolvedValue: unknown;
+    onOpenRangeEditor?: (referenceKey: string, fieldPath: string) => void;
+    fieldPath: string;
+}) {
+    const parsed = parseDataReferenceValue(value);
+    if (!parsed) return null;
+
+    // Summarise the resolved data so the user knows what's linked
+    const resolvedSummary = (() => {
+        if (resolvedValue === undefined || resolvedValue === null) return null;
+        if (Array.isArray(resolvedValue)) return `${resolvedValue.length} item${resolvedValue.length !== 1 ? "s" : ""}`;
+        if (typeof resolvedValue === "string") return resolvedValue.slice(0, 60) + (resolvedValue.length > 60 ? "…" : "");
+        if (typeof resolvedValue === "object") {
+            const captions = (resolvedValue as any).captions;
+            if (Array.isArray(captions)) return `${captions.length} caption${captions.length !== 1 ? "s" : ""}`;
+        }
+        return null;
+    })();
+
+    return (
+        <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
+            {/* Reference badge + resolved data summary */}
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="font-mono text-xs px-2 py-0.5 gap-1">
+                    <span className="text-muted-foreground">ref:</span>
+                    <span>{parsed.key}</span>
+                </Badge>
+                {resolvedSummary && (
+                    <span className="text-xs text-muted-foreground">{resolvedSummary}</span>
+                )}
+                {onOpenRangeEditor && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => onOpenRangeEditor(parsed.key, fieldPath)}
+                        title="Edit range in timeline"
+                    >
+                        <Clock3 className="h-3 w-3 mr-1" />
+                        Timeline
+                    </Button>
+                )}
+            </div>
+
+            {/* Range editor — uses the same RangeStringInput as rangeField fields */}
+            <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Time filter</span>
+                    <span className="text-[10px] text-muted-foreground/50">— leave empty to use all data</span>
+                </div>
+                <RangeStringInput
+                    value={parsed.range}
+                    onChange={(newRange) => onChange(buildDataReferenceValue(parsed.key, newRange))}
+                />
+            </div>
+        </div>
+    );
+}
+
+// ─── RangeStringInput ─────────────────────────────────────────────────────────
+// Custom UI for fields marked with paramMetaTypes.rangeField = true.
+// Renders a compact start/end time pair for each comma-separated segment.
+
+interface RangeSegment { start: string; end: string; }
+
+function parseRangeSegments(raw: string): RangeSegment[] {
+    if (!raw || !raw.trim()) return [];
+    return raw.split(",").map(s => s.trim()).filter(Boolean).map(seg => {
+        const dash = seg.indexOf("-", 1);
+        if (dash === -1) return { start: seg, end: "" };
+        return { start: seg.slice(0, dash).trim(), end: seg.slice(dash + 1).trim() };
+    });
+}
+
+function serializeRangeSegments(segs: RangeSegment[]): string {
+    return segs
+        .filter(s => s.start || s.end)
+        .map(s => `${s.start}-${s.end}`)
+        .join(",");
+}
+
+/** Accepts "MM:SS", "M:SS", "S", bare seconds, or empty. */
+function normalizeTimeInput(raw: string): string {
+    const s = raw.trim();
+    if (!s) return "";
+    // Already has colon — keep as-is (user is typing or it's already formatted)
+    if (s.includes(":")) return s;
+    // Bare number of seconds → format as MM:SS
+    const n = parseFloat(s);
+    if (Number.isNaN(n) || n < 0) return s;
+    const m = Math.floor(n / 60);
+    const sec = (n % 60).toFixed(0).padStart(2, "0");
+    return `${m}:${sec}`;
+}
+
+function RangeStringInput({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    const [segs, setSegs] = useState<RangeSegment[]>(() => parseRangeSegments(value || ""));
+
+    // Sync when parent value changes externally
+    useEffect(() => {
+        setSegs(parseRangeSegments(value || ""));
+    }, [value]);
+
+    const commit = (nextSegs: RangeSegment[]) => {
+        setSegs(nextSegs);
+        onChange(serializeRangeSegments(nextSegs));
+    };
+
+    const updateSeg = (i: number, part: "start" | "end", raw: string) => {
+        const next = segs.map((s, idx) => idx === i ? { ...s, [part]: raw } : s);
+        setSegs(next);
+    };
+
+    const blurSeg = (i: number, part: "start" | "end") => {
+        const next = segs.map((s, idx) =>
+            idx === i ? { ...s, [part]: normalizeTimeInput(s[part]) } : s
+        );
+        commit(next);
+    };
+
+    const addSeg = () => {
+        commit([...segs, { start: "", end: "" }]);
+    };
+
+    const removeSeg = (i: number) => {
+        commit(segs.filter((_, idx) => idx !== i));
+    };
+
+    if (segs.length === 0) {
+        return (
+            <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex-1">No range set — full duration used</span>
+                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addSeg}>
+                    <Plus className="h-3 w-3 mr-1" /> Add range
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-1.5">
+            {segs.map((seg, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                    <Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <Input
+                        value={seg.start}
+                        onChange={e => updateSeg(i, "start", e.target.value)}
+                        onBlur={() => blurSeg(i, "start")}
+                        placeholder="0:00"
+                        className="h-7 text-xs w-20 shrink-0 font-mono"
+                        title="Start time (MM:SS)"
+                    />
+                    <span className="text-muted-foreground text-xs">–</span>
+                    <Input
+                        value={seg.end}
+                        onChange={e => updateSeg(i, "end", e.target.value)}
+                        onBlur={() => blurSeg(i, "end")}
+                        placeholder="0:30"
+                        className="h-7 text-xs w-20 shrink-0 font-mono"
+                        title="End time (MM:SS)"
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => removeSeg(i)}
+                        title="Remove segment"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            ))}
+            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={addSeg}>
+                <Plus className="h-3 w-3 mr-1" /> Add segment
+            </Button>
         </div>
     );
 }
@@ -1278,6 +1669,10 @@ function renderField(
     availableReferences?: string[],
     baseData?: Record<string, any>,
     showReferencesDropdown?: boolean,
+    showReferencableAuto?: boolean,
+    onCreateReference?: (referenceType: string) => string | null,
+    onSelectReferenceKey?: (referenceKey: string) => void,
+    onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void,
     metadata?: PresetMetadata,
     allFieldValues?: Record<string, any>
 ) {
@@ -1307,6 +1702,20 @@ function renderField(
     }
 
     const renderInput = () => {
+        const linkedReference = parseDataReferenceValue(fieldValue);
+        if (showReferencableAuto && linkedReference) {
+            const resolvedValue = baseData?.[linkedReference.key];
+            return (
+                <LinkedReferenceValueView
+                    value={typeof fieldValue === "string" ? fieldValue : ""}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                    resolvedValue={resolvedValue}
+                    onOpenRangeEditor={onRequestRangeEditor}
+                    fieldPath={fieldKey}
+                />
+            );
+        }
+
         switch (field.type) {
             case "string":
                 if (field.enum) {
@@ -1330,18 +1739,30 @@ function renderField(
                 const isFont = isFontField(fieldKey, field);
                 const isLargeText = isLargeTextField(fieldKey, field);
                 const isDataReferrable = isDataReferrableField(field);
+                const isRange = isRangeField(field);
                 const isTranscriptionIdField = fieldKey.toLowerCase() === 'transcriptionid';
 
-                if (isDataReferrable && showReferencesDropdown) {
+                // Range string field (e.g. rangeString / range annotated with paramMetaTypes.rangeField)
+                if (isRange) {
                     return (
-                        <DataReferrableDropdown
-                            value={typeof fieldValue === 'string' ? fieldValue : ""}
+                        <RangeStringInput
+                            value={typeof fieldValue === "string" ? fieldValue : ""}
                             onChange={(val) => handleChange(fieldKey, val)}
-                            availableReferences={availableReferences || []}
-                            fieldKey={fieldKey}
                         />
                     );
                 }
+
+                // Legacy reference dropdown UI intentionally disabled.
+                // if (isDataReferrable && showReferencesDropdown && !showReferencableAuto) {
+                //     return (
+                //         <DataReferrableDropdown
+                //             value={typeof fieldValue === 'string' ? fieldValue : ""}
+                //             onChange={(val) => handleChange(fieldKey, val)}
+                //             availableReferences={availableReferences || []}
+                //             fieldKey={fieldKey}
+                //         />
+                //     );
+                // }
 
                 if (isTranscriptionIdField) {
                     return (
@@ -1459,6 +1880,10 @@ function renderField(
                                             availableReferences={availableReferences}
                                             baseData={baseData}
                                             showReferencesDropdown={showReferencesDropdown}
+                                            showReferencableAuto={showReferencableAuto}
+                                            onCreateReference={onCreateReference}
+                                            onSelectReferenceKey={onSelectReferenceKey}
+                                            onRequestRangeEditor={onRequestRangeEditor}
                                         />
                                     </div>
                                     <MediaPickerButton
@@ -1499,6 +1924,10 @@ function renderField(
                                     availableReferences={availableReferences}
                                     baseData={baseData}
                                     showReferencesDropdown={showReferencesDropdown}
+                                    showReferencableAuto={showReferencableAuto}
+                                    onCreateReference={onCreateReference}
+                                    onSelectReferenceKey={onSelectReferenceKey}
+                                    onRequestRangeEditor={onRequestRangeEditor}
                                 />
                                 <FlexibleObjectField
                                     value={fieldValue || {}}
@@ -1523,6 +1952,10 @@ function renderField(
                             availableReferences={availableReferences}
                             baseData={baseData}
                             showReferencesDropdown={showReferencesDropdown}
+                            showReferencableAuto={showReferencableAuto}
+                            onCreateReference={onCreateReference}
+                            onSelectReferenceKey={onSelectReferenceKey}
+                            onRequestRangeEditor={onRequestRangeEditor}
                         />
                     );
                 }
@@ -1543,28 +1976,26 @@ function renderField(
                     const isUrlArray = isUrlField(fieldKey, field) ||
                         (field.items.type === 'string' && isUrlField('item', { ...field.items, title: field.items.title || '' }));
 
-                    const isCaptionsArray = fieldKey.toLowerCase().includes('captions') || fieldKey.toLowerCase().includes('inputcaptions');
-
-
-                    if (isDataReferrable && showReferencesDropdown) {
-                        return (
-                            <DataReferrableDropdown
-                                value={Array.isArray(fieldValue) ? fieldValue.join(', ') : (typeof fieldValue === 'string' ? fieldValue : "")}
-                                onChange={(val) => {
-                                    // Handle both string and array values
-                                    if (val.startsWith('data:[')) {
-                                        handleChange(fieldKey, val);
-                                    } else {
-                                        // Convert comma-separated string to array
-                                        const arrayValue = val.split(',').map(item => item.trim()).filter(Boolean);
-                                        handleChange(fieldKey, arrayValue);
-                                    }
-                                }}
-                                availableReferences={availableReferences || []}
-                                fieldKey={fieldKey}
-                            />
-                        );
-                    }
+                    // Legacy reference dropdown UI intentionally disabled.
+                    // if (isDataReferrable && showReferencesDropdown && !showReferencableAuto) {
+                    //     return (
+                    //         <DataReferrableDropdown
+                    //             value={Array.isArray(fieldValue) ? fieldValue.join(', ') : (typeof fieldValue === 'string' ? fieldValue : "")}
+                    //             onChange={(val) => {
+                    //                 // Handle both string and array values
+                    //                 if (val.startsWith('data:[')) {
+                    //                     handleChange(fieldKey, val);
+                    //                 } else {
+                    //                     // Convert comma-separated string to array
+                    //                     const arrayValue = val.split(',').map(item => item.trim()).filter(Boolean);
+                    //                     handleChange(fieldKey, arrayValue);
+                    //                 }
+                    //             }}
+                    //             availableReferences={availableReferences || []}
+                    //             fieldKey={fieldKey}
+                    //         />
+                    //     );
+                    // }
 
                     if (isUrlArray) {
                         return (
@@ -1580,6 +2011,10 @@ function renderField(
                                             availableReferences={availableReferences}
                                             baseData={baseData}
                                             showReferencesDropdown={showReferencesDropdown}
+                                            showReferencableAuto={showReferencableAuto}
+                                            onCreateReference={onCreateReference}
+                                            onSelectReferenceKey={onSelectReferenceKey}
+                                            onRequestRangeEditor={onRequestRangeEditor}
                                         />
                                     </div>
                                     <div className="flex gap-1">
@@ -1607,45 +2042,49 @@ function renderField(
                         );
                     }
 
-                    if (isCaptionsArray) {
-                        return (
-                            <div className="space-y-2">
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <ArrayManager
-                                            schema={field}
-                                            value={fieldValue || []}
-                                            onChange={(val) => handleChange(fieldKey, val)}
-                                            fieldKey={fieldKey}
-                                            parentSchema={parentSchema}
-                                            availableReferences={availableReferences}
-                                            baseData={baseData}
-                                            showReferencesDropdown={showReferencesDropdown}
-                                        />
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <TranscriptionPickerButton
-                                            onSelect={(transcription) => {
-                                                if (transcription.captions) {
-                                                    handleChange(fieldKey, transcription.captions);
-                                                }
-                                            }}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleChange(fieldKey, [])}
-                                            className="px-3"
-                                            title="Clear all items"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    }
+                    // if (isCaptionsArray) {
+                    //     return (
+                    //         <div className="space-y-2">
+                    //             <div className="flex gap-2">
+                    //                 <div className="flex-1">
+                    //                     <ArrayManager
+                    //                         schema={field}
+                    //                         value={fieldValue || []}
+                    //                         onChange={(val) => handleChange(fieldKey, val)}
+                    //                         fieldKey={fieldKey}
+                    //                         parentSchema={parentSchema}
+                    //                         availableReferences={availableReferences}
+                    //                         baseData={baseData}
+                    //                         showReferencesDropdown={showReferencesDropdown}
+                    //                         showReferencableAuto={showReferencableAuto}
+                    //                         onCreateReference={onCreateReference}
+                    //                         onSelectReferenceKey={onSelectReferenceKey}
+                    //                         onRequestRangeEditor={onRequestRangeEditor}
+                    //                     />
+                    //                 </div>
+                    //                 <div className="flex gap-1">
+                    //                     <TranscriptionPickerButton
+                    //                         onSelect={(transcription) => {
+                    //                             if (transcription.captions) {
+                    //                                 handleChange(fieldKey, transcription.captions);
+                    //                             }
+                    //                         }}
+                    //                     />
+                    //                     <Button
+                    //                         type="button"
+                    //                         variant="outline"
+                    //                         size="sm"
+                    //                         onClick={() => handleChange(fieldKey, [])}
+                    //                         className="px-3"
+                    //                         title="Clear all items"
+                    //                     >
+                    //                         <Trash2 className="h-4 w-4" />
+                    //                     </Button>
+                    //                 </div>
+                    //             </div>
+                    //         </div>
+                    //     );
+                    // }
 
                     return (
                         <div className="space-y-2">
@@ -1660,6 +2099,10 @@ function renderField(
                                         availableReferences={availableReferences}
                                         baseData={baseData}
                                         showReferencesDropdown={showReferencesDropdown}
+                                        showReferencableAuto={showReferencableAuto}
+                                        onCreateReference={onCreateReference}
+                                        onSelectReferenceKey={onSelectReferenceKey}
+                                        onRequestRangeEditor={onRequestRangeEditor}
                                     />
                                 </div>
                                 <Button
@@ -1704,31 +2147,62 @@ function renderField(
         return renderInput();
     }
 
-    // For object and array types with properties/items, don't show labels here as they're handled by their components
-    if ((field.type === 'object' && field.properties) || (field.type === 'array' && field.items)) {
+    const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
+    const parsedReference = parseDataReferenceValue(fieldValue);
+    const isReferenceLinked = Boolean(parsedReference);
+    const canAutoReference = Boolean(showReferencableAuto);
+    const isStructuredField =
+        (field.type === "object" && Boolean(field.properties)) ||
+        (field.type === "array" && Boolean(field.items));
+
+    const handleLinkToReference = (referenceKey: string) => {
+        const range = parsedReference?.range || "";
+        handleChange(fieldKey, buildDataReferenceValue(referenceKey, range));
+    };
+
+    const handleUnlinkReference = () => {
+        if (!parsedReference) return;
+        const fallbackValue = baseData?.[parsedReference.key];
+        handleChange(fieldKey, resolveUnlinkedValue(field.type, fallbackValue));
+    };
+
+    const label = (
+        <FieldLabel
+            fieldKey={fieldKey}
+            title={field.title}
+            isRequired={isRequired}
+            description={field.description}
+            canAutoReference={canAutoReference}
+            isReferenceLinked={isReferenceLinked}
+            availableReferences={availableReferences}
+            onLinkToReference={handleLinkToReference}
+            onCreateReference={onCreateReference}
+            onUnlinkReference={handleUnlinkReference}
+            onEditLinkedReference={() => {
+                if (parsedReference) {
+                    onSelectReferenceKey?.(parsedReference.key);
+                }
+            }}
+        />
+    );
+
+    // For object and array fields, keep native structured UI when unlinked.
+    // If linked, show label + linked value editor so users can manage the reference.
+    if (isStructuredField) {
+        if (isReferenceLinked) {
+            return (
+                <div key={fieldKey} className="space-y-2">
+                    {label}
+                    {renderInput()}
+                </div>
+            );
+        }
         return <div key={fieldKey}>{renderInput()}</div>;
     }
 
-    const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
-
     return (
         <div key={fieldKey} className="space-y-2">
-            <div className="flex items-center gap-2">
-                <Label htmlFor={fieldKey} className="text-sm font-medium">
-                    {field.title || fieldKey}
-                    {isRequired && <span className="text-red-500 ml-1">*</span>}
-                </Label>
-                {field.description && (
-                    <Tooltip>
-                        <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="max-w-xs">{field.description}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-            </div>
+            {label}
             {renderInput()}
             {field.enum && (
                 <div className="flex flex-wrap gap-1">
@@ -1744,7 +2218,24 @@ function renderField(
 }
 
 // Nested form component for objects
-function NestedForm({ schema, value, onChange, fieldKey, depth = 0, parentSchema, availableReferences = [], baseData = {}, showReferencesDropdown = true }: NestedFormProps & { parentSchema?: any; showReferencesDropdown?: boolean }) {
+function NestedForm({
+    schema,
+    value,
+    onChange,
+    fieldKey,
+    depth = 0,
+    parentSchema,
+    availableReferences = [],
+    baseData = {},
+    showReferencesDropdown = true,
+    showReferencableAuto = false,
+    onCreateReference,
+    onSelectReferenceKey,
+    onRequestRangeEditor,
+}: NestedFormProps & {
+    parentSchema?: any;
+    showReferencesDropdown?: boolean;
+}) {
     const [isOpen, setIsOpen] = useState(false); // Collapse all objects by default
     const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
 
@@ -1760,7 +2251,12 @@ function NestedForm({ schema, value, onChange, fieldKey, depth = 0, parentSchema
             default: field.default,
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
-            items: field.items
+            items: field.items,
+            // Zod's .meta() data is written at the TOP LEVEL of the JSON schema property
+            // (e.g. { rangeField: true, type: "string" }), NOT under a "meta" sub-key.
+            // Extract all non-standard JSON Schema keywords into a synthetic "meta" object so
+            // paramMetaTypes checks like isRangeField() work for nested fields too.
+            meta: extractZodMeta(field),
         }));
     };
 
@@ -1816,8 +2312,110 @@ function NestedForm({ schema, value, onChange, fieldKey, depth = 0, parentSchema
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
+                                        {showReferencableAuto && (
+                                            (() => {
+                                                const parsedReference = parseDataReferenceValue(fieldValue);
+                                                const isReferenceLinked = Boolean(parsedReference);
+                                                const handleLinkToReference = (referenceKey: string) => {
+                                                    const range = parsedReference?.range || "";
+                                                    handleFieldChange(field.key, buildDataReferenceValue(referenceKey, range));
+                                                };
+                                                const handleUnlinkReference = () => {
+                                                    if (!parsedReference) return;
+                                                    const fallbackValue = baseData?.[parsedReference.key];
+                                                    handleFieldChange(
+                                                        field.key,
+                                                        resolveUnlinkedValue(field.type, fallbackValue),
+                                                    );
+                                                };
+                                                const handleToggleTimeLink = () => {
+                                                    if (!parsedReference) return;
+                                                    const nextRange = parsedReference.range ? "" : "0-5";
+                                                    handleFieldChange(
+                                                        field.key,
+                                                        buildDataReferenceValue(parsedReference.key, nextRange),
+                                                    );
+                                                };
+                                                return (
+                                                    <>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0"
+                                                                >
+                                                                    {isReferenceLinked ? (
+                                                                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                                                                    ) : (
+                                                                        <Plus className="h-3.5 w-3.5" />
+                                                                    )}
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="start" side="bottom">
+                                                                {availableReferences?.map((refKey) => (
+                                                                    <DropdownMenuItem
+                                                                        key={refKey}
+                                                                        onClick={() => handleLinkToReference(refKey)}
+                                                                    >
+                                                                        {refKey}
+                                                                    </DropdownMenuItem>
+                                                                ))}
+                                                                <DropdownMenuSub>
+                                                                    <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
+                                                                    <DropdownMenuSubContent>
+                                                                        {REFERENCE_TYPE_OPTIONS.map((option) => (
+                                                                            <DropdownMenuItem
+                                                                                key={option.value}
+                                                                                onClick={() => {
+                                                                                    const createdKey = onCreateReference?.(option.value);
+                                                                                    if (createdKey) {
+                                                                                        handleLinkToReference(createdKey);
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                {option.label}
+                                                                            </DropdownMenuItem>
+                                                                        ))}
+                                                                    </DropdownMenuSubContent>
+                                                                </DropdownMenuSub>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                        {isReferenceLinked && (
+                                                            <>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0"
+                                                                    onClick={handleUnlinkReference}
+                                                                    title="Unlink reference"
+                                                                >
+                                                                    <X className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0"
+                                                                    onClick={() => {
+                                                                        if (parsedReference) {
+                                                                            onSelectReferenceKey?.(parsedReference.key);
+                                                                        }
+                                                                    }}
+                                                                    title="Edit linked reference"
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()
+                                        )}
                                     </div>
-                                    {renderField(field, field.key, fieldValue, handleFieldChange, depth + 1, schema, availableReferences, baseData, showReferencesDropdown, undefined, undefined)}
+                                    {renderField(field, field.key, fieldValue, handleFieldChange, depth + 1, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, undefined, undefined)}
                                 </div>
                             );
                         })
@@ -1831,7 +2429,33 @@ function NestedForm({ schema, value, onChange, fieldKey, depth = 0, parentSchema
 }
 
 // Array management component
-function ArrayManager({ schema, value, onChange, fieldKey, parentSchema, availableReferences = [], baseData = {}, showReferencesDropdown = true }: { schema: any; value: any[]; onChange: (value: any[]) => void; fieldKey: string; parentSchema?: any; availableReferences?: string[]; baseData?: Record<string, any>; showReferencesDropdown?: boolean }) {
+function ArrayManager({
+    schema,
+    value,
+    onChange,
+    fieldKey,
+    parentSchema,
+    availableReferences = [],
+    baseData = {},
+    showReferencesDropdown = true,
+    showReferencableAuto = false,
+    onCreateReference,
+    onSelectReferenceKey,
+    onRequestRangeEditor,
+}: {
+    schema: any;
+    value: any[];
+    onChange: (value: any[]) => void;
+    fieldKey: string;
+    parentSchema?: any;
+    availableReferences?: string[];
+    baseData?: Record<string, any>;
+    showReferencesDropdown?: boolean;
+    showReferencableAuto?: boolean;
+    onCreateReference?: (referenceType: string) => string | null;
+    onSelectReferenceKey?: (referenceKey: string) => void;
+    onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
+}) {
     const [isOpen, setIsOpen] = useState(false); // Collapse all arrays by default
     const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
 
@@ -1887,6 +2511,14 @@ function ArrayManager({ schema, value, onChange, fieldKey, parentSchema, availab
 
     const arrayValue = value || [];
     const itemSchema = schema.items;
+
+    if (!Array.isArray(arrayValue)) {
+        return (
+            <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Invalid array value</p>
+            </div>
+        );
+    }
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -1969,7 +2601,11 @@ function ArrayManager({ schema, value, onChange, fieldKey, parentSchema, availab
                                                 itemSchema,
                                                 availableReferences,
                                                 baseData,
-                                                showReferencesDropdown
+                                                showReferencesDropdown,
+                                                showReferencableAuto,
+                                                onCreateReference,
+                                                onSelectReferenceKey,
+                                                onRequestRangeEditor
                                             )}
                                         </div>
                                     )}
@@ -2033,6 +2669,7 @@ export function SchemaForm({
     metadata,
     showTabs = true,
     showResetButton = true,
+    showReferencableAuto = false,
     showReferencesDropdown = true,
     resetButtonText = "Reset to default values",
     onReset,
@@ -2040,10 +2677,14 @@ export function SchemaForm({
     title = "Input Parameters",
     description,
     availableReferences = [],
-    baseData = {}
+    baseData = {},
+    initialTab = "form",
+    onCreateReference,
+    onSelectReferenceKey,
+    onRequestRangeEditor,
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
-    const [activeTab, setActiveTab] = useState<"form" | "json" | "media">("form");
+    const [activeTab, setActiveTab] = useState<"form" | "json" | "media">(initialTab);
     const [expandedMedia, setExpandedMedia] = useState<{
         item: any;
         arrayKey: string;
@@ -2052,23 +2693,6 @@ export function SchemaForm({
 
     // Convert zod schema to JSON schema
     let jsonSchema = schema && typeof schema === 'object' && schema._def ? toJSONSchema(schema) : schema;
-
-    // Manually preserve data-referrable descriptions that might be lost in conversion
-    if (jsonSchema && jsonSchema.properties) {
-        // List of fields that should be data-referrable based on the preset schemas
-        const dataReferrableFields = {
-            'captions': 'Captions to be used for the beatstitch (data-referrable)',
-            // Add more fields as needed
-        };
-
-        // Apply data-referrable descriptions
-        Object.entries(dataReferrableFields).forEach(([fieldName, description]) => {
-            if (jsonSchema.properties[fieldName]) {
-                jsonSchema.properties[fieldName].description = description;
-            }
-        });
-    }
-
 
     useEffect(() => {
         setFormData(value || {});
@@ -2132,7 +2756,8 @@ export function SchemaForm({
             default: field.default,
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
-            items: field.items
+            items: field.items,
+            meta: extractZodMeta(field),
         }));
     };
 
@@ -2252,7 +2877,7 @@ export function SchemaForm({
                                 <div className="space-y-4">
                                     {fields.map((field) => {
                                         const fieldValue = formData[field.key];
-                                        return renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, metadata, formData);
+                                        return renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData);
                                     })}
                                 </div>
                             ) : (
@@ -2285,7 +2910,7 @@ export function SchemaForm({
                             <div className="space-y-4">
                                 {fields.map((field) => {
                                     const fieldValue = formData[field.key];
-                                    return <div key={field.key}>{renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, metadata, formData)}</div>;
+                                    return <div key={field.key}>{renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData)}</div>;
                                 })}
                             </div>
                         ) : (

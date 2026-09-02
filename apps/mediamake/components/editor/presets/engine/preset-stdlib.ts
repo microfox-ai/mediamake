@@ -485,6 +485,17 @@ export const applyNoGapsExtension = (
   return extendedCaptions;
 };
 
+export const applyDataItemIdsToNodeTree = (
+  node: RenderableComponentData,
+  dataItemIds: string[],
+): void => {
+  (node as RenderableComponentData & { _dataItemIds?: string[] })._dataItemIds =
+    dataItemIds;
+  node.childrenData?.forEach((child) => {
+    applyDataItemIdsToNodeTree(child, dataItemIds);
+  });
+};
+
 /**
  * Standard library object containing all helper functions
  */
@@ -501,6 +512,7 @@ export const presetStdLib = {
   createWaveFloatEffect,
   createPulseEffect,
   applyNoGapsExtension,
+  applyDataItemIdsToNodeTree,
 };
 
 export type PresetStdLib = typeof presetStdLib;

@@ -27,10 +27,13 @@ import {
   TextAtomData,
 } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { PresetMetadata, PresetOutput, PresetPassedProps } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 const presetParams = z.object({
-  inputCaptions: z.array(z.any()),
+  inputCaptions: z.array(z.any()).meta({
+    [paramMetaTypes.referrableDataType]: 'captions',
+  }),
   position: z.enum(['bottom', 'top']),
   padding: z.string().optional(),
   negativeOffset: z
@@ -57,6 +60,7 @@ const presetParams = z.object({
 
 const presetExecution = (
   params: z.infer<typeof presetParams>,
+  props?: Partial<PresetPassedProps>,
 ): PresetOutput => {
   const {
     inputCaptions,
@@ -155,7 +159,17 @@ const presetExecution = (
       } as RenderableComponentData;
     },
   );
-
+  captionsCHildrenData.forEach((captionNode, index) => {
+    const built = props?.buildDataItemIds?.({
+      paramKeys: ['inputCaptions'],
+      arrayIndex: index,
+    });
+    const ids =
+      built != null && built.length > 0
+        ? built
+        : [`inputCaptions.[${index}]`];
+    props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
+  });
   //generate childrenData for scenes.
   return {
     output: {

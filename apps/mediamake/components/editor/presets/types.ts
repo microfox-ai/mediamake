@@ -2,6 +2,11 @@
 
 import { InputCompositionProps } from '@microfox/remotion';
 import z from 'zod';
+import {
+  BuildDataItemIdsOptions,
+  DataMutationContext,
+} from './engine/preset-data-mutation';
+import { RenderableComponentData } from '@microfox/datamotion';
 
 import { ObjectId } from 'mongodb';
 
@@ -49,6 +54,16 @@ export interface PresetPassedProps {
   };
   fetcher?: (url: string, data?: any) => Promise<any>;
   baseData?: Record<string, any>; // Base data containing references for data:[key] replacement
+  dataItemIds?: string[];
+  dataSourceKeys?: string[];
+  dataReferenceBindings?: Record<string, string[]>;
+  dataReferenceKeyByPath?: Record<string, string>;
+  dataMutationContext?: DataMutationContext;
+  buildDataItemIds?: (options?: BuildDataItemIdsOptions) => string[];
+  applyDataItemIdsToNodeTree?: (
+    node: RenderableComponentData,
+    dataItemIds: string[],
+  ) => void;
   // Injected dependencies (populated at runtime by runPreset)
   helpers?: Record<string, Function>;
   presets?: Record<
@@ -66,6 +81,7 @@ export interface PresetOutput {
       start?: number;
       duration?: number;
     };
+    dataItemIds?: string[];
   }>;
 }
 
@@ -186,6 +202,7 @@ export interface ReferenceItem {
     | 'boolean'
     | 'object'
     | 'objects';
+  dataType?: string;
   value: any;
 }
 

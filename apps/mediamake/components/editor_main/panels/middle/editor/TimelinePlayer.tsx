@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useMemo, useRef } from "react";
 import { Player as RemotionPlayer } from "@remotion/player";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import type { InputCompositionProps } from "@microfox/remotion";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { Timeline } from "../../../stores/project-store";
@@ -16,6 +16,7 @@ interface TimelinePlayerProps {
   generatedOutput: InputCompositionProps | null;
   calculatedMetadata: Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null;
   isGenerating: boolean;
+  generationError?: string | null;
   loop?: boolean;
 }
 
@@ -24,6 +25,7 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
   generatedOutput,
   calculatedMetadata,
   isGenerating,
+  generationError,
   loop = true,
 }, ref) => {
   const {
@@ -112,6 +114,21 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
           <div className="text-4xl text-muted-foreground">🎬</div>
           <p className="text-sm text-muted-foreground">No timeline loaded</p>
           <p className="text-xs text-muted-foreground">Double-click a timeline to load it</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generationError) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-muted/20">
+        <div className="text-center space-y-3 max-w-md px-6">
+          <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+          <p className="text-sm font-medium text-destructive">Unable to load media</p>
+          <p className="text-xs text-muted-foreground break-words">{generationError}</p>
+          <p className="text-xs text-muted-foreground">
+            Check the audio or video URL in your preset data and try again.
+          </p>
         </div>
       </div>
     );

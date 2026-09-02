@@ -1,8 +1,8 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Preset } from "../../../stores/editor-store";
-import type { Timeline } from "../../../stores/project-store";
+import type { Preset } from "../../../../stores/editor-store";
+import type { Timeline } from "../../../../stores/project-store";
 
 interface PresetPropsProps {
   preset: Preset;

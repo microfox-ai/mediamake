@@ -28,6 +28,7 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 type Effect = {
   id: string;
@@ -66,9 +67,10 @@ const presetParams = z.object({
           .loose()
           .optional(),
       })
-      .loose()
-      .describe('Captions to be used for the broll (data-referrable)'),
-  ),
+      .loose(),
+  ).meta({
+    [paramMetaTypes.referrableDataType]: 'captions',
+  }),
   captionMode: z
     .enum([
       'play-mixed',
@@ -137,6 +139,16 @@ const presetExecution = async (
   props: {
     config: InputCompositionProps['config'];
     fetcher: (url: string, data: any) => Promise<any>;
+    dataReferenceBindings?: Record<string, string[]>;
+    dataReferenceKeyByPath?: Record<string, string>;
+    buildDataItemIds?: (options?: {
+      paramKeys?: string[];
+      dataSourceKeys?: string[];
+      arrayIndex?: number;
+      nestedPath?: string;
+      fallbackToAll?: boolean;
+    }) => string[];
+    applyDataItemIdsToNodeTree?: (node: any, dataItemIds: string[]) => void;
   },
 ): Promise<Partial<PresetOutput>> => {
   const {
@@ -154,6 +166,13 @@ const presetExecution = async (
   } = params;
 
   const { config } = props;
+  const captionDataItemIdsBuilt = props.buildDataItemIds?.({
+    paramKeys: ['captions'],
+  });
+  const captionDataItemIds =
+    captionDataItemIdsBuilt != null && captionDataItemIdsBuilt.length > 0
+      ? captionDataItemIdsBuilt
+      : [];
 
   // Helper function to get transition duration based on type and impact
   const getTransitionDuration = (
@@ -247,6 +266,14 @@ const presetExecution = async (
 
     if (!selectedImage?.src) return;
 
+    const built = props.buildDataItemIds?.({
+      paramKeys: ['captions'],
+      arrayIndex: captionIndex,
+    });
+    const dataItemIds =
+      built != null && built.length > 0
+        ? built
+        : [`captions.[${captionIndex}]`];
     // Create image component for this caption
     const imageComponent: any = {
       id: `${trackName}-broll-image-${captionIndex}`,
@@ -383,6 +410,7 @@ const presetExecution = async (
       //   ...(transition.type !== 'none' ? [continuousScaleEffect] : []),
     ];
 
+    props?.applyDataItemIdsToNodeTree?.(imageComponent, dataItemIds);
     allImageComponents.push(imageComponent);
   });
 
@@ -416,6 +444,7 @@ const presetExecution = async (
     },
     options: {
       attachedToId: `BaseScene`,
+      dataItemIds: captionDataItemIds,
     },
   };
 };

@@ -16,6 +16,7 @@ export function useTimelineRenderer(loadedTimeline: Timeline | null) {
     generatedOutput,
     calculatedMetadata,
     isGenerating,
+    generationError,
     setCurrentTimeline,
     generateOutput,
     isFetchingPresets,
@@ -85,5 +86,6 @@ export function useTimelineRenderer(loadedTimeline: Timeline | null) {
     generatedOutput,
     calculatedMetadata,
     isGenerating,
+    generationError,
   };
 }

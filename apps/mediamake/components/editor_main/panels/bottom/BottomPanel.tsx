@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Play, Pause, Save, Loader2, RotateCcw, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Save, Loader2, RotateCcw, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useViewPatternStore } from "../../stores/view-pattern-store";
 import { useEditorStore } from "../../stores/editor-store";
 import { useEditorUIStore } from "../../stores/editor-ui-store";
-import { usePlayerRefStore } from "../../stores/player-ref-store";
 import { useProjectStore } from "../../stores/project-store";
 import { useCompileStore } from "../../stores/compile-store";
 import { useLayerStateStore } from "../../stores/layer-state-store";
@@ -29,7 +28,6 @@ export function BottomPanel() {
   const getMergedChildren = useLayerStateStore((s) => s.getMergedChildren);
   const loadedChildrenData = useLayerStateStore((s) => s.loadedChildrenData);
   const seekToFrame = useLayerStateStore((s) => s.seekToFrame);
-  const playerRef = usePlayerRefStore((s) => s.playerRef);
   const [isSavingLayerState, setIsSavingLayerState] = useState(false);
 
   const mergedChildren = useMemo(
@@ -71,11 +69,11 @@ export function BottomPanel() {
     if (selectedItem.type === "timeline") {
       return "Timeline";
     }
+    if (selectedItem.type === "reference") {
+      return selectedItem.item.key || "Reference";
+    }
     return selectedItem.item.label || "Preset";
   };
-
-  const handlePlay = () => playerRef.current?.play();
-  const handlePause = () => playerRef.current?.pause();
 
   const handleGoToStart = () => {
     if (startFrame != null) {
@@ -137,60 +135,56 @@ export function BottomPanel() {
 
   return (
     <div className="flex h-full flex-col border-t bg-background">
-      <div className="border-b px-4 py-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{getTitle()}</h2>
-        {currentPattern === "edit" && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleGoToStart}
-              disabled={startFrame == null}
-              title="Go to start of selected layer"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleGoToEnd}
-              disabled={endFrame == null}
-              title="Go to end of selected layer"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => resetLayerStateToGenerated()}
-              title="Reset all layers to timeline output (clear position, timing, and layer edits)"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Reset to timeline</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSaveLayerState}
-              disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
-              title="Save current layers (positions, visibility, etc.) for this timeline"
-            >
-              {isSavingLayerState ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span className="ml-1.5 hidden sm:inline">Save layer state</span>
-            </Button>
-            <Button size="sm" variant="outline" onClick={handlePlay} title="Play">
-              <Play className="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="outline" onClick={handlePause} title="Pause">
-              <Pause className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
+      {currentPattern === "edit" && filePanelTab === "layers" && (
+        <div className="border-b px-4 py-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">{getTitle()}</h2>
+          {currentPattern === "edit" && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGoToStart}
+                disabled={startFrame == null}
+                title="Go to start of selected layer"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGoToEnd}
+                disabled={endFrame == null}
+                title="Go to end of selected layer"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => resetLayerStateToGenerated()}
+                title="Reset all layers to timeline output (clear position, timing, and layer edits)"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="ml-1.5 hidden sm:inline">Reset to timeline</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSaveLayerState}
+                disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
+                title="Save current layers (positions, visibility, etc.) for this timeline"
+              >
+                {isSavingLayerState ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span className="ml-1.5 hidden sm:inline">Save layer state</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       {renderPatternContent()}
     </div>
   );

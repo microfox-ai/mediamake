@@ -15,11 +15,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LayoutList, PanelLeft, Image as ImageIcon, X, RotateCcw } from "lucide-react";
-import { useCompileStore } from "../../../stores/compile-store";
-import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { useCompileStore } from "../../../../stores/compile-store";
+import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers } from "@/lib/editor/flatten-layers";
 import type { FlatLayer } from "@/lib/editor/flatten-layers";
-import type { LayerOverride } from "../../../stores/layer-state-store";
+import type { LayerOverride } from "../../../../stores/layer-state-store";
 import type { RenderableComponentData } from "@microfox/remotion";
 import { getRegisteredEffects } from "@microfox/remotion";
 import { MediaPicker } from "@/components/editor/media/media-picker";

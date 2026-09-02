@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Menubar,
   MenubarContent,
@@ -37,9 +37,12 @@ import { NewTimelineDialog } from "../dialogs/NewTimelineDialog";
 import { LoadProjectDialog } from "../dialogs/LoadProjectDialog";
 import { LoadTimelineDialog } from "../dialogs/LoadTimelineDialog";
 import { useTimelineEditsStore } from "../stores/timeline-edits-store";
+import { useProjectEditsStore } from "../stores/project-edits-store";
 import { useProjectStore } from "../stores/project-store";
+import { getUnsyncedTimelineIds, isTimelineUnsyncedWithCloud } from "../stores/timeline-sync";
 import { useLayerStateStore } from "../stores/layer-state-store";
 import { useCompileStore } from "../stores/compile-store";
+import { useSession } from "@/components/session-provider";
 import { toast } from "sonner";
 
 export function EditorMenubar() {
@@ -50,18 +53,64 @@ export function EditorMenubar() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingLayerState, setIsSavingLayerState] = useState(false);
 
+  const [isSavingAllTimelines, setIsSavingAllTimelines] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+
   const {
-    isDirty,
     canUndo,
     canRedo,
     undo,
     redo,
     saveToDatabase,
-    editedTimelines
+    saveAllTimelinesToDatabase,
+    editedTimelines,
   } = useTimelineEditsStore();
-  const { loadedTimeline, currentProjectId } = useProjectStore();
+  const {
+    saveToDatabase: saveProjectToDatabase,
+    cloudProject,
+    localEditUpdatedAt: projectLocalEditUpdatedAt,
+  } = useProjectEditsStore();
+  const { loadedTimeline, currentProjectId, timelines } = useProjectStore();
+  const session = useSession();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const getLayerStateSnapshot = useLayerStateStore((s) => s.getLayerStateSnapshot);
+
+  const cloudUpdatedAtByTimelineId = useTimelineEditsStore(
+    (state) => state.cloudUpdatedAtByTimelineId
+  );
+  const localEditUpdatedAtByTimelineId = useTimelineEditsStore(
+    (state) => state.localEditUpdatedAtByTimelineId
+  );
+
+  const currentTimelineUnsynced = useMemo(
+    () =>
+      loadedTimeline
+        ? isTimelineUnsyncedWithCloud(
+            loadedTimeline.id,
+            cloudUpdatedAtByTimelineId,
+            localEditUpdatedAtByTimelineId,
+            loadedTimeline.updatedAt
+          )
+        : false,
+    [loadedTimeline, cloudUpdatedAtByTimelineId, localEditUpdatedAtByTimelineId]
+  );
+
+  const unsyncedTimelineIds = useMemo(
+    () =>
+      getUnsyncedTimelineIds(
+        timelines,
+        cloudUpdatedAtByTimelineId,
+        localEditUpdatedAtByTimelineId
+      ),
+    [timelines, cloudUpdatedAtByTimelineId, localEditUpdatedAtByTimelineId]
+  );
+  const hasProjectChanges = Boolean(
+    projectLocalEditUpdatedAt &&
+      cloudProject &&
+      Date.parse(projectLocalEditUpdatedAt) > Date.parse(cloudProject.updatedAt)
+  );
+  const unsyncedTimelineCount = unsyncedTimelineIds.length;
+  const hasAnyUnsyncedTimelines = unsyncedTimelineCount > 0;
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -69,8 +118,8 @@ export function EditorMenubar() {
       // Cmd/Ctrl + S to save
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        if (loadedTimeline && isDirty) {
-          handleSave();
+        if (loadedTimeline && currentTimelineUnsynced) {
+          handleSaveCurrentTimeline();
         }
       }
       // Cmd/Ctrl + Z to undo
@@ -93,20 +142,87 @@ export function EditorMenubar() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loadedTimeline, isDirty, canUndo, canRedo, undo, redo]);
+  }, [loadedTimeline, currentTimelineUnsynced, canUndo, canRedo, undo, redo]);
 
-  const handleSave = async () => {
+  const getTimelineName = (timelineId: string) => {
+    const edited = editedTimelines.get(timelineId);
+    return edited?.displayName?.trim() || timelineId;
+  };
+
+  const handleSaveCurrentTimeline = async () => {
     if (!loadedTimeline) return;
 
+    const timelineName = getTimelineName(loadedTimeline.id);
+    const savingMessage = `Saving timeline: ${timelineName}`;
+
     setIsSaving(true);
+    toast.loading(savingMessage, { id: "save-timeline" });
     try {
       await saveToDatabase(loadedTimeline.id);
-      toast.success('Timeline saved successfully');
+      toast.success(`Saved timeline: ${timelineName}`, { id: "save-timeline", duration: 2000 });
     } catch (error) {
-      toast.error('Failed to save timeline');
+      toast.error(`Failed to save timeline: ${timelineName}`, { id: "save-timeline", duration: 2000 });
       console.error(error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveAllTimelines = async () => {
+    const unsyncedIds = unsyncedTimelineIds;
+    if (unsyncedIds.length === 0) {
+      toast.info("No timeline changes to save");
+      return;
+    }
+
+    const timelineNames = unsyncedIds.map(getTimelineName);
+    const savingMessage =
+      timelineNames.length === 1
+        ? `Saving timeline: ${timelineNames[0]}`
+        : `Saving ${timelineNames.length} timelines: ${timelineNames.join(", ")}`;
+
+    setIsSavingAllTimelines(true);
+    toast.loading(savingMessage, { id: "save-all-timelines" });
+    try {
+      const savedNames = await saveAllTimelinesToDatabase();
+      toast.success(
+        savedNames.length === 1
+          ? `Saved timeline: ${savedNames[0]}`
+          : `Saved ${savedNames.length} timelines: ${savedNames.join(", ")}`,
+        { id: "save-all-timelines", duration: 3000 }
+      );
+    } catch (error) {
+      toast.error("Failed to save timelines", { id: "save-all-timelines", duration: 3000 });
+      console.error(error);
+    } finally {
+      setIsSavingAllTimelines(false);
+    }
+  };
+
+  const handleSaveProject = async () => {
+    if (!currentProjectId || !cloudProject) {
+      toast.info("No project loaded");
+      return;
+    }
+    if (!hasProjectChanges) {
+      toast.info("No project changes to save");
+      return;
+    }
+
+    const projectName = cloudProject.displayName?.trim() || currentProjectId;
+    setIsSavingProject(true);
+    toast.loading(`Saving project: ${projectName}`, { id: "save-project" });
+    try {
+      await saveProjectToDatabase(session?.clientId);
+      toast.success(`Saved project: ${projectName}`, { id: "save-project", duration: 2000 });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save project",
+        { id: "save-project", duration: 2000 }
+      );
+      console.error(error);
+    } finally {
+      setIsSavingProject(false);
     }
   };
 
@@ -165,16 +281,39 @@ export function EditorMenubar() {
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
-              onClick={handleSave}
-              disabled={!loadedTimeline || !isDirty || isSaving}
+              onClick={handleSaveCurrentTimeline}
+              disabled={!loadedTimeline || !currentTimelineUnsynced || isSaving}
             >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save
+              Save Current Timeline
               <MenubarShortcut>⌘S</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem
+              onClick={handleSaveAllTimelines}
+              disabled={!hasAnyUnsyncedTimelines || isSavingAllTimelines}
+            >
+              {isSavingAllTimelines ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save All Timelines
+              {unsyncedTimelineCount > 0 ? ` (${unsyncedTimelineCount})` : ""}
+            </MenubarItem>
+            <MenubarItem
+              onClick={handleSaveProject}
+              disabled={!currentProjectId || !hasProjectChanges || isSavingProject}
+            >
+              {isSavingProject ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save Project
             </MenubarItem>
             <MenubarItem
               onClick={handleSaveLayerState}
@@ -303,12 +442,12 @@ export function EditorMenubar() {
         </MenubarMenu>
 
         {/* Save Button - shown when there are unsaved changes */}
-        {isDirty && loadedTimeline && (
+        {currentTimelineUnsynced && loadedTimeline && (
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="default"
               size="sm"
-              onClick={handleSave}
+              onClick={handleSaveCurrentTimeline}
               disabled={isSaving}
               className="h-5 px-1 text-xs"
             >
@@ -320,7 +459,7 @@ export function EditorMenubar() {
               ) : (
                 <>
                   <CheckIcon className="mr-1 h-3 w-3" />
-                  Save Changes
+                  Save Current Timeline
                 </>
               )}
             </Button>

@@ -101,6 +101,7 @@ export function EditPatternContent() {
     generatedOutput,
     calculatedMetadata,
     isGenerating,
+    generationError,
   } = useTimelineRenderer(loadedTimeline);
 
   // Register a seek callback so other panels (e.g. LayersTree) can jump the Player.
@@ -174,6 +175,7 @@ export function EditPatternContent() {
           generatedOutput={generatedOutput}
           calculatedMetadata={calculatedMetadata}
           isGenerating={isGenerating}
+          generationError={generationError}
           loop={loop}
         />
       </div>

@@ -28,6 +28,7 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 type Effect = {
   id: string;
@@ -65,9 +66,10 @@ const presetParams = z.object({
           .loose()
           .optional(),
       })
-      .loose()
-      .describe('Captions to be used for the beatstitch (data-referrable)'),
-  ),
+      .loose(),
+  ).meta({
+    [paramMetaTypes.referrableDataType]: 'captions',
+  }),
   captionMode: z
     .enum([
       'play-mixed',

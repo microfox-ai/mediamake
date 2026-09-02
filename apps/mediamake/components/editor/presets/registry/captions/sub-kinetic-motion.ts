@@ -26,11 +26,14 @@ import {
   TextAtomData,
 } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { PresetMetadata, PresetOutput, PresetPassedProps } from '../../types';
 import { CSSProperties } from 'react';
+import { paramMetaTypes } from '../../dataTypes';
 
 const presetParams = z.object({
-  inputCaptions: z.array(z.any()).describe('input captions (data-referrable)'),
+  inputCaptions: z.array(z.any()).meta({
+    [paramMetaTypes.referrableDataType]: 'captions',
+  }),
   position: z.object({
     align: z.enum(['left', 'center', 'right', 'circle', 'random', 'fixed']),
     top: z
@@ -158,6 +161,7 @@ const presetParams = z.object({
 
 const presetExecution = (
   params: z.infer<typeof presetParams>,
+  props?: Partial<PresetPassedProps>,
 ): PresetOutput => {
   const {
     inputCaptions,
@@ -1168,16 +1172,28 @@ const presetExecution = (
     style,
     kineticMotion?.fontScaling,
   );
+  captionsChildrenData.forEach((captionNode, index) => {
+    const built = props?.buildDataItemIds?.({
+      paramKeys: ['inputCaptions'],
+      arrayIndex: index,
+    });
+    const ids =
+      built != null && built.length > 0
+        ? built
+        : ['inputCaptions.[${index}]'];
+    props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
+  });
+
+  const lastCaptionTiming =
+    captionsChildrenData[captionsChildrenData.length - 1]?.context?.timing;
+  const totalCaptionsDuration =
+    (lastCaptionTiming?.start ?? 0) + (lastCaptionTiming?.duration ?? 0);
 
   // Generate final composition structure
   return {
     output: {
       config: {
-        duration:
-          captionsChildrenData[captionsChildrenData.length - 1].context?.timing
-            ?.start! +
-          captionsChildrenData[captionsChildrenData.length - 1].context?.timing
-            ?.duration!,
+        duration: totalCaptionsDuration,
       },
       childrenData: [
         {
@@ -1194,7 +1210,7 @@ const presetExecution = (
               })
               .map((child, _j) => {
                 const positionStyle = getPosition(
-                  inputCaptions[_j].text.length > 20 ? 800 : 600,
+                  (inputCaptions[_j]?.text?.length ?? 0) > 20 ? 800 : 600,
                   position,
                 );
 
@@ -1207,11 +1223,7 @@ const presetExecution = (
           context: {
             timing: {
               start: 0,
-              duration:
-                captionsChildrenData[captionsChildrenData.length - 1].context
-                  ?.timing?.start! +
-                captionsChildrenData[captionsChildrenData.length - 1].context
-                  ?.timing?.duration!,
+              duration: totalCaptionsDuration,
             },
           },
           childrenData: captionsChildrenData,

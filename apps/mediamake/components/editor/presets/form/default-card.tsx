@@ -19,12 +19,20 @@ import { Transcription } from "@/app/types/transcription";
 import { JsonEditor } from "../../player/json-editor";
 import { SchemaForm } from "./schema-form";
 import { z } from "zod";
+import {
+    getDataTypesForReferenceType,
+    getDefaultDataTypeForReferenceType,
+    getDefaultValueForReferenceType,
+    getReferenceSchemaForType,
+    getReferenceTypeOptions,
+} from "../dataTypes";
 
 interface DefaultCardProps {
     defaultData: DefaultPresetData;
     onDefaultDataChange: (defaultData: DefaultPresetData) => void;
     isExpanded?: boolean;
     onToggleExpansion?: () => void;
+    singleReferenceMode?: boolean;
 }
 
 /**
@@ -36,7 +44,8 @@ export function DefaultCard({
     defaultData,
     onDefaultDataChange,
     isExpanded = false,
-    onToggleExpansion
+    onToggleExpansion,
+    singleReferenceMode = false,
 }: DefaultCardProps) {
     const [localExpanded, setLocalExpanded] = useState(isExpanded);
     const [savingStates, setSavingStates] = useState<Record<number, boolean>>({});
@@ -50,10 +59,13 @@ export function DefaultCard({
     };
 
     const addReference = () => {
+        const defaultReferenceType = 'string' as const;
+        const defaultDataType = getDefaultDataTypeForReferenceType(defaultReferenceType);
         const newReference: ReferenceItem = {
             key: '',
-            type: 'string',
-            value: ''
+            type: defaultReferenceType,
+            dataType: defaultDataType?.id,
+            value: getDefaultValueForReferenceType(defaultReferenceType),
         };
 
         onDefaultDataChange({
@@ -119,16 +131,30 @@ export function DefaultCard({
         }
     };
 
-    const referenceTypes = [
-        { value: 'string', label: 'String' },
-        { value: 'number', label: 'Number' },
-        { value: 'boolean', label: 'Boolean' },
-        { value: 'object', label: 'Object' },
-        { value: 'objects', label: 'Objects (Array)' },
-        { value: 'media', label: 'Media' },
-        { value: 'medias', label: 'Medias (Array)' },
-        { value: 'captions', label: 'Captions (Array)' }
-    ];
+    const referenceTypes = getReferenceTypeOptions();
+
+    const assignReferenceType = (index: number, nextType: ReferenceItem['type']) => {
+        const currentReference = defaultData.references[index];
+        if (!currentReference) {
+            return;
+        }
+
+        const nextReference: ReferenceItem = {
+            ...currentReference,
+            type: nextType,
+        };
+
+        const defaultDataType = getDefaultDataTypeForReferenceType(nextType);
+        nextReference.dataType = defaultDataType?.id;
+        nextReference.value = getDefaultValueForReferenceType(nextType);
+
+        const updatedReferences = [...defaultData.references];
+        updatedReferences[index] = nextReference;
+        onDefaultDataChange({
+            ...defaultData,
+            references: updatedReferences,
+        });
+    };
 
     // Media picker component for media type references
     const MediaPickerButton = ({
@@ -246,8 +272,41 @@ export function DefaultCard({
                                 </Button>
                             </CollapsibleTrigger>
                             <CollapsibleContent className="mt-2">
+                                {/* {(reference.type === 'object' || reference.type === 'objects') && (
+                                    <div className="mb-2">
+                                        <Label className="text-xs mb-1 block">Data Type</Label>
+                                        {(() => {
+                                            const availableDataTypes = getDataTypesForReferenceType(reference.type);
+                                            return (
+                                        <Select
+                                            value={reference.dataType || '__none__'}
+                                            onValueChange={(val) =>
+                                                updateReference(index, 'dataType', val === '__none__' ? undefined : val)
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose data type (optional)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="__none__">None</SelectItem>
+                                                {availableDataTypes.map((dataType) => (
+                                                    <SelectItem key={dataType.id} value={dataType.id}>
+                                                        {dataType.title}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                            );
+                                        })()}
+                                    </div>
+                                )} */}
                                 <SchemaForm
-                                    schema={z.toJSONSchema(z.object({}))}
+                                    schema={z.toJSONSchema(
+                                        getReferenceSchemaForType(
+                                            reference.type as 'object' | 'objects',
+                                            reference.dataType,
+                                        ),
+                                    )}
                                     value={reference.value || (reference.type === 'object' ? {} : [])}
                                     onChange={(val) => updateReference(index, 'value', val)}
                                     showTabs={false}
@@ -278,12 +337,37 @@ export function DefaultCard({
                                 </Button>
                             </CollapsibleTrigger>
                             <CollapsibleContent className="mt-2">
+                                {/* <div className="mb-2">
+                                    <Label className="text-xs mb-1 block">Data Type</Label>
+                                    {(() => {
+                                        const availableDataTypes = getDataTypesForReferenceType('captions');
+                                        return (
+                                            <Select
+                                                value={reference.dataType || 'captions'}
+                                                onValueChange={(val) => updateReference(index, 'dataType', val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableDataTypes.map((dataType) => (
+                                                        <SelectItem key={dataType.id} value={dataType.id}>
+                                                            {dataType.title}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        );
+                                    })()}
+                                </div> */}
                                 <SchemaForm
-                                    schema={z.toJSONSchema(z.object({
-                                        _id: z.string().describe('Transcription ID'),
-                                        captions: z.array(z.any()).describe('Captions')
-                                    }))}
-                                    value={reference.value || []}
+                                    schema={z.toJSONSchema(
+                                        getReferenceSchemaForType(
+                                            'captions',
+                                            reference.dataType || 'captions',
+                                        ),
+                                    )}
+                                    value={reference.value || { _id: '', captions: [] }}
                                     onChange={(val) => updateReference(index, 'value', val)}
                                     showTabs={true}
                                     showResetButton={false}
@@ -329,6 +413,85 @@ export function DefaultCard({
     };
 
     const expanded = onToggleExpansion ? isExpanded : localExpanded;
+    const referencesToRender = singleReferenceMode
+        ? defaultData.references.slice(0, 1)
+        : defaultData.references;
+
+
+    if (singleReferenceMode) {
+        const reference = referencesToRender[0];
+        return (
+            <div className="p-1 rounded-md">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="flex-1 grid grid-cols-2 items-end gap-2">
+                        <div>
+                            <Input
+                                value={reference.key}
+                                onChange={(e) => updateReference(0, 'key', e.target.value)}
+                                placeholder="Reference key"
+                                className="text-sm"
+                            />
+                        </div>
+                        <div>
+                            <Select
+                                value={reference.type}
+                                onValueChange={(val) => assignReferenceType(0, val as ReferenceItem['type'])}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {referenceTypes.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 pl-3">
+                        {(reference.type === 'media' || reference.type === 'medias') && (
+                            <MediaPickerButton
+                                onSelect={(media) => {
+                                    if (reference.type === 'media') {
+                                        updateReference(0, 'value', media);
+                                    } else {
+                                        const currentValue = Array.isArray(reference.value) ? reference.value : [];
+                                        updateReference(0, 'value', [...currentValue, ...(Array.isArray(media) ? media : [media])]);
+                                    }
+                                }}
+                                singular={reference.type === 'media'}
+                            />
+                        )}
+                        {reference.type === 'captions' && (
+                            <TranscriptionPickerButton
+                                onSelect={({ captions, _id }) => {
+                                    updateReference(0, 'value', { captions, _id: _id?.toString() ?? "" });
+                                }}
+                            />
+                        )}
+                    </div>
+                    {!singleReferenceMode && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeReference(0)}
+                            className="text-destructive hover:text-destructive"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+                <div>
+                    <Label htmlFor={`value-${0}`} className="text-xs">
+                        Value
+                    </Label>
+                    {getValueInput(reference, 0)}
+                </div>
+            </div>
+        )
+    }
 
     return (
         <Card className="p-0 w-full border-2 border-dashed border-primary/20 bg-primary/5">
@@ -342,35 +505,39 @@ export function DefaultCard({
                             <div className="flex items-center gap-2">
                                 <Settings className="h-4 w-4 text-primary" />
                                 <CardTitle className="text-sm font-medium text-primary">
-                                    Default References
+                                    {singleReferenceMode ? "Reference" : "Default References"}
                                 </CardTitle>
-                                <Badge variant="outline" className="text-xs">
-                                    {defaultData.references.length} references
-                                </Badge>
+                                {!singleReferenceMode && (
+                                    <Badge variant="outline" className="text-xs">
+                                        {defaultData.references.length} references
+                                    </Badge>
+                                )}
                             </div>
                             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-2 px-0">
                         <div className="border-l-2 border-primary/20 ml-4 px-2 space-y-4">
-                            {defaultData.references.length === 0 ? (
+                            {referencesToRender.length === 0 ? (
                                 <div className="text-center py-4">
                                     <p className="text-sm text-muted-foreground mb-2">
-                                        No references defined yet
+                                        {singleReferenceMode ? "No reference selected" : "No references defined yet"}
                                     </p>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={addReference}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Add Reference
-                                    </Button>
+                                    {!singleReferenceMode && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={addReference}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Add Reference
+                                        </Button>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {defaultData.references.map((reference, index) => (
+                                    {referencesToRender.map((reference, index) => (
                                         <div key={index} className="p-1 border rounded-md bg-background">
                                             <div className="flex items-center gap-2 mb-3">
                                                 <div className="flex-1 grid grid-cols-2 items-end gap-2">
@@ -386,7 +553,7 @@ export function DefaultCard({
                                                     <div>
                                                         <Select
                                                             value={reference.type}
-                                                            onValueChange={(val) => updateReference(index, 'type', val as ReferenceItem['type'])}
+                                                            onValueChange={(val) => assignReferenceType(index, val as ReferenceItem['type'])}
                                                         >
                                                             <SelectTrigger>
                                                                 <SelectValue />
@@ -423,14 +590,16 @@ export function DefaultCard({
                                                         />
                                                     )}
                                                 </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => removeReference(index)}
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {!singleReferenceMode && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeReference(index)}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                             <div>
                                                 <Label htmlFor={`value-${index}`} className="text-xs">
@@ -440,15 +609,17 @@ export function DefaultCard({
                                             </div>
                                         </div>
                                     ))}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={addReference}
-                                        className="w-full flex items-center gap-2"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Add Reference
-                                    </Button>
+                                    {!singleReferenceMode && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={addReference}
+                                            className="w-full flex items-center gap-2"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Add Reference
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { calculateCompositionLayoutMetadata, CompositionLayout, InputCompositionProps } from "@microfox/remotion";
+import { calculateCompositionLayoutMetadata, CompositionLayout, InputCompositionProps, getMediaLoadErrorMessage } from "@microfox/remotion";
 import { Player } from "@microfox/remotion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, Check, Loader2, Settings, Code, Eye } from "lucide-react";
+import { Copy, Check, Loader2, Settings, Code, Eye, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Preset, DatabasePreset, PresetConfiguration, AppliedPreset } from "./types";
 import { JsonEditor } from "../player/json-editor";
 import { RenderButton } from "../player/render-button";
@@ -24,6 +25,7 @@ export function PresetPlayer({ }: PresetPlayerProps) {
         isGenerating
     } = usePresetContext();
     const [calculatedMetadata, setCalculatedMetadata] = useState<Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null>(null);
+    const [metadataError, setMetadataError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'config' | 'output' | 'preview'>('preview');
 
@@ -34,15 +36,22 @@ export function PresetPlayer({ }: PresetPlayerProps) {
             if (!generatedOutput.childrenData) return;
             if (generatedOutput.childrenData.length === 0) return;
 
-            const metadata = await calculateCompositionLayoutMetadata({
-                defaultProps: {},
-                props: generatedOutput,
-                abortSignal: new AbortController().signal,
-                compositionId: 'DataMotion',
-                isRendering: false,
-            });
-            console.log("gen metadat", metadata);
-            setCalculatedMetadata(metadata);
+            try {
+                const metadata = await calculateCompositionLayoutMetadata({
+                    defaultProps: {},
+                    props: generatedOutput,
+                    abortSignal: new AbortController().signal,
+                    compositionId: 'DataMotion',
+                    isRendering: false,
+                });
+                setCalculatedMetadata(metadata);
+                setMetadataError(null);
+            } catch (error) {
+                const errorMessage = getMediaLoadErrorMessage(error);
+                setCalculatedMetadata(null);
+                setMetadataError(errorMessage);
+                toast.error(errorMessage, { duration: 10000 });
+            }
         };
         calculateMetadata();
     }, [generatedOutput]);
@@ -149,7 +158,15 @@ export function PresetPlayer({ }: PresetPlayerProps) {
 
             <TabsContent value="preview" className="h-full mt-0 flex-1">
                 <div className="relative flex flex-row items-stretch w-full h-full p-4 flex items-center justify-center">
-                    {calculatedMetadata ? (
+                    {metadataError ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center space-y-3 max-w-md px-4">
+                                <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+                                <p className="text-sm font-medium text-destructive">Unable to load media</p>
+                                <p className="text-xs text-muted-foreground break-words">{metadataError}</p>
+                            </div>
+                        </div>
+                    ) : calculatedMetadata ? (
                         <Player
                             inputProps={calculatedMetadata.props}
                             durationInFrames={calculatedMetadata?.durationInFrames && calculatedMetadata?.durationInFrames > 0 ? calculatedMetadata?.durationInFrames : 20}
