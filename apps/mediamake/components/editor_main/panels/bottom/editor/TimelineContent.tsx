@@ -9,7 +9,15 @@ interface TimelineContentProps {
 }
 
 export function TimelineContent({ timeline }: TimelineContentProps) {
-    const { calculatedMetadata } = useCompileStore();
+    const { calculatedMetadata, generationError } = useCompileStore();
+
+    if (generationError) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-4 text-sm text-destructive text-center max-w-lg mx-auto">
+                {generationError}
+            </div>
+        );
+    }
 
     if (!calculatedMetadata) {
         return (

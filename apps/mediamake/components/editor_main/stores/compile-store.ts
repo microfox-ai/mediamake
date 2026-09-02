@@ -4,21 +4,27 @@ import {
   InputCompositionProps,
   RenderableComponentData,
   RenderableContext,
-} from "@microfox/remotion";
-import { runPreset, insertPresetToComposition } from "@/components/editor/presets/engine/preset-helpers";
-import { buildPresetItemIdByNodeId, useLayerStateStore } from "./layer-state-store";
+} from '@microfox/remotion';
+import {
+  runPreset,
+  insertPresetToComposition,
+} from '@/components/editor/presets/engine/preset-helpers';
+import {
+  buildPresetItemIdByNodeId,
+  useLayerStateStore,
+} from './layer-state-store';
 import {
   buildDataItemIds,
   resolvePresetInputData,
   createBaseDataFromReferences,
-} from "@/components/editor/presets/engine/preset-data-mutation";
-import { presetStdLib } from "@/components/editor/presets/engine/preset-stdlib";
-import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
-import { createCachedFetcher } from "@/lib/audio-cache";
-import AudioScene from "@/components/remotion/test.json";
-import { toast } from "sonner";
-import type { Timeline } from "./project-store";
-import { Preset, DatabasePreset } from "@/components/editor/presets/types";
+} from '@/components/editor/presets/engine/preset-data-mutation';
+import { presetStdLib } from '@/components/editor/presets/engine/preset-stdlib';
+import { getPredefinedPresetById } from '@/components/editor/presets/registry/registry/presets-registry';
+import { createCachedFetcher } from '@/lib/audio-cache';
+import AudioScene from '@/components/remotion/test.json';
+import { toast } from 'sonner';
+import type { Timeline } from './project-store';
+import { Preset, DatabasePreset } from '@/components/editor/presets/types';
 
 const getValueAtPath = (obj: any, path: string): any => {
   if (!path) return obj;
@@ -96,9 +102,11 @@ const hydrateEmptyReferenceArrays = (
  */
 function applyDurationPropagation(
   composition: InputCompositionProps,
-  explicitDurationIds?: Set<string>
+  explicitDurationIds?: Set<string>,
 ): InputCompositionProps {
-  const cloneNode = (node: RenderableComponentData): RenderableComponentData => ({
+  const cloneNode = (
+    node: RenderableComponentData,
+  ): RenderableComponentData => ({
     ...node,
     ...(node.childrenData && node.childrenData.length > 0
       ? { childrenData: node.childrenData.map(cloneNode) }
@@ -133,9 +141,11 @@ function applyDurationPropagation(
     for (const n of allNodes) {
       idToNode.set(n.id, n);
       const ctx = n.context as RenderableContext | undefined;
-      const timing = ctx?.timing as { duration?: number; fitDurationTo?: string | string[] } | undefined;
+      const timing = ctx?.timing as
+        | { duration?: number; fitDurationTo?: string | string[] }
+        | undefined;
       const dur =
-        typeof timing?.duration === "number" && timing.duration > 0
+        typeof timing?.duration === 'number' && timing.duration > 0
           ? timing.duration
           : undefined;
       if (dur !== undefined) {
@@ -143,7 +153,7 @@ function applyDurationPropagation(
         fitKeyToDuration.set(n.id, dur);
         // Also map fitDurationTo key → duration if present
         const fdt = timing?.fitDurationTo;
-        if (typeof fdt === "string" && fdt) {
+        if (typeof fdt === 'string' && fdt) {
           fitKeyToDuration.set(fdt, dur);
         } else if (Array.isArray(fdt)) {
           for (const k of fdt) {
@@ -158,9 +168,11 @@ function applyDurationPropagation(
       changed = false;
       for (const n of allNodes) {
         const ctx = n.context as RenderableContext | undefined;
-        const timing = ctx?.timing as { duration?: number; fitDurationTo?: string | string[] } | undefined;
+        const timing = ctx?.timing as
+          | { duration?: number; fitDurationTo?: string | string[] }
+          | undefined;
         const hasDuration =
-          typeof timing?.duration === "number" && timing.duration > 0;
+          typeof timing?.duration === 'number' && timing.duration > 0;
         if (hasDuration) continue;
 
         const fdt = timing?.fitDurationTo;
@@ -177,8 +189,8 @@ function applyDurationPropagation(
           const target = idToNode.get(key);
           const targetDur =
             target &&
-            typeof (target.context as RenderableContext | undefined)?.timing?.duration ===
-              "number"
+            typeof (target.context as RenderableContext | undefined)?.timing
+              ?.duration === 'number'
               ? (target.context as RenderableContext).timing!.duration
               : undefined;
           if (targetDur !== undefined && targetDur > 0) {
@@ -198,7 +210,7 @@ function applyDurationPropagation(
           n.context = nextCtx;
           fitKeyToDuration.set(n.id, resolved);
           const f = timing?.fitDurationTo;
-          if (typeof f === "string" && f) {
+          if (typeof f === 'string' && f) {
             fitKeyToDuration.set(f, resolved);
           } else if (Array.isArray(f)) {
             for (const k of f) {
@@ -215,7 +227,7 @@ function applyDurationPropagation(
 
   // Bottom-up pass: if a parent has no duration, sum all child durations and assign.
   const computeAndAssignDurations = (
-    nodes: RenderableComponentData[]
+    nodes: RenderableComponentData[],
   ): Array<number | undefined> => {
     const durations: Array<number | undefined> = [];
 
@@ -223,7 +235,7 @@ function applyDurationPropagation(
       let ctx = node.context as RenderableContext | undefined;
       const timing = ctx?.timing as { duration?: number } | undefined;
       let ownDuration =
-        typeof timing?.duration === "number" && timing.duration > 0
+        typeof timing?.duration === 'number' && timing.duration > 0
           ? timing.duration
           : undefined;
 
@@ -232,12 +244,12 @@ function applyDurationPropagation(
       if (node.childrenData && node.childrenData.length > 0) {
         const childDurations = computeAndAssignDurations(node.childrenData);
         const validChildDurations = childDurations.filter(
-          (d): d is number => typeof d === "number" && d > 0
+          (d): d is number => typeof d === 'number' && d > 0,
         );
         if (validChildDurations.length > 0) {
           summedChildrenDuration = validChildDurations.reduce(
             (acc, d) => acc + d,
-            0
+            0,
           );
         }
       }
@@ -271,12 +283,14 @@ function applyDurationPropagation(
   // that do not have an explicit duration.
   const propagateDown = (
     node: RenderableComponentData,
-    inheritedDuration?: number
+    inheritedDuration?: number,
   ): void => {
     const ctx = node.context as RenderableContext | undefined;
-    const timing = ctx?.timing as { duration?: number; fitDurationTo?: string | string[] } | undefined;
+    const timing = ctx?.timing as
+      | { duration?: number; fitDurationTo?: string | string[] }
+      | undefined;
     const ownDuration =
-      typeof timing?.duration === "number" && timing.duration > 0
+      typeof timing?.duration === 'number' && timing.duration > 0
         ? timing.duration
         : inheritedDuration;
 
@@ -284,9 +298,9 @@ function applyDurationPropagation(
       for (const child of node.childrenData) {
         const childCtx = child.context as RenderableContext | undefined;
         const isNonMediaAtom =
-          child.type === "atom" &&
-          child.componentId !== "AudioAtom" &&
-          child.componentId !== "VideoAtom";
+          child.type === 'atom' &&
+          child.componentId !== 'AudioAtom' &&
+          child.componentId !== 'VideoAtom';
         const hasExplicitDuration = explicitIds.has(child.id);
 
         if (
@@ -327,11 +341,11 @@ const defaultInputProps: InputCompositionProps = {
     fps: 30,
     width: 1920,
     height: 1080,
-    duration: 20
+    duration: 20,
   },
   style: {
-    backgroundColor: "black"
-  }
+    backgroundColor: 'black',
+  },
 };
 
 interface PresetInfo {
@@ -344,7 +358,9 @@ interface PresetInfo {
 interface CompileState {
   // Output state
   generatedOutput: InputCompositionProps | null;
-  calculatedMetadata: Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null;
+  calculatedMetadata: Awaited<
+    ReturnType<typeof calculateCompositionLayoutMetadata>
+  > | null;
   isGenerating: boolean;
   generationProgress: number; // 0-100
   generationError: string | null;
@@ -359,7 +375,9 @@ interface CompileState {
 
   // Actions
   setCurrentTimeline: (timeline: Timeline | null) => void;
-  fetchPresetInfo: (presetId: string) => Promise<Preset | DatabasePreset | null>;
+  fetchPresetInfo: (
+    presetId: string,
+  ) => Promise<Preset | DatabasePreset | null>;
   fetchAllPresetInfo: (timeline: Timeline) => Promise<void>;
   generateOutput: (timeline: Timeline) => Promise<void>;
   clearOutput: () => void;
@@ -377,7 +395,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
   fetchingProgress: 0,
   currentTimeline: null,
 
-  setCurrentTimeline: (timeline) => {
+  setCurrentTimeline: timeline => {
     set({ currentTimeline: timeline });
     if (timeline) {
       // Auto-fetch preset info when timeline is set
@@ -388,7 +406,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
   fetchPresetInfo: async (presetId: string) => {
     const state = get();
     const cached = state.presetInfoCache.get(presetId);
-    
+
     // Return cached if available and not loading
     if (cached && !cached.isLoading && cached.preset) {
       return cached.preset;
@@ -401,8 +419,8 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           presetId,
           preset: null,
           isLoading: true,
-          error: null
-        })
+          error: null,
+        }),
       }));
     }
 
@@ -416,7 +434,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             presetId,
             preset: predefinedPreset,
             isLoading: false,
-            error: null
+            error: null,
           });
           return { presetInfoCache: newCache };
         });
@@ -434,7 +452,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             presetId,
             preset: databasePreset,
             isLoading: false,
-            error: null
+            error: null,
           });
           return { presetInfoCache: newCache };
         });
@@ -443,14 +461,15 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         throw new Error(`Preset ${presetId} not found`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch preset';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch preset';
       set(state => {
         const newCache = new Map(state.presetInfoCache);
         newCache.set(presetId, {
           presetId,
           preset: null,
           isLoading: false,
-          error: errorMessage
+          error: errorMessage,
         });
         return { presetInfoCache: newCache };
       });
@@ -475,7 +494,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       const fetchPromises = presetIds.map(async (presetId, index) => {
         await get().fetchPresetInfo(presetId);
         set(state => ({
-          fetchingProgress: Math.round(((index + 1) / totalPresets) * 100)
+          fetchingProgress: Math.round(((index + 1) / totalPresets) * 100),
         }));
       });
 
@@ -502,7 +521,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
     } catch (_error) {
       // Ignore if timeline edits store isn't available for any reason.
     }
-    
+
     if (state.isGenerating) {
       return; // Already generating
     }
@@ -512,10 +531,10 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       return;
     }
 
-    set({ 
-      isGenerating: true, 
+    set({
+      isGenerating: true,
       generationProgress: 0,
-      generationError: null 
+      generationError: null,
     });
 
     try {
@@ -524,12 +543,12 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         childrenData: defaultInputProps.childrenData,
         config: {
           ...defaultInputProps.config,
-          ...(effectiveTimeline.configuration?.config || {})
+          ...(effectiveTimeline.configuration?.config || {}),
         },
         style: {
           ...defaultInputProps.style,
-          ...(effectiveTimeline.configuration?.style || {})
-        }
+          ...(effectiveTimeline.configuration?.style || {}),
+        },
       };
 
       let clip = {};
@@ -544,7 +563,9 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       // duration propagation only affects atoms that did not have a
       // user-specified duration.
       const explicitDurationIds = new Set<string>();
-      const collectExplicitDurations = (nodes: RenderableComponentData[] | undefined) => {
+      const collectExplicitDurations = (
+        nodes: RenderableComponentData[] | undefined,
+      ) => {
         if (!nodes) return;
         for (const node of nodes) {
           const ctx = node.context as RenderableContext | undefined;
@@ -552,8 +573,8 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             | { duration?: number; durationInFrames?: number }
             | undefined;
           const hasDuration =
-            (typeof timing?.duration === "number" && timing.duration > 0) ||
-            (typeof timing?.durationInFrames === "number" &&
+            (typeof timing?.duration === 'number' && timing.duration > 0) ||
+            (typeof timing?.durationInFrames === 'number' &&
               timing.durationInFrames > 0);
           if (hasDuration) {
             explicitDurationIds.add(node.id);
@@ -564,7 +585,9 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         }
       };
 
-      const totalPresets = effectiveTimeline.presets.filter(p => !p.disabled).length;
+      const totalPresets = effectiveTimeline.presets.filter(
+        p => !p.disabled,
+      ).length;
       let processedCount = 0;
 
       // Apply all presets in sequence (skip disabled presets)
@@ -578,7 +601,9 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         const presetInfo = state.presetInfoCache.get(presetItem.presetId);
         if (!presetInfo || !presetInfo.preset) {
           // Try to fetch if not in cache
-          const fetchedPreset = await get().fetchPresetInfo(presetItem.presetId);
+          const fetchedPreset = await get().fetchPresetInfo(
+            presetItem.presetId,
+          );
           if (!fetchedPreset) {
             console.warn(`Preset ${presetItem.presetId} not found, skipping`);
             continue;
@@ -594,7 +619,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         // Process input data with base data references
         const resolvedInput = resolvePresetInputData(
           presetItem.presetInputData || {},
-          baseData
+          baseData,
         );
         const hydratedProcessedInputData = hydrateEmptyReferenceArrays(
           resolvedInput.processedInputData,
@@ -604,7 +629,9 @@ export const useCompileStore = create<CompileState>((set, get) => ({
 
         // Update progress
         processedCount++;
-        set({ generationProgress: Math.round((processedCount / totalPresets) * 50) });
+        set({
+          generationProgress: Math.round((processedCount / totalPresets) * 50),
+        });
 
         // Run the preset function with processed input data
         const presetOutput = await runPreset(
@@ -620,7 +647,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             dataReferenceBindings: resolvedInput.dataReferenceBindings,
             dataReferenceKeyByPath: resolvedInput.dataReferenceKeyByPath,
             dataMutationContext: resolvedInput.dataMutationContext,
-            buildDataItemIds: (options) =>
+            buildDataItemIds: options =>
               buildDataItemIds(resolvedInput.dataMutationContext, options),
             applyDataItemIdsToNodeTree: presetStdLib.applyDataItemIdsToNodeTree,
             fetcher: createCachedFetcher((url: string, data: any) =>
@@ -630,14 +657,17 @@ export const useCompileStore = create<CompileState>((set, get) => ({
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data),
-              })
+              }),
             ),
           },
-          actualPreset.metadata
+          actualPreset.metadata,
         );
 
         if (presetOutput) {
-          if (presetOutput.options?.clip && actualPreset.metadata.presetType === 'full') {
+          if (
+            presetOutput.options?.clip &&
+            actualPreset.metadata.presetType === 'full'
+          ) {
             clip = presetOutput.options.clip;
           }
           // Insert preset output into composition (tag nodes with presetItem.id for "not in sync" tracking)
@@ -664,10 +694,15 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       }
 
       // Calculate metadata
-      if (baseComposition.childrenData && baseComposition.childrenData.length > 0) {
+      if (
+        baseComposition.childrenData &&
+        baseComposition.childrenData.length > 0
+      ) {
         try {
           // Collect explicit durations from the pre-metadata composition.
-          collectExplicitDurations(baseComposition.childrenData as RenderableComponentData[]);
+          collectExplicitDurations(
+            baseComposition.childrenData as RenderableComponentData[],
+          );
 
           let metadata = await calculateCompositionLayoutMetadata({
             defaultProps: {},
@@ -683,7 +718,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           if (metadata?.props) {
             const patchedProps = applyDurationPropagation(
               metadata.props as unknown as InputCompositionProps,
-              explicitDurationIds
+              explicitDurationIds,
             );
             metadata = {
               ...metadata,
@@ -697,7 +732,16 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           });
         } catch (error) {
           console.error('Error calculating metadata:', error);
-          set({ generationProgress: 100 });
+          const errorMessage =
+            typeof error === 'string'
+              ? error
+              : 'Failed to calculate metadata in precompiling the video...';
+          set({
+            calculatedMetadata: null,
+            generationProgress: 100,
+            generationError: errorMessage,
+          });
+          toast.error(errorMessage, { duration: 10000 });
         }
       } else {
         set({ generationProgress: 100 });
@@ -706,11 +750,14 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       // toast.success('Timeline rendered successfully!');
     } catch (error) {
       console.error('Error generating output:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate video. Please try again.';
-      set({ 
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate video. Please try again.';
+      set({
         generationError: errorMessage,
         isGenerating: false,
-        generationProgress: 0
+        generationProgress: 0,
       });
       toast.error(errorMessage, {
         duration: 10000,
@@ -721,11 +768,11 @@ export const useCompileStore = create<CompileState>((set, get) => ({
   },
 
   clearOutput: () => {
-    set({ 
-      generatedOutput: null, 
+    set({
+      generatedOutput: null,
       calculatedMetadata: null,
       generationError: null,
-      generationProgress: 0
+      generationProgress: 0,
     });
   },
 
@@ -746,13 +793,13 @@ export const useCompileStore = create<CompileState>((set, get) => ({
 
 // Helper hook to check if preset is ready
 export const usePresetReady = (presetId: string | undefined) => {
-  const presetInfo = useCompileStore(state => 
-    presetId ? state.presetInfoCache.get(presetId) : null
+  const presetInfo = useCompileStore(state =>
+    presetId ? state.presetInfoCache.get(presetId) : null,
   );
   const isFetchingPresets = useCompileStore(state => state.isFetchingPresets);
 
   if (!presetId) return { isReady: false, isLoading: false, error: null };
-  
+
   const cached = presetInfo;
   if (!cached) {
     return { isReady: false, isLoading: isFetchingPresets, error: null };
@@ -761,6 +808,6 @@ export const usePresetReady = (presetId: string | undefined) => {
   return {
     isReady: !cached.isLoading && cached.preset !== null,
     isLoading: cached.isLoading || isFetchingPresets,
-    error: cached.error
+    error: cached.error,
   };
 };

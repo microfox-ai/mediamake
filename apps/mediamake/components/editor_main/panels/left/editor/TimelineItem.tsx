@@ -17,6 +17,7 @@ import {
 import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
+import { isTimelineUnsyncedWithCloud } from "../../../stores/timeline-sync";
 import { usePresetsStore } from "../../../stores/presets-store";
 import { useSession } from "@/components/session-provider";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,17 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
+    const cloudTimelineUpdatedAt = useProjectStore((state) =>
+        state.timelines.find((item) => item.id === timeline.id)?.updatedAt
+    );
+    const isUnsynced = useTimelineEditsStore((state) =>
+        isTimelineUnsyncedWithCloud(
+            timeline.id,
+            state.cloudUpdatedAtByTimelineId,
+            state.localEditUpdatedAtByTimelineId,
+            cloudTimelineUpdatedAt
+        )
+    );
     const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
     const session = useSession();
     const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
@@ -363,6 +375,12 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                         <span className="flex-1 truncate">
                                             {displayTimeline.displayName ?? "Untitled"}
                                         </span>
+                                    )}
+                                    {isUnsynced && (
+                                        <span
+                                            className="h-2 w-2 rounded-full bg-blue-500 shrink-0"
+                                            title="Unsaved changes (not synced to cloud)"
+                                        />
                                     )}
                                 </div>
                             </ContextMenuTrigger>

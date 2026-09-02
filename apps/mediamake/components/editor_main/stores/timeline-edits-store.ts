@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { Timeline } from './project-store';
 import { DatabasePreset, Preset as PresetType } from '@/components/editor/presets/types';
+import {
+  getUnsyncedTimelineIds,
+  isTimelineUnsyncedWithCloud,
+  mapFromEntries,
+  mapToEntries,
+  type UpdatedAtMap,
+} from './timeline-sync';
 
 // History entry for undo/redo
 interface HistoryEntry {
@@ -12,7 +19,8 @@ interface HistoryEntry {
 interface TimelineEditsState {
   // Current state
   editedTimelines: Map<string, Timeline>; // timelineId -> edited timeline
-  isDirty: boolean; // Whether there are unsaved changes
+  cloudUpdatedAtByTimelineId: UpdatedAtMap;
+  localEditUpdatedAtByTimelineId: UpdatedAtMap;
   
   // History for undo/redo
   history: HistoryEntry[];
@@ -42,28 +50,55 @@ interface TimelineEditsState {
   
   // Persistence
   saveToDatabase: (timelineId: string) => Promise<void>;
+  saveAllTimelinesToDatabase: () => Promise<string[]>;
   loadFromPersistence: (projectId: string) => void;
   clearEdits: (projectId?: string) => void;
+  registerCloudTimelines: (timelines: Timeline[]) => void;
   
   // State management
   setCurrentProjectId: (projectId: string | null) => void;
-  markClean: () => void;
   getEditedTimeline: (timelineId: string) => Timeline | null;
+  isTimelineUnsynced: (timelineId: string) => boolean;
+  getUnsyncedTimelineIds: () => string[];
+  hasAnyUnsyncedTimelines: () => boolean;
 }
 
 // Persistence helpers
 const STORAGE_KEY = 'timeline-edits-storage';
 
-const loadFromStorage = (projectId: string | null): Partial<TimelineEditsState> | null => {
+const loadFromStorage = (projectId: string | null): {
+  editedTimelines?: Map<string, Timeline>;
+  cloudUpdatedAtByTimelineId?: UpdatedAtMap;
+  localEditUpdatedAtByTimelineId?: UpdatedAtMap;
+  currentProjectId?: string | null;
+} | null => {
   if (typeof window === 'undefined') return null;
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY}-${projectId || 'default'}`);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Convert array back to Map
       if (parsed.editedTimelines) {
         parsed.editedTimelines = new Map(parsed.editedTimelines);
       }
+      parsed.cloudUpdatedAtByTimelineId = mapFromEntries(parsed.cloudUpdatedAtByTimelineId);
+      parsed.localEditUpdatedAtByTimelineId = mapFromEntries(
+        parsed.localEditUpdatedAtByTimelineId
+      );
+
+      // Legacy migration: global isDirty with edited timelines but no per-timeline timestamps
+      if (
+        parsed.isDirty &&
+        parsed.localEditUpdatedAtByTimelineId.size === 0 &&
+        parsed.editedTimelines?.size > 0
+      ) {
+        const migratedLocal = new Map<string, string>(parsed.localEditUpdatedAtByTimelineId);
+        const migratedAt = new Date().toISOString();
+        parsed.editedTimelines.forEach((_timeline: Timeline, timelineId: string) => {
+          migratedLocal.set(timelineId, migratedAt);
+        });
+        parsed.localEditUpdatedAtByTimelineId = migratedLocal;
+      }
+
       return parsed;
     }
   } catch (error) {
@@ -77,17 +112,30 @@ const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsSta
   try {
     const toStore = {
       editedTimelines: Array.from(state.editedTimelines?.entries() || []),
+      cloudUpdatedAtByTimelineId: mapToEntries(state.cloudUpdatedAtByTimelineId ?? new Map()),
+      localEditUpdatedAtByTimelineId: mapToEntries(
+        state.localEditUpdatedAtByTimelineId ?? new Map()
+      ),
       currentProjectId: state.currentProjectId,
-      // Use the actual isDirty value, not a recalculation from map size.
-      // editedTimelines keeps entries even after save (to avoid UI reverts),
-      // so size > 0 no longer means "dirty".
-      isDirty: state.isDirty ?? false,
-      // Don't persist history to avoid storage bloat
     };
     localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
   } catch (error) {
     console.error('Error saving to storage:', error);
   }
+};
+
+const bumpLocalTimelineEdit = (
+  timelineId: string,
+  localEditUpdatedAtByTimelineId: UpdatedAtMap
+): UpdatedAtMap => {
+  const next = new Map(localEditUpdatedAtByTimelineId);
+  next.set(timelineId, new Date().toISOString());
+  return next;
+};
+
+const getProjectTimelines = (): Timeline[] => {
+  const { useProjectStore } = require('./project-store');
+  return useProjectStore.getState().timelines as Timeline[];
 };
 
 // Helper to create a history entry
@@ -103,8 +151,8 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
   const initialState: TimelineEditsState = {
     editedTimelines: stored?.editedTimelines || new Map(),
-    // Restore the stored flag directly — do not recalculate from map size.
-    isDirty: stored?.isDirty ?? false,
+    cloudUpdatedAtByTimelineId: stored?.cloudUpdatedAtByTimelineId || new Map(),
+    localEditUpdatedAtByTimelineId: stored?.localEditUpdatedAtByTimelineId || new Map(),
     history: [],
     historyIndex: -1,
     maxHistorySize: 50,
@@ -152,9 +200,24 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           state.historyIndex = newHistory.length - 1;
         }
         
+        const newCloud = new Map(state.cloudUpdatedAtByTimelineId);
+        if (!newCloud.has(timelineId)) {
+          const { useProjectStore } = require('./project-store');
+          const originalTimeline = useProjectStore
+            .getState()
+            .timelines.find((timeline: Timeline) => timeline.id === timelineId);
+          if (originalTimeline?.updatedAt) {
+            newCloud.set(timelineId, originalTimeline.updatedAt);
+          }
+        }
+
         const newState = {
           editedTimelines: new Map(state.editedTimelines),
-          isDirty: true,
+          cloudUpdatedAtByTimelineId: newCloud,
+          localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
+            timelineId,
+            state.localEditUpdatedAtByTimelineId
+          ),
           history: newHistory,
           historyIndex: newHistory.length - 1,
         };
@@ -433,6 +496,11 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             historyEntry.timelineId,
             historyEntry.timeline
           ),
+          cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
+          localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
+            historyEntry.timelineId,
+            state.localEditUpdatedAtByTimelineId
+          ),
         };
         
         // Persist to storage
@@ -467,6 +535,11 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             historyEntry.timelineId,
             historyEntry.timeline
           ),
+          cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
+          localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
+            historyEntry.timelineId,
+            state.localEditUpdatedAtByTimelineId
+          ),
         };
         
         // Persist to storage
@@ -497,8 +570,14 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
     saveToDatabase: async (timelineId) => {
       const state = get();
-      const editedTimeline = state.editedTimelines.get(timelineId);
-      
+      let editedTimeline = state.editedTimelines.get(timelineId);
+
+      if (!editedTimeline) {
+        editedTimeline = getProjectTimelines().find(
+          (timeline) => timeline.id === timelineId
+        );
+      }
+
       if (!editedTimeline) {
         console.warn(`No edited timeline found for ${timelineId}`);
         return;
@@ -548,9 +627,15 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         set(state => {
           const newEdited = new Map(state.editedTimelines);
           newEdited.set(timelineId, canonicalTimeline);
+          const newCloud = new Map(state.cloudUpdatedAtByTimelineId);
+          const newLocal = new Map(state.localEditUpdatedAtByTimelineId);
+          const cloudAt = canonicalTimeline.updatedAt ?? new Date().toISOString();
+          newCloud.set(timelineId, cloudAt);
+          newLocal.delete(timelineId);
           const newState = {
             editedTimelines: newEdited,
-            isDirty: false, // we just saved — no unsaved changes
+            cloudUpdatedAtByTimelineId: newCloud,
+            localEditUpdatedAtByTimelineId: newLocal,
           };
 
           // Persist to storage
@@ -568,17 +653,33 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       }
     },
 
+    saveAllTimelinesToDatabase: async () => {
+      const unsyncedIds = get().getUnsyncedTimelineIds();
+      const savedNames: string[] = [];
+
+      for (const timelineId of unsyncedIds) {
+        const editedTimeline = get().editedTimelines.get(timelineId);
+        const cloudTimeline = getProjectTimelines().find((t) => t.id === timelineId);
+        const timelineName =
+          editedTimeline?.displayName?.trim() ||
+          cloudTimeline?.displayName?.trim() ||
+          timelineId;
+        await get().saveToDatabase(timelineId);
+        savedNames.push(timelineName);
+      }
+
+      return savedNames;
+    },
+
     loadFromPersistence: (projectId) => {
       const stored = loadFromStorage(projectId);
       if (stored) {
         const editedTimelines = stored.editedTimelines || new Map();
         set({
-          editedTimelines: editedTimelines,
+          editedTimelines,
+          cloudUpdatedAtByTimelineId: stored.cloudUpdatedAtByTimelineId || new Map(),
+          localEditUpdatedAtByTimelineId: stored.localEditUpdatedAtByTimelineId || new Map(),
           currentProjectId: projectId,
-          // Restore the persisted isDirty flag directly.
-          // Do NOT recalculate from editedTimelines.size — the map now keeps entries
-          // even for clean (already-saved) timelines to avoid UI state resets.
-          isDirty: stored.isDirty ?? false,
         });
         
         // Sync edited timelines back to project store
@@ -594,9 +695,33 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       } else {
         set({ 
           currentProjectId: projectId,
-          isDirty: false,
+          cloudUpdatedAtByTimelineId: new Map(),
+          localEditUpdatedAtByTimelineId: new Map(),
         });
       }
+    },
+
+    registerCloudTimelines: (timelines) => {
+      set((state) => {
+        const newCloud = new Map(state.cloudUpdatedAtByTimelineId);
+        timelines.forEach((timeline) => {
+          if (!timeline.updatedAt) return;
+          if (!state.localEditUpdatedAtByTimelineId.has(timeline.id)) {
+            newCloud.set(timeline.id, timeline.updatedAt);
+          } else if (!newCloud.has(timeline.id)) {
+            newCloud.set(timeline.id, timeline.updatedAt);
+          }
+        });
+
+        const newState = {
+          cloudUpdatedAtByTimelineId: newCloud,
+        };
+        saveToStorage(state.currentProjectId, {
+          ...state,
+          ...newState,
+        });
+        return newState;
+      });
     },
 
     clearEdits: (projectId) => {
@@ -614,7 +739,24 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           });
           const newState = {
             editedTimelines: newEdited,
-            isDirty: newEdited.size > 0,
+            cloudUpdatedAtByTimelineId: (() => {
+              const next = new Map(state.cloudUpdatedAtByTimelineId);
+              projectState.timelines.forEach((timeline: Timeline) => {
+                if (timeline.projectId === projectId) {
+                  next.delete(timeline.id);
+                }
+              });
+              return next;
+            })(),
+            localEditUpdatedAtByTimelineId: (() => {
+              const next = new Map(state.localEditUpdatedAtByTimelineId);
+              projectState.timelines.forEach((timeline: Timeline) => {
+                if (timeline.projectId === projectId) {
+                  next.delete(timeline.id);
+                }
+              });
+              return next;
+            })(),
             history: [],
             historyIndex: -1,
           };
@@ -628,7 +770,8 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         // Clear all edits
         set({
           editedTimelines: new Map(),
-          isDirty: false,
+          cloudUpdatedAtByTimelineId: new Map(),
+          localEditUpdatedAtByTimelineId: new Map(),
           history: [],
           historyIndex: -1,
         });
@@ -654,13 +797,35 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       }
     },
 
-    markClean: () => {
-      set({ isDirty: false });
-    },
-
     getEditedTimeline: (timelineId) => {
       const state = get();
       return state.editedTimelines.get(timelineId) || null;
+    },
+
+    isTimelineUnsynced: (timelineId) => {
+      const state = get();
+      const cloudTimelineUpdatedAt = getProjectTimelines().find(
+        (timeline) => timeline.id === timelineId
+      )?.updatedAt;
+      return isTimelineUnsyncedWithCloud(
+        timelineId,
+        state.cloudUpdatedAtByTimelineId,
+        state.localEditUpdatedAtByTimelineId,
+        cloudTimelineUpdatedAt
+      );
+    },
+
+    getUnsyncedTimelineIds: () => {
+      const state = get();
+      return getUnsyncedTimelineIds(
+        getProjectTimelines(),
+        state.cloudUpdatedAtByTimelineId,
+        state.localEditUpdatedAtByTimelineId
+      );
+    },
+
+    hasAnyUnsyncedTimelines: () => {
+      return get().getUnsyncedTimelineIds().length > 0;
     },
   };
   

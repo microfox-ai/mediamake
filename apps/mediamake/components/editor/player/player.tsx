@@ -1,8 +1,9 @@
 "use client"
 
-import { calculateCompositionLayoutMetadata, CompositionLayout, InputCompositionProps, RenderableComponentData } from "@microfox/remotion";
-import { Loader2, Copy, Check, RotateCcw } from "lucide-react";
+import { calculateCompositionLayoutMetadata, CompositionLayout, InputCompositionProps, RenderableComponentData, getMediaLoadErrorMessage } from "@microfox/remotion";
+import { Loader2, Copy, Check, RotateCcw, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { RenderButton } from "./render-button";
 import { JsonEditor } from "./json-editor";
 import { Button } from "@/components/ui/button";
@@ -93,18 +94,27 @@ export const MediaMakePlayerPlain: React.FC = () => {
 
     const [inputProps, setInputProps] = useState<InputCompositionProps>(defaultInputProps);
     const [calculatedMetadata, setCalculatedMetadata] = useState<Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null>(null);
+    const [metadataError, setMetadataError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         const calculateMetadata = async () => {
-            const metadata = await calculateCompositionLayoutMetadata({
-                defaultProps: {},
-                props: inputProps,
-                abortSignal: new AbortController().signal,
-                compositionId: 'DataMotion',
-                isRendering: false,
-            });
-            setCalculatedMetadata(metadata);
+            try {
+                const metadata = await calculateCompositionLayoutMetadata({
+                    defaultProps: {},
+                    props: inputProps,
+                    abortSignal: new AbortController().signal,
+                    compositionId: 'DataMotion',
+                    isRendering: false,
+                });
+                setCalculatedMetadata(metadata);
+                setMetadataError(null);
+            } catch (error) {
+                const errorMessage = getMediaLoadErrorMessage(error);
+                setCalculatedMetadata(null);
+                setMetadataError(errorMessage);
+                toast.error(errorMessage, { duration: 10000 });
+            }
         };
         calculateMetadata();
         updateSetting('inputProps', JSON.stringify(inputProps, null, 2));
@@ -127,6 +137,18 @@ export const MediaMakePlayerPlain: React.FC = () => {
     const handleInputPropsChange = (newProps: InputCompositionProps) => {
         setInputProps(newProps);
     };
+
+    if (metadataError) {
+        return (
+            <div className="flex justify-center items-center w-full h-full">
+                <div className="text-center space-y-3 max-w-md px-4">
+                    <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+                    <p className="text-sm font-medium text-destructive">Unable to load media</p>
+                    <p className="text-xs text-muted-foreground break-words">{metadataError}</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!calculatedMetadata) {
         return <div className="flex justify-center items-center w-full h-full">
