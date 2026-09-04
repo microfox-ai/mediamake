@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
+import { getClientId } from "@/lib/auth-utils";
+import { getProjectRole, canWrite } from "@/lib/editor/project-access";
 
 const COLLECTION = "timelineEditHistory";
 
@@ -22,7 +24,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const clientId = getClientId(request);
+    if (!clientId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const db = await getDatabase();
+
+    // History is project-scoped: any role on the project may read it.
+    const role = await getProjectRole(db, projectId, clientId);
+    if (!role) {
+      return NextResponse.json(
+        { error: "Project not found or access denied" },
+        { status: 403 }
+      );
+    }
+
     const collection = db.collection(COLLECTION);
 
     const filter: Record<string, unknown> = { projectId, timelineId };
@@ -55,7 +72,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, timelineId, clientId, entryId, timestamp, description, changes, snapshot } = body;
+    const { projectId, timelineId, entryId, timestamp, description, changes, snapshot } = body;
 
     if (!projectId || !timelineId || !entryId) {
       return NextResponse.json(
@@ -64,16 +81,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Attribution comes from the session, never from the request body.
+    const clientId = getClientId(request);
+    if (!clientId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const db = await getDatabase();
+
+    const role = await getProjectRole(db, projectId, clientId);
+    if (!canWrite(role)) {
+      return NextResponse.json(
+        { error: "Viewers cannot write history entries" },
+        { status: 403 }
+      );
+    }
+
     const collection = db.collection(COLLECTION);
 
     await collection.updateOne(
-      { entryId },
+      { entryId, projectId, timelineId },
       {
         $set: {
           projectId,
           timelineId,
-          clientId: typeof clientId === "string" && clientId ? clientId : "unknown",
+          clientId,
           entryId,
           timestamp: typeof timestamp === "number" ? timestamp : Date.now(),
           description: typeof description === "string" ? description : "",
