@@ -217,5 +217,5 @@ only, and it encodes on the user's machine.
 - `components/editor_main/panels/right/editor/RenderDetailsPanel.tsx`
 - `hooks/use-progress.ts`, `history-content.tsx` (clientId auth)
 
-See also: [Render Provider System](./render-provider-system.md) for how render
+See also: [Render Provider System](../apps/mediamake/docs/render-provider-system.md) for how render
 settings and methods are shared across the app.
