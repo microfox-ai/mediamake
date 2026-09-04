@@ -1,42 +1,43 @@
-# Editor Collaboration — Versioning, Publish & Merge
+# Editor Collaboration — Versioning, Publishing and Merging
 
-How two people work on the same project without silently overwriting each other.
+How two people work on the same project without wiping out each other's changes.
 
 Covers timeline versioning, layer state versioning, the 3-way merge, history
 panels, the diff viewer, and project sharing roles.
 
 ---
 
-## The model
+## How it works
 
-The editor is **local-first**. You edit freely; nothing reaches the team until
-you publish. Three states matter:
+The editor saves locally first. You edit freely, and nothing reaches the team
+until you publish. Three copies of the data matter:
 
-| State | Where it lives | Meaning |
+| Copy | Where it lives | What it is |
 |---|---|---|
 | **local** | Zustand store + `localStorage` | What you are looking at right now. |
-| **base** | `publishedBaselineById` / `loadBaselineById` | The team state your edits diverged from. |
-| **remote** | MongoDB | The latest published state, which a teammate may have advanced. |
+| **base** | `publishedBaselineById` / `loadBaselineById` | The team's version your edits started from. |
+| **remote** | MongoDB | The latest published version, which a teammate may have moved on. |
 
-Publishing pushes `local` and advances `base`. When `remote` moved while you
-were editing, the three are fed to a 3-way merge.
+Publishing sends **local** to the server and moves **base** forward. If
+**remote** changed while you were editing, all three go into a 3-way merge.
 
-This applies to two independent axes:
+This happens on two separate tracks:
 
-- **Timelines** — the preset list, configuration and default data.
-- **Layer state** — per-node overrides, structure, hidden/locked layers.
+- **Timelines** — the preset list, configuration, and default data.
+- **Layer state** — per-node overrides, structure, hidden and locked layers.
 
-They version and publish separately, so editing layers does not block a
-teammate's timeline publish.
+They version and publish separately. So editing layers never blocks a teammate
+from publishing a timeline.
 
 ---
 
-## Optimistic locking
+## Version checking
 
-Every timeline document carries a monotonically incrementing `version` and a
-`lastClientId`.
+Every timeline document has a `version` number that goes up by one each publish,
+plus a `lastClientId`.
 
-`PUT /api/project/timeline` compares the client's `version` to the stored one:
+`PUT /api/project/timeline` compares the version you send against the stored
+one:
 
 ```ts
 const storedVersion = timeline.version ?? 0;
@@ -51,27 +52,27 @@ if (typeof clientVersion === 'number' && clientVersion !== storedVersion) {
 }
 ```
 
-Two deliberate design points:
+Two things were done on purpose here:
 
-- **The check is opt-in.** It only runs when the client sends a `version`.
-  Callers that omit it keep the old last-write-wins behaviour, so nothing that
-  predates this system breaks.
-- **The version the client sends is the *synced server* version** — from the
-  last load or publish — never the version baked into the edited timeline. A
-  local edit/undo cycle can leave a stale version on the in-memory object, and
-  sending that would produce false conflicts.
+- **The check only runs if you send a version.** Anything that does not send one
+  keeps the old last-write-wins behaviour. So older code keeps working.
+- **The version you send is the one the server last gave you** — from your last
+  load or publish. It is never the version sitting on the edited timeline object
+  in memory. Undoing and redoing locally can leave a stale version on that
+  object, and sending it would cause conflicts that are not real.
 
-Layer state uses the same pattern via `stateVersion` in the layer-state store.
+Layer state does the same thing with `stateVersion` in the layer-state store.
 
-### Known limitation
+### A known problem
 
-The version check is a read-then-write, not an atomic compare-and-swap. `PUT`
-does `findOne`, compares, then `updateOne({ _id })` — the filter does not
-re-assert the version. Two publishes landing in the same millisecond can both
-read version *N*, both pass the check, and both write. The window is narrow but
-real.
+The check reads and then writes, instead of doing both in one step. `PUT` calls
+`findOne`, compares, then calls `updateOne({ _id })` — and that filter does not
+check the version again.
 
-The fix is to move the version into the update filter and check `matchedCount`:
+Two publishes landing in the same millisecond can both read version *N*, both
+pass the check, and both write. The window is small, but it is real.
+
+The fix is to put the version in the update filter and check `matchedCount`:
 
 ```ts
 const res = await collection.updateOne(
@@ -85,80 +86,85 @@ if (res.matchedCount === 0) return conflict409();
 
 ## The 3-way merge
 
-A 409 does **not** mean "your work is lost, please revert". It triggers a merge.
+Getting a 409 does **not** mean "your work is gone, start again". It starts a
+merge.
 
 ### Timelines — `lib/editor/timeline-merge.ts`
 
-`mergeTimelines(base, local, remote)` walks the union of preset ids across all
-three sides. For each id it computes `localChanged = !eq(base, local)` and
-`remoteChanged = !eq(base, remote)`, then:
+`mergeTimelines(base, local, remote)` looks at every preset id found in any of
+the three copies. For each one it works out `localChanged` and `remoteChanged`,
+then:
 
-| local | remote | Result |
+| You changed it | They changed it | Result |
 |---|---|---|
-| unchanged | unchanged | keep as-is |
-| changed | unchanged | take yours, log to `autoMerged` |
-| unchanged | changed | take theirs, log to `autoMerged` |
-| changed | changed, same value | take it, no conflict |
-| changed | changed, differently | **conflict** |
+| no | no | keep it as it is |
+| yes | no | use yours, note it in `autoMerged` |
+| no | yes | use theirs, note it in `autoMerged` |
+| yes | yes, same result | use it, no conflict |
+| yes | yes, differently | **conflict** |
 
-Add and remove fall out of this naturally: `base` undefined is an add, `local`
-undefined is a remove. `configuration` and `defaultData` go through the same
-logic as scalars.
+Adding and removing fall out of this on their own: if it is missing from `base`
+it was added, if it is missing from `local` it was removed. `configuration` and
+`defaultData` go through the same rules.
 
-The function returns:
+The function gives you back:
 
 ```ts
 {
-  conflicts: TimelineConflict[],   // only genuine ones
-  autoMerged: string[],            // human-readable log of what merged silently
-  build: (choices) => Timeline     // apply the user's per-conflict picks
+  conflicts: TimelineConflict[],   // only the real ones
+  autoMerged: string[],            // plain-English list of what merged by itself
+  build: (choices) => Timeline     // apply the user's picks
 }
 ```
 
-`build` resolves preset **order** deterministically — local order first, then
-remote-only presets, then base-only — and starts from the remote document so the
-merged timeline inherits its `version` and `lastClientId`. The caller then
-re-publishes at the remote version.
+`build` works out the preset **order** in a fixed way — your order first, then
+presets only they have, then presets only in the base. It starts from the remote
+document so the merged timeline keeps the remote `version` and `lastClientId`.
+The caller then publishes at that remote version.
 
 ### Layer state — `lib/editor/layer-state-merge.ts`
 
-Same shape, two dimensions:
+Same idea, on two things:
 
-- **Overrides**, keyed by node id — the common case, and why per-node merging
-  matters: two people styling different layers never conflict.
-- **Structure** (`childrenData` — added, removed or reordered nodes) — a single
-  all-or-nothing conflict, since a partial structural merge would produce trees
-  neither person authored.
+- **Overrides**, keyed by node id. This is the common case, and it is why
+  per-node merging matters: two people styling different layers never clash.
+- **Structure** (`childrenData` — nodes added, removed or reordered). This is
+  all-or-nothing, because merging half of one person's structure with half of
+  another's would give you a tree nobody designed.
 
-`hiddenLayerIds` and `lockedLayerIds` are unioned rather than merged; they are
-view state, and losing someone's "hidden" flag is worse than keeping both.
+`hiddenLayerIds` and `lockedLayerIds` are combined rather than merged. They are
+just view settings, and losing someone's "hidden" flag is worse than keeping
+both.
 
-### The retry loop
+### What happens after a 409
 
-`publishTimeline` on a 409:
+`publishTimeline` does this:
 
 1. Fetch the remote document.
-2. Merge against `publishedBaselineById` (falling back to `loadBaselineById`).
-3. **No conflicts** → apply the merge, set the local version to the remote
-   version, and re-publish. The user sees *"Merged teammate's changes &
-   published"* and is never interrupted.
-4. **Conflicts** → store a `pendingTimelineMerge` and let the dialog open.
+2. Merge it against `publishedBaselineById` (or `loadBaselineById` if that is
+   missing).
+3. **No conflicts** → apply the merge, set the local version to the remote one,
+   and publish again. You see *"Merged teammate's changes & published"* and are
+   never interrupted.
+4. **Conflicts** → save a `pendingTimelineMerge` and open the dialog.
 
-A module-level `_tlMergeRetry` flag guards the recursion, so a second 409 during
-the retry surfaces as a real conflict instead of looping.
+A module-level `_tlMergeRetry` flag stops this looping. A second 409 during the
+retry is treated as a real conflict.
 
 ### The conflict dialogs
 
-`TimelineMergeDialog` and `LayerMergeDialog` present one row per conflict with a
-**Mine / Theirs** toggle, plus the `autoMerged` list so the user can see what was
-resolved without asking. Choices default to `mine`. Confirming calls `build(choices)`
-and re-publishes at the remote version; cancelling keeps local edits untouched.
+`TimelineMergeDialog` and `LayerMergeDialog` show one row per conflict with a
+**Mine / Theirs** switch, plus the `autoMerged` list so you can see what was
+handled for you. The default pick is `mine`.
+
+Confirming calls `build(choices)` and publishes at the remote version.
+Cancelling leaves your local edits alone.
 
 ---
 
 ## History
 
-Both axes keep an append-only audit trail, written on publish.
+Both tracks keep a record that only gets added to, written when you publish.
 
 | | Timelines | Layers |
 |---|---|---|
@@ -166,53 +172,53 @@ Both axes keep an append-only audit trail, written on publish.
 | Collection | `timelineEditHistory` | layer history collection |
 | Panel | `TimelineHistoryPanel` | `LayerHistoryPanel` |
 
-An entry records `entryId`, `projectId`, `timelineId`, `clientId`, `timestamp`,
-`description`, a `changes` array, and a full `snapshot` of the published state.
+Each entry stores `entryId`, `projectId`, `timelineId`, `clientId`, `timestamp`,
+`description`, a `changes` list, and a full `snapshot` of what was published.
 The snapshot is what makes preview and revert possible.
 
-Writes are **idempotent** — an upsert keyed on
-`{ entryId, projectId, timelineId }` — so a retried publish does not duplicate
-the entry.
+Writes are safe to repeat — the upsert matches on
+`{ entryId, projectId, timelineId }` — so a retried publish does not create a
+duplicate entry.
 
-Reads are paginated newest-first with a `before` timestamp cursor and a `limit`
-capped at 200.
+Reads are paged, newest first, using a `before` timestamp and a `limit` capped
+at 200.
 
-The panels support:
+The panels let you:
 
-- **Preview** — `startTimelinePreview` / `endTimelinePreview` render a past
-  state without committing to it.
-- **Revert** — `revertToTimelineState` / `resetToTimelineEntry` restore an entry
-  as a new local edit (so it is itself publishable and undoable).
-- **Sync with team** — `revertToTeamBase` discards local work-in-progress and
-  pulls the canonical published state.
+- **Preview** — `startTimelinePreview` / `endTimelinePreview` show an old state
+  without committing to it.
+- **Revert** — `revertToTimelineState` / `resetToTimelineEntry` bring an old
+  entry back as a new local edit, so you can still undo it or publish it.
+- **Sync with team** — `revertToTeamBase` throws away local work in progress and
+  pulls the published state.
 
 Local undo/redo is separate and lives in the same stores (`undo`, `redo`,
-`canUndo`, `canRedo`), scoped per tab: ⌘Z on the **Timelines** tab moves timeline
-history, on the **Layers** tab it moves layer history.
+`canUndo`, `canRedo`). It is scoped per tab: Ctrl/Cmd+Z on the **Timelines** tab
+moves timeline history, and on the **Layers** tab it moves layer history.
 
 ### Auth on the history routes
 
-Both routes resolve the caller from `getClientId(request)` — the middleware
-injects `x-client-id` from the session cookie on every `/api/*` request — and
-then check project access:
+Both routes get the caller from `getClientId(request)` — the middleware puts
+`x-client-id` on every `/api/*` request from the session cookie — and then check
+project access:
 
-- **GET** — any role on the project may read.
-- **POST** — only `owner` and `editor` may write, and `clientId` is taken from
-  the session, never from the request body.
+- **GET** — anyone with a role on the project can read.
+- **POST** — only `owner` and `editor` can write, and `clientId` comes from the
+  session, never from the request body.
 
 ---
 
 ## Sharing roles
 
-`POST /api/project/share` grants a client `editor` or `viewer` on a project.
-The owner is implicit (`project.clientId`); members live in `project.sharedWith`.
+`POST /api/project/share` gives someone `editor` or `viewer` on a project. The
+owner is implied (`project.clientId`), and members are stored in
+`project.sharedWith`.
 
 `getProjectRole(db, projectId, clientId)` in `lib/editor/project-access.ts`
-resolves the effective role and returns `null` for no access. `canWrite(role)`
-is the owner-or-editor predicate. All project-scoped routes share this one
-implementation.
+works out the role and returns `null` if there is no access. `canWrite(role)` is
+the owner-or-editor check. Every project route uses this one copy.
 
-In the UI, `isViewer` is derived in the menubar:
+In the UI, `isViewer` is worked out in the menubar:
 
 ```ts
 const isViewer =
@@ -221,28 +227,27 @@ const isViewer =
   currentProject.sharedRole === 'viewer';
 ```
 
-Viewers get a **Viewer** badge, a prominent **Sync** button, and every write path
-disabled — save, publish, and the ⌘S shortcut.
+Viewers get a **Viewer** badge, a clear **Sync** button, and every write turned
+off — save, publish, and Ctrl/Cmd+S.
 
-> **Gap:** the *Save All Timelines* and *Save Project* actions are **not**
-> currently viewer-gated in the menubar. The server still rejects the writes, so
-> this is a UI affordance problem rather than a hole, but the buttons should be
-> disabled for viewers.
+> **Gap:** *Save All Timelines* and *Save Project* are **not** disabled for
+> viewers in the menubar yet. The server still rejects those writes, so this is
+> a UI problem rather than a security hole, but the buttons should be greyed out.
 
 ---
 
 ## Storage keys
 
-| Key | Contents |
+| Key | What it holds |
 |---|---|
-| `timeline-edits-storage-<projectId>` | Edited timelines, cloud/local `updatedAt` maps, `isDirty`. |
+| `timeline-edits-storage-<projectId>` | Edited timelines, cloud and local `updatedAt` maps, `isDirty`. |
 | `timeline-edit-history` | Local timeline undo/redo history. |
-| `wip-layer-state-<projectId>-<timelineId>` | Layer work-in-progress. Cleared by *Sync with team* before re-loading, so the canonical server state applies cleanly. |
+| `wip-layer-state-<projectId>-<timelineId>` | Layer work in progress. Cleared by *Sync with team* before reloading, so the server state applies cleanly. |
 
-`isDirty` is persisted deliberately and is **not** recalculated from
-`editedTimelines.size` on load. The map keeps entries for already-published
-timelines so the UI does not reset its state, which makes size a bad proxy for
-dirtiness.
+`isDirty` is saved on purpose, and is **not** recalculated from
+`editedTimelines.size` when loading. That map keeps entries for timelines that
+are already published, so its size does not tell you whether there are unsaved
+changes.
 
 ---
 
@@ -268,24 +273,23 @@ dirtiness.
 - `components/editor_main/panels/left/editor/LayerHistoryPanel.tsx`
 
 **API**
-- `app/api/project/timeline/route.ts` (versioned PUT)
+- `app/api/project/timeline/route.ts` (the versioned PUT)
 - `app/api/project/timeline/edit-history/route.ts`
 - `app/api/project/timeline/layer-history/route.ts`
 - `app/api/project/share/route.ts`
 
 ---
 
-## Testing gap
+## Missing tests
 
 `lib/editor/__tests__/` is empty and `apps/mediamake` has no test script.
 
-`mergeTimelines` and `mergeLayerSnapshots` are pure functions over
-`(base, local, remote)` with no I/O, so they are the cheapest high-value thing
-to cover: the truth table above is nine cases per axis, plus order resolution
-and the structure conflict.
+`mergeTimelines` and `mergeLayerSnapshots` are plain functions that take
+`(base, local, remote)` and touch nothing else. That makes them the cheapest
+useful thing to test: the table above is nine cases per track, plus the order
+rules and the structure conflict.
 
-One known sharp edge worth a test: `eq()` compares with `JSON.stringify`, which
-is **key-order sensitive**. Two semantically equal objects whose keys were
-inserted in a different order register as a conflict. Not observed in practice
-(both sides come from the same code paths) but it is a latent false-conflict
-source.
+One sharp edge worth covering: `eq()` compares using `JSON.stringify`, which
+**cares about key order**. Two objects that mean the same thing but had their
+keys set in a different order will look like a conflict. We have not seen this
+happen — both sides come from the same code — but it is waiting there.
