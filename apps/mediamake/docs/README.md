@@ -61,6 +61,35 @@ Complete documentation for the MediaMake video composition system.
 9. **[Example API Usage](./example-api.md)**
    - API examples and patterns
 
+10. **[Browser Rendering](./browser-rendering.md)** ⭐ **NEW**
+   - Client-side rendering via `@remotion/web-renderer`
+   - Presigned Spaces upload flow
+   - The editor's Renders tab
+
+### Editor & Collaboration
+
+11. **[Editor Collaboration](./editor-collaboration.md)** ⭐ **NEW**
+   - Timeline and layer versioning, optimistic locking
+   - 3-way merge and conflict resolution
+   - History panels, diff viewer, sharing roles
+
+12. **[Preset Form Inputs](./preset-form-inputs.md)** ⭐ **NEW**
+   - Choosing an editor widget via `inputType` metadata
+   - Colour picker (eyedropper, harmony, swatches) and slider
+
+### Infrastructure
+
+13. **[Workflow Auth & Local Dev Store](./workflow-auth-and-local-dev.md)** ⭐ **NEW**
+   - Authenticating the workflow HTTP surface
+   - Running jobs against a local `ai-worker dev` server
+
+### Canvas
+
+14. **[Canvas Pipeline](../../../packages/remotion/docs/canvas-pipeline.md)** ⭐ **NEW**
+   - Declarative canvas drawing and the op registry
+   - Migration off `CanvasAtom` and the bespoke `Canvas*` effects
+   - Author-facing version: [ATOM_CANVAS_PIPELINE.md](../components/editor/presets/presetwritingguide/ATOM_CANVAS_PIPELINE.md)
+
 ---
 
 ## 🚀 Quick Start
