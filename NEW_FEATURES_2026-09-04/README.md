@@ -72,11 +72,32 @@ Sending a Suno track to the transcriber fails right now.
   `https://cdn1.suno.ai/<songId>.m4a` from the song id on the page, which only
   worked while the CDN was open to everyone.
 
-The likely fix is to download the audio inside the extension, where the Suno
+**Suggested fix.** Download the audio inside the extension, where the Suno
 cookies already are, upload it to our own Spaces storage, and give the
 transcriber our URL instead. Both pieces already exist: the extension has
 `<all_urls>` permission, and `GET /api/upload-url` already hands out presigned
-Spaces URLs.
+Spaces URLs. Nothing new is needed and no credential leaves the browser.
+
+**Alternative: send the cookies to the worker.** The extension reads Suno's
+CloudFront cookies and passes them along, and the worker does the download and
+the upload itself.
+
+- It would work. The error message says the CDN accepts a "cookie value", so
+  cookies are a valid way in.
+- Needs the `cookies` permission added to the extension. Chrome shows that as a
+  serious prompt and turns the extension off until it is accepted again.
+- `chrome.cookies.getAll()` is the only way to read them, because CloudFront
+  cookies are almost certainly `HttpOnly` and page scripts cannot see them.
+- **Main drawback:** those cookies are login credentials for the user's Suno
+  account, and sending them to the worker writes them into the SQS message and
+  the job store (Redis or Mongo), where they sit at rest in a queue.
+- CloudFront policies can also be tied to an IP address. If Suno's is, the
+  cookies will not work from Lambda anyway, and there is no way to know without
+  trying.
+- Signed cookies expire after a few hours, so a delayed or retried job could
+  fail for no obvious reason.
+- The only real gain is that the download and upload happen on a server instead
+  of in the browser. Suno tracks are a few MB, so that is not worth much.
 
 ---
 
