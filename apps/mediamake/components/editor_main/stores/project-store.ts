@@ -111,6 +111,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const timelines = Array.isArray(data) ? data : (data.timelines || []);
 
       set({ timelines, currentProjectId: projectId });
+
+      const { useTimelineEditsStore } = require('./timeline-edits-store');
+      useTimelineEditsStore.getState().registerCloudTimelines(timelines);
     } catch (error) {
       console.error('Error loading project timelines:', error);
       set({ timelines: [], currentProjectId: projectId });

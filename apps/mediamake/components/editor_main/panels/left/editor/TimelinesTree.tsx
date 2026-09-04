@@ -14,6 +14,7 @@ import { useSession } from "@/components/session-provider";
 
 export function TimelinesTree() {
     const { timelines, currentProjectId, setTimelines } = useProjectStore();
+    const { registerCloudTimelines } = useTimelineEditsStore();
     const session = useSession();
     const historyCount = useTimelineEditsStore((s) => s.history.length);
     const isDirty = useTimelineEditsStore((s) => s.isDirty);
@@ -55,12 +56,13 @@ export function TimelinesTree() {
             const data = await response.json();
             const nextTimelines = Array.isArray(data) ? data : data.timelines || [];
             setTimelines(nextTimelines);
+            registerCloudTimelines(nextTimelines);
         } catch (error) {
             console.error("Error searching timelines:", error);
         } finally {
             setIsSearching(false);
         }
-    }, [currentProjectId, searchQuery, session?.clientId, setTimelines]);
+    }, [currentProjectId, searchQuery, session?.clientId, setTimelines, registerCloudTimelines]);
 
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {

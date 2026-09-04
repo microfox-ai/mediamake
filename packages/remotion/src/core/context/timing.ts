@@ -3,6 +3,38 @@ import { RenderableComponentData } from '../types';
 import { InputCompositionProps } from '../../components/Composition';
 import { parseMedia } from '@remotion/media-parser';
 
+export class MediaLoadError extends Error {
+  readonly src: string;
+  readonly componentId: string;
+  readonly mediaType: 'audio' | 'video';
+
+  constructor(componentId: string, src: string) {
+    const mediaType = componentId === 'VideoAtom' ? 'video' : 'audio';
+    const label = mediaType === 'video' ? 'Video' : 'Audio';
+    const truncatedSrc = src.length > 80 ? `${src.slice(0, 77)}...` : src;
+    super(
+      `${label} could not be loaded. The URL may be incorrect or unplayable: ${truncatedSrc}`
+    );
+    this.name = 'MediaLoadError';
+    this.src = src;
+    this.componentId = componentId;
+    this.mediaType = mediaType;
+  }
+}
+
+export function getMediaLoadErrorMessage(error: unknown): string {
+  if (error instanceof MediaLoadError) {
+    return error.message;
+  }
+  if (error instanceof Error && /failed to fetch/i.test(error.message)) {
+    return 'Media could not be loaded. The URL may be incorrect or unplayable.';
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Media could not be loaded. The URL may be incorrect or unplayable.';
+}
+
 // Cache for media duration calculations to avoid redundant API calls
 // Key: cache key based on src + startFrom + endAt + playbackRate
 // Value: Promise<number | undefined> to handle concurrent requests
@@ -129,28 +161,33 @@ export const calculateComponentDuration = async (
 
     // Create the calculation promise and cache it immediately (to handle concurrent requests)
     const calculationPromise = (async () => {
-      const audioInput = new Input({
-        formats: ALL_FORMATS,
-        source: new UrlSource(src),
-      });
-      const audioDuration = await audioInput.computeDuration();
+      try {
+        const audioInput = new Input({
+          formats: ALL_FORMATS,
+          source: new UrlSource(src),
+        });
+        const audioDuration = await audioInput.computeDuration();
 
-      // Calculate trimmed duration if startFrom or endAt is specified
-      let trimmedDuration = audioDuration;
-      if (startFrom || endAt) {
-        trimmedDuration =
-          audioDuration -
-          (startFrom || 0) -
-          (endAt
-            ? audioDuration - (endAt || 0)
-            : 0);
+        // Calculate trimmed duration if startFrom or endAt is specified
+        let trimmedDuration = audioDuration;
+        if (startFrom || endAt) {
+          trimmedDuration =
+            audioDuration -
+            (startFrom || 0) -
+            (endAt
+              ? audioDuration - (endAt || 0)
+              : 0);
+        }
+
+        // Factor in playback rate - if playback rate is > 1, duration is shorter
+        // if playback rate is < 1, duration is longer
+        const effectiveDuration = trimmedDuration / playbackRate;
+
+        return effectiveDuration;
+      } catch {
+        durationCache.delete(cacheKey);
+        throw new MediaLoadError(component.componentId ?? 'AudioAtom', src);
       }
-
-      // Factor in playback rate - if playback rate is > 1, duration is shorter
-      // if playback rate is < 1, duration is longer
-      const effectiveDuration = trimmedDuration / playbackRate;
-
-      return effectiveDuration;
     })();
 
     // Cache the promise (not the result) so concurrent requests share the same calculation

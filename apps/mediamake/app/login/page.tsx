@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 // import Link from 'next/link';
 
-export default function LoginForm() {
+function LoginFormInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [clientId, setClientId] = useState('');
   const [clientKey, setClientKey] = useState('');
   const [error, setError] = useState('');
@@ -36,7 +37,9 @@ export default function LoginForm() {
       });
 
       if (response.ok) {
-        router.push('/projects');
+        const redirectTo = searchParams.get('redirectTo');
+        const isRelative = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
+        router.push(isRelative ? redirectTo : '/projects');
         router.refresh();
       } else {
         const data = await response.json();
@@ -94,5 +97,13 @@ export default function LoginForm() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginFormInner />
+    </Suspense>
   );
 }

@@ -207,6 +207,7 @@ export function EditPatternContent() {
     generatedOutput,
     calculatedMetadata,
     isGenerating,
+    generationError,
   } = useTimelineRenderer(loadedTimeline);
 
   // Keep the latest compiled base available to the WIP-save effect
@@ -285,6 +286,7 @@ export function EditPatternContent() {
           generatedOutput={generatedOutput}
           calculatedMetadata={calculatedMetadata}
           isGenerating={isGenerating}
+          generationError={generationError}
           loop={loop}
         />
       </div>

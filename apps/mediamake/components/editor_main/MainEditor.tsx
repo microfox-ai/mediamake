@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { EditorMenubar } from "./menubar/EditorMenubar";
 import { LeftPanel } from "./panels/left/LeftPanel";
 import { MiddlePanel } from "./panels/middle/MiddlePanel";
@@ -17,6 +17,7 @@ import { useTimelineEditsStore } from "./stores/timeline-edits-store";
 import { useLayerStateStore } from "./stores/layer-state-store";
 import { useLayerHistoryStore } from "./stores/layer-history-store";
 import { useEditorUIStore } from "./stores/editor-ui-store";
+import { useProjectEditsStore } from "./stores/project-edits-store";
 import useQueryState from "@/hooks/use-query-state";
 import { useSession } from "@/components/session-provider";
 import { RenderProvider } from "@/components/editor/player/render-provider";
@@ -38,6 +39,7 @@ export const MainEditor = () => {
     const [projectId] = useQueryState("id", "");
     const { loadProjectTimelines, currentProjectId, setCurrentProjectId } = useProjectStore();
     const { setCurrentProjectId: setEditsProjectId, setClientId: setTimelineClientId } = useTimelineEditsStore();
+    const { loadProject: loadProjectEdits, clear: clearProjectEdits } = useProjectEditsStore();
     const session = useSession();
     const setHistoryClientId = useLayerHistoryStore((s) => s.setClientId);
 
@@ -79,17 +81,41 @@ export const MainEditor = () => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
+    const loadCurrentProject = useCallback(async (id: string) => {
+        try {
+            const headers: Record<string, string> = {};
+            if (session?.clientId) {
+                headers['x-client-id'] = session.clientId;
+            }
+            const response = await fetch(`/api/project?id=${encodeURIComponent(id)}`, { headers });
+            if (!response.ok) return;
+            const project = await response.json();
+            if (project?.id && project?.displayName && project?.updatedAt) {
+                loadProjectEdits({
+                    id: project.id,
+                    displayName: project.displayName,
+                    tags: project.tags,
+                    updatedAt: project.updatedAt,
+                });
+            }
+        } catch (error) {
+            console.error('Error loading project metadata:', error);
+        }
+    }, [session?.clientId, loadProjectEdits]);
+
     // Load timelines when projectId changes
     useEffect(() => {
         if (projectId && projectId !== currentProjectId) {
             setCurrentProjectId(projectId);
             setEditsProjectId(projectId); // Sync edits store
             loadProjectTimelines(projectId, session?.clientId);
+            loadCurrentProject(projectId);
         } else if (!projectId && currentProjectId) {
             setCurrentProjectId(null);
             setEditsProjectId(null); // Clear edits store
+            clearProjectEdits();
         }
-    }, [projectId, currentProjectId, loadProjectTimelines, setCurrentProjectId, setEditsProjectId, session?.clientId]);
+    }, [projectId, currentProjectId, loadProjectTimelines, setCurrentProjectId, setEditsProjectId, session?.clientId, loadCurrentProject, clearProjectEdits]);
 
     // Calculate top panel size based on timeline panel size
     const topPanelSize = 100 - timelinePanelSize;
