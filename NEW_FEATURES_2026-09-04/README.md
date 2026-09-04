@@ -13,7 +13,6 @@ suits — they are plain markdown with no build step.
 
 | Document | What it covers |
 |---|---|
-| [PR_DESCRIPTION.md](./PR_DESCRIPTION.md) | The full pull-request write-up. Paste as the PR body. |
 | [canvas-pipeline.md](./canvas-pipeline.md) | Declarative canvas drawing for `@microfox/remotion` — data model, the 14-op standard library, the `init`/`apply` execution split, determinism rules, `CanvasPipeline` vs `CanvasFx`, how to add an op, and the migration table off `CanvasAtom`. **Breaking change.** |
 | [editor-collaboration.md](./editor-collaboration.md) | Multi-user editing — the local/base/remote model, optimistic locking, 3-way merge for timelines and layer state, history panels, the diff viewer, sharing roles, and storage keys. |
 | [browser-rendering.md](./browser-rendering.md) | Client-side rendering via `@remotion/web-renderer` — the render flow, the API contract, presigned Spaces uploads, the editor's Renders tab, and the `clientId` progress-auth change. |
@@ -24,10 +23,10 @@ suits — they are plain markdown with no build step.
 
 ## Read these first
 
-**Shipping the branch?** → [PR_DESCRIPTION.md](./PR_DESCRIPTION.md), then the
-*Infrastructure* section. Remotion moved 4.0.355 → 4.0.496, so **AWS renders
+**Shipping the branch?** → Remotion moved 4.0.355 → 4.0.496, so **AWS renders
 fail until Lambda functions and serve-sites are redeployed in every region** in
-`config.mjs` → `AWS_REGION_OPTIONS`.
+`config.mjs` → `AWS_REGION_OPTIONS`. See the *Deployment* section of
+[browser-rendering.md](./browser-rendering.md).
 
 **Writing a preset that draws on canvas?** →
 [canvas-pipeline.md](./canvas-pipeline.md) for the system, and
