@@ -36,6 +36,53 @@ import { TagMultiSelect } from "@/components/ui/tag-multi-select";
 import { MediaPicker } from "../../editor/media/media-picker";
 import { MediaFile } from "@/app/types/media";
 import { generateTextToSpeech, COMMON_VOICES, AVAILABLE_MODELS } from "@/components/transcriber/new-transcription-ui";
+import useLocalState from "@/components/studio/context/hooks/useLocalState";
+
+const LANGUAGES = [
+    { code: "auto", name: "Auto-detect" },
+    { code: "en", name: "English" },
+    { code: "es", name: "Spanish" },
+    { code: "fr", name: "French" },
+    { code: "de", name: "German" },
+    { code: "it", name: "Italian" },
+    { code: "pt", name: "Portuguese" },
+    { code: "nl", name: "Dutch" },
+    { code: "pl", name: "Polish" },
+    { code: "ru", name: "Russian" },
+    { code: "uk", name: "Ukrainian" },
+    { code: "tr", name: "Turkish" },
+    { code: "ar", name: "Arabic" },
+    { code: "he", name: "Hebrew" },
+    { code: "hi", name: "Hindi" },
+    { code: "bn", name: "Bengali" },
+    { code: "ta", name: "Tamil" },
+    { code: "te", name: "Telugu" },
+    { code: "mr", name: "Marathi" },
+    { code: "gu", name: "Gujarati" },
+    { code: "kn", name: "Kannada" },
+    { code: "ml", name: "Malayalam" },
+    { code: "zh", name: "Chinese" },
+    { code: "ja", name: "Japanese" },
+    { code: "ko", name: "Korean" },
+    { code: "th", name: "Thai" },
+    { code: "vi", name: "Vietnamese" },
+    { code: "id", name: "Indonesian" },
+    { code: "ms", name: "Malay" },
+    { code: "tl", name: "Tagalog" },
+    { code: "sv", name: "Swedish" },
+    { code: "no", name: "Norwegian" },
+    { code: "da", name: "Danish" },
+    { code: "fi", name: "Finnish" },
+    { code: "cs", name: "Czech" },
+    { code: "sk", name: "Slovak" },
+    { code: "hu", name: "Hungarian" },
+    { code: "ro", name: "Romanian" },
+    { code: "bg", name: "Bulgarian" },
+    { code: "hr", name: "Croatian" },
+    { code: "sr", name: "Serbian" },
+    { code: "el", name: "Greek" },
+    { code: "ca", name: "Catalan" },
+] as const;
 
 // MediaPickerButton component
 function MediaPickerButton({ onSelect }: { onSelect: (files: MediaFile | MediaFile[]) => void }) {
@@ -77,8 +124,8 @@ export function NewTranscriptionUI() {
 
     // Audio-to-text states
     const [audioUrl, setAudioUrl] = useState("");
-    const [language, setLanguage] = useState("");
-    const [transcriptionProvider, setTranscriptionProvider] = useState<"assembly" | "gemini" | "elevenlabs">("assembly");
+    const [language, setLanguage] = useState("en");
+    const [transcriptionProvider, setTranscriptionProvider] = useState<"assembly" | "gemini" | "elevenlabs">("elevenlabs");
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -100,7 +147,7 @@ export function NewTranscriptionUI() {
     const [progressMessage, setProgressMessage] = useState("");
 
     // Tag management
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useLocalState<string[]>("selectedTags", []);
 
     const handleTTSSubmit = async () => {
         if (!ttsText.trim()) {
@@ -125,7 +172,7 @@ export function NewTranscriptionUI() {
                 text: ttsText.trim(),
                 voiceId,
                 modelId: selectedModel,
-                language: language?.trim() || undefined,
+                language: language && language !== "auto" ? language : undefined,
                 tags: selectedTags,
             });
 
@@ -162,20 +209,20 @@ export function NewTranscriptionUI() {
         setProgressMessage("Starting transcription...");
 
         try {
-            console.log('Starting transcription with audio URL:', audioUrl.trim(), 'language:', language.trim() || undefined, 'provider:', transcriptionProvider);
+            const languageCode = language && language !== "auto" ? language : undefined;
+            console.log('Starting transcription with audio URL:', audioUrl.trim(), 'language:', languageCode, 'provider:', transcriptionProvider);
 
             // Determine API endpoint based on provider
             const apiEndpoint = transcriptionProvider === 'gemini'
                 ? '/api/transcribe/gemini'
                 : transcriptionProvider === 'elevenlabs'
-                ? '/api/transcribe/elevenlabs-stt'
-                : '/api/transcribe/assembly';
+                    ? '/api/transcribe/elevenlabs-stt'
+                    : '/api/transcribe/assembly';
 
-            setProgressMessage(`Starting transcription with ${
-                transcriptionProvider === 'gemini' ? 'Gemini' : 
+            setProgressMessage(`Starting transcription with ${transcriptionProvider === 'gemini' ? 'Gemini' :
                 transcriptionProvider === 'elevenlabs' ? 'ElevenLabs Scribe' :
-                'AssemblyAI'
-            }...`);
+                    'AssemblyAI'
+                }...`);
 
             // Call the transcription API
             const response = await fetch(apiEndpoint, {
@@ -185,7 +232,7 @@ export function NewTranscriptionUI() {
                 },
                 body: JSON.stringify({
                     audioUrl: audioUrl.trim(),
-                    language: language?.trim() || undefined,
+                    language: languageCode,
                     tags: selectedTags,
                 }),
             });
@@ -415,16 +462,24 @@ export function NewTranscriptionUI() {
                                                     <Globe className="h-4 w-4" />
                                                     Language (Optional)
                                                 </Label>
-                                                <Input
-                                                    id="language"
-                                                    placeholder="en, es, fr, de, etc."
+                                                <Select
                                                     value={language}
-                                                    onChange={(e) => setLanguage(e.target.value)}
-                                                    onKeyDown={handleKeyDown}
+                                                    onValueChange={setLanguage}
                                                     disabled={isTranscribing}
-                                                />
+                                                >
+                                                    <SelectTrigger id="language">
+                                                        <SelectValue placeholder="Select language" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {LANGUAGES.map((lang) => (
+                                                            <SelectItem key={lang.code} value={lang.code}>
+                                                                {lang.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Language code helps improve transcription accuracy. Leave empty for auto-detection.
+                                                    Selecting a language improves transcription accuracy. Use Auto-detect if unsure.
                                                 </p>
                                             </div>
                                         </div>
@@ -572,13 +627,22 @@ export function NewTranscriptionUI() {
                                                     <Globe className="h-4 w-4" />
                                                     Language (Optional)
                                                 </Label>
-                                                <Input
-                                                    id="ttsLanguage"
-                                                    placeholder="en, es, fr, de, etc."
+                                                <Select
                                                     value={language}
-                                                    onChange={(e) => setLanguage(e.target.value)}
+                                                    onValueChange={setLanguage}
                                                     disabled={isTranscribing}
-                                                />
+                                                >
+                                                    <SelectTrigger id="ttsLanguage">
+                                                        <SelectValue placeholder="Select language" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {LANGUAGES.map((lang) => (
+                                                            <SelectItem key={lang.code} value={lang.code}>
+                                                                {lang.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                     </div>
