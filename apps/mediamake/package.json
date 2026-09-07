@@ -1,6 +1,6 @@
 {
   "name": "mediamake",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -41,7 +41,7 @@
     "@microfox/db-upstash": "^1.2.0",
     "@microfox/puppeteer-sls": "^1.2.10",
     "@microfox/rag-upstash": "^1.2.0",
-    "@microfox/remotion": "^1.2.5",
+    "@microfox/remotion": "^2.0.0",
     "@microfox/s3-space": "^1.1.1",
     "@microfox/types": "^1.1.0",
     "@monaco-editor/react": "^4.7.0",
