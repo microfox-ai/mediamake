@@ -70,11 +70,19 @@ export function EditorMenubar() {
     canRedo,
     undo,
     redo,
-    isDirty,
+    isDirty: storeIsDirty,
+    history,
+    historyIndex,
     publishTimeline,
     saveAllTimelinesToDatabase,
     editedTimelines,
   } = useTimelineEditsStore();
+  // Recover mid-session when history has unpublished entries but isDirty was never flipped
+  // (regression from the timeline-sync refactor).
+  const isDirty =
+    storeIsDirty ||
+    (historyIndex >= 0 &&
+      history.some((entry, index) => index <= historyIndex && !entry.published));
   const {
     saveToDatabase: saveProjectToDatabase,
     cloudProject,
@@ -137,6 +145,18 @@ export function EditorMenubar() {
   );
   const unsyncedTimelineCount = unsyncedTimelineIds.length;
   const hasAnyUnsyncedTimelines = unsyncedTimelineCount > 0;
+
+  // Heal persisted isDirty if history already has unpublished work from before the fix.
+  useEffect(() => {
+    const state = useTimelineEditsStore.getState();
+    if (
+      !state.isDirty &&
+      state.historyIndex >= 0 &&
+      state.history.some((entry, index) => index <= state.historyIndex && !entry.published)
+    ) {
+      useTimelineEditsStore.setState({ isDirty: true });
+    }
+  }, [history, historyIndex, storeIsDirty]);
 
   // Handle keyboard shortcuts
   useEffect(() => {

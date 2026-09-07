@@ -225,12 +225,16 @@ type Tab = "local" | "team";
 export function TimelineHistoryPanel() {
   const {
     history, historyIndex, canUndo, canRedo, undo, redo,
-    isDirty, isPublishing, dbHistory, isLoadingDbHistory, loadTimelineDbHistory,
+    isDirty: storeIsDirty, isPublishing, dbHistory, isLoadingDbHistory, loadTimelineDbHistory,
     dbHistoryHasMore, loadMoreTimelineDbHistory,
     publishTimeline, revertTimelineToTeamBase, clientId, loadBaselineById,
     startTimelinePreview, endTimelinePreview, revertToTimelineState, isTimelinePreviewActive,
     clearPublishedHistory, resetToTimelineEntry, discardAllLocalTimelineChanges,
   } = useTimelineEditsStore();
+  const isDirty =
+    storeIsDirty ||
+    (historyIndex >= 0 &&
+      history.some((entry, index) => index <= historyIndex && !entry.published));
   const hasPublishedEntries = history.some((e) => e.published);
   const { loadedTimeline } = useProjectStore();
   const [tab, setTab] = useState<Tab>("local");

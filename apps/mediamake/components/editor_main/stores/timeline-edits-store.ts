@@ -224,17 +224,35 @@ const loadFromStorage = (projectId: string | null): {
   return null;
 };
 
+/** True when any history entry at/before the cursor is still unpublished. */
+const hasUnpublishedAtCursor = (history: HistoryEntry[], historyIndex: number): boolean => {
+  if (historyIndex < 0) return false;
+  for (let i = 0; i <= historyIndex; i++) {
+    if (!history[i]?.published) return true;
+  }
+  return false;
+};
+
 const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsState>) => {
   if (typeof window === 'undefined') return;
   try {
+    // Merge with existing storage so partial updates (undo/redo) don't wipe
+    // isDirty / timestamp maps when those fields are omitted from `state`.
+    const existing = loadFromStorage(projectId);
     const toStore = {
-      editedTimelines: Array.from(state.editedTimelines?.entries() || []),
-      cloudUpdatedAtByTimelineId: mapToEntries(state.cloudUpdatedAtByTimelineId ?? new Map()),
-      localEditUpdatedAtByTimelineId: mapToEntries(
-        state.localEditUpdatedAtByTimelineId ?? new Map()
+      editedTimelines: Array.from(
+        (state.editedTimelines ?? existing?.editedTimelines ?? new Map()).entries()
       ),
-      currentProjectId: state.currentProjectId,
-      isDirty: state.isDirty ?? false,
+      cloudUpdatedAtByTimelineId: mapToEntries(
+        state.cloudUpdatedAtByTimelineId ?? existing?.cloudUpdatedAtByTimelineId ?? new Map()
+      ),
+      localEditUpdatedAtByTimelineId: mapToEntries(
+        state.localEditUpdatedAtByTimelineId ??
+          existing?.localEditUpdatedAtByTimelineId ??
+          new Map()
+      ),
+      currentProjectId: state.currentProjectId ?? existing?.currentProjectId ?? projectId,
+      isDirty: state.isDirty ?? existing?.isDirty ?? false,
     };
     localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
   } catch (error) {
@@ -413,6 +431,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
         const newState = {
           editedTimelines: new Map(state.editedTimelines),
+          isDirty: true,
           cloudUpdatedAtByTimelineId: newCloud,
           localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
             timelineId,
@@ -422,6 +441,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           historyIndex: newIndex,
         };
         saveToStorage(state.currentProjectId, newState);
+        persistTimelineHistory(state.currentProjectId, newHistory, newIndex);
         return newState;
       });
 
@@ -697,8 +717,13 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         set((s) => {
           const ne = new Map(s.editedTimelines);
           ne.set(firstEntry.timelineId, baseline);
-          const ns = { historyIndex: -1 as const, editedTimelines: ne };
+          const ns = {
+            historyIndex: -1 as const,
+            editedTimelines: ne,
+            isDirty: false,
+          };
           saveToStorage(s.currentProjectId, ns);
+          persistTimelineHistory(s.currentProjectId, s.history, -1);
           return ns;
         });
 
@@ -717,6 +742,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             historyEntry.timelineId,
             historyEntry.timeline
           ),
+          isDirty: hasUnpublishedAtCursor(state.history, newIndex),
           cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
           localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
             historyEntry.timelineId,
@@ -726,6 +752,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
         // Persist to storage
         saveToStorage(state.currentProjectId, newState);
+        persistTimelineHistory(state.currentProjectId, state.history, newIndex);
 
         return newState;
       });
@@ -757,6 +784,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             historyEntry.timelineId,
             historyEntry.timeline
           ),
+          isDirty: hasUnpublishedAtCursor(state.history, newIndex),
           cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
           localEditUpdatedAtByTimelineId: bumpLocalTimelineEdit(
             historyEntry.timelineId,
@@ -766,6 +794,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         
         // Persist to storage
         saveToStorage(state.currentProjectId, newState);
+        persistTimelineHistory(state.currentProjectId, state.history, newIndex);
         
         return newState;
       });
@@ -897,6 +926,12 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const stored = loadFromStorage(projectId);
       // Restore the local undo/redo history for this project (survives reloads).
       const storedHistory = loadTimelineHistory(projectId);
+      const restoredHistory = storedHistory?.history ?? [];
+      const restoredIndex =
+        typeof storedHistory?.historyIndex === 'number' ? storedHistory.historyIndex : -1;
+      // Recover dirty state from history when storage was wiped by a partial save
+      // (edits recorded history but never flipped isDirty).
+      const dirtyFromHistory = hasUnpublishedAtCursor(restoredHistory, restoredIndex);
       if (stored) {
         const editedTimelines = stored.editedTimelines || new Map();
         set({
@@ -904,12 +939,12 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           cloudUpdatedAtByTimelineId: stored.cloudUpdatedAtByTimelineId || new Map(),
           localEditUpdatedAtByTimelineId: stored.localEditUpdatedAtByTimelineId || new Map(),
           currentProjectId: projectId,
-          // Restore the persisted isDirty flag directly.
+          // Prefer explicit dirty flag; fall back to unpublished history recovery.
           // Do NOT recalculate from editedTimelines.size — the map now keeps entries
           // even for clean (already-saved) timelines to avoid UI state resets.
-          isDirty: stored.isDirty ?? false,
+          isDirty: (stored.isDirty ?? false) || dirtyFromHistory,
           ...(storedHistory
-            ? { history: storedHistory.history, historyIndex: storedHistory.historyIndex }
+            ? { history: restoredHistory, historyIndex: restoredIndex }
             : {}),
         });
         
@@ -926,9 +961,9 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       } else {
         set({
           currentProjectId: projectId,
-          isDirty: false,
+          isDirty: dirtyFromHistory,
           ...(storedHistory
-            ? { history: storedHistory.history, historyIndex: storedHistory.historyIndex }
+            ? { history: restoredHistory, historyIndex: restoredIndex }
             : {}),
           cloudUpdatedAtByTimelineId: new Map(),
           localEditUpdatedAtByTimelineId: new Map(),
@@ -1062,7 +1097,10 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         return { publishedBaselineById: published, loadBaselineById: load };
       }),
 
-    hasUnpublishedChanges: () => get().isDirty,
+    hasUnpublishedChanges: () => {
+      const s = get();
+      return s.isDirty || hasUnpublishedAtCursor(s.history, s.historyIndex);
+    },
 
     loadTimelineDbHistory: async () => {
       const s = get();
