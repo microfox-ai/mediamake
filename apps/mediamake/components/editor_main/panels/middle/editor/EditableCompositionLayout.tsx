@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { AbsoluteFill, Sequence } from "remotion";
+import { AbsoluteFill, Sequence, useCurrentFrame } from "remotion";
 import { CompositionLayout } from "@microfox/remotion";
 import type { InputCompositionProps } from "@microfox/remotion";
 import type { CalculatedBoundaries } from "@microfox/remotion";
@@ -27,8 +27,6 @@ function findNodeById(nodes: RenderableComponentData[] | undefined, id: string):
 
 export type EditableCompositionLayoutProps = InputCompositionProps & {
   selectedLayerIds: string[];
-  /** Current playback frame (0-based) – only layers active at this frame are editable */
-  currentFrame?: number;
   onSelectLayer?: (id: string, addToSelection: boolean) => void;
   onChangeLayerBounds?: (id: string, bounds: Partial<CalculatedBoundaries>) => void;
   /** When false, render a non-interactive composition (no selection / drag / resize). */
@@ -47,13 +45,17 @@ export function EditableCompositionLayout(
     style,
     config,
     selectedLayerIds = [],
-    currentFrame = 0,
     onSelectLayer,
     onChangeLayerBounds,
     editModeEnabled = true,
   } = props;
 
-  const { setOverride, hiddenLayerIds, lockedLayerIds } = useLayerStateStore();
+  // Read playback frame from Remotion — do NOT take it via inputProps/Zustand
+  // or every frameupdate rebuilds the player tree and freezes playback.
+  const currentFrame = useCurrentFrame();
+  const setOverride = useLayerStateStore((s) => s.setOverride);
+  const hiddenLayerIds = useLayerStateStore((s) => s.hiddenLayerIds);
+  const lockedLayerIds = useLayerStateStore((s) => s.lockedLayerIds);
   const [draggingLayerId, setDraggingLayerId] = useState<string | null>(null);
   const dragStartBoundsRef = useRef<Record<string, { left: number; top: number }>>(
     {}
@@ -265,7 +267,7 @@ export function EditableCompositionLayout(
         >
           {sortedLayers.map((layer) => (
             <LayerOutlineWithSequence
-              key={layer.id}
+              key={[...layer.parentIds, layer.id].join("/")}
               layer={layer}
               isSelected={selectedLayerIds.includes(layer.id)}
               isDragging={draggingLayerId === layer.id}

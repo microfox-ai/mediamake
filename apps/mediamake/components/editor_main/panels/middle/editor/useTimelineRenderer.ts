@@ -12,15 +12,15 @@ import { useCompileStore } from "../../../stores/compile-store";
  * @returns The generated output, metadata, and generation state from the compile store
  */
 export function useTimelineRenderer(loadedTimeline: Timeline | null) {
-  const {
-    generatedOutput,
-    calculatedMetadata,
-    isGenerating,
-    generationError,
-    setCurrentTimeline,
-    generateOutput,
-    isFetchingPresets,
-  } = useCompileStore();
+  // Select only what this hook needs — a full-store subscription re-renders the
+  // player on every generationProgress tick.
+  const generatedOutput = useCompileStore((s) => s.generatedOutput);
+  const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
+  const isGenerating = useCompileStore((s) => s.isGenerating);
+  const generationError = useCompileStore((s) => s.generationError);
+  const setCurrentTimeline = useCompileStore((s) => s.setCurrentTimeline);
+  const generateOutput = useCompileStore((s) => s.generateOutput);
+  const isFetchingPresets = useCompileStore((s) => s.isFetchingPresets);
 
   // Use refs to track state and prevent infinite loops
   const lastTimelineIdRef = useRef<string | null>(null);

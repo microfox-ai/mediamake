@@ -359,7 +359,8 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   seekToFrame: () => {},
 
   setSelectedLayerIds: (ids) => set({ selectedLayerIds: ids }),
-  setCurrentFrame: (frame) => set({ currentFrame: frame }),
+  setCurrentFrame: (frame) =>
+    set((s) => (s.currentFrame === frame ? s : { currentFrame: frame })),
   setSeekToFrame: (fn) => set({ seekToFrame: fn }),
 
   selectLayer: (id, addToSelection = false) => {

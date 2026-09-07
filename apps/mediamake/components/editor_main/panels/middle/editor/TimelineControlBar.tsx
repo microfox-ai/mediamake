@@ -62,8 +62,10 @@ export function TimelineControlBar({
   const [wasPlaying, setWasPlaying] = useState(false);
 
   const { isModalOpen, openModal, closeModal, updateSetting } = useRender();
-  const { currentFrame, setCurrentFrame } = useLayerStateStore();
-  const { currentTimeline, generateOutput } = useCompileStore();
+  const currentFrame = useLayerStateStore((s) => s.currentFrame);
+  const setCurrentFrame = useLayerStateStore((s) => s.setCurrentFrame);
+  const currentTimeline = useCompileStore((s) => s.currentTimeline);
+  const generateOutput = useCompileStore((s) => s.generateOutput);
 
   const durationInFrames = calculatedMetadata?.durationInFrames ?? 0;
   const fps = calculatedMetadata?.fps ?? 30;

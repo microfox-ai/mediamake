@@ -9,6 +9,7 @@ import {
   filterEditableLayers,
   isLayerActiveAtFrame,
   buildLayerTree,
+  layerPathKey,
   type LayerTreeNode,
 } from "@/lib/editor/flatten-layers";
 import type { RenderableComponentData } from "@microfox/remotion";
@@ -487,11 +488,13 @@ export function LayersTree() {
       }
     };
 
+    const nodeKey = layerPathKey(node);
+
     const rowBody =
       !hasChildren ? (
         // Leaf node - no collapse/expand
         <div
-          key={node.id}
+          key={nodeKey}
           style={{ paddingLeft: `${indent}px` }}
           className="flex items-center"
           {...dragProps}
@@ -514,7 +517,7 @@ export function LayersTree() {
       ) : (
         // Parent node with children - collapsible
         <Collapsible
-          key={node.id}
+          key={nodeKey}
           open={isExpanded}
           onOpenChange={() => toggleExpanded(node.id)}
         >
@@ -563,7 +566,7 @@ export function LayersTree() {
       );
 
     return (
-      <ContextMenu key={node.id}>
+      <ContextMenu key={nodeKey}>
         <ContextMenuTrigger asChild>{rowBody}</ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem

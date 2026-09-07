@@ -28,22 +28,33 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
   generationError,
   loop = true,
 }, ref) => {
-  const {
-    overrides,
-    hiddenLayerIds,
-    selectedLayerIds,
-    addedNodes,
-    currentFrame,
-    selectLayer,
-    clearLayerSelection,
-    setCurrentFrame,
-    childrenOrderByParentId,
-    trackStates,
-    getMergedChildren,
-    loadedChildrenData,
-  } = useLayerStateStore();
+  // Narrow subscriptions — a full-store subscription re-renders the player on
+  // every frameupdate via setCurrentFrame, which freezes playback.
+  const overrides = useLayerStateStore((s) => s.overrides);
+  const hiddenLayerIds = useLayerStateStore((s) => s.hiddenLayerIds);
+  const selectedLayerIds = useLayerStateStore((s) => s.selectedLayerIds);
+  const addedNodes = useLayerStateStore((s) => s.addedNodes);
+  const childrenOrderByParentId = useLayerStateStore((s) => s.childrenOrderByParentId);
+  const trackStates = useLayerStateStore((s) => s.trackStates);
+  const getMergedChildren = useLayerStateStore((s) => s.getMergedChildren);
+  const selectLayer = useLayerStateStore((s) => s.selectLayer);
+  const clearLayerSelection = useLayerStateStore((s) => s.clearLayerSelection);
+  const setCurrentFrame = useLayerStateStore((s) => s.setCurrentFrame);
 
-  const { filePanelTab, editModeEnabled } = useEditorUIStore();
+  const filePanelTab = useEditorUIStore((s) => s.filePanelTab);
+  const editModeEnabled = useEditorUIStore((s) => s.editModeEnabled);
+
+  const onSelectLayer = useCallback(
+    (id: string, addToSelection: boolean) => {
+      if (!(filePanelTab === "layers" && editModeEnabled)) return;
+      if (id) {
+        selectLayer(id, addToSelection);
+      } else {
+        clearLayerSelection();
+      }
+    },
+    [filePanelTab, editModeEnabled, selectLayer, clearLayerSelection]
+  );
 
   const mergedProps = useMemo(() => {
     if (!calculatedMetadata?.props) return null;
@@ -67,16 +78,10 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
       childrenData: childrenForPreview,
       // Selection / drag overlays only make sense on the layers output.
       selectedLayerIds: isLayersTab ? selectedLayerIds : [],
-      currentFrame,
+      // Do NOT pass currentFrame here — Remotion's useCurrentFrame() inside the
+      // composition reads playback frame without forcing a player re-render loop.
       editModeEnabled: interactionsEnabled,
-      onSelectLayer: (id: string, addToSelection: boolean) => {
-        if (!interactionsEnabled) return;
-        if (id) {
-          selectLayer(id, addToSelection);
-        } else {
-          clearLayerSelection();
-        }
-      },
+      onSelectLayer,
     };
   }, [
     calculatedMetadata?.props,
@@ -85,14 +90,11 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
     hiddenLayerIds,
     trackStates,
     selectedLayerIds,
-    currentFrame,
-    selectLayer,
-    clearLayerSelection,
     childrenOrderByParentId,
     getMergedChildren,
-    loadedChildrenData,
     filePanelTab,
     editModeEnabled,
+    onSelectLayer,
   ]);
 
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -109,6 +111,8 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
         (ref as React.MutableRefObject<PlayerRef | null>).current = instance;
       }
       if (instance) {
+        // Keep external UI (seek bar / layered timeline) in sync — but never feed
+        // this back into Remotion inputProps (that caused the hang loop).
         const handler = () => setCurrentFrame(instance.getCurrentFrame());
         instance.addEventListener("frameupdate", handler);
         setCurrentFrame(instance.getCurrentFrame());
@@ -116,7 +120,7 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
           instance.removeEventListener("frameupdate", handler);
       }
     },
-    [ref]
+    [ref, setCurrentFrame]
   );
 
   if (!loadedTimeline) {

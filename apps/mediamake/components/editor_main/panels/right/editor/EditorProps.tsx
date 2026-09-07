@@ -27,12 +27,16 @@ export function EditorProps() {
   const { loadedTimeline } = useProjectStore();
   const { filePanelTab } = useEditorUIStore();
 
-  // Sync compile store with loaded timeline
+  // Sync compile store only when the loaded timeline *id* changes.
+  // Depending on the whole object re-fires setCurrentTimeline (and preset
+  // re-fetch) on every edit identity change, which churns the player.
   useEffect(() => {
-    if (loadedTimeline) {
-      setCurrentTimeline(loadedTimeline);
+    const timeline = useProjectStore.getState().loadedTimeline;
+    if (timeline) {
+      setCurrentTimeline(timeline);
     }
-  }, [loadedTimeline, setCurrentTimeline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally id-only
+  }, [loadedTimeline?.id, setCurrentTimeline]);
 
   // Show props depending on left sidebar tab + selection:
   // - Timelines tab: Prefer TimelineProps for the selected timeline.

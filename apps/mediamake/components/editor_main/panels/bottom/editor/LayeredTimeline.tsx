@@ -9,6 +9,7 @@ import {
   flattenLayers,
   filterEditableLayers,
   filterLeafLayers,
+  layerPathKey,
   type FlatLayer,
 } from "@/lib/editor/flatten-layers";
 import { useCompileStore } from "../../../stores/compile-store";
@@ -631,7 +632,7 @@ export function LayeredTimeline() {
 
           return (
             <div
-              key={layer.id}
+              key={layerPathKey(layer)}
               className="absolute top-0 bottom-0"
               style={{ left, width }}
               onPointerMove={handlePointerMove}

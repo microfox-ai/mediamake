@@ -396,9 +396,11 @@ export const useCompileStore = create<CompileState>((set, get) => ({
   currentTimeline: null,
 
   setCurrentTimeline: timeline => {
+    const prev = get().currentTimeline;
+    // Always keep the latest object for compile, but only kick off a preset
+    // fetch when the timeline id actually changes (or we had none).
     set({ currentTimeline: timeline });
-    if (timeline) {
-      // Auto-fetch preset info when timeline is set
+    if (timeline && timeline.id !== prev?.id) {
       get().fetchAllPresetInfo(timeline);
     }
   },

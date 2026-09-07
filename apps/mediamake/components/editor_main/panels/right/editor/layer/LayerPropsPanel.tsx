@@ -86,10 +86,16 @@ function findNodeById(
 
 function collectNodeIds(nodes: RenderableComponentData[] | undefined): string[] {
   const ids: string[] = [];
+  const seen = new Set<string>();
   if (!nodes?.length) return ids;
   function walk(n: RenderableComponentData[]) {
     for (const node of n) {
-      ids.push(node.id);
+      // Caption presets reuse ids like "part-0" under every caption — keep
+      // unique values only so React SelectItem keys stay stable.
+      if (!seen.has(node.id)) {
+        seen.add(node.id);
+        ids.push(node.id);
+      }
       if (node.childrenData?.length) walk(node.childrenData);
     }
   }

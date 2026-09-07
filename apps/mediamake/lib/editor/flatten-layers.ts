@@ -412,6 +412,15 @@ export interface LayerTreeNode extends FlatLayer {
 }
 
 /**
+ * Canonical React key / lookup path for a flattened layer.
+ * Prefer this over `layer.id` alone — caption presets reuse ids like "part-0"
+ * under every caption, so sibling trees collide without the parent path.
+ */
+export function layerPathKey(layer: { id: string; parentIds: string[] }): string {
+  return [...layer.parentIds, layer.id].join("/");
+}
+
+/**
  * Build a tree structure from flattened layers, preserving parent-child relationships.
  *
  * Uses full ancestor-path keys (parentIds.join('/') + '/' + id) so nodes with
