@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveWorkersConfigKey } from '@microfox/ai-worker';
 
 /**
  * GET /api/workflows/workers-config
@@ -19,7 +20,11 @@ export async function GET(_req: NextRequest) {
   const configUrl = base.endsWith('/workers/config') ? base : `${base}/workers/config`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = process.env.WORKERS_CONFIG_API_KEY;
+  // Resolve the same key every other consumer path uses: explicit
+  // WORKERS_CONFIG_API_KEY / WORKERS_API_KEY, else the projectId-derived key
+  // (sha256('microfox-workers:'+MICROFOX_PROJECT_ID)). A raw env read here would
+  // miss the projectId-derived key the deployed Lambda enforces → 401.
+  const apiKey = resolveWorkersConfigKey();
   if (apiKey) headers['x-workers-config-key'] = apiKey;
 
   try {

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
     Bot,
     Sparkles,
@@ -17,8 +18,17 @@ import {
     AlertCircle,
     Users,
     Copy,
-    Edit2
+    Edit2,
+    Scissors,
+    FileText
 } from "lucide-react";
+import {
+    STRUCTURE_PROFILES,
+    SPLIT_DENSITY_OPTIONS,
+    DEFAULT_STRUCTURE_PROFILE_ID,
+    type SplitDensity,
+} from "@/app/ai/agents/autofix/lib/structureProfiles";
+import { getReferenceLyricsText } from "@/app/ai/agents/autofix/lib/lyricsReference";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { AudioPlayerProvider, useAudioPlayer } from "../audio-player-context";
 import { AudioPlayer } from "../audio-player";
@@ -52,6 +62,13 @@ function AutofixUIInner() {
     const [isSavingTitle, setIsSavingTitle] = useState(false);
     const [selectedAgentPath, setSelectedAgentPath] = useState<string>("");
 
+    // Sentence-structure options
+    const [structureStyle, setStructureStyle] = useState<string>(DEFAULT_STRUCTURE_PROFILE_ID);
+    const [splitDensity, setSplitDensity] = useState<SplitDensity>("auto");
+    // Spelling options
+    const [useReferenceLyrics, setUseReferenceLyrics] = useState(true);
+    const [allowWordRemoval, setAllowWordRemoval] = useState(false);
+
     // Build list of autofix agents from aiRouterRegistry
     const availableAutofixAgents = useMemo(() => {
         const list: { name: string; path: string; description?: string; icon?: string }[] = [];
@@ -73,6 +90,22 @@ function AutofixUIInner() {
         }
         return list.sort((a, b) => a.name.localeCompare(b.name));
     }, []);
+
+    // Which extra option panels apply to the currently selected agent. The
+    // orchestrator can dispatch to either fixer, so it shows both.
+    const isOrchestrator = selectedAgentPath.replace(/\/$/, "").endsWith("/autofix");
+    const showStructureOptions =
+        isOrchestrator || selectedAgentPath.endsWith("sentence-structure");
+    const showSpellingOptions =
+        isOrchestrator || selectedAgentPath.endsWith("spelling");
+
+    const selectedProfile = useMemo(
+        () => STRUCTURE_PROFILES.find(p => p.id === structureStyle),
+        [structureStyle]
+    );
+
+    const referenceLyrics =
+        getReferenceLyricsText(transcriptionData ?? undefined) ?? "";
 
     // Set default agent on load
     useEffect(() => {
@@ -227,6 +260,14 @@ function AutofixUIInner() {
                 userRequest: userRequest.trim() || undefined,
                 userWrittenTranscription: userWrittenTranscription.trim() || undefined,
                 applyToDatabase: true, // Apply directly to database
+                ...(showStructureOptions && {
+                    structureStyle,
+                    splitDensity,
+                }),
+                ...(showSpellingOptions && {
+                    useReferenceLyrics,
+                    allowWordRemoval,
+                }),
             })
 
             console.log('AI autofix result:', result);
@@ -444,6 +485,131 @@ function AutofixUIInner() {
                             <div className="text-sm text-muted-foreground p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                 <span className="font-semibold">Description: </span>
                                 {availableAutofixAgents.find(a => a.path === selectedAgentPath)?.description || 'No description available'}
+                            </div>
+                        )}
+
+                        {/* Sentence structure options */}
+                        {showStructureOptions && (
+                            <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                                <div className="flex items-center gap-2">
+                                    <Scissors className="h-4 w-4 text-primary" />
+                                    <Label className="text-sm font-semibold">Caption structure</Label>
+                                    {isOrchestrator && (
+                                        <Badge variant="outline" className="text-[10px]">
+                                            applies if the structure fixer runs
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="structureStyle" className="text-xs text-muted-foreground">
+                                            Delivery style
+                                        </Label>
+                                        <Select value={structureStyle} onValueChange={setStructureStyle}>
+                                            <SelectTrigger id="structureStyle" className="w-full">
+                                                <SelectValue placeholder="Select a delivery style" />
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-80">
+                                                {STRUCTURE_PROFILES.map((profile) => (
+                                                    <SelectItem key={profile.id} value={profile.id}>
+                                                        {profile.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="splitDensity" className="text-xs text-muted-foreground">
+                                            Division amount
+                                        </Label>
+                                        <Select
+                                            value={splitDensity}
+                                            onValueChange={(v) => setSplitDensity(v as SplitDensity)}
+                                        >
+                                            <SelectTrigger id="splitDensity" className="w-full">
+                                                <SelectValue placeholder="Profile default" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SPLIT_DENSITY_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.id} value={option.id}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                {selectedProfile && (
+                                    <div className="text-xs text-muted-foreground space-y-1">
+                                        <p>{selectedProfile.description}</p>
+                                        <p className="font-mono text-[11px] opacity-80">
+                                            ~{selectedProfile.targetChars} chars / ~{selectedProfile.targetWords} words per line
+                                            {" · "}max {selectedProfile.maxChars} chars
+                                            {" · "}breaks on gaps ≥ {selectedProfile.hardGapSeconds}s
+                                            {splitDensity !== "auto" && (
+                                                <> {" · "}adjusted: {SPLIT_DENSITY_OPTIONS.find(o => o.id === splitDensity)?.label.toLowerCase()}</>
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Spelling options */}
+                        {showSpellingOptions && (
+                            <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-primary" />
+                                    <Label className="text-sm font-semibold">Word corrections</Label>
+                                    <Badge
+                                        variant={referenceLyrics ? "default" : "outline"}
+                                        className="text-[10px]"
+                                    >
+                                        {referenceLyrics
+                                            ? `Suno lyrics available (${referenceLyrics.trim().split(/\s+/).length} words)`
+                                            : "No Suno lyrics on this transcription"}
+                                    </Badge>
+                                </div>
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <Label htmlFor="useReferenceLyrics" className="text-xs">
+                                            Use Suno lyrics as reference
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Corrects words ElevenLabs misheard against the lyrics the song was generated from.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="useReferenceLyrics"
+                                        checked={useReferenceLyrics}
+                                        onCheckedChange={setUseReferenceLyrics}
+                                        disabled={!referenceLyrics}
+                                    />
+                                </div>
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <Label htmlFor="allowWordRemoval" className="text-xs">
+                                            Remove hallucinated words
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Deletes words that are absent from the lyrics and duplicate a neighbour. Off by default.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="allowWordRemoval"
+                                        checked={allowWordRemoval}
+                                        onCheckedChange={setAllowWordRemoval}
+                                    />
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Only single words are replaced — timestamps and caption line boundaries are never modified.
+                                </p>
                             </div>
                         )}
 

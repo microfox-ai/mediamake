@@ -241,6 +241,11 @@ export default function ImageHistoryPage() {
                     {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
                   </div>
                   <div className="flex flex-wrap gap-1">
+                    {r.renderSource === "browser" && (
+                      <Badge variant="outline" className="text-xs">
+                        Browser
+                      </Badge>
+                    )}
                     {r.projectId && (
                       <Badge variant="secondary" className="text-xs">
                         {projectNameById.get(r.projectId) ?? r.projectId}

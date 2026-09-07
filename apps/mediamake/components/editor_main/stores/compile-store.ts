@@ -597,23 +597,16 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           continue;
         }
 
-        // Get preset info from cache
-        const presetInfo = state.presetInfoCache.get(presetItem.presetId);
-        if (!presetInfo || !presetInfo.preset) {
-          // Try to fetch if not in cache
-          const fetchedPreset = await get().fetchPresetInfo(
-            presetItem.presetId,
-          );
-          if (!fetchedPreset) {
+        // Get preset info from cache (read fresh state — fetches during this
+        // loop update the cache, and a new tab starts with it empty)
+        let actualPreset = get().presetInfoCache.get(presetItem.presetId)?.preset ?? null;
+        if (!actualPreset) {
+          // Not cached yet — fetch (fetchPresetInfo also populates the cache)
+          actualPreset = await get().fetchPresetInfo(presetItem.presetId);
+          if (!actualPreset) {
             console.warn(`Preset ${presetItem.presetId} not found, skipping`);
             continue;
           }
-          presetInfo!.preset = fetchedPreset;
-        }
-
-        const actualPreset = presetInfo!.preset;
-        if (!actualPreset) {
-          continue;
         }
 
         // Process input data with base data references

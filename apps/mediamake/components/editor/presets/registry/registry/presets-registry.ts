@@ -2,6 +2,7 @@ import { Preset } from '../../types';
 import { contentAwarePreset } from '../canvas_experimental/content-aware-reveal';
 import { glitchEffectPreset } from '../canvas_experimental/glitch-effect';
 import { particleEffectPreset } from '../canvas_experimental/particle-effect';
+import { particleMorphRevealPreset } from '../canvas_experimental/particle-morph-reveal';
 import { wipeRevealPreset } from '../canvas_experimental/wipe-reveal';
 import { brollPreset } from '../captions/broll';
 import { subFastRapStaticPreset } from '../captions/sub-fast-rap-static';
@@ -71,6 +72,7 @@ export const predefinedPresets: Preset[] = [
   contentAwarePreset,
   glitchEffectPreset,
   particleEffectPreset,
+  particleMorphRevealPreset,
   hipHopScratchWipePreset,
   beatZoomPreset,
   beatShakePreset,

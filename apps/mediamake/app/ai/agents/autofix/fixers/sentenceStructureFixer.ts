@@ -1,20 +1,23 @@
 import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
-import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
-import dedent from 'dedent';
-import {
-  formatCaptionsForAI,
-  parseAIOutputToCaptions,
-  detectChanges,
-  saveTranscriptionFix,
-} from '../helpers';
+import { saveTranscriptionFix } from '../helpers';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadTranscription } from '../middlewares/loadTranscription';
+import { runSentenceStructureFix } from '../lib/sentenceStructureCore';
+import {
+  DEFAULT_STRUCTURE_PROFILE_ID,
+  STRUCTURE_PROFILE_IDS,
+  STRUCTURE_PROFILES,
+  type SplitDensity,
+} from '../lib/structureProfiles';
+import { getReferenceLyrics } from '../lib/lyricsReference';
 
 /**
  * Sentence Structure Fixer Agent
- * Specialized in improving sentence structure for better readability
+ *
+ * Re-segments captions for a specific delivery style. The model only chooses
+ * break points — words and timestamps are rebuilt from the source data, so a
+ * bad model response degrades the segmentation rather than the transcript.
  */
 
 const aiRouter = new AiRouter();
@@ -24,122 +27,92 @@ const sentenceStructureFixerAgent = aiRouter
   .agent('/', async ctx => {
     try {
       console.log('SENTENCE STRUCTURE FIXER: Starting...');
-      ctx.response.writeMessageMetadata({
-        loader: 'Improving sentence structure...',
-      });
 
       const {
         transcriptionId,
         userRequest,
+        structureStyle = DEFAULT_STRUCTURE_PROFILE_ID,
+        splitDensity = 'auto',
+        maxCharsPerLine,
+        maxWordsPerLine,
+        useReferenceLyrics = true,
         applyToDatabase = false,
       } = ctx.request.params as {
         transcriptionId: string;
         userRequest?: string;
+        structureStyle?: string;
+        splitDensity?: SplitDensity;
+        maxCharsPerLine?: number;
+        maxWordsPerLine?: number;
+        useReferenceLyrics?: boolean;
         applyToDatabase?: boolean;
       };
+
+      const profileLabel =
+        STRUCTURE_PROFILES.find(p => p.id === structureStyle)?.label ??
+        'Auto-detect';
+
+      ctx.response.writeMessageMetadata({
+        loader: `Re-segmenting captions (${profileLabel})...`,
+      });
 
       const transcription = ctx.state.transcription;
       const captions = ctx.state.captions || transcription.captions;
 
-      // Format captions for AI processing
-      const formattedCaptions = formatCaptionsForAI(captions);
+      // The written lyrics tell the model where the actual song lines are, which
+      // is exactly the information ElevenLabs' fixed-width chunking destroyed.
+      const reference = useReferenceLyrics
+        ? getReferenceLyrics(transcription)
+        : undefined;
 
-      const systemPrompt = dedent`You are a sentence structure expert specializing in optimizing transcriptions for subtitle display.
-
-TASK: Improve sentence structure for better readability in subtitles.
-
-RULES:
-1. Split run-on sentences that are too long for one subtitle screen
-   - Keep each sentence under 50-60 characters ideally
-   - Split at natural breaks (commas, conjunctions, pauses)
-2. Merge sentence fragments that belong together
-3. Ensure each sentence forms a complete, coherent thought
-4. Preserve ALL timing information
-5. Do NOT fix spelling errors
-6. Do NOT change word boundaries
-7. Keep the same words in the same order
-
-SUBTITLE OPTIMIZATION:
-- Each sentence appears on one screen
-- Long sentences reduce readability
-- Split at logical breaks: after phrases, before conjunctions
-- Aim for 1-2 lines per subtitle (max ~70 characters)
-
-TIMING PRESERVATION:
-- Maintain exact word-level timing
-- Only reorganize which words belong to which sentence
-- Do not modify individual word timings
-
-OUTPUT FORMAT:
-Return the corrected captions in the exact same format as input:
-- Each sentence starts with a dash (-)
-- Words are separated by <$>
-- Each word has timestamps in brackets: word[absoluteStart-absoluteEnd]
-- Example: -hello[1.2-1.5]<$>world[1.6-2.0]
-
-Do not include any other text, explanations, or formatting. Only return the corrected captions.`;
-
-      const prompt = dedent`TRANSCRIPTION DATA:
-${formattedCaptions}
-
-${userRequest ? `USER REQUEST: ${userRequest}` : ''}
-
-Optimize sentence structure for subtitle display while preserving all timing.`;
-
-      const result = await generateText({
-        model: google('gemini-2.5-pro'), // Use Pro for better understanding
-        system: systemPrompt,
-        prompt,
-        maxRetries: 2,
+      const result = await runSentenceStructureFix(captions, {
+        structureStyle,
+        splitDensity,
+        maxCharsPerLine,
+        maxWordsPerLine,
+        userRequest,
+        referenceLyrics: reference?.text,
       });
-      if (result.usage) {
-        appendUsage(ctx.state, 'google/gemini-2.5-pro', result.usage);
+
+      for (const usage of result.usage) {
+        appendUsage(ctx.state, 'google/gemini-2.5-pro', usage);
       }
 
-      console.log('SENTENCE STRUCTURE FIXER USING:', result.usage);
+      console.log('SENTENCE STRUCTURE FIXER:', {
+        profile: result.profile.id,
+        splitDensity,
+        wordsPerSecond: result.wordsPerSecond.toFixed(2),
+        usedModel: result.usedModel,
+        stats: result.stats,
+        changes: result.changes.length,
+      });
 
-      // Parse the AI output back to caption structure
-      const fixedCaptions = parseAIOutputToCaptions(
-        result.text,
-        transcription.captions,
-      );
-
-      // Detect changes
-      const changes = detectChanges(
-        transcription.captions,
-        fixedCaptions,
-        'sentence_structure_fix',
-      );
-
-      // Optionally save to database
       let updatedTranscription = null;
       if (applyToDatabase) {
         updatedTranscription = await saveTranscriptionFix(
           transcriptionId,
-          fixedCaptions,
-          changes,
-          'Sentence Structure Fixer',
+          result.fixedCaptions,
+          result.changes,
+          `Sentence Structure Fixer (${result.profile.label})`,
           userRequest,
         );
       }
-
-      console.log(
-        'SENTENCE STRUCTURE FIXER: Completed -',
-        changes.length,
-        'changes',
-      );
 
       return {
         success: true,
         appliedToDatabase: applyToDatabase,
         transcription: updatedTranscription || {
           ...transcription,
-          captions: fixedCaptions,
+          captions: result.fixedCaptions,
         },
-        changes: changes,
-        confidence: 0.85,
+        changes: result.changes,
+        confidence: result.confidence,
         usage: result.usage,
-        summary: `Improved sentence structure (${changes.length} change${changes.length !== 1 ? 's' : ''})`,
+        structureStyle: result.profile.id,
+        structureLabel: result.profile.label,
+        splitDensity,
+        stats: result.stats,
+        summary: result.summary,
       };
     } catch (error) {
       console.error('Sentence structure fixer error:', error);
@@ -150,13 +123,46 @@ Optimize sentence structure for subtitle display while preserving all timing.`;
     id: 'sentenceStructureFixer',
     name: 'Sentence Structure Fixer',
     description:
-      'Improve sentence structure by splitting long sentences and merging fragments. Optimized for subtitle display readability.',
+      'Re-segment captions for a chosen delivery style (rapid-fire rap, sung ballad, broadcast subtitle, kinetic short-form, ...). Short-line styles divide more; long-line styles divide less. Words and timestamps are preserved exactly.',
     inputSchema: z.object({
       transcriptionId: z.string().describe('Transcription ID to fix'),
       userRequest: z
         .string()
         .optional()
         .describe('Specific structure improvements to make'),
+      structureStyle: z
+        .enum(STRUCTURE_PROFILE_IDS as [string, ...string[]])
+        .optional()
+        .default(DEFAULT_STRUCTURE_PROFILE_ID)
+        .describe(
+          `Delivery/segmentation profile. One of: ${STRUCTURE_PROFILES.map(p => `${p.id} (${p.label})`).join(', ')}`,
+        ),
+      splitDensity: z
+        .enum(['auto', 'much-finer', 'finer', 'coarser', 'much-coarser'])
+        .optional()
+        .default('auto')
+        .describe(
+          'Override how many divisions the chosen style makes. "finer" = shorter lines / more divisions.',
+        ),
+      maxCharsPerLine: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Hard character cap per caption line, overriding the style'),
+      maxWordsPerLine: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Hard word cap per caption line, overriding the style'),
+      useReferenceLyrics: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe(
+          "Use the transcription's Suno lyrics as a structural reference for where song lines break",
+        ),
       applyToDatabase: z
         .boolean()
         .optional()
@@ -169,6 +175,9 @@ Optimize sentence structure for subtitle display while preserving all timing.`;
       transcription: z.any(),
       changes: z.array(z.any()),
       confidence: z.number().min(0).max(1),
+      structureStyle: z.string().optional(),
+      structureLabel: z.string().optional(),
+      stats: z.any().optional(),
       summary: z.string(),
     }),
     metadata: {
@@ -181,7 +190,8 @@ Optimize sentence structure for subtitle display while preserving all timing.`;
       ],
       icon: '📝',
       title: 'Sentence Structure Fixer',
-      description: 'Optimize sentence structure for subtitles',
+      description:
+        'Re-segment captions for a chosen delivery style (rap flow, sung, narration, kinetic...)',
       hideUI: false,
     },
   });

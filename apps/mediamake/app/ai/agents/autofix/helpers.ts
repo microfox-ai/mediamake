@@ -1,6 +1,7 @@
 import { getDatabase } from '@/lib/mongodb';
 import { Transcription } from '@/app/types/transcription';
 import { ObjectId } from 'mongodb';
+import { detectSegmentationChanges } from './lib/segmentation';
 
 /**
  * Formats captions into the required word[absoluteStart-absoluteEnd] format
@@ -97,9 +98,12 @@ export function detectChanges(
       fixed: fixedText,
       confidence: 0.9,
     });
+    return changes;
   }
 
-  return changes;
+  // Same words, different line boundaries: a re-segmentation. Comparing joined
+  // text alone reports "no change" here, which made callers discard real work.
+  return detectSegmentationChanges(originalCaptions, fixedCaptions, changeType);
 }
 
 /**

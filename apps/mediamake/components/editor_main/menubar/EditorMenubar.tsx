@@ -11,6 +11,7 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   FolderOpen,
@@ -29,18 +30,24 @@ import {
   Plus,
   Download,
   Loader2,
-  CheckIcon,
   Layers,
+  Upload,
+  Users,
+  UserPlus,
+  RefreshCw,
 } from "lucide-react";
 import { NewProjectDialog } from "../dialogs/NewProjectDialog";
 import { NewTimelineDialog } from "../dialogs/NewTimelineDialog";
 import { LoadProjectDialog } from "../dialogs/LoadProjectDialog";
 import { LoadTimelineDialog } from "../dialogs/LoadTimelineDialog";
+import { ShareProjectDialog } from "../dialogs/ShareProjectDialog";
 import { useTimelineEditsStore } from "../stores/timeline-edits-store";
 import { useProjectEditsStore } from "../stores/project-edits-store";
 import { useProjectStore } from "../stores/project-store";
-import { getUnsyncedTimelineIds, isTimelineUnsyncedWithCloud } from "../stores/timeline-sync";
+import { getUnsyncedTimelineIds } from "../stores/timeline-sync";
 import { useLayerStateStore } from "../stores/layer-state-store";
+import { useHasUnpublishedChanges } from "../stores/layer-history-store";
+import { useEditorUIStore } from "../stores/editor-ui-store";
 import { useCompileStore } from "../stores/compile-store";
 import { useSession } from "@/components/session-provider";
 import { toast } from "sonner";
@@ -50,8 +57,10 @@ export function EditorMenubar() {
   const [newTimelineOpen, setNewTimelineOpen] = useState(false);
   const [loadProjectOpen, setLoadProjectOpen] = useState(false);
   const [loadTimelineOpen, setLoadTimelineOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingLayerState, setIsSavingLayerState] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [isSavingAllTimelines, setIsSavingAllTimelines] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
@@ -61,7 +70,8 @@ export function EditorMenubar() {
     canRedo,
     undo,
     redo,
-    saveToDatabase,
+    isDirty,
+    publishTimeline,
     saveAllTimelinesToDatabase,
     editedTimelines,
   } = useTimelineEditsStore();
@@ -70,29 +80,45 @@ export function EditorMenubar() {
     cloudProject,
     localEditUpdatedAt: projectLocalEditUpdatedAt,
   } = useProjectEditsStore();
-  const { loadedTimeline, currentProjectId, timelines } = useProjectStore();
+  const {
+    loadedTimeline,
+    currentProjectId,
+    currentProject,
+    timelines,
+  } = useProjectStore();
   const session = useSession();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
-  const getLayerStateSnapshot = useLayerStateStore((s) => s.getLayerStateSnapshot);
+  const publishLayerState = useLayerStateStore((s) => s.publishLayerState);
+  const revertToTeamBase = useLayerStateStore((s) => s.revertToTeamBase);
+  const hasUnpublishedChanges = useHasUnpublishedChanges();
+
+  // Derive viewer-mode flag — viewers cannot save/publish/edit
+  const isViewer = currentProject != null && !currentProject.isOwned && currentProject.sharedRole === "viewer";
+
+  const handleSyncWithTeam = async () => {
+    if (!loadedTimeline || !currentProjectId) return;
+    setIsSyncing(true);
+    try {
+      // Proactively clear any stale local WIP from localStorage before re-loading
+      // so the canonical server state is applied cleanly.
+      try {
+        localStorage.removeItem(`wip-layer-state-${currentProjectId}-${loadedTimeline.id}`);
+      } catch { /* ignore quota/security errors */ }
+
+      await revertToTeamBase(currentProjectId, loadedTimeline.id);
+      toast.success("Synced with team — showing latest published state");
+    } catch {
+      toast.error("Failed to sync with team");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const cloudUpdatedAtByTimelineId = useTimelineEditsStore(
     (state) => state.cloudUpdatedAtByTimelineId
   );
   const localEditUpdatedAtByTimelineId = useTimelineEditsStore(
     (state) => state.localEditUpdatedAtByTimelineId
-  );
-
-  const currentTimelineUnsynced = useMemo(
-    () =>
-      loadedTimeline
-        ? isTimelineUnsyncedWithCloud(
-            loadedTimeline.id,
-            cloudUpdatedAtByTimelineId,
-            localEditUpdatedAtByTimelineId,
-            loadedTimeline.updatedAt
-          )
-        : false,
-    [loadedTimeline, cloudUpdatedAtByTimelineId, localEditUpdatedAtByTimelineId]
   );
 
   const unsyncedTimelineIds = useMemo(
@@ -116,33 +142,37 @@ export function EditorMenubar() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Cmd/Ctrl + S to save
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        if (loadedTimeline && currentTimelineUnsynced) {
+        if (loadedTimeline && isDirty && !isViewer) {
           handleSaveCurrentTimeline();
         }
       }
+      // Timeline undo/redo only while the Timelines tab is active (the Layers
+      // tab has its own undo handled in MainEditor).
+      const onTimelinesTab =
+        useEditorUIStore.getState().filePanelTab === "timelines";
       // Cmd/Ctrl + Z to undo
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if (onTimelinesTab && (e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         if (canUndo()) {
           undo();
-          toast.success('Undone');
+          toast.success("Undone");
         }
       }
       // Cmd/Ctrl + Shift + Z to redo
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'Z') {
+      if (onTimelinesTab && (e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "Z") {
         e.preventDefault();
         if (canRedo()) {
           redo();
-          toast.success('Redone');
+          toast.success("Redone");
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loadedTimeline, currentTimelineUnsynced, canUndo, canRedo, undo, redo]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [loadedTimeline, isDirty, isViewer, canUndo, canRedo, undo, redo]);
 
   const getTimelineName = (timelineId: string) => {
     const edited = editedTimelines.get(timelineId);
@@ -151,6 +181,10 @@ export function EditorMenubar() {
 
   const handleSaveCurrentTimeline = async () => {
     if (!loadedTimeline) return;
+    if (isViewer) {
+      toast.error("Viewers cannot save timeline changes");
+      return;
+    }
 
     const timelineName = getTimelineName(loadedTimeline.id);
     const savingMessage = `Saving timeline: ${timelineName}`;
@@ -158,10 +192,25 @@ export function EditorMenubar() {
     setIsSaving(true);
     toast.loading(savingMessage, { id: "save-timeline" });
     try {
-      await saveToDatabase(loadedTimeline.id);
-      toast.success(`Saved timeline: ${timelineName}`, { id: "save-timeline", duration: 2000 });
+      const result = await publishTimeline(loadedTimeline.id);
+      if (result.ok) {
+        toast.success(
+          "merged" in result
+            ? "Merged teammate's changes & published"
+            : `Published timeline: ${timelineName}`,
+          { id: "save-timeline", duration: 2000 },
+        );
+      } else if (result.reason === "nochange") {
+        toast.info("Already up to date — nothing to publish", { id: "save-timeline", duration: 2000 });
+      } else if (result.reason === "merge") {
+        toast.info(`${result.conflicts} conflict(s) to resolve before publishing.`, { id: "save-timeline" });
+      } else if (result.reason === "conflict") {
+        toast.error("Publish conflict — please try again.", { id: "save-timeline", duration: 6000 });
+      } else {
+        toast.error(result.message ?? "Failed to publish timeline", { id: "save-timeline" });
+      }
     } catch (error) {
-      toast.error(`Failed to save timeline: ${timelineName}`, { id: "save-timeline", duration: 2000 });
+      toast.error(`Failed to publish timeline: ${timelineName}`, { id: "save-timeline", duration: 2000 });
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -228,27 +277,29 @@ export function EditorMenubar() {
 
   const handleSaveLayerState = async () => {
     if (!loadedTimeline || !currentProjectId) return;
+    if (isViewer) {
+      toast.error("Viewers cannot publish layer state");
+      return;
+    }
 
     setIsSavingLayerState(true);
     try {
-      const snapshot = getLayerStateSnapshot(calculatedMetadata?.props?.childrenData);
-      const res = await fetch("/api/project/timeline/layer-state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: currentProjectId,
-          timelineId: loadedTimeline.id,
-          ...snapshot,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to save layer state");
+      const result = await publishLayerState(
+        currentProjectId,
+        loadedTimeline.id,
+        calculatedMetadata?.props?.childrenData,
+      );
+      if (result.ok) {
+        toast.success("merged" in result ? "Merged teammate's changes & published" : "Published to team");
+      } else if (result.reason === "nochange") {
+        toast.info("Already up to date — nothing to publish");
+      } else if (result.reason === "merge") {
+        toast.info(`${result.conflicts} layer conflict(s) to resolve before publishing.`);
+      } else if (result.reason === "conflict") {
+        toast.error("Publish conflict — please try again.", { duration: 6000 });
+      } else {
+        toast.error(result.message ?? "Failed to publish layer state");
       }
-      toast.success("Layer state saved");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save layer state");
-      console.error(error);
     } finally {
       setIsSavingLayerState(false);
     }
@@ -257,6 +308,7 @@ export function EditorMenubar() {
   return (
     <>
       <Menubar className="h-8 rounded-none border-b border-x-0 border-t-0 px-2 flex items-center">
+        {/* ── File ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">File</MenubarTrigger>
           <MenubarContent>
@@ -271,7 +323,10 @@ export function EditorMenubar() {
               <MenubarShortcut>⌘O</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onClick={() => setNewTimelineOpen(true)}>
+            <MenubarItem
+              onClick={() => setNewTimelineOpen(true)}
+              disabled={isViewer}
+            >
               <Plus className="mr-2 h-4 w-4" />
               New Timeline
             </MenubarItem>
@@ -282,7 +337,7 @@ export function EditorMenubar() {
             <MenubarSeparator />
             <MenubarItem
               onClick={handleSaveCurrentTimeline}
-              disabled={!loadedTimeline || !currentTimelineUnsynced || isSaving}
+              disabled={!loadedTimeline || !isDirty || isSaving || isViewer}
             >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -317,14 +372,23 @@ export function EditorMenubar() {
             </MenubarItem>
             <MenubarItem
               onClick={handleSaveLayerState}
-              disabled={!loadedTimeline || !currentProjectId || isSavingLayerState}
+              disabled={
+                !loadedTimeline ||
+                !currentProjectId ||
+                isSavingLayerState ||
+                !hasUnpublishedChanges ||
+                isViewer
+              }
             >
               {isSavingLayerState ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Layers className="mr-2 h-4 w-4" />
               )}
-              Save layer state
+              Publish layers to team
+              {hasUnpublishedChanges && !isViewer && (
+                <span className="ml-2 h-1.5 w-1.5 rounded-full bg-amber-400" />
+              )}
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem>
@@ -335,11 +399,12 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
+        {/* ── Edit ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">Edit</MenubarTrigger>
           <MenubarContent>
             <MenubarItem
-              onClick={() => undo() && toast.success('Undone')}
+              onClick={() => undo() && toast.success("Undone")}
               disabled={!canUndo()}
             >
               <Undo className="mr-2 h-4 w-4" />
@@ -347,7 +412,7 @@ export function EditorMenubar() {
               <MenubarShortcut>⌘Z</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
-              onClick={() => redo() && toast.success('Redone')}
+              onClick={() => redo() && toast.success("Redone")}
               disabled={!canRedo()}
             >
               <Redo className="mr-2 h-4 w-4" />
@@ -373,6 +438,7 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
+        {/* ── Timeline ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">Timeline</MenubarTrigger>
           <MenubarContent>
@@ -398,6 +464,7 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
+        {/* ── View ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">View</MenubarTrigger>
           <MenubarContent>
@@ -423,6 +490,42 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
+        {/* ── Share ── */}
+        <MenubarMenu>
+          <MenubarTrigger className="text-xs">Share</MenubarTrigger>
+          <MenubarContent>
+            <MenubarItem
+              onClick={() => setShareOpen(true)}
+              disabled={!currentProjectId}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Manage Access
+            </MenubarItem>
+            {currentProject?.isOwned && (
+              <MenubarItem
+                onClick={() => setShareOpen(true)}
+                disabled={!currentProjectId}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Invite Member
+              </MenubarItem>
+            )}
+            <MenubarSeparator />
+            <MenubarItem
+              onClick={handleSyncWithTeam}
+              disabled={!loadedTimeline || !currentProjectId || isSyncing}
+            >
+              {isSyncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Sync with Team
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+
+        {/* ── Help ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">Help</MenubarTrigger>
           <MenubarContent>
@@ -435,41 +538,97 @@ export function EditorMenubar() {
               <MenubarShortcut>⌘?</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem>
-              About
-            </MenubarItem>
+            <MenubarItem>About</MenubarItem>
           </MenubarContent>
         </MenubarMenu>
 
-        {/* Save Button - shown when there are unsaved changes */}
-        {currentTimelineUnsynced && loadedTimeline && (
-          <div className="ml-auto flex items-center gap-2">
+        {/* ── Right side: viewer badge + sync + save buttons ── */}
+        <div className="ml-auto flex items-center gap-2">
+          {isViewer && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs gap-1">
+              <Eye className="h-2.5 w-2.5" />
+              Viewer
+            </Badge>
+          )}
+
+          {/* Sync button — always visible when a timeline is open; especially prominent for viewers */}
+          {loadedTimeline && currentProjectId && (
+            <Button
+              variant={isViewer ? "outline" : "ghost"}
+              size="sm"
+              onClick={handleSyncWithTeam}
+              disabled={isSyncing}
+              className="h-5 px-1.5 text-xs gap-1"
+              title="Pull the latest published state from the team"
+            >
+              {isSyncing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              {isViewer ? "Sync" : ""}
+            </Button>
+          )}
+
+          {isDirty && loadedTimeline && !isViewer && (
             <Button
               variant="default"
               size="sm"
               onClick={handleSaveCurrentTimeline}
               disabled={isSaving}
               className="h-5 px-1 text-xs"
+              title="Publish timeline changes to the team"
             >
               {isSaving ? (
                 <>
                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  Saving...
+                  Publishing...
                 </>
               ) : (
                 <>
-                  <CheckIcon className="mr-1 h-3 w-3" />
-                  Save Current Timeline
+                  <Upload className="mr-1 h-3 w-3" />
+                  Publish Timeline
                 </>
               )}
             </Button>
-          </div>
-        )}
+          )}
+
+          {hasUnpublishedChanges && loadedTimeline && !isViewer && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSaveLayerState}
+              disabled={isSavingLayerState}
+              className="h-5 px-1 text-xs"
+              title="Publish layer changes to the team"
+            >
+              {isSavingLayerState ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Layers className="mr-1 h-3 w-3" />
+                  Publish Layers
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </Menubar>
+
+      {/* ── Dialogs ── */}
       <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
       <NewTimelineDialog open={newTimelineOpen} onOpenChange={setNewTimelineOpen} />
       <LoadProjectDialog open={loadProjectOpen} onOpenChange={setLoadProjectOpen} />
       <LoadTimelineDialog open={loadTimelineOpen} onOpenChange={setLoadTimelineOpen} />
+      <ShareProjectDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        projectId={currentProjectId ?? ""}
+        projectName={currentProject?.displayName ?? currentProjectId ?? "Project"}
+      />
     </>
   );
 }

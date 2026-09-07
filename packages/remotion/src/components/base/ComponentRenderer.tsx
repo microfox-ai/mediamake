@@ -88,12 +88,21 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
                     {childrenData?.map((child) => {
                         // reverse should happen here, not based on toot layout actually
                         const childTiming = calculateTimingWithInheritance(child, root, videoConfig);
+                        // Series.Sequence requires a positive duration — a zero/unset
+                        // duration used to throw and take down the whole player.
+                        const childDuration = childTiming.durationInFrames ?? 0;
+                        if (!(childDuration > 0)) {
+                            console.warn(
+                                `Skipping "${child.componentId} - ${child.id}": timing resolved to ${childDuration} frames`
+                            );
+                            return null;
+                        }
                         return (
                             <Series.Sequence
                                 key={child.id}
                                 name={child.componentId + " - " + child.id}
                                 offset={childTiming.startInFrames ?? 0}
-                                durationInFrames={childTiming.durationInFrames ?? 0}>
+                                durationInFrames={childDuration}>
                                 {child.effects && child.effects.length > 0 ? (
                                     <EffectWrapper effects={child.effects} context={newContext}>
                                         <ComponentRenderer key={child.id} {...child} />
@@ -145,24 +154,37 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             );
         }
 
+        const layoutContent = effects && effects.length > 0 ? (
+            <EffectWrapper effects={effects} context={newContext}>
+                <ComponentClass {...props}>
+                    {childrenData?.map((child) => (
+                        <ComponentRenderer key={child.id} {...child} />
+                    ))}
+                </ComponentClass>
+            </EffectWrapper>
+        ) : (
+            <ComponentClass {...props}>
+                {childrenData?.map((child) => (
+                    <ComponentRenderer key={child.id} {...child} />
+                ))}
+            </ComponentClass>
+        );
+
+        // Only wrap in a Sequence when the duration resolved to something
+        // positive — Remotion throws on 0, which previously crashed the whole
+        // player. Mirrors how the atom branch below handles unset timing.
+        if (!(newTiming.durationInFrames && newTiming.durationInFrames > 0)) {
+            return (
+                <RenderContext.Provider value={newContext}>
+                    {layoutContent}
+                </RenderContext.Provider>
+            );
+        }
+
         return (
             <RenderContext.Provider value={newContext}>
                 <Sequence layout='none' name={componentId + " - " + id} from={newTiming.startInFrames} durationInFrames={newTiming.durationInFrames}>
-                    {effects && effects.length > 0 ? (
-                        <EffectWrapper effects={effects} context={newContext}>
-                            <ComponentClass {...props}>
-                                {childrenData?.map((child) => (
-                                    <ComponentRenderer key={child.id} {...child} />
-                                ))}
-                            </ComponentClass>
-                        </EffectWrapper>
-                    ) : (
-                        <ComponentClass {...props}>
-                            {childrenData?.map((child) => (
-                                <ComponentRenderer key={child.id} {...child} />
-                            ))}
-                        </ComponentClass>
-                    )}
+                    {layoutContent}
                 </Sequence>
             </RenderContext.Provider>
         );

@@ -49,7 +49,11 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { paramMetaTypes } from "../dataTypes";
+import { paramMetaTypes, paramInputTypes } from "../dataTypes";
+import type { ColorInputOptions, ParamInputType, SliderInputOptions } from "../dataTypes";
+import { ColorInput } from "./inputs/color-input";
+import { SliderInput } from "./inputs/slider-input";
+import { parseColor } from "./inputs/color-utils";
 
 const availableFonts = getAvailableFonts();
 
@@ -110,6 +114,9 @@ interface FormField {
     required?: boolean;
     properties?: Record<string, any>;
     items?: any;
+    /** Numeric bounds from zod .min()/.max() — drive the slider widget. */
+    minimum?: number;
+    maximum?: number;
     /** Zod .meta() object — carries paramMetaTypes annotations */
     meta?: Record<string, any>;
 }
@@ -168,6 +175,93 @@ function isLargeTextField(fieldKey: string, field: FormField): boolean {
         titleLower.includes(keyword) ||
         descLower.includes(keyword)
     );
+}
+
+/** Explicit widget requested by the preset author via paramMetaTypes.inputType. */
+function getInputType(field: FormField): ParamInputType | undefined {
+    const t = field.meta?.[paramMetaTypes.inputType];
+    return typeof t === "string" ? (t as ParamInputType) : undefined;
+}
+
+/** Widget config from paramMetaTypes.inputOptions. */
+function getInputOptions<T>(field: FormField): T | undefined {
+    const o = field.meta?.[paramMetaTypes.inputOptions];
+    return o && typeof o === "object" ? (o as T) : undefined;
+}
+
+/** Split a field key into lowercase words: "burnGlowColor" -> [burn, glow, color]. */
+function tokenizeFieldKey(key: string): string[] {
+    return key
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .split(/[\s\-_.]+/)
+        .filter(Boolean)
+        .map((t) => t.toLowerCase());
+}
+
+/** A word that, on its own, names a colour value. */
+const COLOR_WORDS = new Set(["color", "colors", "colour", "colours"]);
+
+/**
+ * Words that name a colour only when they are the whole key or its final word.
+ * `fill` is a colour; `fillMode` is not. `background` is a colour; `backgroundImage`
+ * is a URL.
+ */
+const COLOR_TAIL_WORDS = new Set([
+    "fill", "stroke", "tint", "shade", "hue", "swatch",
+    "background", "accent", "primary", "secondary", "foreground",
+]);
+
+/** Trailing words that turn a colour word into a setting *about* colour. */
+const NON_COLOR_TAIL_WORDS = new Set([
+    "mode", "type", "style", "space", "scheme", "format", "blend",
+    "count", "index", "name", "key", "id", "class", "variant",
+]);
+
+/**
+ * Detect if a string field holds a colour. Explicit `inputType` wins; otherwise
+ * we infer from the field name so the many existing preset colour fields get a
+ * picker without being re-annotated.
+ *
+ * Matching is word-based rather than substring-based: `artistColor` and
+ * `burn_glow_color` are colours, while `colorMode`, `borderRadius` and
+ * `backgroundImage` are not.
+ */
+function isColorField(fieldKey: string, field: FormField): boolean {
+    const explicit = getInputType(field);
+    if (explicit) return explicit === paramInputTypes.color;
+    // An enum is a fixed choice list — keep the dropdown.
+    if (field.enum) return false;
+
+    const tokens = tokenizeFieldKey(fieldKey);
+    // `colorMode`, `colorSpace`, `fillType` … name a setting about colour, not a
+    // colour value. These are usually enums, but not always.
+    if (tokens.length > 1 && NON_COLOR_TAIL_WORDS.has(tokens[tokens.length - 1])) return false;
+    if (tokens.some((t) => COLOR_WORDS.has(t))) return true;
+    if (tokens.length > 0 && COLOR_TAIL_WORDS.has(tokens[tokens.length - 1])) return true;
+
+    // A default that is literally a colour is a strong signal (e.g. `bg: "#000"`).
+    return typeof field.default === "string" && parseColor(field.default) !== null;
+}
+
+/** Numeric fields render as a slider when annotated, or when fully bounded. */
+function isSliderField(field: FormField): boolean {
+    const explicit = getInputType(field);
+    if (explicit) return explicit === paramInputTypes.slider;
+    const opts = getInputOptions<SliderInputOptions>(field);
+    if (opts && opts.min !== undefined && opts.max !== undefined) return true;
+    // A zod .min()/.max() pair already declares the intent of a bounded range.
+    return typeof field.minimum === "number" && typeof field.maximum === "number";
+}
+
+/** Resolve slider bounds from inputOptions, falling back to the schema bounds. */
+function resolveSliderOptions(field: FormField): SliderInputOptions {
+    const opts = getInputOptions<SliderInputOptions>(field) ?? {};
+    return {
+        min: opts.min ?? field.minimum ?? 0,
+        max: opts.max ?? field.maximum ?? 100,
+        step: opts.step,
+        unit: opts.unit,
+    };
 }
 
 // Helper function to detect if a field is data-referrable
@@ -1735,12 +1829,44 @@ function renderField(
                     );
                 }
 
-                const isUrl = isUrlField(fieldKey, field);
-                const isFont = isFontField(fieldKey, field);
-                const isLargeText = isLargeTextField(fieldKey, field);
+                const explicitInput = getInputType(field);
+                const isColor = isColorField(fieldKey, field);
+                // An explicit inputType always wins over the name-based heuristics,
+                // so `paramInputTypes.text` is the escape hatch for a false positive.
+                const isUrl = !explicitInput && isUrlField(fieldKey, field);
+                const isFont = !explicitInput && isFontField(fieldKey, field);
+                const isLargeText = !explicitInput && isLargeTextField(fieldKey, field);
                 const isDataReferrable = isDataReferrableField(field);
                 const isRange = isRangeField(field);
                 const isTranscriptionIdField = fieldKey.toLowerCase() === 'transcriptionid';
+
+                // Colour field — checked before the URL/font heuristics so that keys
+                // like "backgroundImageColor" don't get grabbed by the media picker.
+                if (isColor) {
+                    const colorOpts = getInputOptions<ColorInputOptions>(field) ?? {};
+                    return (
+                        <ColorInput
+                            value={typeof fieldValue === "string" ? fieldValue : ""}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                            allowAlpha={colorOpts.allowAlpha ?? true}
+                            presets={colorOpts.presets}
+                            format={colorOpts.format}
+                            placeholder={typeof field.default === "string" ? field.default : "#000000"}
+                        />
+                    );
+                }
+
+                if (explicitInput === paramInputTypes.textarea) {
+                    return (
+                        <Textarea
+                            value={typeof fieldValue === 'string' ? fieldValue : ""}
+                            onChange={(e) => handleChange(fieldKey, e.target.value)}
+                            placeholder={field.description || `Enter ${field.title || fieldKey}`}
+                            rows={8}
+                            className="resize-none overflow-y-auto"
+                        />
+                    );
+                }
 
                 // Range string field (e.g. rangeString / range annotated with paramMetaTypes.rangeField)
                 if (isRange) {
@@ -1834,6 +1960,19 @@ function renderField(
                 );
 
             case "number":
+                if (isSliderField(field)) {
+                    const sliderOpts = resolveSliderOptions(field);
+                    return (
+                        <SliderInput
+                            value={typeof fieldValue === 'number' ? fieldValue : (typeof field.default === 'number' ? field.default : undefined)}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                            min={sliderOpts.min}
+                            max={sliderOpts.max}
+                            step={sliderOpts.step}
+                            unit={sliderOpts.unit}
+                        />
+                    );
+                }
                 return (
                     <Input
                         type="number"
@@ -2252,6 +2391,8 @@ function NestedForm({
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
             items: field.items,
+            minimum: typeof field.minimum === "number" ? field.minimum : undefined,
+            maximum: typeof field.maximum === "number" ? field.maximum : undefined,
             // Zod's .meta() data is written at the TOP LEVEL of the JSON schema property
             // (e.g. { rangeField: true, type: "string" }), NOT under a "meta" sub-key.
             // Extract all non-standard JSON Schema keywords into a synthetic "meta" object so
@@ -2757,6 +2898,8 @@ export function SchemaForm({
             required: Array.isArray(schema.required) && schema.required.includes(key),
             properties: field.properties,
             items: field.items,
+            minimum: typeof field.minimum === "number" ? field.minimum : undefined,
+            maximum: typeof field.maximum === "number" ? field.maximum : undefined,
             meta: extractZodMeta(field),
         }));
     };

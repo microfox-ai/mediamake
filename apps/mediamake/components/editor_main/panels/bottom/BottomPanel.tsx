@@ -19,7 +19,7 @@ export function BottomPanel() {
   const { filePanelTab } = useEditorUIStore();
   const { loadedTimeline, currentProjectId } = useProjectStore();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
-  const getLayerStateSnapshot = useLayerStateStore((s) => s.getLayerStateSnapshot);
+  const publishLayerState = useLayerStateStore((s) => s.publishLayerState);
   const resetLayerStateToGenerated = useLayerStateStore((s) => s.resetLayerStateToGenerated);
   const selectedLayerIds = useLayerStateStore((s) => s.selectedLayerIds);
   const overrides = useLayerStateStore((s) => s.overrides);
@@ -94,24 +94,22 @@ export function BottomPanel() {
     }
     setIsSavingLayerState(true);
     try {
-      const snapshot = getLayerStateSnapshot(calculatedMetadata?.props?.childrenData);
-      const res = await fetch("/api/project/timeline/layer-state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: currentProjectId,
-          timelineId: loadedTimeline.id,
-          ...snapshot,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to save layer state");
+      const result = await publishLayerState(
+        currentProjectId,
+        loadedTimeline.id,
+        calculatedMetadata?.props?.childrenData
+      );
+      if (result.ok) {
+        toast.success("merged" in result ? "Merged teammate's changes & published" : "Published to team");
+      } else if (result.reason === "nochange") {
+        toast.info("Already up to date — nothing to publish");
+      } else if (result.reason === "merge") {
+        toast.info(`${result.conflicts} layer conflict(s) to resolve before publishing.`);
+      } else if (result.reason === "conflict") {
+        toast.error("Publish conflict — please try again.", { duration: 6000 });
+      } else {
+        toast.error(result.message ?? "Failed to publish layer state");
       }
-      toast.success("Layer state saved");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save layer state");
-      console.error(error);
     } finally {
       setIsSavingLayerState(false);
     }

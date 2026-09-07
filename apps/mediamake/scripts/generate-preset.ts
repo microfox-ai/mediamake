@@ -346,7 +346,7 @@ async function step2_architect(
       **ARCHITECTURAL RULES**:
       1.  **Single preset per file**: Follow the rules in GENERATION_SINGLE_PRESET.md strictly.
       2.  **Root**: MUST be 'BaseLayout' and act as a layout container, not a scene.
-      3.  **Structure**: Define a clear tree of atoms (TextAtom, VideoAtom, ImageAtom, AudioAtom, HTMLBlockAtom, LottieAtom, CanvasAtom).
+      3.  **Structure**: Define a clear tree of atoms (TextAtom, VideoAtom, ImageAtom, AudioAtom, HTMLBlockAtom, LottieAtom, CanvasPipeline).
           - ⚠️ **DEPRECATED**: ShapeAtom is deprecated. Use HTMLBlockAtom with CSS styling instead.
           - For custom shapes/graphics, use HTMLBlockAtom with inline styles or CSS classes.
           - HTMLBlockAtom accepts dangerouslySetInnerHTML if needed for custom HTML/SVG content.
@@ -564,7 +564,7 @@ async function step4_codingAndValidation(
     promptLower.includes('lottie') ||
     promptLower.includes('animation json') ||
     promptLower.includes('motion graphic');
-  const needsCanvasAtom =
+  const needsCanvasPipeline =
     promptLower.includes('canvas') ||
     promptLower.includes('draw') ||
     promptLower.includes('particle') ||
@@ -607,8 +607,8 @@ async function step4_codingAndValidation(
   const atomLottieGuide = needsLottieAtom
     ? await readGuide('ATOM_LOTTIE.md')
     : '';
-  const atomCanvasGuide = needsCanvasAtom
-    ? await readGuide('ATOM_CANVAS.md')
+  const atomCanvasGuide = needsCanvasPipeline
+    ? await readGuide('ATOM_CANVAS_PIPELINE.md')
     : '';
   const atomHtmlBlockGuide = needsHtmlBlockAtom
     ? await readGuide('ATOM_HTMLBLOCK.md')
@@ -726,7 +726,7 @@ async function step4_codingAndValidation(
         ${atomImageGuide ? `**ATOM_MEDIA_IMAGE.md (Image Atom Details)**:\n${atomImageGuide}\n\n` : ''}
         ${atomAudioGuide ? `**ATOM_MEDIA_AUDIO.md (Audio Atom Details)**:\n${atomAudioGuide}\n\n` : ''}
         ${atomLottieGuide ? `**ATOM_LOTTIE.md (Lottie Animation Details)**:\n${atomLottieGuide}\n\n` : ''}
-        ${atomCanvasGuide ? `**ATOM_CANVAS.md (Canvas/Drawing Details)**:\n${atomCanvasGuide}\n\n` : ''}
+        ${atomCanvasGuide ? `**ATOM_CANVAS_PIPELINE.md (Canvas Pipeline Details)**:\n${atomCanvasGuide}\n\n` : ''}
         ${atomHtmlBlockGuide ? `**ATOM_HTMLBLOCK.md (Custom HTML Details)**:\n${atomHtmlBlockGuide}\n\n` : ''}
 
         **GUIDES**:

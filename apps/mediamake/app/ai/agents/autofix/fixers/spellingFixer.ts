@@ -1,20 +1,17 @@
 import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
-import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
-import dedent from 'dedent';
-import {
-  formatCaptionsForAI,
-  parseAIOutputToCaptions,
-  detectChanges,
-  saveTranscriptionFix,
-} from '../helpers';
+import { saveTranscriptionFix } from '../helpers';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadTranscription } from '../middlewares/loadTranscription';
+import { runSpellingFix } from '../lib/spellingCore';
+import { getReferenceLyrics } from '../lib/lyricsReference';
 
 /**
  * Spelling Fixer Agent
- * Specialized in fixing spelling mistakes only
+ *
+ * Corrects individual words against the Suno lyrics stored on the
+ * transcription. Timestamps and caption line boundaries are never touched:
+ * the model returns indexed single-word edits and they are applied in code.
  */
 
 const aiRouter = new AiRouter();
@@ -24,111 +21,86 @@ const spellingFixerAgent = aiRouter
   .agent('/', async ctx => {
     try {
       console.log('SPELLING FIXER: Starting...');
-      ctx.response.writeMessageMetadata({
-        loader: 'Fixing spelling errors...',
-      });
 
       const {
         transcriptionId,
         userRequest,
+        useReferenceLyrics = true,
+        allowWordRemoval = false,
+        minConfidence = 0.6,
         applyToDatabase = false,
       } = ctx.request.params as {
         transcriptionId: string;
         userRequest?: string;
+        useReferenceLyrics?: boolean;
+        allowWordRemoval?: boolean;
+        minConfidence?: number;
         applyToDatabase?: boolean;
       };
 
       const transcription = ctx.state.transcription;
       const captions = ctx.state.captions || transcription.captions;
 
-      // Format captions for AI processing
-      const formattedCaptions = formatCaptionsForAI(captions);
+      const reference = useReferenceLyrics
+        ? getReferenceLyrics(transcription)
+        : undefined;
 
-      const systemPrompt = dedent`You are a spelling correction expert specializing in audio transcription corrections.
-
-TASK: Fix ONLY spelling mistakes in the transcription.
-
-RULES:
-1. Correct obvious spelling errors
-2. Fix common misheard words (e.g., "there" vs "their", "your" vs "you're")
-3. Preserve ALL timing information EXACTLY as provided
-4. Do NOT change sentence structure
-5. Do NOT merge or split words
-6. Do NOT change punctuation
-7. Do NOT add or remove words
-
-GUIDELINES:
-- Only fix clear, obvious spelling errors
-- When unsure, keep the original spelling
-- Consider context when fixing homophones
-- Maintain the exact same number of words
-
-OUTPUT FORMAT:
-Return the corrected captions in the exact same format as input:
-- Each sentence starts with a dash (-)
-- Words are separated by <$>
-- Each word has timestamps in brackets: word[absoluteStart-absoluteEnd]
-- Example: -hello[1.2-1.5]<$>world[1.6-2.0]
-
-Do not include any other text, explanations, or formatting. Only return the corrected captions.`;
-
-      const prompt = dedent`TRANSCRIPTION DATA:
-${formattedCaptions}
-
-${userRequest ? `USER REQUEST: ${userRequest}` : ''}
-
-Fix ONLY spelling errors while preserving all timing and structure.`;
-
-      const result = await generateText({
-        model: google('gemini-2.5-flash'), // Faster model for simple tasks
-        system: systemPrompt,
-        prompt,
-        maxRetries: 2,
+      ctx.response.writeMessageMetadata({
+        loader: reference
+          ? 'Correcting words against the Suno lyrics...'
+          : 'Fixing spelling errors...',
       });
-      if (result.usage) {
-        appendUsage(ctx.state, 'google/gemini-2.5-flash', result.usage);
+
+      const result = await runSpellingFix(captions, {
+        referenceLyrics: reference,
+        useReference: useReferenceLyrics,
+        allowWordRemoval,
+        minConfidence,
+        userRequest,
+      });
+
+      for (const usage of result.usage) {
+        appendUsage(
+          ctx.state,
+          reference ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash',
+          usage,
+        );
       }
 
-      console.log('SPELLING FIXER USING:', result.usage);
+      console.log('SPELLING FIXER:', {
+        usedReference: result.usedReference,
+        proposed: result.proposedCount,
+        applied: result.changes.length,
+        rejected: result.rejected.length,
+        removed: result.removedCount,
+      });
 
-      // Parse the AI output back to caption structure
-      const fixedCaptions = parseAIOutputToCaptions(
-        result.text,
-        transcription.captions,
-      );
-
-      // Detect changes
-      const changes = detectChanges(
-        transcription.captions,
-        fixedCaptions,
-        'spelling_fix',
-      );
-
-      // Optionally save to database
       let updatedTranscription = null;
-      if (applyToDatabase) {
+      if (applyToDatabase && result.changes.length > 0) {
         updatedTranscription = await saveTranscriptionFix(
           transcriptionId,
-          fixedCaptions,
-          changes,
-          'Spelling Fixer',
+          result.fixedCaptions,
+          result.changes,
+          result.usedReference
+            ? 'Spelling Fixer (Suno lyrics reference)'
+            : 'Spelling Fixer',
           userRequest,
         );
       }
 
-      console.log('SPELLING FIXER: Completed -', changes.length, 'changes');
-
       return {
         success: true,
-        appliedToDatabase: applyToDatabase,
+        appliedToDatabase: applyToDatabase && result.changes.length > 0,
         transcription: updatedTranscription || {
           ...transcription,
-          captions: fixedCaptions,
+          captions: result.fixedCaptions,
         },
-        changes: changes,
-        confidence: 0.95,
+        changes: result.changes,
+        rejected: result.rejected,
+        usedReferenceLyrics: result.usedReference,
+        confidence: result.confidence,
         usage: result.usage,
-        summary: `Fixed ${changes.length} spelling error${changes.length !== 1 ? 's' : ''}`,
+        summary: result.summary,
       };
     } catch (error) {
       console.error('Spelling fixer error:', error);
@@ -139,13 +111,34 @@ Fix ONLY spelling errors while preserving all timing and structure.`;
     id: 'spellingFixer',
     name: 'Spelling Fixer',
     description:
-      'Fix spelling mistakes in transcription while preserving timing and structure. Ideal for correcting misheard words and common spelling errors.',
+      "Fix mistranscribed words using the transcription's Suno lyrics as the authority on wording and slang spelling. Only single words are replaced — timestamps, word count and line boundaries are preserved exactly.",
     inputSchema: z.object({
       transcriptionId: z.string().describe('Transcription ID to fix'),
       userRequest: z
         .string()
         .optional()
         .describe('Specific spelling corrections to focus on'),
+      useReferenceLyrics: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe(
+          'Use the Suno lyrics saved on the transcription as the authoritative wording',
+        ),
+      allowWordRemoval: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe(
+          'Allow deleting clearly hallucinated words (words absent from the reference that duplicate a neighbour)',
+        ),
+      minConfidence: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .default(0.6)
+        .describe('Discard proposed corrections below this confidence'),
       applyToDatabase: z
         .boolean()
         .optional()
@@ -157,6 +150,7 @@ Fix ONLY spelling errors while preserving all timing and structure.`;
       appliedToDatabase: z.boolean(),
       transcription: z.any(),
       changes: z.array(z.any()),
+      usedReferenceLyrics: z.boolean().optional(),
       confidence: z.number().min(0).max(1),
       summary: z.string(),
     }),
@@ -165,7 +159,7 @@ Fix ONLY spelling errors while preserving all timing and structure.`;
       tags: ['transcription', 'autofix', 'transcription-autofix', 'spelling'],
       icon: '✏️',
       title: 'Spelling Fixer',
-      description: 'Fix spelling mistakes only',
+      description: 'Fix mistranscribed words against the Suno lyrics',
       hideUI: false,
     },
   });

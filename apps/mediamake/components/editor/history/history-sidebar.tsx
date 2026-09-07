@@ -394,6 +394,11 @@ export function HistorySidebar({
                                             Archived
                                         </Badge>
                                     )}
+                                    {request.renderSource === "browser" && (
+                                        <Badge variant="outline" className="text-xs">
+                                            Browser
+                                        </Badge>
+                                    )}
                                     {request.status === "rendering" && request.progress !== undefined && (
                                         <span className="text-xs text-muted-foreground">
                                             {Math.round(request.progress * 100)}%

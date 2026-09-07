@@ -58,9 +58,13 @@ export interface RenderSettings {
     
     // Still image settings
     frameTime?: number;
+
+    // Browser (client-side) render settings
+    browserContainer: 'mp4' | 'webm';
+    browserImageFormat: 'png' | 'jpeg';
 }
 
-export type RenderMethod = 'aws' | 'local';
+export type RenderMethod = 'aws' | 'local' | 'browser';
 
 interface RenderContextType {
     // Settings
@@ -138,6 +142,10 @@ const defaultSettings: RenderSettings = {
     
     // Still
   frameTime: 0,
+
+  // Browser render
+  browserContainer: 'mp4',
+  browserImageFormat: 'png',
 
   // Region (initialized elsewhere from config default if available)
   region: undefined,

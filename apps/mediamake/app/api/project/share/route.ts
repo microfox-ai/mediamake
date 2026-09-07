@@ -23,7 +23,8 @@ async function getProjectAsOwner(projectId: string, ownerId: string) {
 }
 
 // GET /api/project/share?projectId=...
-// Returns the member list for a project (owner only)
+// Returns the member list for a project.
+// Owners get full management access; shared members get a read-only view of who else has access.
 export async function GET(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -31,10 +32,32 @@ export async function GET(req: NextRequest) {
   const projectId = new URL(req.url).searchParams.get('projectId');
   if (!projectId) return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
 
-  const project = await getProjectAsOwner(projectId, clientId);
-  if (!project) return NextResponse.json({ error: 'Project not found or not owned by you' }, { status: 404 });
+  const db = await getDatabase();
 
-  return NextResponse.json({ members: (project.sharedWith as ProjectMember[]) ?? [] });
+  // Try as owner first
+  let project = await getProjectAsOwner(projectId, clientId);
+  let isOwner = !!project;
+
+  // Fall back to member lookup so shared users can also see the list
+  if (!project) {
+    try {
+      project = await db.collection('projects').findOne({
+        _id: new ObjectId(projectId),
+        'sharedWith.clientId': clientId,
+      });
+    } catch {
+      return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 });
+    }
+  }
+
+  if (!project) return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
+
+  const members = (project.sharedWith as ProjectMember[]) ?? [];
+  const myRole = isOwner
+    ? 'owner'
+    : (members.find((m) => m.clientId === clientId)?.role ?? null);
+
+  return NextResponse.json({ members, isOwner, myRole });
 }
 
 // POST /api/project/share

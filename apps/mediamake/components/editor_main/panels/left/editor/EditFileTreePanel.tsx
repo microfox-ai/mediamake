@@ -1,6 +1,6 @@
 "use client";
 
-import { LayersIcon, FileText, Settings, ChevronDownIcon, AlignStartVertical } from "lucide-react";
+import { LayersIcon, FileText, Settings, ChevronDownIcon, AlignStartVertical, Film } from "lucide-react";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { Button } from "@/components/ui/button";
 import { MenubarItem, MenubarContent, MenubarMenu, MenubarTrigger, MenubarShortcut, MenubarSeparator } from "@/components/ui/menubar";
@@ -8,6 +8,7 @@ import { Menubar } from "@radix-ui/react-menubar";
 import { IconTimeline } from "@tabler/icons-react";
 import { TimelinesTree } from "./TimelinesTree";
 import { LayersTree } from "./LayersTree";
+import { RendersTree } from "./RendersTree";
 import { cn } from "@/lib/utils";
 
 export function EditFileTreeContent() {
@@ -41,6 +42,18 @@ export function EditFileTreeContent() {
                         <LayersIcon className="h-4 w-4" />
                         Layers
                     </Button>
+                    <Button
+                        variant={filePanelTab === 'renders' ? "secondary" : "ghost"}
+                        size={"sm"}
+                        onClick={() => setFilePanelTab('renders')}
+                        className={cn(
+                            "text-xs",
+                            filePanelTab === 'renders' && "bg-accent text-accent-foreground"
+                        )}
+                    >
+                        <Film className="h-4 w-4" />
+                        Renders
+                    </Button>
                 </div>
                 <div className="flex items-center gap-2">
                     <Menubar className="rounded-none">
@@ -65,7 +78,9 @@ export function EditFileTreeContent() {
                     </Menubar>
                 </div>
             </div>
-            {filePanelTab === 'timelines' ? <TimelinesTree /> : <LayersTree />}
+            {filePanelTab === 'timelines' && <TimelinesTree />}
+            {filePanelTab === 'layers' && <LayersTree />}
+            {filePanelTab === 'renders' && <RendersTree />}
         </div>
     );
 }

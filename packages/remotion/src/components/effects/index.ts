@@ -17,10 +17,8 @@ import {
   config as UniversalEffectConfig,
   UniversalEffectData,
 } from './UniversalEffect';
-import { CanvasWipeReveal } from './CanvasWipeReveal';
-import { CanvasContentAwareReveal } from './CanvasContentAwareReveal';
-import { CanvasGlitchEffect } from './CanvasGlitchEffect';
-import { CanvasParticleEffect } from './CanvasParticleEffect';
+// Canvas effects now live in src/canvas as composable ops behind the
+// `CanvasPipeline` atom and the generic `effect-CanvasFx` effect.
 
 // Register all effect components
 registerEffect(BlurEffectConfig.displayName, BlurEffect, BlurEffectConfig);
@@ -40,10 +38,6 @@ registerEffect(
   WaveformEffect,
   WaveformEffectConfig
 );
-registerEffect('CanvasWipeReveal', CanvasWipeReveal);
-registerEffect('CanvasContentAwareReveal', CanvasContentAwareReveal);
-registerEffect('CanvasParticleEffect', CanvasParticleEffect);
-registerEffect('CanvasGlitchEffect', CanvasGlitchEffect);
 
 // Export effect components
 export { BlurEffect, config as BlurEffectConfig } from './BlurEffect';
@@ -98,7 +92,3 @@ export { GenericEffectData };
 
 // Export animation presets
 export * from './GenericPresets';
-export { CanvasWipeReveal } from './CanvasWipeReveal';
-export { CanvasContentAwareReveal } from './CanvasContentAwareReveal';
-export { CanvasParticleEffect } from './CanvasParticleEffect';
-export { CanvasGlitchEffect } from './CanvasGlitchEffect';

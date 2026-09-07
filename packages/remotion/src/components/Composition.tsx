@@ -5,7 +5,6 @@ import { CompositionProvider } from '../core/context/CompositionContext';
 import { calculateDuration, setDurationsInContext } from '../core/context/timing';
 import { BaseRenderableData, RenderableComponentData } from '../core/types';
 import { ComponentRenderer } from './base';
-import z from 'zod';
 
 
 interface CompositionProps extends BaseRenderableData {
@@ -104,19 +103,21 @@ export const Composition = ({
         height={config.height ?? 1920}
         defaultProps={{ childrenData, style, config: config }}
         calculateMetadata={calculateCompositionLayoutMetadata}
-        schema={z.object({})}
     />
 }
 
 
 export const Player = (props: any) => {
+    // The spread must come FIRST: when it trailed these props it re-applied the
+    // raw values, so a 0 duration/size/fps flowed through to the Player and threw
+    // ("durationInFrames must be positive, but got 0") instead of falling back.
     return (
         <RemotionPlayer
+            {...props}
             component={CompositionLayout}
             durationInFrames={props.durationInFrames > 0 ? props.durationInFrames : 20}
             compositionWidth={props.compositionWidth > 0 ? props.compositionWidth : 1920}
             compositionHeight={props.compositionHeight > 0 ? props.compositionHeight : 1080}
-            fps={props.fps > 0 ? props.fps : 30}
-            {...props} />
+            fps={props.fps > 0 ? props.fps : 30} />
     )
 }

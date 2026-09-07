@@ -1,19 +1,27 @@
 import { useState, useCallback } from 'react';
 import { type RenderRequest } from '@/lib/render-history';
 
+/** Auth for progress calls. Either an API key (Bearer) or a session clientId
+ * (x-client-id) is sufficient — the middleware also injects x-client-id from the
+ * session cookie, so a logged-in user needs no API key. */
+export interface ProgressAuth {
+  apiKey?: string;
+  clientId?: string;
+}
+
 // Progress fetcher for checking render status
 const fetchProgress = async (
   bucketName: string,
   renderId: string,
-  apiKey: string,
+  auth: ProgressAuth,
 ) => {
+  const headers: Record<string, string> = {};
+  if (auth.apiKey?.trim()) headers.Authorization = `Bearer ${auth.apiKey}`;
+  if (auth.clientId) headers['x-client-id'] = auth.clientId;
+
   const response = await fetch(
     `/api/remotion/progress?bucketName=${bucketName}&id=${renderId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    },
+    { headers },
   );
   if (!response.ok) {
     throw new Error('Failed to fetch progress');
@@ -92,7 +100,7 @@ export const useProgress = () => {
   const fetchAndUpdateProgress = useCallback(
     async (
       request: RenderRequest,
-      apiKey: string,
+      auth: ProgressAuth,
     ): Promise<ProgressUpdateResult> => {
       if (!request.bucketName || !request.renderId) {
         return { success: false, error: 'Missing bucket name or render ID' };
@@ -103,7 +111,7 @@ export const useProgress = () => {
         const progressData = await fetchProgress(
           request.bucketName,
           request.renderId,
-          apiKey,
+          auth,
         );
         console.log('Progress data received:', progressData);
 

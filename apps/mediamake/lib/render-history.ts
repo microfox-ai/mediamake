@@ -49,6 +49,11 @@ export interface RenderRequest {
   /** AWS region used for this render (when using Lambda). */
   regionUsed?: string;
 
+  /** Where the render was executed. Undefined implies AWS Lambda (legacy docs). */
+  renderSource?: 'lambda' | 'browser';
+  /** Storage key of the uploaded output (browser renders only). */
+  outputKey?: string;
+
   /** When true, render is archived (hidden from active list but kept for cost/details). */
   isArchived?: boolean;
   

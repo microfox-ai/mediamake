@@ -38,3 +38,5 @@ env.json
 /karcreativeworks/*
 
 apps/mediamake/docs/random/*
+# Private AI configuration frameworks
+.claude/

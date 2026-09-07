@@ -12,8 +12,11 @@
 import {
   defaultMapChainContinueFromPrevious,
   defaultMapChainPassthrough,
+  resolveWorkersConfigKey,
+  resolveWorkersTriggerKey,
   type ChainContext,
   type LoopContext,
+  type SmartRetryConfig,
   type WorkerAgent,
   type WorkerQueueRegistry,
 } from '@microfox/ai-worker';
@@ -27,6 +30,7 @@ export interface QueueStepConfig {
   hasResume?: boolean;
   hasLoop?: boolean;
   hitl?: unknown;
+  retry?: SmartRetryConfig;
 }
 
 /** Queue config from workers/config API (matches WorkerQueueConfig structure). */
@@ -66,13 +70,11 @@ function getConfigBaseUrl(): string {
 }
 
 function getConfigUrl(): string {
-  const base = getConfigBaseUrl();
-  return `${base}/workers/config`;
+  return `${getConfigBaseUrl()}/workers/config`;
 }
 
 function getTriggerUrl(): string {
-  const base = getConfigBaseUrl();
-  return `${base}/workers/trigger`;
+  return `${getConfigBaseUrl()}/workers/trigger`;
 }
 
 /**
@@ -84,7 +86,7 @@ export async function fetchWorkersConfig(): Promise<WorkersConfig> {
   }
   const configUrl = getConfigUrl();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const apiKey = process.env.WORKERS_CONFIG_API_KEY;
+  const apiKey = resolveWorkersConfigKey();
   if (apiKey) {
     headers['x-workers-config-key'] = apiKey;
   }
@@ -109,7 +111,6 @@ export async function fetchWorkersConfig(): Promise<WorkersConfig> {
 
 /**
  * Build a synthetic WorkerAgent that dispatches via POST /workers/trigger.
- * Matches the trigger API contract used by @microfox/ai-worker.
  */
 function createSyntheticAgent(workerId: string): WorkerAgent<any, any> {
   return {
@@ -130,10 +131,8 @@ function createSyntheticAgent(workerId: string): WorkerAgent<any, any> {
         metadata,
         timestamp: new Date().toISOString(),
       };
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      const key = process.env.WORKERS_TRIGGER_API_KEY;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const key = resolveWorkersTriggerKey();
       if (key) {
         headers['x-workers-trigger-key'] = key;
       }
@@ -177,6 +176,8 @@ export async function getWorker(
   return createSyntheticAgent(workerId);
 }
 
+type QueueModuleMap = Record<string, { default?: { steps?: Array<{ chain?: unknown; resume?: unknown; hitl?: unknown; loop?: { shouldContinue?: unknown } }> } }>;
+
 /** Webpack require.context – auto-discovers app/ai/queues/*.queue.ts (Next.js). */
 function getQueueModuleContext(): { keys(): string[]; (key: string): unknown } | null {
   try {
@@ -192,10 +193,8 @@ function getQueueModuleContext(): { keys(): string[]; (key: string): unknown } |
   }
 }
 
-type QueueModuleMap = Record<string, { default?: { steps?: Array<{ chain?: unknown; resume?: unknown; hitl?: unknown; loop?: { shouldContinue?: unknown } }> } }>;
-
 /**
- * Auto-discover queue modules from app/ai/queues/*.queue.ts (no per-queue registration).
+ * Auto-discover queue modules from app/ai/queues/*.queue.ts.
  * Uses require.context when available (Next.js/webpack).
  */
 function buildQueueModules(): QueueModuleMap {
@@ -239,6 +238,9 @@ export async function getQueueRegistry(): Promise<WorkerQueueRegistry> {
       const queue = queues.find((q) => q.id === queueId);
       const step = queue?.steps?.[stepIndex];
       const hitl = resolveStepHitl(queueId, stepIndex, step);
+      // Resolve retry config from the local queue module (not from API config).
+      const moduleStep = resolveModuleStep(queueId, stepIndex);
+      const retry = (moduleStep as any)?.retry as SmartRetryConfig | undefined;
       return step
         ? {
             workerId: step.workerId,
@@ -246,6 +248,7 @@ export async function getQueueRegistry(): Promise<WorkerQueueRegistry> {
             hasChain: step.hasChain,
             hasResume: step.hasResume,
             ...(hitl !== undefined ? { hitl } : {}),
+            ...(retry !== undefined ? { retry } : {}),
           }
         : undefined;
     },
@@ -272,6 +275,29 @@ export async function getQueueRegistry(): Promise<WorkerQueueRegistry> {
     },
   };
   return registry as WorkerQueueRegistry;
+}
+
+/** A Zod-like schema (anything exposing safeParse), used for runtime validation. */
+export interface ParsableSchema {
+  safeParse(input: unknown): { success: true; data: unknown } | { success: false; error: unknown };
+}
+
+/**
+ * Resolves the HITL reviewer-input Zod schema (`hitl.inputSchema`) for a queue step
+ * from the local `app/ai/queues/*.queue.ts` modules. Returns null when the step has no
+ * HITL schema. Used to validate reviewer-supplied input before it is dispatched into the
+ * next pipeline step (SEC-5). Resolves locally (no network) since Zod schemas don't
+ * survive the JSON workers/config round-trip.
+ */
+export function getStepHitlInputSchema(queueId: string, stepIndex: number): ParsableSchema | null {
+  const hitl = resolveModuleStep(queueId, stepIndex)?.hitl as
+    | { inputSchema?: unknown }
+    | undefined;
+  const schema = hitl?.inputSchema;
+  if (schema && typeof (schema as ParsableSchema).safeParse === 'function') {
+    return schema as ParsableSchema;
+  }
+  return null;
 }
 
 /**
