@@ -2438,124 +2438,41 @@ function NestedForm({
 
                             return (
                                 <div key={field.key} className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <Label htmlFor={field.key} className="text-sm font-medium">
-                                            {field.title || field.key}
-                                            {isRequired && <span className="text-red-500 ml-1">*</span>}
-                                        </Label>
-                                        {field.description && (
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p className="max-w-xs">{field.description}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                        {showReferencableAuto && (
-                                            (() => {
-                                                const parsedReference = parseDataReferenceValue(fieldValue);
-                                                const isReferenceLinked = Boolean(parsedReference);
-                                                const handleLinkToReference = (referenceKey: string) => {
-                                                    const range = parsedReference?.range || "";
-                                                    handleFieldChange(field.key, buildDataReferenceValue(referenceKey, range));
-                                                };
-                                                const handleUnlinkReference = () => {
-                                                    if (!parsedReference) return;
-                                                    const fallbackValue = baseData?.[parsedReference.key];
-                                                    handleFieldChange(
-                                                        field.key,
-                                                        resolveUnlinkedValue(field.type, fallbackValue),
-                                                    );
-                                                };
-                                                const handleToggleTimeLink = () => {
-                                                    if (!parsedReference) return;
-                                                    const nextRange = parsedReference.range ? "" : "0-5";
-                                                    handleFieldChange(
-                                                        field.key,
-                                                        buildDataReferenceValue(parsedReference.key, nextRange),
-                                                    );
-                                                };
-                                                return (
-                                                    <>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0"
-                                                                >
-                                                                    {isReferenceLinked ? (
-                                                                        <ArrowLeftRight className="h-3.5 w-3.5" />
-                                                                    ) : (
-                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                    )}
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="start" side="bottom">
-                                                                {availableReferences?.map((refKey) => (
-                                                                    <DropdownMenuItem
-                                                                        key={refKey}
-                                                                        onClick={() => handleLinkToReference(refKey)}
-                                                                    >
-                                                                        {refKey}
-                                                                    </DropdownMenuItem>
-                                                                ))}
-                                                                <DropdownMenuSub>
-                                                                    <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
-                                                                    <DropdownMenuSubContent>
-                                                                        {REFERENCE_TYPE_OPTIONS.map((option) => (
-                                                                            <DropdownMenuItem
-                                                                                key={option.value}
-                                                                                onClick={() => {
-                                                                                    const createdKey = onCreateReference?.(option.value);
-                                                                                    if (createdKey) {
-                                                                                        handleLinkToReference(createdKey);
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                {option.label}
-                                                                            </DropdownMenuItem>
-                                                                        ))}
-                                                                    </DropdownMenuSubContent>
-                                                                </DropdownMenuSub>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                        {isReferenceLinked && (
-                                                            <>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0"
-                                                                    onClick={handleUnlinkReference}
-                                                                    title="Unlink reference"
-                                                                >
-                                                                    <X className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0"
-                                                                    onClick={() => {
-                                                                        if (parsedReference) {
-                                                                            onSelectReferenceKey?.(parsedReference.key);
-                                                                        }
-                                                                    }}
-                                                                    title="Edit linked reference"
-                                                                >
-                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()
-                                        )}
-                                    </div>
+                                    {(() => {
+                                        const parsedReference = parseDataReferenceValue(fieldValue);
+                                        const isReferenceLinked = Boolean(parsedReference);
+                                        const handleLinkToReference = (referenceKey: string) => {
+                                            const range = parsedReference?.range || "";
+                                            handleFieldChange(field.key, buildDataReferenceValue(referenceKey, range));
+                                        };
+                                        const handleUnlinkReference = () => {
+                                            if (!parsedReference) return;
+                                            const fallbackValue = baseData?.[parsedReference.key];
+                                            handleFieldChange(
+                                                field.key,
+                                                resolveUnlinkedValue(field.type, fallbackValue),
+                                            );
+                                        };
+                                        return (
+                                            <FieldLabel
+                                                fieldKey={field.key}
+                                                title={field.title}
+                                                isRequired={isRequired}
+                                                description={field.description}
+                                                canAutoReference={Boolean(showReferencableAuto)}
+                                                isReferenceLinked={isReferenceLinked}
+                                                availableReferences={availableReferences}
+                                                onLinkToReference={handleLinkToReference}
+                                                onCreateReference={onCreateReference}
+                                                onUnlinkReference={handleUnlinkReference}
+                                                onEditLinkedReference={() => {
+                                                    if (parsedReference) {
+                                                        onSelectReferenceKey?.(parsedReference.key);
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })()}
                                     {renderField(field, field.key, fieldValue, handleFieldChange, depth + 1, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, undefined, undefined)}
                                 </div>
                             );
@@ -2705,19 +2622,63 @@ function ArrayManager({
                             <div className="flex-1">
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <Label htmlFor={`item-${index}`} className="text-sm font-medium">
-                                            Item {index + 1}
-                                        </Label>
-                                        {itemSchema?.description && (
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p className="max-w-xs">{itemSchema.description}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
+                                        {(() => {
+                                            const isObjectItem = itemSchema?.type === 'object' && itemSchema?.properties;
+                                            // Object items get create-ref on NestedForm property labels.
+                                            // Primitive items need create-ref here because renderField skips FieldLabel at depth > 0.
+                                            if (isObjectItem || !showReferencableAuto) {
+                                                return (
+                                                    <>
+                                                        <Label htmlFor={`item-${index}`} className="text-sm font-medium">
+                                                            Item {index + 1}
+                                                        </Label>
+                                                        {itemSchema?.description && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p className="max-w-xs">{itemSchema.description}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </>
+                                                );
+                                            }
+
+                                            const parsedReference = parseDataReferenceValue(item);
+                                            const isReferenceLinked = Boolean(parsedReference);
+                                            const handleLinkToReference = (referenceKey: string) => {
+                                                const range = parsedReference?.range || "";
+                                                updateItem(index, buildDataReferenceValue(referenceKey, range));
+                                            };
+                                            const handleUnlinkReference = () => {
+                                                if (!parsedReference) return;
+                                                const fallbackValue = baseData?.[parsedReference.key];
+                                                updateItem(
+                                                    index,
+                                                    resolveUnlinkedValue(itemSchema?.type || "string", fallbackValue),
+                                                );
+                                            };
+                                            return (
+                                                <FieldLabel
+                                                    fieldKey={`item-${index}`}
+                                                    title={`Item ${index + 1}`}
+                                                    description={itemSchema?.description}
+                                                    canAutoReference={true}
+                                                    isReferenceLinked={isReferenceLinked}
+                                                    availableReferences={availableReferences}
+                                                    onLinkToReference={handleLinkToReference}
+                                                    onCreateReference={onCreateReference}
+                                                    onUnlinkReference={handleUnlinkReference}
+                                                    onEditLinkedReference={() => {
+                                                        if (parsedReference) {
+                                                            onSelectReferenceKey?.(parsedReference.key);
+                                                        }
+                                                    }}
+                                                />
+                                            );
+                                        })()}
                                     </div>
                                     {itemSchema?.type === 'object' && itemSchema?.properties ? (
                                         <NestedForm
@@ -2730,6 +2691,10 @@ function ArrayManager({
                                             availableReferences={availableReferences}
                                             baseData={baseData}
                                             showReferencesDropdown={showReferencesDropdown}
+                                            showReferencableAuto={showReferencableAuto}
+                                            onCreateReference={onCreateReference}
+                                            onSelectReferenceKey={onSelectReferenceKey}
+                                            onRequestRangeEditor={onRequestRangeEditor}
                                         />
                                     ) : (
                                         <div className="space-y-2">
