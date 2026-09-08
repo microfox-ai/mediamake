@@ -8,7 +8,7 @@
  * - **Multiple Effects**: Pan, zoom, shake, and custom generic animations
  * - **Image Filters**: Blur, brightness, contrast, saturation, grayscale, sepia, and more
  * - **Blend Modes**: Various blend modes for creative compositing
- * - **Time Range Control**: Apply effects to specific time ranges (MM:SS-MM:SS format)
+ * - **Time Range Control**: Apply effects to specific time ranges (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss)
  * - **Effect Looping**: Repeat effects multiple times within their duration
  * - **Flexible Duration**: Set per-image duration or use automatic fitting
  *
@@ -27,24 +27,23 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
-import { paramMetaTypes } from '../../dataTypes';
+import { paramMetaTypes, paramInputTypes } from '../../dataTypes';
 
 // Define the schema for image sources
 const imageSourceSchema = z.object({
   src: z.string().describe('Image source URL'),
-  duration: z.number().optional().describe('Duration in seconds (default: 5)'),
-  durationString: z
-    .string()
-    .optional()
-    .describe('Duration in MM:SS format like 01:00'),
   rangeString: z
     .string()
     .optional()
-    .meta({ [paramMetaTypes.rangeField]: true })
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.groupEditable]: false,
+    })
     .describe('Range in MM:SS-MM:SS format like 01:00-02:00'),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('How the image should fit (default: cover)'),
   filter: z
     .enum([
@@ -64,6 +63,7 @@ const imageSourceSchema = z.object({
       'sharp',
     ])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Image filter effect (default: none)'),
   blendMode: z
     .enum([
@@ -85,13 +85,23 @@ const imageSourceSchema = z.object({
       'luminosity',
     ])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Blend mode for the image (default: normal)'),
   opacity: z
     .number()
     .min(0)
     .max(1)
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Image opacity (0-1, default: 1)'),
+  colorTint: z
+    .string()
+    .optional()
+    .meta({
+      [paramMetaTypes.inputType]: paramInputTypes.color,
+      [paramMetaTypes.groupEditable]: true,
+    })
+    .describe('Optional color tint overlay'),
 });
 
 // Define the schema for effects
@@ -340,36 +350,86 @@ const effectSchema = z.object({
 
 // Main preset parameters schema
 const presetParams = z.object({
-  trackName: z.string().describe('Name of the track ( used for the ID )'),
+  trackName: z
+    .string()
+    .meta({ [paramMetaTypes.trackName]: true })
+    .describe('Name of the track ( used for the ID )'),
   trackFitDurationTo: z
     .string()
     .optional()
+    .meta({ [paramMetaTypes.linkTrackName]: true })
     .describe('Fit duration to the track ( only for aligned/random tracks )'),
-  trackStartOffset: z
-    .number()
+  trackRange: z
+    .string()
     .optional()
-    .describe('Track start offset time in seconds (default: 0)'),
-  containerLeft: z
-    .number()
+    .meta({ [paramMetaTypes.rangeField]: true })
+    .describe(
+      'Track time range (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss). Empty = no offset.',
+    ),
+  containerObject: z
+    .object({
+      left: z
+        .number()
+        .optional()
+        .describe('Container left position in pixels or percentage'),
+      top: z
+        .number()
+        .optional()
+        .describe('Container top position in pixels or percentage'),
+      right: z
+        .number()
+        .optional()
+        .describe('Container right position in pixels or percentage'),
+      bottom: z
+        .number()
+        .optional()
+        .describe('Container bottom position in pixels or percentage'),
+      width: z
+        .number()
+        .optional()
+        .describe('Container width in pixels'),
+      height: z
+        .number()
+        .optional()
+        .describe('Container height in pixels'),
+      positioning: z
+        .enum([
+          'top-left',
+          'top-center',
+          'top-right',
+          'center-left',
+          'center',
+          'center-right',
+          'bottom-left',
+          'bottom-center',
+          'bottom-right',
+        ])
+        .optional()
+        .describe('Anchor position within the parent'),
+    })
     .optional()
-    .describe('Container left position in pixels or percentage'),
-  containerTop: z
-    .number()
-    .optional()
-    .describe('Container top position in pixels or percentage'),
-  containerRight: z
-    .number()
-    .optional()
-    .describe('Container right position in pixels or percentage'),
-  containerBottom: z
-    .number()
-    .optional()
-    .describe('Container bottom position in pixels or percentage'),
+    .meta({ [paramMetaTypes.containerObject]: true })
+    .describe(
+      'Container layout (insets, size, positioning). Omit a field to leave unset.',
+    ),
   images: z
-    .array(imageSourceSchema)
-    .min(1)
-    .meta({ [paramMetaTypes.nestedRangeField]: '[].rangeString' })
-    .describe('Array of image sources'),
+    .object({
+      mediaRef: z
+        .string()
+        .optional()
+        .describe(
+          'Linked medias reference key — srcs are read/written from this ref',
+        ),
+      items: z
+        .array(imageSourceSchema)
+        .describe('Per-image local props (fit, filter, range, etc.)'),
+    })
+    .meta({
+      [paramMetaTypes.nestedRangeField]: 'items[].rangeString',
+      [paramMetaTypes.imagesGroup]: true,
+      [paramMetaTypes.referrableDataType]: 'medias',
+    })
+    .describe('Image sources with optional linked medias ref for srcs'),
   effects: z
     .array(effectSchema)
     .min(1)
@@ -383,67 +443,34 @@ const presetExecution = async (
   props: {
     config: InputCompositionProps['config'];
     presets?: any;
+    helpers?: Record<string, Function>;
   },
 ): Promise<Partial<PresetOutput>> => {
-  const { images, effects } = params;
-  const { config, presets } = props;
+  // After processDataReferences, images may already be a merged array.
+  // Before processing (or if unprocessed), it is { mediaRef?, items }.
+  const rawImages = (params as any).images;
+  const images: any[] = Array.isArray(rawImages)
+    ? rawImages
+    : Array.isArray(rawImages?.items)
+      ? rawImages.items
+      : [];
+  const { effects } = params;
+  const { config, presets, helpers } = props;
 
-  // Helper function to parse time range (MM:SS-MM:SS format)
-  const parseTimeRange = (
+  const parseTimeRange = helpers!.parseTimeRange as (
     range: string,
-  ): { start: number; end: number } | null => {
-    if (!range) return null;
+  ) => { start: number; end: number } | null;
 
-    const match = range.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
-
-    const startMinutes = parseInt(match[1], 10);
-    const startSeconds = parseInt(match[2], 10);
-    const endMinutes = parseInt(match[3], 10);
-    const endSeconds = parseInt(match[4], 10);
-
-    return {
-      start: startMinutes * 60 + startSeconds,
-      end: endMinutes * 60 + endSeconds,
-    };
-  };
-
-  // Helper function to parse duration string (MM:SS format) to seconds
-  const parseDurationString = (
-    durationString: string | undefined,
-  ): number | null => {
-    if (!durationString) return null;
-
-    const match = durationString.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
-
-    const minutes = parseInt(match[1], 10);
-    const seconds = parseInt(match[2], 10);
-
-    return minutes * 60 + seconds;
-  };
-
-  // Helper function to parse range string (MM:SS-MM:SS format) and return start and duration
+  // Helper function to parse range string and return start and duration
   const parseRangeString = (
     rangeString: string | undefined,
   ): { start: number; duration: number } | null => {
     if (!rangeString) return null;
-
-    const match = rangeString.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
-
-    const startMinutes = parseInt(match[1], 10);
-    const startSeconds = parseInt(match[2], 10);
-    const endMinutes = parseInt(match[3], 10);
-    const endSeconds = parseInt(match[4], 10);
-
-    const start = startMinutes * 60 + startSeconds;
-    const end = endMinutes * 60 + endSeconds;
-    const duration = end - start;
-
-    if (duration <= 0) return null; // Invalid range if end <= start
-
-    return { start, duration };
+    const timeRange = parseTimeRange(rangeString);
+    if (!timeRange) return null;
+    const duration = timeRange.end - timeRange.start;
+    if (duration <= 0) return null;
+    return { start: timeRange.start, duration };
   };
 
   // Helper function to generate CSS filter styles
@@ -728,28 +755,19 @@ const presetExecution = async (
         effect => effect.componentId === 'pan',
       )?.data as PanEffectData;
 
-      // Parse rangeString if provided (takes priority over duration/durationString)
+      // Parse rangeString if provided; otherwise duration defaults to 0
       const imageRange = parseRangeString(image.rangeString);
 
-      // Get duration and start time
-      // Priority: rangeString > durationString > duration
-      // If none provided, timing will be empty (no default duration)
       let imageStart: number | undefined;
-      let imageDuration: number | undefined;
+      let imageDuration: number;
 
       if (imageRange) {
-        // Use rangeString for both start and duration
         imageStart = imageRange.start;
         imageDuration = imageRange.duration;
       } else {
-        // Fall back to durationString or duration
-        const parsedDuration = parseDurationString(image.durationString);
-        imageDuration = parsedDuration ?? image.duration;
-        imageStart = undefined; // No start time if not using rangeString
+        imageStart = undefined;
+        imageDuration = 0;
       }
-
-      // Only set timing if we have a duration or start time
-      const hasTiming = imageDuration !== undefined || imageStart !== undefined;
 
       const imageFit = image.fit || 'cover';
       const objectFitClass = getObjectFitClass(imageFit);
@@ -781,17 +799,18 @@ const presetExecution = async (
               ? { mixBlendMode: image.blendMode }
               : {}),
             ...(image.opacity !== undefined ? { opacity: image.opacity } : {}),
+            ...(image.colorTint
+              ? {
+                  boxShadow: `inset 0 0 0 9999px ${image.colorTint}40`,
+                }
+              : {}),
           },
         },
         context: {
-          timing: hasTiming
-            ? {
-                ...(imageStart !== undefined ? { start: imageStart } : {}),
-                ...(imageDuration !== undefined
-                  ? { duration: imageDuration }
-                  : {}),
-              }
-            : {},
+          timing: {
+            ...(imageStart !== undefined ? { start: imageStart } : {}),
+            duration: imageDuration,
+          },
         },
         effects: imageEffects,
       };
@@ -799,27 +818,90 @@ const presetExecution = async (
   );
 
   // Build container style based on positioning props
+  const container = params.containerObject ?? {};
   const containerStyle: React.CSSProperties = {};
-  if (params.containerLeft !== undefined) {
-    containerStyle.left = params.containerLeft;
+
+  const applyPositioning = (
+    positioning: string | undefined,
+  ): React.CSSProperties => {
+    switch (positioning) {
+      case 'top-left':
+        return { top: 0, left: 0 };
+      case 'top-center':
+        return { top: 0, left: '50%', transform: 'translateX(-50%)' };
+      case 'top-right':
+        return { top: 0, right: 0 };
+      case 'center-left':
+        return { top: '50%', left: 0, transform: 'translateY(-50%)' };
+      case 'center':
+        return {
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        };
+      case 'center-right':
+        return { top: '50%', right: 0, transform: 'translateY(-50%)' };
+      case 'bottom-left':
+        return { bottom: 0, left: 0 };
+      case 'bottom-center':
+        return { bottom: 0, left: '50%', transform: 'translateX(-50%)' };
+      case 'bottom-right':
+        return { bottom: 0, right: 0 };
+      default:
+        return {};
+    }
+  };
+
+  Object.assign(containerStyle, applyPositioning(container.positioning));
+
+  // Explicit insets override positioning anchors for the same edge
+  if (container.left !== undefined) {
+    containerStyle.left = container.left;
   }
-  if (params.containerTop !== undefined) {
-    containerStyle.top = params.containerTop;
+  if (container.top !== undefined) {
+    containerStyle.top = container.top;
   }
-  if (params.containerRight !== undefined) {
-    containerStyle.right = params.containerRight;
+  if (container.right !== undefined) {
+    containerStyle.right = container.right;
   }
-  if (params.containerBottom !== undefined) {
-    containerStyle.bottom = params.containerBottom;
+  if (container.bottom !== undefined) {
+    containerStyle.bottom = container.bottom;
+  }
+  if (container.width !== undefined) {
+    containerStyle.width = container.width;
+  }
+  if (container.height !== undefined) {
+    containerStyle.height = container.height;
   }
 
-  // Build container className - use inset-0 only if no positioning props are provided
   const hasPositioning =
-    params.containerLeft !== undefined ||
-    params.containerTop !== undefined ||
-    params.containerRight !== undefined ||
-    params.containerBottom !== undefined;
+    container.positioning !== undefined ||
+    container.left !== undefined ||
+    container.top !== undefined ||
+    container.right !== undefined ||
+    container.bottom !== undefined ||
+    container.width !== undefined ||
+    container.height !== undefined;
   const containerClassName = hasPositioning ? 'absolute' : 'absolute inset-0';
+
+  const trackTimeRange = parseTimeRange(params.trackRange || '');
+  const trackTiming: {
+    start?: number;
+    duration?: number;
+    fitDurationTo?: string;
+  } = {};
+  if (trackTimeRange) {
+    trackTiming.start = trackTimeRange.start;
+    if (!params.trackFitDurationTo) {
+      const duration = trackTimeRange.end - trackTimeRange.start;
+      if (duration > 0) {
+        trackTiming.duration = duration;
+      }
+    }
+  }
+  if (params.trackFitDurationTo) {
+    trackTiming.fitDurationTo = params.trackFitDurationTo;
+  }
 
   return {
     output: {
@@ -837,16 +919,7 @@ const presetExecution = async (
             },
           },
           context: {
-            timing: params.trackFitDurationTo
-              ? {
-                  start: params.trackStartOffset ?? 0,
-                  fitDurationTo: params.trackFitDurationTo ?? 'this',
-                }
-              : params.trackStartOffset
-                ? {
-                    start: params.trackStartOffset,
-                  }
-                : {},
+            timing: trackTiming,
           },
           childrenData: imageComponents ?? [],
         },
@@ -880,17 +953,18 @@ const presetMetadata: PresetMetadata = {
   },
   defaultInputParams: {
     trackName: 'imageloop-track',
-    trackStartOffset: 0,
-    images: [
-      {
-        src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-        duration: 5,
-        fit: 'cover',
-        filter: 'none',
-        blendMode: 'normal',
-        opacity: 1,
-      },
-    ],
+    trackRange: '',
+    images: {
+      items: [
+        {
+          src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
+          fit: 'cover',
+          filter: 'none',
+          blendMode: 'normal',
+          opacity: 1,
+        },
+      ],
+    },
     effects: [
       {
         type: 'pan',

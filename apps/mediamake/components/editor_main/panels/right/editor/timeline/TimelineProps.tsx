@@ -10,6 +10,7 @@ import { Check, X, Loader2 } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
 import { createBaseDataFromReferences, remapDataReferenceKeys } from "@/components/editor/presets/engine/preset-data-mutation";
+import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
 import type { Timeline } from "../../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
@@ -166,6 +167,25 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
     }
     setFilePanelTab("timelines");
   }, [displayTimeline, firstPreset, selectPreset, setFilePanelTab]);
+
+  const handleUpdateReferenceValue = useCallback((referenceKey: string, value: any) => {
+    const sourceTimeline = getEditedTimeline(timeline.id) || timeline;
+    const references = [...(sourceTimeline.defaultData?.references || [])];
+    const index = references.findIndex((ref: any) => ref?.key === referenceKey);
+    if (index === -1) return;
+    references[index] = { ...references[index], value };
+    updateTimeline(timeline.id, {
+      defaultData: {
+        ...(sourceTimeline.defaultData || {}),
+        references,
+      },
+    });
+    const refreshedTimeline = useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || sourceTimeline;
+    const compileStore = useCompileStore.getState();
+    if (compileStore.currentTimeline?.id === refreshedTimeline.id) {
+      useCompileStore.setState({ currentTimeline: refreshedTimeline });
+    }
+  }, [getEditedTimeline, timeline, updateTimeline]);
 
   // Fetch preset info if not ready
   useEffect(() => {
@@ -639,12 +659,14 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                 value={localInputData}
                 onChange={handleInputDataChange}
                 availableReferences={(displayTimeline.defaultData?.references || []).map((ref: any) => ref.key)}
+                availableTrackNames={collectTrackNamesFromPresets(displayTimeline.presets)}
                 baseData={createBaseDataFromReferences(displayTimeline.defaultData?.references || [])}
                 showTabs={true}
                 showReferencableAuto={true}
                 onCreateReference={handleCreateReference}
                 onSelectReferenceKey={handleSelectReferenceKey}
                 onRequestRangeEditor={handleRequestRangeEditor}
+                onUpdateReferenceValue={handleUpdateReferenceValue}
               />
             </div>
           )}

@@ -26,6 +26,45 @@ export const paramMetaTypes = {
    */
   nestedRangeField: "nestedRangeField",
   /**
+   * Marks a string field as this preset's track identity.
+   * Values from these fields are collected to populate `linkTrackName` dropdowns.
+   * Value: true
+   */
+  trackName: "trackName",
+  /**
+   * Marks a string field that links/fits to another track by name.
+   * Renders a searchable dropdown of existing trackNames (plus free-text entry).
+   * Value: true
+   */
+  linkTrackName: "linkTrackName",
+  /**
+   * Marks an object with optional left/right/top/bottom numeric insets.
+   * Renders a Figma-style 4-block insets editor. Missing keys stay undefined
+   * (distinct from 0). Value: true
+   */
+  containerObject: "containerObject",
+  /**
+   * Marks an array of image objects. Renders Images / Form tabs:
+   * - Images: thumbnail grid + per-image popup editor + group edit for shared props
+   * - Form: standard array form
+   * Value: true
+   */
+  imagesGroup: "imagesGroup",
+  /**
+   * Marks an array of media items (image / video / audio).
+   * Renders Medias / Form tabs similar to imagesGroup, with kind-aware editors.
+   * Value: true
+   */
+  mediasGroup: "mediasGroup",
+  /**
+   * Nested field edit scope inside an imagesGroup (or similar) item schema.
+   * Value: true = can be bulk-edited across items; false = per-item only.
+   *
+   * @example z.string().meta({ [paramMetaTypes.groupEditable]: false }) // rangeString
+   * @example z.enum([...]).meta({ [paramMetaTypes.groupEditable]: true }) // fit
+   */
+  groupEditable: "groupEditable",
+  /**
    * Forces a specific editor widget for this field, overriding the name-based
    * heuristics. Value: one of `paramInputTypes`.
    *

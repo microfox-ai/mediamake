@@ -5,7 +5,7 @@
 // The logic needs to be updated to replace the complete object structure, not just the src field
 // Look at lines 855-914 in handleReplaceItem function for the fix
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,10 @@ import { paramMetaTypes, paramInputTypes } from "../dataTypes";
 import type { ColorInputOptions, ParamInputType, SliderInputOptions } from "../dataTypes";
 import { ColorInput } from "./inputs/color-input";
 import { SliderInput } from "./inputs/slider-input";
+import { ContainerInsetsInput } from "./inputs/container-insets-input";
+import { LinkTrackNameInput } from "./inputs/link-track-name-input";
+import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue, extractMediaSrc, toMediaRefEntry } from "./inputs/images-group-field";
+import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 
 const availableFonts = getAvailableFonts();
@@ -98,10 +102,14 @@ interface SchemaFormProps {
     title?: string;
     description?: string;
     availableReferences?: string[]; // Available reference keys for data-referrable fields
+    /** Track names from other presets on the timeline (for linkTrackName dropdowns). */
+    availableTrackNames?: string[];
     baseData?: Record<string, any>; // Base data for flexible object fields
     onCreateReference?: (referenceType: string) => string | null;
     onSelectReferenceKey?: (referenceKey: string) => void;
     onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
+    /** Update a timeline reference's value (used by imagesGroup mediaRef sync). */
+    onUpdateReferenceValue?: (referenceKey: string, value: any) => void;
 }
 
 interface FormField {
@@ -133,6 +141,14 @@ interface NestedFormProps {
     onCreateReference?: (referenceType: string) => string | null;
     onSelectReferenceKey?: (referenceKey: string) => void;
     onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
+    onUpdateReferenceValue?: (referenceKey: string, value: any) => void;
+    availableTrackNames?: string[];
+}
+
+/** Item schema for imagesGroup ({ mediaRef, items: [...] } or legacy array). */
+function getImagesGroupItemSchema(field: FormField): any {
+    if (field.type === "array") return field.items;
+    return field.properties?.items?.items;
 }
 
 // Helper function to detect if a field is URL/src related
@@ -147,6 +163,41 @@ function isUrlField(fieldKey: string, field: FormField): boolean {
         titleLower.includes(keyword) ||
         descLower.includes(keyword)
     );
+}
+
+/** True when this field should offer a media-picker action on the label. */
+function isMediaSelectableField(fieldKey: string, field: FormField): boolean {
+    // imagesGroup has its own gallery add/swap UI; avoid label picker replacing the object.
+    if (field.meta?.[paramMetaTypes.imagesGroup] === true) return false;
+    if (field.type === "string") {
+        return isUrlField(fieldKey, field);
+    }
+    if (field.type === "array" && field.items) {
+        if (isUrlField(fieldKey, field)) return true;
+        if (
+            field.items.type === "string" &&
+            isUrlField("item", { ...field.items, title: field.items.title || "" })
+        ) {
+            return true;
+        }
+        if (field.items.type === "object" && field.items.properties) {
+            return Object.keys(field.items.properties).some((propKey) =>
+                isUrlField(propKey, {
+                    ...(field.items.properties?.[propKey] || {}),
+                    title: field.items.properties?.[propKey]?.title || "",
+                }),
+            );
+        }
+    }
+    if (field.type === "object" && field.properties) {
+        return Object.keys(field.properties).some((propKey) =>
+            isUrlField(propKey, {
+                ...(field.properties?.[propKey] || {}),
+                title: field.properties?.[propKey]?.title || "",
+            }),
+        );
+    }
+    return false;
 }
 
 // Helper function to detect if a field is font related
@@ -274,7 +325,22 @@ function isRangeField(field: FormField): boolean {
     if (field.meta?.[paramMetaTypes.rangeField] === true) return true;
     // Name-based fallback so unannotated range fields still get the custom UI
     const n = field.key.toLowerCase().replace(/[-_]/g, "");
-    return n === "rangestring" || n === "range" || n.endsWith("rangestring");
+    return n === "rangestring" || n === "range" || n.endsWith("rangestring") || n === "trackrange";
+}
+
+function isLinkTrackNameField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.linkTrackName] === true;
+}
+
+function isContainerObjectField(field: FormField): boolean {
+    return (
+        field.type === "object" &&
+        field.meta?.[paramMetaTypes.containerObject] === true
+    );
+}
+
+function isImagesGroupField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.imagesGroup] === true;
 }
 
 function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
@@ -311,6 +377,10 @@ interface FieldLabelProps {
     onCreateReference?: (referenceType: string) => string | null;
     onUnlinkReference: () => void;
     onEditLinkedReference: () => void;
+    /** Limit "+ New Ref" types (e.g. medias-only for imagesGroup). */
+    createReferenceTypes?: Array<{ value: string; label: string }>;
+    /** Extra actions beside help/ref icons (e.g. media picker). */
+    actions?: ReactNode;
 }
 
 function FieldLabel({
@@ -325,6 +395,8 @@ function FieldLabel({
     onCreateReference,
     onUnlinkReference,
     onEditLinkedReference,
+    createReferenceTypes = REFERENCE_TYPE_OPTIONS,
+    actions,
 }: FieldLabelProps) {
     return (
         <div className="flex items-center gap-2">
@@ -359,24 +431,37 @@ function FieldLabel({
                                 {refKey}
                             </DropdownMenuItem>
                         ))}
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                                {REFERENCE_TYPE_OPTIONS.map((option) => (
-                                    <DropdownMenuItem
-                                        key={option.value}
-                                        onClick={() => {
-                                            const createdKey = onCreateReference?.(option.value);
-                                            if (createdKey) {
-                                                onLinkToReference(createdKey);
-                                            }
-                                        }}
-                                    >
-                                        {option.label}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
+                        {createReferenceTypes.length === 1 ? (
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    const createdKey = onCreateReference?.(createReferenceTypes[0].value);
+                                    if (createdKey) {
+                                        onLinkToReference(createdKey);
+                                    }
+                                }}
+                            >
+                                + New {createReferenceTypes[0].label} Ref
+                            </DropdownMenuItem>
+                        ) : (
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    {createReferenceTypes.map((option) => (
+                                        <DropdownMenuItem
+                                            key={option.value}
+                                            onClick={() => {
+                                                const createdKey = onCreateReference?.(option.value);
+                                                if (createdKey) {
+                                                    onLinkToReference(createdKey);
+                                                }
+                                            }}
+                                        >
+                                            {option.label}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
@@ -404,6 +489,7 @@ function FieldLabel({
                     </Button>
                 </>
             )}
+            {actions}
         </div>
     );
 }
@@ -843,7 +929,18 @@ function MediaPreview({
 }
 
 // MediaPickerButton component
-function MediaPickerButton({ onSelect, singular = true, currentValue }: { onSelect: (files: MediaFile | MediaFile[]) => void; singular?: boolean; currentValue?: string }) {
+function MediaPickerButton({
+    onSelect,
+    singular = true,
+    currentValue,
+    compact = false,
+}: {
+    onSelect: (files: MediaFile | MediaFile[]) => void;
+    singular?: boolean;
+    currentValue?: string;
+    /** Ghost icon button for placement beside field labels. */
+    compact?: boolean;
+}) {
     const [showPicker, setShowPicker] = useState(false);
 
     const handleSelect = (files: MediaFile | MediaFile[]) => {
@@ -851,7 +948,7 @@ function MediaPickerButton({ onSelect, singular = true, currentValue }: { onSele
         setShowPicker(false);
     };
 
-    const showImagePreview = currentValue && isImageUrl(currentValue);
+    const showImagePreview = !compact && currentValue && isImageUrl(currentValue);
 
     return (
         <>
@@ -861,12 +958,13 @@ function MediaPickerButton({ onSelect, singular = true, currentValue }: { onSele
                 )}
                 <Button
                     type="button"
-                    variant="outline"
+                    variant={compact ? "ghost" : "outline"}
                     size="sm"
                     onClick={() => setShowPicker(true)}
-                    className="px-3"
+                    className={compact ? "h-6 w-6 p-0" : "px-3"}
+                    title="Select media"
                 >
-                    <Image className="h-4 w-4" />
+                    <Image className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
                 </Button>
             </div>
             {showPicker && (
@@ -1621,7 +1719,7 @@ function RangeStringInput({
     };
 
     const addSeg = () => {
-        commit([...segs, { start: "", end: "" }]);
+        commit([...segs, { start: "0:00", end: "0:30" }]);
     };
 
     const removeSeg = (i: number) => {
@@ -1768,7 +1866,9 @@ function renderField(
     onSelectReferenceKey?: (referenceKey: string) => void,
     onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void,
     metadata?: PresetMetadata,
-    allFieldValues?: Record<string, any>
+    allFieldValues?: Record<string, any>,
+    availableTrackNames?: string[],
+    onUpdateReferenceValue?: (referenceKey: string, value: any) => void,
 ) {
     const fieldValue = currentValue;
     const handleChange = onChangeHandler || (() => { });
@@ -1795,7 +1895,49 @@ function renderField(
         );
     }
 
+    const renderImagesGroup = () => {
+        const itemSchema = getImagesGroupItemSchema(field);
+        const arraySchemaForForm = {
+            type: "array",
+            items: itemSchema,
+        };
+        return (
+            <ImagesGroupField
+                value={fieldValue}
+                onChange={(val) => handleChange(fieldKey, val)}
+                itemSchema={itemSchema}
+                baseData={baseData}
+                onUpdateMediaRef={(refKey, medias) => {
+                    onUpdateReferenceValue?.(refKey, medias);
+                }}
+                renderForm={(items, onItemsChange) => (
+                    <ArrayManager
+                        schema={arraySchemaForForm}
+                        value={items}
+                        onChange={onItemsChange}
+                        fieldKey={fieldKey}
+                        parentSchema={parentSchema}
+                        availableReferences={availableReferences}
+                        baseData={baseData}
+                        showReferencesDropdown={showReferencesDropdown}
+                        showReferencableAuto={showReferencableAuto}
+                        onCreateReference={onCreateReference}
+                        onSelectReferenceKey={onSelectReferenceKey}
+                        onRequestRangeEditor={onRequestRangeEditor}
+                        onUpdateReferenceValue={onUpdateReferenceValue}
+                        availableTrackNames={availableTrackNames}
+                    />
+                )}
+            />
+        );
+    };
+
     const renderInput = () => {
+        // imagesGroup uses mediaRef (not data:[key]) — never replace UI with LinkedReferenceValueView
+        if (isImagesGroupField(field)) {
+            return renderImagesGroup();
+        }
+
         const linkedReference = parseDataReferenceValue(fieldValue);
         if (showReferencableAuto && linkedReference) {
             const resolvedValue = baseData?.[linkedReference.key];
@@ -1838,6 +1980,7 @@ function renderField(
                 const isLargeText = !explicitInput && isLargeTextField(fieldKey, field);
                 const isDataReferrable = isDataReferrableField(field);
                 const isRange = isRangeField(field);
+                const isLinkTrack = isLinkTrackNameField(field);
                 const isTranscriptionIdField = fieldKey.toLowerCase() === 'transcriptionid';
 
                 // Colour field — checked before the URL/font heuristics so that keys
@@ -1878,6 +2021,28 @@ function renderField(
                     );
                 }
 
+                if (isLinkTrack) {
+                    const localTrackNames = collectTrackNamesFromSchemaFields(
+                        Object.entries(parentSchema?.properties || {}).map(([key, f]: [string, any]) => ({
+                            key,
+                            meta: extractZodMeta(f),
+                        })),
+                        allFieldValues,
+                        paramMetaTypes.trackName,
+                    );
+                    const mergedTrackNames = Array.from(
+                        new Set([...(availableTrackNames || []), ...localTrackNames]),
+                    );
+                    return (
+                        <LinkTrackNameInput
+                            value={typeof fieldValue === "string" ? fieldValue : ""}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                            trackNames={mergedTrackNames}
+                            placeholder={field.description || "Select or type a track name"}
+                        />
+                    );
+                }
+
                 // Legacy reference dropdown UI intentionally disabled.
                 // if (isDataReferrable && showReferencesDropdown && !showReferencableAuto) {
                 //     return (
@@ -1910,22 +2075,11 @@ function renderField(
 
                 if (isUrl) {
                     return (
-                        <div className="flex gap-2">
-                            <Input
-                                value={typeof fieldValue === 'string' ? fieldValue : ""}
-                                onChange={(e) => handleChange(fieldKey, e.target.value)}
-                                placeholder={field.description || `Enter ${field.title || fieldKey}`}
-                                className="flex-1"
-                            />
-                            <MediaPickerButton
-                                onSelect={(files) => {
-                                    const newValue = mapMediaFileToFieldValue(files, field, fieldValue);
-                                    handleChange(fieldKey, newValue);
-                                }}
-                                singular={true}
-                                currentValue={typeof fieldValue === 'string' ? fieldValue : ""}
-                            />
-                        </div>
+                        <Input
+                            value={typeof fieldValue === 'string' ? fieldValue : ""}
+                            onChange={(e) => handleChange(fieldKey, e.target.value)}
+                            placeholder={field.description || `Enter ${field.title || fieldKey}`}
+                        />
                     );
                 }
 
@@ -1996,60 +2150,19 @@ function renderField(
                 );
 
             case "object":
-                if (field.properties) {
-                    const hasUrlProperties = Object.keys(field.properties || {}).some(propKey =>
-                        isUrlField(propKey, { ...(field.properties?.[propKey] || {}), title: field.properties?.[propKey]?.title || '' })
+                if (isContainerObjectField(field)) {
+                    return (
+                        <ContainerInsetsInput
+                            value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                        />
                     );
-
+                }
+                if (field.properties) {
                     // Check if this should use flexible object field
                     const isFlexible = isFlexibleObjectField(field, availableReferences || []);
 
-                    if (hasUrlProperties) {
-                        return (
-                            <div className="space-y-2">
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <NestedForm
-                                            schema={field}
-                                            value={fieldValue || {}}
-                                            onChange={(val) => handleChange(fieldKey, val)}
-                                            fieldKey={fieldKey}
-                                            depth={depth}
-                                            parentSchema={parentSchema}
-                                            availableReferences={availableReferences}
-                                            baseData={baseData}
-                                            showReferencesDropdown={showReferencesDropdown}
-                                            showReferencableAuto={showReferencableAuto}
-                                            onCreateReference={onCreateReference}
-                                            onSelectReferenceKey={onSelectReferenceKey}
-                                            onRequestRangeEditor={onRequestRangeEditor}
-                                        />
-                                    </div>
-                                    <MediaPickerButton
-                                        onSelect={(files) => {
-                                            const newValue = mapMediaFileToFieldValue(files, field, fieldValue);
-                                            handleChange(fieldKey, newValue);
-                                        }}
-                                        singular={true}
-                                        currentValue={typeof fieldValue === 'string' ? fieldValue : ""}
-                                    />
-                                </div>
-                                {isFlexible && (
-                                    <div className="mt-4">
-                                        <FlexibleObjectField
-                                            value={fieldValue || {}}
-                                            onChange={(val) => handleChange(fieldKey, val)}
-                                            availableReferences={availableReferences || []}
-                                            baseData={baseData || {}}
-                                            fieldKey={fieldKey}
-                                            field={field}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    }
-
+                    // Media picker lives on the field label; keep object body as NestedForm only.
                     if (isFlexible) {
                         return (
                             <div className="space-y-4">
@@ -2067,6 +2180,8 @@ function renderField(
                                     onCreateReference={onCreateReference}
                                     onSelectReferenceKey={onSelectReferenceKey}
                                     onRequestRangeEditor={onRequestRangeEditor}
+                                    onUpdateReferenceValue={onUpdateReferenceValue}
+                                    availableTrackNames={availableTrackNames}
                                 />
                                 <FlexibleObjectField
                                     value={fieldValue || {}}
@@ -2095,6 +2210,8 @@ function renderField(
                             onCreateReference={onCreateReference}
                             onSelectReferenceKey={onSelectReferenceKey}
                             onRequestRangeEditor={onRequestRangeEditor}
+                            onUpdateReferenceValue={onUpdateReferenceValue}
+                            availableTrackNames={availableTrackNames}
                         />
                     );
                 }
@@ -2111,151 +2228,24 @@ function renderField(
 
             case "array":
                 if (field.items) {
-                    const isDataReferrable = isDataReferrableField(field);
-                    const isUrlArray = isUrlField(fieldKey, field) ||
-                        (field.items.type === 'string' && isUrlField('item', { ...field.items, title: field.items.title || '' }));
-
-                    // Legacy reference dropdown UI intentionally disabled.
-                    // if (isDataReferrable && showReferencesDropdown && !showReferencableAuto) {
-                    //     return (
-                    //         <DataReferrableDropdown
-                    //             value={Array.isArray(fieldValue) ? fieldValue.join(', ') : (typeof fieldValue === 'string' ? fieldValue : "")}
-                    //             onChange={(val) => {
-                    //                 // Handle both string and array values
-                    //                 if (val.startsWith('data:[')) {
-                    //                     handleChange(fieldKey, val);
-                    //                 } else {
-                    //                     // Convert comma-separated string to array
-                    //                     const arrayValue = val.split(',').map(item => item.trim()).filter(Boolean);
-                    //                     handleChange(fieldKey, arrayValue);
-                    //                 }
-                    //             }}
-                    //             availableReferences={availableReferences || []}
-                    //             fieldKey={fieldKey}
-                    //         />
-                    //     );
-                    // }
-
-                    if (isUrlArray) {
-                        return (
-                            <div className="space-y-2">
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <ArrayManager
-                                            schema={field}
-                                            value={fieldValue || []}
-                                            onChange={(val) => handleChange(fieldKey, val)}
-                                            fieldKey={fieldKey}
-                                            parentSchema={parentSchema}
-                                            availableReferences={availableReferences}
-                                            baseData={baseData}
-                                            showReferencesDropdown={showReferencesDropdown}
-                                            showReferencableAuto={showReferencableAuto}
-                                            onCreateReference={onCreateReference}
-                                            onSelectReferenceKey={onSelectReferenceKey}
-                                            onRequestRangeEditor={onRequestRangeEditor}
-                                        />
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <MediaPickerButton
-                                            onSelect={(files) => {
-                                                const newValue = mapMediaFileToFieldValue(files, field, fieldValue);
-                                                handleChange(fieldKey, newValue);
-                                            }}
-                                            singular={false}
-                                            currentValue={typeof fieldValue === 'string' ? fieldValue : ""}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleChange(fieldKey, [])}
-                                            className="px-3"
-                                            title="Clear all items"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    // if (isCaptionsArray) {
-                    //     return (
-                    //         <div className="space-y-2">
-                    //             <div className="flex gap-2">
-                    //                 <div className="flex-1">
-                    //                     <ArrayManager
-                    //                         schema={field}
-                    //                         value={fieldValue || []}
-                    //                         onChange={(val) => handleChange(fieldKey, val)}
-                    //                         fieldKey={fieldKey}
-                    //                         parentSchema={parentSchema}
-                    //                         availableReferences={availableReferences}
-                    //                         baseData={baseData}
-                    //                         showReferencesDropdown={showReferencesDropdown}
-                    //                         showReferencableAuto={showReferencableAuto}
-                    //                         onCreateReference={onCreateReference}
-                    //                         onSelectReferenceKey={onSelectReferenceKey}
-                    //                         onRequestRangeEditor={onRequestRangeEditor}
-                    //                     />
-                    //                 </div>
-                    //                 <div className="flex gap-1">
-                    //                     <TranscriptionPickerButton
-                    //                         onSelect={(transcription) => {
-                    //                             if (transcription.captions) {
-                    //                                 handleChange(fieldKey, transcription.captions);
-                    //                             }
-                    //                         }}
-                    //                     />
-                    //                     <Button
-                    //                         type="button"
-                    //                         variant="outline"
-                    //                         size="sm"
-                    //                         onClick={() => handleChange(fieldKey, [])}
-                    //                         className="px-3"
-                    //                         title="Clear all items"
-                    //                     >
-                    //                         <Trash2 className="h-4 w-4" />
-                    //                     </Button>
-                    //                 </div>
-                    //             </div>
-                    //         </div>
-                    //     );
-                    // }
-
+                    // Media picker / clear live on the field label for media arrays.
                     return (
-                        <div className="space-y-2">
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <ArrayManager
-                                        schema={field}
-                                        value={fieldValue || []}
-                                        onChange={(val) => handleChange(fieldKey, val)}
-                                        fieldKey={fieldKey}
-                                        parentSchema={parentSchema}
-                                        availableReferences={availableReferences}
-                                        baseData={baseData}
-                                        showReferencesDropdown={showReferencesDropdown}
-                                        showReferencableAuto={showReferencableAuto}
-                                        onCreateReference={onCreateReference}
-                                        onSelectReferenceKey={onSelectReferenceKey}
-                                        onRequestRangeEditor={onRequestRangeEditor}
-                                    />
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleChange(fieldKey, [])}
-                                    className="px-3"
-                                    title="Clear all items"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
+                        <ArrayManager
+                            schema={field}
+                            value={fieldValue || []}
+                            onChange={(val) => handleChange(fieldKey, val)}
+                            fieldKey={fieldKey}
+                            parentSchema={parentSchema}
+                            availableReferences={availableReferences}
+                            baseData={baseData}
+                            showReferencesDropdown={showReferencesDropdown}
+                            showReferencableAuto={showReferencableAuto}
+                            onCreateReference={onCreateReference}
+                            onSelectReferenceKey={onSelectReferenceKey}
+                            onRequestRangeEditor={onRequestRangeEditor}
+                            onUpdateReferenceValue={onUpdateReferenceValue}
+                            availableTrackNames={availableTrackNames}
+                        />
                     );
                 }
                 return (
@@ -2287,23 +2277,98 @@ function renderField(
     }
 
     const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
+    const imagesGroupParsed = isImagesGroupField(field)
+        ? parseImagesGroupValue(fieldValue)
+        : null;
     const parsedReference = parseDataReferenceValue(fieldValue);
-    const isReferenceLinked = Boolean(parsedReference);
+    const isReferenceLinked = imagesGroupParsed
+        ? Boolean(imagesGroupParsed.mediaRef)
+        : Boolean(parsedReference);
     const canAutoReference = Boolean(showReferencableAuto);
+    // containerObject / imagesGroup use custom widgets (not NestedForm), so they still need FieldLabel.
     const isStructuredField =
-        (field.type === "object" && Boolean(field.properties)) ||
-        (field.type === "array" && Boolean(field.items));
+        (field.type === "object" &&
+            Boolean(field.properties) &&
+            !isContainerObjectField(field) &&
+            !isImagesGroupField(field)) ||
+        (field.type === "array" && Boolean(field.items) && !isImagesGroupField(field));
 
     const handleLinkToReference = (referenceKey: string) => {
+        if (isImagesGroupField(field)) {
+            const { items } = parseImagesGroupValue(fieldValue);
+            const existing = baseData?.[referenceKey];
+            if (Array.isArray(existing) && existing.length > 0) {
+                const nextItems = existing.map((_: any, i: number) => {
+                    const local = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
+                    // Mirror src for unlink fallback; ref remains source of truth while linked
+                    const src = extractMediaSrc(existing[i]) || local.src || "";
+                    return { ...local, src };
+                });
+                handleChange(fieldKey, serializeImagesGroupValue(referenceKey, nextItems));
+                return;
+            }
+            const medias = items.map((item) => toMediaRefEntry(extractMediaSrc(item)));
+            onUpdateReferenceValue?.(referenceKey, medias);
+            handleChange(fieldKey, serializeImagesGroupValue(referenceKey, items));
+            return;
+        }
         const range = parsedReference?.range || "";
         handleChange(fieldKey, buildDataReferenceValue(referenceKey, range));
     };
 
     const handleUnlinkReference = () => {
+        if (isImagesGroupField(field)) {
+            const { mediaRef, items } = parseImagesGroupValue(fieldValue);
+            if (!mediaRef) return;
+            const refMedias = Array.isArray(baseData?.[mediaRef]) ? baseData![mediaRef] : [];
+            const len = Math.max(items.length, refMedias.length);
+            const baked = Array.from({ length: len }, (_, i) => {
+                const local = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
+                return {
+                    ...local,
+                    src: extractMediaSrc(refMedias[i]) || local.src || "",
+                };
+            });
+            handleChange(fieldKey, serializeImagesGroupValue(undefined, baked));
+            return;
+        }
         if (!parsedReference) return;
         const fallbackValue = baseData?.[parsedReference.key];
         handleChange(fieldKey, resolveUnlinkedValue(field.type, fallbackValue));
     };
+
+    const showMediaAction = isMediaSelectableField(fieldKey, field);
+    const mediaSingular = field.type !== "array";
+
+    const labelActions = (
+        <>
+            {showMediaAction && (
+                <MediaPickerButton
+                    compact
+                    singular={mediaSingular}
+                    currentValue={typeof fieldValue === "string" ? fieldValue : ""}
+                    onSelect={(files) => {
+                        const newValue = mapMediaFileToFieldValue(files, field, fieldValue);
+                        handleChange(fieldKey, newValue);
+                    }}
+                />
+            )}
+            {field.type === "array" && Array.isArray(fieldValue) && fieldValue.length > 0 && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleChange(fieldKey, [])}
+                    title="Clear all items"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+            )}
+        </>
+    );
+
+    const linkedEditKey = imagesGroupParsed?.mediaRef || parsedReference?.key;
 
     const label = (
         <FieldLabel
@@ -2318,25 +2383,28 @@ function renderField(
             onCreateReference={onCreateReference}
             onUnlinkReference={handleUnlinkReference}
             onEditLinkedReference={() => {
-                if (parsedReference) {
-                    onSelectReferenceKey?.(parsedReference.key);
+                if (linkedEditKey) {
+                    onSelectReferenceKey?.(linkedEditKey);
                 }
             }}
+            createReferenceTypes={
+                isImagesGroupField(field)
+                    ? [{ value: "medias", label: "Medias" }]
+                    : REFERENCE_TYPE_OPTIONS
+            }
+            actions={labelActions}
         />
     );
 
-    // For object and array fields, keep native structured UI when unlinked.
-    // If linked, show label + linked value editor so users can manage the reference.
+    // Always show FieldLabel for structured fields (help / ref / media icons).
+    // When linked, still render the linked-value editor under the same label.
     if (isStructuredField) {
-        if (isReferenceLinked) {
-            return (
-                <div key={fieldKey} className="space-y-2">
-                    {label}
-                    {renderInput()}
-                </div>
-            );
-        }
-        return <div key={fieldKey}>{renderInput()}</div>;
+        return (
+            <div key={fieldKey} className="space-y-2">
+                {label}
+                {renderInput()}
+            </div>
+        );
     }
 
     return (
@@ -2371,6 +2439,8 @@ function NestedForm({
     onCreateReference,
     onSelectReferenceKey,
     onRequestRangeEditor,
+    onUpdateReferenceValue,
+    availableTrackNames,
 }: NestedFormProps & {
     parentSchema?: any;
     showReferencesDropdown?: boolean;
@@ -2470,10 +2540,31 @@ function NestedForm({
                                                         onSelectReferenceKey?.(parsedReference.key);
                                                     }
                                                 }}
+                                                actions={
+                                                    isMediaSelectableField(field.key, field) ? (
+                                                        <MediaPickerButton
+                                                            compact
+                                                            singular={field.type !== "array"}
+                                                            currentValue={
+                                                                typeof fieldValue === "string"
+                                                                    ? fieldValue
+                                                                    : ""
+                                                            }
+                                                            onSelect={(files) => {
+                                                                const newValue = mapMediaFileToFieldValue(
+                                                                    files,
+                                                                    field,
+                                                                    fieldValue,
+                                                                );
+                                                                handleFieldChange(field.key, newValue);
+                                                            }}
+                                                        />
+                                                    ) : undefined
+                                                }
                                             />
                                         );
                                     })()}
-                                    {renderField(field, field.key, fieldValue, handleFieldChange, depth + 1, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, undefined, undefined)}
+                                    {renderField(field, field.key, fieldValue, handleFieldChange, depth + 1, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, undefined, value, availableTrackNames, onUpdateReferenceValue)}
                                 </div>
                             );
                         })
@@ -2500,6 +2591,8 @@ function ArrayManager({
     onCreateReference,
     onSelectReferenceKey,
     onRequestRangeEditor,
+    onUpdateReferenceValue,
+    availableTrackNames,
 }: {
     schema: any;
     value: any[];
@@ -2513,9 +2606,10 @@ function ArrayManager({
     onCreateReference?: (referenceType: string) => string | null;
     onSelectReferenceKey?: (referenceKey: string) => void;
     onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
+    onUpdateReferenceValue?: (referenceKey: string, value: any) => void;
+    availableTrackNames?: string[];
 }) {
     const [isOpen, setIsOpen] = useState(false); // Collapse all arrays by default
-    const isRequired = parentSchema && Array.isArray(parentSchema.required) && parentSchema.required.includes(fieldKey);
 
     const addItem = () => {
         const itemSchema = schema.items;
@@ -2585,14 +2679,10 @@ function ArrayManager({
                     variant="ghost"
                     className="w-full justify-between p-2 h-auto"
                 >
-                    <span className="text-sm font-medium">
-                        {fieldKey}
-                        {isRequired && <span className="text-red-500 ml-1">*</span>}
+                    <span className="text-sm text-muted-foreground">
+                        {arrayValue.length} item{arrayValue.length === 1 ? "" : "s"}
                     </span>
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                            {arrayValue.length} items
-                        </Badge>
                         {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </div>
                 </Button>
@@ -2695,6 +2785,8 @@ function ArrayManager({
                                             onCreateReference={onCreateReference}
                                             onSelectReferenceKey={onSelectReferenceKey}
                                             onRequestRangeEditor={onRequestRangeEditor}
+                                            onUpdateReferenceValue={onUpdateReferenceValue}
+                                            availableTrackNames={availableTrackNames}
                                         />
                                     ) : (
                                         <div className="space-y-2">
@@ -2711,7 +2803,11 @@ function ArrayManager({
                                                 showReferencableAuto,
                                                 onCreateReference,
                                                 onSelectReferenceKey,
-                                                onRequestRangeEditor
+                                                onRequestRangeEditor,
+                                                undefined,
+                                                undefined,
+                                                availableTrackNames,
+                                                onUpdateReferenceValue,
                                             )}
                                         </div>
                                     )}
@@ -2788,6 +2884,8 @@ export function SchemaForm({
     onCreateReference,
     onSelectReferenceKey,
     onRequestRangeEditor,
+    onUpdateReferenceValue,
+    availableTrackNames = [],
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
     const [activeTab, setActiveTab] = useState<"form" | "json" | "media">(initialTab);
@@ -2985,7 +3083,7 @@ export function SchemaForm({
                                 <div className="space-y-4">
                                     {fields.map((field) => {
                                         const fieldValue = formData[field.key];
-                                        return renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData);
+                                        return renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue);
                                     })}
                                 </div>
                             ) : (
@@ -3018,7 +3116,7 @@ export function SchemaForm({
                             <div className="space-y-4">
                                 {fields.map((field) => {
                                     const fieldValue = formData[field.key];
-                                    return <div key={field.key}>{renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData)}</div>;
+                                    return <div key={field.key}>{renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}</div>;
                                 })}
                             </div>
                         ) : (

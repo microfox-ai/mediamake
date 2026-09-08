@@ -1,13 +1,12 @@
 import { z } from "zod";
 import {
   booleanDataType,
-  mediaDataType,
-  mediasDataType,
   numberDataType,
   objectDataType,
   objectsDataType,
   stringDataType,
 } from "../basic";
+import { mediaDataType, mediasDataType } from "../media";
 import { captionsDataType } from "../captions";
 import { DataReferenceType, DataTypeDefinition } from "../types";
 

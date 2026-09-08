@@ -10,7 +10,7 @@ import {
   Preset,
   DatabasePreset,
 } from '../types';
-import { presetStdLib } from './preset-stdlib';
+import { defaultInjectedHelpers, presetStdLib } from './preset-stdlib';
 import { getPredefinedPresetById } from '../registry/registry/presets-registry';
 
 const findMatchingComponents = (
@@ -171,6 +171,12 @@ export const runPreset = async <T>(
   // Create a copy of props to inject dependencies
   const injectedProps: PresetPassedProps = { ...props };
 
+  // Always inject default helpers (parseTimeRange, etc.)
+  injectedProps.helpers = {
+    ...(injectedProps.helpers || {}),
+    ...defaultInjectedHelpers,
+  };
+
   // Inject dependencies if metadata is provided
   if (metadata?.dependencies) {
     // Inject helper functions from stdlib
@@ -178,7 +184,6 @@ export const runPreset = async <T>(
       metadata.dependencies.helpers &&
       metadata.dependencies.helpers.length > 0
     ) {
-      injectedProps.helpers = {};
       for (const helperName of metadata.dependencies.helpers) {
         if (helperName in presetStdLib) {
           injectedProps.helpers[helperName] =

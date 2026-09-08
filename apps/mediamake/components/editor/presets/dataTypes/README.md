@@ -10,8 +10,9 @@ It is used to:
 
 ## Structure
 
-- `types.ts`: shared `DataTypeDefinition` interface
-- `basic.ts`: built-in primitive/object/media data types
+- `types.ts`: shared `DataTypeDefinition` interface + `paramMetaTypes`
+- `basic.ts`: built-in primitive/object data types
+- `media.ts`: `media` / `medias` item schema (image / video / audio)
 - `captions.ts`: caption-specific data type
 - `registry/data-types-registry.ts`: runtime lookup helpers
 
@@ -28,8 +29,7 @@ It is used to:
 - `boolean`
 - `object`
 - `objects`
-- `media`
-- `medias`
+- `media` / `medias`: see `media.ts` — `mediaItemSchema` (image / video / audio + visual & playback params), gallery UI via `MediasGroupField`
 - `captions`:
   - optional `_id` string
   - `captions` array (caption + nested words)

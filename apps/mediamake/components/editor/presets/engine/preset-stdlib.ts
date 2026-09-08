@@ -99,6 +99,61 @@ export const findMatchingComponentsByQuery = (
 };
 
 /**
+ * Parse a single time token into seconds.
+ * Supports: SS(.sss), MM:SS(.sss), HH:MM:SS(.sss)
+ */
+export const parseTimeToSeconds = (input: string): number | null => {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const parts = trimmed.split(':').map(part => part.trim());
+  if (parts.length === 0 || parts.length > 3) return null;
+
+  const nums = parts.map(part => Number(part));
+  if (nums.some(num => Number.isNaN(num) || num < 0)) return null;
+
+  if (nums.length === 3) {
+    const [hours, minutes, seconds] = nums;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+  if (nums.length === 2) {
+    const [minutes, seconds] = nums;
+    return minutes * 60 + seconds;
+  }
+  return nums[0];
+};
+
+/**
+ * Parse a time range string into start/end seconds.
+ *
+ * Supported formats (decimal seconds optional):
+ * - "10:30-10:45"
+ * - "10:30.456-10:40.545"
+ * - "1:02:03.5-1:02:10"
+ *
+ * Comma-separated multi-ranges are accepted; only the first segment is returned.
+ * Returns null for empty/invalid input.
+ */
+export const parseTimeRange = (
+  range: string,
+): { start: number; end: number } | null => {
+  if (typeof range !== 'string' || !range.trim()) return null;
+
+  const segment = range.split(',')[0]?.trim();
+  if (!segment) return null;
+
+  const dashIndex = segment.indexOf('-');
+  if (dashIndex <= 0) return null;
+
+  const start = parseTimeToSeconds(segment.slice(0, dashIndex));
+  const end = parseTimeToSeconds(segment.slice(dashIndex + 1));
+  if (start === null || end === null) return null;
+
+  return { start, end };
+};
+
+/**
  * Converts hex color to RGB object
  */
 export const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
@@ -503,6 +558,8 @@ export const presetStdLib = {
   findMatchingComponents,
   findMatchingComponentsByQuery,
   getMediaDuration,
+  parseTimeToSeconds,
+  parseTimeRange,
   hexToRgb,
   preprocessCaptions,
   splitSentenceIntoParts,
@@ -514,6 +571,12 @@ export const presetStdLib = {
   applyNoGapsExtension,
   applyDataItemIdsToNodeTree,
 };
+
+/** Helpers always available on props.helpers without declaring them in metadata. */
+export const defaultInjectedHelpers = {
+  parseTimeToSeconds,
+  parseTimeRange,
+} as const;
 
 export type PresetStdLib = typeof presetStdLib;
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
+import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
 import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
 import { useProjectStore } from "../../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
@@ -227,6 +228,7 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const effectiveTimeline = getEditedTimeline(timeline.id) || timeline;
   const defaultData = effectiveTimeline.defaultData || { references: [] };
   const availableReferences = defaultData.references?.map((ref: any) => ref.key) || [];
+  const availableTrackNames = collectTrackNamesFromPresets(effectiveTimeline.presets);
 
   const handleCreateReference = useCallback((referenceType: string) => {
     const typedReference = referenceType as any;
@@ -272,6 +274,25 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const handleRequestRangeEditor = useCallback(() => {
     setFilePanelTab("timelines");
   }, [setFilePanelTab]);
+
+  const handleUpdateReferenceValue = useCallback((referenceKey: string, value: any) => {
+    const sourceTimeline = getEditedTimeline(timeline.id) || timeline;
+    const references = [...(sourceTimeline.defaultData?.references || [])];
+    const index = references.findIndex((ref: any) => ref?.key === referenceKey);
+    if (index === -1) return;
+    references[index] = { ...references[index], value };
+    useTimelineEditsStore.getState().updateTimeline(timeline.id, {
+      defaultData: {
+        ...(sourceTimeline.defaultData || {}),
+        references,
+      },
+    });
+    const refreshedTimeline = useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || sourceTimeline;
+    const compileStore = useCompileStore.getState();
+    if (compileStore.currentTimeline?.id === refreshedTimeline.id) {
+      useCompileStore.setState({ currentTimeline: refreshedTimeline });
+    }
+  }, [getEditedTimeline, timeline]);
 
   return (
     <ScrollArea className="flex-1 overflow-y-auto">
@@ -361,12 +382,14 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
           value={localInputData}
           onChange={handleInputDataChange}
           availableReferences={availableReferences}
+          availableTrackNames={availableTrackNames}
           baseData={createBaseDataFromReferences(defaultData.references || [])}
           showTabs={true}
           showReferencableAuto={true}
           onCreateReference={handleCreateReference}
           onSelectReferenceKey={handleSelectReferenceKey}
           onRequestRangeEditor={handleRequestRangeEditor}
+          onUpdateReferenceValue={handleUpdateReferenceValue}
         />
       </div>
     </ScrollArea>

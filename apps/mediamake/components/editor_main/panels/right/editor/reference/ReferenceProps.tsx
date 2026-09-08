@@ -18,6 +18,7 @@ import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/edi
 import { Clock, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { JsonEditor } from "@/components/editor/player/json-editor";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -418,7 +419,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const { generateOutput, isGenerating, generationProgress } = useCompileStore();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
-  const [activeTab, setActiveTab] = useState<"smart" | "full">("smart");
+  const [activeTab, setActiveTab] = useState<"smart" | "full" | "json">("smart");
   const [filterActive, setFilterActive] = useState(true);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -597,13 +598,14 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           <div className="space-y-3">
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as "smart" | "full")}
+              onValueChange={(v) => setActiveTab(v as "smart" | "full" | "json")}
               className="w-full"
             >
               <div className="flex items-center gap-2">
-                <TabsList className="grid grid-cols-2 flex-1">
+                <TabsList className="grid grid-cols-3 flex-1">
                   <TabsTrigger value="smart" className="text-xs">Smart</TabsTrigger>
                   <TabsTrigger value="full" className="text-xs">Full</TabsTrigger>
+                  <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
 
                 {/* Active filter toggle — only in Smart tab for array types */}
@@ -662,6 +664,20 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   onDefaultDataChange={onReferenceChange}
                   isExpanded={true}
                   singleReferenceMode={true}
+                />
+              </TabsContent>
+
+              <TabsContent value="json" className="mt-3">
+                <JsonEditor
+                  value={selectedReference?.value ?? null}
+                  onChange={(val) => {
+                    if (!selectedReference) return;
+                    onReferenceChange({
+                      references: [{ ...selectedReference, value: val }],
+                    });
+                  }}
+                  height="420px"
+                  className="border rounded-md"
                 />
               </TabsContent>
             </Tabs>

@@ -18,6 +18,7 @@ import { TranscriptionPicker } from "../../../transcriber/picker/transcription-p
 import { Transcription } from "@/app/types/transcription";
 import { JsonEditor } from "../../player/json-editor";
 import { SchemaForm } from "./schema-form";
+import { MediasGroupField } from "./inputs/medias-group-field";
 import { z } from "zod";
 import {
     getDataTypesForReferenceType,
@@ -25,6 +26,8 @@ import {
     getDefaultValueForReferenceType,
     getReferenceSchemaForType,
     getReferenceTypeOptions,
+    mediaItemSchema,
+    toMediaItem,
 } from "../dataTypes";
 
 interface DefaultCardProps {
@@ -251,8 +254,33 @@ export function DefaultCard({
                         placeholder="Enter number value"
                     />
                 );
-            case 'media':
             case 'medias':
+                return (
+                    <MediasGroupField
+                        value={Array.isArray(reference.value) ? reference.value : []}
+                        onChange={(val) => updateReference(index, 'value', val)}
+                        itemSchema={z.toJSONSchema(mediaItemSchema)}
+                    />
+                );
+            case 'media':
+                return (
+                    <MediasGroupField
+                        value={
+                            reference.value
+                                ? [toMediaItem(reference.value)]
+                                : []
+                        }
+                        onChange={(val) =>
+                            updateReference(
+                                index,
+                                'value',
+                                val[0] ? toMediaItem(val[0]) : { src: '' },
+                            )
+                        }
+                        itemSchema={z.toJSONSchema(mediaItemSchema)}
+                        singular
+                    />
+                );
             case 'object':
             case 'objects':
                 return (
@@ -272,34 +300,6 @@ export function DefaultCard({
                                 </Button>
                             </CollapsibleTrigger>
                             <CollapsibleContent className="mt-2">
-                                {/* {(reference.type === 'object' || reference.type === 'objects') && (
-                                    <div className="mb-2">
-                                        <Label className="text-xs mb-1 block">Data Type</Label>
-                                        {(() => {
-                                            const availableDataTypes = getDataTypesForReferenceType(reference.type);
-                                            return (
-                                        <Select
-                                            value={reference.dataType || '__none__'}
-                                            onValueChange={(val) =>
-                                                updateReference(index, 'dataType', val === '__none__' ? undefined : val)
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Choose data type (optional)" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="__none__">None</SelectItem>
-                                                {availableDataTypes.map((dataType) => (
-                                                    <SelectItem key={dataType.id} value={dataType.id}>
-                                                        {dataType.title}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                            );
-                                        })()}
-                                    </div>
-                                )} */}
                                 <SchemaForm
                                     schema={z.toJSONSchema(
                                         getReferenceSchemaForType(
@@ -455,10 +455,11 @@ export function DefaultCard({
                             <MediaPickerButton
                                 onSelect={(media) => {
                                     if (reference.type === 'media') {
-                                        updateReference(0, 'value', media);
+                                        updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
                                     } else {
                                         const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                        updateReference(0, 'value', [...currentValue, ...(Array.isArray(media) ? media : [media])]);
+                                        const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                        updateReference(0, 'value', [...currentValue, ...additions]);
                                     }
                                 }}
                                 singular={reference.type === 'media'}
@@ -573,10 +574,11 @@ export function DefaultCard({
                                                         <MediaPickerButton
                                                             onSelect={(media) => {
                                                                 if (reference.type === 'media') {
-                                                                    updateReference(index, 'value', media);
+                                                                    updateReference(index, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
                                                                 } else {
                                                                     const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                                                    updateReference(index, 'value', [...currentValue, ...(Array.isArray(media) ? media : [media])]);
+                                                                    const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                                                    updateReference(index, 'value', [...currentValue, ...additions]);
                                                                 }
                                                             }}
                                                             singular={reference.type === 'media'}

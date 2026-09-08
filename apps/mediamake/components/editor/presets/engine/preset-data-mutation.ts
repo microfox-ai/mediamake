@@ -131,6 +131,39 @@ function processDataReferencesRecursive(
   }
 
   if (data && typeof data === 'object') {
+    // imagesGroup linked shape: { mediaRef, items } → merge srcs from medias ref
+    if (
+      typeof (data as any).mediaRef === 'string' &&
+      (data as any).mediaRef &&
+      Array.isArray((data as any).items)
+    ) {
+      const mediaRef = (data as any).mediaRef as string;
+      const items = (data as any).items as any[];
+      const medias = baseData[mediaRef];
+      const len = Math.max(
+        items.length,
+        Array.isArray(medias) ? medias.length : 0,
+      );
+      return Array.from({ length: len }, (_, index) => {
+        const item = items[index];
+        const local = item && typeof item === 'object' ? { ...item } : {};
+        let src = local.src;
+        if (Array.isArray(medias) && medias[index] !== undefined) {
+          const entry = medias[index];
+          if (typeof entry === 'string') src = entry;
+          else if (entry && typeof entry === 'object') {
+            src =
+              entry.src ||
+              entry.filePath ||
+              entry.url ||
+              entry.metadata?.src ||
+              src;
+          }
+        }
+        return { ...local, src };
+      });
+    }
+
     const processed: any = {};
     for (const [key, value] of Object.entries(data)) {
       // Process all values recursively first

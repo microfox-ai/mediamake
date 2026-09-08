@@ -46,21 +46,3 @@ export const objectsDataType: DataTypeDefinition = {
   schema: z.array(z.unknown()),
 };
 
-export const mediaDataType: DataTypeDefinition = {
-  id: "media",
-  title: "Media",
-  description: "Single media object reference.",
-  referenceType: "media",
-  defaultValue: {},
-  schema: z.object({}),
-};
-
-export const mediasDataType: DataTypeDefinition = {
-  id: "medias",
-  title: "Medias (Array)",
-  description: "Array of media object references.",
-  referenceType: "medias",
-  defaultValue: [],
-  schema: z.array(z.unknown()),
-};
-

@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, Trash2, Play, Loader2, RefreshCw, GripVertic
 import { useState, useEffect } from "react";
 import { Preset, DatabasePreset, PresetInputData, AppliedPresetsState, AppliedPreset, DefaultPresetData } from "./types";
 import { SchemaForm } from "./form/schema-form";
+import { collectTrackNamesFromPresets } from "./form/collect-track-names";
 import { usePresetContext } from "./preset-provider";
 import { OutputCard } from "./output-card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -47,6 +48,7 @@ interface SortablePresetItemProps {
     onRemove: (id: string) => void;
     onToggleDisabled: (id: string) => void;
     availableReferences?: string[];
+    availableTrackNames?: string[];
     defaultData?: any;
 }
 
@@ -59,6 +61,7 @@ function SortablePresetItem({
     onRemove,
     onToggleDisabled,
     availableReferences = [],
+    availableTrackNames = [],
     defaultData
 }: SortablePresetItemProps) {
     const {
@@ -181,6 +184,7 @@ function SortablePresetItem({
                             onChange={(inputData) => onUpdateInputData(appliedPreset.id, inputData)}
                             className=""
                             availableReferences={availableReferences}
+                            availableTrackNames={availableTrackNames}
                             baseData={createBaseDataFromReferences(defaultData.references)}
                         />
                     </CardContent>
@@ -714,6 +718,11 @@ export function PresetList({
                                     onRemove={removePreset}
                                     onToggleDisabled={togglePresetDisabled}
                                     availableReferences={defaultData.references.map(ref => ref.key)}
+                                    availableTrackNames={collectTrackNamesFromPresets(
+                                        appliedPresets.presets.map((p) => ({
+                                            presetInputData: p.inputData,
+                                        })),
+                                    )}
                                     defaultData={defaultData}
                                 />
                             ))}
