@@ -524,6 +524,29 @@ export const useCompileStore = create<CompileState>((set, get) => ({
       // Ignore if timeline edits store isn't available for any reason.
     }
 
+    // Pause compile while the user is mid-edit on range fields, or when committed
+    // ranges are incomplete/invalid — keeps the last good player output on screen.
+    try {
+      const { useEditorUIStore } = require('./editor-ui-store');
+      const {
+        timelineHasInvalidRanges,
+      } = require('@/components/editor/presets/engine/range-validation');
+      const ui = useEditorUIStore.getState();
+      const invalidPaths = timelineHasInvalidRanges(effectiveTimeline);
+      if (invalidPaths.length > 0) {
+        ui.setHasInvalidRanges(true);
+        ui.setPendingCompileAfterRanges(true);
+        return;
+      }
+      ui.setHasInvalidRanges(false);
+      if (ui.rangeEditDepth > 0) {
+        ui.setPendingCompileAfterRanges(true);
+        return;
+      }
+    } catch (_error) {
+      // Ignore if UI/validation helpers unavailable
+    }
+
     if (state.isGenerating) {
       return; // Already generating
     }

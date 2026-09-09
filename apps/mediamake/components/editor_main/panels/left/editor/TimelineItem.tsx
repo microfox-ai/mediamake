@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil } from "lucide-react";
+import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -35,6 +35,10 @@ import {
     predefinedDataTypes,
 } from "@/components/editor/presets/dataTypes";
 import {
+    confirmRemoveAction,
+    removeTimelineAction,
+} from "@/components/editor/presets/actions/engine/action-lifecycle";
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -62,6 +66,7 @@ interface TimelineItemProps {
 export function TimelineItem({ timeline }: TimelineItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isReferencesOpen, setIsReferencesOpen] = useState(false);
+    const [isActionsOpen, setIsActionsOpen] = useState(false);
     const [isBlocksOpen, setIsBlocksOpen] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
     const [showPresetLibrary, setShowPresetLibrary] = useState(false);
@@ -69,7 +74,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const [renameValue, setRenameValue] = useState("");
     const renameInputRef = useRef<HTMLInputElement>(null);
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
-    const { selectTimeline, selectReference, selectedItem } = useEditorStore();
+    const { selectTimeline, selectReference, selectAction, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
     const cloudTimelineUpdatedAt = useProjectStore((state) =>
         state.timelines.find((item) => item.id === timeline.id)?.updatedAt
@@ -95,6 +100,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
     const presets = displayTimeline.presets || [];
     const references = (displayTimeline.defaultData?.references || []) as ReferenceItem[];
+    const actions = displayTimeline.actions || [];
 
     // Auto-focus the rename input when it becomes visible
     useEffect(() => {
@@ -602,6 +608,82 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+                        )}
+
+                        {!isLoadingTimeline && (
+                            <Collapsible
+                                open={isActionsOpen}
+                                onOpenChange={setIsActionsOpen}
+                            >
+                                <CollapsibleTrigger asChild>
+                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
+                                        {isActionsOpen ? (
+                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        )}
+                                        <Zap className="h-3 w-3 text-muted-foreground" />
+                                        <span className="flex-1">Actions</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            {actions.length}
+                                        </span>
+                                    </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="ml-5 border-l space-y-1 py-1">
+                                        {actions.length > 0 ? (
+                                            actions.map((action) => (
+                                                <ContextMenu key={action.id}>
+                                                    <ContextMenuTrigger asChild>
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                selectAction(action, displayTimeline);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                selectedItem?.type === "action" &&
+                                                                    selectedItem.item.id === action.id &&
+                                                                    selectedItem.timeline.id === displayTimeline.id
+                                                                    ? "bg-blue-100 text-blue-950"
+                                                                    : "text-muted-foreground",
+                                                            )}
+                                                        >
+                                                            <Zap className="h-3 w-3" />
+                                                            <span className="truncate flex-1">
+                                                                {action.label}
+                                                            </span>
+                                                            {action.status === "error" && (
+                                                                <span className="text-[9px] text-destructive">err</span>
+                                                            )}
+                                                        </div>
+                                                    </ContextMenuTrigger>
+                                                    <ContextMenuContent>
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                const { proceed, deleteOutputs } =
+                                                                    confirmRemoveAction(action.label);
+                                                                if (!proceed) return;
+                                                                removeTimelineAction(timeline.id, action.id, {
+                                                                    deleteOutputs,
+                                                                });
+                                                            }}
+                                                            variant="destructive"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Delete
+                                                        </ContextMenuItem>
+                                                    </ContextMenuContent>
+                                                </ContextMenu>
+                                            ))
+                                        ) : (
+                                            <div className="px-2 py-1 text-[11px] text-muted-foreground">
+                                                Add from a preset or reference
+                                            </div>
+                                        )}
                                     </div>
                                 </CollapsibleContent>
                             </Collapsible>

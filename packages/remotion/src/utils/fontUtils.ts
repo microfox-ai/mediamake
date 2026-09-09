@@ -6,6 +6,9 @@
 // Font names are automatically normalized (spaces to hyphens, lowercase)
 // For example: "WaterBrush" becomes "waterbrush", "Open Sans" becomes "open-sans"
 // Use isFontAvailable() to check if a font is supported before loading
+//
+// Do NOT use import(`@remotion/google-fonts/${name}`) — webpack treats that as a
+// context over the whole package (including LICENSE.md) and fails to parse it.
 import * as fontUtils from '@remotion/google-fonts';
 
 // Dynamic import to avoid bundling issues with peer dependencies
@@ -21,6 +24,21 @@ const getAvailableFonts = async () => {
     }
   }
   return availableFonts;
+};
+
+const normalizeFontKey = (name: string): string =>
+  name.trim().toLowerCase().replace(/[\s_-]+/g, '');
+
+const findAvailableFont = (fonts: any[], fontFamily: string) => {
+  const exact = fonts.find((font) => font.importName === fontFamily);
+  if (exact) return exact;
+
+  const target = normalizeFontKey(fontFamily);
+  return fonts.find(
+    (font) =>
+      normalizeFontKey(font.importName || '') === target ||
+      normalizeFontKey(font.fontFamily || '') === target
+  );
 };
 
 export interface FontConfig {
@@ -42,7 +60,7 @@ export interface FontLoadingOptions {
 const loadedFonts = new Map<string, string>();
 
 /**
- * Load a Google Font dynamically using dynamic imports
+ * Load a Google Font dynamically using getAvailableFonts().load()
  * @param fontFamily - The font family name (e.g., 'Inter', 'Roboto')
  * @param options - Font loading options
  * @returns Promise that resolves with the fontFamily CSS value
@@ -65,11 +83,8 @@ export const loadGoogleFont = async (
   }
 
   try {
-    // Get available fonts dynamically
     const fonts = await getAvailableFonts();
-
-    // Find the font in available fonts
-    const thisFont = fonts.find((font) => font.importName === fontFamily);
+    const thisFont = findAvailableFont(fonts, fontFamily);
 
     if (thisFont?.load) {
       const fontPackage = await thisFont.load();
@@ -84,51 +99,13 @@ export const loadGoogleFont = async (
       // Store the fontFamily CSS value in the map
       loadedFonts.set(fontKey, allFontStuff.fontFamily);
       return allFontStuff.fontFamily;
-    } else {
-      throw new Error(
-        `Font Package @remotion/google-fonts/${fontFamily} does not have loadFont method`
-      );
     }
+
+    throw new Error(
+      `Font Package @remotion/google-fonts/${fontFamily} does not have loadFont method`
+    );
   } catch (error) {
     console.warn(`Failed to load font ${fontFamily}:`, error);
-
-    // Try alternative import paths for common font naming variations
-    try {
-      const alternativeNames = [
-        fontFamily.toLowerCase().replace(/\s+/g, ''),
-        fontFamily.toLowerCase().replace(/\s+/g, '-'),
-        fontFamily.toLowerCase().replace(/\s+/g, '_'),
-      ];
-
-      for (const altName of alternativeNames) {
-        if (altName === fontFamily.toLowerCase().replace(/\s+/g, '-')) {
-          continue; // Already tried this
-        }
-
-        try {
-          const altFontPackage = await import(
-            `@remotion/google-fonts/${altName}`
-          );
-          if (altFontPackage.loadFont) {
-            const { fontFamily: loadedFontFamily } =
-              await altFontPackage.loadFont('normal', {
-                subsets: options.subsets || ['latin'],
-                weights: options.weights || ['400'],
-                display: options.display || 'swap',
-                preload: options.preload !== false,
-              });
-
-            loadedFonts.set(fontKey, loadedFontFamily);
-            return loadedFontFamily;
-          }
-        } catch (altError) {
-          // Continue to next alternative
-          continue;
-        }
-      }
-    } catch (altError) {
-      // All alternatives failed, continue to fallback
-    }
 
     // Fallback to system fonts
     const fallbackFontFamily = `"${fontFamily}"`;
@@ -228,26 +205,8 @@ export const isFontAvailable = async (fontFamily: string): Promise<boolean> => {
   }
 
   try {
-    // First check if the font is in the available fonts list
     const fonts = await getAvailableFonts();
-    const isInAvailableFonts = fonts.some(
-      (font) => font.importName === fontFamily
-    );
-
-    if (isInAvailableFonts) {
-      return true;
-    }
-
-    // Fallback: try direct import for fonts not in the list
-    const normalizedFontName = fontFamily
-      .trim()
-      .replace(/\s+/g, '-')
-      .toLowerCase();
-
-    const fontPackage = await import(
-      `@remotion/google-fonts/${normalizedFontName}`
-    );
-    return !!fontPackage.loadFont;
+    return !!findAvailableFont(fonts, fontFamily);
   } catch (error) {
     return false;
   }

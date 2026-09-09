@@ -36,6 +36,8 @@ interface DefaultCardProps {
     isExpanded?: boolean;
     onToggleExpansion?: () => void;
     singleReferenceMode?: boolean;
+    /** Hide key/type editors (e.g. when identity is edited in ReferenceProps header). */
+    hideIdentityFields?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function DefaultCard({
     isExpanded = false,
     onToggleExpansion,
     singleReferenceMode = false,
+    hideIdentityFields = false,
 }: DefaultCardProps) {
     const [localExpanded, setLocalExpanded] = useState(isExpanded);
     const [savingStates, setSavingStates] = useState<Record<number, boolean>>({});
@@ -420,8 +423,16 @@ export function DefaultCard({
 
     if (singleReferenceMode) {
         const reference = referencesToRender[0];
+        if (!reference) {
+            return (
+                <div className="p-1 rounded-md text-xs text-muted-foreground">
+                    No reference selected
+                </div>
+            );
+        }
         return (
             <div className="p-1 rounded-md">
+                {!hideIdentityFields && (
                 <div className="flex items-center gap-2 mb-3">
                     <div className="flex-1 grid grid-cols-2 items-end gap-2">
                         <div>
@@ -484,10 +495,38 @@ export function DefaultCard({
                         </Button>
                     )}
                 </div>
+                )}
+                {hideIdentityFields && (reference.type === 'media' || reference.type === 'medias' || reference.type === 'captions') && (
+                    <div className="flex justify-end gap-2 mb-2">
+                        {(reference.type === 'media' || reference.type === 'medias') && (
+                            <MediaPickerButton
+                                onSelect={(media) => {
+                                    if (reference.type === 'media') {
+                                        updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
+                                    } else {
+                                        const currentValue = Array.isArray(reference.value) ? reference.value : [];
+                                        const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                        updateReference(0, 'value', [...currentValue, ...additions]);
+                                    }
+                                }}
+                                singular={reference.type === 'media'}
+                            />
+                        )}
+                        {reference.type === 'captions' && (
+                            <TranscriptionPickerButton
+                                onSelect={({ captions, _id }) => {
+                                    updateReference(0, 'value', { captions, _id: _id?.toString() ?? "" });
+                                }}
+                            />
+                        )}
+                    </div>
+                )}
                 <div>
-                    <Label htmlFor={`value-${0}`} className="text-xs">
-                        Value
-                    </Label>
+                    {!hideIdentityFields && (
+                        <Label htmlFor={`value-${0}`} className="text-xs">
+                            Value
+                        </Label>
+                    )}
                     {getValueInput(reference, 0)}
                 </div>
             </div>

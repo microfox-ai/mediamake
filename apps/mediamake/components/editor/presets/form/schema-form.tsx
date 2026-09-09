@@ -56,8 +56,11 @@ import { SliderInput } from "./inputs/slider-input";
 import { ContainerInsetsInput } from "./inputs/container-insets-input";
 import { LinkTrackNameInput } from "./inputs/link-track-name-input";
 import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue, extractMediaSrc, toMediaRefEntry } from "./inputs/images-group-field";
+import { ShakeEffectsField } from "./inputs/shake-effects-field";
 import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
+import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
+import { isValidRangeString } from "../engine/range-validation";
 
 const availableFonts = getAvailableFonts();
 
@@ -169,6 +172,7 @@ function isUrlField(fieldKey: string, field: FormField): boolean {
 function isMediaSelectableField(fieldKey: string, field: FormField): boolean {
     // imagesGroup has its own gallery add/swap UI; avoid label picker replacing the object.
     if (field.meta?.[paramMetaTypes.imagesGroup] === true) return false;
+    if (field.meta?.[paramMetaTypes.shakeEffectsGroup] === true) return false;
     if (field.type === "string") {
         return isUrlField(fieldKey, field);
     }
@@ -343,6 +347,10 @@ function isImagesGroupField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.imagesGroup] === true;
 }
 
+function isShakeEffectsGroupField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.shakeEffectsGroup] === true;
+}
+
 function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
     if (typeof value !== "string") return null;
     const match = value.match(/^data:\[([^\]]+)\](?:\[([^\]]+)\])?$/);
@@ -379,6 +387,8 @@ interface FieldLabelProps {
     onEditLinkedReference: () => void;
     /** Limit "+ New Ref" types (e.g. medias-only for imagesGroup). */
     createReferenceTypes?: Array<{ value: string; label: string }>;
+    /** Use image icon instead of pencil when editing a linked medias/images ref. */
+    useImageIconForLinkedEdit?: boolean;
     /** Extra actions beside help/ref icons (e.g. media picker). */
     actions?: ReactNode;
 }
@@ -396,6 +406,7 @@ function FieldLabel({
     onUnlinkReference,
     onEditLinkedReference,
     createReferenceTypes = REFERENCE_TYPE_OPTIONS,
+    useImageIconForLinkedEdit = false,
     actions,
 }: FieldLabelProps) {
     return (
@@ -406,8 +417,10 @@ function FieldLabel({
             </Label>
             {description && (
                 <Tooltip>
-                    <TooltipTrigger>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex">
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </button>
                     </TooltipTrigger>
                     <TooltipContent>
                         <p className="max-w-xs">{description}</p>
@@ -416,15 +429,26 @@ function FieldLabel({
             )}
             {canAutoReference && (
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            {isReferenceLinked ? (
-                                <ArrowLeftRight className="h-3.5 w-3.5" />
-                            ) : (
-                                <Plus className="h-3.5 w-3.5" />
-                            )}
-                        </Button>
-                    </DropdownMenuTrigger>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                    {isReferenceLinked ? (
+                                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                                    ) : (
+                                        <Plus className="h-3.5 w-3.5" />
+                                    )}
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>
+                                {isReferenceLinked
+                                    ? "Switch linked data reference"
+                                    : "Link to a shared data reference"}
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
                     <DropdownMenuContent align="start" side="bottom">
                         {availableReferences?.map((refKey) => (
                             <DropdownMenuItem key={refKey} onClick={() => onLinkToReference(refKey)}>
@@ -467,26 +491,46 @@ function FieldLabel({
             )}
             {canAutoReference && isReferenceLinked && (
                 <>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={onUnlinkReference}
-                        title="Unlink reference"
-                    >
-                        <X className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={onEditLinkedReference}
-                        title="Edit linked reference"
-                    >
-                        <Pencil className="h-3.5 w-3.5" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={onUnlinkReference}
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Unlink reference — keep current values locally</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={onEditLinkedReference}
+                            >
+                                {useImageIconForLinkedEdit ? (
+                                    <ImageIcon className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Pencil className="h-3.5 w-3.5" />
+                                )}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>
+                                {useImageIconForLinkedEdit
+                                    ? "Open linked images reference"
+                                    : "Edit linked reference"}
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
                 </>
             )}
             {actions}
@@ -1673,6 +1717,13 @@ function serializeRangeSegments(segs: RangeSegment[]): string {
         .join(",");
 }
 
+/** True when every non-empty segment has both start and end parsable. */
+function segmentsAreValid(segs: RangeSegment[]): boolean {
+    const filled = segs.filter(s => s.start.trim() || s.end.trim());
+    if (filled.length === 0) return true;
+    return isValidRangeString(serializeRangeSegments(filled));
+}
+
 /** Accepts "MM:SS", "M:SS", "S", bare seconds, or empty. */
 function normalizeTimeInput(raw: string): string {
     const s = raw.trim();
@@ -1695,6 +1746,9 @@ function RangeStringInput({
     onChange: (v: string) => void;
 }) {
     const [segs, setSegs] = useState<RangeSegment[]>(() => parseRangeSegments(value || ""));
+    const beginRangeEdit = useEditorUIStore((s) => s.beginRangeEdit);
+    const endRangeEdit = useEditorUIStore((s) => s.endRangeEdit);
+    const setHasInvalidRanges = useEditorUIStore((s) => s.setHasInvalidRanges);
 
     // Sync when parent value changes externally
     useEffect(() => {
@@ -1703,12 +1757,22 @@ function RangeStringInput({
 
     const commit = (nextSegs: RangeSegment[]) => {
         setSegs(nextSegs);
+        if (!segmentsAreValid(nextSegs)) {
+            setHasInvalidRanges(true);
+            // Do not push incomplete ranges into form data / compile
+            return;
+        }
+        setHasInvalidRanges(false);
         onChange(serializeRangeSegments(nextSegs));
     };
 
     const updateSeg = (i: number, part: "start" | "end", raw: string) => {
         const next = segs.map((s, idx) => idx === i ? { ...s, [part]: raw } : s);
         setSegs(next);
+        // Pause compile while typing even before blur
+        if (!segmentsAreValid(next)) {
+            setHasInvalidRanges(true);
+        }
     };
 
     const blurSeg = (i: number, part: "start" | "end") => {
@@ -1716,6 +1780,7 @@ function RangeStringInput({
             idx === i ? { ...s, [part]: normalizeTimeInput(s[part]) } : s
         );
         commit(next);
+        endRangeEdit();
     };
 
     const addSeg = () => {
@@ -1745,6 +1810,7 @@ function RangeStringInput({
                     <Input
                         value={seg.start}
                         onChange={e => updateSeg(i, "start", e.target.value)}
+                        onFocus={() => beginRangeEdit()}
                         onBlur={() => blurSeg(i, "start")}
                         placeholder="0:00"
                         className="h-7 text-xs w-20 shrink-0 font-mono"
@@ -1754,6 +1820,7 @@ function RangeStringInput({
                     <Input
                         value={seg.end}
                         onChange={e => updateSeg(i, "end", e.target.value)}
+                        onFocus={() => beginRangeEdit()}
                         onBlur={() => blurSeg(i, "end")}
                         placeholder="0:30"
                         className="h-7 text-xs w-20 shrink-0 font-mono"
@@ -1936,6 +2003,17 @@ function renderField(
         // imagesGroup uses mediaRef (not data:[key]) — never replace UI with LinkedReferenceValueView
         if (isImagesGroupField(field)) {
             return renderImagesGroup();
+        }
+
+        if (isShakeEffectsGroupField(field)) {
+            return (
+                <ShakeEffectsField
+                    value={fieldValue}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                    title={field.title || fieldKey}
+                    description={field.description}
+                />
+            );
         }
 
         const linkedReference = parseDataReferenceValue(fieldValue);
@@ -2285,13 +2363,18 @@ function renderField(
         ? Boolean(imagesGroupParsed.mediaRef)
         : Boolean(parsedReference);
     const canAutoReference = Boolean(showReferencableAuto);
-    // containerObject / imagesGroup use custom widgets (not NestedForm), so they still need FieldLabel.
+    // containerObject / imagesGroup / shakeEffectsGroup use custom widgets (not NestedForm), so they still need FieldLabel
+    // (except shakeEffectsGroup, which owns its own label + Smart/Full tabs).
     const isStructuredField =
         (field.type === "object" &&
             Boolean(field.properties) &&
             !isContainerObjectField(field) &&
-            !isImagesGroupField(field)) ||
-        (field.type === "array" && Boolean(field.items) && !isImagesGroupField(field));
+            !isImagesGroupField(field) &&
+            !isShakeEffectsGroupField(field)) ||
+        (field.type === "array" &&
+            Boolean(field.items) &&
+            !isImagesGroupField(field) &&
+            !isShakeEffectsGroupField(field));
 
     const handleLinkToReference = (referenceKey: string) => {
         if (isImagesGroupField(field)) {
@@ -2392,12 +2475,22 @@ function renderField(
                     ? [{ value: "medias", label: "Medias" }]
                     : REFERENCE_TYPE_OPTIONS
             }
+            useImageIconForLinkedEdit={isImagesGroupField(field)}
             actions={labelActions}
         />
     );
 
     // Always show FieldLabel for structured fields (help / ref / media icons).
     // When linked, still render the linked-value editor under the same label.
+    // shakeEffectsGroup owns its label row (Smart / Full tabs), so skip the outer label.
+    if (isShakeEffectsGroupField(field)) {
+        return (
+            <div key={fieldKey} className="space-y-2">
+                {renderInput()}
+            </div>
+        );
+    }
+
     if (isStructuredField) {
         return (
             <div key={fieldKey} className="space-y-2">

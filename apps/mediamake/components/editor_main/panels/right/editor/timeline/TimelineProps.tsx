@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, Copy } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
 import { createBaseDataFromReferences, remapDataReferenceKeys } from "@/components/editor/presets/engine/preset-data-mutation";
@@ -23,7 +23,9 @@ import {
 } from "@/components/editor/presets/dataTypes";
 import { useEditorStore } from "../../../../stores/editor-store";
 import { useEditorUIStore } from "../../../../stores/editor-ui-store";
-
+import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 interface TimelinePropsProps {
   timeline: Timeline;
 }
@@ -652,6 +654,10 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
           {/* First Preset Schema Form */}
           {firstPreset && actualPreset && (
             <div className="space-y-4">
+              <LinkedActionsSection
+                timeline={displayTimeline}
+                target={{ type: "preset", presetInstanceId: firstPreset.id }}
+              />
               <SchemaForm
                 title={actualPreset.metadata.title}
                 metadata={actualPreset.metadata}
@@ -667,6 +673,34 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                 onSelectReferenceKey={handleSelectReferenceKey}
                 onRequestRangeEditor={handleRequestRangeEditor}
                 onUpdateReferenceValue={handleUpdateReferenceValue}
+                customActions={
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(
+                              JSON.stringify(localInputData ?? {}, null, 2),
+                            );
+                            toast.success("Copied preset input props");
+                          } catch (err) {
+                            console.error(err);
+                            toast.error("Failed to copy input props");
+                          }
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Copy preset input props</p>
+                    </TooltipContent>
+                  </Tooltip>
+                }
               />
             </div>
           )}

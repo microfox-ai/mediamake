@@ -57,6 +57,14 @@ export const paramMetaTypes = {
    */
   mediasGroup: "mediasGroup",
   /**
+   * Marks an array of plain shake effect objects.
+   * Renders Smart / Full tabs on the label row:
+   * - Smart: effects active at the current player frame
+   * - Full: compact list of all shake effects
+   * Value: true
+   */
+  shakeEffectsGroup: "shakeEffectsGroup",
+  /**
    * Nested field edit scope inside an imagesGroup (or similar) item schema.
    * Value: true = can be bulk-edited across items; false = per-item only.
    *

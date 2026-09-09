@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useMemo, useRef } from "react";
 import { Player as RemotionPlayer } from "@remotion/player";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Pencil } from "lucide-react";
 import type { InputCompositionProps } from "@microfox/remotion";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { Timeline } from "../../../stores/project-store";
@@ -10,7 +10,6 @@ import type { PlayerRef } from "@remotion/player";
 import { useLayerStateStore, filterHiddenChildrenData } from "../../../stores/layer-state-store";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { EditableCompositionLayout } from "./EditableCompositionLayout";
-
 interface TimelinePlayerProps {
   loadedTimeline: Timeline | null;
   generatedOutput: InputCompositionProps | null;
@@ -43,6 +42,9 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
 
   const filePanelTab = useEditorUIStore((s) => s.filePanelTab);
   const editModeEnabled = useEditorUIStore((s) => s.editModeEnabled);
+  const rangeEditDepth = useEditorUIStore((s) => s.rangeEditDepth);
+  const hasInvalidRanges = useEditorUIStore((s) => s.hasInvalidRanges);
+  const isEditingRanges = rangeEditDepth > 0;
 
   const onSelectLayer = useCallback(
     (id: string, addToSelection: boolean) => {
@@ -187,6 +189,21 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
           acknowledgeRemotionLicense={true}
           overflowVisible
         />
+        {hasInvalidRanges ? (
+          <div className="absolute top-3 left-3 right-3 flex justify-center pointer-events-none z-10">
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/90 text-white px-2.5 py-1 text-xs shadow">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Invalid ranges in preset inputs — compile paused
+            </div>
+          </div>
+        ) : isEditingRanges ? (
+          <div className="absolute top-3 left-3 right-3 flex justify-center pointer-events-none z-10">
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-sky-500/90 text-white px-2.5 py-1 text-xs shadow">
+              <Pencil className="h-3.5 w-3.5" />
+              Editing ranges — compile paused
+            </div>
+          </div>
+        ) : null}
         {isGenerating && (
           <div className="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center pointer-events-none">
             <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-white/50" />

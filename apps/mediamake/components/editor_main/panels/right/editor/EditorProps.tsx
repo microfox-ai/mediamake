@@ -6,18 +6,14 @@ import { TimelineProps } from "./timeline/TimelineProps";
 import { GeneralPresetProps } from "./preset/GeneralPresetProps";
 import { LayerPropsPanel } from "./layer/LayerPropsPanel";
 import { ReferenceProps } from "./reference/ReferenceProps";
+import { ActionProps } from "./action/ActionProps";
 import { useEffect } from "react";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 
 // Preset-specific component registry
-// In the future, you can add preset-specific components here
-// Example: import { TextOverlayPresetProps } from "./presetProps/text-overlay";
 const presetComponentMap: Record<string, React.ComponentType<{ preset: any; timeline: any }>> = {
-  // Add preset-specific components here
-  // 'text-overlay': TextOverlayPresetProps,
-  // 'waveform': WaveformPresetProps,
 };
 
 export function EditorProps() {
@@ -27,9 +23,6 @@ export function EditorProps() {
   const { loadedTimeline } = useProjectStore();
   const { filePanelTab } = useEditorUIStore();
 
-  // Sync compile store only when the loaded timeline *id* changes.
-  // Depending on the whole object re-fires setCurrentTimeline (and preset
-  // re-fetch) on every edit identity change, which churns the player.
   useEffect(() => {
     const timeline = useProjectStore.getState().loadedTimeline;
     if (timeline) {
@@ -38,9 +31,6 @@ export function EditorProps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally id-only
   }, [loadedTimeline?.id, setCurrentTimeline]);
 
-  // Show props depending on left sidebar tab + selection:
-  // - Timelines tab: Prefer TimelineProps for the selected timeline.
-  // - Layers tab: Prefer LayerPropsPanel when layers are selected.
   let content: React.ReactNode;
   if (filePanelTab === "timelines" && selectedItem?.type === "timeline") {
     content = <TimelineProps timeline={selectedItem.item} />;
@@ -52,10 +42,13 @@ export function EditorProps() {
         referenceIndex={selectedItem.referenceIndex}
       />
     );
+  } else if (filePanelTab === "timelines" && selectedItem?.type === "action") {
+    content = (
+      <ActionProps action={selectedItem.item} timeline={selectedItem.timeline} />
+    );
   } else if (filePanelTab === "layers" && selectedLayerIds.length > 0) {
     content = <LayerPropsPanel />;
   } else if (selectedItem?.type === "timeline") {
-    // Fallback: show timeline props when a timeline is selected but layers tab has no selection.
     content = <TimelineProps timeline={selectedItem.item} />;
   } else if (selectedItem?.type === "reference") {
     content = (
@@ -64,6 +57,10 @@ export function EditorProps() {
         timeline={selectedItem.timeline}
         referenceIndex={selectedItem.referenceIndex}
       />
+    );
+  } else if (selectedItem?.type === "action") {
+    content = (
+      <ActionProps action={selectedItem.item} timeline={selectedItem.timeline} />
     );
   } else if (!selectedItem) {
     content = (

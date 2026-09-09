@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Code, Play, Pause, Maximize, Rocket, Loader2, CheckIcon, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { Code, Play, Pause, Maximize, Rocket, Loader2, CheckIcon, ChevronLeft, ChevronRight, RotateCcw, Pencil, AlertCircle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { calculateCompositionLayoutMetadata } from "@microfox/remotion";
 import type { InputCompositionProps } from "@microfox/remotion";
@@ -13,7 +13,12 @@ import { RenderModal } from "@/components/editor/player/render-modal";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { useCompileStore } from "../../../stores/compile-store";
-
+import { useEditorUIStore } from "../../../stores/editor-ui-store";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 interface TimelineControlBarProps {
   generatedOutput: InputCompositionProps | null;
   calculatedMetadata: Awaited<ReturnType<typeof calculateCompositionLayoutMetadata>> | null;
@@ -66,6 +71,9 @@ export function TimelineControlBar({
   const setCurrentFrame = useLayerStateStore((s) => s.setCurrentFrame);
   const currentTimeline = useCompileStore((s) => s.currentTimeline);
   const generateOutput = useCompileStore((s) => s.generateOutput);
+  const rangeEditDepth = useEditorUIStore((s) => s.rangeEditDepth);
+  const hasInvalidRanges = useEditorUIStore((s) => s.hasInvalidRanges);
+  const isEditingRanges = rangeEditDepth > 0;
 
   const durationInFrames = calculatedMetadata?.durationInFrames ?? 0;
   const fps = calculatedMetadata?.fps ?? 30;
@@ -406,7 +414,31 @@ export function TimelineControlBar({
               {durationInFrames > 0 && (
                 <> • {Math.round(durationInFrames / fps)}s</>
               )}
-              {isGenerating ? (
+              {hasInvalidRanges ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Invalid ranges in preset inputs</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Fix incomplete or invalid MM:SS–MM:SS ranges to resume compiling</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : isEditingRanges ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Editing ranges…</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Compile paused while ranges are being edited</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : isGenerating ? (
                 <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
               ) : (
                 <CheckIcon className="h-4 w-4 text-green-500" />

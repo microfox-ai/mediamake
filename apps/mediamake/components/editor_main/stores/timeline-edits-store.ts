@@ -86,6 +86,22 @@ interface TimelineEditsState {
   removePreset: (timelineId: string, presetId: string) => void;
   duplicatePreset: (timelineId: string, presetId: string) => void;
   reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => void;
+  addActionToTimeline: (
+    timelineId: string,
+    action: {
+      actionId: string;
+      label: string;
+      target: import('@/components/editor/presets/actions/types').ActionTarget;
+      inputData?: Record<string, unknown>;
+    },
+  ) => import('@/components/editor/presets/actions/types').TimelineAction | null;
+  updateAction: (
+    timelineId: string,
+    actionId: string,
+    updates: Partial<import('@/components/editor/presets/actions/types').TimelineAction>,
+    options?: { skipHistory?: boolean },
+  ) => void;
+  removeAction: (timelineId: string, actionId: string) => void;
   
   // History actions
   undo: () => boolean; // Returns true if undo was successful
@@ -698,6 +714,96 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       presets.splice(newIndex, 0, movedPreset);
       
       get().updateTimeline(timelineId, { presets });
+    },
+
+    addActionToTimeline: (timelineId, action) => {
+      const resolveTimeline = (): Timeline | null => {
+        const edited = get().editedTimelines.get(timelineId);
+        if (edited) return edited;
+        const { useProjectStore } = require('./project-store');
+        const projectState = useProjectStore.getState();
+        return (
+          (projectState.loadedTimeline?.id === timelineId
+            ? projectState.loadedTimeline
+            : projectState.timelines.find((t: Timeline) => t.id === timelineId)) || null
+        );
+      };
+
+      const source = resolveTimeline();
+      if (!source) return null;
+
+      const created = {
+        id: `action-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        actionId: action.actionId,
+        label: action.label,
+        target: action.target,
+        inputData: action.inputData || {},
+        outputs: [],
+        status: 'idle' as const,
+      };
+
+      get().updateTimeline(timelineId, {
+        actions: [...(source.actions || []), created],
+      });
+
+      return created;
+    },
+
+    updateAction: (timelineId, actionId, updates, options) => {
+      const resolveTimeline = (): Timeline | null => {
+        const edited = get().editedTimelines.get(timelineId);
+        if (edited) return edited;
+        const { useProjectStore } = require('./project-store');
+        const projectState = useProjectStore.getState();
+        return (
+          (projectState.loadedTimeline?.id === timelineId
+            ? projectState.loadedTimeline
+            : projectState.timelines.find((t: Timeline) => t.id === timelineId)) || null
+        );
+      };
+
+      const source = resolveTimeline();
+      if (!source) return;
+
+      const actions = (source.actions || []).map((a) =>
+        a.id === actionId ? { ...a, ...updates, id: a.id, actionId: a.actionId } : a,
+      );
+
+      // Status-only / ephemeral patches: update in-memory edits without deep-cloning
+      // the full timeline into undo history or writing localStorage. Also skip syncing
+      // to the project store so the Remotion player host does not re-render.
+      if (options?.skipHistory) {
+        const nextTimeline = { ...source, actions };
+        set((state) => {
+          const editedTimelines = new Map(state.editedTimelines);
+          editedTimelines.set(timelineId, nextTimeline);
+          return { editedTimelines };
+        });
+        return;
+      }
+
+      get().updateTimeline(timelineId, { actions }, `action:${actionId}`);
+    },
+
+    removeAction: (timelineId, actionId) => {
+      const resolveTimeline = (): Timeline | null => {
+        const edited = get().editedTimelines.get(timelineId);
+        if (edited) return edited;
+        const { useProjectStore } = require('./project-store');
+        const projectState = useProjectStore.getState();
+        return (
+          (projectState.loadedTimeline?.id === timelineId
+            ? projectState.loadedTimeline
+            : projectState.timelines.find((t: Timeline) => t.id === timelineId)) || null
+        );
+      };
+
+      const source = resolveTimeline();
+      if (!source) return;
+
+      get().updateTimeline(timelineId, {
+        actions: (source.actions || []).filter((a) => a.id !== actionId),
+      });
     },
 
     undo: () => {

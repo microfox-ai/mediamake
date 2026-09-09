@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Check, X, Copy } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
 import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
@@ -19,13 +19,14 @@ import { getPredefinedPresetById } from "@/components/editor/presets/registry/re
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import { Check, X } from "lucide-react";
 import {
   getDefaultDataTypeForReferenceType,
   getDefaultValueForReferenceType,
 } from "@/components/editor/presets/dataTypes";
 import { useEditorStore } from "../../../../stores/editor-store";
 import { useEditorUIStore } from "../../../../stores/editor-ui-store";
+import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
+import { toast } from "sonner";
 
 interface GeneralPresetPropsProps {
   preset: Preset;
@@ -103,6 +104,18 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const handleLabelCancel = () => {
     setEditedLabel(currentPreset.label);
     setIsEditingLabel(false);
+  };
+
+  const handleCopyInputProps = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(localInputData ?? {}, null, 2),
+      );
+      toast.success("Copied preset input props");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to copy input props");
+    }
   };
 
 
@@ -338,12 +351,30 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
                 {currentPreset.label}
               </h3>
             )}
-            {isGenerating && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Generating... {generationProgress}%</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {isGenerating && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mr-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Generating... {generationProgress}%</span>
+                </div>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground"
+                    onClick={() => void handleCopyInputProps()}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Copy preset input props</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
@@ -372,6 +403,10 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
               </Tooltip>
             )}
           </div>
+          <LinkedActionsSection
+            timeline={effectiveTimeline}
+            target={{ type: "preset", presetInstanceId: preset.id }}
+          />
         </div>
 
         {/* Schema Form */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeftRight, Image as ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import { MediaPicker } from "@/components/editor/media/media-picker";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import { ColorInput } from "./color-input";
+import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
+import { isValidRangeString } from "../../engine/range-validation";
 
 const JSON_SCHEMA_STANDARD_KEYS = new Set([
   "type",
@@ -354,6 +356,14 @@ export function ImagesGroupField({
 
   return (
     <>
+      {linked && mediaRef && (
+        <p
+          className="mb-1.5 text-[11px] text-muted-foreground truncate"
+          title={`Image sources linked from ${mediaRef}`}
+        >
+          ref: {mediaRef}
+        </p>
+      )}
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as "images" | "form")}
@@ -400,11 +410,6 @@ export function ImagesGroupField({
               </Button>
             ))}
           </div>
-          {linked && (
-            <span className="text-[10px] text-muted-foreground ml-1 truncate max-w-[120px]" title={`srcs from ${mediaRef}`}>
-              ref:{mediaRef}
-            </span>
-          )}
         </div>
 
         <TabsContent value="images" className="mt-3 space-y-3">
@@ -720,12 +725,60 @@ function PropEditor({
       <Label className="text-[10px] uppercase text-muted-foreground">
         {label}
       </Label>
-      <Input
-        className="h-8 text-xs font-mono"
-        value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value || undefined)}
-        placeholder={isRangeProp(prop) ? "0:00-0:30" : "—"}
-      />
+      {isRangeProp(prop) ? (
+        <RangePropInput
+          value={typeof value === "string" ? value : ""}
+          onChange={onChange}
+        />
+      ) : (
+        <Input
+          className="h-8 text-xs font-mono"
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          placeholder="—"
+        />
+      )}
     </div>
+  );
+}
+
+function RangePropInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: any) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const beginRangeEdit = useEditorUIStore((s) => s.beginRangeEdit);
+  const endRangeEdit = useEditorUIStore((s) => s.endRangeEdit);
+  const setHasInvalidRanges = useEditorUIStore((s) => s.setHasInvalidRanges);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  return (
+    <Input
+      className="h-8 text-xs font-mono"
+      value={draft}
+      placeholder="0:00-0:30"
+      onFocus={() => beginRangeEdit()}
+      onChange={(e) => {
+        const next = e.target.value;
+        setDraft(next);
+        if (next && !isValidRangeString(next)) setHasInvalidRanges(true);
+      }}
+      onBlur={() => {
+        if (draft && !isValidRangeString(draft)) {
+          setHasInvalidRanges(true);
+          endRangeEdit();
+          return;
+        }
+        setHasInvalidRanges(false);
+        onChange(draft || undefined);
+        endRangeEdit();
+      }}
+    />
   );
 }

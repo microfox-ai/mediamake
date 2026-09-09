@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { File, Eye, EyeOff, Play, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
+import { File, Eye, EyeOff, Play, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
+import { toast } from "sonner";
 interface PresetItemProps {
     preset: NonNullable<Timeline['presets']>[number];
     timeline: Timeline;
@@ -124,6 +124,18 @@ export function PresetItem({
 
     const handleDuplicate = () => {
         duplicatePreset(timeline.id, preset.id);
+    };
+
+    const handleCopyInputProps = async () => {
+        try {
+            await navigator.clipboard.writeText(
+                JSON.stringify(displayPreset.presetInputData ?? {}, null, 2),
+            );
+            toast.success("Copied preset input props");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to copy input props");
+        }
     };
 
     const handleDelete = () => {
@@ -247,6 +259,10 @@ export function PresetItem({
                         Revert to preset
                     </ContextMenuItem>
                 )}
+                <ContextMenuItem onClick={() => void handleCopyInputProps()}>
+                    <ClipboardCopy className="h-4 w-4 mr-2" />
+                    Copy input props
+                </ContextMenuItem>
                 <ContextMenuItem onClick={handleDuplicate}>
                     <Copy className="h-4 w-4 mr-2" />
                     Duplicate Block

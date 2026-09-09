@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
       },
     });
 
+    // @remotion/google-fonts ships LICENSE.md / README.md at the package root.
+    // Dynamic import contexts can pull them in; don't let webpack parse markdown.
+    config.module.rules.push({
+      test: /\.md$/,
+      type: 'asset/resource',
+      generator: {
+        emit: false,
+      },
+    });
+
     // Handle esbuild and other problematic modules by excluding them
     config.module.rules.push({
       test: /node_modules\/(@remotion\/bundler|esbuild|terser-webpack-plugin|rollup)/,

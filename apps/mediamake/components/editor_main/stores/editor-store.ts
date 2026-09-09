@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Timeline } from './project-store';
 import type { ReferenceItem } from '@/components/editor/presets/types';
+import type { TimelineAction } from '@/components/editor/presets/actions/types';
 
 // Preset type from timeline
 export type Preset = {
@@ -14,7 +15,7 @@ export type Preset = {
 };
 
 // Selected item can be either a Timeline or a Preset
-export type SelectedItem = 
+export type SelectedItem =
   | { type: 'timeline'; item: Timeline }
   | { type: 'preset'; item: Preset; timeline: Timeline }
   | {
@@ -22,7 +23,8 @@ export type SelectedItem =
       item: ReferenceItem;
       timeline: Timeline;
       referenceIndex: number;
-    };
+    }
+  | { type: 'action'; item: TimelineAction; timeline: Timeline };
 
 interface EditorState {
   selectedItem: SelectedItem | null;
@@ -34,6 +36,7 @@ interface EditorState {
     timeline: Timeline,
     referenceIndex: number,
   ) => void;
+  selectAction: (action: TimelineAction, timeline: Timeline) => void;
   clearSelection: () => void;
 }
 
@@ -51,5 +54,7 @@ export const useEditorStore = create<EditorState>(set => ({
         referenceIndex,
       },
     }),
+  selectAction: (action, timeline) =>
+    set({ selectedItem: { type: 'action', item: action, timeline } }),
   clearSelection: () => set({ selectedItem: null }),
 }));

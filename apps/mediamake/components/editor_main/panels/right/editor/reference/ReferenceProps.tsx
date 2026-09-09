@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
@@ -15,10 +14,26 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Plus, X, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { JsonEditor } from "@/components/editor/player/json-editor";
+import { MediasGroupField } from "@/components/editor/presets/form/inputs/medias-group-field";
+import {
+  getDefaultDataTypeForReferenceType,
+  getDefaultValueForReferenceType,
+  getReferenceTypeOptions,
+  mediaItemSchema,
+} from "@/components/editor/presets/dataTypes";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { z } from "zod";
+import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -328,9 +343,65 @@ interface ActiveItemsPanelProps {
   activeIndices: Set<number>;
   currentTimeSec: number;
   onItemChange: (index: number, newItem: any) => void;
+  /** Full-array replace for medias smart edits (add/delete/reorder mapping). */
+  onMediasArrayChange?: (nextArray: any[]) => void;
 }
 
-function ActiveItemsPanel({ reference, activeIndices, currentTimeSec, onItemChange }: ActiveItemsPanelProps) {
+function syncActiveMediasToFull(
+  fullItems: any[],
+  sortedIndices: number[],
+  prevActive: any[],
+  nextActive: any[],
+): any[] {
+  const sorted = sortedIndices;
+  const result = [...fullItems];
+
+  if (nextActive.length === prevActive.length) {
+    nextActive.forEach((item, i) => {
+      if (item !== prevActive[i]) {
+        result[sorted[i]] = item;
+      }
+    });
+    return result;
+  }
+
+  if (nextActive.length === prevActive.length - 1) {
+    // Delete keeps object identity for remaining items
+    const nextRefs = new Set(nextActive);
+    const deletedLocal = prevActive.findIndex((p) => !nextRefs.has(p));
+    if (deletedLocal >= 0) {
+      result.splice(sorted[deletedLocal], 1);
+    }
+    return result;
+  }
+
+  if (nextActive.length > prevActive.length) {
+    for (let i = 0; i < prevActive.length; i++) {
+      if (nextActive[i] !== prevActive[i]) {
+        result[sorted[i]] = nextActive[i];
+      }
+    }
+    result.push(...nextActive.slice(prevActive.length));
+    return result;
+  }
+
+  // Fallback: rewrite mapped slots then drop trailing active originals
+  for (let i = 0; i < Math.min(nextActive.length, sorted.length); i++) {
+    result[sorted[i]] = nextActive[i];
+  }
+  for (let i = sorted.length - 1; i >= nextActive.length; i--) {
+    result.splice(sorted[i], 1);
+  }
+  return result;
+}
+
+function ActiveItemsPanel({
+  reference,
+  activeIndices,
+  currentTimeSec,
+  onItemChange,
+  onMediasArrayChange,
+}: ActiveItemsPanelProps) {
   if (activeIndices.size === 0) return null;
 
   const sortedIndices = Array.from(activeIndices).sort((a, b) => a - b);
@@ -388,23 +459,53 @@ function ActiveItemsPanel({ reference, activeIndices, currentTimeSec, onItemChan
 
   if (reference.type === "medias") {
     const items: any[] = Array.isArray(reference.value) ? reference.value : [];
+    const activeItems = sortedIndices
+      .map((index) => items[index])
+      .filter((item) => item !== undefined && item !== null);
+
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          Active at {currentTimeSec.toFixed(2)}s
+          <span className="text-muted-foreground/60 normal-case font-normal">
+            ({activeItems.length} of {items.length})
+          </span>
+        </p>
+        <MediasGroupField
+          value={activeItems}
+          itemSchema={z.toJSONSchema(mediaItemSchema)}
+          onChange={(nextActive) => {
+            const nextFull = syncActiveMediasToFull(
+              items,
+              sortedIndices,
+              activeItems,
+              nextActive,
+            );
+            onMediasArrayChange?.(nextFull);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (reference.type === "media") {
+    const item = reference.value;
+    if (!item) return null;
+    return (
+      <div className="space-y-3">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
           <Clock className="h-3 w-3" />
           Active at {currentTimeSec.toFixed(2)}s
         </p>
-        {sortedIndices.map((index) => {
-          const item = items[index];
-          if (!item) return null;
-          const src = item.src ?? item.url ?? item.filePath;
-          return (
-            <div key={index} className="rounded-md border bg-muted/10 p-2.5">
-              <span className="text-[10px] font-mono text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded">#{index} of {items.length}</span>
-              {src && <p className="text-[10px] text-muted-foreground mt-1 truncate">{src}</p>}
-            </div>
-          );
-        })}
+        <MediasGroupField
+          value={[item]}
+          singular
+          itemSchema={z.toJSONSchema(mediaItemSchema)}
+          onChange={(next) => {
+            onItemChange(0, next[0] ?? { src: "" });
+          }}
+        />
       </div>
     );
   }
@@ -421,6 +522,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
   const [activeTab, setActiveTab] = useState<"smart" | "full" | "json">("smart");
   const [filterActive, setFilterActive] = useState(true);
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [editedKey, setEditedKey] = useState(reference.key || "");
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -430,6 +533,12 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   const fps = calculatedMetadata?.fps ?? 30;
   const currentTimeSec = currentFrame / fps;
+  const referenceTypeOptions = useMemo(() => getReferenceTypeOptions(), []);
+
+  useEffect(() => {
+    setEditedKey(selectedReference?.key || "");
+    setIsEditingKey(false);
+  }, [selectedReference?.key, referenceIndex]);
 
   // ─── Compute active data item IDs at current frame ──────────────────────────
 
@@ -471,6 +580,9 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         const parsed = parseDataItemId(id);
         if (parsed && parsed.key === refKey) {
           indices.add(parsed.index);
+        } else if (id === refKey) {
+          // Singular media / bare key reference
+          indices.add(0);
         }
       }
     }
@@ -479,7 +591,9 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   }, [flatLayers, currentFrame, dataItemIdsMap, selectedReference?.key]);
 
   const hasActiveItems = activeIndices.size > 0;
-  const isArrayType = ["captions", "objects", "medias"].includes(selectedReference?.type ?? "");
+  const isSmartFilterType = ["captions", "objects", "medias", "media"].includes(
+    selectedReference?.type ?? "",
+  );
 
   // ─── onChange handlers ────────────────────────────────────────────────────────
 
@@ -528,6 +642,45 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     [referenceIndex, timeline, updateTimeline, scheduleRecompile]
   );
 
+  const handleKeySave = useCallback(() => {
+    const nextKey = editedKey.trim();
+    if (!selectedReference) {
+      setIsEditingKey(false);
+      return;
+    }
+    if (nextKey && nextKey !== selectedReference.key) {
+      onReferenceChange({
+        references: [{ ...selectedReference, key: nextKey }],
+      });
+    } else {
+      setEditedKey(selectedReference.key || "");
+    }
+    setIsEditingKey(false);
+  }, [editedKey, selectedReference, onReferenceChange]);
+
+  const handleKeyCancel = useCallback(() => {
+    setEditedKey(selectedReference?.key || "");
+    setIsEditingKey(false);
+  }, [selectedReference?.key]);
+
+  const handleTypeChange = useCallback(
+    (nextType: ReferenceItem["type"]) => {
+      if (!selectedReference || selectedReference.type === nextType) return;
+      const defaultDataType = getDefaultDataTypeForReferenceType(nextType);
+      onReferenceChange({
+        references: [
+          {
+            ...selectedReference,
+            type: nextType,
+            dataType: defaultDataType?.id,
+            value: getDefaultValueForReferenceType(nextType),
+          },
+        ],
+      });
+    },
+    [selectedReference, onReferenceChange],
+  );
+
   /**
    * Called when the user edits an active item (caption, object, media) at a specific index.
    * Reads the latest reference from the store at call time so rapid edits don't overwrite each other.
@@ -551,11 +704,25 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         const items: any[] = Array.isArray(ref.value) ? [...ref.value] : [];
         items[index] = newItem;
         newValue = items;
+      } else if (ref.type === "media") {
+        newValue = newItem;
       }
 
       onReferenceChange({ references: [{ ...ref, value: newValue }] });
     },
     [referenceIndex, reference, timeline, onReferenceChange]
+  );
+
+  const handleMediasArrayChange = useCallback(
+    (nextArray: any[]) => {
+      const latestTimeline =
+        useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+      const latestReferences = latestTimeline.defaultData?.references || [];
+      const ref = latestReferences[referenceIndex] || reference;
+      if (!ref) return;
+      onReferenceChange({ references: [{ ...ref, value: nextArray }] });
+    },
+    [referenceIndex, reference, timeline, onReferenceChange],
   );
 
   useEffect(() => {
@@ -566,7 +733,6 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   const title = selectedReference?.key || `reference_${referenceIndex + 1}`;
   const referenceType = selectedReference?.type || "object";
-  const referenceDataType = selectedReference?.dataType || referenceType;
   const selectedDefaultData: DefaultPresetData = {
     references: selectedReference ? [selectedReference] : [],
   };
@@ -578,7 +744,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           {/* Header */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">Reference Properties</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">Reference Properties</h3>
               {isGenerating && (
                 <div className="text-xs text-muted-foreground">
                   Generating… {generationProgress}%
@@ -586,10 +752,67 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-medium">{title}</p>
-              <Badge variant="secondary" className="text-xs">{referenceType}</Badge>
-              <Badge variant="outline" className="text-xs">{referenceDataType}</Badge>
+              {isEditingKey ? (
+                <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                  <Input
+                    value={editedKey}
+                    onChange={(e) => setEditedKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleKeySave();
+                      if (e.key === "Escape") handleKeyCancel();
+                    }}
+                    className="text-md font-semibold h-8"
+                    autoFocus
+                    placeholder="Reference key"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleKeySave}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleKeyCancel}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <h3
+                  className="text-md font-semibold cursor-pointer hover:bg-muted/50 px-2 py-1 rounded -ml-2"
+                  onClick={() => setIsEditingKey(true)}
+                  title="Click to edit reference name"
+                >
+                  {title}
+                </h3>
+              )}
+              <Select
+                value={referenceType}
+                onValueChange={(val) => handleTypeChange(val as ReferenceItem["type"])}
+              >
+                <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {referenceTypeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {selectedReference?.key && (
+              <LinkedActionsSection
+                timeline={displayTimeline}
+                target={{ type: "reference", referenceKey: selectedReference.key }}
+              />
+            )}
           </div>
 
           <Separator className="my-4" />
@@ -608,8 +831,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
 
-                {/* Active filter toggle — only in Smart tab for array types */}
-                {isArrayType && activeTab === "smart" && (
+                {/* Active filter toggle — only in Smart tab for array / media types */}
+                {isSmartFilterType && activeTab === "smart" && (
                   <Button
                     variant={filterActive ? "default" : "outline"}
                     size="sm"
@@ -629,13 +852,14 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
               {/* Smart tab */}
               <TabsContent value="smart" className="mt-3">
-                {isArrayType && filterActive ? (
+                {isSmartFilterType && filterActive ? (
                   hasActiveItems ? (
                     <ActiveItemsPanel
                       reference={selectedReference}
                       activeIndices={activeIndices}
                       currentTimeSec={currentTimeSec}
                       onItemChange={handleActiveItemChange}
+                      onMediasArrayChange={handleMediasArrayChange}
                     />
                   ) : (
                     <div className="rounded-md border border-dashed p-4 text-center">
@@ -654,6 +878,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                     onDefaultDataChange={onReferenceChange}
                     isExpanded={true}
                     singleReferenceMode={true}
+                    hideIdentityFields={true}
                   />
                 )}
               </TabsContent>
@@ -664,6 +889,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   onDefaultDataChange={onReferenceChange}
                   isExpanded={true}
                   singleReferenceMode={true}
+                  hideIdentityFields={true}
                 />
               </TabsContent>
 

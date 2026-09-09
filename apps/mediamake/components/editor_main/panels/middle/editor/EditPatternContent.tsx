@@ -15,7 +15,9 @@ import type { PlayerRef } from "@remotion/player";
 const LAYER_STATE_STORAGE_PREFIX = "layer-state";
 
 export function EditPatternContent() {
-  const { loadedTimeline, currentProjectId, currentProject } = useProjectStore();
+  const loadedTimeline = useProjectStore((s) => s.loadedTimeline);
+  const currentProjectId = useProjectStore((s) => s.currentProjectId);
+  const currentProject = useProjectStore((s) => s.currentProject);
   // Viewers must never read from or write to the WIP cache — they always receive
   // the canonical server state so they see editor-published changes on every load.
   const isViewer = currentProject != null && !currentProject.isOwned && currentProject.sharedRole === "viewer";

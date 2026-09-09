@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { DatabasePreset, Preset } from '@/components/editor/presets/types';
+import type { TimelineAction } from '@/components/editor/presets/actions/types';
 
 // Timeline type based on the JSON structure
 export interface Timeline {
@@ -20,6 +21,8 @@ export interface Timeline {
     presetInputData?: any;
     disabled?: boolean;
   }>;
+  /** One-shot / manually re-runnable generators linked to presets or references. */
+  actions?: TimelineAction[];
   /** Optimistic-locking version returned by the API (for multi-user publish). */
   version?: number;
   /** clientId of the last user who published this timeline. */
