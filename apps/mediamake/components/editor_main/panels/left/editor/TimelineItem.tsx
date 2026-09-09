@@ -17,7 +17,6 @@ import {
 import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
-import { isTimelineUnsyncedWithCloud } from "../../../stores/timeline-sync";
 import { usePresetsStore } from "../../../stores/presets-store";
 import { useSession } from "@/components/session-provider";
 import { cn } from "@/lib/utils";
@@ -63,6 +62,20 @@ interface TimelineItemProps {
     timeline: Timeline;
 }
 
+/** True when this timeline has unpublished local history entries at/before the cursor. */
+function hasLocalHistoryChanges(
+    history: Array<{ timelineId: string; published?: boolean }>,
+    historyIndex: number,
+    timelineId: string,
+): boolean {
+    if (historyIndex < 0) return false;
+    for (let i = 0; i <= historyIndex; i++) {
+        const entry = history[i];
+        if (entry?.timelineId === timelineId && !entry.published) return true;
+    }
+    return false;
+}
+
 export function TimelineItem({ timeline }: TimelineItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isReferencesOpen, setIsReferencesOpen] = useState(false);
@@ -76,16 +89,8 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectAction, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
-    const cloudTimelineUpdatedAt = useProjectStore((state) =>
-        state.timelines.find((item) => item.id === timeline.id)?.updatedAt
-    );
     const isUnsynced = useTimelineEditsStore((state) =>
-        isTimelineUnsyncedWithCloud(
-            timeline.id,
-            state.cloudUpdatedAtByTimelineId,
-            state.localEditUpdatedAtByTimelineId,
-            cloudTimelineUpdatedAt
-        )
+        hasLocalHistoryChanges(state.history, state.historyIndex, timeline.id)
     );
     const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
     const session = useSession();
@@ -385,7 +390,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     {isUnsynced && (
                                         <span
                                             className="h-2 w-2 rounded-full bg-blue-500 shrink-0"
-                                            title="Unsaved changes (not synced to cloud)"
+                                            title="Unpublished local changes"
                                         />
                                     )}
                                 </div>
