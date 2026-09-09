@@ -368,14 +368,16 @@ export function TimelineControlBar({
             >
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                  {/* No `transition-all`: this moves every frame, so the browser
+                      started and cancelled a transition on each one. */}
                   <div
-                    className="h-full bg-primary transition-all"
+                    className="h-full bg-primary"
                     style={{ width: `${seekBarProgress}%` }}
                   />
                 </div>
               </div>
               <div
-                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md transition-all"
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md"
                 style={{
                   left: `calc(${seekBarProgress}% - 6px)`,
                   opacity: dragging ? 1 : 0.7,

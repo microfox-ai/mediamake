@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   calculateCompositionLayoutMetadata,
+  getMediaLoadErrorMessage,
   InputCompositionProps,
   RenderableComponentData,
   RenderableContext,
@@ -25,6 +26,27 @@ import AudioScene from '@/components/remotion/test.json';
 import { toast } from 'sonner';
 import type { Timeline } from './project-store';
 import { Preset, DatabasePreset } from '@/components/editor/presets/types';
+
+/**
+ * Preset bodies are stored minified, so a throw from inside one surfaces as
+ * something like `r.map is not a function` with no way to tell which preset
+ * produced it. Attach the preset's identity on the way out.
+ */
+const runPresetAttributed = async (
+  preset: Preset | DatabasePreset,
+  input: any,
+  props: Parameters<typeof runPreset>[2],
+) => {
+  try {
+    return await runPreset(input, preset.presetFunction, props, preset.metadata);
+  } catch (error) {
+    const label = preset.metadata?.title || preset.metadata?.id || 'unknown';
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Preset "${label}" failed while compiling: ${detail}`, {
+      cause: error,
+    });
+  }
+};
 
 const getValueAtPath = (obj: any, path: string): any => {
   if (!path) return obj;
@@ -629,9 +651,9 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         });
 
         // Run the preset function with processed input data
-        const presetOutput = await runPreset(
+        const presetOutput = await runPresetAttributed(
+          actualPreset,
           hydratedProcessedInputData,
-          actualPreset.presetFunction,
           {
             config: baseComposition.config,
             style: baseComposition.style,
@@ -655,7 +677,6 @@ export const useCompileStore = create<CompileState>((set, get) => ({
               }),
             ),
           },
-          actualPreset.metadata,
         );
 
         if (presetOutput) {
@@ -727,10 +748,17 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           });
         } catch (error) {
           console.error('Error calculating metadata:', error);
-          const errorMessage =
+          // Keep the real cause: this used to collapse every non-string throw
+          // to a generic message, hiding unreachable media URLs and the like.
+          const detail =
             typeof error === 'string'
               ? error
-              : 'Failed to calculate metadata in precompiling the video...';
+              : error instanceof Error
+                ? getMediaLoadErrorMessage(error)
+                : '';
+          const errorMessage = detail
+            ? `Failed to calculate metadata in precompiling the video: ${detail}`
+            : 'Failed to calculate metadata in precompiling the video...';
           set({
             calculatedMetadata: null,
             generationProgress: 100,
