@@ -631,9 +631,28 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
             }))
           : latestTimeline.presets;
 
+      const migratedActions =
+        Object.keys(keyMapping).length > 0
+          ? (latestTimeline.actions || []).map((action) => {
+              if (
+                action.target?.type === "reference" &&
+                oldKey &&
+                action.target.referenceKey === oldKey &&
+                newKey
+              ) {
+                return {
+                  ...action,
+                  target: { type: "reference" as const, referenceKey: newKey },
+                };
+              }
+              return action;
+            })
+          : latestTimeline.actions;
+
       updateTimeline(timeline.id, {
         defaultData: { ...(latestTimeline.defaultData || {}), references: nextReferences },
         ...(migratedPresets ? { presets: migratedPresets } : {}),
+        ...(migratedActions ? { actions: migratedActions } : {}),
       });
 
       scheduleRecompile();

@@ -24,6 +24,8 @@ interface TimelineDocument {
   configuration?: any;
   defaultData?: any;
   presets?: TimelinePreset[];
+  /** One-shot / manually re-runnable generators linked to presets or references. */
+  actions?: any[];
   /** Monotonically incrementing counter — used for optimistic locking on publish. */
   version?: number;
   /** clientId of the last user who published this timeline. */
@@ -56,6 +58,7 @@ function mapTimeline(d: any) {
     configuration: d.configuration,
     defaultData: d.defaultData,
     presets: d.presets,
+    actions: d.actions ?? [],
     version: d.version ?? 0,
     lastClientId: d.lastClientId ?? 'unknown',
   };
@@ -205,7 +208,7 @@ export async function POST(request: NextRequest) {
     const collection = db.collection<TimelineDocument>('timelines');
 
     const body = await request.json();
-    const { projectId, displayName, description, template, legacyId, sourceTimelineId, configuration, defaultData, presets } = body;
+    const { projectId, displayName, description, template, legacyId, sourceTimelineId, configuration, defaultData, presets, actions } = body;
 
     if (!projectId || typeof projectId !== 'string') {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
@@ -272,6 +275,7 @@ export async function POST(request: NextRequest) {
           configuration: {},
           defaultData: legacyData.presetData?.defaultData || { references: [] },
           presets: convertedPresets || [],
+          actions: [],
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -286,17 +290,8 @@ export async function POST(request: NextRequest) {
           numberOfPresets: convertedPresets?.length || 0,
         });
 
-        return NextResponse.json({
-          id: result.insertedId.toString(),
-          projectId: timelineDocument.projectId,
-          displayName: timelineDocument.displayName,
-          description: timelineDocument.description,
-          createdAt: timelineDocument.createdAt,
-          updatedAt: timelineDocument.updatedAt,
-          configuration: timelineDocument.configuration,
-          defaultData: timelineDocument.defaultData,
-          presets: timelineDocument.presets,
-        });
+        const created = await collection.findOne({ _id: result.insertedId });
+        return NextResponse.json(mapTimeline(created));
       } catch (error) {
         console.error('Error importing legacy timeline:', error);
         return NextResponse.json({ error: 'Failed to import legacy timeline' }, { status: 500 });
@@ -321,6 +316,7 @@ export async function POST(request: NextRequest) {
           configuration: sourceTimeline.configuration,
           defaultData: sourceTimeline.defaultData,
           presets: sourceTimeline.presets,
+          actions: sourceTimeline.actions ?? [],
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -333,6 +329,7 @@ export async function POST(request: NextRequest) {
           projectId,
           displayName: timelineDocument.displayName,
           numberOfPresets: sourceTimeline.presets?.length || 0,
+          numberOfActions: timelineDocument.actions?.length || 0,
         });
 
         const created = await collection.findOne({ _id: result.insertedId });
@@ -365,6 +362,9 @@ export async function POST(request: NextRequest) {
     if (presets !== undefined) {
       timelineData.presets = presets;
     }
+    if (actions !== undefined) {
+      timelineData.actions = actions;
+    }
 
     if (template === 'blank' && configuration === undefined && defaultData === undefined && presets === undefined) {
       timelineData = {
@@ -391,6 +391,7 @@ export async function POST(request: NextRequest) {
             disabled: false,
           },
         ],
+        actions: [],
       };
     }
 
@@ -405,6 +406,7 @@ export async function POST(request: NextRequest) {
       configuration: timelineData.configuration,
       defaultData: timelineData.defaultData,
       presets: timelineData.presets,
+      actions: timelineData.actions ?? [],
     };
 
     const result = await collection.insertOne(document);
@@ -476,6 +478,7 @@ export async function PUT(request: NextRequest) {
       if (updates.configuration !== undefined) updateData.configuration = updates.configuration;
       if (updates.defaultData !== undefined) updateData.defaultData = updates.defaultData;
       if (updates.presets !== undefined) updateData.presets = updates.presets;
+      if (updates.actions !== undefined) updateData.actions = updates.actions;
       // Bump version + record publisher only when a version was supplied (i.e. a
       // managed publish). Legacy callers that omit `version` keep last-write-wins.
       if (typeof clientVersion === 'number') {

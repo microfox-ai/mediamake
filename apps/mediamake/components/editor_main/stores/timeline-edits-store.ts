@@ -629,14 +629,27 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         if (!originalTimeline || !originalTimeline.presets) return;
         
         const filteredPresets = originalTimeline.presets.filter((p: any) => p.id !== presetId);
-        get().updateTimeline(timelineId, { presets: filteredPresets });
+        const filteredActions = (originalTimeline.actions || []).filter(
+          (a: NonNullable<Timeline['actions']>[number]) =>
+            !(a.target?.type === 'preset' && a.target.presetInstanceId === presetId)
+        );
+        get().updateTimeline(timelineId, {
+          presets: filteredPresets,
+          actions: filteredActions,
+        });
         return;
       }
       
       if (!timeline.presets) return;
       
       const filteredPresets = timeline.presets.filter(p => p.id !== presetId);
-      get().updateTimeline(timelineId, { presets: filteredPresets });
+      const filteredActions = (timeline.actions || []).filter(
+        (a) => !(a.target?.type === 'preset' && a.target.presetInstanceId === presetId)
+      );
+      get().updateTimeline(timelineId, {
+        presets: filteredPresets,
+        actions: filteredActions,
+      });
     },
 
     duplicatePreset: (timelineId: string, presetId: string) => {
@@ -645,6 +658,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       
       let sourcePreset: any;
       let allPresets: any[];
+      let sourceActions: NonNullable<Timeline['actions']> = [];
       
       if (!timeline) {
         const { useProjectStore } = require('./project-store');
@@ -657,10 +671,12 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         
         sourcePreset = originalTimeline.presets.find((p: any) => p.id === presetId);
         allPresets = originalTimeline.presets;
+        sourceActions = originalTimeline.actions || [];
       } else {
         if (!timeline.presets) return;
         sourcePreset = timeline.presets.find(p => p.id === presetId);
         allPresets = timeline.presets;
+        sourceActions = timeline.actions || [];
       }
       
       if (!sourcePreset) return;
@@ -682,8 +698,24 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       // Insert duplicate right after the source preset
       const newPresets = [...allPresets];
       newPresets.splice(sourceIndex + 1, 0, duplicatedPreset);
+
+      // Copy actions that targeted the source preset onto the duplicate
+      const duplicatedActions = sourceActions
+        .filter(
+          (a) => a.target?.type === 'preset' && a.target.presetInstanceId === presetId
+        )
+        .map((a, i) => ({
+          ...JSON.parse(JSON.stringify(a)),
+          id: `action-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
+          target: { type: 'preset' as const, presetInstanceId: duplicatedPreset.id },
+        }));
       
-      get().updateTimeline(timelineId, { presets: newPresets });
+      get().updateTimeline(timelineId, {
+        presets: newPresets,
+        ...(duplicatedActions.length > 0
+          ? { actions: [...sourceActions, ...duplicatedActions] }
+          : {}),
+      });
     },
 
     reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => {
@@ -950,6 +982,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           configuration: editedTimeline.configuration,
           defaultData: editedTimeline.defaultData,
           presets: editedTimeline.presets,
+          actions: editedTimeline.actions ?? [],
         };
         
         const response = await fetch('/api/project/timeline', {
@@ -1317,6 +1350,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             configuration: timeline.configuration,
             defaultData: timeline.defaultData,
             presets: timeline.presets,
+            actions: timeline.actions ?? [],
             version,
             clientId: state.clientId ?? undefined,
           }),

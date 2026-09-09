@@ -84,13 +84,17 @@ export type TimelineChangeType =
   | "preset-enabled"
   | "preset-disabled"
   | "preset-reordered"
+  | "action-added"
+  | "action-removed"
+  | "action-modified"
+  | "action-renamed"
   | "config"
   | "defaultData"
   | "meta";
 
 export interface TimelineChangeDetail {
   type: TimelineChangeType;
-  /** Preset label, or "Configuration" / "Default data" / "Timeline". */
+  /** Preset/action label, or "Configuration" / "Default data" / "Timeline". */
   label: string;
   /** Leaf-level field changes (for modified presets / config). */
   fieldDiffs: LeafDiff[];
@@ -99,9 +103,14 @@ export interface TimelineChangeDetail {
 }
 
 type AnyPreset = NonNullable<Timeline["presets"]>[number];
+type AnyAction = NonNullable<Timeline["actions"]>[number];
 
 function presetLabel(p: AnyPreset): string {
   return p.label || p.presetId || p.id;
+}
+
+function actionLabel(a: AnyAction): string {
+  return a.label || a.actionId || a.id;
 }
 
 function joinFieldDiffs(diffs: LeafDiff[], maxFields = 6): string {
@@ -116,7 +125,7 @@ function joinFieldDiffs(diffs: LeafDiff[], maxFields = 6): string {
  * Produce a detailed, preset-aware diff between two timeline snapshots:
  * which presets were added / removed / reordered / toggled / renamed, and for
  * modified presets, exactly which input fields changed (old → new). Also diffs
- * configuration and default data.
+ * actions, configuration and default data.
  */
 export function summarizeTimelineDiff(
   before: Timeline | null | undefined,
@@ -195,6 +204,68 @@ export function summarizeTimelineDiff(
       fieldDiffs: [],
       summary: `Reordered presets`,
     });
+  }
+
+  // Actions
+  const beforeActions = before?.actions ?? [];
+  const afterActions = after.actions ?? [];
+  const beforeActionsById = new Map(beforeActions.map((a) => [a.id, a]));
+  const afterActionsById = new Map(afterActions.map((a) => [a.id, a]));
+
+  for (const aa of afterActions) {
+    const ba = beforeActionsById.get(aa.id);
+    if (!ba) {
+      details.push({
+        type: "action-added",
+        label: actionLabel(aa),
+        fieldDiffs: [],
+        summary: `Added action "${actionLabel(aa)}"`,
+      });
+      continue;
+    }
+    if ((ba.label || "") !== (aa.label || "")) {
+      details.push({
+        type: "action-renamed",
+        label: actionLabel(aa),
+        fieldDiffs: [],
+        summary: `Renamed action "${ba.label || ba.actionId}" → "${aa.label || aa.actionId}"`,
+      });
+    }
+    const fieldDiffs = deepDiff(
+      {
+        target: ba.target,
+        inputData: ba.inputData ?? {},
+        outputs: ba.outputs ?? [],
+        selectedOutputId: ba.selectedOutputId,
+        status: ba.status,
+      },
+      {
+        target: aa.target,
+        inputData: aa.inputData ?? {},
+        outputs: aa.outputs ?? [],
+        selectedOutputId: aa.selectedOutputId,
+        status: aa.status,
+      }
+    );
+    if (fieldDiffs.length > 0) {
+      details.push({
+        type: "action-modified",
+        label: actionLabel(aa),
+        fieldDiffs,
+        summary: `Action "${actionLabel(aa)}" · ${joinFieldDiffs(fieldDiffs)}`,
+      });
+    }
+  }
+
+  for (const ba of beforeActions) {
+    if (!afterActionsById.has(ba.id)) {
+      details.push({
+        type: "action-removed",
+        label: actionLabel(ba),
+        fieldDiffs: [],
+        summary: `Removed action "${actionLabel(ba)}"`,
+      });
+    }
   }
 
   // Configuration

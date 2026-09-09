@@ -288,7 +288,29 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         };
         const nextReferences = [...references];
         nextReferences.splice(referenceIndex + 1, 0, duplicate);
-        upsertReferences(nextReferences);
+
+        const sourceActions = displayTimeline.actions || [];
+        const duplicatedActions = sourceActions
+            .filter(
+                (a) =>
+                    a.target?.type === "reference" &&
+                    a.target.referenceKey === sourceReference.key
+            )
+            .map((a, i) => ({
+                ...JSON.parse(JSON.stringify(a)),
+                id: `action-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
+                target: { type: "reference" as const, referenceKey: duplicate.key },
+            }));
+
+        updateTimeline(timeline.id, {
+            defaultData: {
+                ...(displayTimeline.defaultData || {}),
+                references: nextReferences,
+            },
+            ...(duplicatedActions.length > 0
+                ? { actions: [...sourceActions, ...duplicatedActions] }
+                : {}),
+        });
         selectReference(duplicate, displayTimeline, referenceIndex + 1);
     };
 
@@ -298,7 +320,20 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
             return;
         }
         const nextReferences = references.filter((_, index: number) => index !== referenceIndex);
-        upsertReferences(nextReferences);
+        const nextActions = (displayTimeline.actions || []).filter(
+            (a) =>
+                !(
+                    a.target?.type === "reference" &&
+                    a.target.referenceKey === sourceReference.key
+                )
+        );
+        updateTimeline(timeline.id, {
+            defaultData: {
+                ...(displayTimeline.defaultData || {}),
+                references: nextReferences,
+            },
+            actions: nextActions,
+        });
         selectTimeline(displayTimeline);
     };
 

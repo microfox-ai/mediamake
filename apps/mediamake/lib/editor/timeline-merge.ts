@@ -1,22 +1,23 @@
 /**
- * 3-way merge for timelines (preset-level).
+ * 3-way merge for timelines (preset + action level).
  *
  * Given the common base (the last state the local user synced with the server),
  * the local edited timeline, and the remote/team timeline (which advanced via
- * someone else's publish), this auto-merges non-conflicting preset changes and
- * surfaces conflicts (the same preset changed differently on both sides) for the
+ * someone else's publish), this auto-merges non-conflicting preset/action changes
+ * and surfaces conflicts (the same item changed differently on both sides) for the
  * user to resolve — so no one's work is silently lost.
  */
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 
 type AnyPreset = NonNullable<Timeline["presets"]>[number];
+type AnyAction = NonNullable<Timeline["actions"]>[number];
 
 export type MergeSide = "mine" | "theirs";
 
 export interface TimelineConflict {
-  /** Preset id, or "config" / "defaultData". */
+  /** Preset/action id, or "config" / "defaultData". */
   id: string;
-  kind: "preset" | "config" | "defaultData";
+  kind: "preset" | "action" | "config" | "defaultData";
   label: string;
   mineSummary: string;
   theirsSummary: string;
@@ -37,6 +38,10 @@ function eq(a: unknown, b: unknown): boolean {
 
 function presetLabel(p: AnyPreset | undefined, id: string): string {
   return p?.label || p?.presetId || id;
+}
+
+function actionLabel(a: AnyAction | undefined, id: string): string {
+  return a?.label || a?.actionId || id;
 }
 
 /**
@@ -126,6 +131,72 @@ export function mergeTimelines(
     });
   }
 
+  // Actions (same 3-way pattern, keyed by action id)
+  const baseActions = base?.actions ?? [];
+  const localActions = local.actions ?? [];
+  const remoteActions = remote.actions ?? [];
+  const baseActionsById = new Map(baseActions.map((a) => [a.id, a]));
+  const localActionsById = new Map(localActions.map((a) => [a.id, a]));
+  const remoteActionsById = new Map(remoteActions.map((a) => [a.id, a]));
+  const allActionIds = new Set<string>([
+    ...baseActions.map((a) => a.id),
+    ...localActions.map((a) => a.id),
+    ...remoteActions.map((a) => a.id),
+  ]);
+
+  type ActionResolution =
+    | { type: "value"; action: AnyAction }
+    | { type: "remove" }
+    | { type: "conflict" };
+  const actionResolutions = new Map<string, ActionResolution>();
+
+  for (const id of allActionIds) {
+    const b = baseActionsById.get(id);
+    const l = localActionsById.get(id);
+    const r = remoteActionsById.get(id);
+    const localChanged = !eq(b, l);
+    const remoteChanged = !eq(b, r);
+
+    if (!localChanged && !remoteChanged) {
+      if (r) actionResolutions.set(id, { type: "value", action: r });
+      else actionResolutions.set(id, { type: "remove" });
+      continue;
+    }
+    if (localChanged && !remoteChanged) {
+      if (l) {
+        actionResolutions.set(id, { type: "value", action: l });
+        autoMerged.push(`You: ${b ? "edited" : "added"} action "${actionLabel(l, id)}"`);
+      } else {
+        actionResolutions.set(id, { type: "remove" });
+        autoMerged.push(`You: removed action "${actionLabel(b, id)}"`);
+      }
+      continue;
+    }
+    if (!localChanged && remoteChanged) {
+      if (r) {
+        actionResolutions.set(id, { type: "value", action: r });
+        autoMerged.push(`Teammate: ${b ? "edited" : "added"} action "${actionLabel(r, id)}"`);
+      } else {
+        actionResolutions.set(id, { type: "remove" });
+        autoMerged.push(`Teammate: removed action "${actionLabel(b, id)}"`);
+      }
+      continue;
+    }
+    if (eq(l, r)) {
+      if (l) actionResolutions.set(id, { type: "value", action: l });
+      else actionResolutions.set(id, { type: "remove" });
+      continue;
+    }
+    actionResolutions.set(id, { type: "conflict" });
+    conflicts.push({
+      id: `action:${id}`,
+      kind: "action",
+      label: actionLabel(l ?? r, id),
+      mineSummary: l ? (b ? "edited by you" : "added by you") : "removed by you",
+      theirsSummary: r ? (b ? "edited by teammate" : "added by teammate") : "removed by teammate",
+    });
+  }
+
   // Config / defaultData merges
   const configConflict = mergeScalar(
     base?.configuration, local.configuration, remote.configuration
@@ -174,6 +245,25 @@ export function mergeTimelines(
       // if chosen is undefined (that side removed it) → drop
     }
 
+    const orderedActionIds: string[] = [];
+    for (const a of localActions) if (allActionIds.has(a.id)) orderedActionIds.push(a.id);
+    for (const a of remoteActions) if (!orderedActionIds.includes(a.id)) orderedActionIds.push(a.id);
+    for (const a of baseActions) if (!orderedActionIds.includes(a.id)) orderedActionIds.push(a.id);
+
+    const mergedActions: AnyAction[] = [];
+    for (const id of orderedActionIds) {
+      const res = actionResolutions.get(id);
+      if (!res) continue;
+      if (res.type === "remove") continue;
+      if (res.type === "value") {
+        mergedActions.push(res.action);
+        continue;
+      }
+      const side = choices[`action:${id}`] ?? "mine";
+      const chosen = side === "theirs" ? remoteActionsById.get(id) : localActionsById.get(id);
+      if (chosen) mergedActions.push(chosen);
+    }
+
     const pickConfig = () => {
       if (configConflict.conflict) {
         return (choices["config"] ?? "mine") === "theirs"
@@ -198,6 +288,7 @@ export function mergeTimelines(
       displayName: local.displayName ?? remote.displayName,
       description: local.description ?? remote.description,
       presets: mergedPresets,
+      actions: mergedActions,
       configuration: pickConfig(),
       defaultData: pickDefault(),
     };

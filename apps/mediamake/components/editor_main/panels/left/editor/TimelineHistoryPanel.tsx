@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import {
   Undo2, Redo2, Clock, Upload, RefreshCw, Users, Monitor, Download, Film,
   ChevronRight, ChevronDown, Plus, Minus, Edit2, ArrowUpDown, Eye, Settings,
-  RotateCcw, X, Eraser, Scissors, Trash2,
+  RotateCcw, X, Eraser, Scissors, Trash2, Zap,
 } from "lucide-react";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,10 @@ const TCHANGE_ICON: Record<TimelineChangeType, React.ReactNode> = {
   "preset-enabled": <Eye className="h-3 w-3" />,
   "preset-disabled": <Eye className="h-3 w-3" />,
   "preset-reordered": <ArrowUpDown className="h-3 w-3" />,
+  "action-added": <Zap className="h-3 w-3" />,
+  "action-removed": <Minus className="h-3 w-3" />,
+  "action-modified": <Zap className="h-3 w-3" />,
+  "action-renamed": <Edit2 className="h-3 w-3" />,
   config: <Settings className="h-3 w-3" />,
   defaultData: <Settings className="h-3 w-3" />,
   meta: <Film className="h-3 w-3" />,
@@ -54,6 +58,10 @@ const TCHANGE_COLOR: Record<TimelineChangeType, string> = {
   "preset-enabled": "text-violet-400 bg-violet-400/15",
   "preset-disabled": "text-violet-400 bg-violet-400/15",
   "preset-reordered": "text-amber-400 bg-amber-400/15",
+  "action-added": "text-emerald-400 bg-emerald-400/15",
+  "action-removed": "text-red-400 bg-red-400/15",
+  "action-modified": "text-cyan-400 bg-cyan-400/15",
+  "action-renamed": "text-cyan-400 bg-cyan-400/15",
   config: "text-orange-400 bg-orange-400/15",
   defaultData: "text-orange-400 bg-orange-400/15",
   meta: "text-muted-foreground bg-muted",
