@@ -148,7 +148,7 @@ function TimelineActions({
 function TimelineLocalEntry({
   entry, prevTimeline, isCurrent, isFuture, onPreview, onRevert, onReset, onViewDiff,
 }: {
-  entry: { index: number; timestamp: number; timeline: Timeline };
+  entry: { index: number; timestamp: number; timeline: Timeline; published?: boolean };
   prevTimeline: Timeline | null;
   isCurrent: boolean;
   isFuture: boolean;
@@ -165,6 +165,7 @@ function TimelineLocalEntry({
     details.length > 0
       ? `${details.length} change${details.length !== 1 ? "s" : ""}`
       : entry.timeline.displayName || "Timeline edit";
+  const isPublished = entry.published === true;
 
   return (
     <div
@@ -175,14 +176,25 @@ function TimelineLocalEntry({
       )}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-400/15 text-blue-400">
+        <span className={cn(
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded",
+          isPublished ? "bg-muted text-muted-foreground" : "bg-blue-400/15 text-blue-400"
+        )}>
           <Film className="h-3 w-3" />
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 justify-between">
-            <span className={cn("text-xs font-medium truncate", isCurrent ? "text-foreground" : "text-foreground/70")}>
-              {headline}
-            </span>
+            <div className="flex items-center gap-1 min-w-0">
+              <span className={cn("text-xs font-medium truncate", isCurrent ? "text-foreground" : "text-foreground/70")}>
+                {headline}
+              </span>
+              {!isPublished && !isFuture && (
+                <span className="text-[9px] text-amber-400/80 bg-amber-400/10 rounded px-1 shrink-0">local</span>
+              )}
+              {isPublished && (
+                <span className="text-[9px] text-muted-foreground/70 bg-muted rounded px-1 shrink-0">published</span>
+              )}
+            </div>
             <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(entry.timestamp)}</span>
           </div>
           {details.length > 0 && (
@@ -233,18 +245,35 @@ type Tab = "local" | "team";
 export function TimelineHistoryPanel() {
   const {
     history, historyIndex, canUndo, canRedo, undo, redo,
-    isDirty: storeIsDirty, isPublishing, dbHistory, isLoadingDbHistory, loadTimelineDbHistory,
+    isPublishing, dbHistory, isLoadingDbHistory, loadTimelineDbHistory,
     dbHistoryHasMore, loadMoreTimelineDbHistory,
     publishTimeline, revertTimelineToTeamBase, clientId, loadBaselineById,
     startTimelinePreview, endTimelinePreview, revertToTimelineState, isTimelinePreviewActive,
     clearPublishedHistory, resetToTimelineEntry, discardAllLocalTimelineChanges,
   } = useTimelineEditsStore();
-  const isDirty =
-    storeIsDirty ||
-    (historyIndex >= 0 &&
-      history.some((entry, index) => index <= historyIndex && !entry.published));
-  const hasPublishedEntries = history.some((e) => e.published);
   const { loadedTimeline } = useProjectStore();
+  // Dirty for the *loaded* timeline only — other timelines' unpublished work
+  // must not keep this panel's Publish button / amber badge stuck on.
+  const isDirty = useTimelineEditsStore((s) => {
+    if (!loadedTimeline?.id) {
+      return (
+        s.isDirty ||
+        (s.historyIndex >= 0 &&
+          s.history.some((entry, index) => index <= s.historyIndex && !entry.published))
+      );
+    }
+    if (s.historyIndex < 0) return false;
+    for (let i = 0; i <= s.historyIndex; i++) {
+      const entry = s.history[i];
+      if (!entry || entry.published) continue;
+      const entryTlId = entry.timelineId || entry.timeline?.id;
+      if (entryTlId === loadedTimeline.id) return true;
+    }
+    return false;
+  });
+  const hasPublishedEntries = history.some(
+    (e) => e.published && (!loadedTimeline || (e.timelineId || e.timeline?.id) === loadedTimeline.id)
+  );
   const [tab, setTab] = useState<Tab>("local");
   const [isReverting, setIsReverting] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -304,7 +333,7 @@ export function TimelineHistoryPanel() {
   // History entries for the loaded timeline, newest first
   const localEntries = history
     .map((e, i) => ({ ...e, index: i }))
-    .filter((e) => !loadedTimeline || e.timelineId === loadedTimeline.id);
+    .filter((e) => !loadedTimeline || (e.timelineId || e.timeline?.id) === loadedTimeline.id);
   const reversed = [...localEntries].reverse();
 
   return (
@@ -419,7 +448,7 @@ export function TimelineHistoryPanel() {
                       : loadBaselineById.get(entry.timelineId) ?? null;
                   const hasUnpublishedAfter = history
                     .slice(idx + 1)
-                    .some((e) => e.timelineId === entry.timelineId && !e.published);
+                    .some((e) => (e.timelineId || e.timeline?.id) === entry.timelineId && !e.published);
                   return (
                     <TimelineLocalEntry
                       key={`${idx}-${entry.timestamp}`}

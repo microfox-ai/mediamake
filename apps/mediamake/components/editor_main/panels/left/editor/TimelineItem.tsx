@@ -64,14 +64,16 @@ interface TimelineItemProps {
 
 /** True when this timeline has unpublished local history entries at/before the cursor. */
 function hasLocalHistoryChanges(
-    history: Array<{ timelineId: string; published?: boolean }>,
+    history: Array<{ timelineId: string; published?: boolean; timeline?: { id?: string } }>,
     historyIndex: number,
     timelineId: string,
 ): boolean {
     if (historyIndex < 0) return false;
     for (let i = 0; i <= historyIndex; i++) {
         const entry = history[i];
-        if (entry?.timelineId === timelineId && !entry.published) return true;
+        if (!entry || entry.published) continue;
+        const entryTlId = entry.timelineId || entry.timeline?.id;
+        if (entryTlId === timelineId) return true;
     }
     return false;
 }

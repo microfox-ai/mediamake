@@ -17,12 +17,12 @@ export function TimelinesTree() {
     const { registerCloudTimelines } = useTimelineEditsStore();
     const session = useSession();
     const historyCount = useTimelineEditsStore((s) => s.history.length);
-    const isDirty = useTimelineEditsStore(
-        (s) =>
-            s.isDirty ||
-            (s.historyIndex >= 0 &&
-                s.history.some((entry, index) => index <= s.historyIndex && !entry.published))
-    );
+    const isDirty = useTimelineEditsStore((s) => {
+        if (s.historyIndex < 0) return false;
+        return s.history.some(
+            (entry, index) => index <= s.historyIndex && !entry.published
+        );
+    });
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearching, setIsSearching] = useState(false);

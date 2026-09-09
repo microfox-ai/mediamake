@@ -259,6 +259,8 @@ export const useLayerHistoryStore = create<LayerHistoryState>((set, get) => ({
       publishedHash: currentHash,
       publishedEntryIds: new Set([...s.publishedEntryIds, ...lineageIds]),
     }));
+    // Persist immediately so a reload / delayed subscriber can't revive "unpublished".
+    persistLayerHistory(get());
   },
 
   setIsPublishing: (v) => set({ isPublishing: v }),

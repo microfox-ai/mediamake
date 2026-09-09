@@ -249,6 +249,37 @@ const hasUnpublishedAtCursor = (history: HistoryEntry[], historyIndex: number): 
   return false;
 };
 
+/** Resolve the timeline id for a history entry (supports older entries missing timelineId). */
+const historyEntryTimelineId = (entry: HistoryEntry | undefined): string | undefined =>
+  entry?.timelineId || entry?.timeline?.id;
+
+/** True when a specific timeline has unpublished local history at/before the cursor. */
+const hasUnpublishedForTimeline = (
+  history: HistoryEntry[],
+  historyIndex: number,
+  timelineId: string
+): boolean => {
+  if (historyIndex < 0) return false;
+  for (let i = 0; i <= historyIndex; i++) {
+    const entry = history[i];
+    if (!entry || entry.published) continue;
+    if (historyEntryTimelineId(entry) === timelineId) return true;
+  }
+  return false;
+};
+
+/** Mark unpublished entries for `timelineId` at/before the cursor as published. */
+const markTimelinePublishedUpToCursor = (
+  history: HistoryEntry[],
+  historyIndex: number,
+  timelineId: string
+): HistoryEntry[] =>
+  history.map((entry, index) => {
+    if (index > historyIndex || entry.published) return entry;
+    if (historyEntryTimelineId(entry) !== timelineId) return entry;
+    return { ...entry, timelineId, published: true };
+  });
+
 const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsState>) => {
   if (typeof window === 'undefined') return;
   try {
@@ -420,7 +451,14 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         let newHistory: HistoryEntry[];
         let newIndex: number;
 
-        if (canSquash && atTip && last && last.timelineId === timelineId) {
+        if (
+          canSquash &&
+          atTip &&
+          last &&
+          last.timelineId === timelineId &&
+          // Never squash into an already-published entry — that would re-dirty it.
+          !last.published
+        ) {
           // Replace the last entry's snapshot in-place — one entry for the gesture.
           newHistory = [...state.history];
           newHistory[state.historyIndex] = createHistoryEntry(newTimeline);
@@ -1310,7 +1348,11 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
     publishTimeline: async (timelineId) => {
       const state = get();
-      if (!state.isDirty) {
+      const hasLocalUnpublished =
+        state.isDirty ||
+        hasUnpublishedForTimeline(state.history, state.historyIndex, timelineId) ||
+        hasUnpublishedAtCursor(state.history, state.historyIndex);
+      if (!hasLocalUnpublished) {
         return { ok: false, reason: 'nochange' };
       }
 
@@ -1335,6 +1377,9 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           : undefined;
       const version =
         state.timelineVersionById.get(timelineId) ?? loadedVersion ?? timeline.version ?? 0;
+      // Break any in-flight squash chain before the network round-trip so a
+      // late form debounce cannot rewrite the published tip as unpublished.
+      resetTimelineSquash();
       set({ isPublishing: true });
       try {
         const res = await fetch('/api/project/timeline', {
@@ -1456,16 +1501,26 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           newBaselines.set(timelineId, JSON.parse(JSON.stringify(canonical)));
           const newVersions = new Map(s.timelineVersionById);
           newVersions.set(timelineId, newVersion);
-          // Mark this timeline's history up to the current point as published.
-          const newHistory = s.history.map((e) =>
-            e.timelineId === timelineId && !e.published ? { ...e, published: true } : e
+          // Mark this timeline's history up to the current cursor as published.
+          const newHistory = markTimelinePublishedUpToCursor(
+            s.history,
+            s.historyIndex,
+            timelineId
           );
+          const stillDirty = hasUnpublishedAtCursor(newHistory, s.historyIndex);
+          const newCloud = new Map(s.cloudUpdatedAtByTimelineId);
+          const cloudAt = canonical.updatedAt ?? new Date().toISOString();
+          newCloud.set(timelineId, cloudAt);
+          const newLocal = new Map(s.localEditUpdatedAtByTimelineId);
+          newLocal.delete(timelineId);
           const ns = {
             editedTimelines: newEdited,
-            isDirty: false,
+            isDirty: stillDirty,
             publishedBaselineById: newBaselines,
             timelineVersionById: newVersions,
             history: newHistory,
+            cloudUpdatedAtByTimelineId: newCloud,
+            localEditUpdatedAtByTimelineId: newLocal,
           };
           saveToStorage(s.currentProjectId, ns);
           persistTimelineHistory(s.currentProjectId, newHistory, s.historyIndex);
@@ -1535,7 +1590,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       if (!canonical || !canonical.id) return;
 
       // Apply as an undoable edit (updateTimeline pushes history + syncs stores),
-      // then mark clean since we now match the team's published state.
+      // then mark that tip published since we now match the team's published state.
       get().updateTimeline(timelineId, canonical);
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(timelineId, canonical);
@@ -1547,13 +1602,34 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         if (typeof canonical!.version === 'number') {
           newVersions.set(timelineId, canonical!.version);
         }
+        const newHistory = markTimelinePublishedUpToCursor(
+          s.history,
+          s.historyIndex,
+          timelineId
+        );
+        const stillDirty = hasUnpublishedAtCursor(newHistory, s.historyIndex);
+        const newLocal = new Map(s.localEditUpdatedAtByTimelineId);
+        newLocal.delete(timelineId);
+        const cloudAt = canonical!.updatedAt ?? new Date().toISOString();
+        const newCloud = new Map(s.cloudUpdatedAtByTimelineId);
+        newCloud.set(timelineId, cloudAt);
+        const ns = {
+          isDirty: stillDirty,
+          publishedBaselineById: newBaselines,
+          timelineVersionById: newVersions,
+          history: newHistory,
+          localEditUpdatedAtByTimelineId: newLocal,
+          cloudUpdatedAtByTimelineId: newCloud,
+        };
         saveToStorage(s.currentProjectId, {
           editedTimelines: s.editedTimelines,
           currentProjectId: s.currentProjectId,
-          isDirty: false,
+          ...ns,
         });
-        return { isDirty: false, publishedBaselineById: newBaselines, timelineVersionById: newVersions };
+        persistTimelineHistory(s.currentProjectId, newHistory, s.historyIndex);
+        return ns;
       });
+      resetTimelineSquash();
       get().loadTimelineDbHistory();
     },
 

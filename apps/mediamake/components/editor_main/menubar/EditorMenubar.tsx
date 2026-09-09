@@ -70,19 +70,10 @@ export function EditorMenubar() {
     canRedo,
     undo,
     redo,
-    isDirty: storeIsDirty,
-    history,
-    historyIndex,
     publishTimeline,
     saveAllTimelinesToDatabase,
     editedTimelines,
   } = useTimelineEditsStore();
-  // Recover mid-session when history has unpublished entries but isDirty was never flipped
-  // (regression from the timeline-sync refactor).
-  const isDirty =
-    storeIsDirty ||
-    (historyIndex >= 0 &&
-      history.some((entry, index) => index <= historyIndex && !entry.published));
   const {
     saveToDatabase: saveProjectToDatabase,
     cloudProject,
@@ -94,6 +85,23 @@ export function EditorMenubar() {
     currentProject,
     timelines,
   } = useProjectStore();
+  // True when any timeline still has unpublished local history.
+  const isDirty = useTimelineEditsStore((s) => {
+    if (s.isDirty) return true;
+    if (s.historyIndex < 0) return false;
+    return s.history.some((entry, index) => index <= s.historyIndex && !entry.published);
+  });
+  // True when the currently loaded timeline has unpublished local history.
+  const loadedTimelineHasUnpublished = useTimelineEditsStore((s) => {
+    const tlId = loadedTimeline?.id;
+    if (!tlId || s.historyIndex < 0) return false;
+    for (let i = 0; i <= s.historyIndex; i++) {
+      const entry = s.history[i];
+      if (!entry || entry.published) continue;
+      if ((entry.timelineId || entry.timeline?.id) === tlId) return true;
+    }
+    return false;
+  });
   const session = useSession();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const publishLayerState = useLayerStateStore((s) => s.publishLayerState);
@@ -148,15 +156,13 @@ export function EditorMenubar() {
 
   // Heal persisted isDirty if history already has unpublished work from before the fix.
   useEffect(() => {
-    const state = useTimelineEditsStore.getState();
-    if (
-      !state.isDirty &&
-      state.historyIndex >= 0 &&
-      state.history.some((entry, index) => index <= state.historyIndex && !entry.published)
-    ) {
-      useTimelineEditsStore.setState({ isDirty: true });
+    if (isDirty) {
+      const state = useTimelineEditsStore.getState();
+      if (!state.isDirty) {
+        useTimelineEditsStore.setState({ isDirty: true });
+      }
     }
-  }, [history, historyIndex, storeIsDirty]);
+  }, [isDirty]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -164,7 +170,7 @@ export function EditorMenubar() {
       // Cmd/Ctrl + S to save
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        if (loadedTimeline && isDirty && !isViewer) {
+        if (loadedTimeline && loadedTimelineHasUnpublished && !isViewer) {
           handleSaveCurrentTimeline();
         }
       }
@@ -192,7 +198,7 @@ export function EditorMenubar() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [loadedTimeline, isDirty, isViewer, canUndo, canRedo, undo, redo]);
+  }, [loadedTimeline, loadedTimelineHasUnpublished, isViewer, canUndo, canRedo, undo, redo]);
 
   const getTimelineName = (timelineId: string) => {
     const edited = editedTimelines.get(timelineId);
@@ -357,7 +363,7 @@ export function EditorMenubar() {
             <MenubarSeparator />
             <MenubarItem
               onClick={handleSaveCurrentTimeline}
-              disabled={!loadedTimeline || !isDirty || isSaving || isViewer}
+              disabled={!loadedTimeline || !loadedTimelineHasUnpublished || isSaving || isViewer}
             >
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -590,7 +596,7 @@ export function EditorMenubar() {
             </Button>
           )}
 
-          {isDirty && loadedTimeline && !isViewer && (
+          {loadedTimelineHasUnpublished && loadedTimeline && !isViewer && (
             <Button
               variant="default"
               size="sm"
