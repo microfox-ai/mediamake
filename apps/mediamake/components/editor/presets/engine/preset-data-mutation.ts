@@ -71,9 +71,11 @@ function processDataReferencesRecursive(
   baseData: Record<string, any>,
 ): any {
   if (typeof data === 'string') {
-    // Check if this is a data:[key] or data:[key][range] reference
-    if (data.startsWith('data:[')) {
-      const match = data.match(/^data:\[([^\]]+)\](?:\[([^\]]+)\])?$/);
+    // Trimmed: a stray space around the reference used to fall through to
+    // processStringReference(), which stringified array references.
+    const trimmed = data.trim();
+    if (trimmed.startsWith('data:[')) {
+      const match = trimmed.match(/^data:\[([^\]]+)\](?:\[([^\]]+)\])?$/);
       if (match) {
         const key = match[1].trim();
         const range = match[2];
@@ -175,6 +177,21 @@ function processDataReferencesRecursive(
   return data;
 }
 
+/** Flattens a resolved reference for use inside a larger string. */
+function stringifyForInterpolation(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) {
+    return value.map(item => stringifyForInterpolation(item)).join(' ');
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, any>;
+    const candidate =
+      obj.text ?? obj.title ?? obj.src ?? obj.filePath ?? obj.url ?? obj.metadata?.src;
+    return typeof candidate === 'string' ? candidate : JSON.stringify(value);
+  }
+  return String(value);
+}
+
 /**
  * Processes a string value to replace data:[key] references with range support
  */
@@ -189,6 +206,10 @@ function processStringReference(
   // Match data:[key] or data:[key][range] pattern
   const dataReferencePattern = /data:\[([^\]]+)\](?:\[([^\]]+)\])?/g;
 
+  // Only reached for genuine interpolation ("Track: data:[song]") — a whole-string
+  // reference is resolved by the caller. replace() stringifies whatever the
+  // replacer returns, so non-primitives are flattened explicitly below rather
+  // than becoming "[object Object]".
   return value.replace(dataReferencePattern, (match, key, range) => {
     const trimmedKey = key.trim();
 
@@ -219,24 +240,22 @@ function processStringReference(
         }
         // Check for captions array property
         if (referenceValue.captions && Array.isArray(referenceValue.captions)) {
-          if (range) {
-            return processArrayRange(
-              referenceValue.captions,
-              range,
-              'captions',
-            );
-          } else {
-            return referenceValue.captions;
-          }
+          return stringifyForInterpolation(
+            range
+              ? processArrayRange(referenceValue.captions, range, 'captions')
+              : referenceValue.captions,
+          );
         }
       }
 
       // If referenceValue is already an array, apply range if specified
       if (Array.isArray(referenceValue)) {
-        return processArrayRange(referenceValue, range, 'array');
+        return stringifyForInterpolation(
+          processArrayRange(referenceValue, range, 'array'),
+        );
       }
 
-      return referenceValue;
+      return stringifyForInterpolation(referenceValue);
     } else {
       // Show error toast for missing reference
       toast.error(`Reference '${trimmedKey}' not found in base data`);

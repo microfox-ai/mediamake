@@ -4,8 +4,14 @@ import { useCallback, useRef, useState } from 'react';
 import {
   CompositionLayout,
   calculateCompositionLayoutMetadata,
+  registerClientSideMediaTags,
   InputCompositionProps,
 } from '@microfox/remotion';
+import {
+  describeRenderError,
+  withRenderErrorCapture,
+  type RenderErrorHolder,
+} from './browser-render-boundary';
 
 export type BrowserRenderPhase =
   | 'idle'
@@ -78,10 +84,26 @@ export function useBrowserRender() {
       };
 
       let renderId: string | null = null;
+      // See browser-render-boundary: the web renderer masks component errors.
+      const errorHolder: RenderErrorHolder = {
+        error: null,
+        componentStack: null,
+      };
       try {
-        // Load lazily so the encoder code is not part of the editor bundle.
-        const { renderMediaOnWeb, renderStillOnWeb, canRenderMediaOnWeb } =
-          await import('@remotion/web-renderer');
+        // Loaded lazily to keep the encoder out of the editor bundle.
+        // @remotion/media is also ESM-only, so @microfox/remotion cannot import
+        // it statically without breaking its CJS consumers — hence the registry.
+        const [
+          { renderMediaOnWeb, renderStillOnWeb, canRenderMediaOnWeb },
+          webCodecsMedia,
+        ] = await Promise.all([
+          import('@remotion/web-renderer'),
+          import('@remotion/media'),
+        ]);
+        registerClientSideMediaTags({
+          Audio: webCodecsMedia.Audio,
+          Video: webCodecsMedia.Video,
+        });
 
         // Resolve duration/fps/size + per-layer durations the same way the
         // Lambda render does via calculateMetadata.
@@ -118,7 +140,11 @@ export function useBrowserRender() {
 
         const composition = {
           id: input.compositionId,
-          component: CompositionLayout as React.FC<Record<string, unknown>>,
+          component: withRenderErrorCapture(
+            CompositionLayout as React.FC<Record<string, unknown>>,
+            errorHolder,
+            () => abort.abort(),
+          ) as React.FC<Record<string, unknown>>,
           durationInFrames,
           fps,
           width,
@@ -176,6 +202,7 @@ export function useBrowserRender() {
             frame,
             signal: abort.signal,
           });
+          if (errorHolder.error) throw errorHolder.error;
           blob = await still.blob({ format: input.imageFormat });
           contentType = `image/${input.imageFormat}`;
           setState(s => ({ ...s, progress: 1 }));
@@ -191,6 +218,7 @@ export function useBrowserRender() {
               );
             },
           });
+          if (errorHolder.error) throw errorHolder.error;
           blob = await getBlob();
           contentType = input.container === 'webm' ? 'video/webm' : 'video/mp4';
         }
@@ -231,8 +259,7 @@ export function useBrowserRender() {
         });
         return { url: publicUrl };
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : 'Browser render failed';
+        const message = describeRenderError(err, errorHolder);
         // Best-effort: mark the history entry failed so it doesn't hang in
         // "rendering" forever.
         if (renderId) {

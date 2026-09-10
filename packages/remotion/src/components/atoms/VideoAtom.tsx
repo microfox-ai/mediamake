@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { staticFile, useCurrentFrame, useVideoConfig, OffthreadVideo, Loop, delayRender } from 'remotion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { staticFile, useVideoConfig, OffthreadVideo, Video as Html5Video, Loop, continueRender, delayRender, useRemotionEnvironment } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
+import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { z } from 'zod';
 import { useAnimatedStyles } from '../effects';
 import { calculateComponentDuration } from '../../core';
@@ -39,6 +40,88 @@ interface VideoAtomProps extends BaseRenderableProps {
 }
 
 /**
+ * Measures the source so a loop iteration matches it: a loop longer than the
+ * source leaves the element on its last frame until the next iteration seeks it
+ * back. `srcDuration` stays authoritative — this only measures when it is
+ * absent, and otherwise warns when the two disagree.
+ */
+const useMeasuredSrcDuration = (
+    data: VideoAtomDataProps,
+    fps: number,
+    needsLoopPeriod: boolean,
+    warnOnMismatch: boolean
+): number | undefined => {
+    const { loop, srcDuration, src, startFrom, endAt, playbackRate } = data;
+    const isNeeded = needsLoopPeriod && srcDuration === undefined;
+    const [measured, setMeasured] = useState<number | undefined>(undefined);
+
+    // Claimed during the first render, not in the effect, so a render can never
+    // capture the frame before the measurement is in.
+    const [handle] = useState<number | null>(() =>
+        isNeeded ? delayRender(`VideoAtom: measuring duration of ${src}`) : null
+    );
+    const releasedRef = useRef(false);
+    const release = useCallback(() => {
+        if (handle !== null && !releasedRef.current) {
+            releasedRef.current = true;
+            continueRender(handle);
+        }
+    }, [handle]);
+
+    useEffect(() => {
+        // Nothing to measure, and nothing to warn about.
+        if (!loop || (!isNeeded && (!warnOnMismatch || srcDuration === undefined))) {
+            release();
+            return;
+        }
+
+        let cancelled = false;
+        calculateComponentDuration({
+            componentId: 'VideoAtom',
+            data: { src, startFrom, endAt, playbackRate },
+        })
+            .then(duration => {
+                if (cancelled || duration === undefined) return;
+                if (isNeeded) {
+                    setMeasured(duration);
+                } else if (
+                    srcDuration !== undefined &&
+                    Math.abs(duration - srcDuration) > 1 / fps
+                ) {
+                    console.warn(
+                        `VideoAtom: srcDuration is ${srcDuration}s but ${src} measures ` +
+                        `${duration.toFixed(3)}s. The loop will stall on the last frame ` +
+                        `for the difference.`
+                    );
+                }
+            })
+            // Unreachable or unreadable source: keep the previous behaviour.
+            .catch(() => undefined)
+            .finally(release);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        loop,
+        isNeeded,
+        warnOnMismatch,
+        src,
+        startFrom,
+        endAt,
+        playbackRate,
+        srcDuration,
+        fps,
+        release,
+    ]);
+
+    // Never leave a render waiting on an unmounted component.
+    useEffect(() => release, [release]);
+
+    return measured;
+};
+
+/**
  * VideoAtom Component
  * 
  * A Remotion component that renders video with advanced control features:
@@ -53,7 +136,17 @@ interface VideoAtomProps extends BaseRenderableProps {
 export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
     const { fps } = useVideoConfig();
     const overrideStyles = useAnimatedStyles(id);
-    const frame = useCurrentFrame();
+    const environment = useRemotionEnvironment();
+    // Outside of rendering the element loops itself: <Loop> restarts the sequence,
+    // which seeks the element back every iteration and stalls the player.
+    // Rendering keeps <Loop>, so rendered output is unchanged.
+    const loopsNatively = Boolean(data.loop) && !environment.isRendering;
+    const measuredSrcDuration = useMeasuredSrcDuration(
+        data,
+        fps,
+        Boolean(data.loop) && !loopsNatively,
+        !environment.isRendering
+    );
 
     // Calculate video source with proper handling for local vs remote files
     const source = useMemo(() => {
@@ -73,11 +166,22 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
     }, [data.endAt, fps]);
 
     // Note: Animated styles (overrideStyles) are now applied to the wrapper div
-    // while video-specific styles are applied directly to OffthreadVideo
+    // while video-specific styles are applied directly to the video tag
+
+    // <OffthreadVideo> throws in @remotion/web-renderer; see core/clientMediaTags.
+    const clientTags = getClientSideMediaTags();
+    const VideoTag: any =
+        environment.isClientSideRendering && clientTags
+            ? clientTags.Video
+            // OffthreadVideo cannot carry the native loop flag; in preview both
+            // resolve to the same element, so this costs nothing.
+            : loopsNatively
+                ? Html5Video
+                : OffthreadVideo;
 
     // Create the video component with proper styles
     const videoComponent = (
-        <OffthreadVideo
+        <VideoTag
             className={data.className}
             src={source}
             style={data.style ? { ...data.style, ...(data.fit ? { objectFit: data.fit } : {}) } : {}}
@@ -86,12 +190,13 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
             playbackRate={data.playbackRate}
             volume={data.volume}
             muted={data.muted}
+            loop={loopsNatively || undefined}
         />
     );
 
     // Apply animated styles directly to video if no container className is provided
     const videoWithStyles = data.containerClassName ? videoComponent : (
-        <OffthreadVideo
+        <VideoTag
             className={data.className}
             src={source}
             style={data.style ? { ...data.style, ...(data.fit ? { objectFit: data.fit } : {}), ...overrideStyles } : overrideStyles}
@@ -100,12 +205,19 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
             playbackRate={data.playbackRate}
             volume={data.volume}
             muted={data.muted}
+            loop={loopsNatively || undefined}
         />
     );
 
-    if (data.loop) {
+    if (data.loop && !loopsNatively) {
+        const loopDurationInFrames = data.srcDuration
+            ? data.srcDuration * fps
+            : measuredSrcDuration !== undefined
+                ? Math.max(1, Math.round(measuredSrcDuration * fps))
+                : context.timing?.durationInFrames;
+
         return (
-            <Loop times={Infinity} durationInFrames={(data.srcDuration ? (data.srcDuration * fps) : context.timing?.durationInFrames)} layout="none">
+            <Loop times={Infinity} durationInFrames={loopDurationInFrames} layout="none">
                 {data.containerClassName ? (
                     <div className={data.containerClassName} style={overrideStyles}>
                         {videoComponent}

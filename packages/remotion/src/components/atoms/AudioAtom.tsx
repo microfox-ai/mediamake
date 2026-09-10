@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Audio, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { Audio as Html5Audio, staticFile, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
+import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { z } from 'zod';
 
@@ -82,9 +83,15 @@ export const Atom: React.FC<AudioAtomProps> = ({ data }) => {
         return staticFile(data.src);
     }, [data.src]);
 
+    // <Html5Audio> throws in @remotion/web-renderer; see core/clientMediaTags.
+    const environment = useRemotionEnvironment();
+    const clientTags = getClientSideMediaTags();
+    const AudioTag =
+        environment.isClientSideRendering && clientTags ? clientTags.Audio : Html5Audio;
+
     return (
         // @ts-ignore
-        <Audio
+        <AudioTag
             src={source}
             trimBefore={data.startFrom ? data.startFrom * fps : undefined}
             trimAfter={data.endAt ? data.endAt * fps : undefined}

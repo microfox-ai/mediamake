@@ -8,31 +8,89 @@ import {
 import { calculateTiming } from './timing';
 
 /**
+ * Lookup index for one composition tree, cached per root array.
+ *
+ * These lookups only depend on the tree, but ComponentRenderer called them for
+ * every node on every render, making each render pass O(N^2). Duplicate ids
+ * resolve to the first match in pre-order, as the previous searches did.
+ */
+interface TreeIndex {
+  nodeById: Map<string, RenderableComponentData>;
+  parentById: Map<string, RenderableComponentData | null>;
+  hierarchyById: Map<string, Hierarchy>;
+}
+
+const treeIndexCache = new WeakMap<RenderableComponentData[], TreeIndex>();
+
+const buildTreeIndex = (root: RenderableComponentData[]): TreeIndex => {
+  const index: TreeIndex = {
+    nodeById: new Map(),
+    parentById: new Map(),
+    hierarchyById: new Map(),
+  };
+
+  const ancestors: string[] = [];
+
+  const walk = (
+    components: RenderableComponentData[],
+    parent: RenderableComponentData | null
+  ): void => {
+    // Whole sibling list first: findParentComponent checked all of a node's
+    // direct children before descending, so a node reachable both as a direct
+    // child and deeper in an earlier sibling resolves to the shallower parent.
+    // Root-level nodes get no entry, matching the old search.
+    if (parent) {
+      for (const component of components) {
+        if (!index.parentById.has(component.id)) {
+          index.parentById.set(component.id, parent);
+        }
+      }
+    }
+
+    for (const component of components) {
+      const id = component.id;
+      if (!index.nodeById.has(id)) index.nodeById.set(id, component);
+      if (!index.hierarchyById.has(id)) {
+        index.hierarchyById.set(id, {
+          depth: ancestors.length,
+          parentIds: [...ancestors],
+        });
+      }
+
+      if (component.childrenData && component.childrenData.length > 0) {
+        ancestors.push(id);
+        walk(component.childrenData, component);
+        ancestors.pop();
+      }
+    }
+  };
+
+  walk(root, null);
+  return index;
+};
+
+const getTreeIndex = (
+  root: RenderableComponentData[] | undefined
+): TreeIndex | null => {
+  if (!root) return null;
+  let index = treeIndexCache.get(root);
+  if (!index) {
+    index = buildTreeIndex(root);
+    treeIndexCache.set(root, index);
+  }
+  return index;
+};
+
+/**
  * Finds a component in the root data by its ID
  */
 export const findComponentById = (
   root: RenderableComponentData[] | undefined,
   targetId: string
 ): RenderableComponentData | null => {
-  if (!root) return null;
-
-  const search = (
-    components: RenderableComponentData[]
-  ): RenderableComponentData | null => {
-    for (const component of components) {
-      if (component.id === targetId) {
-        return component;
-      }
-
-      if (component.childrenData && component.childrenData.length > 0) {
-        const found = search(component.childrenData);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  return search(root);
+  const index = getTreeIndex(root);
+  if (!index) return null;
+  return index.nodeById.get(targetId) ?? null;
 };
 
 /**
@@ -42,31 +100,9 @@ export const findParentComponent = (
   root: RenderableComponentData[] | undefined,
   targetId: string
 ): RenderableComponentData | null => {
-  if (!root) return null;
-
-  const search = (
-    components: RenderableComponentData[],
-    parent: RenderableComponentData | null
-  ): RenderableComponentData | null => {
-    for (const component of components) {
-      if (component.childrenData && component.childrenData.length > 0) {
-        // Check if any child is the target
-        const hasTargetChild = component.childrenData.some(
-          (child) => child.id === targetId
-        );
-        if (hasTargetChild) {
-          return component;
-        }
-
-        // Recursively search in children
-        const found = search(component.childrenData, component);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  return search(root, null);
+  const index = getTreeIndex(root);
+  if (!index) return null;
+  return index.parentById.get(targetId) ?? null;
 };
 
 /**
@@ -84,34 +120,16 @@ export const calculateHierarchy = (
     };
   }
 
-  const parentIds: string[] = [];
-  let depth = 0;
+  const hierarchy = getTreeIndex(root)?.hierarchyById.get(componentId);
 
-  const traverse = (
-    components: RenderableComponentData[],
-    currentDepth: number
-  ): boolean => {
-    for (const component of components) {
-      if (component.id === componentId) {
-        depth = currentDepth;
-        return true;
-      }
-
-      if (component.childrenData && component.childrenData.length > 0) {
-        parentIds.push(component.id);
-        const found = traverse(component.childrenData, currentDepth + 1);
-        if (found) return true;
-        parentIds.pop(); // Remove if not found in this branch
-      }
-    }
-    return false;
-  };
-
-  traverse(root, 0);
+  // Not found: the previous traversal left depth at 0 and unwound parentIds.
+  if (!hierarchy) {
+    return { depth: 0, parentIds: [] };
+  }
 
   return {
-    depth,
-    parentIds: [...parentIds],
+    depth: hierarchy.depth,
+    parentIds: [...hierarchy.parentIds],
   };
 };
 

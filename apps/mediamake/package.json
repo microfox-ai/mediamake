@@ -78,6 +78,7 @@
     "@remotion/cli": "4.0.496",
     "@remotion/google-fonts": "4.0.496",
     "@remotion/lambda": "4.0.496",
+    "@remotion/media": "4.0.496",
     "@remotion/noise": "4.0.496",
     "@remotion/paths": "4.0.496",
     "@remotion/player": "4.0.496",
