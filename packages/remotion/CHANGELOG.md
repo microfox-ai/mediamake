@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+### Patch Changes
+
+- 32e6cc4: Changes from PR #405: preview-player-stutter
+
 ## 2.0.0
 
 ### Major Changes

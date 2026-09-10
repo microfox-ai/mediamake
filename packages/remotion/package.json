@@ -1,6 +1,6 @@
 {
   "name": "@microfox/remotion",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A recursive composition system for Remotion with unified component architecture",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
