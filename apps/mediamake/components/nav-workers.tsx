@@ -49,7 +49,7 @@ const GROUPS: WorkerGroup[] = [
   {
     label: 'FFmpeg',
     icon: '⚙️',
-    pattern: /ffmpeg|subtitle|media[-_]info|video[-_]split/i,
+    pattern: /ffmpeg|subtitle|media[-_]info|video[-_]split|analyze[-_]audio/i,
   },
   {
     label: 'Usage',

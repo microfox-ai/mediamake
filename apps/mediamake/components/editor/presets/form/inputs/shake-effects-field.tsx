@@ -341,6 +341,10 @@ export function ShakeEffectsField({
     setTab("full");
   };
 
+  const clearEffects = () => {
+    onChange([]);
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -377,6 +381,26 @@ export function ShakeEffectsField({
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={-1}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={clearEffects}
+                disabled={effects.length === 0}
+                aria-label="Clear all shake effects"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Clear all shake effects</p>
+          </TooltipContent>
+        </Tooltip>
         {tab !== "json" && (
           <Button
             type="button"
