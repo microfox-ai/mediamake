@@ -78,7 +78,8 @@ export const StudioConfig = {
             includeNodeModules: true
           },
           ffmpeg: {
-            includeNodeModules: true
+            includeNodeModules: true,
+            excludeNodeModules: ['@ffmpeg-installer', '@ffprobe-installer']
           },
           'ai-video': {
             includeNodeModules: false
