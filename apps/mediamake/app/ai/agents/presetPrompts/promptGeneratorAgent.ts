@@ -74,7 +74,7 @@ function getStyleSpecificPrompt(
         - **Caption object**: Contains id, text, start, end, duration (relative), absoluteStart, absoluteEnd, words array, and optional metadata
         - **Word object**: Contains text, start, end, duration (relative), absoluteStart, absoluteEnd, and optional confidence
         - **Relative vs Absolute timing**: Use relative timing (start/end) for effects, absolute timing (absoluteStart/absoluteEnd) for context.timing
-        - **Caption metadata**: impact (0.1-3.0), keyword, sentiment, emotion, splitParts - use these to influence styling
+        - **Caption metadata**: impact (0.1-3.0), htmlText (<b> highlights, <br/> line splits), sentiment, emotion — prefer htmlText over legacy keyword/splitParts
         - **Font format**: String format "FontName:weight:style" (e.g., "Roboto:600:italic", "Inter:700", "BebasNeue")
         
         **2. Context Timing Rules (TYPOGRAPHY.md Section 2)**
@@ -148,7 +148,7 @@ function getStyleSpecificPrompt(
         1. **Typography-specific features**: Word-level timing, caption data structure, text animations following TYPOGRAPHY.md Section 1 & 2
         2. **Kinetic motion**: How text moves, scales, rotates, fades in creative ways
         3. **TextAtom implementation**: Proper use of TextAtom with font (string format), gradient, style, className props
-        4. **Caption data usage**: How to leverage words array, relative/absolute timing, and metadata (impact, keyword, sentiment)
+        4. **Caption data usage**: How to leverage words array, relative/absolute timing, and metadata (impact, htmlText, sentiment)
         5. **Text layout**: Flex/grid arrangements following TYPOGRAPHY.md Section 2 layout positioning rules
         6. **Animation techniques**: Word reveals, letter effects, expansion animations, reactive effects
         7. **Effects application**: Generic effects for text properties, waveform effects for audio sync, internal effect presets (TYPOGRAPHY.md Section 3)
@@ -175,7 +175,7 @@ function getStyleSpecificPrompt(
         - Performance for text animations (GPU acceleration, transform optimizations)
         - How to structure TextAtom components with proper IDs for effect targeting
         - When to use individual TextAtoms per word vs grouped text
-        - How to leverage caption metadata (impact, keyword, sentiment) for styling and effect duration
+        - How to leverage caption metadata (impact, htmlText with <b>/<br/>, sentiment) for styling and effect duration
         - Audio-reactive typography using waveform effects
         
         For technical specs, provide (aligned with TYPOGRAPHY.md):
@@ -397,7 +397,7 @@ function getStyleSpecificPrompt(
           
           ### 2. Typography & Text (from TYPOGRAPHY.md)
           - **Caption-based typography**: Word-level timing with sentence-level context timing
-          - **Caption data structure**: Access to words array with relative/absolute timing, metadata (impact, keyword, sentiment)
+          - **Caption data structure**: Access to words array with relative/absolute timing, metadata (impact, htmlText, sentiment)
           - **Text animations**: Word-by-word reveals, expansion animations, letter-level effects
           - **Font handling**: String format "FontName:weight:style" (e.g., "Roboto:600:italic")
           - **Typography effects**: Fade-ins, scale-ups, slide-ins, glow effects, pulse effects
@@ -455,7 +455,7 @@ function getStyleSpecificPrompt(
           - Sub-presets can be composed together via dependencies
           - Internal effect presets can be reused across multiple presets
           - Audio analysis can drive visual effects and timing
-          - Caption metadata (impact, keyword, sentiment) can influence typography styling
+          - Caption metadata (impact, htmlText with <b> highlights and <br/> splits, sentiment) can influence typography styling
           
           ## Your Task
           

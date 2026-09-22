@@ -12,6 +12,7 @@ import {
 } from '../zod';
 import { SearchQuerySchema } from '../../../../../lib/sparkboard/types';
 import dedent from 'dedent';
+import { extractKeywordsFromHtmlText } from '@/lib/captions/html-text';
 
 /**
  * RAG Image Attacher Agent - /rag-image-attacher
@@ -164,7 +165,13 @@ const ragImageAttacherAgent = aiRouter
               prompt: `Generate an image search query for this sentence:
 
 Sentence: "${sentence}"
-${existing_metadata?.keyword ? `\nSelected Dominant Keywords: ${existing_metadata?.keyword}` : ''}
+${existing_metadata?.htmlText ? `\nStyled caption htmlText: ${existing_metadata.htmlText}` : ''}
+${(() => {
+  const kw =
+    existing_metadata?.keyword ||
+    extractKeywordsFromHtmlText(existing_metadata?.htmlText);
+  return kw ? `\nSelected Dominant Keywords: ${kw}` : '';
+})()}
 Please analyze this sentence and provide a search query that would find suitable images for this 
 
 Consider:

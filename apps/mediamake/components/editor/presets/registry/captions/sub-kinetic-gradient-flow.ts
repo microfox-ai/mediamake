@@ -1321,33 +1321,24 @@ const presetExecution = (
       (caption: Transcription['captions'][number], _i: number) => {
         const scentenceId = `caption-${_i}`;
 
-        // Split sentence into parts
+        // Prefer metadata.htmlText (<b> highlights, <br/> line breaks) over legacy keyword/splitParts
+        const highlightMeta =
+          props?.helpers?.resolveCaptionHighlightMeta?.(
+            caption.metadata,
+            caption.words,
+            { disableMetadata },
+          ) ?? { highlightedWordIndices: [], usedHtmlText: false };
+
         const sentenceParts = splitSentenceIntoParts(
           caption.words,
           maxLines,
-          caption.metadata?.splitParts,
+          highlightMeta.splitParts ?? caption.metadata?.splitParts,
         );
 
         // Determine which word to highlight
-        const highlightedWordIndices: number[] = [];
-        if (!disableMetadata && caption.metadata?.keyword?.length > 0) {
-          const cleanKeywords = caption.metadata?.keyword
-            .toLowerCase()
-            .split(' ')
-            .map((keyword: string) => keyword.replace(/[^a-zA-Z0-9]/g, ''));
-          caption.words.forEach((word, index) => {
-            const cleanWord = word.text
-              ?.toLowerCase()
-              .replace(/[^a-zA-Z0-9]/g, '');
-            if (
-              cleanKeywords.some((_keyword: string) =>
-                cleanWord?.includes(_keyword),
-              )
-            ) {
-              highlightedWordIndices.push(index);
-            }
-          });
-        }
+        const highlightedWordIndices: number[] = [
+          ...(highlightMeta.highlightedWordIndices || []),
+        ];
 
         let highlightedWordIndex = -1;
 

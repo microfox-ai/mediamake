@@ -2,36 +2,36 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
-import { TranscriptionSentence } from '@microfox/datamotion';
 import { saveTranscriptionMetadata } from '../helpers';
 import {
   ScriptMetaInputSchema,
   ScriptMetaOutputSchema,
   SentenceSchema,
-  TranscriptionInfoSchema,
 } from '../zod';
-import dedent from 'dedent';
+import {
+  extractKeywordsFromHtmlText,
+  parseCaptionHtmlText,
+} from '@/lib/captions/html-text';
 
 /**
  * Transcription Meta Agent - /transcription-meta
- * Geerate Ai metadata for each sentence in the transcription (with word highlights)
+ * Generate AI metadata for each sentence (htmlText for highlights + line breaks)
  */
 
 const aiRouter = new AiRouter();
 
-// Keyword-specific metadata schema
+// Keyword-specific metadata schema — htmlText is the source of truth going forward
 const KeywordMetadataSchema = z.object({
-  keyword: z
+  htmlText: z
     .string()
-    .describe('The most impactful keyword or keyords in the sentence'),
+    .describe(
+      'HTML version of the sentence. Wrap impactful word(s) in <b>...</b>. Use <br/> to split into readable on-screen lines. Keep all original words in order; do not invent or drop words.',
+    ),
   strength: z
     .number()
     .min(1)
     .max(10)
-    .describe('The emotional/impact strength of the keyword (1-10 scale)'),
-  splitParts: z
-    .array(z.string())
-    .describe('The parts of the sentence split into'),
+    .describe('The emotional/impact strength of the highlighted words (1-10 scale)'),
   keywordFeel: z
     .enum([
       'joyful',
@@ -50,7 +50,7 @@ const KeywordMetadataSchema = z.object({
       'intense',
       'peaceful',
     ])
-    .describe('The emotional feel/mood of the keyword'),
+    .describe('The emotional feel/mood of the highlighted words'),
   confidence: z
     .number()
     .min(0)
@@ -60,12 +60,24 @@ const KeywordMetadataSchema = z.object({
 
 // Create the complete schema by extending the base schemas
 const KeywordSentenceSchema = SentenceSchema.extend({
-  metadata: KeywordMetadataSchema,
+  metadata: KeywordMetadataSchema.extend({
+    // Derived for legacy consumers (image attachers, older presets)
+    keyword: z.string().optional(),
+    splitParts: z.array(z.string()).optional(),
+  }),
 });
 
 const KeywordTranscriptionSchema = ScriptMetaOutputSchema.extend({
   sentences: z.array(KeywordSentenceSchema),
 });
+
+function fallbackHtmlText(sentence: string): string {
+  const words = sentence.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  if (words.length === 1) return `<b>${words[0]}</b>`;
+  // Bold first word as a safe fallback
+  return `<b>${words[0]}</b> ${words.slice(1).join(' ')}`;
+}
 
 const musicKeywordAgent = aiRouter
   .agent('/', async ctx => {
@@ -92,51 +104,64 @@ const musicKeywordAgent = aiRouter
             const result = await generateObject({
               model: google('gemini-2.5-flash'),
               schema: KeywordMetadataSchema,
-              prompt: `Analyze this sentence for lyricography metadata:
+              prompt: `Analyze this sentence for lyricography metadata and return htmlText.
 
 Sentence: "${sentence}"
 ${userRequest ? `\nUser Request: ${userRequest}` : ''}
 
-Please analyze this sentence and provide:
-1. The most impactful keyword that would be impactful in that scentence ( it can also be a noun - name, place, thing, etc, verb, etc..)
-2. The emotional strength/power of that keyword (1-10 scale)
-3. The emotional feel/mood of the keyword
-4. Your confidence in this analysis
+Return htmlText that is the SAME sentence text with HTML markup only:
+1. Wrap the most impactful keyword(s) in <b>...</b>
+   - Usually a single word; multiple words ONLY if they are adjacent in the sentence
+   - Never bold a substring inside another word
+   - If the same word appears twice, only bold the occurrence that should be emphasized (use exact position in the sentence)
+2. Insert <br/> where the line should break for on-screen readability
+   - Short sentences may need no <br/>
+   - Prefer even, human-readable line lengths; impactful bold words are often shown larger
+3. Do NOT change, reorder, add, or remove words — only add <b>, </b>, and <br/>
+4. Do NOT use other tags (no <p>, <strong>, <i>, etc.)
+5. Also provide strength (1-10), keywordFeel, and confidence
 
-For keyword:
-- It can be a singl word 
-- It can be multiple words only if they are together placed.
+Example:
+Sentence: "Hero is the main character of everything"
+htmlText: "<b>Hero</b> is the main character<br/>of everything"
 
-For Split Parts:
-- Assume you are requested to write the scentenc on a screen in stylised form, divide the one scenten into parts to suit the needs.
-- Take the keyword into consideration as well, keyowords are usually shown twice the size of the other words.
-- Not every scentence need to be split, as some scentences are single words or very short.
-- try your best to split evenly, but take the expression of the scentence into consideration.
-- MOST IMPORTANT: SPlit it so it is easy to read by human.
 ${userRequest ? `\nPlease consider the user's specific request: ${userRequest}` : ''}
 
 Consider:
-- What is the most emotionally resonant word in this sentence?
-- How strong is the emotional impact of that keyword?
-- What emotional tone does this keyword convey?
-- How confident are you in this analysis?`,
+- What is the most emotionally resonant word (or adjacent phrase) in this sentence?
+- How should lines break so a viewer can read it on screen?
+- What emotional tone do the highlighted words convey?`,
               maxRetries: 2,
             });
 
-            return {
-              sentenceIndex: index,
-              originalText: sentence,
-              metadata: result.object,
-              usage: result.usage,
-            };
-          } catch (error) {
-            console.error(`Error analyzing sentence ${index}:`, error);
-            // Fallback metadata for failed analysis
+            const htmlText = result.object.htmlText?.trim() || fallbackHtmlText(sentence);
+            const keyword = extractKeywordsFromHtmlText(htmlText);
+            const words = sentence.split(/\s+/).filter(Boolean).map(text => ({ text }));
+            const parsed = parseCaptionHtmlText(htmlText, words);
+
             return {
               sentenceIndex: index,
               originalText: sentence,
               metadata: {
-                keyword: sentence.split(' ')[0] || 'unknown',
+                ...result.object,
+                htmlText,
+                keyword,
+                splitParts: parsed?.splitParts,
+              },
+              usage: result.usage,
+            };
+          } catch (error) {
+            console.error(`Error analyzing sentence ${index}:`, error);
+            const htmlText = fallbackHtmlText(sentence);
+            const words = sentence.split(/\s+/).filter(Boolean).map(text => ({ text }));
+            const parsed = parseCaptionHtmlText(htmlText, words);
+            return {
+              sentenceIndex: index,
+              originalText: sentence,
+              metadata: {
+                htmlText,
+                keyword: extractKeywordsFromHtmlText(htmlText) || sentence.split(' ')[0] || 'unknown',
+                splitParts: parsed?.splitParts,
                 strength: 5,
                 keywordFeel: 'calm' as const,
                 confidence: 0.3,
@@ -180,7 +205,7 @@ Consider:
     id: 'analyzeTranscriptionMusicMetadata',
     name: 'Detect Keywords and Emotions in Scentences',
     description:
-      'Analyzes sentence-split transcripts to generate metadata for lyricography, including keyword identification, emotional strength, feel, and split recommendations. Can work with transcriptionId or direct sentences. Updates database directly when transcriptionId is provided.',
+      'Analyzes sentence-split transcripts to generate lyricography metadata via htmlText (<b> for highlights, <br/> for line splits), plus emotional strength and feel. Updates database directly when transcriptionId is provided.',
     inputSchema: ScriptMetaInputSchema,
     outputSchema: KeywordTranscriptionSchema,
     metadata: {
@@ -192,6 +217,7 @@ Consider:
         'analysis',
         'emotion',
         'keywords',
+        'htmlText',
         'database',
       ],
       hidden: true,

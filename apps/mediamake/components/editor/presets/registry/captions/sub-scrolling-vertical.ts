@@ -166,15 +166,21 @@ const presetExecution = (
 
   // Split caption into parts based on metadata or duration
   const splitCaptionIntoParts = (caption: any) => {
-    // If metadata has splitParts, use it
-    if (
-      caption.metadata?.splitParts &&
-      caption.metadata.splitParts.length > 0
-    ) {
+    const highlightMeta =
+      props?.helpers?.resolveCaptionHighlightMeta?.(
+        caption.metadata,
+        caption.words || [],
+      ) ?? { splitParts: undefined };
+
+    const resolvedSplitParts =
+      highlightMeta.splitParts ?? caption.metadata?.splitParts;
+
+    // If metadata has splitParts (or htmlText-derived parts), use it
+    if (resolvedSplitParts && resolvedSplitParts.length > 0) {
       const parts = [];
       let currentWordIndex = 0;
 
-      for (const splitPart of caption.metadata.splitParts) {
+      for (const splitPart of resolvedSplitParts) {
         const partWords = [];
         const targetText = splitPart.trim().toLowerCase();
 

@@ -34,6 +34,11 @@ import {
 } from "@/components/ui/select";
 import { z } from "zod";
 import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
+import { CaptionHtmlTextEditor } from "@/components/editor/captions/caption-html-text-editor";
+import {
+  extractKeywordsFromHtmlText,
+  parseCaptionHtmlText,
+} from "@/lib/captions/html-text";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -120,7 +125,8 @@ function MetadataEditor({
 }) {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
-  const entries = Object.entries(metadata);
+  // htmlText is edited via CaptionHtmlTextEditor above
+  const entries = Object.entries(metadata).filter(([k]) => k !== "htmlText");
 
   const handleValueChange = (key: string, raw: string) => {
     let parsed: unknown = raw;
@@ -325,10 +331,50 @@ function CaptionItemEditor({
             {hasMetadata && <span className="ml-1 text-muted-foreground/50">({Object.keys(metadata).length})</span>}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <MetadataEditor
-              metadata={metadata}
-              onChange={(newMeta) => onChange({ ...caption, metadata: newMeta })}
-            />
+            <div className="mt-1.5 space-y-2">
+              <div className="space-y-1">
+                <label className="block text-[9px] text-muted-foreground/70 uppercase tracking-wide">
+                  htmlText
+                </label>
+                <CaptionHtmlTextEditor
+                  value={typeof metadata.htmlText === "string" ? metadata.htmlText : ""}
+                  captionText={caption.text}
+                  keyword={typeof metadata.keyword === "string" ? metadata.keyword : undefined}
+                  splitParts={
+                    Array.isArray(metadata.splitParts)
+                      ? (metadata.splitParts as string[])
+                      : undefined
+                  }
+                  onChange={(htmlText) => {
+                    const keyword = extractKeywordsFromHtmlText(htmlText);
+                    const words = (caption.words ?? []).map((w: any) => ({
+                      text: w?.text ?? "",
+                    }));
+                    const parseWords =
+                      words.length > 0
+                        ? words
+                        : String(caption.text ?? "")
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .map((text: string) => ({ text }));
+                    const parsed = parseCaptionHtmlText(htmlText, parseWords);
+                    onChange({
+                      ...caption,
+                      metadata: {
+                        ...metadata,
+                        htmlText,
+                        ...(keyword ? { keyword } : {}),
+                        ...(parsed?.splitParts ? { splitParts: parsed.splitParts } : {}),
+                      },
+                    });
+                  }}
+                />
+              </div>
+              <MetadataEditor
+                metadata={metadata}
+                onChange={(newMeta) => onChange({ ...caption, metadata: newMeta })}
+              />
+            </div>
           </CollapsibleContent>
         </Collapsible>
       </div>

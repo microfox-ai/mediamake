@@ -983,51 +983,42 @@ const presetExecution = (
       (caption: Transcription['captions'][number], _i: number) => {
         const scentenceId = `caption-${_i}`;
 
-        // Split sentence into parts first (use metadata.splitParts if available)
+        // Prefer metadata.htmlText (<b> highlights, <br/> line breaks) over legacy keyword/splitParts
+        const highlightMeta =
+          props?.helpers?.resolveCaptionHighlightMeta?.(
+            caption.metadata,
+            caption.words,
+            { disableMetadata },
+          ) ?? { highlightedWordIndices: [], usedHtmlText: false };
+
         const sentenceParts = splitSentenceIntoParts(
           caption.words,
           maxLines,
-          caption.metadata?.splitParts,
+          highlightMeta.splitParts ?? caption.metadata?.splitParts,
         );
 
-        // Determine which word to highlight
-        let highlightedWordIndex = -1;
+        // Determine which words to highlight
+        let highlightedWordIndices: number[] = [
+          ...(highlightMeta.highlightedWordIndices || []),
+        ];
 
-        if (!disableMetadata && caption.metadata?.keyword?.length > 0) {
-          // Find the word index that contains the keyword
-          const keywordWordIndex = caption.words.findIndex(word =>
-            word.text
-              ?.toLowerCase()
-              ?.includes(caption.metadata?.keyword?.toLowerCase() || ''),
-          );
-          if (keywordWordIndex !== -1) {
-            highlightedWordIndex = keywordWordIndex;
-          }
-        }
-
-        // Only apply fallback logic if no keyword was found in metadata
-        if (highlightedWordIndex === -1) {
-          highlightedWordIndex = selectHighlightWord(
+        if (highlightedWordIndices.length === 0) {
+          let highlightedWordIndex = selectHighlightWord(
             caption.words,
             caption.metadata,
           );
-        }
-
-        // Ensure at least one word is highlighted
-        if (highlightedWordIndex === -1) {
-          highlightedWordIndex = 0; // Fallback to first word
+          if (highlightedWordIndex === -1) {
+            highlightedWordIndex = 0;
+          }
+          highlightedWordIndices = [highlightedWordIndex];
         }
 
         // Apply highlighting logic to words
         const captionWords = caption.words.map((word, _j: number) => {
-          let isHighlight = false;
-
-          // Check if this word should be highlighted (including sub-words)
-          if ((word as any).originalWordIndex === highlightedWordIndex) {
-            isHighlight = true;
-          } else {
-            isHighlight = _j === highlightedWordIndex;
-          }
+          const isHighlight =
+            highlightedWordIndices.includes(_j) ||
+            ((word as any).isSubWord &&
+              highlightedWordIndices.includes((word as any).originalWordIndex));
 
           return {
             ...word,

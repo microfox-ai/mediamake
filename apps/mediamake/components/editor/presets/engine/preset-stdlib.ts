@@ -9,6 +9,12 @@
 import { ALL_FORMATS, Input, UrlSource } from 'mediabunny';
 import { RenderableComponentData } from '@microfox/datamotion';
 import { GenericEffectData } from '@microfox/remotion';
+import {
+  parseCaptionHtmlText,
+  resolveCaptionHighlightMeta,
+  extractKeywordsFromHtmlText,
+  buildHtmlTextFromLegacy,
+} from '@/lib/captions/html-text';
 
 /**
  * Gets media duration from URL using mediabunny (client-safe).
@@ -570,12 +576,18 @@ export const presetStdLib = {
   createPulseEffect,
   applyNoGapsExtension,
   applyDataItemIdsToNodeTree,
+  parseCaptionHtmlText,
+  resolveCaptionHighlightMeta,
+  extractKeywordsFromHtmlText,
+  buildHtmlTextFromLegacy,
 };
 
 /** Helpers always available on props.helpers without declaring them in metadata. */
 export const defaultInjectedHelpers = {
   parseTimeToSeconds,
   parseTimeRange,
+  parseCaptionHtmlText,
+  resolveCaptionHighlightMeta,
 } as const;
 
 export type PresetStdLib = typeof presetStdLib;

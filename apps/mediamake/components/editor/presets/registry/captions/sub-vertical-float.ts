@@ -2150,75 +2150,30 @@ const presetExecution = (
       (caption: Transcription['captions'][number], _i: number) => {
         const scentenceId = `caption-${_i}`;
 
-        // Split sentence into parts first (use metadata.splitParts if available)
+        // Prefer metadata.htmlText (<b> highlights, <br/> line breaks) over legacy keyword/splitParts
+        const highlightMeta =
+          props?.helpers?.resolveCaptionHighlightMeta?.(
+            caption.metadata,
+            caption.words,
+            { disableMetadata },
+          ) ?? { highlightedWordIndices: [], usedHtmlText: false };
+
+        // Split sentence into parts first (htmlText → splitParts, else metadata.splitParts)
         const sentenceParts = splitSentenceIntoParts(
           caption.words,
           maxLines,
-          caption.metadata?.splitParts,
+          highlightMeta.splitParts ?? caption.metadata?.splitParts,
         );
 
         // Determine which part to highlight
-        const highlightedWordIndices: number[] = [];
-        if (!disableMetadata && caption.metadata?.keyword?.length > 0) {
-          const cleanKeywords = caption.metadata?.keyword
-            .toLowerCase()
-            .split(' ')
-            .map((keyword: string) => keyword.replace(/[^a-zA-Z0-9]/g, ''));
-          caption.words.forEach((word, index) => {
-            const cleanWord = word.text
-              ?.toLowerCase()
-              .replace(/[^a-zA-Z0-9]/g, '');
-            if (
-              cleanKeywords.some((_keyword: string) =>
-                cleanWord?.includes(_keyword),
-              )
-            ) {
-              highlightedWordIndices.push(index);
-            }
-          });
-        }
+        const highlightedWordIndices: number[] = [
+          ...(highlightMeta.highlightedWordIndices || []),
+        ];
 
         let highlightedPartIndex = -1;
         let highlightedWordIndex = -1;
 
         if (highlightedWordIndices.length === 0) {
-          if (!disableMetadata && caption.metadata?.keyword?.length > 0) {
-            // Find the word index that contains the keyword
-            const keywordWordIndex = caption.words.findIndex(word =>
-              caption.metadata?.keyword
-                ?.toLowerCase()
-                ?.includes(word.text?.toLowerCase() || ''),
-            );
-            if (keywordWordIndex !== -1) {
-              // Find which part contains this word
-              let wordCount = 0;
-              for (let i = 0; i < sentenceParts.length; i++) {
-                const part = sentenceParts[i];
-                if (keywordWordIndex < wordCount + part.length) {
-                  // Check if the part is too long (more than 2 words or 10 characters)
-                  const partCharacterCount = part.reduce(
-                    (sum, word) => sum + word.text.length,
-                    0,
-                  );
-                  const isPartTooLong =
-                    part.length > 2 || partCharacterCount > 10;
-
-                  if (isPartTooLong) {
-                    // Only highlight the specific word containing the keyword
-                    highlightedPartIndex = -1; // Don't highlight entire part
-                    highlightedWordIndex = keywordWordIndex;
-                  } else {
-                    // Highlight the entire part if it's short enough
-                    highlightedPartIndex = i;
-                    highlightedWordIndex = keywordWordIndex;
-                  }
-                  break;
-                }
-                wordCount += part.length;
-              }
-            }
-          }
-
           // Only apply fallback logic if no keyword was found in metadata
           if (highlightedPartIndex === -1 && highlightedWordIndex === -1) {
             // Always select a single word to highlight, never entire parts
