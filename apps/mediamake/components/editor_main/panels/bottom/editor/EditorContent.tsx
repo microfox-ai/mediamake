@@ -3,7 +3,7 @@
 import { useEditorStore } from "../../../stores/editor-store";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { TimelineContent } from "./TimelineContent";
-import { PresetContent } from "./PresetContent";
+import { PresetTimelineContent } from "./PresetTimelineContent";
 
 export function EditorContent() {
   const { selectedItem } = useEditorStore();
@@ -11,7 +11,7 @@ export function EditorContent() {
 
   // When Timelines tab is active, always show the preset timeline placeholder
   if (filePanelTab === "timelines") {
-    return <PresetContent />;
+    return <PresetTimelineContent />;
   }
 
   // Layers tab: show the layers timeline for the current timeline (from selection)
@@ -45,5 +45,5 @@ export function EditorContent() {
     return <TimelineContent timeline={selectedItem.item} />;
   }
 
-  return <PresetContent />;
+  return <PresetTimelineContent />;
 }

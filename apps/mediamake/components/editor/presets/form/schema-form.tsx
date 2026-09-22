@@ -60,6 +60,8 @@ import { ShakeEffectsField } from "./inputs/shake-effects-field";
 import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
+import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
+import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { isValidRangeString } from "../engine/range-validation";
 import { CaptionHtmlTextEditor } from "@/components/editor/captions/caption-html-text-editor";
 
@@ -1739,6 +1741,14 @@ function normalizeTimeInput(raw: string): string {
     return `${m}:${sec}`;
 }
 
+/** Format seconds as M:SS for range form inputs. */
+function formatRangeFormTime(sec: number): string {
+    const safe = Math.max(0, sec);
+    const m = Math.floor(safe / 60);
+    const s = Math.floor(safe % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function RangeStringInput({
     value,
     onChange,
@@ -1750,6 +1760,8 @@ function RangeStringInput({
     const beginRangeEdit = useEditorUIStore((s) => s.beginRangeEdit);
     const endRangeEdit = useEditorUIStore((s) => s.endRangeEdit);
     const setHasInvalidRanges = useEditorUIStore((s) => s.setHasInvalidRanges);
+    const currentFrame = useLayerStateStore((s) => s.currentFrame);
+    const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
 
     // Sync when parent value changes externally
     useEffect(() => {
@@ -1785,7 +1797,15 @@ function RangeStringInput({
     };
 
     const addSeg = () => {
-        commit([...segs, { start: "0:00", end: "0:30" }]);
+        const startSec = Math.max(0, currentFrame / (fps || 30));
+        const endSec = startSec + 5;
+        commit([
+            ...segs,
+            {
+                start: formatRangeFormTime(startSec),
+                end: formatRangeFormTime(endSec),
+            },
+        ]);
     };
 
     const removeSeg = (i: number) => {

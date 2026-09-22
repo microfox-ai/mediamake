@@ -1,9 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ZoomIn, ZoomOut, Plus, Trash2, Play, Pause } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  Plus,
+  Trash2,
+  Play,
+  Pause,
+  Scissors,
+  Copy,
+  ClipboardPaste,
+  CopyPlus,
+  ClipboardX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
@@ -268,89 +288,149 @@ const TRACK_COLORS = [
   "border-cyan-500/50 bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200",
 ];
 
+// ─── Segment selection / clipboard ────────────────────────────────────────────
+
+interface SegSelection {
+  templatePath: string;
+  segIdx: number;
+}
+
+interface SegClipboard {
+  seg: ParsedSegment;
+}
+
+const MIN_SPLIT_GAP = 0.05;
+
 // ─── Segment block ────────────────────────────────────────────────────────────
 
 interface SegBlockProps {
-  seg: ParsedSegment;
   left: number;
   width: number;
   color: string;
-  isPlainRange: boolean;
+  isSelected: boolean;
   /** Label shown inside the block, e.g. the array index or time range */
   innerLabel: string;
+  canDuplicate: boolean;
+  canSplit: boolean;
+  onSelect: () => void;
   onMoveDown: (e: React.PointerEvent) => void;
   onLeftDown: (e: React.PointerEvent) => void;
   onRightDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   onDelete: (() => void) | null;
+  onDuplicate: () => void;
+  onSplit: () => void;
+  onCopy: () => void;
+  onCut: () => void;
 }
 
 function SegBlock({
-  seg, left, width, color, isPlainRange, innerLabel,
-  onMoveDown, onLeftDown, onRightDown,
+  left, width, color, isSelected, innerLabel,
+  canDuplicate, canSplit,
+  onSelect, onMoveDown, onLeftDown, onRightDown,
   onPointerMove, onPointerUp, onDelete,
+  onDuplicate, onSplit, onCopy, onCut,
 }: SegBlockProps) {
   return (
-    <div
-      className="absolute top-1.5 bottom-1.5 group/seg"
-      style={{ left, width: Math.max(MIN_SEG_PX, width), overflow: "visible" }}
-    >
-      {/* Body */}
-      <div
-        className={cn(
-          "absolute inset-0 rounded border cursor-grab active:cursor-grabbing flex items-center transition-colors",
-          color,
-        )}
-        onPointerDown={onMoveDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-      >
-        {width > 48 && (
-          <span className="px-2 text-[9px] font-medium truncate pointer-events-none select-none">
-            {innerLabel}
-          </span>
-        )}
-      </div>
-
-      {/* Left resize handle */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-start pl-0.5 opacity-0 group-hover/seg:opacity-100 transition-opacity"
-        onPointerDown={(e) => { e.stopPropagation(); onLeftDown(e); }}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-      >
-        <div className="w-0.5 h-5 rounded-full bg-white/60" />
-      </div>
-
-      {/* Right resize handle */}
-      <div
-        className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-end pr-0.5 opacity-0 group-hover/seg:opacity-100 transition-opacity"
-        onPointerDown={(e) => { e.stopPropagation(); onRightDown(e); }}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-      >
-        <div className="w-0.5 h-5 rounded-full bg-white/60" />
-      </div>
-
-      {/* Delete button — only on data-reference tracks (plain-range items belong to form objects) */}
-      {onDelete && (
-        <button
-          type="button"
-          className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center z-20 opacity-0 group-hover/seg:opacity-100 transition-opacity hover:bg-destructive"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          title="Remove segment"
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className="absolute top-1.5 bottom-1.5 group/seg"
+          style={{ left, width: Math.max(MIN_SEG_PX, width), overflow: "visible" }}
+          onClick={(e) => { e.stopPropagation(); onSelect(); }}
         >
-          <Trash2 className="h-2.5 w-2.5" />
-        </button>
-      )}
-    </div>
+          {/* Body */}
+          <div
+            className={cn(
+              "absolute inset-0 rounded border cursor-grab active:cursor-grabbing flex items-center transition-colors",
+              color,
+              isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background z-[1]",
+            )}
+            onPointerDown={(e) => { onSelect(); onMoveDown(e); }}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            {width > 48 && (
+              <span className="px-2 text-[9px] font-medium truncate pointer-events-none select-none">
+                {innerLabel}
+              </span>
+            )}
+          </div>
+
+          {/* Left resize handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-start pl-0.5 opacity-0 group-hover/seg:opacity-100 transition-opacity"
+            onPointerDown={(e) => { e.stopPropagation(); onSelect(); onLeftDown(e); }}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            <div className="w-0.5 h-5 rounded-full bg-white/60" />
+          </div>
+
+          {/* Right resize handle */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-end pr-0.5 opacity-0 group-hover/seg:opacity-100 transition-opacity"
+            onPointerDown={(e) => { e.stopPropagation(); onSelect(); onRightDown(e); }}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            <div className="w-0.5 h-5 rounded-full bg-white/60" />
+          </div>
+
+          {/* Delete button — only on data-reference tracks (plain-range items belong to form objects) */}
+          {onDelete && (
+            <button
+              type="button"
+              className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center z-20 opacity-0 group-hover/seg:opacity-100 transition-opacity hover:bg-destructive"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              title="Remove segment"
+            >
+              <Trash2 className="h-2.5 w-2.5" />
+            </button>
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={onSplit} disabled={!canSplit}>
+          <Scissors className="h-4 w-4" />
+          Split at playhead
+          <ContextMenuShortcut>⌘K</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onDuplicate} disabled={!canDuplicate}>
+          <CopyPlus className="h-4 w-4" />
+          Duplicate
+          <ContextMenuShortcut>⌘D</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onCut}>
+          <ClipboardX className="h-4 w-4" />
+          Cut
+          <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onCopy}>
+          <Copy className="h-4 w-4" />
+          Copy
+          <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+        </ContextMenuItem>
+        {onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+              Delete
+              <ContextMenuShortcut>⌫</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function PresetContent() {
+export function PresetTimelineContent() {
   const { selectedItem } = useEditorStore();
   const { updatePresetInputData, getEditedTimeline } = useTimelineEditsStore();
   const { generateOutput } = useCompileStore();
@@ -500,7 +580,7 @@ export function PresetContent() {
   // ─── Commit helper (stable ref to prevent stale closures) ────────────────
 
   const commitRef = useRef<(tp: string, segs: ParsedSegment[], changedSegIdx?: number) => void>(
-    () => {}
+    () => { }
   );
 
   commitRef.current = (tp: string, segs: ParsedSegment[], changedSegIdx?: number) => {
@@ -625,6 +705,11 @@ export function PresetContent() {
     });
   }, []);
 
+  // ─── Selection / clipboard ────────────────────────────────────────────────
+
+  const [selectedSeg, setSelectedSeg] = useState<SegSelection | null>(null);
+  const [clipboard, setClipboard] = useState<SegClipboard | null>(null);
+
   // ─── Add / delete segments ─────────────────────────────────────────────────
 
   const addSegment = useCallback(
@@ -659,6 +744,9 @@ export function PresetContent() {
       updatePresetInputData(timeline.id, preset.id, nextInputData);
       const latestTimeline = getEditedTimeline(timeline.id) || timeline;
       generateOutput(latestTimeline);
+      setSelectedSeg((sel) =>
+        sel?.templatePath === group.templatePath && sel.segIdx === segIdx ? null : sel
+      );
       return;
     }
     setSegsMap((prev) => {
@@ -666,7 +754,258 @@ export function PresetContent() {
       commitRef.current(group.templatePath, segs);
       return { ...prev, [group.templatePath]: segs };
     });
+    setSelectedSeg((sel) => {
+      if (!sel || sel.templatePath !== group.templatePath) return sel;
+      if (sel.segIdx === segIdx) return null;
+      if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
+      return sel;
+    });
   }, [timeline, preset, presetInputData, updatePresetInputData, getEditedTimeline, generateOutput]);
+
+  // ─── Clipboard / edit ops ─────────────────────────────────────────────────
+
+  const getGroup = useCallback(
+    (tp: string) => trackGroups.find((g) => g.templatePath === tp),
+    [trackGroups]
+  );
+
+  const canMutateMultiSeg = useCallback(
+    (tp: string) => getGroup(tp)?.kind === "data-reference",
+    [getGroup]
+  );
+
+  const isPlayheadInsideSeg = useCallback(
+    (seg: ParsedSegment) => {
+      const gap = seg.kind === "index" ? 1 : MIN_SPLIT_GAP;
+      return currentTimeSec > seg.start + gap * 0.5 && currentTimeSec < seg.end - gap * 0.5;
+    },
+    [currentTimeSec]
+  );
+
+  const copySelected = useCallback(() => {
+    if (!selectedSeg) return;
+    const segs = segsMap[selectedSeg.templatePath] ?? [];
+    const seg = segs[selectedSeg.segIdx];
+    if (!seg) return;
+    setClipboard({ seg: { ...seg } });
+  }, [selectedSeg, segsMap]);
+
+  const cutSelected = useCallback(() => {
+    if (!selectedSeg) return;
+    const group = getGroup(selectedSeg.templatePath);
+    if (!group) return;
+    const segs = segsMap[selectedSeg.templatePath] ?? [];
+    const seg = segs[selectedSeg.segIdx];
+    if (!seg) return;
+    setClipboard({ seg: { ...seg } });
+    deleteSegment(group, selectedSeg.segIdx);
+  }, [selectedSeg, segsMap, getGroup, deleteSegment]);
+
+  const duplicateSelected = useCallback((sel?: SegSelection | null) => {
+    const target = sel !== undefined ? sel : selectedSeg;
+    if (!target || !canMutateMultiSeg(target.templatePath)) return;
+    const group = getGroup(target.templatePath);
+    if (!group || group.kind !== "data-reference") return;
+
+    setSegsMap((prev) => {
+      const segs = [...(prev[target.templatePath] ?? [])];
+      const orig = segs[target.segIdx];
+      if (!orig) return prev;
+      const duration = orig.end - orig.start;
+      const newStart =
+        orig.kind === "index"
+          ? Math.round(orig.end)
+          : Math.min(totalDuration - 0.01, orig.end);
+      const newEnd =
+        orig.kind === "index"
+          ? newStart + Math.max(1, Math.round(duration))
+          : Math.min(totalDuration, newStart + duration);
+      if (newEnd <= newStart) return prev;
+      const dup: ParsedSegment = { kind: orig.kind, start: newStart, end: newEnd };
+      segs.splice(target.segIdx + 1, 0, dup);
+      segs.sort((a, b) => a.start - b.start);
+      const newIdx = segs.findIndex(
+        (s) => s.start === dup.start && s.end === dup.end && s.kind === dup.kind
+      );
+      commitRef.current(target.templatePath, segs);
+      queueMicrotask(() => {
+        setSelectedSeg({
+          templatePath: target.templatePath,
+          segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
+        });
+      });
+      return { ...prev, [target.templatePath]: segs };
+    });
+  }, [selectedSeg, canMutateMultiSeg, getGroup, totalDuration]);
+
+  const pasteClipboard = useCallback(() => {
+    const targetTp =
+      (selectedSeg && canMutateMultiSeg(selectedSeg.templatePath)
+        ? selectedSeg.templatePath
+        : trackGroups.find((g) => g.kind === "data-reference")?.templatePath) ?? null;
+    if (!targetTp || !clipboard) return;
+    const group = getGroup(targetTp);
+    if (!group || group.kind !== "data-reference") return;
+
+    setSegsMap((prev) => {
+      const segs = [...(prev[targetTp] ?? [])];
+      const duration = clipboard.seg.end - clipboard.seg.start;
+      const kind: SegmentKind = segs[0]?.kind ?? clipboard.seg.kind;
+      const start =
+        kind === "index"
+          ? Math.round(currentTimeSec)
+          : Math.max(0, Math.min(totalDuration - 0.01, currentTimeSec));
+      const end =
+        kind === "index"
+          ? start + Math.max(1, Math.round(duration))
+          : Math.min(totalDuration, start + Math.max(MIN_SPLIT_GAP, duration));
+      if (end <= start) return prev;
+      const pasted: ParsedSegment = { kind, start, end };
+      segs.push(pasted);
+      segs.sort((a, b) => a.start - b.start);
+      const newIdx = segs.findIndex(
+        (s) => s.start === pasted.start && s.end === pasted.end && s.kind === pasted.kind
+      );
+      commitRef.current(targetTp, segs);
+      queueMicrotask(() => {
+        setSelectedSeg({ templatePath: targetTp, segIdx: newIdx >= 0 ? newIdx : segs.length - 1 });
+      });
+      return { ...prev, [targetTp]: segs };
+    });
+  }, [selectedSeg, canMutateMultiSeg, trackGroups, clipboard, getGroup, currentTimeSec, totalDuration]);
+
+  const splitAtPlayhead = useCallback(
+    (sel?: SegSelection | null) => {
+      const target = sel !== undefined ? sel : selectedSeg;
+      let tp = target?.templatePath;
+      let idx = target?.segIdx ?? -1;
+
+      if (tp == null || idx < 0) {
+        for (const g of trackGroups) {
+          if (g.kind !== "data-reference") continue;
+          const segs = segsMap[g.templatePath] ?? [];
+          const found = segs.findIndex((s) => isPlayheadInsideSeg(s));
+          if (found >= 0) {
+            tp = g.templatePath;
+            idx = found;
+            break;
+          }
+        }
+      }
+      if (tp == null || idx < 0) return;
+      if (!canMutateMultiSeg(tp)) return;
+
+      setSegsMap((prev) => {
+        const segs = [...(prev[tp!] ?? [])];
+        const orig = segs[idx];
+        if (!orig || !isPlayheadInsideSeg(orig)) return prev;
+
+        const cutAt =
+          orig.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
+        if (cutAt <= orig.start || cutAt >= orig.end) return prev;
+
+        const left: ParsedSegment = { ...orig, end: cutAt };
+        const right: ParsedSegment = { ...orig, start: cutAt };
+        segs.splice(idx, 1, left, right);
+        commitRef.current(tp!, segs);
+        queueMicrotask(() => {
+          setSelectedSeg({ templatePath: tp!, segIdx: idx + 1 });
+        });
+        return { ...prev, [tp!]: segs };
+      });
+    },
+    [selectedSeg, trackGroups, segsMap, isPlayheadInsideSeg, canMutateMultiSeg, currentTimeSec]
+  );
+
+  const canSplitSelected = useMemo(() => {
+    if (!selectedSeg || !canMutateMultiSeg(selectedSeg.templatePath)) {
+      return trackGroups.some((g) => {
+        if (g.kind !== "data-reference") return false;
+        return (segsMap[g.templatePath] ?? []).some(isPlayheadInsideSeg);
+      });
+    }
+    const seg = (segsMap[selectedSeg.templatePath] ?? [])[selectedSeg.segIdx];
+    return !!seg && isPlayheadInsideSeg(seg);
+  }, [selectedSeg, canMutateMultiSeg, trackGroups, segsMap, isPlayheadInsideSeg]);
+
+  const canDuplicateSelected = useMemo(
+    () => !!selectedSeg && canMutateMultiSeg(selectedSeg.templatePath),
+    [selectedSeg, canMutateMultiSeg]
+  );
+
+  const canPaste = useMemo(
+    () => !!clipboard && trackGroups.some((g) => g.kind === "data-reference"),
+    [clipboard, trackGroups]
+  );
+
+  // Keyboard shortcuts when timeline panel is mounted
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable ||
+          el.closest("[contenteditable=true]"))
+      ) {
+        return;
+      }
+
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        duplicateSelected();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "c") {
+        if (!selectedSeg) return;
+        e.preventDefault();
+        copySelected();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "x") {
+        if (!selectedSeg) return;
+        e.preventDefault();
+        cutSelected();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "v") {
+        if (!clipboard) return;
+        e.preventDefault();
+        pasteClipboard();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        splitAtPlayhead();
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedSeg) {
+        const group = getGroup(selectedSeg.templatePath);
+        if (!group) return;
+        e.preventDefault();
+        deleteSegment(group, selectedSeg.segIdx);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    duplicateSelected,
+    copySelected,
+    cutSelected,
+    pasteClipboard,
+    splitAtPlayhead,
+    selectedSeg,
+    clipboard,
+    getGroup,
+    deleteSegment,
+  ]);
+
+  // Clear selection when preset switches
+  useEffect(() => {
+    setSelectedSeg(null);
+  }, [preset?.id]);
 
   // ─── Scroll sync ───────────────────────────────────────────────────────────
 
@@ -816,6 +1155,62 @@ export function PresetContent() {
           {preset.label || "Preset"}
         </span>
         <div className="flex-1" />
+
+        {/* Timeline edit tools — immediately left of zoom */}
+        <div className="flex items-center gap-0.5">
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !canSplitSelected && "opacity-40")}
+            disabled={!canSplitSelected}
+            onClick={() => splitAtPlayhead()}
+            title="Split at playhead (⌘K)"
+          >
+            <Scissors className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
+            disabled={!selectedSeg}
+            onClick={cutSelected}
+            title="Cut (⌘X)"
+          >
+            <ClipboardX className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
+            disabled={!selectedSeg}
+            onClick={copySelected}
+            title="Copy (⌘C)"
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !canPaste && "opacity-40")}
+            disabled={!canPaste}
+            onClick={pasteClipboard}
+            title="Paste at playhead (⌘V)"
+          >
+            <ClipboardPaste className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !canDuplicateSelected && "opacity-40")}
+            disabled={!canDuplicateSelected}
+            onClick={() => duplicateSelected()}
+            title="Duplicate (⌘D)"
+          >
+            <CopyPlus className="h-3 w-3" />
+          </Button>
+        </div>
+
+        <div className="h-4 w-px bg-border mx-1" />
         <span className="text-[10px] text-muted-foreground/40 hidden sm:block">Ctrl+scroll to zoom</span>
         <div className="h-4 w-px bg-border mx-1" />
         {/* Fit = show whole timeline at once */}
@@ -893,15 +1288,8 @@ export function PresetContent() {
                     <button
                       type="button"
                       className="shrink-0 p-0.5 rounded hover:bg-accent text-muted-foreground/40 hover:text-primary transition-colors"
-                      title="Add segment"
-                      onClick={() => {
-                        const existingSegs = segsMap[group.templatePath] ?? [];
-                        const lastEnd = existingSegs.length
-                          ? Math.max(...existingSegs.map((s) => s.end))
-                          : 0;
-                        const segKind: SegmentKind = existingSegs[0]?.kind ?? "time";
-                        addSegment(group, Math.min(segKind === "time" ? totalDuration - 1 : lastEnd, lastEnd + (segKind === "index" ? 0 : 0.5)));
-                      }}
+                      title="Add segment at playhead"
+                      onClick={() => addSegment(group, currentTimeSec)}
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -968,6 +1356,7 @@ export function PresetContent() {
                     style={{ height: ROW_HEIGHT }}
                     onPointerMove={(e) => handlePointerMove(e, group.templatePath)}
                     onPointerUp={(e) => handlePointerUp(e, group.templatePath)}
+                    onClick={() => setSelectedSeg(null)}
                     onDoubleClick={(e) => {
                       if (isPlain) return;
                       const containerLeft = scrollRef.current?.getBoundingClientRect().left ?? 0;
@@ -979,35 +1368,60 @@ export function PresetContent() {
                     {segs.map((seg, si) => {
                       const left = secToPx(seg.start);
                       const width = Math.max(MIN_SEG_PX, secToPx(seg.end - seg.start));
+                      const isSelected =
+                        selectedSeg?.templatePath === group.templatePath &&
+                        selectedSeg.segIdx === si;
                       // For plain-range, show the concrete path index as a hint
                       const innerLabel = isPlain
                         ? (() => {
-                            const cp = group.concretePaths[si] ?? "";
-                            // Extract the array index: "images[2].rangeString" → "[2]"
-                            const idxMatch = cp.match(/\[(\d+)\]/);
-                            const idx = idxMatch ? `[${idxMatch[1]}] ` : "";
-                            return `${idx}${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
-                          })()
+                          const cp = group.concretePaths[si] ?? "";
+                          // Extract the array index: "images[2].rangeString" → "[2]"
+                          const idxMatch = cp.match(/\[(\d+)\]/);
+                          const idx = idxMatch ? `[${idxMatch[1]}] ` : "";
+                          return `${idx}${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
+                        })()
                         // For index-kind segments show item indices, not time labels
                         : seg.kind === "index"
                           ? `[${Math.round(seg.start)}–${Math.round(seg.end)}]`
                           : `${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
 
+                      const canDup = !isPlain;
+                      const canSplitThis =
+                        !isPlain && isPlayheadInsideSeg(seg);
+
                       return (
                         <SegBlock
                           key={si}
-                          seg={seg}
                           left={left}
                           width={width}
                           color={color}
-                          isPlainRange={isPlain}
+                          isSelected={isSelected}
                           innerLabel={innerLabel}
+                          canDuplicate={canDup}
+                          canSplit={canSplitThis}
+                          onSelect={() =>
+                            setSelectedSeg({ templatePath: group.templatePath, segIdx: si })
+                          }
                           onMoveDown={(e) => startDrag(e, "move", group.templatePath, si, seg, group.kind)}
                           onLeftDown={(e) => startDrag(e, "left", group.templatePath, si, seg, group.kind)}
                           onRightDown={(e) => startDrag(e, "right", group.templatePath, si, seg, group.kind)}
                           onPointerMove={(e) => handlePointerMove(e, group.templatePath)}
                           onPointerUp={(e) => handlePointerUp(e, group.templatePath)}
                           onDelete={() => deleteSegment(group, si)}
+                          onDuplicate={() =>
+                            duplicateSelected({ templatePath: group.templatePath, segIdx: si })
+                          }
+                          onSplit={() =>
+                            splitAtPlayhead({ templatePath: group.templatePath, segIdx: si })
+                          }
+                          onCopy={() => {
+                            setSelectedSeg({ templatePath: group.templatePath, segIdx: si });
+                            setClipboard({ seg: { ...seg } });
+                          }}
+                          onCut={() => {
+                            setClipboard({ seg: { ...seg } });
+                            deleteSegment(group, si);
+                          }}
                         />
                       );
                     })}

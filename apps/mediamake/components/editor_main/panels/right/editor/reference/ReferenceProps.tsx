@@ -14,7 +14,7 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, ChevronDown, ChevronRight, Plus, X, Check } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Plus, X, Check, FileAudio } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { JsonEditor } from "@/components/editor/player/json-editor";
@@ -45,6 +45,8 @@ import {
   paramMetaTypes,
   type TiptapInputOptions,
 } from "@/components/editor/presets/dataTypes";
+import { TranscriptionPicker } from "@/components/transcriber/picker/transcription-picker";
+import type { Transcription } from "@/app/types/transcription";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -615,10 +617,11 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const { generateOutput, isGenerating, generationProgress } = useCompileStore();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
-  const [activeTab, setActiveTab] = useState<"smart" | "full" | "json">("smart");
+  const [activeTab, setActiveTab] = useState<"smart" | "form" | "full" | "json">("smart");
   const [filterActive, setFilterActive] = useState(true);
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [editedKey, setEditedKey] = useState(reference.key || "");
+  const [showCaptionsPicker, setShowCaptionsPicker] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -920,6 +923,41 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   ))}
                 </SelectContent>
               </Select>
+              {referenceType === "captions" && selectedReference && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs shrink-0 px-2"
+                    onClick={() => setShowCaptionsPicker(true)}
+                    title="Link captions from a transcription"
+                  >
+                    <FileAudio className="h-3.5 w-3.5" />
+                    Link
+                  </Button>
+                  {showCaptionsPicker && (
+                    <TranscriptionPicker
+                      open={showCaptionsPicker}
+                      onClose={() => setShowCaptionsPicker(false)}
+                      onSelect={(transcription: Transcription) => {
+                        onReferenceChange({
+                          references: [
+                            {
+                              ...selectedReference,
+                              value: {
+                                captions: transcription.captions,
+                                _id: transcription._id?.toString() ?? "",
+                              },
+                            },
+                          ],
+                        });
+                        setShowCaptionsPicker(false);
+                      }}
+                    />
+                  )}
+                </>
+              )}
             </div>
             {selectedReference?.key && (
               <LinkedActionsSection
@@ -935,12 +973,13 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           <div className="space-y-3">
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as "smart" | "full" | "json")}
+              onValueChange={(v) => setActiveTab(v as "smart" | "form" | "full" | "json")}
               className="w-full"
             >
               <div className="flex items-center gap-2">
-                <TabsList className="grid grid-cols-3 flex-1">
+                <TabsList className="grid grid-cols-4 flex-1">
                   <TabsTrigger value="smart" className="text-xs">Smart</TabsTrigger>
+                  <TabsTrigger value="form" className="text-xs">Form</TabsTrigger>
                   <TabsTrigger value="full" className="text-xs">Full</TabsTrigger>
                   <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
@@ -997,7 +1036,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                 )}
               </TabsContent>
 
-              <TabsContent value="full" className="mt-3">
+              <TabsContent value="form" className="mt-3">
                 <DefaultCard
                   defaultData={selectedDefaultData}
                   onDefaultDataChange={onReferenceChange}
@@ -1005,6 +1044,12 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   singleReferenceMode={true}
                   hideIdentityFields={true}
                 />
+              </TabsContent>
+
+              <TabsContent value="full" className="mt-3">
+                <div className="rounded-md border border-dashed p-6 text-center">
+                  <p className="text-xs text-muted-foreground">Full view coming soon</p>
+                </div>
               </TabsContent>
 
               <TabsContent value="json" className="mt-3">

@@ -496,29 +496,20 @@ export function DefaultCard({
                     )}
                 </div>
                 )}
-                {hideIdentityFields && (reference.type === 'media' || reference.type === 'medias' || reference.type === 'captions') && (
+                {hideIdentityFields && (reference.type === 'media' || reference.type === 'medias') && (
                     <div className="flex justify-end gap-2 mb-2">
-                        {(reference.type === 'media' || reference.type === 'medias') && (
-                            <MediaPickerButton
-                                onSelect={(media) => {
-                                    if (reference.type === 'media') {
-                                        updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
-                                    } else {
-                                        const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                        const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
-                                        updateReference(0, 'value', [...currentValue, ...additions]);
-                                    }
-                                }}
-                                singular={reference.type === 'media'}
-                            />
-                        )}
-                        {reference.type === 'captions' && (
-                            <TranscriptionPickerButton
-                                onSelect={({ captions, _id }) => {
-                                    updateReference(0, 'value', { captions, _id: _id?.toString() ?? "" });
-                                }}
-                            />
-                        )}
+                        <MediaPickerButton
+                            onSelect={(media) => {
+                                if (reference.type === 'media') {
+                                    updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
+                                } else {
+                                    const currentValue = Array.isArray(reference.value) ? reference.value : [];
+                                    const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                    updateReference(0, 'value', [...currentValue, ...additions]);
+                                }
+                            }}
+                            singular={reference.type === 'media'}
+                        />
                     </div>
                 )}
                 <div>
