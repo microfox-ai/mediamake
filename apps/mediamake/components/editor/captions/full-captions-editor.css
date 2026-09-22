@@ -1,0 +1,40 @@
+.full-captions-editor p {
+  position: relative;
+  padding-right: 1.75rem;
+  margin: 0.35rem 0;
+  border-radius: 0.25rem;
+  transition: background-color 0.12s ease;
+}
+
+.full-captions-editor p:hover {
+  background-color: hsl(var(--muted) / 0.45);
+}
+
+.caption-line-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.25rem;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.full-captions-editor p:hover .caption-line-edit-btn {
+  opacity: 1;
+}
+
+.caption-line-edit-btn:hover {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+}
+
+.full-captions-editor .word-highlight {
+  cursor: pointer;
+}

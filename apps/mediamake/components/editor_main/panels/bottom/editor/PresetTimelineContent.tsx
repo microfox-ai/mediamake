@@ -272,6 +272,60 @@ function setAtPath(source: any, path: string, nextValue: string | undefined): an
   return clone;
 }
 
+function getAtPath(source: any, path: string): any {
+  const tokens: string[] = [];
+  path.split(".").forEach((chunk) => {
+    const [head, ...rest] = chunk.split("[");
+    if (head) tokens.push(head);
+    rest.forEach((part) => tokens.push(part.replace("]", "")));
+  });
+  let cursor = source;
+  for (const token of tokens) {
+    if (cursor == null) return undefined;
+    cursor = cursor[token];
+  }
+  return cursor;
+}
+
+/** Parse `images[2].rangeString` → array path, index, leaf field. */
+function parseArrayItemFieldPath(
+  path: string
+): { arrayPath: string; index: number; fieldPath: string } | null {
+  const m = path.match(/^(.*)\[(\d+)\]\.(.+)$/);
+  if (!m) return null;
+  return { arrayPath: m[1]!, index: Number(m[2]), fieldPath: m[3]! };
+}
+
+/**
+ * Clone the array item at `concretePath`'s index, set its range field, and insert
+ * it immediately after. Used for plain-range split/duplicate.
+ */
+function insertClonedArrayItemWithRange(
+  inputData: any,
+  concretePath: string,
+  newRange: string,
+): any | null {
+  const parsed = parseArrayItemFieldPath(concretePath);
+  if (!parsed) return null;
+  const arr = getAtPath(inputData, parsed.arrayPath);
+  if (!Array.isArray(arr) || parsed.index < 0 || parsed.index >= arr.length) return null;
+
+  const clone = structuredClone(inputData);
+  const cloneArr = getAtPath(clone, parsed.arrayPath) as any[];
+  const itemClone = structuredClone(cloneArr[parsed.index]);
+  // Set the leaf field on the cloned item (fieldPath may be nested: "a.b")
+  const fieldTokens = parsed.fieldPath.split(".");
+  let cur: any = itemClone;
+  for (let i = 0; i < fieldTokens.length - 1; i++) {
+    cur = cur[fieldTokens[i]!];
+    if (cur == null) return null;
+  }
+  cur[fieldTokens[fieldTokens.length - 1]!] = newRange;
+  cloneArr.splice(parsed.index + 1, 0, itemClone);
+  return clone;
+}
+
+
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const RULER_HEIGHT = 28;
@@ -347,7 +401,7 @@ function SegBlock({
               color,
               isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background z-[1]",
             )}
-            onPointerDown={(e) => { onSelect(); onMoveDown(e); }}
+            onPointerDown={(e) => { e.stopPropagation(); onSelect(); onMoveDown(e); }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
           >
@@ -395,7 +449,7 @@ function SegBlock({
         <ContextMenuItem onClick={onSplit} disabled={!canSplit}>
           <Scissors className="h-4 w-4" />
           Split at playhead
-          <ContextMenuShortcut>⌘K</ContextMenuShortcut>
+          <ContextMenuShortcut>⌘\</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={onDuplicate} disabled={!canDuplicate}>
           <CopyPlus className="h-4 w-4" />
@@ -774,10 +828,27 @@ export function PresetTimelineContent() {
     [getGroup]
   );
 
+  /** True when the track can grow/split segments (data-ref multi-seg OR plain array items). */
+  const canEditSegStructure = useCallback(
+    (tp: string) => {
+      const g = getGroup(tp);
+      if (!g) return false;
+      if (g.kind === "data-reference") return true;
+      // plain-range: only when paths look like array items we can clone
+      return g.concretePaths.some((p) => parseArrayItemFieldPath(p) !== null);
+    },
+    [getGroup]
+  );
+
   const isPlayheadInsideSeg = useCallback(
     (seg: ParsedSegment) => {
-      const gap = seg.kind === "index" ? 1 : MIN_SPLIT_GAP;
-      return currentTimeSec > seg.start + gap * 0.5 && currentTimeSec < seg.end - gap * 0.5;
+      const minGap = seg.kind === "index" ? 1 : MIN_SPLIT_GAP;
+      return (
+        currentTimeSec > seg.start &&
+        currentTimeSec < seg.end &&
+        currentTimeSec - seg.start >= minGap * 0.5 &&
+        seg.end - currentTimeSec >= minGap * 0.5
+      );
     },
     [currentTimeSec]
   );
@@ -803,40 +874,85 @@ export function PresetTimelineContent() {
 
   const duplicateSelected = useCallback((sel?: SegSelection | null) => {
     const target = sel !== undefined ? sel : selectedSeg;
-    if (!target || !canMutateMultiSeg(target.templatePath)) return;
+    if (!target || !canEditSegStructure(target.templatePath)) return;
     const group = getGroup(target.templatePath);
-    if (!group || group.kind !== "data-reference") return;
+    if (!group) return;
 
-    setSegsMap((prev) => {
-      const segs = [...(prev[target.templatePath] ?? [])];
-      const orig = segs[target.segIdx];
-      if (!orig) return prev;
-      const duration = orig.end - orig.start;
-      const newStart =
-        orig.kind === "index"
-          ? Math.round(orig.end)
-          : Math.min(totalDuration - 0.01, orig.end);
-      const newEnd =
-        orig.kind === "index"
-          ? newStart + Math.max(1, Math.round(duration))
-          : Math.min(totalDuration, newStart + duration);
-      if (newEnd <= newStart) return prev;
-      const dup: ParsedSegment = { kind: orig.kind, start: newStart, end: newEnd };
-      segs.splice(target.segIdx + 1, 0, dup);
-      segs.sort((a, b) => a.start - b.start);
-      const newIdx = segs.findIndex(
-        (s) => s.start === dup.start && s.end === dup.end && s.kind === dup.kind
-      );
-      commitRef.current(target.templatePath, segs);
-      queueMicrotask(() => {
-        setSelectedSeg({
-          templatePath: target.templatePath,
-          segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
+    if (group.kind === "data-reference") {
+      setSegsMap((prev) => {
+        const segs = [...(prev[target.templatePath] ?? [])];
+        const orig = segs[target.segIdx];
+        if (!orig) return prev;
+        const duration = orig.end - orig.start;
+        const newStart =
+          orig.kind === "index"
+            ? Math.round(orig.end)
+            : Math.min(totalDuration - 0.01, orig.end);
+        const newEnd =
+          orig.kind === "index"
+            ? newStart + Math.max(1, Math.round(duration))
+            : Math.min(totalDuration, newStart + duration);
+        if (newEnd <= newStart) return prev;
+        const dup: ParsedSegment = { kind: orig.kind, start: newStart, end: newEnd };
+        segs.splice(target.segIdx + 1, 0, dup);
+        segs.sort((a, b) => a.start - b.start);
+        const newIdx = segs.findIndex(
+          (s) => s.start === dup.start && s.end === dup.end && s.kind === dup.kind
+        );
+        commitRef.current(target.templatePath, segs);
+        queueMicrotask(() => {
+          setSelectedSeg({
+            templatePath: target.templatePath,
+            segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
+          });
         });
+        return { ...prev, [target.templatePath]: segs };
       });
-      return { ...prev, [target.templatePath]: segs };
+      return;
+    }
+
+    // plain-range: clone the array item and place the duplicate range after the original
+    if (!timeline || !preset) return;
+    const segs = segsMap[target.templatePath] ?? [];
+    const orig = segs[target.segIdx];
+    const path = group.concretePaths[target.segIdx];
+    if (!orig || !path) return;
+    const duration = orig.end - orig.start;
+    const newStart =
+      orig.kind === "index"
+        ? Math.round(orig.end)
+        : Math.min(totalDuration - 0.01, orig.end);
+    const newEnd =
+      orig.kind === "index"
+        ? newStart + Math.max(1, Math.round(duration))
+        : Math.min(totalDuration, newStart + duration);
+    if (newEnd <= newStart) return;
+    const dup: ParsedSegment = { kind: orig.kind, start: newStart, end: newEnd };
+    const next = insertClonedArrayItemWithRange(
+      presetInputData,
+      path,
+      serializeSegment(dup),
+    );
+    if (!next) return;
+    updatePresetInputData(timeline.id, preset.id, next);
+    const latestTimeline = getEditedTimeline(timeline.id) || timeline;
+    generateOutput(latestTimeline);
+    queueMicrotask(() => {
+      setSelectedSeg({ templatePath: target.templatePath, segIdx: target.segIdx + 1 });
     });
-  }, [selectedSeg, canMutateMultiSeg, getGroup, totalDuration]);
+  }, [
+    selectedSeg,
+    canEditSegStructure,
+    getGroup,
+    totalDuration,
+    timeline,
+    preset,
+    segsMap,
+    presetInputData,
+    updatePresetInputData,
+    getEditedTimeline,
+    generateOutput,
+  ]);
 
   const pasteClipboard = useCallback(() => {
     const targetTp =
@@ -876,62 +992,98 @@ export function PresetTimelineContent() {
 
   const splitAtPlayhead = useCallback(
     (sel?: SegSelection | null) => {
-      const target = sel !== undefined ? sel : selectedSeg;
-      let tp = target?.templatePath;
-      let idx = target?.segIdx ?? -1;
+      const preferred = sel !== undefined ? sel : selectedSeg;
 
-      if (tp == null || idx < 0) {
-        for (const g of trackGroups) {
-          if (g.kind !== "data-reference") continue;
-          const segs = segsMap[g.templatePath] ?? [];
-          const found = segs.findIndex((s) => isPlayheadInsideSeg(s));
-          if (found >= 0) {
-            tp = g.templatePath;
-            idx = found;
-            break;
-          }
+      const resolveTarget = (): SegSelection | null => {
+        if (
+          preferred &&
+          canEditSegStructure(preferred.templatePath) &&
+          (() => {
+            const s = (segsMap[preferred.templatePath] ?? [])[preferred.segIdx];
+            return !!s && isPlayheadInsideSeg(s);
+          })()
+        ) {
+          return preferred;
         }
-      }
-      if (tp == null || idx < 0) return;
-      if (!canMutateMultiSeg(tp)) return;
+        for (const g of trackGroups) {
+          if (!canEditSegStructure(g.templatePath)) continue;
+          const segs = segsMap[g.templatePath] ?? [];
+          const fi = segs.findIndex((s) => isPlayheadInsideSeg(s));
+          if (fi >= 0) return { templatePath: g.templatePath, segIdx: fi };
+        }
+        return null;
+      };
 
-      setSegsMap((prev) => {
-        const segs = [...(prev[tp!] ?? [])];
-        const orig = segs[idx];
-        if (!orig || !isPlayheadInsideSeg(orig)) return prev;
+      const resolved = resolveTarget();
+      if (!resolved) return;
+      const { templatePath: tp, segIdx: idx } = resolved;
+      const group = getGroup(tp);
+      if (!group) return;
+      const orig = (segsMap[tp] ?? [])[idx];
+      if (!orig || !isPlayheadInsideSeg(orig)) return;
 
-        const cutAt =
-          orig.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
-        if (cutAt <= orig.start || cutAt >= orig.end) return prev;
+      const cutAt = orig.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
+      if (cutAt <= orig.start || cutAt >= orig.end) return;
 
-        const left: ParsedSegment = { ...orig, end: cutAt };
-        const right: ParsedSegment = { ...orig, start: cutAt };
-        segs.splice(idx, 1, left, right);
-        commitRef.current(tp!, segs);
-        queueMicrotask(() => {
-          setSelectedSeg({ templatePath: tp!, segIdx: idx + 1 });
+      const left: ParsedSegment = { ...orig, end: cutAt };
+      const right: ParsedSegment = { ...orig, start: cutAt };
+
+      if (group.kind === "data-reference") {
+        setSegsMap((prev) => {
+          const segs = [...(prev[tp] ?? [])];
+          segs.splice(idx, 1, left, right);
+          commitRef.current(tp, segs);
+          queueMicrotask(() => {
+            setSelectedSeg({ templatePath: tp, segIdx: idx + 1 });
+          });
+          return { ...prev, [tp]: segs };
         });
-        return { ...prev, [tp!]: segs };
+        return;
+      }
+
+      // plain-range: shorten current item, clone sibling for the right half
+      if (!timeline || !preset) return;
+      const path = group.concretePaths[idx];
+      if (!path) return;
+      let next = setAtPath(presetInputData, path, serializeSegment(left));
+      next = insertClonedArrayItemWithRange(next, path, serializeSegment(right));
+      if (!next) return;
+      updatePresetInputData(timeline.id, preset.id, next);
+      const latestTimeline = getEditedTimeline(timeline.id) || timeline;
+      generateOutput(latestTimeline);
+      queueMicrotask(() => {
+        setSelectedSeg({ templatePath: tp, segIdx: idx + 1 });
       });
     },
-    [selectedSeg, trackGroups, segsMap, isPlayheadInsideSeg, canMutateMultiSeg, currentTimeSec]
+    [
+      selectedSeg,
+      trackGroups,
+      segsMap,
+      isPlayheadInsideSeg,
+      canEditSegStructure,
+      currentTimeSec,
+      getGroup,
+      timeline,
+      preset,
+      presetInputData,
+      updatePresetInputData,
+      getEditedTimeline,
+      generateOutput,
+    ]
   );
 
   const canSplitSelected = useMemo(() => {
-    if (!selectedSeg || !canMutateMultiSeg(selectedSeg.templatePath)) {
-      return trackGroups.some((g) => {
-        if (g.kind !== "data-reference") return false;
-        return (segsMap[g.templatePath] ?? []).some(isPlayheadInsideSeg);
-      });
-    }
-    const seg = (segsMap[selectedSeg.templatePath] ?? [])[selectedSeg.segIdx];
-    return !!seg && isPlayheadInsideSeg(seg);
-  }, [selectedSeg, canMutateMultiSeg, trackGroups, segsMap, isPlayheadInsideSeg]);
+    // Enable whenever the playhead sits inside any editable segment
+    return trackGroups.some((g) => {
+      if (!canEditSegStructure(g.templatePath)) return false;
+      return (segsMap[g.templatePath] ?? []).some(isPlayheadInsideSeg);
+    });
+  }, [trackGroups, segsMap, isPlayheadInsideSeg, canEditSegStructure]);
 
-  const canDuplicateSelected = useMemo(
-    () => !!selectedSeg && canMutateMultiSeg(selectedSeg.templatePath),
-    [selectedSeg, canMutateMultiSeg]
-  );
+  const canDuplicateSelected = useMemo(() => {
+    if (!selectedSeg) return false;
+    return canEditSegStructure(selectedSeg.templatePath);
+  }, [selectedSeg, canEditSegStructure]);
 
   const canPaste = useMemo(
     () => !!clipboard && trackGroups.some((g) => g.kind === "data-reference"),
@@ -976,7 +1128,7 @@ export function PresetTimelineContent() {
         pasteClipboard();
         return;
       }
-      if (mod && e.key.toLowerCase() === "k") {
+      if (mod && (e.key === "\\" || e.code === "Backslash")) {
         e.preventDefault();
         splitAtPlayhead();
         return;
@@ -1164,7 +1316,7 @@ export function PresetTimelineContent() {
             className={cn("h-6 w-6", !canSplitSelected && "opacity-40")}
             disabled={!canSplitSelected}
             onClick={() => splitAtPlayhead()}
-            title="Split at playhead (⌘K)"
+            title="Split at playhead (⌘\)"
           >
             <Scissors className="h-3 w-3" />
           </Button>
@@ -1356,7 +1508,10 @@ export function PresetTimelineContent() {
                     style={{ height: ROW_HEIGHT }}
                     onPointerMove={(e) => handlePointerMove(e, group.templatePath)}
                     onPointerUp={(e) => handlePointerUp(e, group.templatePath)}
-                    onClick={() => setSelectedSeg(null)}
+                    onPointerDown={(e) => {
+                      // Clear selection only when clicking empty track (not a segment)
+                      if (e.target === e.currentTarget) setSelectedSeg(null);
+                    }}
                     onDoubleClick={(e) => {
                       if (isPlain) return;
                       const containerLeft = scrollRef.current?.getBoundingClientRect().left ?? 0;
@@ -1385,9 +1540,8 @@ export function PresetTimelineContent() {
                           ? `[${Math.round(seg.start)}–${Math.round(seg.end)}]`
                           : `${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
 
-                      const canDup = !isPlain;
-                      const canSplitThis =
-                        !isPlain && isPlayheadInsideSeg(seg);
+                      const canDup = canEditSegStructure(group.templatePath);
+                      const canSplitThis = canDup && isPlayheadInsideSeg(seg);
 
                       return (
                         <SegBlock
