@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { DataTypeDefinition } from './types';
+import {
+  DataTypeDefinition,
+  paramInputTypes,
+  paramMetaTypes,
+} from './types';
 
 export const captionWordSchema = z.object({
   id: z.string(),
@@ -12,6 +16,53 @@ export const captionWordSchema = z.object({
   duration: z.number(),
 });
 
+/**
+ * Known caption.metadata fields. Unknown keys are allowed via .passthrough().
+ * Fields tagged with `paramMetaTypes.tiptap` render the TipTap HTML editor
+ * in the Smart metadata UI (and SchemaForm).
+ */
+export const captionMetadataSchema = z
+  .object({
+    htmlText: z
+      .string()
+      .optional()
+      .describe(
+        'HTML caption text: <b> for highlights, <br/> for line breaks',
+      )
+      .meta({
+        [paramMetaTypes.tiptap]: true,
+        [paramMetaTypes.inputType]: paramInputTypes.tiptap,
+        [paramMetaTypes.inputOptions]: {
+          lines: 5,
+          seedFromCaption: true,
+        },
+      }),
+    keyword: z.string().optional(),
+    splitParts: z.array(z.string()).optional(),
+    keywordFeel: z.string().optional(),
+    strength: z.number().optional(),
+    confidence: z.number().optional(),
+    impact: z.number().optional(),
+    sentiment: z.string().optional(),
+    emotion: z.string().optional(),
+  })
+  .passthrough();
+
+/** Field-key → Zod .meta() map for Smart metadata editors. */
+export const captionMetadataFieldMeta: Record<
+  string,
+  Record<string, unknown>
+> = {
+  htmlText: {
+    [paramMetaTypes.tiptap]: true,
+    [paramMetaTypes.inputType]: paramInputTypes.tiptap,
+    [paramMetaTypes.inputOptions]: {
+      lines: 5,
+      seedFromCaption: true,
+    },
+  },
+};
+
 export const captionSchema = z.object({
   id: z.string(),
   text: z.string(),
@@ -21,7 +72,7 @@ export const captionSchema = z.object({
   end: z.number(),
   duration: z.number(),
   words: z.array(captionWordSchema),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: captionMetadataSchema.optional(),
 });
 
 export const captionsDataTypeSchema = z.object({

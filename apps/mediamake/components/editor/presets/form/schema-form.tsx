@@ -49,8 +49,8 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { paramMetaTypes, paramInputTypes } from "../dataTypes";
-import type { ColorInputOptions, ParamInputType, SliderInputOptions } from "../dataTypes";
+import { paramMetaTypes, paramInputTypes, isTiptapFieldMeta } from "../dataTypes";
+import type { ColorInputOptions, ParamInputType, SliderInputOptions, TiptapInputOptions } from "../dataTypes";
 import { ColorInput } from "./inputs/color-input";
 import { SliderInput } from "./inputs/slider-input";
 import { ContainerInsetsInput } from "./inputs/container-insets-input";
@@ -61,6 +61,7 @@ import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { isValidRangeString } from "../engine/range-validation";
+import { CaptionHtmlTextEditor } from "@/components/editor/captions/caption-html-text-editor";
 
 const availableFonts = getAvailableFonts();
 
@@ -2085,6 +2086,17 @@ function renderField(
                             placeholder={field.description || `Enter ${field.title || fieldKey}`}
                             rows={8}
                             className="resize-none overflow-y-auto"
+                        />
+                    );
+                }
+
+                if (isTiptapFieldMeta(field.meta) || explicitInput === paramInputTypes.tiptap) {
+                    const tipOpts = getInputOptions<TiptapInputOptions>(field) ?? {};
+                    return (
+                        <CaptionHtmlTextEditor
+                            value={typeof fieldValue === "string" ? fieldValue : ""}
+                            lines={tipOpts.lines ?? 5}
+                            onChange={(html) => handleChange(fieldKey, html)}
                         />
                     );
                 }

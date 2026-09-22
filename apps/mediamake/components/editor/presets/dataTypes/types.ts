@@ -1,61 +1,61 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export type DataReferenceType =
-  | "media"
-  | "medias"
-  | "captions"
-  | "string"
-  | "number"
-  | "boolean"
-  | "object"
-  | "objects";
+  | 'media'
+  | 'medias'
+  | 'captions'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'object'
+  | 'objects';
 
 export const paramMetaTypes = {
   /** Marks a field as data-referrable (accepts data:[key] references). Value: the DataReferenceType string. */
-  referrableDataType: "referrableDataType",
+  referrableDataType: 'referrableDataType',
   /**
    * Marks a field as a range field — the field value IS a rangeString (e.g. "data:[captions][0:00-2:00]").
    * The range portion is what gets visually edited in the bottom timeline.
    * Value: true
    */
-  rangeField: "rangeField",
+  rangeField: 'rangeField',
   /**
    * Marks an object or array that contains a range field somewhere inside it (nested path).
    * Value: the dot-bracket path to the range field within the object/array, e.g. "captions" or "items[].ref".
    * Use "[]" to indicate the items themselves are range fields.
    */
-  nestedRangeField: "nestedRangeField",
+  nestedRangeField: 'nestedRangeField',
   /**
    * Marks a string field as this preset's track identity.
    * Values from these fields are collected to populate `linkTrackName` dropdowns.
    * Value: true
    */
-  trackName: "trackName",
+  trackName: 'trackName',
   /**
    * Marks a string field that links/fits to another track by name.
    * Renders a searchable dropdown of existing trackNames (plus free-text entry).
    * Value: true
    */
-  linkTrackName: "linkTrackName",
+  linkTrackName: 'linkTrackName',
   /**
    * Marks an object with optional left/right/top/bottom numeric insets.
    * Renders a Figma-style 4-block insets editor. Missing keys stay undefined
    * (distinct from 0). Value: true
    */
-  containerObject: "containerObject",
+  containerObject: 'containerObject',
   /**
    * Marks an array of image objects. Renders Images / Form tabs:
    * - Images: thumbnail grid + per-image popup editor + group edit for shared props
    * - Form: standard array form
    * Value: true
    */
-  imagesGroup: "imagesGroup",
+  imagesGroup: 'imagesGroup',
   /**
    * Marks an array of media items (image / video / audio).
    * Renders Medias / Form tabs similar to imagesGroup, with kind-aware editors.
    * Value: true
    */
-  mediasGroup: "mediasGroup",
+  mediasGroup: 'mediasGroup',
   /**
    * Marks an array of plain shake effect objects.
    * Renders Smart / Full tabs on the label row:
@@ -63,7 +63,7 @@ export const paramMetaTypes = {
    * - Full: compact list of all shake effects
    * Value: true
    */
-  shakeEffectsGroup: "shakeEffectsGroup",
+  shakeEffectsGroup: 'shakeEffectsGroup',
   /**
    * Nested field edit scope inside an imagesGroup (or similar) item schema.
    * Value: true = can be bulk-edited across items; false = per-item only.
@@ -71,14 +71,14 @@ export const paramMetaTypes = {
    * @example z.string().meta({ [paramMetaTypes.groupEditable]: false }) // rangeString
    * @example z.enum([...]).meta({ [paramMetaTypes.groupEditable]: true }) // fit
    */
-  groupEditable: "groupEditable",
+  groupEditable: 'groupEditable',
   /**
    * Forces a specific editor widget for this field, overriding the name-based
    * heuristics. Value: one of `paramInputTypes`.
    *
    * @example z.string().meta({ [paramMetaTypes.inputType]: paramInputTypes.color })
    */
-  inputType: "inputType",
+  inputType: 'inputType',
   /**
    * Widget configuration for the chosen `inputType`. Value: a plain object whose
    * shape depends on the widget — see `ColorInputOptions` / `SliderInputOptions`.
@@ -88,10 +88,19 @@ export const paramMetaTypes = {
    *   [paramMetaTypes.inputOptions]: { allowAlpha: false, presets: ["#fff", "#000"] },
    * })
    */
-  inputOptions: "inputOptions",
+  inputOptions: 'inputOptions',
+  /**
+   * Marks a string field that should render the TipTap HTML editor
+   * (bold = highlight, hard break = line split). Value: true.
+   * Equivalent to `{ [paramMetaTypes.inputType]: paramInputTypes.tiptap }`.
+   *
+   * @example z.string().meta({ [paramMetaTypes.tiptap]: true })
+   */
+  tiptap: 'tiptap',
 } as const;
 
-export type ParamMetaType = (typeof paramMetaTypes)[keyof typeof paramMetaTypes];
+export type ParamMetaType =
+  (typeof paramMetaTypes)[keyof typeof paramMetaTypes];
 
 /**
  * Editor widgets a preset author can request via `paramMetaTypes.inputType`.
@@ -99,16 +108,22 @@ export type ParamMetaType = (typeof paramMetaTypes)[keyof typeof paramMetaTypes]
  */
 export const paramInputTypes = {
   /** Full colour picker: SV plane, hue/alpha sliders, eyedropper, harmony, swatches. */
-  color: "color",
+  color: 'color',
   /** Numeric slider with a live value readout instead of a bare number box. */
-  slider: "slider",
+  slider: 'slider',
   /** Multi-line text area. */
-  textarea: "textarea",
+  textarea: 'textarea',
   /** Single-line text box — use to opt *out* of a name-based heuristic. */
-  text: "text",
+  text: 'text',
+  /**
+   * TipTap HTML editor for caption-style markup
+   * (`<b>` highlights, `<br/>` line splits).
+   */
+  tiptap: 'tiptap',
 } as const;
 
-export type ParamInputType = (typeof paramInputTypes)[keyof typeof paramInputTypes];
+export type ParamInputType =
+  (typeof paramInputTypes)[keyof typeof paramInputTypes];
 
 /** Config accepted by `inputOptions` when `inputType` is `color`. */
 export interface ColorInputOptions {
@@ -117,7 +132,7 @@ export interface ColorInputOptions {
   /** Extra swatches shown above the built-in palette. */
   presets?: string[];
   /** Notation to write back. Defaults to whatever the current value uses. */
-  format?: "hex" | "rgb" | "hsl";
+  format?: 'hex' | 'rgb' | 'hsl';
 }
 
 /** Config accepted by `inputOptions` when `inputType` is `slider`. */
@@ -129,6 +144,23 @@ export interface SliderInputOptions {
   unit?: string;
 }
 
+/** Config accepted by `inputOptions` when `inputType` is `tiptap` / `tiptap` meta. */
+export interface TiptapInputOptions {
+  /** Visible editor lines (default 5). */
+  lines?: number;
+  /** Seed empty value from caption plain text + legacy keyword/splitParts. */
+  seedFromCaption?: boolean;
+}
+
+/** True when field meta requests the TipTap HTML editor. */
+export function isTiptapFieldMeta(
+  meta?: Record<string, unknown> | null,
+): boolean {
+  if (!meta) return false;
+  if (meta[paramMetaTypes.tiptap] === true) return true;
+  return meta[paramMetaTypes.inputType] === paramInputTypes.tiptap;
+}
+
 export interface DataTypeDefinition {
   id: string;
   title: string;
@@ -137,4 +169,3 @@ export interface DataTypeDefinition {
   defaultValue: unknown;
   schema: z.ZodTypeAny;
 }
-

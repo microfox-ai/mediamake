@@ -39,6 +39,12 @@ import {
   extractKeywordsFromHtmlText,
   parseCaptionHtmlText,
 } from "@/lib/captions/html-text";
+import {
+  captionMetadataFieldMeta,
+  isTiptapFieldMeta,
+  paramMetaTypes,
+  type TiptapInputOptions,
+} from "@/components/editor/presets/dataTypes";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -119,14 +125,32 @@ function WordEditor({
 function MetadataEditor({
   metadata,
   onChange,
+  fieldMeta = captionMetadataFieldMeta,
+  captionText,
+  captionWords,
 }: {
   metadata: Record<string, unknown>;
   onChange: (updated: Record<string, unknown>) => void;
+  /** key → Zod .meta() map; fields with `tiptap` meta render TipTap */
+  fieldMeta?: Record<string, Record<string, unknown>>;
+  captionText?: string;
+  captionWords?: Array<{ text?: string }>;
 }) {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
-  // htmlText is edited via CaptionHtmlTextEditor above
-  const entries = Object.entries(metadata).filter(([k]) => k !== "htmlText");
+
+  const tiptapKeys = useMemo(() => {
+    const fromMeta = Object.keys(fieldMeta).filter((k) =>
+      isTiptapFieldMeta(fieldMeta[k]),
+    );
+    const fromData = Object.keys(metadata).filter((k) =>
+      isTiptapFieldMeta(fieldMeta[k]),
+    );
+    return Array.from(new Set([...fromMeta, ...fromData]));
+  }, [fieldMeta, metadata]);
+
+  const tiptapKeySet = useMemo(() => new Set(tiptapKeys), [tiptapKeys]);
+  const entries = Object.entries(metadata).filter(([k]) => !tiptapKeySet.has(k));
 
   const handleValueChange = (key: string, raw: string) => {
     let parsed: unknown = raw;
@@ -149,50 +173,113 @@ function MetadataEditor({
     setNewValue("");
   };
 
+  const handleTiptapChange = (key: string, htmlText: string) => {
+    const next: Record<string, unknown> = { ...metadata, [key]: htmlText };
+
+    // htmlText keeps legacy keyword / splitParts in sync for older consumers
+    if (key === "htmlText") {
+      const keyword = extractKeywordsFromHtmlText(htmlText);
+      const words =
+        captionWords && captionWords.length > 0
+          ? captionWords
+          : String(captionText ?? "")
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((text) => ({ text }));
+      const parsed = parseCaptionHtmlText(htmlText, words);
+      if (keyword) next.keyword = keyword;
+      if (parsed?.splitParts) next.splitParts = parsed.splitParts;
+    }
+
+    onChange(next);
+  };
+
   return (
-    <div className="mt-1.5 space-y-1">
-      {entries.map(([k, v]) => (
-        <div key={k} className="flex items-center gap-1">
-          <span className="w-24 shrink-0 truncate text-[10px] font-mono text-muted-foreground" title={k}>{k}</span>
+    <div className="mt-1.5 space-y-2">
+      {tiptapKeys.map((key) => {
+        const meta = fieldMeta[key] ?? {};
+        const opts = (meta[paramMetaTypes.inputOptions] ?? {}) as TiptapInputOptions;
+        const lines = opts.lines ?? 5;
+        const seed = opts.seedFromCaption !== false;
+        return (
+          <div key={key} className="space-y-0.5">
+            <div className="flex items-center justify-between gap-1">
+              <label className="block text-[9px] font-mono text-muted-foreground/70 uppercase tracking-wide">
+                {key}
+              </label>
+              <button
+                type="button"
+                className="shrink-0 p-0.5 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDelete(key)}
+                title="Remove key"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+            <CaptionHtmlTextEditor
+              value={typeof metadata[key] === "string" ? (metadata[key] as string) : ""}
+              captionText={seed ? captionText : undefined}
+              keyword={
+                seed && typeof metadata.keyword === "string"
+                  ? metadata.keyword
+                  : undefined
+              }
+              splitParts={
+                seed && Array.isArray(metadata.splitParts)
+                  ? (metadata.splitParts as string[])
+                  : undefined
+              }
+              lines={lines}
+              onChange={(html) => handleTiptapChange(key, html)}
+            />
+          </div>
+        );
+      })}
+
+      <div className="space-y-1">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex items-center gap-1">
+            <span className="w-24 shrink-0 truncate text-[10px] font-mono text-muted-foreground" title={k}>{k}</span>
+            <Input
+              value={typeof v === "string" ? v : JSON.stringify(v)}
+              className="h-5 flex-1 text-xs px-1"
+              onChange={(e) => handleValueChange(k, e.target.value)}
+            />
+            <button
+              type="button"
+              className="shrink-0 p-0.5 text-muted-foreground hover:text-destructive"
+              onClick={() => handleDelete(k)}
+              title="Remove key"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+        <div className="flex items-center gap-1 pt-0.5 border-t border-dashed border-border/50">
           <Input
-            value={typeof v === "string" ? v : JSON.stringify(v)}
-            className="h-5 flex-1 text-xs px-1"
-            onChange={(e) => handleValueChange(k, e.target.value)}
+            placeholder="key"
+            value={newKey}
+            className="h-5 w-20 shrink-0 text-[10px] px-1"
+            onChange={(e) => setNewKey(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+          />
+          <Input
+            placeholder="value"
+            value={newValue}
+            className="h-5 flex-1 text-[10px] px-1"
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
           />
           <button
             type="button"
-            className="shrink-0 p-0.5 text-muted-foreground hover:text-destructive"
-            onClick={() => handleDelete(k)}
-            title="Remove key"
+            className="shrink-0 p-0.5 text-muted-foreground hover:text-primary disabled:opacity-40"
+            disabled={!newKey.trim()}
+            onClick={handleAdd}
+            title="Add key"
           >
-            <X className="h-3 w-3" />
+            <Plus className="h-3 w-3" />
           </button>
         </div>
-      ))}
-      <div className="flex items-center gap-1 pt-0.5 border-t border-dashed border-border/50">
-        <Input
-          placeholder="key"
-          value={newKey}
-          className="h-5 w-20 shrink-0 text-[10px] px-1"
-          onChange={(e) => setNewKey(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-        />
-        <Input
-          placeholder="value"
-          value={newValue}
-          className="h-5 flex-1 text-[10px] px-1"
-          onChange={(e) => setNewValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-        />
-        <button
-          type="button"
-          className="shrink-0 p-0.5 text-muted-foreground hover:text-primary disabled:opacity-40"
-          disabled={!newKey.trim()}
-          onClick={handleAdd}
-          title="Add key"
-        >
-          <Plus className="h-3 w-3" />
-        </button>
       </div>
     </div>
   );
@@ -331,50 +418,12 @@ function CaptionItemEditor({
             {hasMetadata && <span className="ml-1 text-muted-foreground/50">({Object.keys(metadata).length})</span>}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="mt-1.5 space-y-2">
-              <div className="space-y-1">
-                <label className="block text-[9px] text-muted-foreground/70 uppercase tracking-wide">
-                  htmlText
-                </label>
-                <CaptionHtmlTextEditor
-                  value={typeof metadata.htmlText === "string" ? metadata.htmlText : ""}
-                  captionText={caption.text}
-                  keyword={typeof metadata.keyword === "string" ? metadata.keyword : undefined}
-                  splitParts={
-                    Array.isArray(metadata.splitParts)
-                      ? (metadata.splitParts as string[])
-                      : undefined
-                  }
-                  onChange={(htmlText) => {
-                    const keyword = extractKeywordsFromHtmlText(htmlText);
-                    const words = (caption.words ?? []).map((w: any) => ({
-                      text: w?.text ?? "",
-                    }));
-                    const parseWords =
-                      words.length > 0
-                        ? words
-                        : String(caption.text ?? "")
-                            .split(/\s+/)
-                            .filter(Boolean)
-                            .map((text: string) => ({ text }));
-                    const parsed = parseCaptionHtmlText(htmlText, parseWords);
-                    onChange({
-                      ...caption,
-                      metadata: {
-                        ...metadata,
-                        htmlText,
-                        ...(keyword ? { keyword } : {}),
-                        ...(parsed?.splitParts ? { splitParts: parsed.splitParts } : {}),
-                      },
-                    });
-                  }}
-                />
-              </div>
-              <MetadataEditor
-                metadata={metadata}
-                onChange={(newMeta) => onChange({ ...caption, metadata: newMeta })}
-              />
-            </div>
+            <MetadataEditor
+              metadata={metadata}
+              captionText={caption.text}
+              captionWords={words}
+              onChange={(newMeta) => onChange({ ...caption, metadata: newMeta })}
+            />
           </CollapsibleContent>
         </Collapsible>
       </div>
@@ -672,27 +721,27 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       const migratedPresets =
         Object.keys(keyMapping).length > 0
           ? (latestTimeline.presets || []).map((preset) => ({
-              ...preset,
-              presetInputData: remapDataReferenceKeys(preset.presetInputData || {}, keyMapping),
-            }))
+            ...preset,
+            presetInputData: remapDataReferenceKeys(preset.presetInputData || {}, keyMapping),
+          }))
           : latestTimeline.presets;
 
       const migratedActions =
         Object.keys(keyMapping).length > 0
           ? (latestTimeline.actions || []).map((action) => {
-              if (
-                action.target?.type === "reference" &&
-                oldKey &&
-                action.target.referenceKey === oldKey &&
-                newKey
-              ) {
-                return {
-                  ...action,
-                  target: { type: "reference" as const, referenceKey: newKey },
-                };
-              }
-              return action;
-            })
+            if (
+              action.target?.type === "reference" &&
+              oldKey &&
+              action.target.referenceKey === oldKey &&
+              newKey
+            ) {
+              return {
+                ...action,
+                target: { type: "reference" as const, referenceKey: newKey },
+              };
+            }
+            return action;
+          })
           : latestTimeline.actions;
 
       updateTimeline(timeline.id, {
