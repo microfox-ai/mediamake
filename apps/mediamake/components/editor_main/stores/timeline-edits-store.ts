@@ -280,6 +280,22 @@ const markTimelinePublishedUpToCursor = (
     return { ...entry, timelineId, published: true };
   });
 
+/** Drop bulky action output payloads from a timeline (already applied to presets/refs). */
+const stripActionOutputsFromTimeline = (timeline: Timeline): Timeline => {
+  if (!timeline.actions?.length) return timeline;
+  return {
+    ...timeline,
+    actions: timeline.actions.map((a) =>
+      a.outputs?.length ? { ...a, outputs: [] } : a,
+    ),
+  };
+};
+
+const stripActionOutputsFromEditedEntries = (
+  entries: [string, Timeline][],
+): [string, Timeline][] =>
+  entries.map(([id, timeline]) => [id, stripActionOutputsFromTimeline(timeline)]);
+
 const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsState>) => {
   if (typeof window === 'undefined') return;
   try {
@@ -301,7 +317,23 @@ const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsSta
       currentProjectId: state.currentProjectId ?? existing?.currentProjectId ?? projectId,
       isDirty: state.isDirty ?? existing?.isDirty ?? false,
     };
-    localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
+    try {
+      localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
+    } catch (quotaError) {
+      // Action outputs (beat shakes, etc.) often blow the ~5MB localStorage quota.
+      // Retry without them — applied effects already live on preset/reference data.
+      const stripped = {
+        ...toStore,
+        editedTimelines: stripActionOutputsFromEditedEntries(
+          toStore.editedTimelines as [string, Timeline][],
+        ),
+      };
+      localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(stripped));
+      console.warn(
+        'Timeline localStorage quota exceeded; persisted edits without action outputs.',
+        quotaError,
+      );
+    }
   } catch (error) {
     console.error('Error saving to storage:', error);
   }
@@ -337,10 +369,31 @@ const timelineHistoryKey = (projectId: string | null) =>
 
 const persistTimelineHistory = (projectId: string | null, history: HistoryEntry[], historyIndex: number) => {
   if (typeof window === 'undefined') return;
+  const key = timelineHistoryKey(projectId);
   try {
-    localStorage.setItem(timelineHistoryKey(projectId), JSON.stringify({ history, historyIndex }));
+    localStorage.setItem(key, JSON.stringify({ history, historyIndex }));
   } catch {
-    // quota — best-effort
+    // Quota — retry with action outputs stripped from history snapshots.
+    try {
+      const stripped = history.map((entry) => ({
+        ...entry,
+        timeline: stripActionOutputsFromTimeline(entry.timeline),
+      }));
+      localStorage.setItem(key, JSON.stringify({ history: stripped, historyIndex }));
+    } catch {
+      // Still over quota — drop oldest half of history and try once more.
+      try {
+        const keepFrom = Math.max(0, Math.floor(history.length / 2));
+        const trimmed = history.slice(keepFrom).map((entry) => ({
+          ...entry,
+          timeline: stripActionOutputsFromTimeline(entry.timeline),
+        }));
+        const nextIndex = Math.max(-1, historyIndex - keepFrom);
+        localStorage.setItem(key, JSON.stringify({ history: trimmed, historyIndex: nextIndex }));
+      } catch {
+        // best-effort — in-memory history still works for this session
+      }
+    }
   }
 };
 

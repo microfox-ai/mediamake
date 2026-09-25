@@ -92,9 +92,31 @@ export function stripActionOutputFromTargetData(
   return next;
 }
 
-function recompileTimeline(timelineId: string) {
+/**
+ * Resolve a timeline for action ops. Prefer local edits; fall back to the
+ * project store when edits were never created or failed to persist (e.g.
+ * localStorage quota exceeded).
+ */
+function resolveTimeline(timelineId: string): Timeline | null {
   const edits = useTimelineEditsStore.getState();
-  const latest = edits.getEditedTimeline(timelineId);
+  const edited = edits.getEditedTimeline(timelineId);
+  if (edited) return edited;
+
+  // Lazy require avoids circular import with project-store ↔ edits-store.
+  const { useProjectStore } = require("@/components/editor_main/stores/project-store");
+  const projectState = useProjectStore.getState();
+  if (projectState.loadedTimeline?.id === timelineId) {
+    return projectState.loadedTimeline as Timeline;
+  }
+  return (
+    (projectState.timelines.find((t: Timeline) => t.id === timelineId) as
+      | Timeline
+      | undefined) || null
+  );
+}
+
+function recompileTimeline(timelineId: string) {
+  const latest = resolveTimeline(timelineId);
   if (!latest) return;
   const compileStore = useCompileStore.getState();
   if (compileStore.currentTimeline?.id === latest.id) {
@@ -108,7 +130,7 @@ export async function executeAndApply(
   actionId: string,
 ): Promise<void> {
   const edits = useTimelineEditsStore.getState();
-  const timeline = edits.getEditedTimeline(timelineId);
+  const timeline = resolveTimeline(timelineId);
   if (!timeline) throw new Error("Timeline not found");
 
   const action = (timeline.actions || []).find((a) => a.id === actionId);
@@ -131,7 +153,7 @@ export async function executeAndApply(
     const definition = getActionDefinition(action.actionId);
     if (!definition) throw new Error("Action definition missing");
 
-    const refreshed = edits.getEditedTimeline(timelineId) || timeline;
+    const refreshed = resolveTimeline(timelineId) || timeline;
     const currentData = getTargetData(refreshed, action.target);
     const nextData = applyActionOutputToTargetData({
       definition,
@@ -175,7 +197,7 @@ export function removeTimelineAction(
   options: { deleteOutputs: boolean },
 ) {
   const edits = useTimelineEditsStore.getState();
-  const timeline = edits.getEditedTimeline(timelineId);
+  const timeline = resolveTimeline(timelineId);
   if (!timeline) return;
 
   const action = (timeline.actions || []).find((a) => a.id === actionId);
