@@ -7,19 +7,30 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 // Define the schema for image sources
 const imageSourceSchema = z.object({
   src: z.string().describe('Image source URL'),
+  rangeString: z
+    .string()
+    .optional()
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.groupEditable]: false,
+    })
+    .describe('Range in MM:SS-MM:SS format like 01:00-02:00'),
   duration: z
     .number()
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
     .describe(
       'Duration in seconds (optional - if not provided, will use effect durations)',
     ),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('How the image should fit (default: cover)'),
   filter: z
     .enum([
@@ -39,6 +50,7 @@ const imageSourceSchema = z.object({
       'sharp',
     ])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Image filter effect (default: none)'),
   blendMode: z
     .enum([
@@ -60,12 +72,14 @@ const imageSourceSchema = z.object({
       'luminosity',
     ])
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Blend mode for the image (default: normal)'),
   opacity: z
     .number()
     .min(0)
     .max(1)
     .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Image opacity (0-1, default: 1)'),
 });
 
@@ -75,6 +89,11 @@ const effectSchema = z.object({
     .enum(['pan', 'zoom', 'generic', 'shake', 'fastcut', 'stack'])
     .describe('Type of effect to apply'),
   id: z.string().optional().describe('Custom effect ID'),
+  range: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.rangeField]: true })
+    .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
   start: z.number().optional().describe('Effect start offset time in seconds'),
   duration: z.number().optional().describe('Effect duration in seconds'),
   // Pan effect options
@@ -280,8 +299,29 @@ const presetParams = z.object({
     .number()
     .optional()
     .describe('Track start offset time in seconds (default: 0)'),
-  images: z.array(imageSourceSchema).min(1).describe('Array of image sources'),
-  effects: z.array(effectSchema).min(1).describe('Array of effects to apply'),
+  images: z
+    .object({
+      mediaRef: z
+        .string()
+        .optional()
+        .describe(
+          'Linked medias reference key — srcs are read/written from this ref',
+        ),
+      items: z
+        .array(imageSourceSchema)
+        .describe('Per-image local props (fit, filter, range, etc.)'),
+    })
+    .meta({
+      [paramMetaTypes.nestedRangeField]: 'items[].rangeString',
+      [paramMetaTypes.imagesGroup]: true,
+      [paramMetaTypes.referrableDataType]: 'medias',
+    })
+    .describe('Image sources with optional linked medias ref for srcs'),
+  effects: z
+    .array(effectSchema)
+    .min(1)
+    .meta({ [paramMetaTypes.nestedRangeField]: '[].range' })
+    .describe('Array of effects to apply'),
   transitionSounds: soundConfigSchema
     .optional()
     .describe('Configuration for transition sound effects'),
@@ -292,10 +332,21 @@ const presetExecution = (
   params: z.infer<typeof presetParams>,
   props: {
     config: InputCompositionProps['config'];
+    helpers?: Record<string, Function>;
   },
 ): Partial<PresetOutput> => {
-  const { images, effects, transitionSounds } = params;
-  const { config } = props;
+  const rawImages = (params as any).images;
+  const images: any[] = Array.isArray(rawImages)
+    ? rawImages
+    : Array.isArray(rawImages?.items)
+      ? rawImages.items
+      : [];
+  const { effects, transitionSounds } = params;
+  const { config, helpers } = props;
+
+  const parseTimeRange = (helpers?.parseTimeRange ?? (() => null)) as (
+    range: string,
+  ) => { start: number; end: number } | null;
 
   // Helper function to generate CSS filter styles
   const generateFilterStyle = (filter: string): string => {
@@ -450,6 +501,12 @@ const presetExecution = (
 
   // Helper function to calculate effective image duration based on effects
   const calculateImageDuration = (image: any, imageIndex?: number): number => {
+    // Prefer imageloop-style rangeString
+    const imageRange = parseTimeRange(image.rangeString || '');
+    if (imageRange && imageRange.end > imageRange.start) {
+      return imageRange.end - imageRange.start;
+    }
+
     // If image has explicit duration, use it
     if (image.duration && image.duration > 0) {
       return image.duration;
@@ -479,8 +536,13 @@ const presetExecution = (
       // Skip fastcut and stack effects as they don't determine image duration
       if (effect.type === 'fastcut' || effect.type === 'stack') return;
 
-      const effectStart = effect.start || 0;
-      const effectDuration = effect.duration || 0;
+      const timeRange = parseTimeRange(effect.range || '');
+      const effectStart = timeRange
+        ? timeRange.start
+        : effect.start || 0;
+      const effectDuration = timeRange
+        ? timeRange.end - timeRange.start
+        : effect.duration || 0;
 
       // For effects with explicit duration
       if (effectDuration > 0) {
@@ -968,9 +1030,12 @@ const presetExecution = (
         },
       },
       context: {
-        timing: {
-          duration: effectiveImageDuration,
-        },
+        timing: (() => {
+          const imageRange = parseTimeRange(image.rangeString || '');
+          return imageRange
+            ? { start: imageRange.start, duration: effectiveImageDuration }
+            : { duration: effectiveImageDuration };
+        })(),
       },
       effects: imageEffects,
     };
@@ -1249,29 +1314,31 @@ const presetMetadata: PresetMetadata = {
   defaultInputParams: {
     trackName: 'imageloop-sound-track',
     trackStartOffset: 0,
-    images: [
-      {
-        src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-        fit: 'cover',
-        filter: 'none',
-        blendMode: 'normal',
-        opacity: 1,
-      },
-      {
-        src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=600&fit=crop',
-        fit: 'cover',
-        filter: 'none',
-        blendMode: 'normal',
-        opacity: 1,
-      },
-      {
-        src: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&h=600&fit=crop',
-        fit: 'cover',
-        filter: 'none',
-        blendMode: 'normal',
-        opacity: 1,
-      },
-    ],
+    images: {
+      items: [
+        {
+          src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
+          fit: 'cover',
+          filter: 'none',
+          blendMode: 'normal',
+          opacity: 1,
+        },
+        {
+          src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=600&fit=crop',
+          fit: 'cover',
+          filter: 'none',
+          blendMode: 'normal',
+          opacity: 1,
+        },
+        {
+          src: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&h=600&fit=crop',
+          fit: 'cover',
+          filter: 'none',
+          blendMode: 'normal',
+          opacity: 1,
+        },
+      ],
+    },
     effects: [
       {
         type: 'zoom',

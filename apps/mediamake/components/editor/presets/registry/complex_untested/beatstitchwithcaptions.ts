@@ -29,6 +29,7 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import { paramMetaTypes } from '../../dataTypes';
 
 type Effect = {
   id: string;
@@ -108,11 +109,12 @@ const presetParams = z.object({
     )
     .min(1)
     .describe('Array of video/image clips to cut with beats'),
-  clipRanges: z
-    .array(z.string())
+  rangeString: z
+    .string()
     .optional()
+    .meta({ [paramMetaTypes.rangeField]: true })
     .describe(
-      'Time ranges where beat stitch should be applied (e.g., ["1:35-2:36", "3:45-4:20"])',
+      'Time ranges where beat stitch should be applied (MM:SS-MM:SS, comma-separated, e.g. 0:10-0:20,0:30-0:40)',
     ),
   minTimeDiff: z
     .number()
@@ -151,13 +153,13 @@ const presetExecution = async (
   props: {
     config: InputCompositionProps['config'];
     fetcher: (url: string, data: any) => Promise<any>;
+    helpers?: Record<string, Function>;
   },
 ): Promise<Partial<PresetOutput>> => {
   const {
     trackName,
     audio,
     clips,
-    clipRanges,
     minTimeDiff,
     maxBeats,
     isRepeatClips,
@@ -165,7 +167,28 @@ const presetExecution = async (
     captionMode,
   } = params;
 
-  const { config, fetcher } = props;
+  const { config, fetcher, helpers } = props;
+  const normalizeRangeString = helpers!.normalizeRangeString as (
+    v: unknown,
+  ) => string;
+  const parseTimeRange = helpers!.parseTimeRange as (
+    range: string,
+  ) => { start: number; end: number } | null;
+  const parseClipRanges = (ranges: string[]) =>
+    ranges
+      .map(r => parseTimeRange(r))
+      .filter((r): r is { start: number; end: number } => r !== null);
+
+  // Imageloop-style rangeString; accept legacy clipRanges array/string
+  const rangeString = normalizeRangeString(
+    (params as any).rangeString ?? (params as any).clipRanges,
+  );
+  const clipRanges = rangeString
+    ? rangeString
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+    : [];
 
   // Helper function to find caption at a specific timestamp
   const findCaptionAtTime = (timestamp: number) => {
@@ -361,23 +384,6 @@ const presetExecution = async (
     };
   }
 
-  // Helper function to parse time range strings like "1:35-2:36"
-  const parseTimeRange = (
-    timeRange: string,
-  ): { start: number; end: number } => {
-    const [startStr, endStr] = timeRange.split('-');
-
-    const parseTime = (timeStr: string): number => {
-      const [minutes, seconds] = timeStr.split(':').map(Number);
-      return minutes * 60 + seconds;
-    };
-
-    return {
-      start: parseTime(startStr),
-      end: parseTime(endStr),
-    };
-  };
-
   const getTransitionDuration = (
     transition: z.infer<typeof presetParams>['transition'],
   ): number => {
@@ -565,7 +571,7 @@ const presetExecution = async (
 
     if (clipRanges && clipRanges.length > 0) {
       // If clipRanges are provided, filter beats to only include those within the specified ranges
-      const parsedRanges = clipRanges.map(parseTimeRange);
+      const parsedRanges = parseClipRanges(clipRanges);
 
       clippedData = analysisData.filter(beat => {
         return parsedRanges.some(
@@ -608,7 +614,7 @@ const presetExecution = async (
   const effectiveClipRanges = generateNonSpeakingClipRanges();
 
   if (effectiveClipRanges && effectiveClipRanges.length > 0) {
-    const parsedRanges = effectiveClipRanges.map(parseTimeRange);
+    const parsedRanges = parseClipRanges(effectiveClipRanges);
 
     for (const range of parsedRanges) {
       // Step 1: Filter analysis data for the current range.
@@ -1133,7 +1139,7 @@ const presetExecution = async (
 
     // If clipRanges are provided, create a separate segment for each time range.
     const segments = [];
-    const parsedRanges = clipRanges.map(parseTimeRange);
+    const parsedRanges = parseClipRanges(clipRanges);
 
     for (let i = 0; i < parsedRanges.length; i++) {
       const range = parsedRanges[i];
@@ -1254,7 +1260,7 @@ const presetMetadata: PresetMetadata = {
         opacity: 0.9,
       },
     ],
-    clipRanges: ['0:10-0:20', '0:30-0:40'],
+    rangeString: '0:10-0:20,0:30-0:40',
     minTimeDiff: 0.5,
     maxBeats: 0,
     isRepeatClips: true,

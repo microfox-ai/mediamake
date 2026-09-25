@@ -63,8 +63,6 @@ const mediaTrackItemSchema = z.object({
     .describe(
       'Appearance range(s) MM:SS-MM:SS (comma-separated for multiple, e.g. 0:10-2:30,6:00-8:30)',
     ),
-  /** @deprecated Prefer rangeString — kept for legacy saved presets */
-  ranges: z.array(z.string()).optional(),
   duration: z.number().optional().describe('Fixed duration in seconds'),
   loop: z
     .boolean()
@@ -206,19 +204,18 @@ function resolveMediaItems(raw: unknown): MediaTrackItem[] {
 }
 
 /** Prefer rangeString (comma-separated); fall back to legacy ranges[]. */
-function resolveItemRangeStrings(mediaItem: MediaTrackItem): string[] {
-  if (typeof mediaItem.rangeString === 'string' && mediaItem.rangeString.trim()) {
-    return mediaItem.rangeString
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-  }
-  if (Array.isArray(mediaItem.ranges)) {
-    return mediaItem.ranges.filter(
-      (r): r is string => typeof r === 'string' && r.trim().length > 0,
-    );
-  }
-  return [];
+function resolveItemRangeStrings(
+  mediaItem: MediaTrackItem & { ranges?: string[] },
+  normalizeRangeString: (v: unknown) => string,
+): string[] {
+  const joined = normalizeRangeString(
+    mediaItem.rangeString ?? (mediaItem as any).ranges,
+  );
+  if (!joined) return [];
+  return joined
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 const presetExecution = (
@@ -226,6 +223,7 @@ const presetExecution = (
   props: {
     config: InputCompositionProps['config'];
     clip?: { start?: number; duration?: number };
+    helpers?: Record<string, Function>;
   },
 ): PresetOutput => {
   // Get the base scene start offset from the clip information
@@ -233,6 +231,14 @@ const presetExecution = (
   // After processDataReferences, mediaItems may already be a merged array.
   // Before processing (or if unprocessed), it is { mediaRef?, items }.
   const mediaItems = resolveMediaItems((params as any).mediaItems);
+
+  const parseTimeRange = (props.helpers?.parseTimeRange ?? (() => null)) as (
+    range: string,
+  ) => { start: number; end: number } | null;
+  const normalizeRangeString = (props.helpers?.normalizeRangeString ??
+    ((v: unknown) => (typeof v === 'string' ? v : ''))) as (
+    v: unknown,
+  ) => string;
 
   // Helper function to create transition effects
   const createTransitionEffects = (
@@ -491,43 +497,20 @@ const presetExecution = (
 
     return effects;
   };
-  // Helper function to parse time range (MM:SS-MM:SS or flexible seconds)
-  const parseTimeRange = (
+  // Helper function to parse time range (imageloop-style via helpers)
+  const parseItemTimeRange = (
     range: string,
   ): { start: number; duration: number } | null => {
-    if (!range) return null;
-
-    const match = range.match(
-      /^(\d{1,2}):(\d{2}(?:\.\d+)?)\s*-\s*(\d{1,2}):(\d{2}(?:\.\d+)?)$/,
-    );
-    if (match) {
-      const startTime =
-        parseInt(match[1]!, 10) * 60 + parseFloat(match[2]!);
-      const endTime =
-        parseInt(match[3]!, 10) * 60 + parseFloat(match[4]!);
-      const duration = endTime - startTime;
-      if (duration <= 0) return null;
-      return { start: startTime, duration };
-    }
-
-    // Bare seconds: "10-150"
-    const bare = range.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
-    if (bare) {
-      const startTime = parseFloat(bare[1]!);
-      const endTime = parseFloat(bare[2]!);
-      const duration = endTime - startTime;
-      if (duration <= 0) return null;
-      return { start: startTime, duration };
-    }
-
-    return null;
+    const tr = parseTimeRange(range);
+    if (!tr || tr.end <= tr.start) return null;
+    return { start: tr.start, duration: tr.end - tr.start };
   };
 
   // Create scenes for each video
   const scenes = mediaItems
     .flatMap((mediaItem, index) => {
       // Prefer rangeString (comma-separated); fall back to legacy ranges[]
-      const ranges = resolveItemRangeStrings(mediaItem);
+      const ranges = resolveItemRangeStrings(mediaItem, normalizeRangeString);
 
       // If no ranges provided, create a single scene with no time range
       if (ranges.length === 0) {
@@ -536,7 +519,7 @@ const presetExecution = (
 
       // Create a scene for each range
       return ranges.map((range, rangeIndex) => {
-        const timeRange = parseTimeRange(range);
+        const timeRange = parseItemTimeRange(range);
         return createMediaScene(mediaItem, index, rangeIndex, timeRange);
       });
     })

@@ -26,6 +26,7 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 interface ShakeEffectData extends GenericEffectData {
   amplitude?: number;
@@ -135,6 +136,7 @@ const presetParams = z.object({
       .string()
       .nullable()
       .optional()
+      .meta({ [paramMetaTypes.rangeField]: true })
       .describe(
         'Time range in format "MM:SS-MM:SS" (e.g., "00:00-00:09"). Overrides startOffset and duration if provided.',
       ),
@@ -173,6 +175,9 @@ const presetParams = z.object({
 
 const presetExecution = (
   params: z.infer<typeof presetParams>,
+  props?: {
+    helpers?: Record<string, Function>;
+  },
 ): PresetOutput => {
   const {
     text,
@@ -184,46 +189,28 @@ const presetExecution = (
     transitions,
   } = params;
 
+  const parseTimeRange = (props?.helpers?.parseTimeRange ?? (() => null)) as (
+    range: string,
+  ) => { start: number; end: number } | null;
+
   const generateId = () => {
     return `${Math.random().toString(36).substring(2, 15)}`;
   };
 
-  // Parse range string (format: "MM:SS-MM:SS") to startOffset and duration
+  // Parse range string (imageloop-style MM:SS-MM:SS) to startOffset and duration
   const parseRange = (
     range: string | null | undefined,
   ): { startOffset?: number; duration?: number } | null => {
     if (!range || range.trim() === '') {
       return null;
     }
-
-    const parts = range.split('-');
-    if (parts.length !== 2) {
+    const timeRange = parseTimeRange(range);
+    if (!timeRange || timeRange.end <= timeRange.start) {
       return null;
     }
-
-    const parseTime = (timeStr: string): number | null => {
-      const timeParts = timeStr.trim().split(':');
-      if (timeParts.length !== 2) {
-        return null;
-      }
-      const minutes = parseInt(timeParts[0], 10);
-      const seconds = parseInt(timeParts[1], 10);
-      if (isNaN(minutes) || isNaN(seconds)) {
-        return null;
-      }
-      return minutes * 60 + seconds;
-    };
-
-    const startTime = parseTime(parts[0]);
-    const endTime = parseTime(parts[1]);
-
-    if (startTime === null || endTime === null || endTime <= startTime) {
-      return null;
-    }
-
     return {
-      startOffset: startTime,
-      duration: endTime - startTime,
+      startOffset: timeRange.start,
+      duration: timeRange.end - timeRange.start,
     };
   };
   const textAtomId = `text-atom-${generateId()}`;

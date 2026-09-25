@@ -4,13 +4,17 @@ import { useEditorStore } from "../../../stores/editor-store";
 import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { TimelineContent } from "./TimelineContent";
 import { PresetTimelineContent } from "./PresetTimelineContent";
+import { ReferenceTimelineContent } from "./ReferenceTimelineContent";
 
 export function EditorContent() {
   const { selectedItem } = useEditorStore();
   const { filePanelTab } = useEditorUIStore();
 
-  // When Timelines tab is active, always show the preset timeline placeholder
+  // When Timelines tab is active: reference → reference timeline, else preset timeline
   if (filePanelTab === "timelines") {
+    if (selectedItem?.type === "reference") {
+      return <ReferenceTimelineContent />;
+    }
     return <PresetTimelineContent />;
   }
 

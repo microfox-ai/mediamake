@@ -85,7 +85,10 @@ const presetParams = z.object({
 
 const presetExecution = async (
   params: z.infer<typeof presetParams>,
-  props: { config: InputCompositionProps['config'] },
+  props: {
+    config: InputCompositionProps['config'];
+    helpers?: Record<string, Function>;
+  },
 ): Promise<Partial<PresetOutput>> => {
   const {
     trackId,
@@ -111,22 +114,16 @@ const presetExecution = async (
     grain,
     seed,
   } = params;
+  const { helpers } = props;
 
-  // Parse range string (MM:SS-MM:SS) into start/duration seconds.
-  // Priority: rangeString > start/duration params.
-  const parseRangeString = (
-    range: string | undefined,
-  ): { start: number; duration: number } | null => {
-    if (!range) return null;
-    const match = range.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
-    if (!match) return null;
-    const start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-    const end = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
-    if (end <= start) return null;
-    return { start, duration: end - start };
-  };
+  const parseTimeRange = (helpers?.parseTimeRange ?? (() => null)) as (
+    range: string,
+  ) => { start: number; end: number } | null;
 
-  const range = parseRangeString(rangeString);
+  const tr = parseTimeRange(rangeString || '');
+  const range = tr && tr.end > tr.start
+    ? { start: tr.start, duration: tr.end - tr.start }
+    : null;
   const start = range ? range.start : params.start;
   const duration = range ? range.duration : params.duration;
 

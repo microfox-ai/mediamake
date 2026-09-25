@@ -43,8 +43,6 @@ const presetParams = z.object({
     .describe(
       'Time ranges in MM:SS-MM:SS format (comma-separated for multiple, e.g. 0:00-2:00,5:00-7:00)',
     ),
-  /** @deprecated Prefer rangeString — kept for legacy saved presets */
-  ranges: z.array(z.string()).optional(),
   trackName: z
     .string()
     .describe('Name of the track used as prefix for each atom'),
@@ -55,46 +53,43 @@ const presetExecution = async (
   props: {
     config: InputCompositionProps['config'];
     fetcher: (url: string, data: any) => Promise<any>;
+    helpers?: Record<string, Function>;
   },
 ): Promise<Partial<PresetOutput>> => {
   const { className, style, trackName } = params;
+  const { helpers } = props;
 
-  const { config } = props;
+  const normalizeRangeString = (helpers?.normalizeRangeString ??
+    ((v: unknown) => (typeof v === 'string' ? v : ''))) as (
+    v: unknown,
+  ) => string;
+  const parseTimeRange = (helpers?.parseTimeRange ?? (() => null)) as (
+    range: string,
+  ) => { start: number; end: number } | null;
+  const parseTimeRanges = (helpers?.parseTimeRanges ??
+    ((s: string) =>
+      s
+        .split(',')
+        .map(x => x.trim())
+        .filter(Boolean)
+        .map(seg => parseTimeRange(seg))
+        .filter((r): r is { start: number; end: number } => r !== null))) as (
+    range: string,
+  ) => { start: number; end: number }[];
 
-  // Prefer rangeString (comma-separated); fall back to legacy ranges[]
-  const ranges: string[] =
-    typeof params.rangeString === 'string' && params.rangeString.trim()
-      ? params.rangeString
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean)
-      : Array.isArray(params.ranges)
-        ? params.ranges.filter(r => typeof r === 'string' && r.trim())
-        : [];
-
-  // Helper function to parse time string (e.g., "0:30" to 30 seconds)
-  const parseTimeString = (timeStr: string): number => {
-    const [minutes, seconds] = timeStr.split(':').map(Number);
-    return minutes * 60 + seconds;
-  };
-
-  // Helper function to parse range string (e.g., "0:30-1:15" to { start: 30, end: 75 })
-  const parseRangeString = (
-    rangeStr: string,
-  ): { start: number; end: number } => {
-    const [startStr, endStr] = rangeStr.split('-');
-    return {
-      start: parseTimeString(startStr.trim()),
-      end: parseTimeString(endStr.trim()),
-    };
-  };
+  // Prefer rangeString; fall back to legacy ranges[]
+  const rangeString = normalizeRangeString(
+    (params as any).rangeString ?? (params as any).ranges,
+  );
+  const parsedRanges = parseTimeRanges(rangeString);
 
   // Create div components for each range
   const divComponents: any[] = [];
 
-  ranges.forEach((rangeStr, index) => {
-    const { start, end } = parseRangeString(rangeStr);
-    const duration = end - start;
+  parsedRanges.forEach((timeRange, index) => {
+    if (timeRange.end <= timeRange.start) return;
+    const start = timeRange.start;
+    const duration = timeRange.end - timeRange.start;
 
     const divComponent = {
       id: `${trackName}-html-block-${index}`,
@@ -119,6 +114,11 @@ const presetExecution = async (
     divComponents.push(divComponent);
   });
 
+  const maxEnd =
+    parsedRanges.length > 0
+      ? Math.max(...parsedRanges.map(tr => tr.end))
+      : 0;
+
   return {
     output: {
       childrenData: [
@@ -134,12 +134,7 @@ const presetExecution = async (
           context: {
             timing: {
               start: 0,
-              duration:
-                ranges.length > 0
-                  ? Math.max(
-                      ...ranges.map(range => parseRangeString(range).end),
-                    )
-                  : 0,
+              duration: maxEnd,
             },
           },
           childrenData: divComponents,

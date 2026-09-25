@@ -160,6 +160,36 @@ export const parseTimeRange = (
 };
 
 /**
+ * Parses all comma-separated MM:SS-MM:SS segments (imageloop-style multi-range).
+ */
+export const parseTimeRanges = (
+  range: string,
+): { start: number; end: number }[] => {
+  if (typeof range !== 'string' || !range.trim()) return [];
+  return range
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(seg => parseTimeRange(seg))
+    .filter((r): r is { start: number; end: number } => r !== null);
+};
+
+/**
+ * Normalize a range param to imageloop-style comma-joined rangeString.
+ * Accepts string, string[] (legacy), or undefined.
+ */
+export const normalizeRangeString = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim();
+  if (Array.isArray(value)) {
+    return value
+      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+      .map(v => v.trim())
+      .join(',');
+  }
+  return '';
+};
+
+/**
  * Converts hex color to RGB object
  */
 export const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
@@ -566,6 +596,8 @@ export const presetStdLib = {
   getMediaDuration,
   parseTimeToSeconds,
   parseTimeRange,
+  parseTimeRanges,
+  normalizeRangeString,
   hexToRgb,
   preprocessCaptions,
   splitSentenceIntoParts,
@@ -586,6 +618,8 @@ export const presetStdLib = {
 export const defaultInjectedHelpers = {
   parseTimeToSeconds,
   parseTimeRange,
+  parseTimeRanges,
+  normalizeRangeString,
   parseCaptionHtmlText,
   resolveCaptionHighlightMeta,
 } as const;
