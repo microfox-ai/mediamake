@@ -174,6 +174,29 @@ function parseParagraphWords(pNode: {
   return words;
 }
 
+function normalizeCaptionText(text: string | undefined): string {
+  return (text ?? '').trim().replace(/\s+/g, ' ');
+}
+
+function sameLineContent(
+  prev: CaptionLike,
+  text: string,
+  words: NonNullable<CaptionLike['words']>,
+): boolean {
+  if (normalizeCaptionText(prev.text) === normalizeCaptionText(text)) {
+    return true;
+  }
+  const prevWords = (prev.words ?? [])
+    .map(w => w.text ?? '')
+    .join(' ')
+    .trim();
+  const nextWords = words
+    .map(w => w.text ?? '')
+    .join(' ')
+    .trim();
+  return prevWords.length > 0 && prevWords === nextWords;
+}
+
 function docToCaptions(
   doc: any,
   prevCaptions: CaptionLike[],
@@ -182,57 +205,74 @@ function docToCaptions(
     prevCaptions.filter(c => c.id).map(c => [c.id as string, c]),
   );
   const prevCount = prevCaptions.length;
-  const newCaptions: CaptionLike[] = [];
+
+  type Draft = {
+    id: string;
+    text: string;
+    words: NonNullable<CaptionLike['words']>;
+    absoluteStart: number;
+    absoluteEnd: number;
+  };
+  const drafts: Draft[] = [];
 
   doc.forEach((pNode: any) => {
     if (pNode.type.name !== 'paragraph') return;
     const words = parseParagraphWords(pNode);
-    if (words.length === 0 && !pNode.textContent?.trim()) {
-      // Keep empty paragraphs as empty captions so Enter-created lines persist
-      const id = pNode.attrs['data-sentence-id'] || generateId();
+    const id = (pNode.attrs['data-sentence-id'] as string) || generateId();
+    const text = (pNode.textContent || '').trim();
+
+    if (words.length === 0 && !text) {
       const prev = prevById.get(id);
-      newCaptions.push({
+      drafts.push({
         id,
         text: '',
+        words: [],
         absoluteStart: prev?.absoluteStart ?? 0,
         absoluteEnd: (prev?.absoluteStart ?? 0) + DEFAULT_NEW_WORD_DURATION,
-        start: 0,
-        end: DEFAULT_NEW_WORD_DURATION,
-        duration: DEFAULT_NEW_WORD_DURATION,
-        words: [],
-        metadata: {},
       });
       return;
     }
     if (words.length === 0) return;
 
-    const sentenceStart = words[0].absoluteStart ?? 0;
-    const sentenceEnd = words[words.length - 1].absoluteEnd ?? sentenceStart;
-    const id = pNode.attrs['data-sentence-id'] || generateId();
-    const text = pNode.textContent.trim();
-    const prev = prevById.get(id);
-    const countChanged = doc.childCount !== prevCount;
-
-    // Split/merge → clear metadata; same-line edits keep it
-    let metadata: Record<string, unknown> = {};
-    if (prev && !(countChanged && prev.text !== text)) {
-      metadata = { ...(prev.metadata || {}) };
-    }
-
-    newCaptions.push({
+    drafts.push({
       id,
       text,
-      absoluteStart: sentenceStart,
-      absoluteEnd: sentenceEnd,
-      start: sentenceStart,
-      end: sentenceEnd,
-      duration: sentenceEnd - sentenceStart,
       words,
-      metadata,
+      absoluteStart: words[0].absoluteStart ?? 0,
+      absoluteEnd: words[words.length - 1].absoluteEnd ?? 0,
     });
   });
 
-  return newCaptions;
+  const structureChanged = drafts.length !== prevCount;
+
+  return drafts.map(draft => {
+    const prev = prevById.get(draft.id);
+    const duration = draft.absoluteEnd - draft.absoluteStart;
+
+    // Only clear metadata for lines involved in a split/merge:
+    // - brand-new id (e.g. Enter split offspring)
+    // - existing id whose content changed while line count changed
+    // Untouched lines always keep their metadata.
+    let metadata: Record<string, unknown> = {};
+    if (prev) {
+      const contentUnchanged = sameLineContent(prev, draft.text, draft.words);
+      if (!structureChanged || contentUnchanged) {
+        metadata = { ...(prev.metadata || {}) };
+      }
+    }
+
+    return {
+      id: draft.id,
+      text: draft.text,
+      absoluteStart: draft.absoluteStart,
+      absoluteEnd: draft.absoluteEnd,
+      start: draft.absoluteStart,
+      end: draft.absoluteEnd,
+      duration,
+      words: draft.words,
+      metadata,
+    };
+  });
 }
 
 const LineEditPluginKey = new PluginKey('captionLineEdit');
@@ -387,8 +427,8 @@ export function FullCaptionsEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'full-captions-editor prose prose-sm dark:prose-invert max-w-none',
-          'focus:outline-none min-h-[200px] px-2 py-2 text-sm leading-relaxed',
+          'full-captions-editor caption-tiptap-light prose prose-sm max-w-none',
+          'focus:outline-none min-h-[200px] px-2 py-2 text-sm leading-relaxed text-neutral-900',
         ),
       },
     },
@@ -432,7 +472,7 @@ export function FullCaptionsEditor({
       <p className="text-[10px] text-muted-foreground">
         One caption per line · click a word to seek · hover a line to edit
       </p>
-      <div className="rounded-md border bg-background overflow-hidden">
+      <div className="caption-tiptap-light rounded-md border border-neutral-200 bg-white overflow-hidden">
         <EditorContent editor={editor} />
       </div>
 

@@ -20,6 +20,7 @@
 import { InputCompositionProps } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
 
 const presetParams = z.object({
   className: z
@@ -36,9 +37,14 @@ const presetParams = z.object({
     })
     .optional()
     .describe('Inline styles for the div blocks'),
-  ranges: z
-    .array(z.string())
-    .describe('Array of time ranges in format "0:00-1:00"'),
+  rangeString: z
+    .string()
+    .meta({ [paramMetaTypes.rangeField]: true })
+    .describe(
+      'Time ranges in MM:SS-MM:SS format (comma-separated for multiple, e.g. 0:00-2:00,5:00-7:00)',
+    ),
+  /** @deprecated Prefer rangeString — kept for legacy saved presets */
+  ranges: z.array(z.string()).optional(),
   trackName: z
     .string()
     .describe('Name of the track used as prefix for each atom'),
@@ -51,9 +57,20 @@ const presetExecution = async (
     fetcher: (url: string, data: any) => Promise<any>;
   },
 ): Promise<Partial<PresetOutput>> => {
-  const { className, style, ranges, trackName } = params;
+  const { className, style, trackName } = params;
 
   const { config } = props;
+
+  // Prefer rangeString (comma-separated); fall back to legacy ranges[]
+  const ranges: string[] =
+    typeof params.rangeString === 'string' && params.rangeString.trim()
+      ? params.rangeString
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+      : Array.isArray(params.ranges)
+        ? params.ranges.filter(r => typeof r === 'string' && r.trim())
+        : [];
 
   // Helper function to parse time string (e.g., "0:30" to 30 seconds)
   const parseTimeString = (timeStr: string): number => {
@@ -117,9 +134,12 @@ const presetExecution = async (
           context: {
             timing: {
               start: 0,
-              duration: Math.max(
-                ...ranges.map(range => parseRangeString(range).end),
-              ),
+              duration:
+                ranges.length > 0
+                  ? Math.max(
+                      ...ranges.map(range => parseRangeString(range).end),
+                    )
+                  : 0,
             },
           },
           childrenData: divComponents,
@@ -148,7 +168,7 @@ const presetMetadata: PresetMetadata = {
       borderRadius: '8px',
       padding: '20px',
     },
-    ranges: ['0:00-2:00', '5:00-7:00', '10:00-12:00'],
+    rangeString: '0:00-2:00,5:00-7:00,10:00-12:00',
     trackName: 'html-blocks',
   },
 };

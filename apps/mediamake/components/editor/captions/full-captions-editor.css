@@ -1,3 +1,31 @@
+/* Force light surface — do not follow system/app dark mode */
+.caption-tiptap-light {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+.caption-tiptap-light .ProseMirror {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  min-height: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.caption-tiptap-light .ProseMirror:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.caption-tiptap-light .ProseMirror p {
+  color: #1a1a1a;
+}
+
+.caption-tiptap-light .ProseMirror strong,
+.caption-tiptap-light .ProseMirror b {
+  color: #1d4ed8;
+}
+
 .full-captions-editor p {
   position: relative;
   padding-right: 1.75rem;
@@ -7,7 +35,7 @@
 }
 
 .full-captions-editor p:hover {
-  background-color: hsl(var(--muted) / 0.45);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .caption-line-edit-btn {
@@ -20,7 +48,7 @@
   border-radius: 0.25rem;
   border: none;
   background: transparent;
-  color: hsl(var(--muted-foreground));
+  color: #6b7280;
   opacity: 0;
   cursor: pointer;
   vertical-align: middle;
@@ -31,10 +59,35 @@
 }
 
 .caption-line-edit-btn:hover {
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.1);
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
 }
 
 .full-captions-editor .word-highlight {
   cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .caption-tiptap-light,
+  .caption-tiptap-light .ProseMirror {
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+  }
+
+  .caption-tiptap-light .ProseMirror p {
+    color: #1a1a1a;
+  }
+
+  .full-captions-editor p:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  .caption-line-edit-btn {
+    color: #6b7280;
+  }
+
+  .caption-line-edit-btn:hover {
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.1);
+  }
 }

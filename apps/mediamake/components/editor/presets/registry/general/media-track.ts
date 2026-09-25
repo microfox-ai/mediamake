@@ -30,6 +30,7 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { GenericEffectData } from '@microfox/remotion';
+import { paramMetaTypes } from '../../dataTypes';
 
 // Extended effect data type for shake effects
 interface ShakeEffectData extends GenericEffectData {
@@ -39,84 +40,145 @@ interface ShakeEffectData extends GenericEffectData {
   axis?: 'x' | 'y' | 'both';
 }
 
+const mediaTrackItemSchema = z.object({
+  src: z.string().describe('Media source URL'),
+  type: z.enum(['video', 'image', 'audio']).optional(),
+  fit: z
+    .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('How the media should fit (default: cover)'),
+  startCropVideo: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Trim start offset in seconds'),
+  rangeString: z
+    .string()
+    .optional()
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.groupEditable]: false,
+    })
+    .describe(
+      'Appearance range(s) MM:SS-MM:SS (comma-separated for multiple, e.g. 0:10-2:30,6:00-8:30)',
+    ),
+  /** @deprecated Prefer rangeString — kept for legacy saved presets */
+  ranges: z.array(z.string()).optional(),
+  duration: z.number().optional().describe('Fixed duration in seconds'),
+  loop: z
+    .boolean()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Loop media'),
+  blendMode: z
+    .enum([
+      'screen',
+      'multiply',
+      'overlay',
+      'darken',
+      'lighten',
+      'color-dodge',
+      'color-burn',
+      'hard-light',
+      'soft-light',
+      'difference',
+      'exclusion',
+      'hue',
+      'saturation',
+      'color',
+      'luminosity',
+    ])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Blend mode'),
+  mute: z
+    .boolean()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Mute audio'),
+  playbackRate: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Playback rate'),
+  volume: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Volume 0–1'),
+  fitDurationTo: z.string().optional().describe('Fit duration to another track id'),
+  opacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Opacity 0–1'),
+  fadeInTransition: z
+    .enum([
+      'none',
+      'opacity',
+      'slide-in-right',
+      'slide-in-left',
+      'slide-in-top',
+      'slide-in-bottom',
+      'scale-in',
+      'scale-out',
+      'shake-in',
+      'blur-in',
+    ])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Fade-in transition'),
+  fadeInDuration: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Fade-in duration in seconds'),
+  fadeOutTransition: z
+    .enum([
+      'none',
+      'opacity',
+      'slide-out-right',
+      'slide-out-left',
+      'slide-out-top',
+      'slide-out-bottom',
+      'scale-out',
+      'shake-out',
+      'blur-out',
+    ])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Fade-out transition'),
+  fadeOutDuration: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('Fade-out duration in seconds'),
+});
+
+type MediaTrackItem = z.infer<typeof mediaTrackItemSchema>;
+
 const presetParams = z.object({
   mediaItems: z
-    .array(
-      z.object({
-        src: z.string().url(),
-        type: z.enum(['video', 'image', 'audio']),
-        fit: z
-          .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
-          .optional(),
-        startCropVideo: z.number().optional(),
-        ranges: z
-          .array(
-            z
-              .string()
-              .describe(
-                'Time ranges to make the video appear until 0:10-2:30 will make it appear from context start: 10, duration: 140',
-              ),
-          )
-          .optional(),
-        duration: z.number().optional(),
-        loop: z.boolean().optional(),
-        blendMode: z
-          .enum([
-            'screen',
-            'multiply',
-            'overlay',
-            'darken',
-            'lighten',
-            'color-dodge',
-            'color-burn',
-            'hard-light',
-            'soft-light',
-            'difference',
-            'exclusion',
-            'hue',
-            'saturation',
-            'color',
-            'luminosity',
-          ])
-          .optional(),
-        mute: z.boolean().optional(),
-        playbackRate: z.number().optional(),
-        volume: z.number().optional(),
-        fitDurationTo: z.string().optional(),
-        opacity: z.number().min(0).max(1).optional(),
-        fadeInTransition: z
-          .enum([
-            'none',
-            'opacity',
-            'slide-in-right',
-            'slide-in-left',
-            'slide-in-top',
-            'slide-in-bottom',
-            'scale-in',
-            'scale-out',
-            'shake-in',
-            'blur-in',
-          ])
-          .optional(),
-        fadeInDuration: z.number().optional(),
-        fadeOutTransition: z
-          .enum([
-            'none',
-            'opacity',
-            'slide-out-right',
-            'slide-out-left',
-            'slide-out-top',
-            'slide-out-bottom',
-            'scale-out',
-            'shake-out',
-            'blur-out',
-          ])
-          .optional(),
-        fadeOutDuration: z.number().optional(),
-      }),
-    )
-    .min(1)
-    .describe('Array of video URLs to stitch together in sequence'),
+    .object({
+      mediaRef: z
+        .string()
+        .optional()
+        .describe(
+          'Linked medias reference key — srcs are read/written from this ref',
+        ),
+      items: z
+        .array(mediaTrackItemSchema)
+        .describe('Per-media local props (fit, range, transitions, etc.)'),
+    })
+    .meta({
+      [paramMetaTypes.nestedRangeField]: 'items[].rangeString',
+      [paramMetaTypes.imagesGroup]: true,
+      [paramMetaTypes.referrableDataType]: 'medias',
+    })
+    .describe('Media sources with optional linked medias ref for srcs'),
   trackName: z.string().describe('Name of the track ( used for the ID )'),
   trackType: z.enum(['sequence', 'aligned', 'random']).default('sequence'),
   trackDuration: z
@@ -134,6 +196,31 @@ const presetParams = z.object({
     .optional(),
 });
 
+/** Normalize legacy array or { mediaRef?, items } into a flat items list. */
+function resolveMediaItems(raw: unknown): MediaTrackItem[] {
+  if (Array.isArray(raw)) return raw as MediaTrackItem[];
+  if (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) {
+    return (raw as any).items as MediaTrackItem[];
+  }
+  return [];
+}
+
+/** Prefer rangeString (comma-separated); fall back to legacy ranges[]. */
+function resolveItemRangeStrings(mediaItem: MediaTrackItem): string[] {
+  if (typeof mediaItem.rangeString === 'string' && mediaItem.rangeString.trim()) {
+    return mediaItem.rangeString
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(mediaItem.ranges)) {
+    return mediaItem.ranges.filter(
+      (r): r is string => typeof r === 'string' && r.trim().length > 0,
+    );
+  }
+  return [];
+}
+
 const presetExecution = (
   params: z.infer<typeof presetParams>,
   props: {
@@ -143,10 +230,13 @@ const presetExecution = (
 ): PresetOutput => {
   // Get the base scene start offset from the clip information
   const baseSceneStartOffset = props.clip?.start ?? 0;
+  // After processDataReferences, mediaItems may already be a merged array.
+  // Before processing (or if unprocessed), it is { mediaRef?, items }.
+  const mediaItems = resolveMediaItems((params as any).mediaItems);
 
   // Helper function to create transition effects
   const createTransitionEffects = (
-    mediaItem: z.infer<typeof presetParams>['mediaItems'][0],
+    mediaItem: MediaTrackItem,
     sceneId: string,
     isFadeIn: boolean = true,
     timeRangeOffset: number = 0,
@@ -401,35 +491,43 @@ const presetExecution = (
 
     return effects;
   };
-  // Helper function to parse time range (MM:SS-MM:SS format)
+  // Helper function to parse time range (MM:SS-MM:SS or flexible seconds)
   const parseTimeRange = (
     range: string,
   ): { start: number; duration: number } | null => {
     if (!range) return null;
 
-    const match = range.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
+    const match = range.match(
+      /^(\d{1,2}):(\d{2}(?:\.\d+)?)\s*-\s*(\d{1,2}):(\d{2}(?:\.\d+)?)$/,
+    );
+    if (match) {
+      const startTime =
+        parseInt(match[1]!, 10) * 60 + parseFloat(match[2]!);
+      const endTime =
+        parseInt(match[3]!, 10) * 60 + parseFloat(match[4]!);
+      const duration = endTime - startTime;
+      if (duration <= 0) return null;
+      return { start: startTime, duration };
+    }
 
-    const startMinutes = parseInt(match[1], 10);
-    const startSeconds = parseInt(match[2], 10);
-    const endMinutes = parseInt(match[3], 10);
-    const endSeconds = parseInt(match[4], 10);
+    // Bare seconds: "10-150"
+    const bare = range.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
+    if (bare) {
+      const startTime = parseFloat(bare[1]!);
+      const endTime = parseFloat(bare[2]!);
+      const duration = endTime - startTime;
+      if (duration <= 0) return null;
+      return { start: startTime, duration };
+    }
 
-    const startTime = startMinutes * 60 + startSeconds;
-    const endTime = endMinutes * 60 + endSeconds;
-    const duration = endTime - startTime;
-
-    return {
-      start: startTime,
-      duration: duration,
-    };
+    return null;
   };
 
   // Create scenes for each video
-  const scenes = params.mediaItems
+  const scenes = mediaItems
     .flatMap((mediaItem, index) => {
-      // If ranges array is provided, create a scene for each range
-      const ranges = mediaItem.ranges || [];
+      // Prefer rangeString (comma-separated); fall back to legacy ranges[]
+      const ranges = resolveItemRangeStrings(mediaItem);
 
       // If no ranges provided, create a single scene with no time range
       if (ranges.length === 0) {
@@ -446,7 +544,7 @@ const presetExecution = (
 
   // Helper function to create a media scene
   function createMediaScene(
-    mediaItem: z.infer<typeof presetParams>['mediaItems'][0],
+    mediaItem: MediaTrackItem,
     index: number,
     rangeIndex: number,
     timeRange: { start: number; duration: number } | null,
@@ -473,26 +571,27 @@ const presetExecution = (
     const allEffects = [...fadeInEffects, ...fadeOutEffects];
 
     let mediaType = mediaItem.type;
+    const src = String(mediaItem.src || '');
 
     if (!mediaType) {
       if (
-        mediaItem.src.endsWith('.png') ||
-        mediaItem.src.endsWith('.jpg') ||
-        mediaItem.src.endsWith('.jpeg') ||
-        mediaItem.src.endsWith('.gif') ||
-        mediaItem.src.endsWith('.webp') ||
-        mediaItem.src.endsWith('.svg') ||
-        mediaItem.src.endsWith('.avif')
+        src.endsWith('.png') ||
+        src.endsWith('.jpg') ||
+        src.endsWith('.jpeg') ||
+        src.endsWith('.gif') ||
+        src.endsWith('.webp') ||
+        src.endsWith('.svg') ||
+        src.endsWith('.avif')
       ) {
         mediaType = 'image';
       } else if (
-        mediaItem.src.endsWith('.mp4') ||
-        mediaItem.src.endsWith('.webm') ||
-        mediaItem.src.endsWith('.mov') ||
-        mediaItem.src.endsWith('.avi') ||
-        mediaItem.src.endsWith('.mkv') ||
-        mediaItem.src.endsWith('.flv') ||
-        mediaItem.src.endsWith('.wmv')
+        src.endsWith('.mp4') ||
+        src.endsWith('.webm') ||
+        src.endsWith('.mov') ||
+        src.endsWith('.avi') ||
+        src.endsWith('.mkv') ||
+        src.endsWith('.flv') ||
+        src.endsWith('.wmv')
       ) {
         mediaType = 'video';
       } else {
@@ -506,7 +605,7 @@ const presetExecution = (
         componentId: 'VideoAtom',
         type: 'atom' as const,
         data: {
-          src: mediaItem.src,
+          src,
           className:
             mediaItem.fit === 'cover'
               ? 'w-full h-full object-cover'
@@ -563,7 +662,7 @@ const presetExecution = (
         componentId: 'ImageAtom',
         type: 'atom' as const,
         data: {
-          src: mediaItem.src,
+          src,
           className: 'w-full h-auto object-cover',
           fit: mediaItem.fit ?? ('cover' as const),
           style: {
@@ -608,7 +707,7 @@ const presetExecution = (
         componentId: 'AudioAtom',
         type: 'atom' as const,
         data: {
-          src: mediaItem.src,
+          src,
           className: 'w-full h-auto object-cover',
           fit: mediaItem.fit ?? ('cover' as const),
           volume: mediaItem.volume ?? 1,
@@ -695,22 +794,24 @@ const _presetMetadata: PresetMetadata = {
   presetType: 'children',
   tags: ['media', 'track', 'sequence', 'aspect-ratio'],
   defaultInputParams: {
-    mediaItems: [
-      {
-        src: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        type: 'video',
-        fit: 'cover',
-        opacity: 0.8,
-        ranges: ['0:10-2:30'],
-      },
-      {
-        src: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        type: 'video',
-        fit: 'cover',
-        opacity: 1.0,
-        ranges: ['2:30-5:00', '6:00-8:30'],
-      },
-    ],
+    mediaItems: {
+      items: [
+        {
+          src: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+          type: 'video',
+          fit: 'cover',
+          opacity: 0.8,
+          rangeString: '0:10-2:30',
+        },
+        {
+          src: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+          type: 'video',
+          fit: 'cover',
+          opacity: 1.0,
+          rangeString: '2:30-5:00,6:00-8:30',
+        },
+      ],
+    },
     trackName: 'media-track',
     trackType: 'sequence',
   },

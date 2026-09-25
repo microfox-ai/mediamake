@@ -156,12 +156,17 @@ function serializeSegment(seg: ParsedSegment): string {
  * Heuristic: if the leaf key matches, AND the value parses as a range segment, we collect it.
  */
 const RANGE_FIELD_NAMES = new Set([
-  "range", "rangestring", "timerange", "rangestr", "timerangestring",
+  "range", "ranges", "rangestring", "timerange", "rangestr", "timerangestring",
 ]);
 
 function isRangeLikeName(name: string): boolean {
   const n = name.toLowerCase().replace(/[-_]/g, "");
-  return RANGE_FIELD_NAMES.has(n) || n.endsWith("range") || n.startsWith("rangestr");
+  return (
+    RANGE_FIELD_NAMES.has(n) ||
+    n.endsWith("range") ||
+    n.endsWith("ranges") ||
+    n.startsWith("rangestr")
+  );
 }
 
 /**
@@ -182,8 +187,8 @@ function collectRawRanges(input: unknown, path = "", fieldName = ""): RawRange[]
     const ref = parseReferenceRange(input);
     if (ref) return [{ path, key: ref.key, range: ref.range, kind: "data-reference" }];
 
-    // 2. Plain range string on a recognisable field name
-    if (isRangeLikeName(fieldName) && parseSingleSegment(input) !== null) {
+    // 2. Plain range string on a recognisable field name (supports comma-separated)
+    if (isRangeLikeName(fieldName) && parseEditableSegments(input).length > 0) {
       return [{ path, key: fieldName, range: input, kind: "plain-range" }];
     }
   }
@@ -228,6 +233,18 @@ function buildTrackGroups(raw: RawRange[]): TrackGroup[] {
         });
       }
     } else {
+      // plain-range with comma-separated multi-seg → own track (like data-ref multi-seg)
+      if (r.range.includes(",")) {
+        groups.set(r.path, {
+          templatePath: r.path,
+          label: r.path.replace(/\[\d+\]/g, "[ ]"),
+          kind: "plain-range",
+          key: r.key,
+          concretePaths: [r.path],
+          currentRanges: [r.range],
+        });
+        continue;
+      }
       // plain-range: group by template path
       const existing = groups.get(tp);
       if (existing) {
@@ -620,10 +637,13 @@ export function PresetTimelineContent() {
       if (group.kind === "data-reference") {
         // All segments from the single range string
         next[group.templatePath] = parseEditableSegments(group.currentRanges[0] ?? "");
+      } else if (group.concretePaths.length === 1) {
+        // Single path may hold comma-separated multi-seg (rangeString / ranges)
+        next[group.templatePath] = parseEditableSegments(group.currentRanges[0] ?? "");
       } else {
         // One segment per concrete path
         next[group.templatePath] = group.currentRanges
-          .map((r) => parseSingleSegment(r))
+          .map((r) => parseSingleSegment(r) ?? parseEditableSegments(r)[0] ?? null)
           .filter((s): s is ParsedSegment => s !== null);
       }
     }
@@ -653,6 +673,11 @@ export function PresetTimelineContent() {
         ? `data:[${group.key}][${rangeStr}]`
         : `data:[${group.key}]`;
       nextInputData = setAtPath(nextInputData, path, newVal);
+    } else if (group.concretePaths.length === 1) {
+      // Single plain path — write comma-joined multi-seg (rangeString / ranges field)
+      const path = group.concretePaths[0]!;
+      const rangeStr = segs.map(serializeSegment).join(",");
+      nextInputData = setAtPath(nextInputData, path, rangeStr || undefined);
     } else {
       // plain-range: each segment maps 1-to-1 with a concrete path
       if (changedSegIdx !== undefined) {
@@ -768,7 +793,8 @@ export function PresetTimelineContent() {
 
   const addSegment = useCallback(
     (group: TrackGroup, clickSec: number) => {
-      if (group.kind === "plain-range") return; // can't add array items from timeline
+      // plain-range multi-item tracks can't grow without cloning array items
+      if (group.kind === "plain-range" && group.concretePaths.length !== 1) return;
       setSegsMap((prev) => {
         const segs = [...(prev[group.templatePath] ?? [])];
         const existingKind: SegmentKind = segs[0]?.kind ?? "time";
@@ -828,13 +854,15 @@ export function PresetTimelineContent() {
     [getGroup]
   );
 
-  /** True when the track can grow/split segments (data-ref multi-seg OR plain array items). */
+  /** True when the track can grow/split segments (data-ref multi-seg OR single-path plain / array items). */
   const canEditSegStructure = useCallback(
     (tp: string) => {
       const g = getGroup(tp);
       if (!g) return false;
       if (g.kind === "data-reference") return true;
-      // plain-range: only when paths look like array items we can clone
+      // Single plain path (rangeString / ranges) supports comma-joined multi-seg
+      if (g.concretePaths.length === 1) return true;
+      // Multi-item plain-range: only when paths look like array items we can clone
       return g.concretePaths.some((p) => parseArrayItemFieldPath(p) !== null);
     },
     [getGroup]
@@ -878,7 +906,10 @@ export function PresetTimelineContent() {
     const group = getGroup(target.templatePath);
     if (!group) return;
 
-    if (group.kind === "data-reference") {
+    const useJoinedSegs =
+      group.kind === "data-reference" || group.concretePaths.length === 1;
+
+    if (useJoinedSegs) {
       setSegsMap((prev) => {
         const segs = [...(prev[target.templatePath] ?? [])];
         const orig = segs[target.segIdx];
@@ -911,7 +942,7 @@ export function PresetTimelineContent() {
       return;
     }
 
-    // plain-range: clone the array item and place the duplicate range after the original
+    // plain-range multi-item: clone the array item and place the duplicate range after the original
     if (!timeline || !preset) return;
     const segs = segsMap[target.templatePath] ?? [];
     const orig = segs[target.segIdx];
@@ -1028,7 +1059,7 @@ export function PresetTimelineContent() {
       const left: ParsedSegment = { ...orig, end: cutAt };
       const right: ParsedSegment = { ...orig, start: cutAt };
 
-      if (group.kind === "data-reference") {
+      if (group.kind === "data-reference" || group.concretePaths.length === 1) {
         setSegsMap((prev) => {
           const segs = [...(prev[tp] ?? [])];
           segs.splice(idx, 1, left, right);
@@ -1041,7 +1072,7 @@ export function PresetTimelineContent() {
         return;
       }
 
-      // plain-range: shorten current item, clone sibling for the right half
+      // plain-range multi-item: shorten current item, clone sibling for the right half
       if (!timeline || !preset) return;
       const path = group.concretePaths[idx];
       if (!path) return;
@@ -1436,7 +1467,7 @@ export function PresetTimelineContent() {
                         : `ref: ${group.key} · ${segs.length} seg${segs.length !== 1 ? "s" : ""}`}
                     </p>
                   </div>
-                  {!isPlain && (
+                  {canEditSegStructure(group.templatePath) ? (
                     <button
                       type="button"
                       className="shrink-0 p-0.5 rounded hover:bg-accent text-muted-foreground/40 hover:text-primary transition-colors"
@@ -1445,8 +1476,7 @@ export function PresetTimelineContent() {
                     >
                       <Plus className="h-3 w-3" />
                     </button>
-                  )}
-                  {isPlain && (
+                  ) : (
                     <span className="shrink-0 text-[8px] text-muted-foreground/30 uppercase tracking-wide" title="Add/remove items via the right panel form">
                       form
                     </span>
@@ -1513,7 +1543,7 @@ export function PresetTimelineContent() {
                       if (e.target === e.currentTarget) setSelectedSeg(null);
                     }}
                     onDoubleClick={(e) => {
-                      if (isPlain) return;
+                      if (!canEditSegStructure(group.templatePath)) return;
                       const containerLeft = scrollRef.current?.getBoundingClientRect().left ?? 0;
                       const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
                       const px = e.clientX - containerLeft + scrollLeft;

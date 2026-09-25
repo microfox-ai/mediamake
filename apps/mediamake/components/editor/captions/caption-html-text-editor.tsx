@@ -7,6 +7,7 @@ import { Bold, CornerDownLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { buildHtmlTextFromLegacy } from '@/lib/captions/html-text';
+import './full-captions-editor.css';
 
 interface CaptionHtmlTextEditorProps {
   value?: string;
@@ -67,9 +68,9 @@ export function CaptionHtmlTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none',
-          'px-1.5 py-0.5 text-xs leading-snug',
-          '[&_strong]:font-bold [&_strong]:text-primary [&_b]:font-bold [&_b]:text-primary',
+          'caption-tiptap-light prose prose-sm max-w-none focus:outline-none',
+          'px-1.5 py-0.5 text-xs leading-snug text-neutral-900',
+          '[&_strong]:font-bold [&_strong]:text-blue-700 [&_b]:font-bold [&_b]:text-blue-700',
           '[&_p]:my-0',
         ),
       },
@@ -104,18 +105,18 @@ export function CaptionHtmlTextEditor({
   return (
     <div
       className={cn(
-        'rounded-md border bg-background overflow-hidden',
+        'caption-tiptap-light rounded-md border border-neutral-200 bg-white overflow-hidden',
         className,
       )}
     >
-      <div className="flex items-center gap-0.5 border-b bg-muted/30 px-0.5 py-0">
+      <div className="flex items-center gap-0.5 border-b border-neutral-200 bg-neutral-50 px-0.5 py-0">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           className={cn(
-            'h-5 w-5 p-0',
-            editor.isActive('bold') && 'bg-primary/15 text-primary',
+            'h-5 w-5 p-0 text-neutral-700 hover:bg-neutral-200/70 hover:text-neutral-900',
+            editor.isActive('bold') && 'bg-blue-100 text-blue-700',
           )}
           title="Bold = highlight keyword"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -126,20 +127,20 @@ export function CaptionHtmlTextEditor({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-5 w-5 p-0"
+          className="h-5 w-5 p-0 text-neutral-700 hover:bg-neutral-200/70 hover:text-neutral-900"
           title="Insert line break"
           onClick={() => editor.chain().focus().setHardBreak().run()}
         >
           <CornerDownLeft className="h-2.5 w-2.5" />
         </Button>
         {!compact && (
-          <span className="ml-1 text-[9px] text-muted-foreground">
+          <span className="ml-1 text-[9px] text-neutral-500">
             Bold = highlight · Enter = new line
           </span>
         )}
       </div>
       <div
-        className="overflow-y-auto"
+        className="overflow-y-auto bg-white"
         style={{ height: `${lines}lh`, maxHeight: `${lines}lh` }}
       >
         <EditorContent editor={editor} />
