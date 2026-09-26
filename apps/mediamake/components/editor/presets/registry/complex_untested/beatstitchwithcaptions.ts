@@ -29,7 +29,6 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
-import { paramMetaTypes } from '../../dataTypes';
 
 type Effect = {
   id: string;
@@ -38,39 +37,41 @@ type Effect = {
 };
 
 const presetParams = z.object({
-  captions: z.array(
-    z
-      .object({
-        text: z.string().describe('Text of the caption'),
-        absoluteStart: z.number().describe('Start time of the caption'),
-        absoluteEnd: z.number().describe('End time of the caption'),
-        metadata: z
-          .object({
-            selectedImage: z
-              .object({
-                src: z.string().describe('Source URL of the selected image'),
-              })
-              .loose()
-              .optional(),
-            alternateImages: z
-              .array(
-                z
-                  .object({
-                    src: z
-                      .string()
-                      .describe('Source URL of the alternate image'),
-                  })
-                  .loose(),
-              )
-              .optional(),
-          })
-          .loose()
-          .optional(),
-      })
-      .loose(),
-  ).meta({
-    [paramMetaTypes.referrableDataType]: 'captions',
-  }),
+  captions: z
+    .array(
+      z
+        .object({
+          text: z.string().describe('Text of the caption'),
+          absoluteStart: z.number().describe('Start time of the caption'),
+          absoluteEnd: z.number().describe('End time of the caption'),
+          metadata: z
+            .object({
+              selectedImage: z
+                .object({
+                  src: z.string().describe('Source URL of the selected image'),
+                })
+                .loose()
+                .optional(),
+              alternateImages: z
+                .array(
+                  z
+                    .object({
+                      src: z
+                        .string()
+                        .describe('Source URL of the alternate image'),
+                    })
+                    .loose(),
+                )
+                .optional(),
+            })
+            .loose()
+            .optional(),
+        })
+        .loose(),
+    )
+    .meta({
+      [paramMetaTypes.referrableDataType]: 'captions',
+    }),
   captionMode: z
     .enum([
       'play-mixed',
