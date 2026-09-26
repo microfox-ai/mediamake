@@ -138,7 +138,7 @@ const presetParams = z.object({
       .optional()
       .meta({ [paramMetaTypes.rangeField]: true })
       .describe(
-        'Time range in format "MM:SS-MM:SS" (e.g., "00:00-00:09"). Overrides startOffset and duration if provided.',
+        'Time range in format "MM:SS-MM:SS" or "MM:SS.sss-MM:SS.sss" (e.g., "00:00.00-00:09.50"). Overrides startOffset and duration if provided.',
       ),
     // Animation effects
     fadeInTransition: z

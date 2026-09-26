@@ -19,7 +19,7 @@ const imageSourceSchema = z.object({
       [paramMetaTypes.rangeField]: true,
       [paramMetaTypes.groupEditable]: false,
     })
-    .describe('Range in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   duration: z
     .number()
     .optional()
@@ -93,7 +93,7 @@ const effectSchema = z.object({
     .string()
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
-    .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   start: z.number().optional().describe('Effect start offset time in seconds'),
   duration: z.number().optional().describe('Effect duration in seconds'),
   // Pan effect options

@@ -74,7 +74,7 @@ const presetParams = z.object({
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
     .describe(
-      'Time ranges where beat stitch should be applied (MM:SS-MM:SS, comma-separated, e.g. 0:10-0:20,0:30-0:40)',
+      'Time ranges where beat stitch should be applied (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss, comma-separated, e.g. 0:10-0:20,0:30.50-0:40)',
     ),
   minTimeDiff: z
     .number()

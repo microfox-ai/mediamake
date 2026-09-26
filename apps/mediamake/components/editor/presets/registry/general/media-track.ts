@@ -61,7 +61,7 @@ const mediaTrackItemSchema = z.object({
       [paramMetaTypes.groupEditable]: false,
     })
     .describe(
-      'Appearance range(s) MM:SS-MM:SS (comma-separated for multiple, e.g. 0:10-2:30,6:00-8:30)',
+      'Appearance range(s) MM:SS-MM:SS or MM:SS.sss-MM:SS.sss (comma-separated for multiple, e.g. 0:10-2:30,6:00.50-8:30)',
     ),
   duration: z.number().optional().describe('Fixed duration in seconds'),
   loop: z

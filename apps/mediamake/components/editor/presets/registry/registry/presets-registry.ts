@@ -29,6 +29,7 @@ import { htmlBlockAtomPreset } from '../general/htmlBlockAtom';
 import { imageLoopPreset } from '../general/imageloop';
 import { lottieShowcasePreset } from '../general/lottie-showcase';
 import { mediaTrackPreset } from '../general/media-track';
+import { secondCounterPreset } from '../general/second-counter';
 import { textOverlayPreset } from '../general/text-overlay';
 import { waveformPreset as waveformChildrenPreset } from '../general/waveform';
 import { beatExposureEffectPreset } from '../internalEffects/beat-exposure-effect';
@@ -62,6 +63,7 @@ export const predefinedPresets: Preset[] = [
   brollPreset,
   quotePresentPreset,
   htmlBlockAtomPreset,
+  secondCounterPreset,
   textbasePreset,
   genericOpacityEffectPreset,
   glowPulseTextEffectPreset,

@@ -31,7 +31,7 @@ const presetParams = z.object({
     .string()
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
-    .describe('Range in MM:SS-MM:SS format like 00:00-00:08'),
+    .describe('Range in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 00:00-00:08'),
   start: z
     .number()
     .min(0)

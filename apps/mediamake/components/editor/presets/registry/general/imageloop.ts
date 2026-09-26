@@ -39,7 +39,7 @@ const imageSourceSchema = z.object({
       [paramMetaTypes.rangeField]: true,
       [paramMetaTypes.groupEditable]: false,
     })
-    .describe('Range in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
     .optional()
@@ -114,7 +114,7 @@ const effectSchema = z.object({
     .string()
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
-    .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   pan: z
     .object({
       direction: z
@@ -198,7 +198,7 @@ const shakeEffectSchema = z.object({
     .string()
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
-    .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
 });
 
 /** Audio-reactive beat effects (including beat-shake). */
@@ -211,7 +211,7 @@ const beatEffectSchema = z.object({
     .string()
     .optional()
     .meta({ [paramMetaTypes.rangeField]: true })
-    .describe('Range of the effect in MM:SS-MM:SS format like 01:00-02:00'),
+    .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   beatZoom: z
     .object({
       audioSrc: z.string().describe('Audio source URL or ref:componentId'),

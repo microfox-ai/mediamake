@@ -41,7 +41,7 @@ const presetParams = z.object({
     .string()
     .meta({ [paramMetaTypes.rangeField]: true })
     .describe(
-      'Time ranges in MM:SS-MM:SS format (comma-separated for multiple, e.g. 0:00-2:00,5:00-7:00)',
+      'Time ranges in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss (comma-separated for multiple, e.g. 0:00-2:00,5:00.50-7:00)',
     ),
   trackName: z
     .string()
