@@ -119,10 +119,18 @@ export async function POST(req: NextRequest) {
     const clientId = req.headers.get('x-client-id') || undefined;
     const body: CreateTranscriptionRequest = await req.json();
 
-    // Validate required fields
-    if (!body.assemblyId || !body.audioUrl) {
+    const isBlank = body.blank === true || (!body.audioUrl && Array.isArray(body.captions));
+    const assemblyId =
+      body.assemblyId ||
+      (isBlank
+        ? `blank-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        : undefined);
+    const audioUrl = body.audioUrl ?? (isBlank ? '' : undefined);
+
+    // Validate required fields (blank captions-only transcriptions skip audio)
+    if (!assemblyId || audioUrl === undefined) {
       return NextResponse.json(
-        { error: 'assemblyId and audioUrl are required' },
+        { error: 'assemblyId and audioUrl are required (or set blank: true with captions)' },
         { status: 400 },
       );
     }
@@ -131,7 +139,7 @@ export async function POST(req: NextRequest) {
     const collection = db.collection<Transcription>('transcriptions');
 
     // Check if transcription with this assemblyId already exists
-    const existing = await collection.findOne({ assemblyId: body.assemblyId });
+    const existing = await collection.findOne({ assemblyId });
     if (existing) {
       return NextResponse.json(
         { error: 'Transcription with this assemblyId already exists' },
@@ -142,12 +150,12 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const transcription: Omit<Transcription, '_id'> = {
       clientId,
-      assemblyId: body.assemblyId,
-      audioUrl: body.audioUrl,
+      assemblyId,
+      audioUrl,
       language: body.language,
-      status: body.status || 'processing',
-      tags: body.tags || [],
-      title: body.title,
+      status: body.status || (isBlank ? 'completed' : 'processing'),
+      tags: body.tags || (isBlank ? ['blank'] : []),
+      title: body.title || (isBlank ? 'Untitled Captions' : undefined),
       description: body.description,
       keywords: body.keywords || [],
       captions: body.captions || [],

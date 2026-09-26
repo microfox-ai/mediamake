@@ -13,7 +13,7 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, Plus, X, Check, FileAudio } from "lucide-react";
+import { Clock, Plus, X, Check, FileAudio, Save, Loader2, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import { MediasGroupField } from "@/components/editor/presets/form/inputs/medias-group-field";
@@ -30,12 +30,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { z } from "zod";
 import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
 import { CaptionItemEditor } from "@/components/editor/captions/caption-item-editor";
 import { FullCaptionsEditor } from "@/components/editor/captions/full-captions-editor";
 import { TranscriptionPicker } from "@/components/transcriber/picker/transcription-picker";
-import type { Transcription } from "@/app/types/transcription";
+import type { Caption, Transcription } from "@/app/types/transcription";
+import { generateId } from "@microfox/datamotion";
+import { toast } from "sonner";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -65,6 +73,34 @@ function buildDataItemIdsMap(childrenData: any[] | undefined): Map<string, strin
   };
   walk(childrenData);
   return map;
+}
+
+/** Default blank caption: 3 words × 1s, line duration 3s. */
+function createBlankHelloCaptions(): Caption[] {
+  const words = ["Hello", "world", "friend"];
+  const captionWords = words.map((text, i) => ({
+    id: generateId(),
+    text,
+    start: i,
+    end: i + 1,
+    absoluteStart: i,
+    absoluteEnd: i + 1,
+    duration: 1,
+    confidence: 1,
+  }));
+  return [
+    {
+      id: generateId(),
+      text: words.join(" "),
+      absoluteStart: 0,
+      absoluteEnd: 3,
+      start: 0,
+      end: 3,
+      duration: 3,
+      words: captionWords,
+      metadata: {},
+    },
+  ];
 }
 
 // ─── Active items panel ────────────────────────────────────────────────────────
@@ -258,6 +294,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [editedKey, setEditedKey] = useState(reference.key || "");
   const [showCaptionsPicker, setShowCaptionsPicker] = useState(false);
+  const [isSavingCaptions, setIsSavingCaptions] = useState(false);
+  const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -434,6 +472,86 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     [selectedReference, onReferenceChange],
   );
 
+  const linkedTranscriptionId =
+    selectedReference?.type === "captions" && selectedReference?.value?._id
+      ? String(selectedReference.value._id)
+      : null;
+
+  const handleSaveCaptionsToDatabase = useCallback(async () => {
+    if (!selectedReference || selectedReference.type !== "captions") return;
+    const id = selectedReference.value?._id;
+    if (!id) {
+      toast.error("Link a transcription before saving");
+      return;
+    }
+    setIsSavingCaptions(true);
+    try {
+      const response = await fetch(`/api/transcriptions/${id}/metadata`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          captions: selectedReference.value?.captions ?? [],
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save captions");
+      }
+      toast.success("Captions saved successfully");
+    } catch (error) {
+      toast.error(
+        `Failed to save captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsSavingCaptions(false);
+    }
+  }, [selectedReference]);
+
+  const handleCreateBlankCaptions = useCallback(async () => {
+    if (!selectedReference || selectedReference.type !== "captions") return;
+    setIsCreatingBlank(true);
+    try {
+      const captions = createBlankHelloCaptions();
+      const response = await fetch("/api/transcriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blank: true,
+          title: "Untitled Captions",
+          status: "completed",
+          tags: ["blank"],
+          captions,
+          audioUrl: "",
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create transcription");
+      }
+      const result = await response.json();
+      const created = result.transcription as Transcription;
+      onReferenceChange({
+        references: [
+          {
+            ...selectedReference,
+            value: {
+              captions: created.captions ?? captions,
+              _id: created._id?.toString() ?? "",
+            },
+          },
+        ],
+      });
+      toast.success("Blank captions created and linked");
+    } catch (error) {
+      toast.error(
+        `Failed to create blank captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsCreatingBlank(false);
+    }
+  }, [selectedReference, onReferenceChange]);
+
   /**
    * Called when the user edits an active item (caption, object, media) at a specific index.
    * Reads the latest reference from the store at call time so rapid edits don't overwrite each other.
@@ -561,6 +679,39 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
               </Select>
               {referenceType === "captions" && selectedReference && (
                 <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 text-xs shrink-0 px-2"
+                        disabled={isCreatingBlank}
+                        title="Create new captions transcription"
+                      >
+                        {isCreatingBlank ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                        Create
+                        <ChevronDown className="h-3 w-3 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                      <DropdownMenuItem
+                        onClick={() => void handleCreateBlankCaptions()}
+                      >
+                        From Blank
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        From Audio to Text
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        From Text to Audio
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     type="button"
                     variant="outline"
@@ -572,6 +723,24 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                     <FileAudio className="h-3.5 w-3.5" />
                     Link
                   </Button>
+                  {linkedTranscriptionId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs shrink-0 px-2"
+                      onClick={() => void handleSaveCaptionsToDatabase()}
+                      disabled={isSavingCaptions}
+                      title="Sync caption metadata to the linked transcription"
+                    >
+                      {isSavingCaptions ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Save className="h-3.5 w-3.5" />
+                      )}
+                      Save
+                    </Button>
+                  )}
                   {showCaptionsPicker && (
                     <TranscriptionPicker
                       open={showCaptionsPicker}

@@ -100,10 +100,12 @@ export interface Transcription {
 export interface CreateTranscriptionRequest {
   clientId?: string;
   projectId?: string;
-  assemblyId: string;
-  audioUrl: string;
+  /** Optional for blank / non-audio transcriptions — auto-generated when omitted. */
+  assemblyId?: string;
+  /** Optional for blank transcriptions — defaults to empty string. */
+  audioUrl?: string;
   language?: string;
-  status:
+  status?:
     | 'processing'
     | 'completed'
     | 'failed'
@@ -118,6 +120,8 @@ export interface CreateTranscriptionRequest {
   keywords?: string[];
   captions?: Caption[];
   processingData?: ProcessingData;
+  /** When true, creates a caption-only transcription with no audio. */
+  blank?: boolean;
 }
 
 export interface UpdateTranscriptionRequest {
