@@ -529,7 +529,10 @@ export function CaptionsReferenceTimeline({
       const duration = drag.origEnd - drag.origStart;
 
       setLocalCaptions((prev) => {
-        const next = prev.map((c) => ({ ...c, words: (c.words ?? []).map((w) => ({ ...w })) }));
+        const next: CaptionLine[] = prev.map((c) => ({
+          ...c,
+          words: (c.words ?? []).map((w) => ({ ...w })),
+        }));
         const { target } = drag;
 
         if (target.kind === "line") {
