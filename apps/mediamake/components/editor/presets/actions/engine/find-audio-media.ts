@@ -14,9 +14,25 @@ export type TimelineAudioClip = {
   trackName?: string;
 };
 
-/** True when the value is a data:[key] reference string (points at another track/ref). */
-function isDataReference(raw: unknown): boolean {
-  return typeof raw === "string" && /^data:\[[^\]]+\]/.test(raw.trim());
+/** True when the value points at another track/ref rather than a fetchable URL. */
+function isIndirectAudioSrc(raw: unknown): boolean {
+  if (typeof raw !== "string") return false;
+  const s = raw.trim();
+  // data:[key] — timeline data reference
+  if (/^data:\[[^\]]+\]/.test(s)) return true;
+  // ref:componentId / ref:trackName — points at another composition audio track
+  if (/^ref:/i.test(s)) return true;
+  return false;
+}
+
+/** True when src is a real http(s) / blob / data-URL that the browser can fetch. */
+function isFetchableAudioUrl(src: string): boolean {
+  const s = src.trim();
+  return (
+    /^https?:\/\//i.test(s) ||
+    /^blob:/i.test(s) ||
+    /^data:audio\//i.test(s)
+  );
 }
 
 function resolveSrc(
@@ -24,28 +40,44 @@ function resolveSrc(
   baseData: Record<string, unknown>,
 ): string | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
+  // ref:trackName is composition-internal — not resolvable from timeline data alone
+  if (/^ref:/i.test(raw.trim())) return null;
   const dataMatch = raw.match(/^data:\[([^\]]+)\]/);
   if (dataMatch) {
     const val = baseData[dataMatch[1]];
-    if (typeof val === "string") return val;
+    if (typeof val === "string") {
+      // Nested ref:/data: — still not a fetchable URL
+      if (isIndirectAudioSrc(val) || !isFetchableAudioUrl(val)) return null;
+      return val;
+    }
     if (val && typeof val === "object" && typeof (val as any).src === "string") {
-      return (val as any).src;
+      const nested = String((val as any).src);
+      if (isIndirectAudioSrc(nested) || !isFetchableAudioUrl(nested)) return null;
+      return nested;
     }
     // medias array ref — take first audio-looking src
     if (Array.isArray(val) && val.length > 0) {
       const first = val[0];
-      if (typeof first === "string") return first;
+      if (typeof first === "string") {
+        if (isIndirectAudioSrc(first) || !isFetchableAudioUrl(first)) return null;
+        return first;
+      }
       if (first && typeof first === "object") {
-        return (
+        const nested = String(
           (first as any).src ||
-          (first as any).filePath ||
-          (first as any).url ||
-          null
+            (first as any).filePath ||
+            (first as any).url ||
+            "",
         );
+        if (!nested || isIndirectAudioSrc(nested) || !isFetchableAudioUrl(nested)) {
+          return null;
+        }
+        return nested;
       }
     }
     return null;
   }
+  if (!isFetchableAudioUrl(raw)) return null;
   return raw;
 }
 
@@ -106,9 +138,8 @@ function collectFromMediaItems(
     const kind = detectMediaKind(item);
     if (kind !== "audio") return;
 
-    // Skip items whose src is only a data:[...] pointer to another track —
-    // that track (or media-track owner) already owns the waveform.
-    if (isDataReference(item.src)) return;
+    // Skip items whose src is only a data:[...] / ref:... pointer to another track
+    if (isIndirectAudioSrc(item.src)) return;
 
     const src = resolveSrc(item.src, baseData);
     if (!src) return;
@@ -150,8 +181,8 @@ function collectFromMediaItems(
  * Find audio clips that should get a waveform row on preset/reference timelines.
  *
  * - Only media-track (and similar) items with a concrete src are included.
- * - Skips audio that is merely a `data:[key]` reference to another track
- *   (avoids duplicate waveforms for beatstitch/etc. pointing at shared audio).
+ * - Skips audio that is merely a `data:[key]` or `ref:track` reference to another
+ *   track (avoids duplicate waveforms and failed fetches for non-URL schemes).
  * - Does NOT invent rows from bare media/medias references alone.
  */
 export function findAudioMediaClipsFromTimeline(
@@ -176,6 +207,8 @@ export function findAudioMediaClipsFromTimeline(
   // Deduplicate by src+start+duration
   const seen = new Set<string>();
   return out.filter((clip) => {
+    // Final safety: never surface non-fetchable schemes to the waveform UI
+    if (!isFetchableAudioUrl(clip.src)) return false;
     const key = `${clip.src}|${clip.start}|${clip.duration ?? ""}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -204,11 +237,11 @@ function walkForMediaItems(
     collectFromMediaItems(obj.mediaItems, trackName, baseData, out, presetId);
   }
 
-  // beatstitch / waveform style: only include concrete audio URLs —
-  // skip data:[...] refs (those duplicate the owning media-track waveform).
+  // beatstitch / waveform style: only include concrete http(s) audio URLs —
+  // skip data:[...] / ref:... (those duplicate the owning media-track waveform).
   if (obj.audio && typeof obj.audio === "object") {
     const audio = obj.audio as Record<string, unknown>;
-    if (!isDataReference(audio.src)) {
+    if (!isIndirectAudioSrc(audio.src)) {
       const src = resolveSrc(audio.src, baseData);
       if (src) {
         out.push({

@@ -90,6 +90,19 @@ export async function generateBrowserWaveform(
 ): Promise<BrowserWaveformResult | null> {
   if (!src || typeof window === "undefined") return null;
 
+  // Composition-internal refs / data pointers are not fetchable URLs
+  if (
+    /^ref:/i.test(src.trim()) ||
+    /^data:\[[^\]]+\]/.test(src.trim()) ||
+    !(
+      /^https?:\/\//i.test(src.trim()) ||
+      /^blob:/i.test(src.trim()) ||
+      /^data:audio\//i.test(src.trim())
+    )
+  ) {
+    return null;
+  }
+
   const cacheKey = `${src}::${barCount}`;
   const cached = memoryCache.get(cacheKey);
   if (cached) return cached;
@@ -116,7 +129,7 @@ export async function generateBrowserWaveform(
       memoryCache.set(cacheKey, result);
       return result;
     } catch (err) {
-      console.warn("[browser-waveform] failed for", src, err);
+      console.error("[browser-waveform] failed to decode waveform for", src, err);
       return null;
     } finally {
       inflight.delete(cacheKey);
