@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MediaPicker } from "@/components/editor/media/media-picker";
+import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import {
@@ -346,7 +347,7 @@ export function MediasGroupField({
                   className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
                   onClick={() => setEditIndex(index)}
                 >
-                  <MediaThumb src={src} kind={kind} />
+                  <MediaItemThumb item={item} />
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
                     <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
                   </div>
@@ -506,9 +507,8 @@ export function MediasGroupField({
           </DialogHeader>
           {editing && editIndex !== null && (
             <div className="space-y-3">
-              <MediaThumb
-                src={extractSrc(editing)}
-                kind={editingKind}
+              <MediaItemThumb
+                item={editing}
                 className="h-28 w-full rounded-md object-cover border"
               />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -564,60 +564,6 @@ function KindBadge({ kind }: { kind: MediaKind }) {
       <Icon className="h-2.5 w-2.5" />
       {kind}
     </span>
-  );
-}
-
-function MediaThumb({
-  src,
-  kind,
-  className,
-}: {
-  src: string;
-  kind: MediaKind;
-  className?: string;
-}) {
-  if (kind === "audio") {
-    return (
-      <div
-        className={
-          className ||
-          "flex h-full w-full items-center justify-center bg-muted"
-        }
-      >
-        <Music className="h-8 w-8 text-muted-foreground" />
-      </div>
-    );
-  }
-  if (kind === "video" && src) {
-    return (
-      <video
-        src={src}
-        muted
-        playsInline
-        preload="metadata"
-        className={className || "h-full w-full object-cover"}
-      />
-    );
-  }
-  if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return (
-      <img
-        src={src}
-        alt=""
-        className={className || "h-full w-full object-cover"}
-      />
-    );
-  }
-  return (
-    <div
-      className={
-        className ||
-        "flex h-full w-full items-center justify-center"
-      }
-    >
-      <ImageIcon className="h-6 w-6 text-muted-foreground" />
-    </div>
   );
 }
 

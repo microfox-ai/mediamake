@@ -40,6 +40,7 @@ export function ReferenceTimelineContent() {
         reference={liveReference}
         referenceIndex={referenceIndex}
         timelineId={timeline.id}
+        timeline={effectiveTimeline}
       />
     );
   }

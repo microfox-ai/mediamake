@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useRef, useState, useEffect } from "react";
 import {
   Eye, EyeOff, Lock, Unlock, VolumeX, Volume2,
-  Magnet, Scissors, ZoomIn, ZoomOut, Play, Pause,
+  Magnet, Scissors, ZoomIn, ZoomOut, Play, Pause, Music,
 } from "lucide-react";
 import {
   flattenLayers,
@@ -13,12 +13,13 @@ import {
   type FlatLayer,
 } from "@/lib/editor/flatten-layers";
 import { useCompileStore } from "../../../stores/compile-store";
-import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { useLayerStateStore, type LayerOverride } from "../../../stores/layer-state-store";
 import type { RenderableComponentData } from "@microfox/remotion";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -77,6 +78,33 @@ function getClipStyle(componentId: string) {
   return CLIP_STYLE[componentId] ?? DEFAULT_CLIP_STYLE;
 }
 
+function TimelineVideoPreview({
+  src,
+  thumbnail,
+}: {
+  src: string;
+  thumbnail?: string;
+}) {
+  const { thumbnailSrc } = useVideoThumbnail(thumbnail ? null : src, {
+    timeInSeconds: 2,
+    width: 240,
+  });
+  const displaySrc = thumbnail || thumbnailSrc;
+  if (displaySrc) {
+    return (
+      <div
+        className="w-full h-full"
+        style={{
+          backgroundImage: `url(${displaySrc})`,
+          backgroundSize: "auto 100%",
+          backgroundRepeat: "repeat-x",
+        }}
+      />
+    );
+  }
+  return <div className="w-full h-full bg-black/40" />;
+}
+
 // ─── TimelineClipBlock ────────────────────────────────────────────────────────
 
 function TimelineClipBlock({
@@ -99,6 +127,7 @@ function TimelineClipBlock({
   const style = getClipStyle(layer.componentId);
   const isText = layer.componentId === "TextAtom";
   const isMedia = layer.componentId === "ImageAtom" || layer.componentId === "VideoAtom";
+  const isAudio = layer.componentId === "AudioAtom";
   const previewText = layer.previewText;
   const previewSrc = layer.previewSrc;
   const displayLabel = isText && previewText?.trim()
@@ -122,7 +151,10 @@ function TimelineClipBlock({
         {isMedia && previewSrc ? (
           <div className="absolute inset-0">
             {layer.componentId === "VideoAtom" ? (
-              <video src={previewSrc} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+              <TimelineVideoPreview
+                src={previewSrc}
+                thumbnail={layer.previewThumbnail}
+              />
             ) : (
               <div
                 className="w-full h-full"
@@ -133,6 +165,11 @@ function TimelineClipBlock({
               {layer.label || layer.id}
             </span>
           </div>
+        ) : isAudio ? (
+          <span className={cn("flex items-center gap-1 h-full truncate px-1.5", style.label)}>
+            <Music className="h-3 w-3 shrink-0 opacity-70" />
+            {displayLabel}
+          </span>
         ) : (
           <span className={cn("flex items-center h-full truncate px-1.5", style.label)}>
             {displayLabel}
@@ -168,6 +205,7 @@ export function LayeredTimeline() {
     selectLayer,
     setCurrentFrame,
     setOverride,
+    commitOverrideHistory,
     hiddenLayerIds,
     childrenOrderByParentId,
     trackStates,
@@ -371,11 +409,12 @@ export function LayeredTimeline() {
   // ─── Snapping ──────────────────────────────────────────────────────────────
 
   const [snappingEnabled, setSnappingEnabled] = useState(true);
-  const SNAP_THRESHOLD = Math.round(fps * 0.2);
+  /** 1 frame — magnetic but not yanky */
+  const SNAP_THRESHOLD = 1;
 
   const getSnappedFrame = useCallback((targetFrame: number, ignoreId?: string) => {
     if (!snappingEnabled) return targetFrame;
-    const snapPoints = new Set<number>([0, durationInFrames, useLayerStateStore.getState().currentFrame]);
+    const snapPoints = new Set<number>([0, durationInFrames]);
     for (const l of layers) {
       if (l.id === ignoreId) continue;
       const s = l.timing.startInFrames ?? 0;
@@ -383,7 +422,7 @@ export function LayeredTimeline() {
       snapPoints.add(s + (l.timing.durationInFrames ?? 1));
     }
     let closest = targetFrame;
-    let minDiff = SNAP_THRESHOLD;
+    let minDiff = SNAP_THRESHOLD + 1; // only snap when diff <= SNAP_THRESHOLD
     for (const p of snapPoints) {
       const d = Math.abs(p - targetFrame);
       if (d < minDiff) { minDiff = d; closest = p; }
@@ -397,11 +436,40 @@ export function LayeredTimeline() {
     type: "move" | "trim-left" | "trim-right";
     layerId: string;
     startClientX: number;
-    startFrame: number;  // original startInFrames
+    startFrame: number;  // original absolute startInFrames
     startDuration: number;
+    parentStartFrame: number;
+    lastDelta?: number;
+    prevOverride: LayerOverride | undefined;
   } | null>(null);
 
   const [dragging, setDragging] = useState<string | null>(null);
+
+  const getParentStartFrame = useCallback((layer: FlatLayer) => {
+    const parentId = layer.parentIds[layer.parentIds.length - 1];
+    if (!parentId) return 0;
+    const parent = layers.find((l) => l.id === parentId);
+    return parent?.timing.startInFrames ?? 0;
+  }, [layers]);
+
+  const buildTimingOverride = useCallback((
+    absoluteStart: number,
+    absoluteDuration: number,
+    parentStartFrame: number,
+  ) => {
+    const relativeStartSec = (absoluteStart - parentStartFrame) / fps;
+    const durationSec = absoluteDuration / fps;
+    return {
+      context: {
+        timing: {
+          start: relativeStartSec,
+          duration: durationSec,
+          startInFrames: absoluteStart,
+          durationInFrames: absoluteDuration,
+        },
+      },
+    };
+  }, [fps]);
 
   const handleBlockPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
     if (e.button !== 0) return;
@@ -413,9 +481,11 @@ export function LayeredTimeline() {
       startClientX: e.clientX,
       startFrame: layer.timing.startInFrames ?? 0,
       startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+      parentStartFrame: getParentStartFrame(layer),
+      prevOverride: useLayerStateStore.getState().overrides.get(layer.id),
     };
     setDragging(layer.id);
-  }, []);
+  }, [getParentStartFrame]);
 
   const handleTrimLeftPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
     if (e.button !== 0) return;
@@ -426,9 +496,11 @@ export function LayeredTimeline() {
       startClientX: e.clientX,
       startFrame: layer.timing.startInFrames ?? 0,
       startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+      parentStartFrame: getParentStartFrame(layer),
+      prevOverride: useLayerStateStore.getState().overrides.get(layer.id),
     };
     setDragging(layer.id);
-  }, []);
+  }, [getParentStartFrame]);
 
   const handleTrimRightPointerDown = useCallback((e: React.PointerEvent, layer: FlatLayer) => {
     if (e.button !== 0) return;
@@ -439,9 +511,11 @@ export function LayeredTimeline() {
       startClientX: e.clientX,
       startFrame: layer.timing.startInFrames ?? 0,
       startDuration: Math.max(1, layer.timing.durationInFrames ?? 1),
+      parentStartFrame: getParentStartFrame(layer),
+      prevOverride: useLayerStateStore.getState().overrides.get(layer.id),
     };
     setDragging(layer.id);
-  }, []);
+  }, [getParentStartFrame]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragStateRef.current;
@@ -449,53 +523,71 @@ export function LayeredTimeline() {
 
     const deltaX = e.clientX - drag.startClientX;
     const deltaFrames = Math.round((deltaX / pixelsPerSecond) * fps);
+    // Skip no-op updates so the block does not thrash on sub-frame mouse jitter
+    if (deltaFrames === drag.lastDelta) return;
+    drag.lastDelta = deltaFrames;
 
     if (drag.type === "move") {
       let newStart = Math.max(0, Math.min(durationInFrames - drag.startDuration, drag.startFrame + deltaFrames));
       if (snappingEnabled) {
         const snappedStart = getSnappedFrame(newStart, drag.layerId);
         const snappedEnd = getSnappedFrame(newStart + drag.startDuration, drag.layerId) - drag.startDuration;
-        newStart = Math.abs(snappedStart - newStart) <= Math.abs(snappedEnd - newStart)
+        const pickStart = Math.abs(snappedStart - newStart) <= Math.abs(snappedEnd - newStart)
           ? snappedStart : snappedEnd;
+        // Only adopt snap when it actually changed within threshold
+        if (Math.abs(pickStart - newStart) <= SNAP_THRESHOLD) newStart = pickStart;
       }
-      setOverride(drag.layerId, {
-        context: { timing: { startInFrames: newStart, durationInFrames: drag.startDuration } },
-      });
-      playerRef.current?.seekTo(newStart);
-      setCurrentFrame(newStart);
+      setOverride(
+        drag.layerId,
+        buildTimingOverride(newStart, drag.startDuration, drag.parentStartFrame),
+        { skipHistory: true },
+      );
 
     } else if (drag.type === "trim-left") {
       const end = drag.startFrame + drag.startDuration;
       let newStart = Math.max(0, Math.min(end - 1, drag.startFrame + deltaFrames));
       if (snappingEnabled) {
         const snapped = getSnappedFrame(newStart, drag.layerId);
-        if (snapped < end) newStart = snapped;
+        if (snapped < end && Math.abs(snapped - newStart) <= SNAP_THRESHOLD) newStart = snapped;
       }
       const newDur = end - newStart;
-      setOverride(drag.layerId, {
-        context: { timing: { startInFrames: newStart, durationInFrames: newDur } },
-      });
-      playerRef.current?.seekTo(newStart);
-      setCurrentFrame(newStart);
+      setOverride(
+        drag.layerId,
+        buildTimingOverride(newStart, newDur, drag.parentStartFrame),
+        { skipHistory: true },
+      );
 
     } else if (drag.type === "trim-right") {
       let newEnd = Math.max(drag.startFrame + 1, Math.min(durationInFrames, drag.startFrame + drag.startDuration + deltaFrames));
       if (snappingEnabled) {
         const snapped = getSnappedFrame(newEnd, drag.layerId);
-        if (snapped > drag.startFrame) newEnd = snapped;
+        if (snapped > drag.startFrame && Math.abs(snapped - newEnd) <= SNAP_THRESHOLD) newEnd = snapped;
       }
       const newDur = newEnd - drag.startFrame;
-      setOverride(drag.layerId, {
-        context: { timing: { startInFrames: drag.startFrame, durationInFrames: newDur } },
-      });
+      setOverride(
+        drag.layerId,
+        buildTimingOverride(drag.startFrame, newDur, drag.parentStartFrame),
+        { skipHistory: true },
+      );
     }
-  }, [pixelsPerSecond, fps, durationInFrames, snappingEnabled, getSnappedFrame, setOverride, playerRef, setCurrentFrame]);
+  }, [pixelsPerSecond, fps, durationInFrames, snappingEnabled, getSnappedFrame, setOverride, buildTimingOverride, SNAP_THRESHOLD]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    const drag = dragStateRef.current;
     try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     dragStateRef.current = null;
     setDragging(null);
-  }, []);
+
+    if (!drag) return;
+
+    // One undo step for the whole gesture
+    commitOverrideHistory(drag.layerId, drag.prevOverride);
+
+    const override = useLayerStateStore.getState().overrides.get(drag.layerId);
+    const start = override?.context?.timing?.startInFrames ?? drag.startFrame;
+    playerRef.current?.seekTo(start);
+    setCurrentFrame(start);
+  }, [playerRef, setCurrentFrame, commitOverrideHistory]);
 
   // ─── Click layer ──────────────────────────────────────────────────────────
 
@@ -531,19 +623,34 @@ export function LayeredTimeline() {
     const node = findNode(mergedChildren, layerId);
     if (!node) return;
 
-    setOverride(layerId, { context: { timing: { startInFrames: start, durationInFrames: cf - start } } });
+    const parentStartFrame = getParentStartFrame(layer);
+    setOverride(
+      layerId,
+      buildTimingOverride(start, cf - start, parentStartFrame),
+    );
 
     const newId = `${node.id}-split-${Date.now()}`;
     const right: RenderableComponentData = JSON.parse(JSON.stringify(node));
     right.id = newId;
-    right.context = { ...(right.context ?? {}), timing: { startInFrames: cf, durationInFrames: start + dur - cf } };
+    const rightStart = cf;
+    const rightDur = start + dur - cf;
+    const relativeStartSec = (rightStart - parentStartFrame) / fps;
+    right.context = {
+      ...(right.context ?? {}),
+      timing: {
+        start: relativeStartSec,
+        duration: rightDur / fps,
+        startInFrames: rightStart,
+        durationInFrames: rightDur,
+      },
+    };
     right.data = right.data ?? {};
     right.data.boundaries = layer.boundaries;
     const isMedia = ["VideoAtom", "AudioAtom", "ImageAtom"].includes(right.componentId);
     if (isMedia) (right.data as any).startFrom = ((right.data as any).startFrom ?? 0) + (cf - start) / fps;
     addNode(right);
     selectLayer(newId, false);
-  }, [selectedLayerIds, layers, mergedChildren, setOverride, addNode, selectLayer, fps]);
+  }, [selectedLayerIds, layers, mergedChildren, setOverride, addNode, selectLayer, fps, getParentStartFrame, buildTimingOverride]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 

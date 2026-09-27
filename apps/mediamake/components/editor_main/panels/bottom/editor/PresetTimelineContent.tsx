@@ -13,6 +13,8 @@ import {
   ClipboardPaste,
   CopyPlus,
   ClipboardX,
+  ArrowLeftToLine,
+  ArrowRightToLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -30,6 +32,11 @@ import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
+import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
+import {
+  AudioWaveformTracks,
+  AudioWaveformTrackLabels,
+} from "./AudioWaveformTracks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -536,6 +543,12 @@ export function PresetTimelineContent() {
 
   const rawRanges = useMemo(() => collectRawRanges(presetInputData), [presetInputData]);
   const trackGroups = useMemo(() => buildTrackGroups(rawRanges), [rawRanges]);
+
+  // Audio media from ANY media-track / audio ref on this timeline — always show waveform
+  const audioClips = useMemo(
+    () => findAudioMediaClipsFromTimeline(effectiveTimeline),
+    [effectiveTimeline],
+  );
 
   // ─── Container width (for dynamic min zoom) ──────────────────────────────
 
@@ -1121,6 +1134,75 @@ export function PresetTimelineContent() {
     [clipboard, trackGroups]
   );
 
+  const snapSelectedSegToPlayhead = useCallback(
+    (edge: "start" | "end") => {
+      if (!selectedSeg) return;
+      const tp = selectedSeg.templatePath;
+      const idx = selectedSeg.segIdx;
+      const group = getGroup(tp);
+      if (!group) return;
+
+      setSegsMap((prev) => {
+        const segs = [...(prev[tp] ?? [])];
+        const seg = segs[idx];
+        if (!seg) return prev;
+        const minGap = seg.kind === "index" ? 1 : 0.01;
+        const dur = Math.max(minGap, seg.end - seg.start);
+        const at =
+          seg.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
+        const maxEnd =
+          seg.kind === "time"
+            ? totalDuration
+            : Math.max(seg.end * 2, totalDuration, at + dur);
+
+        let newStart: number;
+        let newEnd: number;
+        if (edge === "start") {
+          newStart = at;
+          newEnd = newStart + dur;
+          if (newEnd > maxEnd) {
+            newEnd = maxEnd;
+            newStart = Math.max(0, newEnd - dur);
+          }
+          if (newStart < 0) {
+            newStart = 0;
+            newEnd = dur;
+          }
+        } else {
+          newEnd = at;
+          newStart = newEnd - dur;
+          if (newStart < 0) {
+            newStart = 0;
+            newEnd = dur;
+          }
+          if (newEnd > maxEnd) {
+            newEnd = maxEnd;
+            newStart = Math.max(0, newEnd - dur);
+          }
+        }
+        if (seg.kind === "index") {
+          newStart = Math.round(newStart);
+          newEnd = Math.round(newEnd);
+        }
+        segs[idx] = { ...seg, start: newStart, end: newEnd };
+        commitRef.current(
+          tp,
+          segs,
+          group.kind === "plain-range" ? idx : undefined,
+        );
+        return { ...prev, [tp]: segs };
+      });
+    },
+    [selectedSeg, getGroup, currentTimeSec, totalDuration],
+  );
+
+  const deleteSelectedSeg = useCallback(() => {
+    if (!selectedSeg) return;
+    const group = getGroup(selectedSeg.templatePath);
+    if (!group) return;
+    deleteSegment(group, selectedSeg.segIdx);
+  }, [selectedSeg, getGroup, deleteSegment]);
+
   // Keyboard shortcuts when timeline panel is mounted
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1165,10 +1247,18 @@ export function PresetTimelineContent() {
         return;
       }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedSeg) {
-        const group = getGroup(selectedSeg.templatePath);
-        if (!group) return;
         e.preventDefault();
-        deleteSegment(group, selectedSeg.segIdx);
+        deleteSelectedSeg();
+        return;
+      }
+      if ((e.key === "[" || e.code === "BracketLeft") && selectedSeg) {
+        e.preventDefault();
+        snapSelectedSegToPlayhead("start");
+        return;
+      }
+      if ((e.key === "]" || e.code === "BracketRight") && selectedSeg) {
+        e.preventDefault();
+        snapSelectedSegToPlayhead("end");
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -1181,8 +1271,8 @@ export function PresetTimelineContent() {
     splitAtPlayhead,
     selectedSeg,
     clipboard,
-    getGroup,
-    deleteSegment,
+    deleteSelectedSeg,
+    snapSelectedSegToPlayhead,
   ]);
 
   // Clear selection when preset switches
@@ -1307,7 +1397,7 @@ export function PresetTimelineContent() {
     );
   }
 
-  if (trackGroups.length === 0) {
+  if (trackGroups.length === 0 && audioClips.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">
         <p className="text-sm text-muted-foreground">
@@ -1356,6 +1446,26 @@ export function PresetTimelineContent() {
             variant="ghost"
             className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
             disabled={!selectedSeg}
+            onClick={() => snapSelectedSegToPlayhead("start")}
+            title="Set start at playhead ([)"
+          >
+            <ArrowLeftToLine className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
+            disabled={!selectedSeg}
+            onClick={() => snapSelectedSegToPlayhead("end")}
+            title="Set end at playhead (])"
+          >
+            <ArrowRightToLine className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
+            disabled={!selectedSeg}
             onClick={cutSelected}
             title="Cut (⌘X)"
           >
@@ -1390,6 +1500,16 @@ export function PresetTimelineContent() {
             title="Duplicate (⌘D)"
           >
             <CopyPlus className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
+            disabled={!selectedSeg}
+            onClick={deleteSelectedSeg}
+            title="Delete selected (⌫)"
+          >
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
 
@@ -1484,6 +1604,7 @@ export function PresetTimelineContent() {
                 </div>
               );
             })}
+            <AudioWaveformTrackLabels clips={audioClips} rowHeight={ROW_HEIGHT} />
           </div>
         </div>
 
@@ -1620,6 +1741,14 @@ export function PresetTimelineContent() {
                   </div>
                 );
               })}
+
+              <AudioWaveformTracks
+                clips={audioClips}
+                secToPx={secToPx}
+                totalWidth={totalWidth}
+                rowHeight={ROW_HEIGHT}
+                renderLabels={false}
+              />
 
               {/* Playhead line through all tracks */}
               <div

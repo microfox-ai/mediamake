@@ -220,26 +220,57 @@ function docToCaptions(
     const words = parseParagraphWords(pNode);
     const id = (pNode.attrs['data-sentence-id'] as string) || generateId();
     const text = (pNode.textContent || '').trim();
+    const prevDraft = drafts[drafts.length - 1];
+    const afterPrev = prevDraft?.absoluteEnd ?? 0;
 
     if (words.length === 0 && !text) {
       const prev = prevById.get(id);
+      const start = prev?.absoluteStart ?? afterPrev;
+      const end =
+        prev?.absoluteEnd ?? start + DEFAULT_NEW_WORD_DURATION;
       drafts.push({
         id,
         text: '',
         words: [],
-        absoluteStart: prev?.absoluteStart ?? 0,
-        absoluteEnd: (prev?.absoluteStart ?? 0) + DEFAULT_NEW_WORD_DURATION,
+        absoluteStart: start,
+        absoluteEnd: Math.max(end, start + DEFAULT_NEW_WORD_DURATION),
       });
       return;
     }
     if (words.length === 0) return;
 
+    let absoluteStart = words[0].absoluteStart ?? 0;
+    let absoluteEnd =
+      words[words.length - 1].absoluteEnd ??
+      absoluteStart + DEFAULT_NEW_WORD_DURATION;
+    const prev = prevById.get(id);
+
+    // Brand-new line whose words defaulted to t=0 → place after previous line
+    if (!prev && absoluteStart === 0 && afterPrev > 0) {
+      const shift = afterPrev;
+      words.forEach(w => {
+        w.absoluteStart = (w.absoluteStart ?? 0) + shift;
+        w.absoluteEnd = (w.absoluteEnd ?? 0) + shift;
+        w.start = (w.start ?? 0);
+        w.end = (w.end ?? 0);
+      });
+      absoluteStart = words[0].absoluteStart ?? shift;
+      absoluteEnd =
+        words[words.length - 1].absoluteEnd ??
+        absoluteStart + DEFAULT_NEW_WORD_DURATION;
+      const sentenceStart = absoluteStart;
+      words.forEach(w => {
+        w.start = (w.absoluteStart ?? 0) - sentenceStart;
+        w.end = (w.absoluteEnd ?? 0) - sentenceStart;
+      });
+    }
+
     drafts.push({
       id,
       text,
       words,
-      absoluteStart: words[0].absoluteStart ?? 0,
-      absoluteEnd: words[words.length - 1].absoluteEnd ?? 0,
+      absoluteStart,
+      absoluteEnd,
     });
   });
 

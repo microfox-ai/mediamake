@@ -93,6 +93,8 @@ interface TimelineEditsState {
       label: string;
       target: import('@/components/editor/presets/actions/types').ActionTarget;
       inputData?: Record<string, unknown>;
+      /** Defaults to `"manual"` — UI / explicit run only; never at compile time. */
+      runPolicy?: import('@/components/editor/presets/actions/types').ActionRunPolicy;
     },
   ) => import('@/components/editor/presets/actions/types').TimelineAction | null;
   updateAction: (
@@ -861,6 +863,8 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         label: action.label,
         target: action.target,
         inputData: action.inputData || {},
+        // Manual by default — compile never runs actions; UI Run or executeAndApply does.
+        runPolicy: action.runPolicy ?? ('manual' as const),
         outputs: [],
         status: 'idle' as const,
       };

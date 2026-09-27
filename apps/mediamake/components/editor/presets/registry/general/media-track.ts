@@ -583,12 +583,18 @@ const presetExecution = (
     }
 
     if (mediaType === 'video') {
+      const thumbnail =
+        (mediaItem as any).thumbnail ||
+        (mediaItem as any).thumbnailUrl ||
+        (mediaItem as any).metadata?.thumbnail ||
+        (mediaItem as any).metadata?.thumbnailUrl;
       return {
         id: sceneId,
         componentId: 'VideoAtom',
         type: 'atom' as const,
         data: {
           src,
+          ...(thumbnail ? { thumbnail: String(thumbnail) } : {}),
           className:
             mediaItem.fit === 'cover'
               ? 'w-full h-full object-cover'

@@ -30,6 +30,7 @@ import { useSession } from "@/components/session-provider";
 import { callAgent } from "@/components/agents/agent-helper";
 import { useWorkflowJob } from "@/hooks/useWorkflowJob";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { generateAndUploadVideoThumbnail } from "@/lib/video-thumbnail-upload";
 
 interface UploadDialogProps {
     isOpen: boolean;
@@ -348,6 +349,20 @@ export function UploadDialog({
                     xhr.send(file);
                 });
 
+                // For videos, capture a still frame and upload it as a JPEG thumbnail
+                let thumbnailUrl: string | undefined;
+                if (detectContentType(file) === "video") {
+                    try {
+                        const thumb = await generateAndUploadVideoThumbnail(
+                            file,
+                            abortControllerRef.current?.signal,
+                        );
+                        if (thumb) thumbnailUrl = thumb;
+                    } catch (thumbErr) {
+                        console.warn("Video thumbnail generation failed:", thumbErr);
+                    }
+                }
+
                 // Mark as completed for this file
                 setUploadProgress(prev =>
                     prev.map((item, idx) =>
@@ -367,6 +382,7 @@ export function UploadDialog({
                     mediaType: file.type,
                     mediaFormat: file.name.split('.').pop() || 'file',
                     mediaUrl: publicUrl,
+                    ...(thumbnailUrl ? { thumbnailUrl } : {}),
                 };
             })());
 
@@ -433,6 +449,12 @@ export function UploadDialog({
                 };
                 if (projectIdToUse) {
                     mediaFileData.projectId = projectIdToUse;
+                }
+                if (media.thumbnailUrl) {
+                    mediaFileData.metadata = {
+                        thumbnail: media.thumbnailUrl,
+                        src: media.mediaUrl,
+                    };
                 }
 
                 const result: any = { input: mediaFileData };

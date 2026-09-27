@@ -84,22 +84,20 @@ export function LinkedActionsSection({
     }
   };
 
-  const handleAdd = async (actionDefId: string) => {
+  const handleAdd = (actionDefId: string) => {
     const definition = getActionDefinition(actionDefId);
     if (!definition) return;
+    // Add only — never auto-run. User runs explicitly via the Run button.
+    // Programmatic callers can still pass runPolicy: "auto" + runEligibleActions().
     const created = addActionToTimeline(timeline.id, {
       actionId: definition.metadata.id,
       label: definition.metadata.title,
       target,
       inputData: { ...definition.defaultInputParams },
+      runPolicy: definition.metadata.defaultRunPolicy ?? "manual",
     });
     if (!created) return;
     setExpandedActionId(created.id);
-    try {
-      await executeAndApply(timeline.id, created.id);
-    } catch {
-      // stay on form so user can fill inputs and re-run
-    }
   };
 
   const expandedAction =
@@ -136,7 +134,7 @@ export function LinkedActionsSection({
             {supported.map((action) => (
               <DropdownMenuItem
                 key={action.metadata.id}
-                onClick={() => void handleAdd(action.metadata.id)}
+                onClick={() => handleAdd(action.metadata.id)}
               >
                 <Zap className="h-3.5 w-3.5 mr-2" />
                 {action.metadata.title}

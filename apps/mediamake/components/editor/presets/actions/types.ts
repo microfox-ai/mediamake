@@ -6,6 +6,17 @@ export type ActionTarget =
   | { type: "preset"; presetInstanceId: string }
   | { type: "reference"; referenceKey: string };
 
+/**
+ * When an action instance is allowed to execute.
+ *
+ * - `"manual"` (default): UI Run button or an explicit `executeAndApply()` call.
+ *   Never invoked by preset compile — compile only reads already-applied data.
+ * - `"auto"`: eligible for programmatic batch runners (`runEligibleActions`).
+ *   Still never runs inside the compile pipeline unless a caller explicitly
+ *   invokes those runners first.
+ */
+export type ActionRunPolicy = "manual" | "auto";
+
 /** One generated variant the user can pick / apply. */
 export interface ActionOutputVariant {
   id: string;
@@ -23,6 +34,11 @@ export interface TimelineAction {
   target: ActionTarget;
   inputData: Record<string, unknown>;
   outputs: ActionOutputVariant[];
+  /**
+   * Execution policy. Defaults to `"manual"` when omitted.
+   * Preset compile never runs actions regardless of this value.
+   */
+  runPolicy?: ActionRunPolicy;
   /** Currently selected / applied output id. */
   selectedOutputId?: string;
   /** Set after first successful run. */
@@ -65,6 +81,11 @@ export interface ActionDefinition {
       | "objects"
     >;
     tags?: string[];
+    /**
+     * Default run policy for new instances of this action.
+     * Omitting means `"manual"` — UI / explicit programmatic run only.
+     */
+    defaultRunPolicy?: ActionRunPolicy;
   };
   inputSchema: z.ZodTypeAny;
   defaultInputParams: Record<string, unknown>;

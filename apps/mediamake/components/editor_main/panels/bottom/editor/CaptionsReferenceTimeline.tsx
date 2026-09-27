@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ZoomIn, ZoomOut, Play, Pause } from "lucide-react";
+import { ZoomIn, ZoomOut, Play, Pause, ArrowLeftToLine, ArrowRightToLine, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,19 @@ import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import type { ReferenceItem } from "@/components/editor/presets/types";
+import type { Timeline } from "@/components/editor_main/stores/project-store";
+import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
+import {
+  AudioWaveformTracks,
+  AudioWaveformTrackLabels,
+} from "./AudioWaveformTracks";
 
 export interface CaptionsReferenceTimelineProps {
   reference: ReferenceItem;
   referenceIndex: number;
   timelineId: string;
+  /** Full timeline (edited or original) — used to discover audio media-track clips. */
+  timeline?: Timeline;
 }
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -71,74 +79,102 @@ function formatTimeLabel(sec: number): string {
 }
 
 function getLineBounds(line: CaptionLine): { start: number; end: number } {
+  // Prefer explicit line range so the line can act as a container for words.
+  if (line.absoluteStart != null && line.absoluteEnd != null) {
+    const start = Number(line.absoluteStart) || 0;
+    const end = Number(line.absoluteEnd) || start;
+    return { start, end: Math.max(end, start) };
+  }
   const words = line.words ?? [];
   if (words.length > 0) {
-    const start = words[0]?.absoluteStart ?? line.absoluteStart ?? 0;
+    const start =
+      Number(words[0]?.absoluteStart ?? line.start ?? 0) || 0;
     const end =
-      words[words.length - 1]?.absoluteEnd ?? line.absoluteEnd ?? start;
-    return { start: Number(start) || 0, end: Math.max(Number(end) || 0, Number(start) || 0) };
+      Number(
+        words[words.length - 1]?.absoluteEnd ?? line.end ?? start,
+      ) || start;
+    return { start, end: Math.max(end, start) };
   }
-  const start = Number(line.absoluteStart ?? line.start ?? 0) || 0;
-  const end = Number(line.absoluteEnd ?? line.end ?? start) || start;
+  const start = Number(line.start ?? 0) || 0;
+  const end = Number(line.end ?? start) || start;
   return { start, end: Math.max(end, start) };
 }
 
-function getWordBounds(word: CaptionWord): { start: number; end: number } {
-  const start = Number(word.absoluteStart ?? word.start ?? 0) || 0;
-  const end = Number(word.absoluteEnd ?? word.end ?? start) || start;
+function getWordBounds(
+  word: CaptionWord,
+  line?: CaptionLine,
+): { start: number; end: number } {
+  if (word.absoluteStart != null || word.absoluteEnd != null) {
+    const start = Number(word.absoluteStart ?? 0) || 0;
+    const end = Number(word.absoluteEnd ?? start) || start;
+    return { start, end: Math.max(end, start) };
+  }
+  // Relative start/end are offsets within the line
+  const lineStart = line ? getLineBounds(line).start : 0;
+  const start = lineStart + (Number(word.start) || 0);
+  const end = lineStart + (Number(word.end ?? word.start) || 0);
   return { start, end: Math.max(end, start) };
 }
 
-/** Sync relative start/end/duration from absolute word timings. */
+/** Sync relative start/end/duration from absolute word timings; keep line range. */
 function recomputeLineFromWords(line: CaptionLine): CaptionLine {
+  const lineBounds = getLineBounds(line);
   const words = (line.words ?? []).map((w) => ({ ...w }));
+
   if (words.length === 0) {
-    const { start, end } = getLineBounds(line);
     return {
       ...line,
-      absoluteStart: start,
-      absoluteEnd: end,
-      start,
-      end,
-      duration: Math.max(0, end - start),
+      absoluteStart: lineBounds.start,
+      absoluteEnd: lineBounds.end,
+      start: lineBounds.start,
+      end: lineBounds.end,
+      duration: Math.max(0, lineBounds.end - lineBounds.start),
     };
   }
 
-  const absoluteStart = getWordBounds(words[0]!).start;
-  const absoluteEnd = getWordBounds(words[words.length - 1]!).end;
+  const normalized = words.map((w) => {
+    const { start, end } = getWordBounds(w, line);
+    // Clamp every word inside the line range
+    const clampedStart = Math.max(
+      lineBounds.start,
+      Math.min(start, lineBounds.end - MIN_GAP),
+    );
+    const clampedEnd = Math.min(
+      lineBounds.end,
+      Math.max(end, clampedStart + MIN_GAP),
+    );
+    return {
+      ...w,
+      absoluteStart: clampedStart,
+      absoluteEnd: clampedEnd,
+      start: clampedStart - lineBounds.start,
+      end: clampedEnd - lineBounds.start,
+      duration: Math.max(0, clampedEnd - clampedStart),
+    };
+  });
 
   return {
     ...line,
-    absoluteStart,
-    absoluteEnd,
-    start: absoluteStart,
-    end: absoluteEnd,
-    duration: Math.max(0, absoluteEnd - absoluteStart),
-    text: words.map((w) => w.text ?? "").join(" ").trim() || line.text,
-    words: words.map((w) => {
-      const { start, end } = getWordBounds(w);
-      return {
-        ...w,
-        absoluteStart: start,
-        absoluteEnd: end,
-        start: start - absoluteStart,
-        end: end - absoluteStart,
-        duration: Math.max(0, end - start),
-      };
-    }),
+    absoluteStart: lineBounds.start,
+    absoluteEnd: lineBounds.end,
+    start: lineBounds.start,
+    end: lineBounds.end,
+    duration: Math.max(0, lineBounds.end - lineBounds.start),
+    text: normalized.map((w) => w.text ?? "").join(" ").trim() || line.text,
+    words: normalized,
   };
 }
 
 function shiftLine(line: CaptionLine, delta: number): CaptionLine {
+  const { start, end } = getLineBounds(line);
   const words = (line.words ?? []).map((w) => {
-    const { start, end } = getWordBounds(w);
+    const b = getWordBounds(w, line);
     return {
       ...w,
-      absoluteStart: start + delta,
-      absoluteEnd: end + delta,
+      absoluteStart: b.start + delta,
+      absoluteEnd: b.end + delta,
     };
   });
-  const { start, end } = getLineBounds(line);
   return recomputeLineFromWords({
     ...line,
     absoluteStart: start + delta,
@@ -147,56 +183,79 @@ function shiftLine(line: CaptionLine, delta: number): CaptionLine {
   });
 }
 
+/**
+ * Resize a line edge. The first word (left) or last word (right) always
+ * meets the new line bound — extending or compressing with the line.
+ * Words may overlap each other; only MIN_GAP on the edge word is enforced.
+ */
 function applyLineEdge(
   line: CaptionLine,
   edge: "left" | "right",
   nextStart: number,
   nextEnd: number,
 ): CaptionLine {
-  const words = [...(line.words ?? [])].map((w) => ({ ...w }));
-  const { start: curStart, end: curEnd } = getLineBounds(line);
+  const words = (line.words ?? []).map((w) => ({ ...w }));
+  let start = nextStart;
+  let end = Math.max(nextEnd, start + MIN_GAP);
 
   if (words.length === 0) {
     return recomputeLineFromWords({
       ...line,
-      absoluteStart: nextStart,
-      absoluteEnd: nextEnd,
+      absoluteStart: start,
+      absoluteEnd: end,
     });
   }
 
   if (edge === "left") {
+    start = Math.min(start, end - MIN_GAP);
     const first = words[0]!;
-    const { end: firstEnd } = getWordBounds(first);
+    const { end: origFirstEnd } = getWordBounds(first, line);
+    // Glue first-word start to line start; shrink end only if needed for MIN_GAP
+    const firstEnd = Math.max(origFirstEnd, start + MIN_GAP);
     words[0] = {
       ...first,
-      absoluteStart: Math.min(nextStart, firstEnd - MIN_GAP),
-      absoluteEnd: firstEnd,
+      absoluteStart: start,
+      absoluteEnd: Math.min(firstEnd, end),
     };
-    // If shrinking/growing the line start, keep remaining words fixed unless
-    // the new start would push past them — recomputeLineFromWords handles bounds.
+    // Ensure first word still has MIN_GAP inside the line
+    if ((words[0].absoluteEnd as number) - start < MIN_GAP) {
+      words[0].absoluteEnd = start + MIN_GAP;
+    }
+
     return recomputeLineFromWords({
       ...line,
-      absoluteStart: nextStart,
-      absoluteEnd: curEnd,
+      absoluteStart: start,
+      absoluteEnd: end,
       words,
     });
   }
 
+  // right edge
+  end = Math.max(end, start + MIN_GAP);
   const last = words[words.length - 1]!;
-  const { start: lastStart } = getWordBounds(last);
+  const { start: origLastStart } = getWordBounds(last, line);
+  const lastStart = Math.min(origLastStart, end - MIN_GAP);
   words[words.length - 1] = {
     ...last,
-    absoluteStart: lastStart,
-    absoluteEnd: Math.max(nextEnd, lastStart + MIN_GAP),
+    absoluteStart: Math.max(lastStart, start),
+    absoluteEnd: end,
   };
+  if (end - (words[words.length - 1].absoluteStart as number) < MIN_GAP) {
+    words[words.length - 1].absoluteStart = end - MIN_GAP;
+  }
+
   return recomputeLineFromWords({
     ...line,
-    absoluteStart: curStart,
-    absoluteEnd: nextEnd,
+    absoluteStart: start,
+    absoluteEnd: end,
     words,
   });
 }
 
+/**
+ * Edit a word edge/move. Words may overlap; only constraint is staying
+ * inside the parent line range.
+ */
 function applyWordEdge(
   line: CaptionLine,
   wordIdx: number,
@@ -208,28 +267,92 @@ function applyWordEdge(
   const word = words[wordIdx];
   if (!word) return line;
 
+  const lineBounds = getLineBounds(line);
+  let start = nextStart;
+  let end = nextEnd;
+
   if (edge === "move") {
-    const dur = Math.max(MIN_GAP, nextEnd - nextStart);
-    words[wordIdx] = {
-      ...word,
-      absoluteStart: nextStart,
-      absoluteEnd: nextStart + dur,
-    };
+    const dur = Math.max(MIN_GAP, end - start);
+    start = Math.max(
+      lineBounds.start,
+      Math.min(lineBounds.end - dur, start),
+    );
+    end = start + dur;
   } else if (edge === "left") {
-    words[wordIdx] = {
-      ...word,
-      absoluteStart: nextStart,
-      absoluteEnd: getWordBounds(word).end,
-    };
+    const curEnd = getWordBounds(word, line).end;
+    end = Math.min(curEnd, lineBounds.end);
+    start = Math.max(
+      lineBounds.start,
+      Math.min(end - MIN_GAP, start),
+    );
   } else {
-    words[wordIdx] = {
-      ...word,
-      absoluteStart: getWordBounds(word).start,
-      absoluteEnd: nextEnd,
-    };
+    const curStart = getWordBounds(word, line).start;
+    start = Math.max(curStart, lineBounds.start);
+    end = Math.min(
+      lineBounds.end,
+      Math.max(start + MIN_GAP, end),
+    );
   }
 
+  // Hard clamp to line scope
+  start = Math.max(lineBounds.start, start);
+  end = Math.min(lineBounds.end, end);
+  if (end - start < MIN_GAP) {
+    if (edge === "left") start = Math.max(lineBounds.start, end - MIN_GAP);
+    else end = Math.min(lineBounds.end, start + MIN_GAP);
+  }
+
+  words[wordIdx] = {
+    ...word,
+    absoluteStart: start,
+    absoluteEnd: end,
+  };
+
   return recomputeLineFromWords({ ...line, words });
+}
+
+/** Move a block so its start lands on `at`, preserving duration. */
+function setBlockStartAt(
+  start: number,
+  end: number,
+  at: number,
+  minStart = 0,
+  maxEnd = Infinity,
+): { start: number; end: number } {
+  const dur = Math.max(MIN_GAP, end - start);
+  let newStart = at;
+  let newEnd = newStart + dur;
+  if (newEnd > maxEnd) {
+    newEnd = maxEnd;
+    newStart = Math.max(minStart, newEnd - dur);
+  }
+  if (newStart < minStart) {
+    newStart = minStart;
+    newEnd = newStart + dur;
+  }
+  return { start: newStart, end: newEnd };
+}
+
+/** Move a block so its end lands on `at`, preserving duration. */
+function setBlockEndAt(
+  start: number,
+  end: number,
+  at: number,
+  minStart = 0,
+  maxEnd = Infinity,
+): { start: number; end: number } {
+  const dur = Math.max(MIN_GAP, end - start);
+  let newEnd = at;
+  let newStart = newEnd - dur;
+  if (newStart < minStart) {
+    newStart = minStart;
+    newEnd = newStart + dur;
+  }
+  if (newEnd > maxEnd) {
+    newEnd = maxEnd;
+    newStart = Math.max(minStart, newEnd - dur);
+  }
+  return { start: newStart, end: newEnd };
 }
 
 // ─── Segment block ────────────────────────────────────────────────────────────
@@ -322,6 +445,7 @@ export function CaptionsReferenceTimeline({
   reference,
   referenceIndex,
   timelineId,
+  timeline: timelineProp,
 }: CaptionsReferenceTimelineProps) {
   const updateTimeline = useTimelineEditsStore((s) => s.updateTimeline);
   const editedTimeline = useTimelineEditsStore((s) =>
@@ -335,6 +459,13 @@ export function CaptionsReferenceTimeline({
 
   const fps = calculatedMetadata?.fps ?? 30;
   const currentTimeSec = currentFrame / fps;
+
+  const effectiveTimeline = editedTimeline || timelineProp;
+
+  const audioClips = useMemo(
+    () => findAudioMediaClipsFromTimeline(effectiveTimeline),
+    [effectiveTimeline],
+  );
 
   const liveReference =
     (editedTimeline?.defaultData?.references?.[referenceIndex] as ReferenceItem | undefined) ||
@@ -356,6 +487,8 @@ export function CaptionsReferenceTimeline({
     origEnd: number;
     minBound: number;
     maxBound: number;
+    /** Snapshot at pointer-down — all moves are applied from this, not from live state */
+    origCaptions: CaptionLine[];
   } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -367,7 +500,7 @@ export function CaptionsReferenceTimeline({
           const b = getLineBounds(c);
           const words = (c.words ?? [])
             .map((w) => {
-              const wb = getWordBounds(w);
+              const wb = getWordBounds(w, c);
               return `${wb.start}-${wb.end}`;
             })
             .join(",");
@@ -508,6 +641,11 @@ export function CaptionsReferenceTimeline({
       e.preventDefault();
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      // Deep-clone so subsequent moves always start from this baseline
+      const origCaptions: CaptionLine[] = localCaptions.map((c) => ({
+        ...c,
+        words: (c.words ?? []).map((w) => ({ ...w })),
+      }));
       dragRef.current = {
         target,
         startClientX: e.clientX,
@@ -515,9 +653,10 @@ export function CaptionsReferenceTimeline({
         origEnd,
         minBound,
         maxBound,
+        origCaptions,
       };
     },
-    [],
+    [localCaptions],
   );
 
   const handlePointerMove = useCallback(
@@ -528,73 +667,72 @@ export function CaptionsReferenceTimeline({
       const deltaSec = (e.clientX - drag.startClientX) / pixelsPerSecond;
       const duration = drag.origEnd - drag.origStart;
 
-      setLocalCaptions((prev) => {
-        const next: CaptionLine[] = prev.map((c) => ({
-          ...c,
-          words: (c.words ?? []).map((w) => ({ ...w })),
-        }));
-        const { target } = drag;
+      // Always derive from drag-start snapshot so deltas do not compound
+      const next: CaptionLine[] = drag.origCaptions.map((c) => ({
+        ...c,
+        words: (c.words ?? []).map((w) => ({ ...w })),
+      }));
+      const { target } = drag;
 
-        if (target.kind === "line") {
-          const line = next[target.lineIdx];
-          if (!line) return prev;
-
-          if (target.edge === "move") {
-            let newStart = Math.max(
-              drag.minBound,
-              Math.min(drag.maxBound - duration, drag.origStart + deltaSec),
-            );
-            const shifted = shiftLine(line, newStart - drag.origStart);
-            next[target.lineIdx] = shifted;
-          } else if (target.edge === "left") {
-            const newStart = Math.max(
-              drag.minBound,
-              Math.min(drag.origEnd - MIN_GAP, drag.origStart + deltaSec),
-            );
-            next[target.lineIdx] = applyLineEdge(line, "left", newStart, drag.origEnd);
-          } else {
-            const newEnd = Math.min(
-              drag.maxBound,
-              Math.max(drag.origStart + MIN_GAP, drag.origEnd + deltaSec),
-            );
-            next[target.lineIdx] = applyLineEdge(line, "right", drag.origStart, newEnd);
-          }
-          return next;
-        }
-
-        // word
+      if (target.kind === "line") {
         const line = next[target.lineIdx];
-        if (!line) return prev;
-        let newStart = drag.origStart;
-        let newEnd = drag.origEnd;
+        if (!line) return;
 
         if (target.edge === "move") {
-          newStart = Math.max(
+          const newStart = Math.max(
             drag.minBound,
             Math.min(drag.maxBound - duration, drag.origStart + deltaSec),
           );
-          newEnd = newStart + duration;
+          next[target.lineIdx] = shiftLine(line, newStart - drag.origStart);
         } else if (target.edge === "left") {
-          newStart = Math.max(
+          const newStart = Math.max(
             drag.minBound,
             Math.min(drag.origEnd - MIN_GAP, drag.origStart + deltaSec),
           );
+          next[target.lineIdx] = applyLineEdge(line, "left", newStart, drag.origEnd);
         } else {
-          newEnd = Math.min(
+          const newEnd = Math.min(
             drag.maxBound,
             Math.max(drag.origStart + MIN_GAP, drag.origEnd + deltaSec),
           );
+          next[target.lineIdx] = applyLineEdge(line, "right", drag.origStart, newEnd);
         }
+        setLocalCaptions(next);
+        return;
+      }
 
-        next[target.lineIdx] = applyWordEdge(
-          line,
-          target.wordIdx,
-          target.edge,
-          newStart,
-          newEnd,
+      // word
+      const line = next[target.lineIdx];
+      if (!line) return;
+      let newStart = drag.origStart;
+      let newEnd = drag.origEnd;
+
+      if (target.edge === "move") {
+        newStart = Math.max(
+          drag.minBound,
+          Math.min(drag.maxBound - duration, drag.origStart + deltaSec),
         );
-        return next;
-      });
+        newEnd = newStart + duration;
+      } else if (target.edge === "left") {
+        newStart = Math.max(
+          drag.minBound,
+          Math.min(drag.origEnd - MIN_GAP, drag.origStart + deltaSec),
+        );
+      } else {
+        newEnd = Math.min(
+          drag.maxBound,
+          Math.max(drag.origStart + MIN_GAP, drag.origEnd + deltaSec),
+        );
+      }
+
+      next[target.lineIdx] = applyWordEdge(
+        line,
+        target.wordIdx,
+        target.edge,
+        newStart,
+        newEnd,
+      );
+      setLocalCaptions(next);
     },
     [pixelsPerSecond],
   );
@@ -615,6 +753,136 @@ export function CaptionsReferenceTimeline({
     },
     [commitCaptions],
   );
+
+  // ── [ / ] — snap selected block start/end to playhead ─────────────────────
+
+  const snapSelectedToPlayhead = useCallback(
+    (edge: "start" | "end") => {
+      if (!selected) return;
+      const sel = selected;
+      const at = currentTimeSec;
+      const lineIdx = sel.lineIdx;
+
+      setLocalCaptions((prev) => {
+        const next: CaptionLine[] = prev.map((c) => ({
+          ...c,
+          words: (c.words ?? []).map((w) => ({ ...w })),
+        }));
+        const line = next[lineIdx];
+        if (!line) return prev;
+
+        if (sel.kind === "line") {
+          const { start, end } = getLineBounds(line);
+          const moved =
+            edge === "start"
+              ? setBlockStartAt(start, end, at, 0, totalDuration)
+              : setBlockEndAt(start, end, at, 0, totalDuration);
+          next[lineIdx] = shiftLine(line, moved.start - start);
+          commitCaptions(next);
+          return next;
+        }
+
+        const wordIdx = sel.wordIdx;
+        if (wordIdx == null) return prev;
+
+        // word — keep within line scope
+        const lineBounds = getLineBounds(line);
+        const words = line.words ?? [];
+        const word = words[wordIdx];
+        if (!word) return prev;
+        const { start, end } = getWordBounds(word, line);
+        const moved =
+          edge === "start"
+            ? setBlockStartAt(
+                start,
+                end,
+                at,
+                lineBounds.start,
+                lineBounds.end,
+              )
+            : setBlockEndAt(
+                start,
+                end,
+                at,
+                lineBounds.start,
+                lineBounds.end,
+              );
+        next[lineIdx] = applyWordEdge(
+          line,
+          wordIdx,
+          "move",
+          moved.start,
+          moved.end,
+        );
+        commitCaptions(next);
+        return next;
+      });
+    },
+    [selected, currentTimeSec, totalDuration, commitCaptions],
+  );
+
+  const deleteSelected = useCallback(() => {
+    if (!selected) return;
+    const sel = selected;
+
+    setLocalCaptions((prev) => {
+      if (sel.kind === "line") {
+        const next = prev.filter((_, i) => i !== sel.lineIdx);
+        commitCaptions(next);
+        queueMicrotask(() => setSelected(null));
+        return next;
+      }
+
+      const wordIdx = sel.wordIdx;
+      if (wordIdx == null) return prev;
+      const next: CaptionLine[] = prev.map((c) => ({
+        ...c,
+        words: (c.words ?? []).map((w) => ({ ...w })),
+      }));
+      const line = next[sel.lineIdx];
+      if (!line) return prev;
+      const words = [...(line.words ?? [])];
+      if (wordIdx < 0 || wordIdx >= words.length) return prev;
+      words.splice(wordIdx, 1);
+      // Keep line timing; only remove the word
+      next[sel.lineIdx] = recomputeLineFromWords({ ...line, words });
+      commitCaptions(next);
+      queueMicrotask(() => setSelected(null));
+      return next;
+    });
+  }, [selected, commitCaptions]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable ||
+          el.closest("[contenteditable=true]"))
+      ) {
+        return;
+      }
+      if (!selected) return;
+      if (e.key === "[" || e.code === "BracketLeft") {
+        e.preventDefault();
+        snapSelectedToPlayhead("start");
+        return;
+      }
+      if (e.key === "]" || e.code === "BracketRight") {
+        e.preventDefault();
+        snapSelectedToPlayhead("end");
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteSelected();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected, snapSelectedToPlayhead, deleteSelected]);
 
   // ── Scroll / ruler ────────────────────────────────────────────────────────
 
@@ -723,8 +991,42 @@ export function CaptionsReferenceTimeline({
           word{wordCount !== 1 ? "s" : ""}
         </span>
         <div className="flex-1" />
+        {/* Edit tools */}
+        <div className="flex items-center gap-0.5">
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selected && "opacity-40")}
+            disabled={!selected}
+            onClick={() => snapSelectedToPlayhead("start")}
+            title="Set start at playhead ([)"
+          >
+            <ArrowLeftToLine className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selected && "opacity-40")}
+            disabled={!selected}
+            onClick={() => snapSelectedToPlayhead("end")}
+            title="Set end at playhead (])"
+          >
+            <ArrowRightToLine className="h-3 w-3" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn("h-6 w-6", !selected && "opacity-40")}
+            disabled={!selected}
+            onClick={deleteSelected}
+            title="Delete selected (⌫)"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+        <div className="h-4 w-px bg-border mx-1" />
         <span className="text-[10px] text-muted-foreground/40 hidden sm:block">
-          Drag edges to adjust timing · Ctrl+scroll to zoom
+          Drag edges to adjust · [ ] snap · Ctrl+scroll zoom
         </span>
         <div className="h-4 w-px bg-border mx-1" />
         <Button
@@ -796,6 +1098,7 @@ export function CaptionsReferenceTimeline({
                 </div>
               </div>
             ))}
+            <AudioWaveformTrackLabels clips={audioClips} rowHeight={ROW_HEIGHT} />
           </div>
         </div>
 
@@ -863,14 +1166,9 @@ export function CaptionsReferenceTimeline({
                   const width = Math.max(MIN_SEG_PX, secToPx(end - start));
                   const isSelected =
                     selected?.kind === "line" && selected.lineIdx === lineIdx;
-                  const prevEnd =
-                    lineIdx > 0
-                      ? getLineBounds(localCaptions[lineIdx - 1]!).end
-                      : 0;
-                  const nextStart =
-                    lineIdx < localCaptions.length - 1
-                      ? getLineBounds(localCaptions[lineIdx + 1]!).start
-                      : totalDuration;
+                  // Lines may overlap — only clamp to the timeline extent
+                  const minBound = 0;
+                  const maxBound = totalDuration;
                   const label =
                     (line.text || "").trim().slice(0, 40) ||
                     `Line ${lineIdx + 1}`;
@@ -890,8 +1188,8 @@ export function CaptionsReferenceTimeline({
                           { kind: "line", lineIdx, edge: "move" },
                           start,
                           end,
-                          prevEnd,
-                          nextStart,
+                          minBound,
+                          maxBound,
                         )
                       }
                       onLeftDown={(e) =>
@@ -900,8 +1198,8 @@ export function CaptionsReferenceTimeline({
                           { kind: "line", lineIdx, edge: "left" },
                           start,
                           end,
-                          prevEnd,
-                          nextStart,
+                          minBound,
+                          maxBound,
                         )
                       }
                       onRightDown={(e) =>
@@ -910,8 +1208,8 @@ export function CaptionsReferenceTimeline({
                           { kind: "line", lineIdx, edge: "right" },
                           start,
                           end,
-                          prevEnd,
-                          nextStart,
+                          minBound,
+                          maxBound,
                         )
                       }
                       onPointerMove={handlePointerMove}
@@ -933,31 +1231,19 @@ export function CaptionsReferenceTimeline({
               >
                 {localCaptions.flatMap((line, lineIdx) => {
                   const words = line.words ?? [];
-                  const prevLineEnd =
-                    lineIdx > 0
-                      ? getLineBounds(localCaptions[lineIdx - 1]!).end
-                      : 0;
-                  const nextLineStart =
-                    lineIdx < localCaptions.length - 1
-                      ? getLineBounds(localCaptions[lineIdx + 1]!).start
-                      : totalDuration;
+                  const lineBounds = getLineBounds(line);
 
                   return words.map((word, wordIdx) => {
-                    const { start, end } = getWordBounds(word);
+                    const { start, end } = getWordBounds(word, line);
                     const left = secToPx(start);
                     const width = Math.max(MIN_SEG_PX, secToPx(end - start));
                     const isSelected =
                       selected?.kind === "word" &&
                       selected.lineIdx === lineIdx &&
                       selected.wordIdx === wordIdx;
-                    const prevEnd =
-                      wordIdx > 0
-                        ? getWordBounds(words[wordIdx - 1]!).end
-                        : prevLineEnd;
-                    const nextStart =
-                      wordIdx < words.length - 1
-                        ? getWordBounds(words[wordIdx + 1]!).start
-                        : nextLineStart;
+                    // Words may overlap; only constrained to the parent line
+                    const minBound = lineBounds.start;
+                    const maxBound = lineBounds.end;
 
                     return (
                       <TimingBlock
@@ -976,8 +1262,8 @@ export function CaptionsReferenceTimeline({
                             { kind: "word", lineIdx, wordIdx, edge: "move" },
                             start,
                             end,
-                            prevEnd,
-                            nextStart,
+                            minBound,
+                            maxBound,
                           )
                         }
                         onLeftDown={(e) =>
@@ -986,8 +1272,8 @@ export function CaptionsReferenceTimeline({
                             { kind: "word", lineIdx, wordIdx, edge: "left" },
                             start,
                             end,
-                            prevEnd,
-                            nextStart,
+                            minBound,
+                            maxBound,
                           )
                         }
                         onRightDown={(e) =>
@@ -996,8 +1282,8 @@ export function CaptionsReferenceTimeline({
                             { kind: "word", lineIdx, wordIdx, edge: "right" },
                             start,
                             end,
-                            prevEnd,
-                            nextStart,
+                            minBound,
+                            maxBound,
                           )
                         }
                         onPointerMove={handlePointerMove}
@@ -1007,6 +1293,14 @@ export function CaptionsReferenceTimeline({
                   });
                 })}
               </div>
+
+              <AudioWaveformTracks
+                clips={audioClips}
+                secToPx={secToPx}
+                totalWidth={totalWidth}
+                rowHeight={ROW_HEIGHT}
+                renderLabels={false}
+              />
 
               <div
                 className="absolute top-0 bottom-0 w-px bg-primary/70 pointer-events-none z-20"

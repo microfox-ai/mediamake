@@ -123,7 +123,16 @@ interface LayerState {
   toggleLayerLocked: (nodeId: string) => void;
   isLayerLocked: (nodeId: string) => boolean;
 
-  setOverride: (nodeId: string, override: LayerOverride) => void;
+  setOverride: (
+    nodeId: string,
+    override: LayerOverride,
+    options?: { skipHistory?: boolean }
+  ) => void;
+  /** Record a single undo entry after a skipHistory drag/gesture. */
+  commitOverrideHistory: (
+    nodeId: string,
+    prevOverride: LayerOverride | undefined
+  ) => void;
   clearOverride: (nodeId: string) => void;
   clearOverridesForPresetItem: (presetItemId: string) => void;
   setPresetItemIdByNodeId: (map: Map<string, string>) => void;
@@ -444,22 +453,47 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
 
   isLayerLocked: (nodeId) => get().lockedLayerIds.has(nodeId),
 
-  setOverride: (nodeId, override) => {
+  setOverride: (nodeId, override, options) => {
     if (get().lockedLayerIds.has(nodeId)) return;
     const prevOverride = get().overrides.get(nodeId);
     set((state) => {
       const next = new Map(state.overrides);
       const existing = next.get(nodeId) || {};
       const mergedData = deepMergeOverrideData(existing.data, override.data);
+      const existingCtx = (existing.context ?? {}) as Record<string, unknown>;
+      const overrideCtx = (override.context ?? {}) as Record<string, unknown>;
+      const mergedTiming =
+        existingCtx.timing != null || overrideCtx.timing != null
+          ? {
+              ...((existingCtx.timing as Record<string, unknown>) || {}),
+              ...((overrideCtx.timing as Record<string, unknown>) || {}),
+            }
+          : undefined;
       next.set(nodeId, {
         ...existing,
         ...override,
         data: mergedData,
-        context: { ...existing.context, ...override.context },
+        context: {
+          ...existingCtx,
+          ...overrideCtx,
+          ...(mergedTiming ? { timing: mergedTiming } : {}),
+        } as LayerOverride["context"],
         ...(override.effects !== undefined && { effects: override.effects }),
       });
       return { overrides: next };
     });
+    if (options?.skipHistory) return;
+    const s = get();
+    useLayerHistoryStore.getState().recordChange('Override layer', [{
+      layerItemId: makeLayerItemId(nodeId),
+      nodeId,
+      changeType: 'override',
+      prevOverride: prevOverride as Record<string, unknown> | undefined,
+      nextOverride: s.overrides.get(nodeId) as Record<string, unknown> | undefined,
+    }], snapshotFromLayerState(s));
+  },
+
+  commitOverrideHistory: (nodeId, prevOverride) => {
     const s = get();
     useLayerHistoryStore.getState().recordChange('Override layer', [{
       layerItemId: makeLayerItemId(nodeId),

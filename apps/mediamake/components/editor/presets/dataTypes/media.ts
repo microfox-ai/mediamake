@@ -176,9 +176,23 @@ export function toMediaItem(input: any): MediaItem {
     input.metadata?.src ||
     "";
   const type = detectMediaKind(input);
+  const name =
+    input.name ||
+    input.title ||
+    input.fileName ||
+    input.metadata?.title ||
+    undefined;
+  const thumbnail =
+    input.thumbnail ||
+    input.thumbnailUrl ||
+    input.metadata?.thumbnail ||
+    input.metadata?.thumbnailUrl ||
+    undefined;
   return {
     ...input,
     src: String(src),
     type,
+    ...(name ? { name: String(name) } : {}),
+    ...(thumbnail ? { thumbnail: String(thumbnail) } : {}),
   };
 }

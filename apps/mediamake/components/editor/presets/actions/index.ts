@@ -1,5 +1,6 @@
 export type {
   ActionTarget,
+  ActionRunPolicy,
   ActionOutputVariant,
   TimelineAction,
   ActionDefinition,
@@ -23,9 +24,12 @@ export {
 } from "./engine/run-action";
 
 export {
+  getActionRunPolicy,
   stripActionOutputFromTargetData,
   executeAndApply,
+  runEligibleActions,
   removeTimelineAction,
   confirmRemoveAction,
   confirmRerunAction,
 } from "./engine/action-lifecycle";
+export type { RunEligibleActionsOptions } from "./engine/action-lifecycle";

@@ -1,13 +1,20 @@
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import { useTimelineEditsStore } from "@/components/editor_main/stores/timeline-edits-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
-import type { ActionTarget, TimelineAction } from "../types";
+import type { ActionRunPolicy, ActionTarget, TimelineAction } from "../types";
 import { getActionDefinition } from "../registry";
 import {
   ACTION_GENERATED_KEY,
   applyActionOutputToTargetData,
   runTimelineAction,
 } from "./run-action";
+
+/** Effective run policy for an action instance (defaults to manual). */
+export function getActionRunPolicy(action: TimelineAction): ActionRunPolicy {
+  if (action.runPolicy) return action.runPolicy;
+  const definition = getActionDefinition(action.actionId);
+  return definition?.metadata.defaultRunPolicy ?? "manual";
+}
 
 export function getTargetData(
   timeline: Timeline,
@@ -248,4 +255,63 @@ export function confirmRerunAction(action: TimelineAction): boolean {
   return window.confirm(
     `Re-run "${action.label}"?\n\nThis will delete/replace previously generated/applied outputs on the linked preset/reference.`,
   );
+}
+
+export type RunEligibleActionsOptions = {
+  /**
+   * Which policies to include.
+   * - `"auto"` (default): only actions marked for automatic/programmatic runs
+   * - `"manual"`: only manual-policy actions (rarely useful outside tests)
+   * - `"all"`: every action on the timeline
+   */
+  policy?: ActionRunPolicy | "all";
+  /** Limit to specific action instance ids. */
+  actionIds?: string[];
+};
+
+/**
+ * Programmatic batch runner for future auto / agent workflows.
+ *
+ * Preset compile must NOT call this — actions write into preset/reference
+ * data; compile only consumes already-applied results.
+ *
+ * UI runs a single action via `executeAndApply` from the Run button.
+ */
+export async function runEligibleActions(
+  timelineId: string,
+  options: RunEligibleActionsOptions = {},
+): Promise<{ ran: string[]; skipped: string[]; errors: Array<{ id: string; error: string }> }> {
+  const policyFilter = options.policy ?? "auto";
+  const timeline = resolveTimeline(timelineId);
+  if (!timeline) {
+    throw new Error("Timeline not found");
+  }
+
+  const candidates = (timeline.actions || []).filter((action) => {
+    if (options.actionIds && !options.actionIds.includes(action.id)) {
+      return false;
+    }
+    if (policyFilter === "all") return true;
+    return getActionRunPolicy(action) === policyFilter;
+  });
+
+  const ran: string[] = [];
+  const skipped: string[] = [];
+  const errors: Array<{ id: string; error: string }> = [];
+
+  for (const action of candidates) {
+    try {
+      await executeAndApply(timelineId, action.id);
+      ran.push(action.id);
+    } catch (err) {
+      errors.push({
+        id: action.id,
+        error: err instanceof Error ? err.message : "Action failed",
+      });
+      skipped.push(action.id);
+    }
+  }
+
+  // Actions that did not match the filter are intentionally not listed.
+  return { ran, skipped, errors };
 }

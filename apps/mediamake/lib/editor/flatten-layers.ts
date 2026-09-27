@@ -28,6 +28,8 @@ export interface FlatLayer {
   previewText?: string;
   /** Media URL for ImageAtom/VideoAtom (left sidebar thumbnail + right sidebar content) */
   previewSrc?: string;
+  /** Optional still thumbnail URL for VideoAtom (preferred over decoding the video) */
+  previewThumbnail?: string;
 }
 
 /**
@@ -162,32 +164,62 @@ function getTiming(
   parentTiming?: ParentTimingOption
 ): FlatLayer["timing"] {
   const ctx = node.context as RenderableContext | undefined;
-  const timing = ctx?.timing || (node.data?.timing as { start?: number; duration?: number } | undefined);
-  const relativeStartSec = timing?.start ?? 0;
+  const timing = ctx?.timing || (node.data?.timing as {
+    start?: number;
+    duration?: number;
+    startInFrames?: number;
+    durationInFrames?: number;
+  } | undefined);
+  const relativeStartSec = timing?.start;
   const relativeDurationSec = timing?.duration;
+  const frameStart = timing?.startInFrames;
+  const frameDur = timing?.durationInFrames;
 
   if (parentTiming != null) {
-    const parentStartSec = parentTiming.start ?? (parentTiming.startInFrames != null ? parentTiming.startInFrames / fps : 0);
-    const parentDurationSec = parentTiming.duration ?? (parentTiming.durationInFrames != null ? parentTiming.durationInFrames / fps : 0);
-    const absoluteStartSec = parentStartSec + relativeStartSec;
-    const absoluteDurationSec = relativeDurationSec ?? parentDurationSec;
-    const startInFrames = Math.round(absoluteStartSec * fps);
-    const durationInFrames = Math.round(absoluteDurationSec * fps);
+    const parentStartSec =
+      parentTiming.start ??
+      (parentTiming.startInFrames != null ? parentTiming.startInFrames / fps : 0);
+    const parentDurationSec =
+      parentTiming.duration ??
+      (parentTiming.durationInFrames != null
+        ? parentTiming.durationInFrames / fps
+        : 0);
+
+    // Timeline overrides often set absolute startInFrames/durationInFrames.
+    // Prefer those so drag/trim does not collapse to the parent start.
+    if (frameStart != null) {
+      const startInFrames = frameStart;
+      const durationInFrames =
+        frameDur ??
+        Math.round((relativeDurationSec ?? parentDurationSec) * fps);
+      return {
+        start: startInFrames / fps,
+        duration: durationInFrames / fps,
+        startInFrames,
+        durationInFrames: Math.max(1, durationInFrames),
+      };
+    }
+
+    const absStartSec = parentStartSec + (relativeStartSec ?? 0);
+    const absDurationSec = relativeDurationSec ?? parentDurationSec;
     return {
-      start: absoluteStartSec,
-      duration: absoluteDurationSec,
-      startInFrames,
-      durationInFrames,
+      start: absStartSec,
+      duration: absDurationSec,
+      startInFrames: Math.round(absStartSec * fps),
+      durationInFrames: Math.max(1, Math.round(absDurationSec * fps)),
     };
   }
 
-  const startInFrames = (timing as { startInFrames?: number })?.startInFrames ?? Math.round(relativeStartSec * fps);
-  const durationInFrames = (timing as { durationInFrames?: number })?.durationInFrames ?? (relativeDurationSec != null ? Math.round(relativeDurationSec * fps) : 0);
+  const startInFrames =
+    frameStart ?? Math.round((relativeStartSec ?? 0) * fps);
+  const durationInFrames =
+    frameDur ??
+    (relativeDurationSec != null ? Math.round(relativeDurationSec * fps) : 0);
   return {
-    start: relativeStartSec,
+    start: relativeStartSec ?? startInFrames / fps,
     duration: relativeDurationSec ?? durationInFrames / fps,
     startInFrames,
-    durationInFrames,
+    durationInFrames: Math.max(0, durationInFrames),
   };
 }
 
@@ -339,7 +371,16 @@ export function flattenLayers(
         : node.componentId || node.id;
 
     const previewText = node.componentId === "TextAtom" ? (node.data?.text as string | undefined) : undefined;
-    const previewSrc = (node.componentId === "ImageAtom" || node.componentId === "VideoAtom") ? (node.data?.src as string | undefined) : undefined;
+    const previewSrc =
+      node.componentId === "ImageAtom" ||
+      node.componentId === "VideoAtom" ||
+      node.componentId === "AudioAtom"
+        ? (node.data?.src as string | undefined)
+        : undefined;
+    const previewThumbnail =
+      node.componentId === "VideoAtom"
+        ? ((node.data?.thumbnail || node.data?.poster || node.data?.thumbnailUrl) as string | undefined)
+        : undefined;
 
     result.push({
       id: node.id,
@@ -353,6 +394,7 @@ export function flattenLayers(
       ...(presetItemId && { _presetItemId: presetItemId }),
       ...(previewText != null && { previewText }),
       ...(previewSrc != null && { previewSrc }),
+      ...(previewThumbnail != null && { previewThumbnail }),
     });
 
     const nextParentTiming: ParentTimingOption = {

@@ -30,20 +30,24 @@ import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 const VideoThumbnail = ({
     src,
     title,
+    thumbnail,
 }: {
     src: string;
     title?: string;
+    /** Pre-stored thumbnail URL from media metadata (preferred). */
+    thumbnail?: string | null;
 }) => {
-    const { thumbnailSrc } = useVideoThumbnail(src, {
+    const { thumbnailSrc } = useVideoThumbnail(thumbnail ? null : src, {
         timeInSeconds: 2,
         width: 240,
     });
+    const displaySrc = thumbnail || thumbnailSrc;
 
-    if (thumbnailSrc) {
+    if (displaySrc) {
         return (
             <div className="relative w-full aspect-video bg-black">
                 <img
-                    src={thumbnailSrc}
+                    src={displaySrc}
                     alt={title ?? "Video thumbnail"}
                     className="w-full h-full object-cover"
                 />
@@ -993,7 +997,14 @@ export const MediaDialog = ({
                                                         className="flex flex-col gap-1 text-left bg-neutral-800/70 rounded-lg overflow-hidden hover:bg-neutral-700/80 transition-colors"
                                                     >
                                                         {url ? (
-                                                            <VideoThumbnail src={url} title={child.fileName} />
+                                                            <VideoThumbnail
+                                                                src={url}
+                                                                title={child.fileName}
+                                                                thumbnail={
+                                                                    (child as any)?.metadata?.thumbnail ||
+                                                                    (child as any)?.metadata?.thumbnailUrl
+                                                                }
+                                                            />
                                                         ) : (
                                                             <div className="w-full aspect-video bg-black flex items-center justify-center">
                                                                 <Play className="w-6 h-6 text-white" />
@@ -1471,6 +1482,12 @@ export const MediaGrid = ({
                                         <VideoThumbnail
                                             src={dialogItem.video.src}
                                             title={dialogItem.video.metadata?.title ?? mediaFile.fileName}
+                                            thumbnail={
+                                                dialogItem.video.metadata?.thumbnail ||
+                                                dialogItem.video.metadata?.thumbnailUrl ||
+                                                (mediaFile.metadata as any)?.thumbnail ||
+                                                (mediaFile.metadata as any)?.thumbnailUrl
+                                            }
                                         />
                                     )}
                                     {dialogItem.type === 'audio' && (

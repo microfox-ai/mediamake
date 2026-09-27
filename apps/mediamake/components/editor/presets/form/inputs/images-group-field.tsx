@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Image as ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,8 +20,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MediaPicker } from "@/components/editor/media/media-picker";
+import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
+import { toMediaItem } from "../../dataTypes/media";
 import { ColorInput } from "./color-input";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { isValidRangeString } from "../../engine/range-validation";
@@ -150,8 +152,22 @@ export function extractMediaSrc(entry: any): string {
   return "";
 }
 
-export function toMediaRefEntry(src: string): { src: string } {
-  return { src };
+export function toMediaRefEntry(
+  src: string,
+  extra?: Partial<{ type: string; name: string; thumbnail: string }>,
+): { src: string; type?: string; name?: string; thumbnail?: string } {
+  return { src, ...extra };
+}
+
+/** Build a media-track item from a picker MediaFile (src + type + name + thumbnail). */
+export function mediaFileToTrackItem(file: MediaFile): Record<string, unknown> {
+  const item = toMediaItem(file);
+  return {
+    src: item.src,
+    type: item.type,
+    ...(item.name ? { name: item.name } : {}),
+    ...((item as any).thumbnail ? { thumbnail: (item as any).thumbnail } : {}),
+  };
 }
 
 /**
@@ -186,9 +202,18 @@ export function ImagesGroupField({
     const out: any[] = [];
     for (let i = 0; i < len; i++) {
       const local = items[i] && typeof items[i] === "object" ? items[i] : {};
+      const ref = refMedias[i];
+      const refObj = ref && typeof ref === "object" ? ref : {};
       out.push({
+        ...refObj,
         ...local,
-        src: extractMediaSrc(refMedias[i]) || local.src || "",
+        src: extractMediaSrc(ref) || local.src || "",
+        type: local.type || (refObj as any).type,
+        name: local.name || (refObj as any).name || (refObj as any).fileName,
+        thumbnail:
+          local.thumbnail ||
+          (refObj as any).thumbnail ||
+          (refObj as any).metadata?.thumbnail,
       });
     }
     return out;
@@ -245,10 +270,22 @@ export function ImagesGroupField({
         const nextSrc =
           i === index ? String(patch.src ?? "") : extractMediaSrc(img);
         const existing = refMedias[i];
+        const mediaMeta =
+          i === index
+            ? {
+                type: patch.type ?? img?.type,
+                name: patch.name ?? img?.name,
+                thumbnail: patch.thumbnail ?? img?.thumbnail,
+              }
+            : {
+                type: img?.type,
+                name: img?.name,
+                thumbnail: img?.thumbnail,
+              };
         if (existing && typeof existing === "object") {
-          return { ...existing, src: nextSrc };
+          return { ...existing, src: nextSrc, ...mediaMeta };
         }
-        return toMediaRefEntry(nextSrc);
+        return toMediaRefEntry(nextSrc, mediaMeta);
       });
       syncRefMedias(medias);
     }
@@ -278,17 +315,16 @@ export function ImagesGroupField({
   };
 
   const replaceSrc = (index: number, file: MediaFile) => {
-    const src = file.filePath || "";
-    updateLocalItem(index, { src });
+    const next = mediaFileToTrackItem(file);
+    updateLocalItem(index, next);
     setReplaceIndex(null);
   };
 
   const addImages = (files: MediaFile | MediaFile[]) => {
     const list = Array.isArray(files) ? files : [files];
     const additions = list
-      .map((file) => file.filePath || "")
-      .filter(Boolean)
-      .map((src) => ({ src }));
+      .map((file) => mediaFileToTrackItem(file))
+      .filter((a) => a.src);
     if (additions.length === 0) {
       setAddingImages(false);
       return;
@@ -296,7 +332,7 @@ export function ImagesGroupField({
 
     const nextItems = [
       ...items,
-      ...additions.map((a) => (linked ? { src: a.src } : a)),
+      ...additions.map((a) => (linked ? { ...a } : a)),
     ];
     if (linked) {
       const medias = [
@@ -306,9 +342,19 @@ export function ImagesGroupField({
           if (existing && typeof existing === "object") {
             return { ...existing, src };
           }
-          return toMediaRefEntry(src);
+          return toMediaRefEntry(src, {
+            type: img?.type,
+            name: img?.name,
+            thumbnail: img?.thumbnail,
+          });
         }),
-        ...additions.map((a) => toMediaRefEntry(a.src)),
+        ...additions.map((a) =>
+          toMediaRefEntry(String(a.src), {
+            type: a.type as string | undefined,
+            name: a.name as string | undefined,
+            thumbnail: a.thumbnail as string | undefined,
+          }),
+        ),
       ];
       syncRefMedias(medias);
     }
@@ -428,18 +474,7 @@ export function ImagesGroupField({
                 className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
                 onClick={() => setEditIndex(index)}
               >
-                {img?.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={img.src}
-                    alt={`Image ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                )}
+                <MediaItemThumb item={img} />
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
                   <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
                 </div>
@@ -537,14 +572,10 @@ export function ImagesGroupField({
           </DialogHeader>
           {editing && editIndex !== null && (
             <div className="space-y-3">
-              {editing.src && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={editing.src}
-                  alt=""
-                  className="h-28 w-full rounded-md object-cover border"
-                />
-              )}
+              <MediaItemThumb
+                item={editing}
+                className="h-28 w-full rounded-md object-cover border"
+              />
               <div className="grid grid-cols-3 gap-2">
                 {(["fit", "filter", "blendMode"] as const).map((key) => {
                   const prop = popupProps.find((p) => p.key === key);
