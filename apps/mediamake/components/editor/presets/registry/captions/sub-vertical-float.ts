@@ -180,7 +180,7 @@ const presetExecution = (
   props: Partial<PresetPassedProps>,
 ): PresetOutput => {
   const {
-    inputCaptions,
+    inputCaptions: rawInputCaptions,
     position,
     subtitleSync,
     avgFontSize,
@@ -188,6 +188,47 @@ const presetExecution = (
     fontChoices,
     style,
   } = params;
+
+  // Normalize captions so missing arrays / word.end don't crash the preset
+  const inputCaptions = (Array.isArray(rawInputCaptions) ? rawInputCaptions : [])
+    .filter(c => c && typeof c === 'object')
+    .map(caption => {
+      const words = Array.isArray(caption.words) ? caption.words : [];
+      return {
+        ...caption,
+        words: words.map((word: any) => {
+          const start = Number(word?.start ?? 0) || 0;
+          const duration = Number(word?.duration ?? 0) || 0;
+          const absoluteStart = Number(word?.absoluteStart ?? start) || 0;
+          const absoluteEnd =
+            Number(word?.absoluteEnd ?? absoluteStart + duration) ||
+            absoluteStart + duration;
+          return {
+            ...word,
+            text: String(word?.text ?? ''),
+            start,
+            end: Number(word?.end ?? start + duration) || start + duration,
+            duration,
+            absoluteStart,
+            absoluteEnd,
+            confidence: Number(word?.confidence ?? 1) || 1,
+          };
+        }),
+      };
+    });
+
+  if (inputCaptions.length === 0) {
+    return {
+      output: {
+        config: { duration: 0 },
+        childrenData: [],
+      },
+      options: {
+        attachedToId: `BaseScene`,
+        attachedContainers: [{ className: 'absolute inset-0' }],
+      },
+    };
+  }
 
   // Font choices configuration
   const FONT_CHOICES =
@@ -1888,7 +1929,7 @@ const presetExecution = (
   // Generates position based on alignment type
   const getPosition = (height: number, positionConfig: any) => {
     const { align, top, left, right, bottom, radius, randomize } =
-      positionConfig;
+      positionConfig || {};
 
     // Handle fixed positioning
     if (align === 'fixed') {
@@ -2436,7 +2477,9 @@ const presetExecution = (
       arrayIndex: index,
     });
     const ids =
-      built != null && built.length > 0 ? built : ['inputCaptions.[${index}]'];
+      built != null && built.length > 0
+        ? built
+        : [`inputCaptions.[${index}]`];
     props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
   });
 
@@ -2506,6 +2549,7 @@ const presetMetadata: PresetMetadata = {
   type: 'predefined',
   presetType: 'children',
   tags: [
+    'captions',
     'subtitles',
     'vertical',
     'horizontal',
@@ -2527,8 +2571,8 @@ const presetMetadata: PresetMetadata = {
   ],
   defaultInputParams: {
     subtitleSync: {
-      animationStyle: 'horizontal-slide-reveal',
-      layout: 'horizontal',
+      animationStyle: 'word-fade-letterspace-float',
+      layout: 'vertical',
       negativeOffset: 0.15,
       maxLines: 5,
       floatThreshold: 15,
@@ -2541,11 +2585,11 @@ const presetMetadata: PresetMetadata = {
         highlighted: 1.35,
         normal: 0.85,
       },
-      impact: 0.3,
+      impact: 1.0,
       isGlowEnabled: false,
     },
     position: {
-      align: 'left',
+      align: 'center',
       randomize: false,
       textAlign: 'center',
     },
@@ -2582,6 +2626,7 @@ const presetMetadata: PresetMetadata = {
             id: 'word-1',
             text: 'Hello',
             start: 0,
+            end: 5,
             duration: 5,
             absoluteStart: 0,
             absoluteEnd: 5,
@@ -2591,6 +2636,7 @@ const presetMetadata: PresetMetadata = {
             id: 'word-2',
             text: 'world',
             start: 5,
+            end: 10,
             duration: 5,
             absoluteStart: 5,
             absoluteEnd: 10,

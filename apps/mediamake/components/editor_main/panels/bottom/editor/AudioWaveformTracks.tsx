@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,55 +11,32 @@ import type { TimelineAudioClip } from "@/components/editor/presets/actions/engi
 
 const DEFAULT_ROW_HEIGHT = 40;
 
-function WaveformCanvas({
+/**
+ * DOM bars (not canvas) — avoids Chrome's sad-face when the clip is wider than
+ * the browser's max canvas dimension at high zoom.
+ */
+function WaveformBars({
   peaks,
-  width,
-  height,
   className,
 }: {
   peaks: number[];
-  width: number;
-  height: number;
   className?: string;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || width <= 0 || height <= 0 || peaks.length === 0) return;
-
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.max(1, Math.floor(width * dpr));
-    canvas.height = Math.max(1, Math.floor(height * dpr));
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-
-    const mid = height / 2;
-    const barGap = 0.5;
-    const barW = Math.max(1, width / peaks.length - barGap);
-    const color = "rgba(167, 139, 250, 0.85)"; // violet-400-ish
-
-    ctx.fillStyle = color;
-    for (let i = 0; i < peaks.length; i++) {
-      const amp = peaks[i] ?? 0;
-      const h = Math.max(1, amp * (height * 0.9));
-      const x = (i / peaks.length) * width;
-      const y = mid - h / 2;
-      ctx.fillRect(x, y, barW, h);
-    }
-  }, [peaks, width, height]);
-
   return (
-    <canvas
-      ref={canvasRef}
-      className={cn("pointer-events-none block", className)}
-      aria-hidden
-    />
+    <div
+      className={cn(
+        "flex h-full w-full items-center gap-px overflow-hidden px-0.5",
+        className,
+      )}
+    >
+      {peaks.map((amp, i) => (
+        <div
+          key={i}
+          className="min-w-[1px] flex-1 rounded-[1px] bg-violet-400/85"
+          style={{ height: `${Math.max(8, amp * 90)}%` }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -75,7 +52,6 @@ function AudioWaveformClip({
   const [data, setData] = useState<BrowserWaveformResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [pixelWidth, setPixelWidth] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,28 +79,11 @@ function AudioWaveformClip({
   const width = Math.max(8, secToPx(duration));
   const innerH = Math.max(12, rowHeight - 8);
 
-  useEffect(() => {
-    setPixelWidth(width);
-  }, [width]);
+  // Cap bar count to clip pixel width so we don't render thousands of DOM nodes
+  const barCount = Math.max(24, Math.min(256, Math.floor(width / 2) || 64));
 
-  // Slice peaks to the clip window when the clip is a range of a longer file
-  const peaks = useMemo(() => {
-    if (!data?.peaks?.length) return [];
-    if (!clip.duration || !data.duration || data.duration <= 0) {
-      return data.peaks;
-    }
-    // If clip duration is the full file (or close), use all peaks
-    if (clip.duration >= data.duration * 0.95) return data.peaks;
-    // Otherwise subsample proportionally — still show the shape of the whole
-    // decoded file compressed into the clip width (timeline range placement).
-    return data.peaks;
-  }, [data, clip.duration]);
-
-  const barCount = Math.max(
-    16,
-    Math.min(peaks.length || 256, Math.floor(pixelWidth / 2) || 64),
-  );
   const displayPeaks = useMemo(() => {
+    const peaks = data?.peaks ?? [];
     if (!peaks.length) return [];
     if (peaks.length <= barCount) return peaks;
     const step = peaks.length / barCount;
@@ -139,7 +98,7 @@ function AudioWaveformClip({
       out.push(max);
     }
     return out;
-  }, [peaks, barCount]);
+  }, [data?.peaks, barCount]);
 
   return (
     <div
@@ -153,11 +112,7 @@ function AudioWaveformClip({
           Decoding…
         </div>
       ) : displayPeaks.length > 0 ? (
-        <WaveformCanvas
-          peaks={displayPeaks}
-          width={pixelWidth}
-          height={innerH}
-        />
+        <WaveformBars peaks={displayPeaks} />
       ) : (
         <div className="flex h-full items-center gap-1 px-1.5 text-[9px] text-violet-200/70">
           <Music className="h-3 w-3 shrink-0" />
@@ -173,7 +128,6 @@ function AudioWaveformClip({
 function groupClips(clips: TimelineAudioClip[]) {
   const map = new Map<string, TimelineAudioClip[]>();
   for (const clip of clips) {
-    // Group by resolved src so the same audio isn't drawn on multiple rows
     const key = clip.src;
     const list = map.get(key) ?? [];
     list.push(clip);

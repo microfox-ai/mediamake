@@ -1,6 +1,6 @@
 /**
  * Browser-local waveform peak extraction via Web Audio API.
- * No server round-trip — fetch + decodeAudioData + downsample to peaks.
+ * Fetches audio (direct, then same-origin proxy on CORS failure) and decodes peaks locally.
  */
 
 export type BrowserWaveformResult = {
@@ -24,6 +24,15 @@ function getAudioContext(): AudioContext {
     sharedCtx = new Ctx();
   }
   return sharedCtx;
+}
+
+function isFetchableHttpUrl(src: string): boolean {
+  const s = src.trim();
+  return (
+    /^https?:\/\//i.test(s) ||
+    /^blob:/i.test(s) ||
+    /^data:audio\//i.test(s)
+  );
 }
 
 /**
@@ -54,9 +63,6 @@ export function extractPeaksFromChannel(
   return peaks.map((p) => Math.max(0.04, p / globalMax));
 }
 
-/**
- * Merge multi-channel AudioBuffer into mono by averaging abs peaks per sample bucket.
- */
 function extractPeaksFromBuffer(
   buffer: AudioBuffer,
   barCount: number,
@@ -66,7 +72,6 @@ function extractPeaksFromBuffer(
     return extractPeaksFromChannel(buffer.getChannelData(0), barCount);
   }
 
-  // Average peaks across channels
   const perChannel = Array.from({ length: channels }, (_, c) =>
     extractPeaksFromChannel(buffer.getChannelData(c), barCount),
   );
@@ -80,6 +85,41 @@ function extractPeaksFromBuffer(
   return merged.map((p) => Math.max(0.04, p / max));
 }
 
+async function fetchAudioArrayBuffer(src: string): Promise<ArrayBuffer> {
+  // blob: / data: — fetch directly
+  if (/^blob:/i.test(src) || /^data:audio\//i.test(src)) {
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`Failed to fetch audio (${res.status})`);
+    return res.arrayBuffer();
+  }
+
+  // 1) Direct CORS fetch
+  try {
+    const res = await fetch(src, { mode: "cors", credentials: "omit" });
+    if (res.ok) return res.arrayBuffer();
+    throw new Error(`Direct fetch status ${res.status}`);
+  } catch (directErr) {
+    // 2) Same-origin proxy (CDN often blocks browser CORS)
+    const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(src)}`;
+    const proxyRes = await fetch(proxyUrl);
+    if (!proxyRes.ok) {
+      const body = await proxyRes.json().catch(() => ({}));
+      const detail =
+        typeof body?.error === "string" ? body.error : proxyRes.statusText;
+      console.error(
+        "[browser-waveform] direct fetch failed, proxy also failed:",
+        src,
+        directErr,
+        detail,
+      );
+      throw new Error(
+        `Audio fetch failed (direct + proxy): ${detail || proxyRes.status}`,
+      );
+    }
+    return proxyRes.arrayBuffer();
+  }
+}
+
 /**
  * Fetch an audio URL, decode it in the browser, and return peak bars + duration.
  * Results are memoized in-memory per URL + barCount.
@@ -90,15 +130,10 @@ export async function generateBrowserWaveform(
 ): Promise<BrowserWaveformResult | null> {
   if (!src || typeof window === "undefined") return null;
 
-  // Composition-internal refs / data pointers are not fetchable URLs
   if (
     /^ref:/i.test(src.trim()) ||
     /^data:\[[^\]]+\]/.test(src.trim()) ||
-    !(
-      /^https?:\/\//i.test(src.trim()) ||
-      /^blob:/i.test(src.trim()) ||
-      /^data:audio\//i.test(src.trim())
-    )
+    !isFetchableHttpUrl(src)
   ) {
     return null;
   }
@@ -112,13 +147,16 @@ export async function generateBrowserWaveform(
 
   const promise = (async (): Promise<BrowserWaveformResult | null> => {
     try {
-      const response = await fetch(src, { mode: "cors", credentials: "omit" });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch audio (${response.status})`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await fetchAudioArrayBuffer(src);
       const ctx = getAudioContext();
-      // decodeAudioData detaches the buffer — copy if we need to reuse
+      // Resume if suspended (autoplay policy) — decode still works either way
+      if (ctx.state === "suspended") {
+        try {
+          await ctx.resume();
+        } catch {
+          /* ignore */
+        }
+      }
       const copy = arrayBuffer.slice(0);
       const audioBuffer = await ctx.decodeAudioData(copy);
       const peaks = extractPeaksFromBuffer(audioBuffer, barCount);
@@ -129,7 +167,11 @@ export async function generateBrowserWaveform(
       memoryCache.set(cacheKey, result);
       return result;
     } catch (err) {
-      console.error("[browser-waveform] failed to decode waveform for", src, err);
+      console.error(
+        "[browser-waveform] failed to decode waveform for",
+        src,
+        err,
+      );
       return null;
     } finally {
       inflight.delete(cacheKey);
