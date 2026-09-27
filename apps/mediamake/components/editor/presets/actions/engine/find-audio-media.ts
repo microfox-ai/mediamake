@@ -14,6 +14,11 @@ export type TimelineAudioClip = {
   trackName?: string;
 };
 
+/** True when the value is a data:[key] reference string (points at another track/ref). */
+function isDataReference(raw: unknown): boolean {
+  return typeof raw === "string" && /^data:\[[^\]]+\]/.test(raw.trim());
+}
+
 function resolveSrc(
   raw: unknown,
   baseData: Record<string, unknown>,
@@ -25,6 +30,19 @@ function resolveSrc(
     if (typeof val === "string") return val;
     if (val && typeof val === "object" && typeof (val as any).src === "string") {
       return (val as any).src;
+    }
+    // medias array ref — take first audio-looking src
+    if (Array.isArray(val) && val.length > 0) {
+      const first = val[0];
+      if (typeof first === "string") return first;
+      if (first && typeof first === "object") {
+        return (
+          (first as any).src ||
+          (first as any).filePath ||
+          (first as any).url ||
+          null
+        );
+      }
     }
     return null;
   }
@@ -72,7 +90,6 @@ function collectFromMediaItems(
           src: refSrc || local?.src || "",
         };
       });
-      // Extra ref-only items
       for (let i = items.length; i < refArr.length; i++) {
         const ref = refArr[i];
         items.push(
@@ -88,6 +105,11 @@ function collectFromMediaItems(
     if (!item || typeof item !== "object") return;
     const kind = detectMediaKind(item);
     if (kind !== "audio") return;
+
+    // Skip items whose src is only a data:[...] pointer to another track —
+    // that track (or media-track owner) already owns the waveform.
+    if (isDataReference(item.src)) return;
+
     const src = resolveSrc(item.src, baseData);
     if (!src) return;
 
@@ -125,8 +147,12 @@ function collectFromMediaItems(
 }
 
 /**
- * Find all audio-type media-track clips across a timeline's presets + references.
- * Used to render waveform tracks regardless of which preset/reference is selected.
+ * Find audio clips that should get a waveform row on preset/reference timelines.
+ *
+ * - Only media-track (and similar) items with a concrete src are included.
+ * - Skips audio that is merely a `data:[key]` reference to another track
+ *   (avoids duplicate waveforms for beatstitch/etc. pointing at shared audio).
+ * - Does NOT invent rows from bare media/medias references alone.
  */
 export function findAudioMediaClipsFromTimeline(
   timeline: Timeline | null | undefined,
@@ -140,36 +166,6 @@ export function findAudioMediaClipsFromTimeline(
   );
 
   const out: TimelineAudioClip[] = [];
-
-  // Audio medias stored as standalone references
-  for (const ref of refs) {
-    if (ref.type === "media" || ref.type === "medias") {
-      const values = Array.isArray(ref.value)
-        ? ref.value
-        : ref.value
-          ? [ref.value]
-          : [];
-      values.forEach((item: any, index: number) => {
-        if (!item) return;
-        const kind = detectMediaKind(item);
-        if (kind !== "audio") return;
-        const src =
-          typeof item === "string"
-            ? item
-            : item.src || item.filePath || item.url || "";
-        if (!src) return;
-        out.push({
-          id: `ref-${ref.key}-audio-${index}`,
-          src: String(src),
-          name: itemName(typeof item === "object" ? item : {}),
-          start: 0,
-          duration:
-            typeof item?.duration === "number" ? item.duration : undefined,
-          trackName: ref.key,
-        });
-      });
-    }
-  }
 
   for (const preset of timeline.presets || []) {
     const data = preset.presetInputData;
@@ -208,20 +204,23 @@ function walkForMediaItems(
     collectFromMediaItems(obj.mediaItems, trackName, baseData, out, presetId);
   }
 
-  // beatstitch / waveform style audio object
+  // beatstitch / waveform style: only include concrete audio URLs —
+  // skip data:[...] refs (those duplicate the owning media-track waveform).
   if (obj.audio && typeof obj.audio === "object") {
     const audio = obj.audio as Record<string, unknown>;
-    const src = resolveSrc(audio.src, baseData);
-    if (src) {
-      out.push({
-        id: `${presetId}-${trackName ?? "audio"}-src`,
-        src,
-        name: itemName(audio),
-        start: typeof audio.start === "number" ? audio.start : 0,
-        duration:
-          typeof audio.duration === "number" ? audio.duration : undefined,
-        trackName,
-      });
+    if (!isDataReference(audio.src)) {
+      const src = resolveSrc(audio.src, baseData);
+      if (src) {
+        out.push({
+          id: `${presetId}-${trackName ?? "audio"}-src`,
+          src,
+          name: itemName(audio),
+          start: typeof audio.start === "number" ? audio.start : 0,
+          duration:
+            typeof audio.duration === "number" ? audio.duration : undefined,
+          trackName,
+        });
+      }
     }
   }
 

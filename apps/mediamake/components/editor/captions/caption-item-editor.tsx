@@ -324,14 +324,6 @@ export function CaptionItemEditor({
       </div>
 
       <div className="p-2.5 space-y-2.5">
-        <Textarea
-          value={caption.text ?? ''}
-          rows={2}
-          className="resize-none text-sm bg-background"
-          placeholder="Caption text…"
-          onChange={e => onChange({ ...caption, text: e.target.value })}
-        />
-
         <Collapsible open={timingOpen} onOpenChange={setTimingOpen}>
           <CollapsibleTrigger className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
             {timingOpen ? (
@@ -377,36 +369,53 @@ export function CaptionItemEditor({
             )}
             <span className="uppercase tracking-wide font-medium">Words</span>
             <span className="ml-1 text-muted-foreground/50">({words.length})</span>
+            {!wordsOpen && caption.text ? (
+              <span className="ml-auto max-w-[55%] truncate text-[10px] text-muted-foreground/60 normal-case font-normal tracking-normal">
+                {String(caption.text)}
+              </span>
+            ) : null}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            {words.length === 0 ? (
-              <p className="mt-1.5 text-[10px] text-muted-foreground/50">
-                No words
-              </p>
-            ) : (
-              <div className="mt-1.5 space-y-0.5">
-                <div className="flex items-center gap-1 px-1.5 text-[9px] text-muted-foreground/50 uppercase tracking-wide">
-                  <span className="w-5 text-center">#</span>
-                  <span className="flex-1">text</span>
-                  <span className="w-16 text-center">abs start</span>
-                  <span className="w-4" />
-                  <span className="w-16 text-center">abs end</span>
-                  <span className="w-8 text-right">conf</span>
-                </div>
-                {words.map((word, wi) => (
-                  <WordEditor
-                    key={word.id ?? wi}
-                    word={word}
-                    index={wi}
-                    onChange={updated => {
-                      const next = [...words];
-                      next[wi] = updated;
-                      onChange({ ...caption, words: next });
-                    }}
-                  />
-                ))}
+            <div className="mt-1.5 space-y-2">
+              <div className="space-y-0.5">
+                <label className="block text-[9px] text-muted-foreground/70 uppercase tracking-wide">
+                  Full text
+                </label>
+                <Textarea
+                  value={caption.text ?? ''}
+                  rows={2}
+                  className="resize-none text-sm bg-background"
+                  placeholder="Caption text…"
+                  onChange={e => onChange({ ...caption, text: e.target.value })}
+                />
               </div>
-            )}
+              {words.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground/50">No words</p>
+              ) : (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1 px-1.5 text-[9px] text-muted-foreground/50 uppercase tracking-wide">
+                    <span className="w-5 text-center">#</span>
+                    <span className="flex-1">text</span>
+                    <span className="w-16 text-center">abs start</span>
+                    <span className="w-4" />
+                    <span className="w-16 text-center">abs end</span>
+                    <span className="w-8 text-right">conf</span>
+                  </div>
+                  {words.map((word, wi) => (
+                    <WordEditor
+                      key={word.id ?? wi}
+                      word={word}
+                      index={wi}
+                      onChange={updated => {
+                        const next = [...words];
+                        next[wi] = updated;
+                        onChange({ ...caption, words: next });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </CollapsibleContent>
         </Collapsible>
 

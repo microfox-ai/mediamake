@@ -339,10 +339,29 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     const refKey = selectedReference?.key;
     if (!refKey) return indices;
 
+    // Captions: use caption absolute timing directly — more reliable than
+    // compiled _dataItemIds (preset tags often use a different key / broken template).
+    if (selectedReference?.type === "captions") {
+      const captions = selectedReference.value?.captions;
+      if (Array.isArray(captions)) {
+        captions.forEach((c: any, i: number) => {
+          const start = Number(c?.absoluteStart ?? c?.start ?? 0) || 0;
+          let end = Number(c?.absoluteEnd ?? c?.end ?? start) || start;
+          if (end <= start) end = start + 0.05;
+          if (currentTimeSec >= start && currentTimeSec < end) {
+            indices.add(i);
+          }
+        });
+      }
+      return indices;
+    }
+
     for (const layer of flatLayers) {
       const start = layer.timing.startInFrames ?? 0;
       const dur = layer.timing.durationInFrames;
-      const isActive = dur === undefined || (currentFrame >= start && currentFrame < start + dur);
+      const isActive =
+        dur === undefined ||
+        (currentFrame >= start && currentFrame < start + dur);
       if (!isActive) continue;
 
       const layerIds = dataItemIdsMap.get(layer.id);
@@ -360,7 +379,15 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     }
 
     return indices;
-  }, [flatLayers, currentFrame, dataItemIdsMap, selectedReference?.key]);
+  }, [
+    flatLayers,
+    currentFrame,
+    currentTimeSec,
+    dataItemIdsMap,
+    selectedReference?.key,
+    selectedReference?.type,
+    selectedReference?.value,
+  ]);
 
   const hasActiveItems = activeIndices.size > 0;
   const isSmartFilterType = ["captions", "objects", "medias", "media"].includes(
