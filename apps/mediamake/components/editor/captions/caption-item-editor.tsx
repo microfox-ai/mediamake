@@ -13,6 +13,9 @@ import { CaptionHtmlTextEditor } from '@/components/editor/captions/caption-html
 import {
   extractKeywordsFromHtmlText,
   parseCaptionHtmlText,
+  syncCaptionFieldsFromWords,
+  syncFromPlainText,
+  syncWordsFromHtmlText,
 } from '@/lib/captions/html-text';
 import {
   captionMetadataFieldMeta,
@@ -386,7 +389,35 @@ export function CaptionItemEditor({
                   rows={2}
                   className="resize-none text-sm bg-background"
                   placeholder="Caption text…"
-                  onChange={e => onChange({ ...caption, text: e.target.value })}
+                  onChange={e => {
+                    const prevHtml =
+                      typeof metadata.htmlText === 'string'
+                        ? metadata.htmlText
+                        : null;
+                    const synced = syncFromPlainText(
+                      e.target.value,
+                      words,
+                      prevHtml,
+                    );
+                    const keyword = extractKeywordsFromHtmlText(synced.htmlText);
+                    const parsed = parseCaptionHtmlText(
+                      synced.htmlText,
+                      synced.words,
+                    );
+                    onChange({
+                      ...caption,
+                      text: synced.text,
+                      words: synced.words,
+                      metadata: {
+                        ...metadata,
+                        htmlText: synced.htmlText,
+                        keyword,
+                        ...(parsed?.splitParts
+                          ? { splitParts: parsed.splitParts }
+                          : {}),
+                      },
+                    });
+                  }}
                 />
               </div>
               {words.length === 0 ? (
@@ -409,7 +440,16 @@ export function CaptionItemEditor({
                       onChange={updated => {
                         const next = [...words];
                         next[wi] = updated;
-                        onChange({ ...caption, words: next });
+                        const synced = syncCaptionFieldsFromWords(
+                          next,
+                          metadata,
+                        );
+                        onChange({
+                          ...caption,
+                          words: next,
+                          text: synced.text,
+                          metadata: synced.metadata,
+                        });
                       }}
                     />
                   ))}
@@ -434,7 +474,34 @@ export function CaptionItemEditor({
               metadata={metadata}
               captionText={caption.text}
               captionWords={words}
-              onChange={newMeta => onChange({ ...caption, metadata: newMeta })}
+              onChange={newMeta => {
+                const prevHtml =
+                  typeof metadata.htmlText === 'string'
+                    ? metadata.htmlText
+                    : '';
+                const nextHtml =
+                  typeof newMeta.htmlText === 'string' ? newMeta.htmlText : '';
+                if (nextHtml !== prevHtml) {
+                  const synced = syncWordsFromHtmlText(nextHtml, words);
+                  const keyword = extractKeywordsFromHtmlText(nextHtml);
+                  const parsed = parseCaptionHtmlText(nextHtml, synced.words);
+                  onChange({
+                    ...caption,
+                    text: synced.text,
+                    words: synced.words,
+                    metadata: {
+                      ...newMeta,
+                      htmlText: nextHtml,
+                      keyword,
+                      ...(parsed?.splitParts
+                        ? { splitParts: parsed.splitParts }
+                        : {}),
+                    },
+                  });
+                  return;
+                }
+                onChange({ ...caption, metadata: newMeta });
+              }}
             />
           </CollapsibleContent>
         </Collapsible>
