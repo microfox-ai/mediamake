@@ -828,31 +828,37 @@ export function PresetTimelineContent() {
   );
 
   const deleteSegment = useCallback((group: TrackGroup, segIdx: number) => {
-    if (group.kind === "plain-range") {
-      // Clear the range string on that array item
-      if (!timeline || !preset) return;
-      const path = group.concretePaths[segIdx];
-      if (!path) return;
-      const nextInputData = setAtPath(presetInputData, path, "");
-      updatePresetInputData(timeline.id, preset.id, nextInputData);
-      const latestTimeline = getEditedTimeline(timeline.id) || timeline;
-      generateOutput(latestTimeline);
-      setSelectedSeg((sel) =>
-        sel?.templatePath === group.templatePath && sel.segIdx === segIdx ? null : sel
-      );
+    // Comma-joined multi-seg on a single path (data-ref OR plain-range with one
+    // concrete path) — remove that segment and rewrite the joined string.
+    const useJoinedSegs =
+      group.kind === "data-reference" || group.concretePaths.length === 1;
+
+    if (useJoinedSegs) {
+      setSegsMap((prev) => {
+        const segs = (prev[group.templatePath] ?? []).filter((_, i) => i !== segIdx);
+        commitRef.current(group.templatePath, segs);
+        return { ...prev, [group.templatePath]: segs };
+      });
+      setSelectedSeg((sel) => {
+        if (!sel || sel.templatePath !== group.templatePath) return sel;
+        if (sel.segIdx === segIdx) return null;
+        if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
+        return sel;
+      });
       return;
     }
-    setSegsMap((prev) => {
-      const segs = (prev[group.templatePath] ?? []).filter((_, i) => i !== segIdx);
-      commitRef.current(group.templatePath, segs);
-      return { ...prev, [group.templatePath]: segs };
-    });
-    setSelectedSeg((sel) => {
-      if (!sel || sel.templatePath !== group.templatePath) return sel;
-      if (sel.segIdx === segIdx) return null;
-      if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
-      return sel;
-    });
+
+    // plain-range multi-item: one segment ↔ one array item path — clear that field
+    if (!timeline || !preset) return;
+    const path = group.concretePaths[segIdx];
+    if (!path) return;
+    const nextInputData = setAtPath(presetInputData, path, "");
+    updatePresetInputData(timeline.id, preset.id, nextInputData);
+    const latestTimeline = getEditedTimeline(timeline.id) || timeline;
+    generateOutput(latestTimeline);
+    setSelectedSeg((sel) =>
+      sel?.templatePath === group.templatePath && sel.segIdx === segIdx ? null : sel
+    );
   }, [timeline, preset, presetInputData, updatePresetInputData, getEditedTimeline, generateOutput]);
 
   // ─── Clipboard / edit ops ─────────────────────────────────────────────────

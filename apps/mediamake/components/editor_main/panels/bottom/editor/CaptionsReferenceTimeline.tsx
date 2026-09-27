@@ -903,6 +903,63 @@ export function CaptionsReferenceTimeline({
     if (labelScrollRef.current) labelScrollRef.current.scrollTop = s.scrollTop;
   }, [syncRulerScroll]);
 
+  // ── Stable refs (avoid stale closures in scroll-to-playhead) ─────────────
+  const pixelsPerSecondRef = useRef(pixelsPerSecond);
+  const currentTimeSecRef = useRef(currentTimeSec);
+  useEffect(() => {
+    pixelsPerSecondRef.current = pixelsPerSecond;
+  }, [pixelsPerSecond]);
+  useEffect(() => {
+    currentTimeSecRef.current = currentTimeSec;
+  }, [currentTimeSec]);
+
+  /** Scroll so the playhead sits at ~35 % from the left edge. */
+  const scrollToPlayhead = useCallback(() => {
+    requestAnimationFrame(() => {
+      const s = scrollRef.current;
+      if (!s) return;
+      const px = currentTimeSecRef.current * pixelsPerSecondRef.current;
+      const target = Math.max(0, px - s.clientWidth * 0.35);
+      s.scrollLeft = target;
+      syncRulerScroll(target);
+    });
+  }, [syncRulerScroll]);
+
+  // On mount → jump to playhead
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    scrollToPlayhead();
+  }, []);
+
+  // When caption data changes → keep playhead in view
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    scrollToPlayhead();
+  }, [captionsKey]);
+
+  // When zoom changes → anchor view on the playhead
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    scrollToPlayhead();
+  }, [pixelsPerSecond]);
+
+  // During playback → follow the playhead if it drifts outside the middle 70 % of the view
+  const prevFrameRef = useRef(currentFrame);
+  useEffect(() => {
+    if (currentFrame === prevFrameRef.current) return;
+    prevFrameRef.current = currentFrame;
+    const s = scrollRef.current;
+    if (!s) return;
+    const px = secToPx(currentTimeSec);
+    const visL = s.scrollLeft + s.clientWidth * 0.15;
+    const visR = s.scrollLeft + s.clientWidth * 0.85;
+    if (px < visL || px > visR) {
+      const target = Math.max(0, px - s.clientWidth * 0.35);
+      s.scrollLeft = target;
+      syncRulerScroll(target);
+    }
+  }, [currentFrame, currentTimeSec, secToPx, syncRulerScroll]);
+
   const handleRulerClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
