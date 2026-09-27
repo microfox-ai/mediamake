@@ -5,17 +5,22 @@ import { useEditorUIStore } from "../../../stores/editor-ui-store";
 import { TimelineContent } from "./TimelineContent";
 import { PresetTimelineContent } from "./PresetTimelineContent";
 import { ReferenceTimelineContent } from "./ReferenceTimelineContent";
+import { TimelineOverviewContent } from "./TimelineOverviewContent";
 
 export function EditorContent() {
   const { selectedItem } = useEditorStore();
   const { filePanelTab } = useEditorUIStore();
 
-  // When Timelines tab is active: reference → reference timeline, else preset timeline
+  // Timelines tab: focused preset/reference editors, or full overview when timeline selected
   if (filePanelTab === "timelines") {
     if (selectedItem?.type === "reference") {
       return <ReferenceTimelineContent />;
     }
-    return <PresetTimelineContent />;
+    if (selectedItem?.type === "preset") {
+      return <PresetTimelineContent />;
+    }
+    // timeline | action | null → aggregate all track sources at timeline level
+    return <TimelineOverviewContent />;
   }
 
   // Layers tab: show the layers timeline for the current timeline (from selection)

@@ -58,7 +58,16 @@ export function BottomPanel() {
 
   const getTitle = () => {
     if (filePanelTab === "timelines") {
-      return "Preset timeline";
+      if (selectedItem?.type === "preset") {
+        return selectedItem.item.label || "Preset timeline";
+      }
+      if (selectedItem?.type === "reference") {
+        return selectedItem.item.key || "Reference timeline";
+      }
+      if (selectedItem?.type === "action") {
+        return selectedItem.item.label || "Action timeline";
+      }
+      return "Timeline tracks";
     }
     if (filePanelTab === "layers") {
       return "Layers timeline";
