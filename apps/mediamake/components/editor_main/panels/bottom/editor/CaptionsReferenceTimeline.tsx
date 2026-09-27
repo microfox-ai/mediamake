@@ -9,6 +9,7 @@ import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
+import { setCaptionSelectionActive } from "../../../stores/bottom-selection-gate";
 import type { ReferenceItem } from "@/components/editor/presets/types";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
@@ -353,6 +354,36 @@ function setBlockEndAt(
     newStart = Math.max(minStart, newEnd - dur);
   }
   return { start: newStart, end: newEnd };
+}
+
+/** Trim/extend start to `at`, keeping end fixed (clamped to valid range). */
+function trimBlockStartTo(
+  start: number,
+  end: number,
+  at: number,
+  minStart = 0,
+  maxEnd = Infinity,
+): { start: number; end: number } | null {
+  const maxStart = Math.min(end - MIN_GAP, maxEnd - MIN_GAP);
+  if (maxStart < minStart) return null;
+  const newStart = Math.max(minStart, Math.min(at, maxStart));
+  if (Math.abs(newStart - start) < 1e-9) return null;
+  return { start: newStart, end };
+}
+
+/** Trim/extend end to `at`, keeping start fixed (clamped to valid range). */
+function trimBlockEndTo(
+  start: number,
+  end: number,
+  at: number,
+  minStart = 0,
+  maxEnd = Infinity,
+): { start: number; end: number } | null {
+  const minEnd = Math.max(start + MIN_GAP, minStart + MIN_GAP);
+  if (minEnd > maxEnd) return null;
+  const newEnd = Math.min(maxEnd, Math.max(at, minEnd));
+  if (Math.abs(newEnd - end) < 1e-9) return null;
+  return { start, end: newEnd };
 }
 
 // ─── Segment block ────────────────────────────────────────────────────────────
@@ -754,10 +785,10 @@ export function CaptionsReferenceTimeline({
     [commitCaptions],
   );
 
-  // ── [ / ] — snap selected block start/end to playhead ─────────────────────
+  // ── [ / ] move · ⌘[ / ⌘] trim selected block to playhead ────────────────
 
   const snapSelectedToPlayhead = useCallback(
-    (edge: "start" | "end") => {
+    (edge: "start" | "end", mode: "move" | "trim" = "move") => {
       if (!selected) return;
       const sel = selected;
       const at = currentTimeSec;
@@ -773,11 +804,23 @@ export function CaptionsReferenceTimeline({
 
         if (sel.kind === "line") {
           const { start, end } = getLineBounds(line);
-          const moved =
-            edge === "start"
-              ? setBlockStartAt(start, end, at, 0, totalDuration)
-              : setBlockEndAt(start, end, at, 0, totalDuration);
-          next[lineIdx] = shiftLine(line, moved.start - start);
+          if (mode === "trim") {
+            const trimmed =
+              edge === "start"
+                ? trimBlockStartTo(start, end, at, 0, totalDuration)
+                : trimBlockEndTo(start, end, at, 0, totalDuration);
+            if (!trimmed) return prev;
+            next[lineIdx] =
+              edge === "start"
+                ? applyLineEdge(line, "left", trimmed.start, trimmed.end)
+                : applyLineEdge(line, "right", trimmed.start, trimmed.end);
+          } else {
+            const moved =
+              edge === "start"
+                ? setBlockStartAt(start, end, at, 0, totalDuration)
+                : setBlockEndAt(start, end, at, 0, totalDuration);
+            next[lineIdx] = shiftLine(line, moved.start - start);
+          }
           commitCaptions(next);
           return next;
         }
@@ -791,29 +834,57 @@ export function CaptionsReferenceTimeline({
         const word = words[wordIdx];
         if (!word) return prev;
         const { start, end } = getWordBounds(word, line);
-        const moved =
-          edge === "start"
-            ? setBlockStartAt(
-                start,
-                end,
-                at,
-                lineBounds.start,
-                lineBounds.end,
-              )
-            : setBlockEndAt(
-                start,
-                end,
-                at,
-                lineBounds.start,
-                lineBounds.end,
-              );
-        next[lineIdx] = applyWordEdge(
-          line,
-          wordIdx,
-          "move",
-          moved.start,
-          moved.end,
-        );
+
+        if (mode === "trim") {
+          const trimmed =
+            edge === "start"
+              ? trimBlockStartTo(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                )
+              : trimBlockEndTo(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                );
+          if (!trimmed) return prev;
+          next[lineIdx] = applyWordEdge(
+            line,
+            wordIdx,
+            edge === "start" ? "left" : "right",
+            trimmed.start,
+            trimmed.end,
+          );
+        } else {
+          const moved =
+            edge === "start"
+              ? setBlockStartAt(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                )
+              : setBlockEndAt(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                );
+          next[lineIdx] = applyWordEdge(
+            line,
+            wordIdx,
+            "move",
+            moved.start,
+            moved.end,
+          );
+        }
         commitCaptions(next);
         return next;
       });
@@ -867,12 +938,18 @@ export function CaptionsReferenceTimeline({
       if (!selected) return;
       if (e.key === "[" || e.code === "BracketLeft") {
         e.preventDefault();
-        snapSelectedToPlayhead("start");
+        snapSelectedToPlayhead(
+          "start",
+          e.metaKey || e.ctrlKey ? "trim" : "move",
+        );
         return;
       }
       if (e.key === "]" || e.code === "BracketRight") {
         e.preventDefault();
-        snapSelectedToPlayhead("end");
+        snapSelectedToPlayhead(
+          "end",
+          e.metaKey || e.ctrlKey ? "trim" : "move",
+        );
         return;
       }
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -883,6 +960,12 @@ export function CaptionsReferenceTimeline({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selected, snapSelectedToPlayhead, deleteSelected]);
+
+  // Let block shortcuts yield while a caption word/line is selected
+  useEffect(() => {
+    setCaptionSelectionActive(!!selected);
+    return () => setCaptionSelectionActive(false);
+  }, [selected]);
 
   // ── Scroll / ruler ────────────────────────────────────────────────────────
 
@@ -1055,8 +1138,13 @@ export function CaptionsReferenceTimeline({
             variant="ghost"
             className={cn("h-6 w-6", !selected && "opacity-40")}
             disabled={!selected}
-            onClick={() => snapSelectedToPlayhead("start")}
-            title="Set start at playhead ([)"
+            onClick={(e) =>
+              snapSelectedToPlayhead(
+                "start",
+                e.metaKey || e.ctrlKey ? "trim" : "move",
+              )
+            }
+            title="Move start to playhead ([) · Trim/extend start (⌘[)"
           >
             <ArrowLeftToLine className="h-3 w-3" />
           </Button>
@@ -1065,8 +1153,13 @@ export function CaptionsReferenceTimeline({
             variant="ghost"
             className={cn("h-6 w-6", !selected && "opacity-40")}
             disabled={!selected}
-            onClick={() => snapSelectedToPlayhead("end")}
-            title="Set end at playhead (])"
+            onClick={(e) =>
+              snapSelectedToPlayhead(
+                "end",
+                e.metaKey || e.ctrlKey ? "trim" : "move",
+              )
+            }
+            title="Move end to playhead (]) · Trim/extend end (⌘])"
           >
             <ArrowRightToLine className="h-3 w-3" />
           </Button>
@@ -1083,7 +1176,7 @@ export function CaptionsReferenceTimeline({
         </div>
         <div className="h-4 w-px bg-border mx-1" />
         <span className="text-[10px] text-muted-foreground/40 hidden sm:block">
-          Drag edges to adjust · [ ] snap · Ctrl+scroll zoom
+          Drag edges · [ ] move · ⌘[ ⌘] trim · Ctrl+scroll zoom
         </span>
         <div className="h-4 w-px bg-border mx-1" />
         <Button

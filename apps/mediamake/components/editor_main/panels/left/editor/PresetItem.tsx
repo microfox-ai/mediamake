@@ -1,24 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { File, Eye, EyeOff, Play, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy } from "lucide-react";
+import { File, Eye, EyeOff, Play, GripVertical, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
 import { type Timeline } from "../../../stores/project-store";
+import {
+    altShortcutLabel,
+    copySelectedItem,
+    copySelectedProps,
+    deleteSelectedItem,
+    duplicateSelectedItem,
+    modShortcutLabel,
+    moveSelectedItem,
+    pasteClipboardItem,
+    pasteSelectedProps,
+    useBlockClipboardStore,
+} from "../../../stores/block-clipboard-store";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuShortcut,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { toast } from "sonner";
+
 interface PresetItemProps {
     preset: NonNullable<Timeline['presets']>[number];
     timeline: Timeline;
@@ -32,10 +46,11 @@ export function PresetItem({
 }: PresetItemProps) {
     const [isHovered, setIsHovered] = useState(false);
     const { selectPreset, selectedItem } = useEditorStore();
-    const { getEditedTimeline, updatePresetDisabled, removePreset, duplicatePreset, reorderPresets } = useTimelineEditsStore();
+    const { getEditedTimeline, updatePresetDisabled } = useTimelineEditsStore();
     const { hasOverridesForPresetItem, clearOverridesForPresetItem } = useLayerStateStore();
     const { generateOutput } = useCompileStore();
     const { loadedTimeline } = useProjectStore();
+    const itemClipboard = useBlockClipboardStore((s) => s.itemClipboard);
 
     // Get edited timeline if it exists, otherwise use original
     const editedTimeline = getEditedTimeline(timeline.id);
@@ -122,43 +137,59 @@ export function PresetItem({
         }
     };
 
+    const ensureSelected = () => {
+        if (!isSelected) {
+            selectPreset(displayPreset, displayTimeline);
+        }
+    };
+
     const handleDuplicate = () => {
-        duplicatePreset(timeline.id, preset.id);
+        ensureSelected();
+        duplicateSelectedItem();
     };
 
-    const handleCopyInputProps = async () => {
-        try {
-            await navigator.clipboard.writeText(
-                JSON.stringify(displayPreset.presetInputData ?? {}, null, 2),
-            );
-            toast.success("Copied preset input props");
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to copy input props");
-        }
+    const handleCopy = () => {
+        ensureSelected();
+        copySelectedItem();
     };
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete "${displayPreset.label}"?`)) {
-            removePreset(timeline.id, preset.id);
-        }
+    const handlePaste = () => {
+        ensureSelected();
+        pasteClipboardItem();
+    };
+
+    const handleCopyProps = () => {
+        ensureSelected();
+        void copySelectedProps();
+    };
+
+    const handlePasteProps = () => {
+        ensureSelected();
+        void pasteSelectedProps();
+    };
+
+    const handleDelete = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        ensureSelected();
+        deleteSelectedItem();
     };
 
     const handleMoveUp = () => {
-        // Can't move up if it's the first preset (index 0) or if it's the second preset (index 1, since first is special)
-        if (index <= 1) return;
-        reorderPresets(timeline.id, index, index - 1);
+        ensureSelected();
+        moveSelectedItem("up");
     };
 
     const presets = displayTimeline.presets || [];
 
     const handleMoveDown = () => {
-        if (index >= presets.length - 1) return;
-        reorderPresets(timeline.id, index, index + 1);
+        ensureSelected();
+        moveSelectedItem("down");
     };
 
     const canMoveUp = index > 1; // Can't move first preset (index 0) or second preset (index 1) up
     const canMoveDown = index < presets.length - 1;
+    const canPasteItem = itemClipboard?.kind === "preset";
+    const showActions = isHovered || isSelected;
 
     return (
         <ContextMenu>
@@ -201,8 +232,8 @@ export function PresetItem({
                         </Tooltip>
                     )}
 
-                    {/* Icons that appear on hover */}
-                    {isHovered ? (
+                    {/* Icons that appear on hover / when selected */}
+                    {showActions ? (
                         <div className="flex items-center h-full gap-0 transition-opacity">
                             {/* Regenerate Preset (Play) */}
                             <Tooltip>
@@ -242,6 +273,20 @@ export function PresetItem({
                                     <p>Toggle preset layer</p>
                                 </TooltipContent>
                             </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div
+                                        onClick={handleDelete}
+                                        className="p-0 px-2 h-full flex items-center justify-center text-foreground hover:text-destructive hover:bg-black/10 cursor-default"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Delete block</p>
+                                </TooltipContent>
+                            </Tooltip>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1 transition-opacity pr-2">
@@ -252,32 +297,55 @@ export function PresetItem({
                     )}
                 </div>
             </ContextMenuTrigger>
-            <ContextMenuContent>
+            <ContextMenuContent className="w-56">
                 {hasOverridesForPresetItem(displayPreset.id) && (
                     <ContextMenuItem onClick={handleRevertToPreset}>
                         <RotateCcw className="h-4 w-4 mr-2" />
                         Revert to preset
                     </ContextMenuItem>
                 )}
-                <ContextMenuItem onClick={() => void handleCopyInputProps()}>
-                    <ClipboardCopy className="h-4 w-4 mr-2" />
-                    Copy input props
+                <ContextMenuItem onClick={handleCopy}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                    <ContextMenuShortcut>{modShortcutLabel("C")}</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handlePaste} disabled={!canPasteItem}>
+                    <ClipboardPaste className="h-4 w-4 mr-2" />
+                    Paste
+                    <ContextMenuShortcut>{modShortcutLabel("V")}</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuItem onClick={handleDuplicate}>
                     <Copy className="h-4 w-4 mr-2" />
-                    Duplicate Block
+                    Duplicate
+                    <ContextMenuShortcut>{modShortcutLabel("D")}</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem onClick={handleDelete} variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Block
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={handleCopyProps}>
+                    <ClipboardCopy className="h-4 w-4 mr-2" />
+                    Copy props
+                    <ContextMenuShortcut>{altShortcutLabel("C")}</ContextMenuShortcut>
                 </ContextMenuItem>
+                <ContextMenuItem onClick={handlePasteProps}>
+                    <ClipboardPaste className="h-4 w-4 mr-2" />
+                    Paste props
+                    <ContextMenuShortcut>{altShortcutLabel("V")}</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
                 <ContextMenuItem onClick={handleMoveUp} disabled={!canMoveUp}>
                     <ArrowUp className="h-4 w-4 mr-2" />
                     Move Up
+                    <ContextMenuShortcut>{modShortcutLabel("↑")}</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuItem onClick={handleMoveDown} disabled={!canMoveDown}>
                     <ArrowDown className="h-4 w-4 mr-2" />
                     Move Down
+                    <ContextMenuShortcut>{modShortcutLabel("↓")}</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleDelete()} variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                    <ContextMenuShortcut>⌫</ContextMenuShortcut>
                 </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>

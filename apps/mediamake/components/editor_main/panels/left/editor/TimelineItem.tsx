@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil, Zap } from "lucide-react";
+import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil, Zap, ArrowUp, ArrowDown, ClipboardCopy, ClipboardPaste } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -13,11 +13,24 @@ import {
     ContextMenuSub,
     ContextMenuSubContent,
     ContextMenuSubTrigger,
+    ContextMenuShortcut,
 } from "@/components/ui/context-menu";
 import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { usePresetsStore } from "../../../stores/presets-store";
+import {
+    altShortcutLabel,
+    copySelectedItem,
+    copySelectedProps,
+    deleteSelectedItem,
+    duplicateSelectedItem,
+    modShortcutLabel,
+    moveSelectedItem,
+    pasteClipboardItem,
+    pasteSelectedProps,
+    useBlockClipboardStore,
+} from "../../../stores/block-clipboard-store";
 import { useSession } from "@/components/session-provider";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,10 +46,7 @@ import {
     getReferenceTypeOptions,
     predefinedDataTypes,
 } from "@/components/editor/presets/dataTypes";
-import {
-    confirmRemoveAction,
-    removeTimelineAction,
-} from "@/components/editor/presets/actions/engine/action-lifecycle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -91,6 +101,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectAction, selectedItem } = useEditorStore();
     const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
+    const itemClipboard = useBlockClipboardStore((s) => s.itemClipboard);
     const isUnsynced = useTimelineEditsStore((state) =>
         hasLocalHistoryChanges(state.history, state.historyIndex, timeline.id)
     );
@@ -277,66 +288,6 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         upsertReferences(nextReferences);
         setIsReferencesOpen(true);
         selectReference(newReference, displayTimeline, nextReferences.length - 1);
-    };
-
-    const duplicateReference = (referenceIndex: number) => {
-        const sourceReference = references[referenceIndex] as ReferenceItem | undefined;
-        if (!sourceReference) {
-            return;
-        }
-        const duplicate: ReferenceItem = {
-            ...JSON.parse(JSON.stringify(sourceReference)),
-            key: sourceReference.key ? `${sourceReference.key}_copy` : `reference_${referenceIndex + 1}_copy`,
-        };
-        const nextReferences = [...references];
-        nextReferences.splice(referenceIndex + 1, 0, duplicate);
-
-        const sourceActions = displayTimeline.actions || [];
-        const duplicatedActions = sourceActions
-            .filter(
-                (a) =>
-                    a.target?.type === "reference" &&
-                    a.target.referenceKey === sourceReference.key
-            )
-            .map((a, i) => ({
-                ...JSON.parse(JSON.stringify(a)),
-                id: `action-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
-                target: { type: "reference" as const, referenceKey: duplicate.key },
-            }));
-
-        updateTimeline(timeline.id, {
-            defaultData: {
-                ...(displayTimeline.defaultData || {}),
-                references: nextReferences,
-            },
-            ...(duplicatedActions.length > 0
-                ? { actions: [...sourceActions, ...duplicatedActions] }
-                : {}),
-        });
-        selectReference(duplicate, displayTimeline, referenceIndex + 1);
-    };
-
-    const removeReference = (referenceIndex: number) => {
-        const sourceReference = references[referenceIndex];
-        if (!sourceReference) {
-            return;
-        }
-        const nextReferences = references.filter((_, index: number) => index !== referenceIndex);
-        const nextActions = (displayTimeline.actions || []).filter(
-            (a) =>
-                !(
-                    a.target?.type === "reference" &&
-                    a.target.referenceKey === sourceReference.key
-                )
-        );
-        updateTimeline(timeline.id, {
-            defaultData: {
-                ...(displayTimeline.defaultData || {}),
-                references: nextReferences,
-            },
-            actions: nextActions,
-        });
-        selectTimeline(displayTimeline);
     };
 
     const createReferenceFromDataType = (dataTypeId: string) => {
@@ -580,7 +531,12 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 <CollapsibleContent>
                                     <div className="ml-5 border-l space-y-1 py-1">
                                         {references.length > 0 ? (
-                                            references.map((reference, index: number) => (
+                                            references.map((reference, index: number) => {
+                                                const isRefSelected =
+                                                    selectedItem?.type === "reference" &&
+                                                    selectedItem.timeline.id === displayTimeline.id &&
+                                                    selectedItem.referenceIndex === index;
+                                                return (
                                                 <ContextMenu key={`${reference.key || "reference"}-${index}`}>
                                                     <ContextMenuTrigger asChild>
                                                         <div
@@ -589,35 +545,129 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                 selectReference(reference, displayTimeline, index);
                                                             }}
                                                             className={cn(
-                                                                "flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
-                                                                selectedItem?.type === "reference" &&
-                                                                    selectedItem.timeline.id === displayTimeline.id &&
-                                                                    selectedItem.referenceIndex === index
+                                                                "group/ref flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                isRefSelected
                                                                     ? "bg-blue-100 text-blue-950"
                                                                     : "text-muted-foreground",
                                                             )}
                                                         >
                                                             <Link2 className="h-3 w-3" />
-                                                            <span className="truncate">
+                                                            <span className="truncate flex-1">
                                                                 {reference.key || `reference_${index + 1}`}
                                                             </span>
+                                                            {isRefSelected && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <div
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                selectReference(reference, displayTimeline, index);
+                                                                                deleteSelectedItem();
+                                                                            }}
+                                                                            className="p-0.5 hover:text-destructive"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Delete reference</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
                                                         </div>
                                                     </ContextMenuTrigger>
-                                                    <ContextMenuContent>
-                                                        <ContextMenuItem onClick={() => duplicateReference(index)}>
+                                                    <ContextMenuContent className="w-56">
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                copySelectedItem();
+                                                            }}
+                                                        >
                                                             <Copy className="h-4 w-4 mr-2" />
-                                                            Duplicate
+                                                            Copy
+                                                            <ContextMenuShortcut>{modShortcutLabel("C")}</ContextMenuShortcut>
                                                         </ContextMenuItem>
                                                         <ContextMenuItem
-                                                            onClick={() => removeReference(index)}
+                                                            disabled={itemClipboard?.kind !== "reference"}
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                pasteClipboardItem();
+                                                            }}
+                                                        >
+                                                            <ClipboardPaste className="h-4 w-4 mr-2" />
+                                                            Paste
+                                                            <ContextMenuShortcut>{modShortcutLabel("V")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                duplicateSelectedItem();
+                                                            }}
+                                                        >
+                                                            <Copy className="h-4 w-4 mr-2" />
+                                                            Duplicate
+                                                            <ContextMenuShortcut>{modShortcutLabel("D")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                void copySelectedProps();
+                                                            }}
+                                                        >
+                                                            <ClipboardCopy className="h-4 w-4 mr-2" />
+                                                            Copy props
+                                                            <ContextMenuShortcut>{altShortcutLabel("C")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                void pasteSelectedProps();
+                                                            }}
+                                                        >
+                                                            <ClipboardPaste className="h-4 w-4 mr-2" />
+                                                            Paste props
+                                                            <ContextMenuShortcut>{altShortcutLabel("V")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            disabled={index <= 0}
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                moveSelectedItem("up");
+                                                            }}
+                                                        >
+                                                            <ArrowUp className="h-4 w-4 mr-2" />
+                                                            Move Up
+                                                            <ContextMenuShortcut>{modShortcutLabel("↑")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            disabled={index >= references.length - 1}
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                moveSelectedItem("down");
+                                                            }}
+                                                        >
+                                                            <ArrowDown className="h-4 w-4 mr-2" />
+                                                            Move Down
+                                                            <ContextMenuShortcut>{modShortcutLabel("↓")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectReference(reference, displayTimeline, index);
+                                                                deleteSelectedItem();
+                                                            }}
                                                             variant="destructive"
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Delete
+                                                            <ContextMenuShortcut>⌫</ContextMenuShortcut>
                                                         </ContextMenuItem>
                                                     </ContextMenuContent>
                                                 </ContextMenu>
-                                            ))
+                                                );
+                                            })
                                         ) : (
                                             <div className="px-2 py-1 text-[11px] text-muted-foreground">
                                                 No references
@@ -677,7 +727,12 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 <CollapsibleContent>
                                     <div className="ml-5 border-l space-y-1 py-1">
                                         {actions.length > 0 ? (
-                                            actions.map((action) => (
+                                            actions.map((action, actionIndex) => {
+                                                const isActionSelected =
+                                                    selectedItem?.type === "action" &&
+                                                    selectedItem.item.id === action.id &&
+                                                    selectedItem.timeline.id === displayTimeline.id;
+                                                return (
                                                 <ContextMenu key={action.id}>
                                                     <ContextMenuTrigger asChild>
                                                         <div
@@ -686,10 +741,8 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                 selectAction(action, displayTimeline);
                                                             }}
                                                             className={cn(
-                                                                "flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
-                                                                selectedItem?.type === "action" &&
-                                                                    selectedItem.item.id === action.id &&
-                                                                    selectedItem.timeline.id === displayTimeline.id
+                                                                "group/action flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                isActionSelected
                                                                     ? "bg-blue-100 text-blue-950"
                                                                     : "text-muted-foreground",
                                                             )}
@@ -701,26 +754,119 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                             {action.status === "error" && (
                                                                 <span className="text-[9px] text-destructive">err</span>
                                                             )}
+                                                            {isActionSelected && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <div
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                selectAction(action, displayTimeline);
+                                                                                deleteSelectedItem();
+                                                                            }}
+                                                                            className="p-0.5 hover:text-destructive"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Delete action</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
                                                         </div>
                                                     </ContextMenuTrigger>
-                                                    <ContextMenuContent>
+                                                    <ContextMenuContent className="w-56">
                                                         <ContextMenuItem
                                                             onClick={() => {
-                                                                const { proceed, deleteOutputs } =
-                                                                    confirmRemoveAction(action.label);
-                                                                if (!proceed) return;
-                                                                removeTimelineAction(timeline.id, action.id, {
-                                                                    deleteOutputs,
-                                                                });
+                                                                selectAction(action, displayTimeline);
+                                                                copySelectedItem();
+                                                            }}
+                                                        >
+                                                            <Copy className="h-4 w-4 mr-2" />
+                                                            Copy
+                                                            <ContextMenuShortcut>{modShortcutLabel("C")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            disabled={itemClipboard?.kind !== "action"}
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                pasteClipboardItem();
+                                                            }}
+                                                        >
+                                                            <ClipboardPaste className="h-4 w-4 mr-2" />
+                                                            Paste
+                                                            <ContextMenuShortcut>{modShortcutLabel("V")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                duplicateSelectedItem();
+                                                            }}
+                                                        >
+                                                            <Copy className="h-4 w-4 mr-2" />
+                                                            Duplicate
+                                                            <ContextMenuShortcut>{modShortcutLabel("D")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                void copySelectedProps();
+                                                            }}
+                                                        >
+                                                            <ClipboardCopy className="h-4 w-4 mr-2" />
+                                                            Copy props
+                                                            <ContextMenuShortcut>{altShortcutLabel("C")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                void pasteSelectedProps();
+                                                            }}
+                                                        >
+                                                            <ClipboardPaste className="h-4 w-4 mr-2" />
+                                                            Paste props
+                                                            <ContextMenuShortcut>{altShortcutLabel("V")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            disabled={actionIndex <= 0}
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                moveSelectedItem("up");
+                                                            }}
+                                                        >
+                                                            <ArrowUp className="h-4 w-4 mr-2" />
+                                                            Move Up
+                                                            <ContextMenuShortcut>{modShortcutLabel("↑")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            disabled={actionIndex >= actions.length - 1}
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                moveSelectedItem("down");
+                                                            }}
+                                                        >
+                                                            <ArrowDown className="h-4 w-4 mr-2" />
+                                                            Move Down
+                                                            <ContextMenuShortcut>{modShortcutLabel("↓")}</ContextMenuShortcut>
+                                                        </ContextMenuItem>
+                                                        <ContextMenuSeparator />
+                                                        <ContextMenuItem
+                                                            onClick={() => {
+                                                                selectAction(action, displayTimeline);
+                                                                deleteSelectedItem();
                                                             }}
                                                             variant="destructive"
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Delete
+                                                            <ContextMenuShortcut>⌫</ContextMenuShortcut>
                                                         </ContextMenuItem>
                                                     </ContextMenuContent>
                                                 </ContextMenu>
-                                            ))
+                                                );
+                                            })
                                         ) : (
                                             <div className="px-2 py-1 text-[11px] text-muted-foreground">
                                                 Add from a preset or reference

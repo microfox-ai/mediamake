@@ -272,6 +272,7 @@ function escapeHtml(text: string): string {
 }
 
 const DEFAULT_NEW_WORD_DURATION = 1;
+const MIN_WORD_GAP = 0.01;
 
 /**
  * Build htmlText from timed words.
@@ -316,69 +317,344 @@ export function syncHtmlTextFromWords(
   return parts.join('');
 }
 
-function lineStartFromWords(words: Array<{ absoluteStart?: number; start?: number }>): number {
-  if (words.length === 0) return 0;
-  const first = words[0]!;
-  return Number(first.absoluteStart ?? first.start ?? 0) || 0;
+function letterWeight(text: string): number {
+  return Math.max(1, text.replace(/\s+/g, '').length);
+}
+
+function getWordAbs(
+  word: Record<string, unknown> | undefined,
+): { start: number; end: number } {
+  if (!word) return { start: 0, end: 0 };
+  const start = Number(word.absoluteStart ?? word.start ?? 0) || 0;
+  const end = Number(word.absoluteEnd ?? word.end ?? start) || start;
+  return { start, end: Math.max(end, start) };
+}
+
+function resolveLineScope(
+  prevWords: Array<Record<string, unknown>>,
+  lineBounds?: { start?: number; end?: number },
+): { start: number; end: number } {
+  if (
+    typeof lineBounds?.start === 'number' &&
+    typeof lineBounds?.end === 'number' &&
+    lineBounds.end > lineBounds.start
+  ) {
+    return { start: lineBounds.start, end: lineBounds.end };
+  }
+  if (prevWords.length === 0) {
+    return { start: 0, end: DEFAULT_NEW_WORD_DURATION };
+  }
+  const first = getWordAbs(prevWords[0]);
+  const last = getWordAbs(prevWords[prevWords.length - 1]);
+  return {
+    start: first.start,
+    end: Math.max(last.end, first.start + MIN_WORD_GAP),
+  };
+}
+
+function withRelativeTiming(
+  words: Array<Record<string, unknown>>,
+  lineStart: number,
+): Array<Record<string, unknown>> {
+  return words.map(w => {
+    const a = Number(w.absoluteStart ?? 0) || 0;
+    const b = Number(w.absoluteEnd ?? a) || a;
+    return {
+      ...w,
+      absoluteStart: a,
+      absoluteEnd: b,
+      start: a - lineStart,
+      end: b - lineStart,
+      duration: Math.max(0, b - a),
+    };
+  });
+}
+
+/** Split [spanStart, spanEnd] across items by letter length. */
+function distributeByLetterLength(
+  items: Array<{ text: string; base?: Record<string, unknown> }>,
+  spanStart: number,
+  spanEnd: number,
+): Array<Record<string, unknown>> {
+  if (items.length === 0) return [];
+  const span = Math.max(spanEnd - spanStart, items.length * MIN_WORD_GAP);
+  const weights = items.map(i => letterWeight(i.text));
+  const totalW = weights.reduce((a, b) => a + b, 0) || items.length;
+  let t = spanStart;
+  const out: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < items.length; i++) {
+    const isLast = i === items.length - 1;
+    const dur = isLast
+      ? Math.max(MIN_WORD_GAP, spanEnd - t)
+      : Math.max(MIN_WORD_GAP, (weights[i]! / totalW) * span);
+    const absoluteStart = t;
+    const absoluteEnd = isLast ? spanEnd : t + dur;
+    // Avoid overshoot before last
+    const clampedEnd = Math.min(absoluteEnd, spanEnd - (items.length - 1 - i) * MIN_WORD_GAP);
+    const end = isLast ? spanEnd : Math.max(absoluteStart + MIN_WORD_GAP, clampedEnd);
+    const base = items[i]!.base;
+    out.push({
+      ...(base ?? {
+        id: `w_${Date.now().toString(36)}_${i}`,
+        confidence: 1,
+      }),
+      text: items[i]!.text,
+      absoluteStart,
+      absoluteEnd: end,
+    });
+    t = end;
+  }
+  return out;
+}
+
+type AlignOp =
+  | { type: 'keep'; oldIndex: number; newIndex: number }
+  | { type: 'insert'; newIndex: number }
+  | { type: 'delete'; oldIndex: number };
+
+/** LCS-based alignment of old vs new word tokens (clean-token equality). */
+function alignWordSequences(oldTexts: string[], newTexts: string[]): AlignOp[] {
+  const n = oldTexts.length;
+  const m = newTexts.length;
+  const oldClean = oldTexts.map(t => cleanToken(t));
+  const newClean = newTexts.map(t => cleanToken(t));
+
+  const dp: number[][] = Array.from({ length: n + 1 }, () =>
+    Array(m + 1).fill(0),
+  );
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (oldClean[i - 1] && oldClean[i - 1] === newClean[j - 1]) {
+        dp[i]![j] = dp[i - 1]![j - 1]! + 1;
+      } else {
+        dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
+      }
+    }
+  }
+
+  const opsRev: AlignOp[] = [];
+  let i = n;
+  let j = m;
+  while (i > 0 || j > 0) {
+    if (
+      i > 0 &&
+      j > 0 &&
+      oldClean[i - 1] &&
+      oldClean[i - 1] === newClean[j - 1]
+    ) {
+      opsRev.push({ type: 'keep', oldIndex: i - 1, newIndex: j - 1 });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i]![j - 1]! >= dp[i - 1]![j]!)) {
+      opsRev.push({ type: 'insert', newIndex: j - 1 });
+      j--;
+    } else {
+      opsRev.push({ type: 'delete', oldIndex: i - 1 });
+      i--;
+    }
+  }
+  return opsRev.reverse();
 }
 
 /**
- * Apply htmlText tokens onto timed words (update texts; grow/shrink the array).
- * Returns updated plain `text` + `words`.
+ * Apply htmlText tokens onto timed words.
+ * New words stay inside the line scope; space is taken only from the
+ * immediate left/right neighbors (by letter length), not the whole line.
  */
 export function syncWordsFromHtmlText(
   htmlText: string,
   prevWords: Array<Record<string, unknown>> = [],
+  lineBounds?: { start?: number; end?: number },
 ): { text: string; words: Array<Record<string, unknown>> } {
   const tokens = tokenizeCaptionHtml(htmlText);
   const wordTokens = tokens.filter(
     (t): t is { type: 'word'; text: string; bold: boolean } => t.type === 'word',
   );
-  const text = wordTokens.map(t => t.text).join(' ').trim();
-  const lineStart = lineStartFromWords(
-    prevWords as Array<{ absoluteStart?: number; start?: number }>,
-  );
+  const newTexts = wordTokens.map(t => t.text);
+  const text = newTexts.join(' ').trim();
+  const scope = resolveLineScope(prevWords, lineBounds);
 
-  const words: Array<Record<string, unknown>> = [];
-  for (let i = 0; i < wordTokens.length; i++) {
-    const token = wordTokens[i]!;
-    const prev = prevWords[i];
-    if (prev) {
-      words.push({ ...prev, text: token.text });
+  if (newTexts.length === 0) {
+    return { text: '', words: [] };
+  }
+
+  // No previous words → fill the whole line by letter length
+  if (prevWords.length === 0) {
+    const distributed = distributeByLetterLength(
+      newTexts.map(t => ({ text: t })),
+      scope.start,
+      scope.end,
+    );
+    return { text, words: withRelativeTiming(distributed, scope.start) };
+  }
+
+  // Same count → update texts only, keep timings (clamped into line)
+  if (newTexts.length === prevWords.length) {
+    const words = prevWords.map((prev, i) => {
+      const { start, end } = getWordAbs(prev);
+      return {
+        ...prev,
+        text: newTexts[i],
+        absoluteStart: Math.max(scope.start, start),
+        absoluteEnd: Math.min(scope.end, Math.max(end, start + MIN_WORD_GAP)),
+      };
+    });
+    return { text, words: withRelativeTiming(words, scope.start) };
+  }
+
+  const oldTexts = prevWords.map(w => String(w.text ?? ''));
+  const ops = alignWordSequences(oldTexts, newTexts);
+
+  // Seed result slots from keeps; placeholders for inserts
+  type Slot =
+    | {
+        kind: 'keep';
+        text: string;
+        base: Record<string, unknown>;
+        start: number;
+        end: number;
+      }
+    | { kind: 'insert'; text: string }
+    | { kind: 'delete'; start: number; end: number; text: string };
+
+  const slots: Slot[] = [];
+  for (const op of ops) {
+    if (op.type === 'keep') {
+      const base = prevWords[op.oldIndex]!;
+      const { start, end } = getWordAbs(base);
+      slots.push({
+        kind: 'keep',
+        text: newTexts[op.newIndex]!,
+        base: { ...base },
+        start,
+        end,
+      });
+    } else if (op.type === 'insert') {
+      slots.push({ kind: 'insert', text: newTexts[op.newIndex]! });
+    } else {
+      const { start, end } = getWordAbs(prevWords[op.oldIndex]);
+      slots.push({
+        kind: 'delete',
+        start,
+        end,
+        text: oldTexts[op.oldIndex]!,
+      });
+    }
+  }
+
+  // Absorb deletions into neighboring keep/insert groups later;
+  // first collapse deletes by expanding adjacent keep timings.
+  for (let i = 0; i < slots.length; i++) {
+    const s = slots[i]!;
+    if (s.kind !== 'delete') continue;
+    const left = [...slots.slice(0, i)].reverse().find(x => x.kind === 'keep') as
+      | Extract<Slot, { kind: 'keep' }>
+      | undefined;
+    const right = slots.slice(i + 1).find(x => x.kind === 'keep') as
+      | Extract<Slot, { kind: 'keep' }>
+      | undefined;
+    if (left && right) {
+      // Freed span split by letter length between left & right
+      const freed = Math.max(0, s.end - s.start);
+      if (freed > 0) {
+        const lw = letterWeight(left.text);
+        const rw = letterWeight(right.text);
+        const mid = left.end + (freed * lw) / (lw + rw);
+        // left already ends at s.start typically; extend left to mid, right starts at mid
+        left.end = Math.max(left.end, Math.min(mid, right.start));
+        right.start = Math.min(right.start, Math.max(mid, left.end));
+      }
+    } else if (left) {
+      left.end = Math.max(left.end, s.end);
+    } else if (right) {
+      right.start = Math.min(right.start, s.start);
+    }
+  }
+
+  const active = slots.filter(s => s.kind !== 'delete') as Array<
+    Extract<Slot, { kind: 'keep' | 'insert' }>
+  >;
+
+  // Redistribute each insertion cluster using only left/right neighbors
+  const result: Array<Record<string, unknown>> = [];
+  let idx = 0;
+  while (idx < active.length) {
+    if (active[idx]!.kind === 'keep') {
+      const k = active[idx] as Extract<Slot, { kind: 'keep' }>;
+      // Peek if next are inserts — handled when we hit inserts with left keep
+      if (idx + 1 < active.length && active[idx + 1]!.kind === 'insert') {
+        // collect insert run
+        let j = idx + 1;
+        while (j < active.length && active[j]!.kind === 'insert') j++;
+        const inserts = active.slice(idx + 1, j) as Array<
+          Extract<Slot, { kind: 'insert' }>
+        >;
+        const right =
+          j < active.length && active[j]!.kind === 'keep'
+            ? (active[j] as Extract<Slot, { kind: 'keep' }>)
+            : null;
+
+        const spanStart = k.start;
+        const spanEnd = right ? right.end : scope.end;
+        const group = [
+          { text: k.text, base: k.base },
+          ...inserts.map(ins => ({ text: ins.text })),
+          ...(right ? [{ text: right.text, base: right.base }] : []),
+        ];
+        const distributed = distributeByLetterLength(
+          group,
+          spanStart,
+          Math.max(spanEnd, spanStart + group.length * MIN_WORD_GAP),
+        );
+        result.push(...distributed);
+        idx = right ? j + 1 : j;
+        continue;
+      }
+
+      result.push({
+        ...k.base,
+        text: k.text,
+        absoluteStart: Math.max(scope.start, k.start),
+        absoluteEnd: Math.min(scope.end, Math.max(k.end, k.start + MIN_WORD_GAP)),
+      });
+      idx++;
       continue;
     }
-    const prevEnd =
-      i > 0
-        ? Number(words[i - 1]?.absoluteEnd ?? 0) || 0
-        : lineStart;
-    const absoluteStart = prevEnd;
-    const absoluteEnd = absoluteStart + DEFAULT_NEW_WORD_DURATION;
-    words.push({
-      id: `w_${Date.now().toString(36)}_${i}`,
-      text: token.text,
-      absoluteStart,
-      absoluteEnd,
-      start: absoluteStart - lineStart,
-      end: absoluteEnd - lineStart,
-      duration: DEFAULT_NEW_WORD_DURATION,
-      confidence: 1,
-    });
+
+    // Leading inserts (before first keep)
+    let j = idx;
+    while (j < active.length && active[j]!.kind === 'insert') j++;
+    const inserts = active.slice(idx, j) as Array<
+      Extract<Slot, { kind: 'insert' }>
+    >;
+    const right =
+      j < active.length && active[j]!.kind === 'keep'
+        ? (active[j] as Extract<Slot, { kind: 'keep' }>)
+        : null;
+    const spanStart = scope.start;
+    const spanEnd = right ? right.end : scope.end;
+    const group = [
+      ...inserts.map(ins => ({ text: ins.text })),
+      ...(right ? [{ text: right.text, base: right.base }] : []),
+    ];
+    const distributed = distributeByLetterLength(
+      group,
+      spanStart,
+      Math.max(spanEnd, spanStart + group.length * MIN_WORD_GAP),
+    );
+    result.push(...distributed);
+    idx = right ? j + 1 : j;
   }
 
-  // Refresh relative offsets from the (possibly shifted) line start
-  const absLineStart =
-    words.length > 0
-      ? Number(words[0]?.absoluteStart ?? lineStart) || 0
-      : lineStart;
-  for (const w of words) {
-    const a = Number(w.absoluteStart ?? 0) || 0;
-    const b = Number(w.absoluteEnd ?? a) || a;
-    w.start = a - absLineStart;
-    w.end = b - absLineStart;
-    w.duration = Math.max(0, b - a);
-  }
+  // Final clamp into line scope
+  const clamped = result.map(w => {
+    const { start, end } = getWordAbs(w);
+    const a = Math.max(scope.start, Math.min(start, scope.end - MIN_WORD_GAP));
+    const b = Math.min(scope.end, Math.max(end, a + MIN_WORD_GAP));
+    return { ...w, absoluteStart: a, absoluteEnd: b };
+  });
 
-  return { text, words };
+  return { text, words: withRelativeTiming(clamped, scope.start) };
 }
 
 /**
@@ -388,15 +664,19 @@ export function syncFromPlainText(
   plainText: string,
   prevWords: Array<Record<string, unknown>> = [],
   prevHtmlText?: string | null,
+  lineBounds?: { start?: number; end?: number },
 ): {
   text: string;
   words: Array<Record<string, unknown>>;
   htmlText: string;
 } {
   const tokens = plainText.trim().split(/\s+/).filter(Boolean);
-  // Reuse html sync path with a synthetic plain html
   const synthetic = tokens.map(t => escapeHtml(t)).join(' ');
-  const { text, words } = syncWordsFromHtmlText(synthetic, prevWords);
+  const { text, words } = syncWordsFromHtmlText(
+    synthetic,
+    prevWords,
+    lineBounds,
+  );
   const htmlText = syncHtmlTextFromWords(words, prevHtmlText);
   return { text, words, htmlText };
 }

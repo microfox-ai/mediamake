@@ -394,10 +394,21 @@ export function CaptionItemEditor({
                       typeof metadata.htmlText === 'string'
                         ? metadata.htmlText
                         : null;
+                    const lineBounds = {
+                      start:
+                        typeof caption.absoluteStart === 'number'
+                          ? caption.absoluteStart
+                          : undefined,
+                      end:
+                        typeof caption.absoluteEnd === 'number'
+                          ? caption.absoluteEnd
+                          : undefined,
+                    };
                     const synced = syncFromPlainText(
                       e.target.value,
                       words,
                       prevHtml,
+                      lineBounds,
                     );
                     const keyword = extractKeywordsFromHtmlText(synced.htmlText);
                     const parsed = parseCaptionHtmlText(
@@ -482,7 +493,21 @@ export function CaptionItemEditor({
                 const nextHtml =
                   typeof newMeta.htmlText === 'string' ? newMeta.htmlText : '';
                 if (nextHtml !== prevHtml) {
-                  const synced = syncWordsFromHtmlText(nextHtml, words);
+                  const lineBounds = {
+                    start:
+                      typeof caption.absoluteStart === 'number'
+                        ? caption.absoluteStart
+                        : undefined,
+                    end:
+                      typeof caption.absoluteEnd === 'number'
+                        ? caption.absoluteEnd
+                        : undefined,
+                  };
+                  const synced = syncWordsFromHtmlText(
+                    nextHtml,
+                    words,
+                    lineBounds,
+                  );
                   const keyword = extractKeywordsFromHtmlText(nextHtml);
                   const parsed = parseCaptionHtmlText(nextHtml, synced.words);
                   onChange({

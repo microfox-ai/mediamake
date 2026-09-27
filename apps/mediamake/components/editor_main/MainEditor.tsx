@@ -23,8 +23,10 @@ import { useSession } from "@/components/session-provider";
 import { RenderProvider } from "@/components/editor/player/render-provider";
 import { TimelineMergeDialog } from "./dialogs/TimelineMergeDialog";
 import { LayerMergeDialog } from "./dialogs/LayerMergeDialog";
+import { useBlockShortcuts } from "./hooks/use-block-shortcuts";
 
 export const MainEditor = () => {
+    useBlockShortcuts();
     const {
         leftPanelSize,
         centerPanelSize,

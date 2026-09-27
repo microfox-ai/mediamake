@@ -32,6 +32,7 @@ import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
+import { setSegmentSelectionActive } from "../../../stores/bottom-selection-gate";
 import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
 import {
   AudioWaveformTracks,
@@ -1141,7 +1142,7 @@ export function PresetTimelineContent() {
   );
 
   const snapSelectedSegToPlayhead = useCallback(
-    (edge: "start" | "end") => {
+    (edge: "start" | "end", mode: "move" | "trim" = "move") => {
       if (!selectedSeg) return;
       const tp = selectedSeg.templatePath;
       const idx = selectedSeg.segIdx;
@@ -1161,9 +1162,24 @@ export function PresetTimelineContent() {
             ? totalDuration
             : Math.max(seg.end * 2, totalDuration, at + dur);
 
-        let newStart: number;
-        let newEnd: number;
-        if (edge === "start") {
+        let newStart = seg.start;
+        let newEnd = seg.end;
+
+        if (mode === "trim") {
+          if (edge === "start") {
+            const maxStart = newEnd - minGap;
+            if (maxStart < 0) return prev;
+            const nextStart = Math.max(0, Math.min(at, maxStart));
+            if (Math.abs(nextStart - seg.start) < 1e-9) return prev;
+            newStart = nextStart;
+          } else {
+            const minEnd = newStart + minGap;
+            if (minEnd > maxEnd) return prev;
+            const nextEnd = Math.min(maxEnd, Math.max(at, minEnd));
+            if (Math.abs(nextEnd - seg.end) < 1e-9) return prev;
+            newEnd = nextEnd;
+          }
+        } else if (edge === "start") {
           newStart = at;
           newEnd = newStart + dur;
           if (newEnd > maxEnd) {
@@ -1186,9 +1202,14 @@ export function PresetTimelineContent() {
             newStart = Math.max(0, newEnd - dur);
           }
         }
+
         if (seg.kind === "index") {
           newStart = Math.round(newStart);
           newEnd = Math.round(newEnd);
+          if (newEnd - newStart < 1) {
+            if (edge === "start") newStart = newEnd - 1;
+            else newEnd = newStart + 1;
+          }
         }
         segs[idx] = { ...seg, start: newStart, end: newEnd };
         commitRef.current(
@@ -1224,7 +1245,9 @@ export function PresetTimelineContent() {
       }
 
       const mod = e.metaKey || e.ctrlKey;
+      // Only intercept when a segment is selected so block/ref/action shortcuts can run
       if (mod && e.key.toLowerCase() === "d") {
+        if (!selectedSeg) return;
         e.preventDefault();
         duplicateSelected();
         return;
@@ -1259,12 +1282,12 @@ export function PresetTimelineContent() {
       }
       if ((e.key === "[" || e.code === "BracketLeft") && selectedSeg) {
         e.preventDefault();
-        snapSelectedSegToPlayhead("start");
+        snapSelectedSegToPlayhead("start", mod ? "trim" : "move");
         return;
       }
       if ((e.key === "]" || e.code === "BracketRight") && selectedSeg) {
         e.preventDefault();
-        snapSelectedSegToPlayhead("end");
+        snapSelectedSegToPlayhead("end", mod ? "trim" : "move");
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -1285,6 +1308,12 @@ export function PresetTimelineContent() {
   useEffect(() => {
     setSelectedSeg(null);
   }, [preset?.id]);
+
+  // Let block shortcuts yield while a segment is selected
+  useEffect(() => {
+    setSegmentSelectionActive(!!selectedSeg);
+    return () => setSegmentSelectionActive(false);
+  }, [selectedSeg]);
 
   // ─── Scroll sync ───────────────────────────────────────────────────────────
 
@@ -1452,8 +1481,13 @@ export function PresetTimelineContent() {
             variant="ghost"
             className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
             disabled={!selectedSeg}
-            onClick={() => snapSelectedSegToPlayhead("start")}
-            title="Set start at playhead ([)"
+            onClick={(e) =>
+              snapSelectedSegToPlayhead(
+                "start",
+                e.metaKey || e.ctrlKey ? "trim" : "move",
+              )
+            }
+            title="Move start to playhead ([) · Trim/extend start (⌘[)"
           >
             <ArrowLeftToLine className="h-3 w-3" />
           </Button>
@@ -1462,8 +1496,13 @@ export function PresetTimelineContent() {
             variant="ghost"
             className={cn("h-6 w-6", !selectedSeg && "opacity-40")}
             disabled={!selectedSeg}
-            onClick={() => snapSelectedSegToPlayhead("end")}
-            title="Set end at playhead (])"
+            onClick={(e) =>
+              snapSelectedSegToPlayhead(
+                "end",
+                e.metaKey || e.ctrlKey ? "trim" : "move",
+              )
+            }
+            title="Move end to playhead (]) · Trim/extend end (⌘])"
           >
             <ArrowRightToLine className="h-3 w-3" />
           </Button>
