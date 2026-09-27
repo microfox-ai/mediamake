@@ -1,196 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeftToLine, ArrowRightToLine, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ReferenceItem } from "@/components/editor/presets/types";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
+import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { setCaptionSelectionActive } from "../../../../stores/bottom-selection-gate";
-import {
-  ROW_HEIGHT,
-  MIN_SEG_PX,
-} from "../timeline-layout";
+import { ROW_HEIGHT, MIN_SEG_PX } from "../timeline-layout";
 import { useTimelineViewport } from "../timeline-viewport";
 import {
   useRegisterTimelineSection,
   type TimelineTrackSectionData,
 } from "../TimelineShell";
+import {
+  MIN_GAP,
+  type CaptionLine,
+  type DragTarget,
+  applyLineEdge,
+  applyWordEdge,
+  getLineBounds,
+  getWordBounds,
+  recomputeLineFromWords,
+  setBlockEndAt,
+  setBlockStartAt,
+  shiftLine,
+  trimBlockEndTo,
+  trimBlockStartTo,
+} from "../caption-timing-utils";
 
 const LINE_COLOR =
   "border-blue-500/50 bg-blue-500/20 hover:bg-blue-500/35 text-blue-200";
 const WORD_COLOR =
   "border-violet-500/50 bg-violet-500/20 hover:bg-violet-500/35 text-violet-200";
-const MIN_GAP = 0.01;
-
-type CaptionWord = {
-  id?: string;
-  text?: string;
-  start?: number;
-  end?: number;
-  absoluteStart?: number;
-  absoluteEnd?: number;
-  duration?: number;
-  [key: string]: unknown;
-};
-
-type CaptionLine = {
-  id?: string;
-  text?: string;
-  start?: number;
-  end?: number;
-  absoluteStart?: number;
-  absoluteEnd?: number;
-  duration?: number;
-  words?: CaptionWord[];
-  [key: string]: unknown;
-};
-
-type DragTarget =
-  | { kind: "line"; lineIdx: number; edge: "move" | "left" | "right" }
-  | {
-      kind: "word";
-      lineIdx: number;
-      wordIdx: number;
-      edge: "move" | "left" | "right";
-    };
-
-function getLineBounds(line: CaptionLine): { start: number; end: number } {
-  if (line.absoluteStart != null && line.absoluteEnd != null) {
-    const start = Number(line.absoluteStart) || 0;
-    const end = Number(line.absoluteEnd) || start;
-    return { start, end: Math.max(end, start) };
-  }
-  const words = line.words ?? [];
-  if (words.length > 0) {
-    const start = Number(words[0]?.absoluteStart ?? line.start ?? 0) || 0;
-    const end =
-      Number(words[words.length - 1]?.absoluteEnd ?? line.end ?? start) ||
-      start;
-    return { start, end: Math.max(end, start) };
-  }
-  const start = Number(line.start ?? 0) || 0;
-  const end = Number(line.end ?? start) || start;
-  return { start, end: Math.max(end, start) };
-}
-
-function getWordBounds(
-  word: CaptionWord,
-  line?: CaptionLine,
-): { start: number; end: number } {
-  if (word.absoluteStart != null || word.absoluteEnd != null) {
-    const start = Number(word.absoluteStart ?? 0) || 0;
-    const end = Number(word.absoluteEnd ?? start) || start;
-    return { start, end: Math.max(end, start) };
-  }
-  const lineStart = line ? getLineBounds(line).start : 0;
-  const start = lineStart + (Number(word.start) || 0);
-  const end = lineStart + (Number(word.end ?? word.start) || 0);
-  return { start, end: Math.max(end, start) };
-}
-
-function recomputeLineFromWords(line: CaptionLine): CaptionLine {
-  const lineBounds = getLineBounds(line);
-  const words = (line.words ?? []).map((w) => ({ ...w }));
-  if (words.length === 0) {
-    return {
-      ...line,
-      absoluteStart: lineBounds.start,
-      absoluteEnd: lineBounds.end,
-      start: lineBounds.start,
-      end: lineBounds.end,
-      duration: Math.max(0, lineBounds.end - lineBounds.start),
-    };
-  }
-  const normalized = words.map((w) => {
-    const { start, end } = getWordBounds(w, line);
-    const clampedStart = Math.max(
-      lineBounds.start,
-      Math.min(start, lineBounds.end - MIN_GAP),
-    );
-    const clampedEnd = Math.min(
-      lineBounds.end,
-      Math.max(end, clampedStart + MIN_GAP),
-    );
-    return {
-      ...w,
-      absoluteStart: clampedStart,
-      absoluteEnd: clampedEnd,
-      start: clampedStart - lineBounds.start,
-      end: clampedEnd - lineBounds.start,
-      duration: clampedEnd - clampedStart,
-    };
-  });
-  return {
-    ...line,
-    words: normalized,
-    absoluteStart: lineBounds.start,
-    absoluteEnd: lineBounds.end,
-    start: lineBounds.start,
-    end: lineBounds.end,
-    duration: lineBounds.end - lineBounds.start,
-  };
-}
-
-function shiftLine(line: CaptionLine, delta: number): CaptionLine {
-  const b = getLineBounds(line);
-  const start = Math.max(0, b.start + delta);
-  const end = Math.max(start + MIN_GAP, b.end + delta);
-  const shifted: CaptionLine = {
-    ...line,
-    absoluteStart: start,
-    absoluteEnd: end,
-    start,
-    end,
-    duration: end - start,
-    words: (line.words ?? []).map((w) => {
-      const wb = getWordBounds(w, line);
-      return {
-        ...w,
-        absoluteStart: wb.start + (start - b.start),
-        absoluteEnd: wb.end + (start - b.start),
-      };
-    }),
-  };
-  return recomputeLineFromWords(shifted);
-}
-
-function applyLineEdge(
-  line: CaptionLine,
-  edge: "left" | "right" | "move",
-  nextStart: number,
-  nextEnd: number,
-): CaptionLine {
-  if (edge === "move") {
-    const b = getLineBounds(line);
-    return shiftLine(line, nextStart - b.start);
-  }
-  const updated: CaptionLine = {
-    ...line,
-    absoluteStart: nextStart,
-    absoluteEnd: nextEnd,
-    start: nextStart,
-    end: nextEnd,
-    duration: nextEnd - nextStart,
-  };
-  return recomputeLineFromWords(updated);
-}
-
-function applyWordEdge(
-  line: CaptionLine,
-  wordIdx: number,
-  nextStart: number,
-  nextEnd: number,
-): CaptionLine {
-  const words = [...(line.words ?? [])];
-  const w = words[wordIdx];
-  if (!w) return line;
-  words[wordIdx] = {
-    ...w,
-    absoluteStart: nextStart,
-    absoluteEnd: nextEnd,
-  };
-  return recomputeLineFromWords({ ...line, words });
-}
 
 export interface CaptionsTracksSectionProps {
   sectionId: string;
@@ -203,6 +47,7 @@ export interface CaptionsTracksSectionProps {
 
 /**
  * Registers captions Lines + Words tracks into the shared TimelineShell.
+ * Same component is used for focused reference view and timeline overview.
  */
 export function CaptionsTracksSection({
   sectionId,
@@ -218,6 +63,9 @@ export function CaptionsTracksSection({
     s.editedTimelines.get(timelineId),
   );
   const generateOutput = useCompileStore((s) => s.generateOutput);
+  const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
+  const currentFrame = useLayerStateStore((s) => s.currentFrame);
+  const currentTimeSec = currentFrame / fps;
 
   const liveReference =
     (editedTimeline?.defaultData?.references?.[referenceIndex] as
@@ -275,7 +123,8 @@ export function CaptionsTracksSection({
   }, [captionsKey]);
 
   useEffect(() => {
-    if (selected) setCaptionSelectionActive(true);
+    if (!selected) return;
+    setCaptionSelectionActive(true);
     return () => setCaptionSelectionActive(false);
   }, [selected]);
 
@@ -377,7 +226,13 @@ export function CaptionsTracksSection({
           return applyLineEdge(line, drag.target.edge, nextStart, nextEnd);
         }
         if (drag.target.kind === "word" && i === drag.target.lineIdx) {
-          return applyWordEdge(line, drag.target.wordIdx, nextStart, nextEnd);
+          return applyWordEdge(
+            line,
+            drag.target.wordIdx,
+            drag.target.edge,
+            nextStart,
+            nextEnd,
+          );
         }
         return line;
       });
@@ -403,10 +258,229 @@ export function CaptionsTracksSection({
     [scheduleCommit],
   );
 
+  const snapSelectedToPlayhead = useCallback(
+    (edge: "start" | "end", mode: "move" | "trim" = "move") => {
+      if (!selected) return;
+      const sel = selected;
+      const at = currentTimeSec;
+      const lineIdx = sel.lineIdx;
+
+      setLocalCaptions((prev) => {
+        const next: CaptionLine[] = prev.map((c) => ({
+          ...c,
+          words: (c.words ?? []).map((w) => ({ ...w })),
+        }));
+        const line = next[lineIdx];
+        if (!line) return prev;
+
+        if (sel.kind === "line") {
+          const { start, end } = getLineBounds(line);
+          if (mode === "trim") {
+            const trimmed =
+              edge === "start"
+                ? trimBlockStartTo(start, end, at, 0, totalDuration)
+                : trimBlockEndTo(start, end, at, 0, totalDuration);
+            if (!trimmed) return prev;
+            next[lineIdx] =
+              edge === "start"
+                ? applyLineEdge(line, "left", trimmed.start, trimmed.end)
+                : applyLineEdge(line, "right", trimmed.start, trimmed.end);
+          } else {
+            const moved =
+              edge === "start"
+                ? setBlockStartAt(start, end, at, 0, totalDuration)
+                : setBlockEndAt(start, end, at, 0, totalDuration);
+            next[lineIdx] = shiftLine(line, moved.start - start);
+          }
+          commitCaptions(next);
+          return next;
+        }
+
+        const wordIdx = sel.wordIdx;
+        if (wordIdx == null) return prev;
+
+        const lineBounds = getLineBounds(line);
+        const word = (line.words ?? [])[wordIdx];
+        if (!word) return prev;
+        const { start, end } = getWordBounds(word, line);
+
+        if (mode === "trim") {
+          const trimmed =
+            edge === "start"
+              ? trimBlockStartTo(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                )
+              : trimBlockEndTo(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                );
+          if (!trimmed) return prev;
+          next[lineIdx] = applyWordEdge(
+            line,
+            wordIdx,
+            edge === "start" ? "left" : "right",
+            trimmed.start,
+            trimmed.end,
+          );
+        } else {
+          const moved =
+            edge === "start"
+              ? setBlockStartAt(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                )
+              : setBlockEndAt(
+                  start,
+                  end,
+                  at,
+                  lineBounds.start,
+                  lineBounds.end,
+                );
+          next[lineIdx] = applyWordEdge(
+            line,
+            wordIdx,
+            "move",
+            moved.start,
+            moved.end,
+          );
+        }
+        commitCaptions(next);
+        return next;
+      });
+    },
+    [selected, currentTimeSec, totalDuration, commitCaptions],
+  );
+
+  const deleteSelected = useCallback(() => {
+    if (!selected) return;
+    const sel = selected;
+
+    setLocalCaptions((prev) => {
+      if (sel.kind === "line") {
+        const next = prev.filter((_, i) => i !== sel.lineIdx);
+        commitCaptions(next);
+        queueMicrotask(() => setSelected(null));
+        return next;
+      }
+
+      const wordIdx = sel.wordIdx;
+      if (wordIdx == null) return prev;
+      const next: CaptionLine[] = prev.map((c) => ({
+        ...c,
+        words: (c.words ?? []).map((w) => ({ ...w })),
+      }));
+      const line = next[sel.lineIdx];
+      if (!line) return prev;
+      const words = [...(line.words ?? [])];
+      if (wordIdx < 0 || wordIdx >= words.length) return prev;
+      words.splice(wordIdx, 1);
+      next[sel.lineIdx] = recomputeLineFromWords({ ...line, words });
+      commitCaptions(next);
+      queueMicrotask(() => setSelected(null));
+      return next;
+    });
+  }, [selected, commitCaptions]);
+
+  useEffect(() => {
+    // Overview: only handle keys when this section has a selection
+    if (showHeader && !selected) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable ||
+          el.closest("[contenteditable=true]"))
+      ) {
+        return;
+      }
+      if (!selected) return;
+      if (e.key === "[" || e.code === "BracketLeft") {
+        e.preventDefault();
+        snapSelectedToPlayhead(
+          "start",
+          e.metaKey || e.ctrlKey ? "trim" : "move",
+        );
+        return;
+      }
+      if (e.key === "]" || e.code === "BracketRight") {
+        e.preventDefault();
+        snapSelectedToPlayhead(
+          "end",
+          e.metaKey || e.ctrlKey ? "trim" : "move",
+        );
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteSelected();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showHeader, selected, snapSelectedToPlayhead, deleteSelected]);
+
   const wordCount = useMemo(
     () => localCaptions.reduce((n, l) => n + (l.words?.length ?? 0), 0),
     [localCaptions],
   );
+
+  const tools = useMemo(() => {
+    if (!selected) return undefined;
+    return (
+      <>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6"
+          onClick={(e) =>
+            snapSelectedToPlayhead(
+              "start",
+              e.metaKey || e.ctrlKey ? "trim" : "move",
+            )
+          }
+          title="Move start to playhead ([) · Trim/extend start (⌘[)"
+        >
+          <ArrowLeftToLine className="h-3 w-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6"
+          onClick={(e) =>
+            snapSelectedToPlayhead(
+              "end",
+              e.metaKey || e.ctrlKey ? "trim" : "move",
+            )
+          }
+          title="Move end to playhead (]) · Trim/extend end (⌘])"
+        >
+          <ArrowRightToLine className="h-3 w-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6"
+          onClick={deleteSelected}
+          title="Delete selected (⌫)"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </>
+    );
+  }, [selected, snapSelectedToPlayhead, deleteSelected]);
 
   const section: TimelineTrackSectionData = useMemo(() => {
     const rows = [
@@ -590,6 +664,7 @@ export function CaptionsTracksSection({
           }
         : undefined,
       rows,
+      tools,
     };
   }, [
     sectionId,
@@ -604,6 +679,7 @@ export function CaptionsTracksSection({
     handlePointerMove,
     handlePointerUp,
     startDrag,
+    tools,
   ]);
 
   useRegisterTimelineSection(section);

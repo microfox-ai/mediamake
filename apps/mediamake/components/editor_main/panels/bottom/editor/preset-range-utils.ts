@@ -272,3 +272,63 @@ export function applySegsToInputData(
   });
   return next;
 }
+
+export function getAtPath(source: any, path: string): any {
+  const tokens: string[] = [];
+  path.split(".").forEach((chunk) => {
+    const [head, ...rest] = chunk.split("[");
+    if (head) tokens.push(head);
+    rest.forEach((part) => tokens.push(part.replace("]", "")));
+  });
+  let cursor = source;
+  for (const token of tokens) {
+    if (cursor == null) return undefined;
+    cursor = cursor[token];
+  }
+  return cursor;
+}
+
+/** Parse `images[2].rangeString` → array path, index, leaf field. */
+export function parseArrayItemFieldPath(
+  path: string,
+): { arrayPath: string; index: number; fieldPath: string } | null {
+  const m = path.match(/^(.*)\[(\d+)\]\.(.+)$/);
+  if (!m) return null;
+  return { arrayPath: m[1]!, index: Number(m[2]), fieldPath: m[3]! };
+}
+
+/**
+ * Clone the array item at `concretePath`'s index, set its range field, and insert
+ * it immediately after. Used for plain-range split/duplicate.
+ */
+export function insertClonedArrayItemWithRange(
+  inputData: any,
+  concretePath: string,
+  newRange: string,
+): any | null {
+  const parsed = parseArrayItemFieldPath(concretePath);
+  if (!parsed) return null;
+  const arr = getAtPath(inputData, parsed.arrayPath);
+  if (!Array.isArray(arr) || parsed.index < 0 || parsed.index >= arr.length)
+    return null;
+
+  const clone = structuredClone(inputData);
+  const cloneArr = getAtPath(clone, parsed.arrayPath) as any[];
+  const itemClone = structuredClone(cloneArr[parsed.index]);
+  const fieldTokens = parsed.fieldPath.split(".");
+  let cur: any = itemClone;
+  for (let i = 0; i < fieldTokens.length - 1; i++) {
+    cur = cur[fieldTokens[i]!];
+    if (cur == null) return null;
+  }
+  cur[fieldTokens[fieldTokens.length - 1]!] = newRange;
+  cloneArr.splice(parsed.index + 1, 0, itemClone);
+  return clone;
+}
+
+/** Whether a track group can grow/split/duplicate segments. */
+export function canEditSegStructure(group: TrackGroup): boolean {
+  if (group.kind === "data-reference") return true;
+  if (group.concretePaths.length === 1) return true;
+  return group.concretePaths.some((p) => parseArrayItemFieldPath(p) !== null);
+}

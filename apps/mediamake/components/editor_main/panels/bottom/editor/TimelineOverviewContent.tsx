@@ -13,7 +13,7 @@ import {
 } from "./timeline-track-sources";
 import { PresetTracksSection } from "./sections/PresetTracksSection";
 import { CaptionsTracksSection } from "./sections/CaptionsTracksSection";
-// ActionTracksSection — ready for future action track UIs (see collectTimelineTrackSources)
+import { ActionTracksSection } from "./sections/ActionTracksSection";
 
 /**
  * Timeline-level bottom panel: renders ALL track sources
@@ -68,6 +68,7 @@ export function TimelineOverviewContent() {
   const captionCount = sources.filter(
     (s) => s.kind === "captions-reference",
   ).length;
+  const actionCount = sources.filter((s) => s.kind === "action").length;
   const subtitleParts = [
     presetCount > 0
       ? `${presetCount} preset${presetCount !== 1 ? "s" : ""}`
@@ -75,10 +76,14 @@ export function TimelineOverviewContent() {
     captionCount > 0
       ? `${captionCount} caption ref${captionCount !== 1 ? "s" : ""}`
       : null,
+    actionCount > 0
+      ? `${actionCount} action${actionCount !== 1 ? "s" : ""}`
+      : null,
   ].filter(Boolean);
 
-  const visibleSources = sources.filter((s) => s.kind !== "action");
-  const showHeaders = visibleSources.length > 1;
+  // Action track UIs are placeholders for now — include them so overview
+  // shows every source kind, without blocking editing of presets/captions.
+  const showHeaders = sources.length > 1;
 
   return (
     <TimelineShell
@@ -90,7 +95,7 @@ export function TimelineOverviewContent() {
       audioClips={audioClips}
       emptyMessage="This timeline has no presets, caption references, or actions with tracks yet."
     >
-      {visibleSources.map((source, index) => {
+      {sources.map((source, index) => {
         if (source.kind === "preset") {
           return (
             <PresetTracksSection
@@ -114,6 +119,17 @@ export function TimelineOverviewContent() {
               timelineId={effectiveTimeline.id}
               referenceIndex={source.referenceIndex}
               reference={source.reference}
+              showHeader={showHeaders}
+            />
+          );
+        }
+        if (source.kind === "action") {
+          return (
+            <ActionTracksSection
+              key={source.id}
+              sectionId={source.id}
+              order={index}
+              action={source.action}
               showHeader={showHeaders}
             />
           );

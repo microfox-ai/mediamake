@@ -25,6 +25,8 @@ export interface TimelineViewportValue {
   ppsToSlider: (pps: number) => number;
   sliderToPps: (v: number) => number;
   fitToView: () => void;
+  /** Multiply current zoom (e.g. 1.3 zoom in, 1/1.3 zoom out). */
+  zoomByFactor: (factor: number) => void;
   handleWheel: (e: React.WheelEvent) => void;
   trackRightRef: RefObject<HTMLDivElement | null>;
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -81,22 +83,48 @@ export function TimelineViewportProvider({
     [containerWidth, totalDuration],
   );
 
-  const [pixelsPerSecond, setPixelsPerSecond] = useState(80);
+  /** Default zoom slider position (log scale from fit → max). */
+  const DEFAULT_ZOOM_SLIDER = 25;
 
-  useEffect(() => {
-    setPixelsPerSecond((p) => Math.min(MAX_PPS, Math.max(minPps, p)));
-  }, [minPps]);
-
-  const totalWidth = Math.max(containerWidth, totalDuration * pixelsPerSecond);
-
-  const secToPx = useCallback(
-    (s: number) => s * pixelsPerSecond,
-    [pixelsPerSecond],
+  const sliderToPps = useCallback(
+    (v: number) =>
+      Math.exp(
+        Math.log(minPps) + (v / 100) * (Math.log(MAX_PPS) - Math.log(minPps)),
+      ),
+    [minPps],
   );
-  const pxToSec = useCallback(
-    (px: number) => px / pixelsPerSecond,
-    [pixelsPerSecond],
+
+  // null = still on default 25% zoom (recomputed when minPps changes)
+  const [pixelsPerSecond, setPixelsPerSecondState] = useState<number | null>(
+    null,
   );
+
+  const resolvedPps =
+    pixelsPerSecond === null
+      ? Math.min(MAX_PPS, Math.max(minPps, sliderToPps(DEFAULT_ZOOM_SLIDER)))
+      : Math.min(MAX_PPS, Math.max(minPps, pixelsPerSecond));
+
+  const setPixelsPerSecond = useCallback(
+    (v: number | ((p: number) => number)) => {
+      setPixelsPerSecondState((prev) => {
+        const current =
+          prev === null
+            ? Math.min(
+                MAX_PPS,
+                Math.max(minPps, sliderToPps(DEFAULT_ZOOM_SLIDER)),
+              )
+            : prev;
+        const next = typeof v === "function" ? v(current) : v;
+        return Math.min(MAX_PPS, Math.max(minPps, next));
+      });
+    },
+    [minPps, sliderToPps],
+  );
+
+  const totalWidth = Math.max(containerWidth, totalDuration * resolvedPps);
+
+  const secToPx = useCallback((s: number) => s * resolvedPps, [resolvedPps]);
+  const pxToSec = useCallback((px: number) => px / resolvedPps, [resolvedPps]);
 
   const ppsToSlider = useCallback(
     (pps: number) => {
@@ -109,29 +137,25 @@ export function TimelineViewportProvider({
     [minPps],
   );
 
-  const sliderToPps = useCallback(
-    (v: number) =>
-      Math.exp(
-        Math.log(minPps) + (v / 100) * (Math.log(MAX_PPS) - Math.log(minPps)),
-      ),
-    [minPps],
-  );
-
   const fitToView = useCallback(() => {
-    setPixelsPerSecond(minPps);
+    setPixelsPerSecondState(minPps);
   }, [minPps]);
+
+  const zoomByFactor = useCallback(
+    (factor: number) => {
+      setPixelsPerSecond((p) => p * factor);
+    },
+    [setPixelsPerSecond],
+  );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const f = e.deltaY < 0 ? 1.2 : 1 / 1.2;
-        setPixelsPerSecond((p) =>
-          Math.min(MAX_PPS, Math.max(minPps, p * f)),
-        );
+        zoomByFactor(e.deltaY < 0 ? 1.2 : 1 / 1.2);
       }
     },
-    [minPps],
+    [zoomByFactor],
   );
 
   const onScroll = useCallback(() => {
@@ -146,7 +170,7 @@ export function TimelineViewportProvider({
   }, []);
 
   const rulerTicks = useMemo(() => {
-    const pps = pixelsPerSecond;
+    const pps = resolvedPps;
     let step = 1;
     if (pps < 4) step = 60;
     else if (pps < 10) step = 30;
@@ -166,13 +190,13 @@ export function TimelineViewportProvider({
       });
     }
     return ticks;
-  }, [pixelsPerSecond, totalDuration]);
+  }, [resolvedPps, totalDuration]);
 
   const value = useMemo<TimelineViewportValue>(
     () => ({
       totalDuration,
       containerWidth,
-      pixelsPerSecond,
+      pixelsPerSecond: resolvedPps,
       setPixelsPerSecond,
       minPps,
       totalWidth,
@@ -181,6 +205,7 @@ export function TimelineViewportProvider({
       ppsToSlider,
       sliderToPps,
       fitToView,
+      zoomByFactor,
       handleWheel,
       trackRightRef,
       scrollRef,
@@ -192,7 +217,8 @@ export function TimelineViewportProvider({
     [
       totalDuration,
       containerWidth,
-      pixelsPerSecond,
+      resolvedPps,
+      setPixelsPerSecond,
       minPps,
       totalWidth,
       secToPx,
@@ -200,6 +226,7 @@ export function TimelineViewportProvider({
       ppsToSlider,
       sliderToPps,
       fitToView,
+      zoomByFactor,
       handleWheel,
       onScroll,
       rulerTicks,

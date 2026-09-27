@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useRef,
   useSyncExternalStore,
@@ -20,7 +21,6 @@ import {
 import type { TimelineAudioClip } from "@/components/editor/presets/actions/engine/find-audio-media";
 import {
   LABEL_WIDTH,
-  MAX_PPS,
   ROW_HEIGHT,
   RULER_HEIGHT,
   formatTimeLabel,
@@ -46,6 +46,8 @@ export interface TimelineTrackSectionData {
   order: number;
   header?: { label: ReactNode; track?: ReactNode };
   rows: TimelineTrackRow[];
+  /** Optional chrome tools (snap/delete/etc.) when this section has an active selection. */
+  tools?: ReactNode;
 }
 
 type Listener = () => void;
@@ -139,10 +141,10 @@ function TimelineShellChrome({
     secToPx,
     pixelsPerSecond,
     setPixelsPerSecond,
-    minPps,
     ppsToSlider,
     sliderToPps,
     fitToView,
+    zoomByFactor,
     handleWheel,
     trackRightRef,
     scrollRef,
@@ -153,6 +155,9 @@ function TimelineShellChrome({
   } = useTimelineViewport();
 
   const orderedSections = useRegisteredSections();
+  const sectionTools = orderedSections
+    .map((s) => s.tools)
+    .filter(Boolean) as ReactNode[];
 
   const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
@@ -163,6 +168,98 @@ function TimelineShellChrome({
 
   const hasRows =
     orderedSections.some((s) => s.rows.length > 0) || audioClips.length > 0;
+
+  const pixelsPerSecondRef = useRef(pixelsPerSecond);
+  const currentTimeSecRef = useRef(currentTimeSec);
+  useEffect(() => {
+    pixelsPerSecondRef.current = pixelsPerSecond;
+  }, [pixelsPerSecond]);
+  useEffect(() => {
+    currentTimeSecRef.current = currentTimeSec;
+  }, [currentTimeSec]);
+
+  /** Scroll so playhead sits at `anchor` fraction of the viewport (0.5 = center). */
+  const scrollPlayheadTo = useCallback(
+    (anchor: number) => {
+      requestAnimationFrame(() => {
+        const s = scrollRef.current;
+        if (!s) return;
+        const px = currentTimeSecRef.current * pixelsPerSecondRef.current;
+        const target = Math.max(0, px - s.clientWidth * anchor);
+        s.scrollLeft = target;
+        onScroll();
+      });
+    },
+    [scrollRef, onScroll],
+  );
+
+  const centerOnPlayhead = useCallback(() => {
+    scrollPlayheadTo(0.5);
+  }, [scrollPlayheadTo]);
+
+  // Mount + zoom: keep playhead anchored in view
+  useEffect(() => {
+    scrollPlayheadTo(0.35);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    scrollPlayheadTo(0.35);
+  }, [pixelsPerSecond, scrollPlayheadTo]);
+
+  // During playback, follow when playhead drifts outside the middle band
+  const prevFrameRef = useRef(currentFrame);
+  useEffect(() => {
+    if (currentFrame === prevFrameRef.current) return;
+    prevFrameRef.current = currentFrame;
+    const s = scrollRef.current;
+    if (!s) return;
+    const px = secToPx(currentTimeSec);
+    const visL = s.scrollLeft + s.clientWidth * 0.15;
+    const visR = s.scrollLeft + s.clientWidth * 0.85;
+    if (px < visL || px > visR) {
+      const target = Math.max(0, px - s.clientWidth * 0.35);
+      s.scrollLeft = target;
+      onScroll();
+    }
+  }, [currentFrame, currentTimeSec, secToPx, scrollRef, onScroll]);
+
+  // ⌘/Ctrl + / − zoom the timeline (not the browser page)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable ||
+          el.closest("[contenteditable=true]"))
+      ) {
+        return;
+      }
+      if (
+        e.key === "+" ||
+        e.key === "=" ||
+        e.code === "Equal" ||
+        e.code === "NumpadAdd"
+      ) {
+        e.preventDefault();
+        zoomByFactor(1.3);
+        return;
+      }
+      if (
+        e.key === "-" ||
+        e.key === "_" ||
+        e.code === "Minus" ||
+        e.code === "NumpadSubtract"
+      ) {
+        e.preventDefault();
+        zoomByFactor(1 / 1.3);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [zoomByFactor]);
 
   const handleRulerClick = useCallback(
     (e: React.MouseEvent) => {
@@ -222,6 +319,9 @@ function TimelineShellChrome({
         ) : null}
         <div className="flex-1" />
         {tools}
+        {sectionTools.length > 0 ? (
+          <div className="flex items-center gap-0.5">{sectionTools}</div>
+        ) : null}
         <div className="h-4 w-px bg-border mx-1" />
         <span className="text-[10px] text-muted-foreground/40 hidden sm:block">
           Ctrl+scroll to zoom
@@ -236,17 +336,22 @@ function TimelineShellChrome({
         >
           Fit
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          onClick={centerOnPlayhead}
+          title="Scroll so the playhead is centered"
+        >
+          Center
+        </Button>
         <div className="h-4 w-px bg-border" />
         <Button
           size="icon"
           variant="ghost"
           className="h-6 w-6"
-          onClick={() =>
-            setPixelsPerSecond((p) =>
-              Math.min(MAX_PPS, Math.max(minPps, p / 1.3)),
-            )
-          }
-          title="Zoom out"
+          onClick={() => zoomByFactor(1 / 1.3)}
+          title="Zoom out (⌘−)"
         >
           <ZoomOut className="h-3 w-3" />
         </Button>
@@ -262,12 +367,8 @@ function TimelineShellChrome({
           size="icon"
           variant="ghost"
           className="h-6 w-6"
-          onClick={() =>
-            setPixelsPerSecond((p) =>
-              Math.min(MAX_PPS, Math.max(minPps, p * 1.3)),
-            )
-          }
-          title="Zoom in"
+          onClick={() => zoomByFactor(1.3)}
+          title="Zoom in (⌘+)"
         >
           <ZoomIn className="h-3 w-3" />
         </Button>
