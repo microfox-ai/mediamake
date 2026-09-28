@@ -12,7 +12,11 @@ export interface ActionTracksSectionProps {
   sectionId: string;
   order: number;
   action: TimelineAction;
-  showHeader?: boolean;
+  /**
+   * When set (clubbed/overview), append " - {tag}" to the track title
+   * instead of rendering a separate section header.
+   */
+  sourceTag?: string;
 }
 
 /**
@@ -23,18 +27,15 @@ export function ActionTracksSection({
   sectionId,
   order,
   action,
-  showHeader = true,
+  sourceTag,
 }: ActionTracksSectionProps) {
+  const name = action.label || action.actionId || "Action";
+  const trackTitle = sourceTag ? `Action - ${sourceTag}` : name;
+
   const section: TimelineTrackSectionData = useMemo(
     () => ({
       id: sectionId,
       order,
-      header: showHeader
-        ? {
-            label: `Action · ${action.label || action.actionId}`,
-            track: null,
-          }
-        : undefined,
       rows: [
         {
           id: `${sectionId}:placeholder`,
@@ -44,8 +45,11 @@ export function ActionTracksSection({
               style={{ height: ROW_HEIGHT }}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold truncate">
-                  {action.label || action.actionId}
+                <p
+                  className="text-[10px] font-semibold truncate"
+                  title={trackTitle}
+                >
+                  {trackTitle}
                 </p>
                 <p className="text-[9px] text-muted-foreground/50 truncate">
                   Action tracks coming soon
@@ -68,7 +72,7 @@ export function ActionTracksSection({
         },
       ],
     }),
-    [sectionId, order, showHeader, action.label, action.actionId],
+    [sectionId, order, trackTitle],
   );
 
   useRegisterTimelineSection(section);

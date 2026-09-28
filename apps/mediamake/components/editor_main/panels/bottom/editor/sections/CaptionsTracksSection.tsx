@@ -9,12 +9,18 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { setCaptionSelectionActive } from "../../../../stores/bottom-selection-gate";
+import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
+import { isEditorFocusScope } from "../../../../stores/editor-focus-scope";
 import { ROW_HEIGHT, MIN_SEG_PX } from "../timeline-layout";
 import { useTimelineViewport } from "../timeline-viewport";
 import {
   useRegisterTimelineSection,
   type TimelineTrackSectionData,
 } from "../TimelineShell";
+import {
+  claimBlockSelection,
+  releaseBlockSelection,
+} from "../timeline-block-selection";
 import {
   MIN_GAP,
   type CaptionLine,
@@ -42,7 +48,11 @@ export interface CaptionsTracksSectionProps {
   timelineId: string;
   referenceIndex: number;
   reference: ReferenceItem;
-  showHeader?: boolean;
+  /**
+   * When set (clubbed/overview), append " - {tag}" to track titles
+   * instead of rendering a separate section header.
+   */
+  sourceTag?: string;
 }
 
 /**
@@ -55,8 +65,9 @@ export function CaptionsTracksSection({
   timelineId,
   referenceIndex,
   reference,
-  showHeader = true,
+  sourceTag,
 }: CaptionsTracksSectionProps) {
+  const clubbed = !!sourceTag;
   const { secToPx, totalDuration, pixelsPerSecond } = useTimelineViewport();
   const updateTimeline = useTimelineEditsStore((s) => s.updateTimeline);
   const editedTimeline = useTimelineEditsStore((s) =>
@@ -123,10 +134,34 @@ export function CaptionsTracksSection({
   }, [captionsKey]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) {
+      releaseBlockSelection(sectionId);
+      return;
+    }
     setCaptionSelectionActive(true);
-    return () => setCaptionSelectionActive(false);
-  }, [selected]);
+    claimBlockSelection(sectionId, () => setSelected(null));
+    return () => {
+      setCaptionSelectionActive(false);
+      releaseBlockSelection(sectionId);
+    };
+  }, [selected, sectionId]);
+
+  const selectBlock = useCallback(
+    (next: { kind: "line" | "word"; lineIdx: number; wordIdx?: number }) => {
+      claimBlockSelection(sectionId, () => setSelected(null));
+      setSelected(next);
+    },
+    [sectionId],
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+    releaseBlockSelection(sectionId);
+  }, [sectionId]);
+
+  useEffect(() => {
+    return () => releaseBlockSelection(sectionId);
+  }, [sectionId]);
 
   const commitCaptions = useCallback(
     (next: CaptionLine[]) => {
@@ -392,17 +427,14 @@ export function CaptionsTracksSection({
   }, [selected, commitCaptions]);
 
   useEffect(() => {
-    // Overview: only handle keys when this section has a selection
-    if (showHeader && !selected) return;
+    // Clubbed overview: only handle keys when this section has a selection
+    if (clubbed && !selected) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
+      if (!isEditorFocusScope("bottom")) return;
       if (
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable ||
-          el.closest("[contenteditable=true]"))
+        isEditableKeyboardTarget(e.target) ||
+        isEditableKeyboardTarget(document.activeElement)
       ) {
         return;
       }
@@ -430,7 +462,7 @@ export function CaptionsTracksSection({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [showHeader, selected, snapSelectedToPlayhead, deleteSelected]);
+  }, [clubbed, selected, snapSelectedToPlayhead, deleteSelected]);
 
   const wordCount = useMemo(
     () => localCaptions.reduce((n, l) => n + (l.words?.length ?? 0), 0),
@@ -483,6 +515,10 @@ export function CaptionsTracksSection({
   }, [selected, snapSelectedToPlayhead, deleteSelected]);
 
   const section: TimelineTrackSectionData = useMemo(() => {
+    const refTag = sourceTag || liveReference.key || "captions";
+    const linesTitle = sourceTag ? `Lines - ${refTag}` : "Lines";
+    const wordsTitle = sourceTag ? `Words - ${refTag}` : "Words";
+
     const rows = [
       {
         id: `${sectionId}:lines`,
@@ -492,7 +528,12 @@ export function CaptionsTracksSection({
             style={{ height: ROW_HEIGHT }}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold truncate">Lines</p>
+              <p
+                className="text-[10px] font-semibold truncate"
+                title={linesTitle}
+              >
+                {linesTitle}
+              </p>
               <p className="text-[9px] text-muted-foreground/50 truncate">
                 {localCaptions.length} captions
               </p>
@@ -506,7 +547,7 @@ export function CaptionsTracksSection({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerDown={(e) => {
-              if (e.target === e.currentTarget) setSelected(null);
+              if (e.target === e.currentTarget) clearSelection();
             }}
           >
             {localCaptions.map((line, lineIdx) => {
@@ -526,7 +567,7 @@ export function CaptionsTracksSection({
                   color={LINE_COLOR}
                   isSelected={isSelected}
                   label={labelText}
-                  onSelect={() => setSelected({ kind: "line", lineIdx })}
+                  onSelect={() => selectBlock({ kind: "line", lineIdx })}
                   onMoveDown={(e) =>
                     startDrag(
                       e,
@@ -573,7 +614,12 @@ export function CaptionsTracksSection({
             style={{ height: ROW_HEIGHT }}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold truncate">Words</p>
+              <p
+                className="text-[10px] font-semibold truncate"
+                title={wordsTitle}
+              >
+                {wordsTitle}
+              </p>
               <p className="text-[9px] text-muted-foreground/50 truncate">
                 {wordCount} words
               </p>
@@ -587,7 +633,7 @@ export function CaptionsTracksSection({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerDown={(e) => {
-              if (e.target === e.currentTarget) setSelected(null);
+              if (e.target === e.currentTarget) clearSelection();
             }}
           >
             {localCaptions.flatMap((line, lineIdx) => {
@@ -611,7 +657,7 @@ export function CaptionsTracksSection({
                     isSelected={isSelected}
                     label={(word.text || "").trim() || `w${wordIdx + 1}`}
                     onSelect={() =>
-                      setSelected({ kind: "word", lineIdx, wordIdx })
+                      selectBlock({ kind: "word", lineIdx, wordIdx })
                     }
                     onMoveDown={(e) =>
                       startDrag(
@@ -657,19 +703,13 @@ export function CaptionsTracksSection({
     return {
       id: sectionId,
       order,
-      header: showHeader
-        ? {
-            label: `Captions · ${liveReference.key || "captions"}`,
-            track: null,
-          }
-        : undefined,
       rows,
       tools,
     };
   }, [
     sectionId,
     order,
-    showHeader,
+    sourceTag,
     liveReference.key,
     localCaptions,
     wordCount,
@@ -680,6 +720,8 @@ export function CaptionsTracksSection({
     handlePointerUp,
     startDrag,
     tools,
+    selectBlock,
+    clearSelection,
   ]);
 
   useRegisterTimelineSection(section);

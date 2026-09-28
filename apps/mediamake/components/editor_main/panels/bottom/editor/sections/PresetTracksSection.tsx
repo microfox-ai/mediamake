@@ -22,6 +22,8 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { setSegmentSelectionActive } from "../../../../stores/bottom-selection-gate";
+import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
+import { isEditorFocusScope } from "../../../../stores/editor-focus-scope";
 import {
   ROW_HEIGHT,
   MIN_SEG_PX,
@@ -33,6 +35,10 @@ import {
   useRegisterTimelineSection,
   type TimelineTrackSectionData,
 } from "../TimelineShell";
+import {
+  claimBlockSelection,
+  releaseBlockSelection,
+} from "../timeline-block-selection";
 import {
   applySegsToInputData,
   buildTrackGroups,
@@ -68,8 +74,11 @@ export interface PresetTracksSectionProps {
   label: string;
   /** Used when edits store has no entry yet. */
   fallbackTimeline?: Timeline | null;
-  /** Show a section header (used in overview when multiple sources). */
-  showHeader?: boolean;
+  /**
+   * When set (clubbed/overview), append " - {tag}" to track titles
+   * instead of rendering a separate section header.
+   */
+  sourceTag?: string;
 }
 
 /**
@@ -83,8 +92,9 @@ export function PresetTracksSection({
   presetId,
   label,
   fallbackTimeline,
-  showHeader = true,
+  sourceTag,
 }: PresetTracksSectionProps) {
+  const clubbed = !!sourceTag;
   const { secToPx, totalDuration, pixelsPerSecond } = useTimelineViewport();
   const updatePresetInputData = useTimelineEditsStore(
     (s) => s.updatePresetInputData,
@@ -137,10 +147,34 @@ export function PresetTracksSection({
   }, [trackGroupsKey]);
 
   useEffect(() => {
-    if (!selectedSeg) return;
+    if (!selectedSeg) {
+      releaseBlockSelection(sectionId);
+      return;
+    }
     setSegmentSelectionActive(true);
-    return () => setSegmentSelectionActive(false);
-  }, [selectedSeg]);
+    claimBlockSelection(sectionId, () => setSelectedSeg(null));
+    return () => {
+      setSegmentSelectionActive(false);
+      releaseBlockSelection(sectionId);
+    };
+  }, [selectedSeg, sectionId]);
+
+  const selectSeg = useCallback(
+    (next: SegSelection) => {
+      claimBlockSelection(sectionId, () => setSelectedSeg(null));
+      setSelectedSeg(next);
+    },
+    [sectionId],
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectedSeg(null);
+    releaseBlockSelection(sectionId);
+  }, [sectionId]);
+
+  useEffect(() => {
+    return () => releaseBlockSelection(sectionId);
+  }, [sectionId]);
 
   const commitRef = useRef<
     (tp: string, segs: ParsedSegment[], changedSegIdx?: number) => void
@@ -399,7 +433,7 @@ export function PresetTracksSection({
           );
           commitRef.current(target.templatePath, segs);
           queueMicrotask(() => {
-            setSelectedSeg({
+            selectSeg({
               templatePath: target.templatePath,
               segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
             });
@@ -439,7 +473,7 @@ export function PresetTracksSection({
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
       queueMicrotask(() => {
-        setSelectedSeg({
+        selectSeg({
           templatePath: target.templatePath,
           segIdx: target.segIdx + 1,
         });
@@ -459,6 +493,7 @@ export function PresetTracksSection({
       updatePresetInputData,
       getEditedTimeline,
       generateOutput,
+      selectSeg,
     ],
   );
 
@@ -499,7 +534,7 @@ export function PresetTracksSection({
       );
       commitRef.current(targetTp, segs);
       queueMicrotask(() => {
-        setSelectedSeg({
+        selectSeg({
           templatePath: targetTp,
           segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
         });
@@ -514,6 +549,7 @@ export function PresetTracksSection({
     getGroup,
     currentTimeSec,
     totalDuration,
+    selectSeg,
   ]);
 
   const splitAtPlayhead = useCallback(
@@ -563,7 +599,7 @@ export function PresetTracksSection({
           segs.splice(idx, 1, left, right);
           commitRef.current(tp, segs);
           queueMicrotask(() => {
-            setSelectedSeg({ templatePath: tp, segIdx: idx + 1 });
+            selectSeg({ templatePath: tp, segIdx: idx + 1 });
           });
           return { ...prev, [tp]: segs };
         });
@@ -584,7 +620,7 @@ export function PresetTracksSection({
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
       queueMicrotask(() => {
-        setSelectedSeg({ templatePath: tp, segIdx: idx + 1 });
+        selectSeg({ templatePath: tp, segIdx: idx + 1 });
       });
     },
     [
@@ -603,6 +639,7 @@ export function PresetTracksSection({
       updatePresetInputData,
       getEditedTimeline,
       generateOutput,
+      selectSeg,
     ],
   );
 
@@ -696,18 +733,16 @@ export function PresetTracksSection({
   }, [selectedSeg, getGroup, deleteSegment]);
 
   useEffect(() => {
-    // In overview (showHeader), only the section with an active selection /
+    // Clubbed overview: only the section with an active selection /
     // clipboard should handle keys — avoids N sections all splitting/pasting.
-    if (showHeader && !selectedSeg && !clipboard) return;
+    if (clubbed && !selectedSeg && !clipboard) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
+      // Segment shortcuts only while the bottom timeline is focused
+      if (!isEditorFocusScope("bottom")) return;
       if (
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable ||
-          el.closest("[contenteditable=true]"))
+        isEditableKeyboardTarget(e.target) ||
+        isEditableKeyboardTarget(document.activeElement)
       ) {
         return;
       }
@@ -739,7 +774,7 @@ export function PresetTracksSection({
       }
       if (mod && (e.key === "\\" || e.code === "Backslash")) {
         // Overview requires a selection so only one section splits
-        if (showHeader && !selectedSeg) return;
+        if (clubbed && !selectedSeg) return;
         e.preventDefault();
         splitAtPlayhead();
         return;
@@ -762,7 +797,7 @@ export function PresetTracksSection({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    showHeader,
+    clubbed,
     selectedSeg,
     clipboard,
     duplicateSelected,
@@ -782,6 +817,12 @@ export function PresetTracksSection({
       const structureEditable = canEditSegStructure(group);
       const useJoinedDelete =
         group.kind === "data-reference" || group.concretePaths.length === 1;
+      const shortLabel = group.label.includes(".")
+        ? (group.label.split(".").pop() ?? group.label)
+        : group.label;
+      const trackTitle = sourceTag
+        ? `${shortLabel} - ${sourceTag}`
+        : group.label;
 
       return {
         id: `${sectionId}:${group.templatePath}`,
@@ -795,7 +836,7 @@ export function PresetTracksSection({
                 className="text-[10px] font-semibold truncate"
                 title={group.label}
               >
-                {group.label}
+                {trackTitle}
               </p>
               <p className="text-[9px] text-muted-foreground/50 truncate">
                 {isPlain
@@ -812,7 +853,7 @@ export function PresetTracksSection({
             onPointerMove={(e) => handlePointerMove(e, group.templatePath)}
             onPointerUp={(e) => handlePointerUp(e, group.templatePath)}
             onPointerDown={(e) => {
-              if (e.target === e.currentTarget) setSelectedSeg(null);
+              if (e.target === e.currentTarget) clearSelection();
             }}
             onDoubleClick={(e) => {
               if (e.target !== e.currentTarget) return;
@@ -875,7 +916,7 @@ export function PresetTracksSection({
                   canDuplicate={canDuplicate}
                   canSplit={canSplit}
                   onSelect={() =>
-                    setSelectedSeg({
+                    selectSeg({
                       templatePath: group.templatePath,
                       segIdx: si,
                     })
@@ -930,7 +971,7 @@ export function PresetTracksSection({
                     })
                   }
                   onCopy={() => {
-                    setSelectedSeg({
+                    selectSeg({
                       templatePath: group.templatePath,
                       segIdx: si,
                     });
@@ -958,10 +999,6 @@ export function PresetTracksSection({
     return {
       id: sectionId,
       order,
-      header:
-        showHeader && rows.length > 0
-          ? { label: `Preset · ${label}`, track: null }
-          : undefined,
       rows,
     };
   }, [
@@ -969,7 +1006,7 @@ export function PresetTracksSection({
     segsMap,
     sectionId,
     order,
-    showHeader,
+    sourceTag,
     label,
     secToPx,
     selectedSeg,
@@ -982,6 +1019,8 @@ export function PresetTracksSection({
     deleteSegment,
     duplicateSelected,
     splitAtPlayhead,
+    selectSeg,
+    clearSelection,
   ]);
 
   useRegisterTimelineSection(section);

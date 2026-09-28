@@ -24,9 +24,11 @@ import { RenderProvider } from "@/components/editor/player/render-provider";
 import { TimelineMergeDialog } from "./dialogs/TimelineMergeDialog";
 import { LayerMergeDialog } from "./dialogs/LayerMergeDialog";
 import { useBlockShortcuts } from "./hooks/use-block-shortcuts";
+import { installEditorFocusScopeTracking } from "./stores/editor-focus-scope";
 
 export const MainEditor = () => {
     useBlockShortcuts();
+    useEffect(() => installEditorFocusScopeTracking(), []);
     const {
         leftPanelSize,
         centerPanelSize,

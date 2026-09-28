@@ -59,7 +59,10 @@ export function RightPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col border-l bg-background">
+    <div
+      className="flex h-full flex-col border-l bg-background"
+      data-editor-scope="right"
+    >
       {renderPatternContent()}
     </div>
   );

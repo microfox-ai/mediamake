@@ -3096,7 +3096,7 @@ export function SchemaForm({
 
     if (!jsonSchema || !jsonSchema.properties) {
         return (
-            <Card className={className}>
+            <Card className={className} data-schema-form="">
                 <CardHeader>
                     <CardTitle className="text-sm">No Schema Available</CardTitle>
                 </CardHeader>
@@ -3110,7 +3110,7 @@ export function SchemaForm({
     }
 
     return (
-        <div className={className}>
+        <div className={className} data-schema-form="">
             <div className="flex items-center justify-between mb-4">
                 <div>
                     <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>

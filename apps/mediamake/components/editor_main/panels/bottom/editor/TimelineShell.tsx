@@ -32,6 +32,8 @@ import {
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { useCompileStore } from "../../../stores/compile-store";
+import { isEditableKeyboardTarget } from "../../../stores/block-clipboard-store";
+import { isEditorFocusScope } from "../../../stores/editor-focus-scope";
 
 // ─── Row registry (external store — avoids render loops) ──────────────────────
 
@@ -206,37 +208,62 @@ function TimelineShellChrome({
     scrollPlayheadTo(0.35);
   }, [pixelsPerSecond, scrollPlayheadTo]);
 
-  // During playback, follow when playhead drifts outside the middle band
+  // While playing: lazily keep the playhead inside the visible viewport.
+  // Only scrolls when it nears an edge — then shifts so it has room ahead
+  // (no continuous centering).
   const prevFrameRef = useRef(currentFrame);
   useEffect(() => {
     if (currentFrame === prevFrameRef.current) return;
     prevFrameRef.current = currentFrame;
+
+    const playing = playerRef.current?.isPlaying?.() ?? false;
+    if (!playing) return;
+
     const s = scrollRef.current;
     if (!s) return;
+
     const px = secToPx(currentTimeSec);
-    const visL = s.scrollLeft + s.clientWidth * 0.15;
-    const visR = s.scrollLeft + s.clientWidth * 0.85;
-    if (px < visL || px > visR) {
-      const target = Math.max(0, px - s.clientWidth * 0.35);
-      s.scrollLeft = target;
+    const viewW = s.clientWidth;
+    const margin = Math.max(48, viewW * 0.08);
+    const leftEdge = s.scrollLeft + margin;
+    const rightEdge = s.scrollLeft + viewW - margin;
+
+    if (px > rightEdge) {
+      // Page forward: land playhead ~15% from the left so it has runway
+      s.scrollLeft = Math.max(0, px - viewW * 0.15);
+      onScroll();
+    } else if (px < leftEdge) {
+      // Scrubbed/rewound past left edge
+      s.scrollLeft = Math.max(0, px - margin);
       onScroll();
     }
-  }, [currentFrame, currentTimeSec, secToPx, scrollRef, onScroll]);
+  }, [currentFrame, currentTimeSec, secToPx, scrollRef, onScroll, playerRef]);
 
+  // Space = play/pause when bottom timeline panel is focused
   // ⌘/Ctrl + / − zoom the timeline (not the browser page)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const el = e.target as HTMLElement | null;
+      if (!isEditorFocusScope("bottom")) return;
       if (
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable ||
-          el.closest("[contenteditable=true]"))
+        isEditableKeyboardTarget(e.target) ||
+        isEditableKeyboardTarget(document.activeElement)
       ) {
         return;
       }
+
+      if (e.code === "Space" || e.key === " ") {
+        // Ignore when a modifier is held (other shortcuts)
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        const player = playerRef.current;
+        if (!player) return;
+        if (player.isPlaying()) player.pause();
+        else player.play();
+        return;
+      }
+
+      if (!(e.metaKey || e.ctrlKey)) return;
+
       if (
         e.key === "+" ||
         e.key === "=" ||
@@ -259,7 +286,7 @@ function TimelineShellChrome({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zoomByFactor]);
+  }, [zoomByFactor, playerRef]);
 
   const handleRulerClick = useCallback(
     (e: React.MouseEvent) => {
@@ -285,7 +312,7 @@ function TimelineShellChrome({
           variant="ghost"
           className="h-6 w-6"
           onClick={() => playerRef.current?.play()}
-          title="Play"
+          title="Play (Space)"
         >
           <Play className="h-3 w-3" />
         </Button>
@@ -294,7 +321,7 @@ function TimelineShellChrome({
           variant="ghost"
           className="h-6 w-6"
           onClick={() => playerRef.current?.pause()}
-          title="Pause"
+          title="Pause (Space)"
         >
           <Pause className="h-3 w-3" />
         </Button>

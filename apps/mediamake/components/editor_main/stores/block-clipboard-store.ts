@@ -35,16 +35,41 @@ export const useBlockClipboardStore = create<BlockClipboardState>((set) => ({
   setPropsClipboard: (propsClipboard) => set({ propsClipboard }),
 }));
 
+/** True when keyboard shortcuts must yield to native text editing / form widgets. */
 export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
+  const node =
+    target instanceof Node
+      ? target
+      : typeof document !== 'undefined'
+        ? document.activeElement
+        : null;
+  if (!node) return false;
+
+  const el =
+    node instanceof Element
+      ? node
+      : node.parentElement;
   if (!el) return false;
-  return (
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.tagName === 'SELECT' ||
-    el.isContentEditable ||
-    !!el.closest('[contenteditable=true]')
-  );
+
+  // Native controls + contenteditable hosts (incl. TipTap/ProseMirror children)
+  if (
+    el.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]',
+    )
+  ) {
+    return true;
+  }
+
+  // SchemaForm (incl. Monaco JSON tab) — never steal ⌘/Ctrl+C/V while focused here
+  if (el.closest('[data-schema-form]')) return true;
+
+  // Monaco editor surface (textarea may not be the event target for all keys)
+  if (el.closest('.monaco-editor, .monaco-mouse-cursor-text')) return true;
+
+  // TipTap / ProseMirror root
+  if (el.closest('.ProseMirror')) return true;
+
+  return false;
 }
 
 export function modShortcutLabel(key: string): string {

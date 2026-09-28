@@ -16,10 +16,13 @@ import {
   useBlockClipboardStore,
 } from "../stores/block-clipboard-store";
 import { isBottomTimelineSelectionActive } from "../stores/bottom-selection-gate";
+import { isEditorFocusScope } from "../stores/editor-focus-scope";
 
 /**
- * Keyboard shortcuts for selected blocks / references / actions while the
- * Timelines tab is active:
+ * Keyboard shortcuts for selected blocks / references / actions.
+ * Scoped to the left file-tree panel only so SchemaForm / props editing
+ * on the right keeps native copy/paste (no duplicate block paste).
+ *
  * - ⌘/Ctrl+↑ / ↓  move
  * - ⌘/Ctrl+D      duplicate
  * - ⌘/Ctrl+C      copy
@@ -31,7 +34,15 @@ import { isBottomTimelineSelectionActive } from "../stores/bottom-selection-gate
 export function useBlockShortcuts() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(e.target)) return;
+      // Only while the left panel is the focused scope
+      if (!isEditorFocusScope("left")) return;
+
+      if (
+        isEditableKeyboardTarget(e.target) ||
+        isEditableKeyboardTarget(document.activeElement)
+      ) {
+        return;
+      }
       if (useEditorUIStore.getState().filePanelTab !== "timelines") return;
       // Yield to segment / caption selection shortcuts in the bottom panel
       if (isBottomTimelineSelectionActive()) return;

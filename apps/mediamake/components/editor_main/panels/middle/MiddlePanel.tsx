@@ -45,7 +45,10 @@ export function MiddlePanel() {
   const showPatternBar = filePanelTab !== 'renders';
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
+    <div
+      className="relative flex h-full flex-col bg-background"
+      data-editor-scope="center"
+    >
       {showPatternBar && (
         <div className="border-b px-4 py-2">
           <ViewPatternBar />

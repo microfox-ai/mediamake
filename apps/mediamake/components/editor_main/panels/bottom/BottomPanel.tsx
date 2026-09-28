@@ -141,7 +141,10 @@ export function BottomPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col border-t bg-background">
+    <div
+      className="flex h-full flex-col border-t bg-background"
+      data-editor-scope="bottom"
+    >
       {currentPattern === "edit" && filePanelTab === "layers" && (
         <div className="border-b px-4 py-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">{getTitle()}</h2>

@@ -67,7 +67,6 @@ export function PresetTimelineContent() {
         presetId={preset.id}
         label={preset.label || "Preset"}
         fallbackTimeline={effectiveTimeline}
-        showHeader={false}
       />
     </TimelineShell>
   );

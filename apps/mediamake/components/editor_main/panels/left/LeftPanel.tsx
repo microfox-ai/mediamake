@@ -56,7 +56,10 @@ export function LeftPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col border-r bg-background">
+    <div
+      className="flex h-full flex-col border-r bg-background"
+      data-editor-scope="left"
+    >
       {renderPatternContent()}
     </div>
   );

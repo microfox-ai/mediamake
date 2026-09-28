@@ -83,8 +83,6 @@ export function TimelineOverviewContent() {
 
   // Action track UIs are placeholders for now — include them so overview
   // shows every source kind, without blocking editing of presets/captions.
-  const showHeaders = sources.length > 1;
-
   return (
     <TimelineShell
       totalDuration={totalDuration}
@@ -106,7 +104,7 @@ export function TimelineOverviewContent() {
               presetId={source.presetId}
               label={source.label}
               fallbackTimeline={effectiveTimeline}
-              showHeader={showHeaders}
+              sourceTag={source.label}
             />
           );
         }
@@ -119,7 +117,7 @@ export function TimelineOverviewContent() {
               timelineId={effectiveTimeline.id}
               referenceIndex={source.referenceIndex}
               reference={source.reference}
-              showHeader={showHeaders}
+              sourceTag={source.key || "captions"}
             />
           );
         }
@@ -130,7 +128,7 @@ export function TimelineOverviewContent() {
               sectionId={source.id}
               order={index}
               action={source.action}
-              showHeader={showHeaders}
+              sourceTag={source.label}
             />
           );
         }

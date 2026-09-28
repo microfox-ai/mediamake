@@ -108,7 +108,6 @@ function CaptionsReferenceFocused({
         timelineId={timelineId}
         referenceIndex={referenceIndex}
         reference={reference}
-        showHeader={false}
       />
     </TimelineShell>
   );
