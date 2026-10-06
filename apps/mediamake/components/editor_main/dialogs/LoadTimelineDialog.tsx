@@ -24,6 +24,8 @@ interface Timeline {
     id: string;
     displayName: string;
     description?: string;
+    projectId?: string;
+    projectName?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -241,7 +243,7 @@ export function LoadTimelineDialog({ open, onOpenChange }: LoadTimelineDialogPro
                 <DialogHeader>
                     <DialogTitle>Load Timeline</DialogTitle>
                     <DialogDescription>
-                        Search and load an existing timeline or import from legacy timelines.
+                        Search timelines from every project you own or that is shared with you, or import a legacy timeline.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -302,7 +304,7 @@ export function LoadTimelineDialog({ open, onOpenChange }: LoadTimelineDialogPro
                                             <div className="text-xs text-muted-foreground">
                                                 {showLegacy
                                                     ? `Legacy • Updated ${new Date(item.updatedAt).toLocaleDateString()}`
-                                                    : `Updated ${new Date(item.updatedAt).toLocaleDateString()}`}
+                                                    : `${(item as Timeline).projectName ? `${(item as Timeline).projectName} • ` : ""}Updated ${new Date(item.updatedAt).toLocaleDateString()}`}
                                             </div>
                                         </div>
                                     </Button>

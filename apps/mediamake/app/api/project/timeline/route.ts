@@ -79,6 +79,8 @@ function formatPresetLabel(presetId: string, count: number): string {
 // GET /api/project/timeline
 // - With ?projectId=...: return all timelines for a project (access-checked)
 // - With ?id=...: return specific timeline (access-checked via its project)
+// - Otherwise: return timelines across every project the requester owns or is shared on.
+//   Timeline access follows the parent project, not timeline.clientId.
 export async function GET(request: NextRequest) {
   try {
     const db = await getDatabase();
@@ -162,11 +164,36 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // General search without projectId — scope to the requesting user's own timelines
-    const query: any = {};
-    if (clientId) {
-      query.clientId = clientId;
+    // Cross-project list. A timeline is visible when the requester owns its
+    // project or the project is shared with them — the same rule as project access.
+    if (!clientId) {
+      return NextResponse.json({
+        timelines: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      });
     }
+
+    const accessibleProjects = await db
+      .collection('projects')
+      .find(
+        { $or: [{ clientId }, { 'sharedWith.clientId': clientId }] },
+        { projection: { displayName: 1 } },
+      )
+      .toArray();
+
+    const projectNameById = new Map(
+      accessibleProjects.map((p) => [p._id!.toString(), (p.displayName as string) ?? '']),
+    );
+    const accessibleProjectIds = [...projectNameById.keys()];
+
+    if (accessibleProjectIds.length === 0) {
+      return NextResponse.json({
+        timelines: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      });
+    }
+
+    const query: any = { projectId: { $in: accessibleProjectIds } };
     if (search) {
       query.displayName = { $regex: search, $options: 'i' };
     }
@@ -176,7 +203,7 @@ export async function GET(request: NextRequest) {
         .find(query, {
           projection: { displayName: 1, createdAt: 1, updatedAt: 1, description: 1, projectId: 1 },
         })
-        .sort({ createdAt: -1 })
+        .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
         .toArray(),
@@ -187,6 +214,7 @@ export async function GET(request: NextRequest) {
       timelines: timelines.map((d: any) => ({
         id: d._id.toString(),
         projectId: d.projectId,
+        projectName: projectNameById.get(d.projectId) ?? '',
         displayName: d.displayName,
         description: d.description,
         createdAt: d.createdAt,
@@ -306,6 +334,14 @@ export async function POST(request: NextRequest) {
 
         if (!sourceTimeline) {
           return NextResponse.json({ error: 'Source timeline not found' }, { status: 404 });
+        }
+
+        // Source access follows the parent project (owned or shared).
+        if (clientId) {
+          const sourceRole = await getProjectRole(db, sourceTimeline.projectId, clientId);
+          if (!sourceRole) {
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+          }
         }
 
         const timelineDocument: Omit<TimelineDocument, '_id'> = {
