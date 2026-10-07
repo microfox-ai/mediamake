@@ -44,6 +44,21 @@ export const paramMetaTypes = {
    */
   containerObject: 'containerObject',
   /**
+   * Object of colour strings. Renders one labelled colour picker per row.
+   * Value: true
+   */
+  colorRows: 'colorRows',
+  /**
+   * Object rendered as a flat stack of fields, without a collapsible wrapper.
+   * Value: true
+   */
+  flatObject: 'flatObject',
+  /**
+   * Sibling fields that share this id are rendered together on one row.
+   * Value: group id string
+   */
+  layoutGroup: 'layoutGroup',
+  /**
    * Marks an array of image objects. Renders Images / Form tabs:
    * - Images: thumbnail grid + per-image popup editor + group edit for shared props
    * - Form: standard array form

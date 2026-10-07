@@ -346,6 +346,31 @@ function isContainerObjectField(field: FormField): boolean {
     );
 }
 
+function isColorRowsField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.colorRows] === true;
+}
+
+function isFlatObjectField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.flatObject] === true;
+}
+
+function childFieldsOf(field: FormField): FormField[] {
+    if (!field.properties) return [];
+    return Object.entries(field.properties).map(([key, prop]) => ({
+        key,
+        type: prop.type || "string",
+        title: prop.title,
+        description: prop.description,
+        enum: prop.enum,
+        default: prop.default,
+        properties: prop.properties,
+        items: prop.items,
+        minimum: typeof prop.minimum === "number" ? prop.minimum : undefined,
+        maximum: typeof prop.maximum === "number" ? prop.maximum : undefined,
+        meta: extractZodMeta(prop),
+    }));
+}
+
 function isImagesGroupField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.imagesGroup] === true;
 }
@@ -2403,11 +2428,77 @@ function renderField(
 
             case "object":
                 if (isContainerObjectField(field)) {
+                    const insetOpts = getInputOptions<{ fixedOnly?: boolean; allowPercent?: boolean }>(field) ?? {};
                     return (
                         <ContainerInsetsInput
                             value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
                             onChange={(val) => handleChange(fieldKey, val)}
+                            fixedOnly={insetOpts.fixedOnly === true}
+                            allowPercent={insetOpts.allowPercent === true}
                         />
+                    );
+                }
+                if (isColorRowsField(field)) {
+                    const rows = childFieldsOf(field);
+                    return (
+                        <div className="space-y-3">
+                            {rows.map((row) => (
+                                <div key={row.key} className="space-y-1">
+                                    <Label className="text-xs font-medium">
+                                        {row.title || row.key}
+                                    </Label>
+                                    <ColorInput
+                                        value={typeof fieldValue?.[row.key] === "string" ? fieldValue[row.key] : ""}
+                                        onChange={(val) =>
+                                            handleChange(fieldKey, {
+                                                ...(fieldValue && typeof fieldValue === "object" ? fieldValue : {}),
+                                                [row.key]: val,
+                                            })
+                                        }
+                                        placeholder={typeof row.default === "string" ? row.default : "#000000"}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
+                if (isFlatObjectField(field)) {
+                    const children = childFieldsOf(field);
+                    const updateChild = (childKey: string, childValue: any) => {
+                        handleChange(fieldKey, {
+                            ...(fieldValue && typeof fieldValue === "object" ? fieldValue : {}),
+                            [childKey]: childValue,
+                        });
+                    };
+                    return (
+                        <div className="space-y-3">
+                            {children.map((child) => (
+                                <div key={child.key} className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">
+                                        {child.title || child.key}
+                                    </Label>
+                                    {renderField(
+                                        child,
+                                        child.key,
+                                        fieldValue?.[child.key],
+                                        updateChild,
+                                        depth + 1,
+                                        field,
+                                        availableReferences,
+                                        baseData,
+                                        showReferencesDropdown,
+                                        showReferencableAuto,
+                                        onCreateReference,
+                                        onSelectReferenceKey,
+                                        onRequestRangeEditor,
+                                        undefined,
+                                        fieldValue,
+                                        availableTrackNames,
+                                        onUpdateReferenceValue,
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     );
                 }
                 if (field.properties) {
@@ -3236,6 +3327,39 @@ export function SchemaForm({
 
     const fields = getFieldsFromSchema(jsonSchema);
 
+    const renderSchemaFields = (list: FormField[]) => {
+        const nodes: ReactNode[] = [];
+        let index = 0;
+        while (index < list.length) {
+            const group = list[index].meta?.[paramMetaTypes.layoutGroup];
+            if (typeof group === "string") {
+                const row: FormField[] = [];
+                while (index < list.length && list[index].meta?.[paramMetaTypes.layoutGroup] === group) {
+                    row.push(list[index]);
+                    index += 1;
+                }
+                nodes.push(
+                    <div key={`layout-${group}`} className="grid grid-cols-2 gap-3 items-start">
+                        {row.map((field) => (
+                            <div key={field.key}>
+                                {renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}
+                            </div>
+                        ))}
+                    </div>
+                );
+            } else {
+                const field = list[index];
+                nodes.push(
+                    <div key={field.key}>
+                        {renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}
+                    </div>
+                );
+                index += 1;
+            }
+        }
+        return nodes;
+    };
+
     if (!jsonSchema || !jsonSchema.properties) {
         return (
             <Card className={className} data-schema-form="">
@@ -3348,10 +3472,7 @@ export function SchemaForm({
                             )}
                             {fields.length > 0 ? (
                                 <div className="space-y-4">
-                                    {fields.map((field) => {
-                                        const fieldValue = formData[field.key];
-                                        return renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue);
-                                    })}
+                                    {renderSchemaFields(fields)}
                                 </div>
                             ) : (
                                 <p className="text-sm text-muted-foreground">
@@ -3381,10 +3502,7 @@ export function SchemaForm({
                     <div className="space-y-4">
                         {fields.length > 0 ? (
                             <div className="space-y-4">
-                                {fields.map((field) => {
-                                    const fieldValue = formData[field.key];
-                                    return <div key={field.key}>{renderField(field, field.key, fieldValue, handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}</div>;
-                                })}
+                                {renderSchemaFields(fields)}
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">

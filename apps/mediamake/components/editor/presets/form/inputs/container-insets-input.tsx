@@ -29,12 +29,12 @@ export type ContainerPositioning =
   (typeof CONTAINER_POSITIONING_OPTIONS)[number];
 
 export type ContainerInsetsValue = {
-  left?: number;
-  right?: number;
-  top?: number;
-  bottom?: number;
-  width?: number;
-  height?: number;
+  left?: number | string;
+  right?: number | string;
+  top?: number | string;
+  bottom?: number | string;
+  width?: number | string;
+  height?: number | string;
   positioning?: ContainerPositioning;
 };
 
@@ -54,9 +54,15 @@ const ABSOLUTE_CELLS: { key: NumericKey; prefix: string; title: string }[] = [
 export function ContainerInsetsInput({
   value,
   onChange,
+  fixedOnly = false,
+  allowPercent = false,
 }: {
   value?: ContainerInsetsValue | null;
   onChange: (next: ContainerInsetsValue | undefined) => void;
+  /** Hide the relative anchor tab. Only left / top / right / bottom. */
+  fixedOnly?: boolean;
+  /** Accept plain numbers (pixels) and percentage strings such as "12%". */
+  allowPercent?: boolean;
 }) {
   const insets: ContainerInsetsValue =
     value && typeof value === "object" ? value : {};
@@ -82,7 +88,7 @@ export function ContainerInsetsInput({
     onChange(hasAny ? updated : undefined);
   };
 
-  const setNumeric = (key: NumericKey, next: number | undefined) => {
+  const setNumeric = (key: NumericKey, next: number | string | undefined) => {
     const updated: ContainerInsetsValue = { ...insets };
     if (next === undefined) {
       delete updated[key];
@@ -102,9 +108,17 @@ export function ContainerInsetsInput({
     commit(updated);
   };
 
-  const parseInput = (raw: string): number | undefined => {
+  const parseInput = (raw: string): number | string | undefined => {
     const trimmed = raw.trim();
     if (trimmed === "") return undefined;
+    if (allowPercent && trimmed.endsWith("%")) {
+      const n = Number(trimmed.slice(0, -1));
+      return Number.isFinite(n) ? `${n}%` : undefined;
+    }
+    if (allowPercent && /px$/i.test(trimmed)) {
+      const n = Number(trimmed.slice(0, -2));
+      return Number.isFinite(n) ? n : undefined;
+    }
     const n = Number(trimmed);
     return Number.isFinite(n) ? n : undefined;
   };
@@ -122,12 +136,16 @@ export function ContainerInsetsInput({
           {prefix}
         </span>
         <Input
-          type="number"
+          type={allowPercent ? "text" : "number"}
           value={isSet ? String(current) : ""}
           onChange={(e) => setNumeric(key, parseInput(e.target.value))}
-          placeholder="—"
+          placeholder={allowPercent ? "px or %" : "—"}
           className="h-8 pl-6 pr-7 text-xs"
-          title={`${title} (empty = unset, 0 = zero)`}
+          title={
+            allowPercent
+              ? `${title} in pixels or percent (empty = unset)`
+              : `${title} (empty = unset, 0 = zero)`
+          }
         />
         {isSet && (
           <Button
@@ -144,6 +162,18 @@ export function ContainerInsetsInput({
       </div>
     );
   };
+
+  const absoluteGrid = (
+    <div className="grid grid-cols-2 gap-2">
+      {ABSOLUTE_CELLS.map(({ key, prefix, title }) => (
+        <div key={key}>{renderPrefixedNumber(key, prefix, title)}</div>
+      ))}
+    </div>
+  );
+
+  if (fixedOnly) {
+    return absoluteGrid;
+  }
 
   return (
     <Tabs
@@ -163,11 +193,7 @@ export function ContainerInsetsInput({
       </TabsList>
 
       <TabsContent value="absolute" className="mt-2">
-        <div className="grid grid-cols-2 gap-2">
-          {ABSOLUTE_CELLS.map(({ key, prefix, title }) => (
-            <div key={key}>{renderPrefixedNumber(key, prefix, title)}</div>
-          ))}
-        </div>
+        {absoluteGrid}
       </TabsContent>
 
       <TabsContent value="relative" className="mt-2">

@@ -7,12 +7,12 @@
  *
  * Features:
  * - **Multiple Animation Styles**: Word-fade, sentence-highlight, aggressive-pulse, melodic effects
- * - **Flexible Positioning**: Left, center, right, circle, random, or fixed positioning
+ * - **Fixed Positioning**: Left, top, right, and bottom, in pixels or percent
  * - **Layout Options**: Horizontal or vertical layout directions
- * - **Font Scaling**: Different font sizes for highlighted vs normal words
+ * - **Text Styles**: Separate highlight and body styles (font, scale, spacing, case)
  * - **Gap Handling**: Configurable gap detection and filling
  * - **Metadata Support**: Uses caption metadata for enhanced effects
- * - **Font & Color Choices**: Custom font families and color schemes
+ * - **Colors**: Primary for highlighted words, secondary for the rest, accent for the drop shadow
  *
  * Use cases:
  * - Creating dynamic floating captions with various animation styles
@@ -31,45 +31,102 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput, PresetPassedProps } from '../../types';
 import { CSSProperties } from 'react';
-import { paramMetaTypes } from '../../dataTypes';
+import { paramInputTypes, paramMetaTypes } from '../../dataTypes';
+
+const colorField = (title: string, fallback: string, description: string) =>
+  z
+    .string()
+    .default(fallback)
+    .describe(description)
+    .meta({
+      title,
+      [paramMetaTypes.inputType]: paramInputTypes.color,
+    });
+
+const captionTextStyle = (
+  title: string,
+  defaults: {
+    textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+    letterSpacing: string;
+    font: string;
+    textScale: number;
+  },
+) =>
+  z
+    .object({
+      font: z
+        .string()
+        .default(defaults.font)
+        .meta({ title: 'Font' })
+        .describe('Font, e.g. BebasNeue or Roboto:600:italic'),
+      textTransform: z
+        .enum(['none', 'uppercase', 'lowercase', 'capitalize'])
+        .default(defaults.textTransform)
+        .optional()
+        .meta({ title: 'Transform' }),
+      letterSpacing: z
+        .string()
+        .default(defaults.letterSpacing)
+        .meta({ title: 'Spacing' })
+        .describe('e.g. 0.05em'),
+      textScale: z
+        .number()
+        .default(defaults.textScale)
+        .meta({ title: 'Scale' })
+        .describe('Size relative to the average font size'),
+    })
+    .optional()
+    .meta({
+      title,
+      [paramMetaTypes.flatObject]: true,
+      [paramMetaTypes.layoutGroup]: 'caption-text-styles',
+    });
 
 const presetParams = z.object({
   inputCaptions: z.array(z.any()).meta({
     [paramMetaTypes.referrableDataType]: 'captions',
   }),
-  position: z.object({
-    align: z.enum(['left', 'center', 'right', 'circle', 'random', 'fixed']),
-    top: z
-      .number()
-      .optional()
-      .describe('top position - used only when align is fixed'),
-    left: z
-      .number()
-      .optional()
-      .describe('left position - used only when align is fixed'),
-    right: z
-      .number()
-      .optional()
-      .describe('right position - used only when align is fixed'),
-    bottom: z
-      .number()
-      .optional()
-      .describe('bottom position - used only when align is fixed'),
-    radius: z
-      .number()
-      .optional()
-      .describe(
-        'radius for circle positioning - used only when align is circle',
-      ),
-    randomize: z
-      .boolean()
-      .optional()
-      .describe('randomize position if alignment is not fixed'),
-    textAlign: z
-      .enum(['left', 'center', 'right'])
-      .optional()
-      .describe('text alignment within parts'),
+  colors: z
+    .object({
+      primary: colorField('Primary', '#ff6b6b', 'Highlighted word'),
+      secondary: colorField('Secondary', '#cccccc', 'Other words'),
+      accent: colorField('Accent', '#ff6b6b', 'Drop shadow'),
+    })
+    .optional()
+    .meta({
+      title: 'Colors',
+      [paramMetaTypes.colorRows]: true,
+    }),
+  highlightTextStyle: captionTextStyle('Highlight', {
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    font: 'BebasNeue',
+    textScale: 1.35,
   }),
+  subTextStyle: captionTextStyle('Sub', {
+    textTransform: 'uppercase',
+    letterSpacing: '0em',
+    font: 'Roboto:600:italic',
+    textScale: 0.85,
+  }),
+  textAlign: z
+    .enum(['left', 'center', 'right'])
+    .optional()
+    .describe('Text alignment within the caption'),
+  position: z
+    .object({
+      left: z.union([z.string(), z.number()]).optional().describe('Left, pixels or percent'),
+      top: z.union([z.string(), z.number()]).optional().describe('Top, pixels or percent'),
+      right: z.union([z.string(), z.number()]).optional().describe('Right, pixels or percent'),
+      bottom: z.union([z.string(), z.number()]).optional().describe('Bottom, pixels or percent'),
+    })
+    .optional()
+    .meta({
+      title: 'Position',
+      [paramMetaTypes.containerObject]: true,
+      [paramMetaTypes.inputOptions]: { fixedOnly: true, allowPercent: true },
+    })
+    .describe('Fixed position. Use a number for pixels or a percent like 12%.'),
   subtitleSync: z.object({
     //timing-normalnime-imapctanime-continuosanime
     animationStyle: z
@@ -110,21 +167,6 @@ const presetParams = z.object({
       .boolean()
       .optional()
       .describe('ignore all metadata provided in captions'),
-    fontScaling: z
-      .object({
-        highlighted: z
-          .number()
-          .default(1.35)
-          .optional()
-          .describe('font size multiplier for highlighted words'),
-        normal: z
-          .number()
-          .default(0.85)
-          .optional()
-          .describe('font size multiplier for normal words'),
-      })
-      .optional()
-      .describe('font size scaling for different word types'),
     impact: z
       .number()
       .default(1.0)
@@ -138,40 +180,6 @@ const presetParams = z.object({
       .optional()
       .describe('enable glow effects for words'),
   }),
-  fontChoices: z
-    .array(
-      z.object({
-        primaryFont: z
-          .string()
-          .describe('small text font family like Roboto:600:italic'),
-        headerFont: z.string().describe('impact font family like BebasNeue'),
-      }),
-    )
-    .optional()
-    .describe('font choices - primary and secondary font families'),
-  colorChoices: z
-    .array(
-      z.object({
-        primary: z.string().describe('primary color'),
-        secondary: z.string().describe('secondary color'),
-        accent: z.string().describe('accent color'),
-      }),
-    )
-    .optional()
-    .describe('color choices - primary and secondary colors'),
-  style: z
-    .object({
-      textTransformSub: z
-        .enum(['none', 'uppercase', 'lowercase', 'capitalize'])
-        .optional()
-        .describe('text transform'),
-      textTransformMain: z
-        .enum(['none', 'uppercase', 'lowercase', 'capitalize'])
-        .optional()
-        .describe('text transform'),
-    })
-    .optional()
-    .describe('style'),
   avgFontSize: z.number().optional().describe('average font size'),
 });
 
@@ -184,9 +192,10 @@ const presetExecution = (
     position,
     subtitleSync,
     avgFontSize,
-    colorChoices,
-    fontChoices,
-    style,
+    colors,
+    highlightTextStyle,
+    subTextStyle,
+    textAlign,
   } = params;
 
   // Normalize captions so missing arrays / word.end don't crash the preset
@@ -230,16 +239,95 @@ const presetExecution = (
     };
   }
 
-  // Font choices configuration
-  const FONT_CHOICES =
-    fontChoices && fontChoices.length > 0
-      ? fontChoices
-      : [
-          {
-            primaryFont: 'Roboto:600:italic',
-            headerFont: 'BebasNeue',
-          },
-        ];
+  // New objects win. Older saves still pass fontChoices / colorChoices / style / fontScaling.
+  const legacy = params as any;
+  const legacyFonts =
+    Array.isArray(legacy.fontChoices) && legacy.fontChoices.length > 0
+      ? legacy.fontChoices[0]
+      : undefined;
+  const legacyStyle = legacy.style;
+  const legacyScale = legacy.subtitleSync?.fontScaling;
+
+  const asLetterSpacing = (value: any, fallback: string) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'number' && Number.isFinite(value)) return `${value}em`;
+    return String(value);
+  };
+
+  const resolveTextStyle = (
+    next: any,
+    legacyFont: string | undefined,
+    legacyTransform: string | undefined,
+    legacyScaleValue: number | undefined,
+    fallback: {
+      textTransform: string;
+      letterSpacing: string;
+      font: string;
+      textScale: number;
+    },
+  ) => {
+    const source = next && typeof next === 'object' ? next : null;
+    const scale = Number(
+      source?.textScale ?? legacyScaleValue ?? fallback.textScale,
+    );
+    return {
+      textTransform:
+        source?.textTransform ?? legacyTransform ?? fallback.textTransform,
+      letterSpacing: asLetterSpacing(
+        source?.letterSpacing,
+        fallback.letterSpacing,
+      ),
+      font: source?.font ?? legacyFont ?? fallback.font,
+      textScale: Number.isFinite(scale) && scale > 0 ? scale : fallback.textScale,
+    };
+  };
+
+  const textStyles = {
+    highlight: resolveTextStyle(
+      highlightTextStyle,
+      legacyFonts?.headerFont,
+      legacyStyle?.textTransformMain,
+      legacyScale?.highlighted,
+      {
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+        font: 'BebasNeue',
+        textScale: 1.35,
+      },
+    ),
+    sub: resolveTextStyle(
+      subTextStyle,
+      legacyFonts?.primaryFont,
+      legacyStyle?.textTransformSub,
+      legacyScale?.normal,
+      {
+        textTransform: 'uppercase',
+        letterSpacing: '0em',
+        font: 'Roboto:600:italic',
+        textScale: 0.85,
+      },
+    ),
+  };
+
+  const legacyColor = Array.isArray(legacy.colorChoices)
+    ? legacy.colorChoices[0]
+    : undefined;
+  const colorSource =
+    colors && typeof colors === 'object'
+      ? colors
+      : legacyColor
+        ? {
+            // Older presets painted the highlighted word with accent.
+            primary: legacyColor.accent || legacyColor.primary,
+            secondary: legacyColor.secondary,
+            accent: legacyColor.accent,
+          }
+        : undefined;
+  const selectedColorChoice = {
+    primary: colorSource?.primary || '#ffffff',
+    secondary: colorSource?.secondary || '#cccccc',
+    accent: colorSource?.accent || '#ff6b6b',
+  };
 
   // Utility function to convert hex color to RGB
   const hexToRgb = (hex: string) => {
@@ -1158,14 +1246,12 @@ const presetExecution = (
   const generateWordsData = (
     words: any[],
     caption: any,
-    selectedFontChoice: any,
+    textStyles: { highlight: any; sub: any },
     avgFontSize: number | undefined,
     selectedColorChoice: any,
     partId: string,
     scentenceId: string,
-    style?: any,
     animationStyle?: string,
-    fontScaling?: { highlighted?: number; normal?: number },
     globalImpact?: number,
     isGlowEnabled?: boolean,
   ) => {
@@ -1719,16 +1805,10 @@ const presetExecution = (
         }
       }
 
-      // Calculate font size and style
-      let fontSize = avgFontSize ?? 50;
-      const highlightedMultiplier = fontScaling?.highlighted ?? 1.35;
-      const normalMultiplier = fontScaling?.normal ?? 0.85;
-      const fontCalculatedSize = isHighlight
-        ? fontSize * highlightedMultiplier
-        : fontSize * normalMultiplier;
-      const font = isHighlight
-        ? selectedFontChoice.headerFont
-        : selectedFontChoice.primaryFont;
+      const activeTextStyle = isHighlight ? textStyles.highlight : textStyles.sub;
+      const fontSize = avgFontSize ?? 50;
+      const fontCalculatedSize = fontSize * (activeTextStyle.textScale || 1);
+      const font = activeTextStyle.font;
 
       // Ensure font is defined before using includes
       const fontString = font || 'Roboto';
@@ -1748,18 +1828,11 @@ const presetExecution = (
         }
       }
 
-      // Set text colors based on highlight status
       const textColor = isHighlight
-        ? selectedColorChoice.accent
-        : selectedColorChoice.secondary;
-      const textShadowColor = isHighlight
-        ? selectedColorChoice.accent
+        ? selectedColorChoice.primary
         : selectedColorChoice.secondary;
 
-      // Apply text transform based on highlight status
-      const textTransform = isHighlight
-        ? style?.textTransformMain || 'none'
-        : style?.textTransformSub || 'none';
+      const textTransform = activeTextStyle.textTransform || 'none';
 
       // Apply text transform to the word text
       let transformedText = word.text;
@@ -1794,6 +1867,8 @@ const presetExecution = (
           style: {
             fontSize: fontCalculatedSize,
             color: textColor,
+            letterSpacing: activeTextStyle.letterSpacing,
+            textShadow: `0 2px 12px ${selectedColorChoice.accent}`,
             ...fontStyle,
           },
           font: {
@@ -1935,73 +2010,47 @@ const presetExecution = (
     return extendedCaptions;
   };
 
-  // Generates position based on alignment type
-  const getPosition = (height: number, positionConfig: any) => {
-    const { align, top, left, right, bottom, radius, randomize } =
-      positionConfig || {};
+  const toCssLength = (value: any): string | undefined => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) return `${value}px`;
+    const raw = String(value).trim();
+    if (!raw) return undefined;
+    if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}px`;
+    return raw;
+  };
 
-    // Handle fixed positioning
-    if (align === 'fixed') {
+  // Fixed insets. Numbers are pixels; "12%" is a percentage.
+  // Older saves that only have align still map onto the same box.
+  const getPosition = (positionConfig: any) => {
+    const cfg = positionConfig || {};
+    const left = toCssLength(cfg.left);
+    const top = toCssLength(cfg.top);
+    const right = toCssLength(cfg.right);
+    const bottom = toCssLength(cfg.bottom);
+    const hasInset = Boolean(left || top || right || bottom);
+
+    if (hasInset) {
       const style: any = { position: 'absolute' as const };
-
-      if (top !== undefined) style.top = `${top}px`;
-      if (left !== undefined) style.left = `${left}px`;
-      if (right !== undefined) style.right = `${right}px`;
-      if (bottom !== undefined) style.bottom = `${bottom}px`;
-
+      if (left) style.left = left;
+      if (top) style.top = top;
+      if (right) style.right = right;
+      if (bottom) style.bottom = bottom;
+      const shiftX = left === '50%' && !right ? '-50%' : '0';
+      const shiftY = top === '50%' && !bottom ? '-50%' : '0';
+      if (shiftX !== '0' || shiftY !== '0') {
+        style.transform = `translate(${shiftX}, ${shiftY})`;
+      }
       return style;
     }
 
-    // Handle circle positioning
-    if (align === 'circle') {
-      const circleRadius = radius || 200; // Default radius
-      const centerX = 960; // Center of 1920px width
-      const centerY = 540; // Center of 1080px height
-
-      // Generate random angle for position on circle circumference
-      const angle = Math.random() * 2 * Math.PI;
-      const circleX = centerX + circleRadius * Math.cos(angle);
-      const circleY = centerY + circleRadius * Math.sin(angle);
-
-      return {
-        position: 'absolute' as const,
-        left: `${Math.max(0, Math.min(1920 - 200, circleX))}px`,
-        top: `${Math.max(0, Math.min(1080 - (height || 600), circleY))}px`,
-      };
-    }
-
-    // Handle random positioning
-    if (align === 'random' || randomize) {
-      const maxTop = 1080 - (height || 600);
-      const maxLeft = 1920 - 1000;
-
-      const randomTop = 100 + Math.random() * maxTop;
-      const randomLeft = 100 + Math.random() * maxLeft;
-
-      return {
-        position: 'absolute' as const,
-        top: `${randomTop}px`,
-        left: `${randomLeft}px`,
-      };
-    }
-
-    // Handle left, center, right alignments
     const baseStyle: any = { position: 'absolute' as const };
-
-    switch (align) {
+    switch (cfg.align) {
       case 'left':
         return {
           ...baseStyle,
           left: '80px',
           top: '50%',
           transform: 'translateY(-50%)',
-        };
-      case 'center':
-        return {
-          ...baseStyle,
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
         };
       case 'right':
         return {
@@ -2010,12 +2059,13 @@ const presetExecution = (
           top: '50%',
           transform: 'translateY(-50%)',
         };
+      case 'center':
       default:
         return {
           ...baseStyle,
-          left: '80px',
+          left: '50%',
           top: '50%',
-          transform: 'translateY(-50%)',
+          transform: 'translate(-50%, -50%)',
         };
     }
   };
@@ -2027,30 +2077,26 @@ const presetExecution = (
     totalParts: number,
     caption: any,
     avgFontSize: number | undefined,
-    selectedFontChoice: any,
+    textStyles: { highlight: any; sub: any },
     selectedColorChoice: any,
     partId: string,
     scentenceId: string,
     floatThreshold?: number,
     textAlign?: string,
-    style?: any,
     animationStyle?: string,
     layout?: string,
-    fontScaling?: { highlighted?: number; normal?: number },
     globalImpact?: number,
     isGlowEnabled?: boolean,
   ) => {
     const wordsData = generateWordsData(
       partWords,
       caption,
-      selectedFontChoice,
+      textStyles,
       avgFontSize,
       selectedColorChoice,
       partId,
       scentenceId,
-      style,
       animationStyle,
-      fontScaling,
       globalImpact,
       isGlowEnabled,
     );
@@ -2167,16 +2213,14 @@ const presetExecution = (
     negativeOffset: number | undefined,
     noGapsConfig: any,
     avgFontSize: number | undefined,
-    selectedFontChoice: any,
+    textStyles: { highlight: any; sub: any },
     selectedColorChoice: any,
     maxLines?: number,
     floatThreshold?: number,
     textAlign?: string,
     disableMetadata?: boolean,
-    style?: any,
     animationStyle?: string,
     layout?: string,
-    fontScaling?: { highlighted?: number; normal?: number },
     globalImpact?: number,
     isGlowEnabled?: boolean,
   ) => {
@@ -2378,16 +2422,14 @@ const presetExecution = (
             totalParts,
             caption,
             avgFontSize,
-            selectedFontChoice,
+            textStyles,
             selectedColorChoice,
             partId,
             scentenceId,
             floatThreshold,
             textAlign,
-            style,
             animationStyle,
             layout,
-            fontScaling,
             globalImpact,
             isGlowEnabled,
           );
@@ -2463,34 +2505,19 @@ const presetExecution = (
     );
   };
 
-  // Select random font and color choices
-  const selectedFontChoice =
-    FONT_CHOICES[Math.floor(Math.random() * FONT_CHOICES.length)];
-  const selectedColorChoice =
-    colorChoices && colorChoices.length > 0
-      ? colorChoices[Math.floor(Math.random() * colorChoices.length)]
-      : {
-          primary: '#ffffff',
-          secondary: '#cccccc',
-          accent: '#ff6b6b',
-        };
-
-  // Process all captions with highlighting and effects
   const captionsChildrenData = processCaptions(
     inputCaptions,
     subtitleSync?.negativeOffset,
     subtitleSync?.noGaps,
     avgFontSize,
-    selectedFontChoice,
+    textStyles,
     selectedColorChoice,
     subtitleSync?.maxLines,
     subtitleSync?.floatThreshold,
-    position?.textAlign,
+    textAlign ?? (position as any)?.textAlign,
     subtitleSync?.disableMetadata,
-    style,
     subtitleSync?.animationStyle,
     subtitleSync?.layout,
-    subtitleSync?.fontScaling,
     subtitleSync?.impact,
     subtitleSync?.isGlowEnabled,
   );
@@ -2532,10 +2559,7 @@ const presetExecution = (
               })
               .map((child, _j) => {
                 // Get position based on position configuration
-                const positionStyle = getPosition(
-                  (inputCaptions[_j]?.text?.length ?? 0) > 20 ? 800 : 600,
-                  position,
-                );
+                const positionStyle = getPosition(position);
 
                 return {
                   ...child,
@@ -2604,34 +2628,30 @@ const presetMetadata: PresetMetadata = {
         enabled: false,
         maxLength: 3,
       },
-      fontScaling: {
-        highlighted: 1.35,
-        normal: 0.85,
-      },
       impact: 1.0,
       isGlowEnabled: false,
     },
-    position: {
-      align: 'center',
-      randomize: false,
-      textAlign: 'center',
+    colors: {
+      primary: '#ff6b6b',
+      secondary: '#cccccc',
+      accent: '#ff6b6b',
     },
-    fontChoices: [
-      {
-        primaryFont: 'Roboto:600:italic',
-        headerFont: 'BebasNeue',
-      },
-    ],
-    colorChoices: [
-      {
-        primary: '#ffffff',
-        secondary: '#cccccc',
-        accent: '#ff6b6b',
-      },
-    ],
-    style: {
-      textTransformSub: 'uppercase',
-      textTransformMain: 'uppercase',
+    highlightTextStyle: {
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      font: 'BebasNeue',
+      textScale: 1.35,
+    },
+    subTextStyle: {
+      textTransform: 'uppercase',
+      letterSpacing: '0em',
+      font: 'Roboto:600:italic',
+      textScale: 0.85,
+    },
+    textAlign: 'center',
+    position: {
+      left: '50%',
+      top: '50%',
     },
     avgFontSize: 50,
     inputCaptions: [
