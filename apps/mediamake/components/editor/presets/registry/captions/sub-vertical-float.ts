@@ -413,49 +413,58 @@ const presetExecution = (
     return parts;
   };
 
+  // Fade-in length, then hold opacity through the rest of the caption.
+  // A fixed 1s effect ended while later words were still supposed to be on screen.
+  const opacityWindow = (word: any, caption: any, fromOpacity: number) => {
+    const wordStart = Number(word.start) || 0;
+    const captionDuration = Number(caption.duration) || 0;
+    const fadeIn = captionDuration >= 1 ? 0.5 : 0.05;
+    const duration = Math.max(fadeIn, captionDuration - wordStart);
+    const fadeProg = duration > 0 ? Math.min(0.95, fadeIn / duration) : 1;
+    return {
+      start: wordStart,
+      duration,
+      ranges: [
+        { key: 'opacity', val: fromOpacity, prog: 0 },
+        { key: 'opacity', val: 1, prog: fadeProg },
+        { key: 'opacity', val: 1, prog: 1 },
+      ],
+    };
+  };
+
   // Creates opacity fade-in effect for words
   const createOpacityEffect = (
     wordId: string,
     word: any,
     caption: any,
-  ): GenericEffectData => ({
-    type: 'ease-out',
-    start: word.start,
-    duration: 1,
-    mode: 'provider',
-    targetIds: [wordId],
-    ranges: [
-      { key: 'opacity', val: 0, prog: 0 },
-      {
-        key: 'opacity',
-        val: 1,
-        prog: caption.duration >= 1 ? 0.5 : 0.05,
-      },
-      { key: 'opacity', val: 1, prog: 1 },
-    ],
-  });
+  ): GenericEffectData => {
+    const window = opacityWindow(word, caption, 0);
+    return {
+      type: 'ease-out',
+      start: window.start,
+      duration: window.duration,
+      mode: 'provider',
+      targetIds: [wordId],
+      ranges: window.ranges,
+    };
+  };
 
-  // Creates opacity effect for sentence highlight style (0.7 to 1)
+  // Creates opacity effect for sentence highlight style (0.3 to 1)
   const createSentenceOpacityEffect = (
     wordId: string,
     word: any,
     caption: any,
-  ): GenericEffectData => ({
-    type: 'ease-out',
-    start: word.start,
-    duration: 1,
-    mode: 'provider',
-    targetIds: [wordId],
-    ranges: [
-      { key: 'opacity', val: 0.3, prog: 0 },
-      {
-        key: 'opacity',
-        val: 1,
-        prog: caption.duration >= 1 ? 0.5 : 0.05,
-      },
-      { key: 'opacity', val: 1, prog: 1 },
-    ],
-  });
+  ): GenericEffectData => {
+    const window = opacityWindow(word, caption, 0.3);
+    return {
+      type: 'ease-out',
+      start: window.start,
+      duration: window.duration,
+      mode: 'provider',
+      targetIds: [wordId],
+      ranges: window.ranges,
+    };
+  };
 
   // Creates letter spacing effect for highlighted words
   const createLetterSpacingEffect = (
@@ -2174,12 +2183,25 @@ const presetExecution = (
     // Pre-process captions to split combined words
     const preprocessedCaptions = preprocessCaptions(inputCaptions);
 
-    // Apply negative offset to all captions
-    const offsetCaptions = preprocessedCaptions.map(caption => ({
-      ...caption,
-      absoluteStart: caption.absoluteStart - (negativeOffset ?? 0.15),
-      absoluteEnd: caption.absoluteEnd - (negativeOffset ?? 0.15),
-    }));
+    // Start slightly early, but keep the original end. Shifting absoluteEnd
+    // as well (without extending duration) was unmounting the line before
+    // the last words finished.
+    const lead = negativeOffset ?? 0.15;
+    const offsetCaptions = preprocessedCaptions.map(caption => {
+      const originalStart = Number(caption.absoluteStart) || 0;
+      const spokenDuration = Number(caption.duration);
+      const originalEnd =
+        Number(caption.absoluteEnd) ||
+        originalStart + (Number.isFinite(spokenDuration) ? spokenDuration : 0);
+      const start = Math.max(0, originalStart - lead);
+      const end = Math.max(originalEnd, start);
+      return {
+        ...caption,
+        absoluteStart: start,
+        absoluteEnd: end,
+        duration: end - start,
+      };
+    });
 
     // Apply noGaps extension if enabled
     const processedCaptions = applyNoGapsExtension(
