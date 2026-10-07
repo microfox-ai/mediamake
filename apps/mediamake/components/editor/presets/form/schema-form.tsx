@@ -5,7 +5,7 @@
 // The logic needs to be updated to replace the complete object structure, not just the src field
 // Look at lines 855-914 in handleReplaceItem function for the fix
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1866,7 +1866,45 @@ function RangeStringInput({
     );
 }
 
-// FontDropdown component for font selection with editable text
+const previewFontFamilies = new Map<string, string>();
+const previewFontLoads = new Map<string, Promise<string | null>>();
+
+function loadPreviewFontFamily(importName: string): Promise<string | null> {
+    const cached = previewFontFamilies.get(importName);
+    if (cached) return Promise.resolve(cached);
+
+    const inflight = previewFontLoads.get(importName);
+    if (inflight) return inflight;
+
+    const entry = availableFonts.find((font) => font.importName === importName);
+    if (!entry) return Promise.resolve(null);
+
+    const pending = entry
+        .load()
+        .then((mod) => {
+            const loaded = mod.loadFont("normal", {
+                subsets: ["latin"],
+                weights: ["400"],
+            });
+            return loaded.waitUntilDone().then(() => loaded.fontFamily);
+        })
+        .then((family) => {
+            previewFontFamilies.set(importName, family);
+            return family;
+        })
+        .catch(() => null);
+
+    previewFontLoads.set(importName, pending);
+    return pending;
+}
+
+function findFontByImportName(importName: string) {
+    const target = importName.toLowerCase();
+    return availableFonts.find((font) => font.importName.toLowerCase() === target);
+}
+
+// FontDropdown component for font selection with editable text.
+// Highlighting a row previews that typeface immediately; click commits it.
 function FontDropdown({
     value,
     onChange,
@@ -1878,26 +1916,102 @@ function FontDropdown({
 }) {
     const [inputValue, setInputValue] = useState(value || "");
     const [isOpen, setIsOpen] = useState(false);
+    const [highlighted, setHighlighted] = useState(value || "");
+    const [previewCssFamily, setPreviewCssFamily] = useState<string | null>(null);
+    const openedValueRef = useRef(value || "");
+    const didCommitRef = useRef(false);
+    const previewArmedRef = useRef(false);
+    const highlightedRef = useRef(value || "");
+    const appliedFromHighlightRef = useRef(false);
 
-    // Filter fonts based on input
     const filteredFonts = availableFonts.filter(font =>
         font.fontFamily.toLowerCase().includes(inputValue.toLowerCase()) ||
         font.importName.toLowerCase().includes(inputValue.toLowerCase())
     );
 
+    const highlightedFont = findFontByImportName(highlighted);
+
+    useEffect(() => {
+        const importName = highlightedFont?.importName;
+        if (!importName) {
+            setPreviewCssFamily(null);
+            return;
+        }
+
+        const cached = previewFontFamilies.get(importName);
+        if (cached) {
+            setPreviewCssFamily(cached);
+            return;
+        }
+
+        let cancelled = false;
+        setPreviewCssFamily(null);
+        void loadPreviewFontFamily(importName).then((family) => {
+            if (!cancelled) setPreviewCssFamily(family);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [highlightedFont?.importName]);
+
     const handleInputChange = (newValue: string) => {
         setInputValue(newValue);
+        previewArmedRef.current = true;
+        appliedFromHighlightRef.current = false;
         onChange(newValue);
     };
 
+    const handleHighlight = (nextValue: string) => {
+        const font = findFontByImportName(nextValue);
+        if (!font || font.importName === highlightedRef.current) return;
+        highlightedRef.current = font.importName;
+        setHighlighted(font.importName);
+        if (!previewArmedRef.current) return;
+        appliedFromHighlightRef.current = true;
+        onChange(font.importName);
+    };
+
     const handleSelect = (selectedValue: string) => {
+        didCommitRef.current = true;
+        highlightedRef.current = selectedValue;
+        setHighlighted(selectedValue);
         setInputValue(selectedValue);
         onChange(selectedValue);
         setIsOpen(false);
     };
 
+    const handleOpenChange = (open: boolean) => {
+        if (open) {
+            openedValueRef.current = value || "";
+            highlightedRef.current = value || "";
+            didCommitRef.current = false;
+            previewArmedRef.current = false;
+            appliedFromHighlightRef.current = false;
+            setHighlighted(value || "");
+        } else if (!didCommitRef.current && appliedFromHighlightRef.current) {
+            const opened = openedValueRef.current;
+            appliedFromHighlightRef.current = false;
+            highlightedRef.current = opened;
+            setHighlighted(opened);
+            setInputValue(opened);
+            onChange(opened);
+        }
+        setIsOpen(open);
+    };
+
+    const armPreview = () => {
+        if (previewArmedRef.current) return;
+        previewArmedRef.current = true;
+        const font = findFontByImportName(highlightedRef.current);
+        if (!font || font.importName === openedValueRef.current) return;
+        appliedFromHighlightRef.current = true;
+        onChange(font.importName);
+    };
+
+    const previewStyle = previewCssFamily ? { fontFamily: previewCssFamily } : undefined;
+
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 <Input
                     value={inputValue}
@@ -1908,13 +2022,36 @@ function FontDropdown({
                 />
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+                <Command
+                    shouldFilter={false}
+                    value={highlighted}
+                    onValueChange={handleHighlight}
+                    onKeyDown={(event) => {
+                        if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+                            armPreview();
+                        }
+                    }}
+                >
                     <CommandInput
                         placeholder="Search fonts..."
                         value={inputValue}
                         onValueChange={handleInputChange}
                     />
-                    <CommandList>
+                    <div className="border-b px-3 py-2.5" aria-hidden>
+                        <p
+                            className="truncate text-base leading-snug text-foreground"
+                            style={previewStyle}
+                        >
+                            {highlightedFont?.fontFamily || highlighted || "Font preview"}
+                        </p>
+                        <p
+                            className="truncate text-sm leading-snug text-muted-foreground"
+                            style={previewStyle}
+                        >
+                            The quick brown fox jumps
+                        </p>
+                    </div>
+                    <CommandList onPointerMoveCapture={armPreview}>
                         <CommandEmpty>No fonts found.</CommandEmpty>
                         <CommandGroup>
                             {filteredFonts.map((font) => (
@@ -1925,7 +2062,12 @@ function FontDropdown({
                                     className="cursor-pointer"
                                 >
                                     <div className="flex flex-col">
-                                        <span className="font-medium">{font.fontFamily}</span>
+                                        <span
+                                            className="font-medium"
+                                            style={font.importName === highlightedFont?.importName ? previewStyle : undefined}
+                                        >
+                                            {font.fontFamily}
+                                        </span>
                                         <span className="text-xs text-muted-foreground">{font.importName}</span>
                                     </div>
                                 </CommandItem>
