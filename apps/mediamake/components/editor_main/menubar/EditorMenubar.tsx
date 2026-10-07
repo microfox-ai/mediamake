@@ -77,6 +77,7 @@ export function EditorMenubar() {
   const {
     saveToDatabase: saveProjectToDatabase,
     cloudProject,
+    editedProject,
     localEditUpdatedAt: projectLocalEditUpdatedAt,
   } = useProjectEditsStore();
   const {
@@ -153,6 +154,11 @@ export function EditorMenubar() {
   );
   const unsyncedTimelineCount = unsyncedTimelineIds.length;
   const hasAnyUnsyncedTimelines = unsyncedTimelineCount > 0;
+  const projectTitle =
+    editedProject?.displayName?.trim() ||
+    cloudProject?.displayName?.trim() ||
+    currentProject?.displayName?.trim() ||
+    "";
 
   // Heal persisted isDirty if history already has unpublished work from before the fix.
   useEffect(() => {
@@ -333,7 +339,7 @@ export function EditorMenubar() {
 
   return (
     <>
-      <Menubar className="h-8 rounded-none border-b border-x-0 border-t-0 px-2 flex items-center">
+      <Menubar className="relative h-8 rounded-none border-b border-x-0 border-t-0 px-2 flex items-center">
         {/* ── File ── */}
         <MenubarMenu>
           <MenubarTrigger className="text-xs">File</MenubarTrigger>
@@ -568,6 +574,12 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-medium tracking-wide text-muted-foreground">
+            MediaMake - V{process.env.NEXT_PUBLIC_APP_VERSION}
+          </span>
+        </div>
+
         {/* ── Right side: viewer badge + sync + save buttons ── */}
         <div className="ml-auto flex items-center gap-2">
           {isViewer && (
@@ -640,6 +652,15 @@ export function EditorMenubar() {
                 </>
               )}
             </Button>
+          )}
+
+          {projectTitle && (
+            <span
+              className="max-w-[240px] truncate pl-1 text-xs font-medium text-foreground"
+              title={projectTitle}
+            >
+              {projectTitle}
+            </span>
           )}
         </div>
       </Menubar>

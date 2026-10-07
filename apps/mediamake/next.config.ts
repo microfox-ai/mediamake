@@ -1,8 +1,12 @@
 import type { NextConfig } from 'next';
+import packageJson from './package.json';
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageJson.version,
+  },
   // Prevent Next.js from bundling packages that use dynamic require() patterns
   // (e.g. clone-deep → lazy-cache uses require(name, alias) which webpack can't parse).
   serverExternalPackages: ['clone-deep', 'lazy-cache', 'shallow-clone', 'kind-of', 'for-own', 'is-plain-object'],
