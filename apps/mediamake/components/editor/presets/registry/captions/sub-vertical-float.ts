@@ -2183,9 +2183,10 @@ const presetExecution = (
     // Pre-process captions to split combined words
     const preprocessedCaptions = preprocessCaptions(inputCaptions);
 
-    // Start slightly early, but keep the original end. Shifting absoluteEnd
-    // as well (without extending duration) was unmounting the line before
-    // the last words finished.
+    // Shift the whole line earlier by negativeOffset. The next sentence
+    // starts that much early, so this one must end early by the same amount
+    // or the two overlap. Duration is recomputed from the shifted edges so
+    // the block actually unmounts at that earlier end.
     const lead = negativeOffset ?? 0.15;
     const offsetCaptions = preprocessedCaptions.map(caption => {
       const originalStart = Number(caption.absoluteStart) || 0;
@@ -2194,7 +2195,7 @@ const presetExecution = (
         Number(caption.absoluteEnd) ||
         originalStart + (Number.isFinite(spokenDuration) ? spokenDuration : 0);
       const start = Math.max(0, originalStart - lead);
-      const end = Math.max(originalEnd, start);
+      const end = Math.max(start, originalEnd - lead);
       return {
         ...caption,
         absoluteStart: start,
