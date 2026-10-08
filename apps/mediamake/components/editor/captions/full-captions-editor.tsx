@@ -198,6 +198,40 @@ function sentenceKey(
   return normalizeCaptionText(fromWords || text);
 }
 
+/** Every stable text form of a caption, so metadata can follow the line even if its editor id moved. */
+function captionTextKeys(caption: {
+  text?: string;
+  words?: NonNullable<CaptionLike['words']>;
+}): string[] {
+  const keys = new Set<string>();
+  const fromText = normalizeCaptionText(caption.text);
+  const fromWords = sentenceKey(caption.text, caption.words);
+  if (fromText) keys.add(fromText);
+  if (fromWords) keys.add(fromWords);
+  return [...keys];
+}
+
+function reuseWordIds(
+  words: NonNullable<CaptionLike['words']>,
+  prevCaptions: CaptionLike[],
+) {
+  const pool = prevCaptions.flatMap(caption => caption.words ?? []);
+  const used = new Set<number>();
+  for (const word of words) {
+    const idx = pool.findIndex((prev, index) => {
+      if (used.has(index)) return false;
+      if ((prev.text ?? '') !== (word.text ?? '')) return false;
+      return (
+        Math.abs((prev.absoluteStart ?? 0) - (word.absoluteStart ?? 0)) < 0.02
+      );
+    });
+    if (idx >= 0 && pool[idx]?.id) {
+      used.add(idx);
+      word.id = pool[idx].id;
+    }
+  }
+}
+
 function docToCaptions(
   doc: any,
   prevCaptions: CaptionLike[],
@@ -279,30 +313,64 @@ function docToCaptions(
   const consumed = new WeakSet<CaptionLike>();
   const prevBySignature = new Map<string, CaptionLike[]>();
   for (const prev of prevCaptions) {
-    const key = sentenceKey(prev.text, prev.words);
-    const bucket = prevBySignature.get(key) ?? [];
-    bucket.push(prev);
-    prevBySignature.set(key, bucket);
+    for (const key of captionTextKeys(prev)) {
+      const bucket = prevBySignature.get(key) ?? [];
+      bucket.push(prev);
+      prevBySignature.set(key, bucket);
+    }
+  }
+
+  // Ids still present on a draft whose text did not change. A merge must not
+  // let the joined line claim that caption's metadata via a shifted id.
+  const unchangedIds = new Set<string>();
+  if (structureChanged) {
+    for (const draft of drafts) {
+      const prev = prevById.get(draft.id);
+      if (!prev) continue;
+      const draftKeys = new Set(captionTextKeys(draft));
+      if (captionTextKeys(prev).some(key => draftKeys.has(key))) {
+        unchangedIds.add(draft.id);
+      }
+    }
   }
 
   return drafts.map(draft => {
+    reuseWordIds(draft.words, prevCaptions);
     const prev = prevById.get(draft.id);
     const duration = draft.absoluteEnd - draft.absoluteStart;
-    const key = sentenceKey(draft.text, draft.words);
-    const sameAsPrev = !!prev && sentenceKey(prev.text, prev.words) === key;
+    const draftKeys = captionTextKeys(draft);
+    const sameAsPrev =
+      !!prev && captionTextKeys(prev).some(key => draftKeys.includes(key));
 
-    // Split/merge clears metadata only on sentences whose text actually changed.
-    // Untouched sentences keep metadata even if their editor ids were regenerated.
+    // Merging line 5 into line 4 changes only line 4's text, so only that line
+    // drops metadata. Neighbors keep theirs even if a join shifted sentence ids.
     // In-place edits (line count unchanged) keep the sentence's own metadata.
     let metadata: Record<string, unknown> = {};
-    if (prev && (sameAsPrev || !structureChanged)) {
-      metadata = { ...(prev.metadata || {}) };
-      consumed.add(prev);
-    } else if (!prev) {
-      const match = (prevBySignature.get(key) ?? []).find(c => !consumed.has(c));
-      if (match) {
-        metadata = { ...(match.metadata || {}) };
-        consumed.add(match);
+    const keepFrom = (source: CaptionLike | undefined) => {
+      if (!source || consumed.has(source)) return false;
+      metadata = { ...(source.metadata || {}) };
+      consumed.add(source);
+      return true;
+    };
+
+    if (!structureChanged && prev) {
+      keepFrom(prev);
+    } else if (sameAsPrev) {
+      keepFrom(prev);
+    } else {
+      for (const key of draftKeys) {
+        const match = (prevBySignature.get(key) ?? []).find(candidate => {
+          if (consumed.has(candidate)) return false;
+          if (
+            candidate.id &&
+            unchangedIds.has(candidate.id) &&
+            candidate.id !== draft.id
+          ) {
+            return false;
+          }
+          return true;
+        });
+        if (match && keepFrom(match)) break;
       }
     }
 

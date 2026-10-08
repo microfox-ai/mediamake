@@ -37,6 +37,14 @@ import {
   trimBlockStartTo,
 } from "../caption-timing-utils";
 
+function captionTrackKey(captionsKey: string, count: number): string {
+  let hash = 0;
+  for (let i = 0; i < captionsKey.length; i++) {
+    hash = (Math.imul(31, hash) + captionsKey.charCodeAt(i)) | 0;
+  }
+  return `${count}:${(hash >>> 0).toString(36)}`;
+}
+
 const LINE_COLOR =
   "border-blue-500/50 bg-blue-500/20 hover:bg-blue-500/35 text-blue-200";
 const WORD_COLOR =
@@ -118,20 +126,23 @@ export function CaptionsTracksSection({
           const words = (c.words ?? [])
             .map((w) => {
               const wb = getWordBounds(w, c);
-              return `${wb.start}-${wb.end}`;
+              return `${w.id ?? ""}:${w.text ?? ""}:${wb.start}-${wb.end}`;
             })
             .join(",");
-          return `${c.id ?? ""}:${b.start}-${b.end}:${words}`;
+          return `${c.id ?? ""}:${(c.text ?? "").trim()}:${b.start}-${b.end}:${words}`;
         })
         .join("|"),
     [storeCaptions],
   );
 
-  useEffect(() => {
-    if (dragRef.current) return;
+  // Apply external caption edits (merge/split) in the same render that sees them.
+  // A post-commit effect left the tracks on the previous snapshot until this
+  // section remounted (switching references and back).
+  const [syncedKey, setSyncedKey] = useState(captionsKey);
+  if (!dragRef.current && syncedKey !== captionsKey) {
+    setSyncedKey(captionsKey);
     setLocalCaptions(storeCaptions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [captionsKey]);
+  }
 
   useEffect(() => {
     if (!selected) {
@@ -521,7 +532,7 @@ export function CaptionsTracksSection({
 
     const rows = [
       {
-        id: `${sectionId}:lines`,
+        id: `${sectionId}:lines:${captionTrackKey(captionsKey, localCaptions.length)}`,
         label: (
           <div
             className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
@@ -542,6 +553,7 @@ export function CaptionsTracksSection({
         ),
         track: (
           <div
+            key={captionsKey}
             className="relative border-b border-border/40 hover:bg-muted/5 transition-colors"
             style={{ height: ROW_HEIGHT }}
             onPointerMove={handlePointerMove}
@@ -607,7 +619,7 @@ export function CaptionsTracksSection({
         ),
       },
       {
-        id: `${sectionId}:words`,
+        id: `${sectionId}:words:${captionTrackKey(captionsKey, localCaptions.length)}`,
         label: (
           <div
             className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
@@ -628,6 +640,7 @@ export function CaptionsTracksSection({
         ),
         track: (
           <div
+            key={`${captionsKey}:words`}
             className="relative border-b border-border/40 hover:bg-muted/5 transition-colors"
             style={{ height: ROW_HEIGHT }}
             onPointerMove={handlePointerMove}
@@ -711,6 +724,7 @@ export function CaptionsTracksSection({
     order,
     sourceTag,
     liveReference.key,
+    captionsKey,
     localCaptions,
     wordCount,
     secToPx,
