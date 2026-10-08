@@ -92,6 +92,7 @@ const presetParams = z.object({
   inputCaptions: z.array(z.any()).meta({
     [paramMetaTypes.referrableDataType]: 'captions',
   }),
+  avgFontSize: z.number().optional().describe('average font size'),
   colors: z
     .object({
       primary: colorField('Primary', '#ff6b6b', 'Highlighted word'),
@@ -121,10 +122,22 @@ const presetParams = z.object({
     .describe('Text alignment within the caption'),
   position: z
     .object({
-      left: z.union([z.string(), z.number()]).optional().describe('Left, pixels or percent'),
-      top: z.union([z.string(), z.number()]).optional().describe('Top, pixels or percent'),
-      right: z.union([z.string(), z.number()]).optional().describe('Right, pixels or percent'),
-      bottom: z.union([z.string(), z.number()]).optional().describe('Bottom, pixels or percent'),
+      left: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe('Left, pixels or percent'),
+      top: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe('Top, pixels or percent'),
+      right: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe('Right, pixels or percent'),
+      bottom: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe('Bottom, pixels or percent'),
     })
     .optional()
     .meta({
@@ -178,10 +191,7 @@ const presetParams = z.object({
           [paramMetaTypes.layoutGroup]: 'sync-motion',
         })
         .describe('0.1 is subtle, 2 is intense'),
-      floatThreshold: z
-        .number()
-        .optional()
-        .meta({ title: 'Float' }),
+      floatThreshold: z.number().optional().meta({ title: 'Float' }),
       disableMetadata: z
         .boolean()
         .optional()
@@ -223,7 +233,6 @@ const presetParams = z.object({
       title: 'Sync',
       [paramMetaTypes.flatObject]: true,
     }),
-  avgFontSize: z.number().optional().describe('average font size'),
 });
 
 const presetExecution = (
@@ -242,7 +251,9 @@ const presetExecution = (
   } = params;
 
   // Normalize captions so missing arrays / word.end don't crash the preset
-  const inputCaptions = (Array.isArray(rawInputCaptions) ? rawInputCaptions : [])
+  const inputCaptions = (
+    Array.isArray(rawInputCaptions) ? rawInputCaptions : []
+  )
     .filter(c => c && typeof c === 'object')
     .map(caption => {
       const words = Array.isArray(caption.words) ? caption.words : [];
@@ -294,7 +305,8 @@ const presetExecution = (
 
   const asLetterSpacing = (value: any, fallback: string) => {
     if (value === undefined || value === null || value === '') return fallback;
-    if (typeof value === 'number' && Number.isFinite(value)) return `${value}em`;
+    if (typeof value === 'number' && Number.isFinite(value))
+      return `${value}em`;
     return String(value);
   };
 
@@ -322,7 +334,8 @@ const presetExecution = (
         fallback.letterSpacing,
       ),
       font: source?.font ?? legacyFont ?? fallback.font,
-      textScale: Number.isFinite(scale) && scale > 0 ? scale : fallback.textScale,
+      textScale:
+        Number.isFinite(scale) && scale > 0 ? scale : fallback.textScale,
       isGlowEnabled:
         typeof source?.isGlowEnabled === 'boolean'
           ? source.isGlowEnabled
@@ -1855,7 +1868,9 @@ const presetExecution = (
         }
       }
 
-      const activeTextStyle = isHighlight ? textStyles.highlight : textStyles.sub;
+      const activeTextStyle = isHighlight
+        ? textStyles.highlight
+        : textStyles.sub;
       const fontSize = avgFontSize ?? 50;
       const fontCalculatedSize = fontSize * (activeTextStyle.textScale || 1);
       const font = activeTextStyle.font;
@@ -2062,7 +2077,8 @@ const presetExecution = (
 
   const toCssLength = (value: any): string | undefined => {
     if (value === undefined || value === null || value === '') return undefined;
-    if (typeof value === 'number' && Number.isFinite(value)) return `${value}px`;
+    if (typeof value === 'number' && Number.isFinite(value))
+      return `${value}px`;
     const raw = String(value).trim();
     if (!raw) return undefined;
     if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}px`;
@@ -2306,12 +2322,11 @@ const presetExecution = (
         const scentenceId = `caption-${_i}`;
 
         // Prefer metadata.htmlText (<b> highlights, <br/> line breaks) over legacy keyword/splitParts
-        const highlightMeta =
-          props?.helpers?.resolveCaptionHighlightMeta?.(
-            caption.metadata,
-            caption.words,
-            { disableMetadata },
-          ) ?? { highlightedWordIndices: [], usedHtmlText: false };
+        const highlightMeta = props?.helpers?.resolveCaptionHighlightMeta?.(
+          caption.metadata,
+          caption.words,
+          { disableMetadata },
+        ) ?? { highlightedWordIndices: [], usedHtmlText: false };
 
         // Split sentence into parts first (htmlText → splitParts, else metadata.splitParts)
         const sentenceParts = splitSentenceIntoParts(
@@ -2572,9 +2587,7 @@ const presetExecution = (
       arrayIndex: index,
     });
     const ids =
-      built != null && built.length > 0
-        ? built
-        : [`inputCaptions.[${index}]`];
+      built != null && built.length > 0 ? built : [`inputCaptions.[${index}]`];
     props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
   });
 

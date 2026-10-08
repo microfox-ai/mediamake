@@ -447,6 +447,22 @@ interface FieldLabelProps {
     actions?: ReactNode;
 }
 
+function DescriptionHint({ description }: { description?: string }) {
+    if (!description) return null;
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <button type="button" className="inline-flex">
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p className="max-w-xs">{description}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
 function FieldLabel({
     fieldKey,
     title,
@@ -2470,9 +2486,12 @@ function renderField(
                         <div className="space-y-3">
                             {rows.map((row) => (
                                 <div key={row.key} className="space-y-1">
-                                    <Label className="text-xs font-medium">
-                                        {row.title || row.key}
-                                    </Label>
+                                    <div className="flex items-center gap-1">
+                                        <Label className="text-xs font-medium">
+                                            {row.title || row.key}
+                                        </Label>
+                                        <DescriptionHint description={row.description} />
+                                    </div>
                                     <ColorInput
                                         value={typeof fieldValue?.[row.key] === "string" ? fieldValue[row.key] : ""}
                                         onChange={(val) =>
@@ -2498,9 +2517,12 @@ function renderField(
                     };
                     const renderChild = (child: FormField) => (
                         <div key={child.key} className="space-y-1">
-                            <Label className="text-xs font-medium text-muted-foreground">
-                                {child.title || child.key}
-                            </Label>
+                            <div className="flex items-center gap-1">
+                                <Label className="text-xs font-medium text-muted-foreground">
+                                    {child.title || child.key}
+                                </Label>
+                                <DescriptionHint description={child.description} />
+                            </div>
                             {renderField(
                                 child,
                                 child.key,

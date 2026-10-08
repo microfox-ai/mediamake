@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     );
     const sourceTranscriptionId =
       searchParams.get('sourceTranscriptionId') || undefined;
+    const projectId = searchParams.get('projectId') || undefined;
 
     const db = await getDatabase();
     const collection = db.collection<CaptionsDocument>('captions');
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     const query: Record<string, unknown> = {};
     if (clientId) query.clientId = clientId;
     if (sourceTranscriptionId) query.sourceTranscriptionId = sourceTranscriptionId;
+    if (projectId) query.projectId = projectId;
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },

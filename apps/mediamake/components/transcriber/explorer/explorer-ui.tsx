@@ -118,7 +118,14 @@ function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: Pag
     );
 }
 
-export function ExplorerUI() {
+export function ExplorerUI({
+    pickMode = false,
+    onPick,
+}: {
+    /** Select a card without opening the transcription editor. */
+    pickMode?: boolean;
+    onPick?: (transcription: Transcription) => void;
+} = {}) {
     const { setSelectedTranscription, setCurrentView } = useTranscriber();
     const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
     const [filteredTranscriptions, setFilteredTranscriptions] = useState<Transcription[]>([]);
@@ -205,8 +212,24 @@ export function ExplorerUI() {
         }
     };
 
-    const handleTranscriptionSelect = (transcription: Transcription) => {
-        setSelectedTranscription(transcription._id?.toString() || '');
+    const handleTranscriptionSelect = async (transcription: Transcription) => {
+        const id = transcription._id?.toString() || '';
+        if (pickMode && onPick) {
+            if (!id) return;
+            try {
+                const response = await fetch(`/api/transcriptions/${id}`);
+                if (!response.ok) {
+                    toast.error('Failed to load transcription');
+                    return;
+                }
+                const data = await response.json();
+                onPick((data.transcription as Transcription) ?? transcription);
+            } catch {
+                toast.error('Failed to load transcription');
+            }
+            return;
+        }
+        setSelectedTranscription(id);
         setCurrentView('editor');
     };
 

@@ -8,12 +8,13 @@ import {
     Settings,
     Plus,
     Mic,
-    Bot
+    Captions
 } from "lucide-react";
 import { useTranscriber } from "../contexts/transcriber-context";
 
 const navigationItems = [
     { id: 'explorer', label: 'Explore', icon: Search },
+    { id: 'captions', label: 'Captions', icon: Captions },
     { id: 'assembly', label: 'Assembly', icon: Database },
     { id: 'elevenlabs', label: 'ElevenLabs', icon: Mic },
     { id: 'settings', label: 'Settings', icon: Settings },

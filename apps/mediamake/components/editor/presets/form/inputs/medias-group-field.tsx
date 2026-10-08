@@ -21,13 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { MediaPicker } from "@/components/editor/media/media-picker";
+import { AnchoredEditPopover } from "./anchored-edit-popover";
 import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
@@ -274,10 +269,6 @@ export function MediasGroupField({
     setGroupOpen(false);
   };
 
-  const editing = editIndex !== null ? items[editIndex] : null;
-  const editingKind: MediaKind =
-    editIndex !== null ? detectMediaKind(editing) : "image";
-
   return (
     <>
       <Tabs
@@ -295,17 +286,50 @@ export function MediasGroupField({
             </TabsTrigger>
           </TabsList>
           {groupProps.length > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
+            <AnchoredEditPopover
+              open={groupOpen}
+              onOpenChange={setGroupOpen}
               title="Group edit"
-              disabled={items.length === 0}
-              onClick={() => setGroupOpen(true)}
+              anchor={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  title="Group edit"
+                  disabled={items.length === 0}
+                  onClick={() => setGroupOpen(true)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              }
             >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {groupProps.map((prop) => (
+                    <PropEditor
+                      key={prop.key}
+                      prop={prop}
+                      value={groupDraft[prop.key]}
+                      onChange={(val) =>
+                        setGroupDraft((d) => ({ ...d, [prop.key]: val }))
+                      }
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={applyGroupEdit}
+                    disabled={items.length === 0}
+                  >
+                    Apply to all ({items.length})
+                  </Button>
+                </div>
+              </div>
+            </AnchoredEditPopover>
           )}
           <div className="inline-flex h-8 items-center rounded-lg bg-muted p-0.5">
             {([5, 4, 3] as const).map((cols) => (
@@ -339,50 +363,79 @@ export function MediasGroupField({
             }`}
           >
             {items.map((item, index) => {
-              const src = extractSrc(item);
               const kind = detectMediaKind(item);
               return (
-                <div
+                <AnchoredEditPopover
                   key={index}
-                  className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
-                  onClick={() => setEditIndex(index)}
+                  open={editIndex === index}
+                  onOpenChange={(open) => {
+                    if (!open && editIndex === index) setEditIndex(null);
+                  }}
+                  title={`Edit ${kind} ${index + 1}`}
+                  anchor={
+                    <div
+                      className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
+                      onClick={() => setEditIndex(index)}
+                    >
+                      <MediaItemThumb item={item} />
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
+                        <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
+                      </div>
+                      <div className="absolute left-1 top-1">
+                        <KindBadge kind={kind} />
+                      </div>
+                      <div className="absolute right-1 top-1 flex gap-0.5 opacity-90">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          title="Swap media"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplaceIndex(index);
+                          }}
+                        >
+                          <ArrowLeftRight className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive"
+                          title="Delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItem(index);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  }
                 >
-                  <MediaItemThumb item={item} />
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
-                    <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
+                  <div className="space-y-3">
+                    <MediaItemThumb
+                      item={item}
+                      className="h-28 w-full rounded-md object-cover border"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      {KIND_POPUP_KEYS[kind].map((key) => {
+                        const prop = props.find((p) => p.key === key);
+                        if (!prop) return null;
+                        return (
+                          <PropEditor
+                            key={key}
+                            prop={prop}
+                            value={item[key]}
+                            onChange={(val) => updateItem(index, { [key]: val })}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="absolute left-1 top-1">
-                    <KindBadge kind={kind} />
-                  </div>
-                  <div className="absolute right-1 top-1 flex gap-0.5 opacity-90">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Swap media"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReplaceIndex(index);
-                      }}
-                    >
-                      <ArrowLeftRight className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-destructive"
-                      title="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteItem(index);
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
+                </AnchoredEditPopover>
               );
             })}
             {(!singular || items.length === 0) && (
@@ -459,76 +512,6 @@ export function MediasGroupField({
           )}
         </TabsContent>
       </Tabs>
-
-      <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Group edit</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {groupProps.map((prop) => (
-                <PropEditor
-                  key={prop.key}
-                  prop={prop}
-                  value={groupDraft[prop.key]}
-                  onChange={(val) =>
-                    setGroupDraft((d) => ({ ...d, [prop.key]: val }))
-                  }
-                />
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={applyGroupEdit}
-                disabled={items.length === 0}
-              >
-                Apply to all ({items.length})
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={editIndex !== null && Boolean(editing)}
-        onOpenChange={(open) => {
-          if (!open) setEditIndex(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-sm">
-              Edit {editingKind} {(editIndex ?? 0) + 1}
-            </DialogTitle>
-          </DialogHeader>
-          {editing && editIndex !== null && (
-            <div className="space-y-3">
-              <MediaItemThumb
-                item={editing}
-                className="h-28 w-full rounded-md object-cover border"
-              />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {KIND_POPUP_KEYS[editingKind].map((key) => {
-                  const prop = props.find((p) => p.key === key);
-                  if (!prop) return null;
-                  return (
-                    <PropEditor
-                      key={key}
-                      prop={prop}
-                      value={editing[key]}
-                      onChange={(val) => updateItem(editIndex, { [key]: val })}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {replaceIndex !== null && (
         <MediaPicker

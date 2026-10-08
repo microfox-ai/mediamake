@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { Transcription } from "@/app/types/transcription";
 import { toast } from "sonner";
 
-type CurrentView = 'explorer' | 'assembly' | 'elevenlabs' | 'settings' | 'new' | 'editor' | 'info' | 'video' | 'metadata' | 'autofix';
+type CurrentView = 'explorer' | 'captions' | 'assembly' | 'elevenlabs' | 'settings' | 'new' | 'editor' | 'info' | 'video' | 'metadata' | 'autofix';
 interface TranscriberContextType {
     // Navigation state
     currentView: CurrentView;

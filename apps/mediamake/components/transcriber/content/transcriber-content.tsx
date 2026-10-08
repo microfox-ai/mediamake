@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { ExplorerUI } from "../explorer/explorer-ui";
+import { CaptionsUI } from "../captions/captions-ui";
 import { EditorUI } from "../editor/editor-ui";
 import { NewTranscriptionUI } from "../new/new-transcription-ui";
 import { AssemblyUI } from "../assembly/assembly-ui";
@@ -56,6 +57,8 @@ export function TranscriberContent() {
         switch (currentView) {
             case 'explorer':
                 return <ExplorerUI />;
+            case 'captions':
+                return <CaptionsUI />;
             case 'assembly':
                 return <AssemblyUI />;
             case 'elevenlabs':

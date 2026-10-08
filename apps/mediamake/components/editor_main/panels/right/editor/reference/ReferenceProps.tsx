@@ -45,6 +45,7 @@ import { FullCaptionsEditor } from "@/components/editor/captions/full-captions-e
 import { TranscriptionPicker } from "@/components/transcriber/picker/transcription-picker";
 import { CaptionPicker } from "@/components/editor/captions/caption-picker";
 import { ParagraphCaptionsDialog } from "@/components/editor/captions/paragraph-captions-dialog";
+import { AudioToTextDialog } from "@/components/editor/captions/audio-to-text-dialog";
 import type { Caption, CaptionsDocument, Transcription } from "@/app/types/transcription";
 import {
   captionsReferenceValue,
@@ -305,6 +306,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const [showTranscriptionPicker, setShowTranscriptionPicker] = useState(false);
   const [showCaptionPicker, setShowCaptionPicker] = useState(false);
   const [showParagraphDialog, setShowParagraphDialog] = useState(false);
+  const [showAudioToText, setShowAudioToText] = useState(false);
   const [isSavingCaptions, setIsSavingCaptions] = useState(false);
   const [captionsSyncFailed, setCaptionsSyncFailed] = useState(false);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
@@ -621,12 +623,16 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         captions?: Caption[];
         sourceTranscriptionId?: string;
         sourceCaptionsId?: string;
+        projectId?: string;
       },
       successMessage: string,
     ) => {
       setIsCreatingBlank(true);
       try {
-        const created = await createCaptionsDocument(body);
+        const created = await createCaptionsDocument({
+          ...body,
+          projectId: body.projectId || timeline.projectId,
+        });
         bindCaptionsDocument(created, body.captions);
         toast.success(successMessage);
       } catch (error) {
@@ -637,7 +643,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         setIsCreatingBlank(false);
       }
     },
-    [bindCaptionsDocument],
+    [bindCaptionsDocument, timeline.projectId],
   );
 
   const handleCreateBlankCaptions = useCallback(() => {
@@ -657,11 +663,12 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           description: transcription.description || "",
           captions: transcription.captions ?? [],
           sourceTranscriptionId: id,
+          projectId: transcription.projectId || timeline.projectId,
         },
         "Caption version created from transcription",
       );
     },
-    [handleCreateCaptions],
+    [handleCreateCaptions, timeline.projectId],
   );
 
   const handleLinkCaption = useCallback(
@@ -861,7 +868,9 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                       >
                         Link Caption
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled>
+                      <DropdownMenuItem
+                        onClick={() => setShowAudioToText(true)}
+                      >
                         From Audio to Text
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled>
@@ -902,6 +911,14 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                     open={showCaptionPicker}
                     onClose={() => setShowCaptionPicker(false)}
                     onSelect={handleLinkCaption}
+                  />
+                  <AudioToTextDialog
+                    open={showAudioToText}
+                    onClose={() => setShowAudioToText(false)}
+                    onCreated={transcription => {
+                      setShowAudioToText(false);
+                      void handleLinkTranscription(transcription);
+                    }}
                   />
                   <ParagraphCaptionsDialog
                     open={showParagraphDialog}

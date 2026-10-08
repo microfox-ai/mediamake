@@ -38,7 +38,7 @@ import { MediaFile } from "@/app/types/media";
 import { generateTextToSpeech, COMMON_VOICES, AVAILABLE_MODELS } from "@/components/transcriber/new-transcription-ui";
 import useLocalState from "@/components/studio/context/hooks/useLocalState";
 
-const LANGUAGES = [
+export const LANGUAGES = [
     { code: "auto", name: "Auto-detect" },
     { code: "en", name: "English" },
     { code: "es", name: "Spanish" },
