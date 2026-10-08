@@ -84,8 +84,13 @@ export const captionsDataType: DataTypeDefinition = {
   id: 'captions',
   title: 'Captions',
   description:
-    'Timeline transcription object with an optional _id and captions array.',
+    'Caption version with title, description, and a captions array. Stored in the captions collection.',
   referenceType: 'captions',
-  defaultValue: { _id: '', captions: [] },
+  defaultValue: {
+    _id: '',
+    title: '',
+    description: '',
+    captions: [],
+  },
   schema: captionsDataTypeSchema,
 };

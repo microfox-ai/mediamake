@@ -354,6 +354,32 @@ function isFlatObjectField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.flatObject] === true;
 }
 
+function chunkByLayoutGroup(list: FormField[]): FormField[][] {
+    const rows: FormField[][] = [];
+    let index = 0;
+    while (index < list.length) {
+        const group = list[index].meta?.[paramMetaTypes.layoutGroup];
+        if (typeof group === "string") {
+            const row: FormField[] = [];
+            while (index < list.length && list[index].meta?.[paramMetaTypes.layoutGroup] === group) {
+                row.push(list[index]);
+                index += 1;
+            }
+            rows.push(row);
+        } else {
+            rows.push([list[index]]);
+            index += 1;
+        }
+    }
+    return rows;
+}
+
+function layoutRowClass(count: number): string {
+    if (count >= 3) return "grid grid-cols-3 gap-3 items-start";
+    if (count === 2) return "grid grid-cols-2 gap-3 items-start";
+    return "grid grid-cols-1 gap-3 items-start";
+}
+
 function childFieldsOf(field: FormField): FormField[] {
     if (!field.properties) return [];
     return Object.entries(field.properties).map(([key, prop]) => ({
@@ -2470,34 +2496,43 @@ function renderField(
                             [childKey]: childValue,
                         });
                     };
+                    const renderChild = (child: FormField) => (
+                        <div key={child.key} className="space-y-1">
+                            <Label className="text-xs font-medium text-muted-foreground">
+                                {child.title || child.key}
+                            </Label>
+                            {renderField(
+                                child,
+                                child.key,
+                                fieldValue?.[child.key],
+                                updateChild,
+                                depth + 1,
+                                field,
+                                availableReferences,
+                                baseData,
+                                showReferencesDropdown,
+                                showReferencableAuto,
+                                onCreateReference,
+                                onSelectReferenceKey,
+                                onRequestRangeEditor,
+                                undefined,
+                                fieldValue,
+                                availableTrackNames,
+                                onUpdateReferenceValue,
+                            )}
+                        </div>
+                    );
                     return (
                         <div className="space-y-3">
-                            {children.map((child) => (
-                                <div key={child.key} className="space-y-1">
-                                    <Label className="text-xs font-medium text-muted-foreground">
-                                        {child.title || child.key}
-                                    </Label>
-                                    {renderField(
-                                        child,
-                                        child.key,
-                                        fieldValue?.[child.key],
-                                        updateChild,
-                                        depth + 1,
-                                        field,
-                                        availableReferences,
-                                        baseData,
-                                        showReferencesDropdown,
-                                        showReferencableAuto,
-                                        onCreateReference,
-                                        onSelectReferenceKey,
-                                        onRequestRangeEditor,
-                                        undefined,
-                                        fieldValue,
-                                        availableTrackNames,
-                                        onUpdateReferenceValue,
-                                    )}
-                                </div>
-                            ))}
+                            {chunkByLayoutGroup(children).map((row) =>
+                                row.length === 1 ? (
+                                    renderChild(row[0])
+                                ) : (
+                                    <div key={row.map((child) => child.key).join("-")} className={layoutRowClass(row.length)}>
+                                        {row.map((child) => renderChild(child))}
+                                    </div>
+                                ),
+                            )}
                         </div>
                     );
                 }
@@ -3328,36 +3363,19 @@ export function SchemaForm({
     const fields = getFieldsFromSchema(jsonSchema);
 
     const renderSchemaFields = (list: FormField[]) => {
-        const nodes: ReactNode[] = [];
-        let index = 0;
-        while (index < list.length) {
-            const group = list[index].meta?.[paramMetaTypes.layoutGroup];
-            if (typeof group === "string") {
-                const row: FormField[] = [];
-                while (index < list.length && list[index].meta?.[paramMetaTypes.layoutGroup] === group) {
-                    row.push(list[index]);
-                    index += 1;
-                }
-                nodes.push(
-                    <div key={`layout-${group}`} className="grid grid-cols-2 gap-3 items-start">
-                        {row.map((field) => (
-                            <div key={field.key}>
-                                {renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}
-                            </div>
-                        ))}
-                    </div>
-                );
-            } else {
-                const field = list[index];
-                nodes.push(
-                    <div key={field.key}>
-                        {renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue)}
-                    </div>
-                );
-                index += 1;
-            }
-        }
-        return nodes;
+        const paint = (field: FormField) =>
+            renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue);
+        return chunkByLayoutGroup(list).map((row) =>
+            row.length === 1 ? (
+                <div key={row[0].key}>{paint(row[0])}</div>
+            ) : (
+                <div key={row.map((field) => field.key).join("-")} className={layoutRowClass(row.length)}>
+                    {row.map((field) => (
+                        <div key={field.key}>{paint(field)}</div>
+                    ))}
+                </div>
+            ),
+        );
     };
 
     if (!jsonSchema || !jsonSchema.properties) {

@@ -74,6 +74,12 @@ const captionTextStyle = (
         .default(defaults.textScale)
         .meta({ title: 'Scale' })
         .describe('Size relative to the average font size'),
+      isGlowEnabled: z
+        .boolean()
+        .default(false)
+        .optional()
+        .meta({ title: 'Glow' })
+        .describe('Drop shadow glow on these words'),
     })
     .optional()
     .meta({
@@ -127,59 +133,96 @@ const presetParams = z.object({
       [paramMetaTypes.inputOptions]: { fixedOnly: true, allowPercent: true },
     })
     .describe('Fixed position. Use a number for pixels or a percent like 12%.'),
-  subtitleSync: z.object({
-    //timing-normalnime-imapctanime-continuosanime
-    animationStyle: z
-      .enum([
-        'word-fade-letterspace-float', // each word fades in exact time from 0 to 1 opacity, with letterspace aniamtion for imapctful words, and all liens floating.
-        'scentence-highlight-letterspace-float', // each word is already at 1 opacity, it jsuts highlighted with deeper glow at exact wor time, with letterspace animation for imapctful words, and all liens floating.
-        'scentence-highlight-float', // same as above, but no letter spacing.
-        'aggressive-pulse-shake-float', // aggressive rock-style animation with pulse, shake, and distortion effects for fast beat energy
-        'melodic-fade-blur-float', // smooth fade with gentle blur effects, perfect for melodic content with longer sentences
-        'melodic-wave-breathing', // gentle wave-like floating with soft breathing effects for melodic rhythm
-        'melodic-color-flow', // smooth color transitions with gentle drift for melodic flow
-        'melodic-gentle-drift', // subtle position and scale drift with soft fade for melodic feel
-        'horizontal-slide-reveal', // words slide in from left to right, perfect for horizontal layouts
-        'horizontal-typewriter', // typewriter effect with horizontal flow, ideal for horizontal text
-        'horizontal-bounce-flow', // words bounce in sequence from left to right with flow
-        'horizontal-ripple-expand', // ripple effect expanding horizontally across words
-        'horizontal-zoom-cascade', // zoom effect cascading from left to right
-      ])
-      .default('word-fade-letterspace-float')
-      .optional(),
-    layout: z
-      .enum(['horizontal', 'vertical'])
-      .default('vertical')
-      .optional()
-      .describe('layout direction for parts - horizontal or vertical'),
-    negativeOffset: z.number().optional(),
-    maxLines: z.number().optional(),
-    noGaps: z.object({
-      enabled: z.boolean().optional().describe('enable no gaps'),
-      maxLength: z
-        .number()
-        .default(3)
+  subtitleSync: z
+    .object({
+      animationStyle: z
+        .enum([
+          'word-fade-letterspace-float',
+          'scentence-highlight-letterspace-float',
+          'scentence-highlight-float',
+          'aggressive-pulse-shake-float',
+          'melodic-fade-blur-float',
+          'melodic-wave-breathing',
+          'melodic-color-flow',
+          'melodic-gentle-drift',
+          'horizontal-slide-reveal',
+          'horizontal-typewriter',
+          'horizontal-bounce-flow',
+          'horizontal-ripple-expand',
+          'horizontal-zoom-cascade',
+        ])
+        .default('word-fade-letterspace-float')
         .optional()
-        .describe('max duration it can extend'),
+        .meta({ title: 'Animation' }),
+      layout: z
+        .enum(['horizontal', 'vertical'])
+        .default('vertical')
+        .optional()
+        .meta({
+          title: 'Layout',
+          [paramMetaTypes.layoutGroup]: 'sync-motion',
+        }),
+      negativeOffset: z
+        .number()
+        .optional()
+        .meta({
+          title: 'Offset',
+          [paramMetaTypes.layoutGroup]: 'sync-motion',
+        }),
+      impact: z
+        .number()
+        .default(1.0)
+        .optional()
+        .meta({
+          title: 'Impact',
+          [paramMetaTypes.layoutGroup]: 'sync-motion',
+        })
+        .describe('0.1 is subtle, 2 is intense'),
+      floatThreshold: z
+        .number()
+        .optional()
+        .meta({ title: 'Float' }),
+      disableMetadata: z
+        .boolean()
+        .optional()
+        .meta({
+          title: 'Ignore metadata',
+          [paramMetaTypes.layoutGroup]: 'sync-flags',
+        }),
+      maxLines: z
+        .number()
+        .optional()
+        .meta({
+          title: 'Max lines',
+          [paramMetaTypes.layoutGroup]: 'sync-flags',
+        }),
+      noGaps: z
+        .object({
+          enabled: z
+            .boolean()
+            .optional()
+            .meta({
+              title: 'Enabled',
+              [paramMetaTypes.layoutGroup]: 'no-gaps',
+            }),
+          maxLength: z
+            .number()
+            .default(3)
+            .optional()
+            .meta({
+              title: 'Max length',
+              [paramMetaTypes.layoutGroup]: 'no-gaps',
+            }),
+        })
+        .meta({
+          title: 'No gaps',
+          [paramMetaTypes.flatObject]: true,
+        }),
+    })
+    .meta({
+      title: 'Sync',
+      [paramMetaTypes.flatObject]: true,
     }),
-    floatThreshold: z.number().optional(),
-    disableMetadata: z
-      .boolean()
-      .optional()
-      .describe('ignore all metadata provided in captions'),
-    impact: z
-      .number()
-      .default(1.0)
-      .optional()
-      .describe(
-        'global impact multiplier for all animations (0.1 = very subtle, 2.0 = very intense)',
-      ),
-    isGlowEnabled: z
-      .boolean()
-      .default(false)
-      .optional()
-      .describe('enable glow effects for words'),
-  }),
   avgFontSize: z.number().optional().describe('average font size'),
 });
 
@@ -247,6 +290,7 @@ const presetExecution = (
       : undefined;
   const legacyStyle = legacy.style;
   const legacyScale = legacy.subtitleSync?.fontScaling;
+  const legacyGlow = legacy.subtitleSync?.isGlowEnabled;
 
   const asLetterSpacing = (value: any, fallback: string) => {
     if (value === undefined || value === null || value === '') return fallback;
@@ -279,6 +323,10 @@ const presetExecution = (
       ),
       font: source?.font ?? legacyFont ?? fallback.font,
       textScale: Number.isFinite(scale) && scale > 0 ? scale : fallback.textScale,
+      isGlowEnabled:
+        typeof source?.isGlowEnabled === 'boolean'
+          ? source.isGlowEnabled
+          : Boolean(legacyGlow),
     };
   };
 
@@ -1253,7 +1301,6 @@ const presetExecution = (
     scentenceId: string,
     animationStyle?: string,
     globalImpact?: number,
-    isGlowEnabled?: boolean,
   ) => {
     const isAllWordsHighlighted = words.every(
       word => word.metadata?.isHighlight,
@@ -1266,6 +1313,9 @@ const presetExecution = (
     return words.map((word, _j: number) => {
       const wordId = `word-${_j}-${partId}-${scentenceId}`;
       const isHighlight = word.metadata?.isHighlight;
+      const isGlowEnabled = Boolean(
+        (isHighlight ? textStyles.highlight : textStyles.sub)?.isGlowEnabled,
+      );
       const shouldAnimate =
         word.duration >= 1 || (isAllWordsHighlighted && syncDuration > 1.5);
 
@@ -2086,7 +2136,6 @@ const presetExecution = (
     animationStyle?: string,
     layout?: string,
     globalImpact?: number,
-    isGlowEnabled?: boolean,
   ) => {
     const wordsData = generateWordsData(
       partWords,
@@ -2098,7 +2147,6 @@ const presetExecution = (
       scentenceId,
       animationStyle,
       globalImpact,
-      isGlowEnabled,
     );
 
     // Calculate displacement based on character count or floatThreshold
@@ -2222,7 +2270,6 @@ const presetExecution = (
     animationStyle?: string,
     layout?: string,
     globalImpact?: number,
-    isGlowEnabled?: boolean,
   ) => {
     // Pre-process captions to split combined words
     const preprocessedCaptions = preprocessCaptions(inputCaptions);
@@ -2431,7 +2478,6 @@ const presetExecution = (
             animationStyle,
             layout,
             globalImpact,
-            isGlowEnabled,
           );
         });
 
@@ -2519,7 +2565,6 @@ const presetExecution = (
     subtitleSync?.animationStyle,
     subtitleSync?.layout,
     subtitleSync?.impact,
-    subtitleSync?.isGlowEnabled,
   );
   captionsChildrenData.forEach((captionNode, index) => {
     const built = props?.buildDataItemIds?.({
@@ -2629,7 +2674,6 @@ const presetMetadata: PresetMetadata = {
         maxLength: 3,
       },
       impact: 1.0,
-      isGlowEnabled: false,
     },
     colors: {
       primary: '#ff6b6b',
@@ -2641,12 +2685,14 @@ const presetMetadata: PresetMetadata = {
       letterSpacing: '0.04em',
       font: 'BebasNeue',
       textScale: 1.35,
+      isGlowEnabled: false,
     },
     subTextStyle: {
       textTransform: 'uppercase',
       letterSpacing: '0em',
       font: 'Roboto:600:italic',
       textScale: 0.85,
+      isGlowEnabled: false,
     },
     textAlign: 'center',
     position: {

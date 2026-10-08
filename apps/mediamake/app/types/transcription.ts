@@ -157,7 +157,22 @@ export interface TranscriptionFilters {
   fields?: string; // Comma-separated list of fields to include
 }
 
-// Lightweight transcription for list views
+/** A caption version stored in the `captions` collection. */
+export interface CaptionsDocument {
+  _id?: ObjectId;
+  clientId?: string;
+  projectId?: string;
+  title: string;
+  description: string;
+  captions: Caption[];
+  /** Transcription this version was copied from. */
+  sourceTranscriptionId?: string;
+  /** Earlier captions document this version was copied from. */
+  sourceCaptionsId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TranscriptionListItem {
   _id?: ObjectId;
   clientId?: string;

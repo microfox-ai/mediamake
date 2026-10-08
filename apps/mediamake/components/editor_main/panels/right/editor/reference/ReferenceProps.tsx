@@ -13,8 +13,10 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, Plus, X, Check, FileAudio, Save, Loader2, ChevronDown } from "lucide-react";
+import { Clock, Plus, X, Check, Save, Loader2, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import { MediasGroupField } from "@/components/editor/presets/form/inputs/medias-group-field";
 import {
@@ -41,7 +43,14 @@ import { LinkedActionsSection } from "@/components/editor/presets/actions/form/A
 import { CaptionItemEditor } from "@/components/editor/captions/caption-item-editor";
 import { FullCaptionsEditor } from "@/components/editor/captions/full-captions-editor";
 import { TranscriptionPicker } from "@/components/transcriber/picker/transcription-picker";
-import type { Caption, Transcription } from "@/app/types/transcription";
+import { CaptionPicker } from "@/components/editor/captions/caption-picker";
+import { ParagraphCaptionsDialog } from "@/components/editor/captions/paragraph-captions-dialog";
+import type { Caption, CaptionsDocument, Transcription } from "@/app/types/transcription";
+import {
+  captionsReferenceValue,
+  createCaptionsDocument,
+  updateCaptionsDocument,
+} from "@/lib/captions/captions-client";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
 
@@ -289,14 +298,20 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
   const seekToFrame = useLayerStateStore((s) => s.seekToFrame);
-  const [activeTab, setActiveTab] = useState<"smart" | "form" | "full" | "json">("smart");
+  const [activeTab, setActiveTab] = useState<"smart" | "info" | "full" | "json">("smart");
   const [filterActive, setFilterActive] = useState(true);
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [editedKey, setEditedKey] = useState(reference.key || "");
-  const [showCaptionsPicker, setShowCaptionsPicker] = useState(false);
+  const [showTranscriptionPicker, setShowTranscriptionPicker] = useState(false);
+  const [showCaptionPicker, setShowCaptionPicker] = useState(false);
+  const [showParagraphDialog, setShowParagraphDialog] = useState(false);
   const [isSavingCaptions, setIsSavingCaptions] = useState(false);
+  const [captionsSyncFailed, setCaptionsSyncFailed] = useState(false);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const captionsSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedCaptionsKeyRef = useRef<string | null>(null);
+  const captionsSaveGenRef = useRef(0);
 
   const editedTimeline = getEditedTimeline(timeline.id);
   const displayTimeline = editedTimeline || timeline;
@@ -499,85 +514,185 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     [selectedReference, onReferenceChange],
   );
 
-  const linkedTranscriptionId =
+  const linkedCaptionsId =
     selectedReference?.type === "captions" && selectedReference?.value?._id
       ? String(selectedReference.value._id)
       : null;
 
-  const handleSaveCaptionsToDatabase = useCallback(async () => {
-    if (!selectedReference || selectedReference.type !== "captions") return;
-    const id = selectedReference.value?._id;
-    if (!id) {
-      toast.error("Link a transcription before saving");
-      return;
+  const captionsSyncKey = useMemo(() => {
+    if (selectedReference?.type !== "captions" || !selectedReference.value?._id) {
+      return "";
     }
-    setIsSavingCaptions(true);
-    try {
-      const response = await fetch(`/api/transcriptions/${id}/metadata`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          captions: selectedReference.value?.captions ?? [],
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to save captions");
-      }
-      toast.success("Captions saved successfully");
-    } catch (error) {
-      toast.error(
-        `Failed to save captions: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setIsSavingCaptions(false);
-    }
+    const value = selectedReference.value;
+    return JSON.stringify({
+      id: String(value._id),
+      title: value.title ?? "",
+      description: value.description ?? "",
+      captions: value.captions ?? [],
+    });
   }, [selectedReference]);
 
-  const handleCreateBlankCaptions = useCallback(async () => {
-    if (!selectedReference || selectedReference.type !== "captions") return;
-    setIsCreatingBlank(true);
-    try {
-      const captions = createBlankHelloCaptions();
-      const response = await fetch("/api/transcriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blank: true,
-          title: "Untitled Captions",
-          status: "completed",
-          tags: ["blank"],
-          captions,
-          audioUrl: "",
-        }),
+  const readLatestCaptionsValue = useCallback(() => {
+    const latestTimeline =
+      useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+    const ref = latestTimeline.defaultData?.references?.[referenceIndex];
+    if (!ref || ref.type !== "captions") return null;
+    return ref.value ?? null;
+  }, [timeline, referenceIndex]);
+
+  const bindCaptionsDocument = useCallback(
+    (doc: CaptionsDocument, fallbackCaptions?: Caption[]) => {
+      const latestTimeline =
+        useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+      const ref = latestTimeline.defaultData?.references?.[referenceIndex];
+      if (!ref || ref.type !== "captions") return;
+      const value = captionsReferenceValue(doc, fallbackCaptions);
+      lastSavedCaptionsKeyRef.current = JSON.stringify({
+        id: value._id,
+        title: value.title ?? "",
+        description: value.description ?? "",
+        captions: value.captions ?? [],
       });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to create transcription");
-      }
-      const result = await response.json();
-      const created = result.transcription as Transcription;
+      setCaptionsSyncFailed(false);
       onReferenceChange({
-        references: [
-          {
-            ...selectedReference,
-            value: {
-              captions: created.captions ?? captions,
-              _id: created._id?.toString() ?? "",
-            },
-          },
-        ],
+        references: [{ ...ref, value }],
       });
-      toast.success("Blank captions created and linked");
-    } catch (error) {
-      toast.error(
-        `Failed to create blank captions: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setIsCreatingBlank(false);
+    },
+    [timeline, referenceIndex, onReferenceChange],
+  );
+
+  const handleSaveCaptionsToDatabase = useCallback(async (manual = false) => {
+    const value = readLatestCaptionsValue();
+    const id = value?._id ? String(value._id) : "";
+    if (!id) {
+      if (manual) toast.error("Create or link captions before saving");
+      return;
     }
-  }, [selectedReference, onReferenceChange]);
+    const payload = {
+      title: value.title ?? "",
+      description: value.description ?? "",
+      captions: value.captions ?? [],
+    };
+    const snapshotKey = JSON.stringify({ id, ...payload });
+    const gen = ++captionsSaveGenRef.current;
+    setIsSavingCaptions(true);
+    try {
+      try {
+        await updateCaptionsDocument(id, payload);
+      } catch (error) {
+        const missing =
+          error instanceof Error && error.message === "Captions not found";
+        if (!missing) throw error;
+        const created = await createCaptionsDocument({
+          ...payload,
+          sourceTranscriptionId: value.sourceTranscriptionId
+            ? String(value.sourceTranscriptionId)
+            : id,
+        });
+        if (gen !== captionsSaveGenRef.current) return;
+        bindCaptionsDocument(created, payload.captions);
+        if (manual) toast.success("Saved as a new captions document");
+        return;
+      }
+      if (gen !== captionsSaveGenRef.current) return;
+      lastSavedCaptionsKeyRef.current = snapshotKey;
+      setCaptionsSyncFailed(false);
+      if (manual) toast.success("Captions saved");
+    } catch (error) {
+      if (gen !== captionsSaveGenRef.current) return;
+      setCaptionsSyncFailed(prev => {
+        if (!prev || manual) {
+          toast.error(
+            `Failed to save captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+        }
+        return true;
+      });
+    } finally {
+      if (gen === captionsSaveGenRef.current) setIsSavingCaptions(false);
+    }
+  }, [readLatestCaptionsValue, bindCaptionsDocument]);
+
+  const handleCreateCaptions = useCallback(
+    async (
+      body: {
+        title?: string;
+        description?: string;
+        captions?: Caption[];
+        sourceTranscriptionId?: string;
+        sourceCaptionsId?: string;
+      },
+      successMessage: string,
+    ) => {
+      setIsCreatingBlank(true);
+      try {
+        const created = await createCaptionsDocument(body);
+        bindCaptionsDocument(created, body.captions);
+        toast.success(successMessage);
+      } catch (error) {
+        toast.error(
+          `Failed to create captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      } finally {
+        setIsCreatingBlank(false);
+      }
+    },
+    [bindCaptionsDocument],
+  );
+
+  const handleCreateBlankCaptions = useCallback(() => {
+    const captions = createBlankHelloCaptions();
+    return handleCreateCaptions(
+      { title: "Untitled Captions", description: "", captions },
+      "Blank captions created",
+    );
+  }, [handleCreateCaptions]);
+
+  const handleLinkTranscription = useCallback(
+    (transcription: Transcription) => {
+      const id = transcription._id?.toString() ?? "";
+      return handleCreateCaptions(
+        {
+          title: transcription.title || "Untitled Captions",
+          description: transcription.description || "",
+          captions: transcription.captions ?? [],
+          sourceTranscriptionId: id,
+        },
+        "Caption version created from transcription",
+      );
+    },
+    [handleCreateCaptions],
+  );
+
+  const handleLinkCaption = useCallback(
+    (doc: CaptionsDocument) => {
+      bindCaptionsDocument(doc);
+      setShowCaptionPicker(false);
+      toast.success("Caption linked");
+    },
+    [bindCaptionsDocument],
+  );
+
+  useEffect(() => {
+    lastSavedCaptionsKeyRef.current = null;
+    setCaptionsSyncFailed(false);
+  }, [linkedCaptionsId, referenceIndex]);
+
+  useEffect(() => {
+    if (!captionsSyncKey) return;
+    if (lastSavedCaptionsKeyRef.current === null) {
+      lastSavedCaptionsKeyRef.current = captionsSyncKey;
+      return;
+    }
+    if (lastSavedCaptionsKeyRef.current === captionsSyncKey) return;
+    if (captionsSyncTimerRef.current) clearTimeout(captionsSyncTimerRef.current);
+    captionsSyncTimerRef.current = setTimeout(() => {
+      void handleSaveCaptionsToDatabase(false);
+    }, 800);
+    return () => {
+      if (captionsSyncTimerRef.current) clearTimeout(captionsSyncTimerRef.current);
+    };
+  }, [captionsSyncKey, handleSaveCaptionsToDatabase]);
 
   /**
    * Called when the user edits an active item (caption, object, media) at a specific index.
@@ -714,7 +829,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                         size="sm"
                         className="h-8 gap-1 text-xs shrink-0 px-2"
                         disabled={isCreatingBlank}
-                        title="Create new captions transcription"
+                        title="Create a captions document"
                       >
                         {isCreatingBlank ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -731,6 +846,21 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                       >
                         From Blank
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setShowParagraphDialog(true)}
+                      >
+                        From Paragraph
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setShowTranscriptionPicker(true)}
+                      >
+                        Link Transcription
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setShowCaptionPicker(true)}
+                      >
+                        Link Caption
+                      </DropdownMenuItem>
                       <DropdownMenuItem disabled>
                         From Audio to Text
                       </DropdownMenuItem>
@@ -741,53 +871,56 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   </DropdownMenu>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={captionsSyncFailed ? "destructive" : "outline"}
                     size="sm"
-                    className="h-8 gap-1.5 text-xs shrink-0 px-2"
-                    onClick={() => setShowCaptionsPicker(true)}
-                    title="Link captions from a transcription"
+                    className="h-8 w-8 shrink-0 p-0"
+                    onClick={() => void handleSaveCaptionsToDatabase(true)}
+                    disabled={isSavingCaptions}
+                    title={
+                      captionsSyncFailed
+                        ? "Auto-sync failed. Save captions now"
+                        : "Save captions"
+                    }
                   >
-                    <FileAudio className="h-3.5 w-3.5" />
-                    Link
+                    {isSavingCaptions ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
                   </Button>
-                  {linkedTranscriptionId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs shrink-0 px-2"
-                      onClick={() => void handleSaveCaptionsToDatabase()}
-                      disabled={isSavingCaptions}
-                      title="Sync caption metadata to the linked transcription"
-                    >
-                      {isSavingCaptions ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Save className="h-3.5 w-3.5" />
-                      )}
-                      Save
-                    </Button>
-                  )}
-                  {showCaptionsPicker && (
+                  {showTranscriptionPicker && (
                     <TranscriptionPicker
-                      open={showCaptionsPicker}
-                      onClose={() => setShowCaptionsPicker(false)}
+                      open={showTranscriptionPicker}
+                      onClose={() => setShowTranscriptionPicker(false)}
                       onSelect={(transcription: Transcription) => {
-                        onReferenceChange({
-                          references: [
-                            {
-                              ...selectedReference,
-                              value: {
-                                captions: transcription.captions,
-                                _id: transcription._id?.toString() ?? "",
-                              },
-                            },
-                          ],
-                        });
-                        setShowCaptionsPicker(false);
+                        setShowTranscriptionPicker(false);
+                        void handleLinkTranscription(transcription);
                       }}
                     />
                   )}
+                  <CaptionPicker
+                    open={showCaptionPicker}
+                    onClose={() => setShowCaptionPicker(false)}
+                    onSelect={handleLinkCaption}
+                  />
+                  <ParagraphCaptionsDialog
+                    open={showParagraphDialog}
+                    onClose={() => setShowParagraphDialog(false)}
+                    onCreate={captions => {
+                      setShowParagraphDialog(false);
+                      const title =
+                        selectedReference.value?.title?.trim() ||
+                        "Untitled Captions";
+                      void handleCreateCaptions(
+                        {
+                          title,
+                          description: selectedReference.value?.description ?? "",
+                          captions,
+                        },
+                        "Captions created from paragraph",
+                      );
+                    }}
+                  />
                 </>
               )}
             </div>
@@ -805,13 +938,13 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           <div className="space-y-3">
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as "smart" | "form" | "full" | "json")}
+              onValueChange={(v) => setActiveTab(v as "smart" | "info" | "full" | "json")}
               className="w-full"
             >
               <div className="flex items-center gap-2">
                 <TabsList className="grid grid-cols-4 flex-1">
                   <TabsTrigger value="smart" className="text-xs">Smart</TabsTrigger>
-                  <TabsTrigger value="form" className="text-xs">Form</TabsTrigger>
+                  <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
                   <TabsTrigger value="full" className="text-xs">Full</TabsTrigger>
                   <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
@@ -868,7 +1001,58 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                 )}
               </TabsContent>
 
-              <TabsContent value="form" className="mt-3">
+              <TabsContent value="info" className="mt-3 space-y-3">
+                {referenceType === "captions" && selectedReference && (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Title
+                      </Label>
+                      <Input
+                        value={selectedReference.value?.title ?? ""}
+                        className="h-8 text-xs"
+                        placeholder="Caption title"
+                        onChange={e => {
+                          onReferenceChange({
+                            references: [
+                              {
+                                ...selectedReference,
+                                value: {
+                                  ...selectedReference.value,
+                                  title: e.target.value,
+                                },
+                              },
+                            ],
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Description
+                      </Label>
+                      <Textarea
+                        value={selectedReference.value?.description ?? ""}
+                        rows={3}
+                        className="text-xs"
+                        placeholder="What this caption version is for"
+                        onChange={e => {
+                          onReferenceChange({
+                            references: [
+                              {
+                                ...selectedReference,
+                                value: {
+                                  ...selectedReference.value,
+                                  description: e.target.value,
+                                },
+                              },
+                            ],
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <DefaultCard
                   defaultData={selectedDefaultData}
                   onDefaultDataChange={onReferenceChange}

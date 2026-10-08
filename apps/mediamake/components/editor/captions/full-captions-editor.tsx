@@ -30,7 +30,16 @@ const DEFAULT_NEW_WORD_DURATION = 1;
 const CaptionParagraph = Paragraph.extend({
   addAttributes() {
     return {
-      'data-sentence-id': { default: null },
+      ...(this.parent?.() ?? {}),
+      'data-sentence-id': {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.getAttribute('data-sentence-id'),
+        renderHTML: (attributes: Record<string, unknown>) => {
+          if (!attributes['data-sentence-id']) return {};
+          return { 'data-sentence-id': attributes['data-sentence-id'] };
+        },
+      },
     };
   },
 });
@@ -178,23 +187,15 @@ function normalizeCaptionText(text: string | undefined): string {
   return (text ?? '').trim().replace(/\s+/g, ' ');
 }
 
-function sameLineContent(
-  prev: CaptionLike,
-  text: string,
-  words: NonNullable<CaptionLike['words']>,
-): boolean {
-  if (normalizeCaptionText(prev.text) === normalizeCaptionText(text)) {
-    return true;
-  }
-  const prevWords = (prev.words ?? [])
-    .map(w => w.text ?? '')
-    .join(' ')
-    .trim();
-  const nextWords = words
-    .map(w => w.text ?? '')
-    .join(' ')
-    .trim();
-  return prevWords.length > 0 && prevWords === nextWords;
+function sentenceKey(
+  text: string | undefined,
+  words: NonNullable<CaptionLike['words']> | undefined,
+): string {
+  const fromWords = (words ?? [])
+    .map(w => (w.text ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+  return normalizeCaptionText(fromWords || text);
 }
 
 function docToCaptions(
@@ -275,20 +276,33 @@ function docToCaptions(
   });
 
   const structureChanged = drafts.length !== prevCount;
+  const consumed = new WeakSet<CaptionLike>();
+  const prevBySignature = new Map<string, CaptionLike[]>();
+  for (const prev of prevCaptions) {
+    const key = sentenceKey(prev.text, prev.words);
+    const bucket = prevBySignature.get(key) ?? [];
+    bucket.push(prev);
+    prevBySignature.set(key, bucket);
+  }
 
   return drafts.map(draft => {
     const prev = prevById.get(draft.id);
     const duration = draft.absoluteEnd - draft.absoluteStart;
+    const key = sentenceKey(draft.text, draft.words);
+    const sameAsPrev = !!prev && sentenceKey(prev.text, prev.words) === key;
 
-    // Only clear metadata for lines involved in a split/merge:
-    // - brand-new id (e.g. Enter split offspring)
-    // - existing id whose content changed while line count changed
-    // Untouched lines always keep their metadata.
+    // Split/merge clears metadata only on sentences whose text actually changed.
+    // Untouched sentences keep metadata even if their editor ids were regenerated.
+    // In-place edits (line count unchanged) keep the sentence's own metadata.
     let metadata: Record<string, unknown> = {};
-    if (prev) {
-      const contentUnchanged = sameLineContent(prev, draft.text, draft.words);
-      if (!structureChanged || contentUnchanged) {
-        metadata = { ...(prev.metadata || {}) };
+    if (prev && (sameAsPrev || !structureChanged)) {
+      metadata = { ...(prev.metadata || {}) };
+      consumed.add(prev);
+    } else if (!prev) {
+      const match = (prevBySignature.get(key) ?? []).find(c => !consumed.has(c));
+      if (match) {
+        metadata = { ...(match.metadata || {}) };
+        consumed.add(match);
       }
     }
 

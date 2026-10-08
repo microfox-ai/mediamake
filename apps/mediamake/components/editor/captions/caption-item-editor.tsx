@@ -87,6 +87,7 @@ export function MetadataEditor({
   fieldMeta = captionMetadataFieldMeta,
   captionText,
   captionWords,
+  omitKeys = [],
 }: {
   metadata: Record<string, unknown>;
   onChange: (updated: Record<string, unknown>) => void;
@@ -94,11 +95,13 @@ export function MetadataEditor({
   fieldMeta?: Record<string, Record<string, unknown>>;
   captionText?: string;
   captionWords?: Array<{ text?: string }>;
+  omitKeys?: string[];
 }) {
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
   // Always include schema-tagged tiptap fields (e.g. htmlText) even when empty
+  const omitted = useMemo(() => new Set(omitKeys), [omitKeys]);
   const tiptapKeys = useMemo(() => {
     const fromMeta = Object.keys(fieldMeta).filter(k =>
       isTiptapFieldMeta(fieldMeta[k]),
@@ -106,11 +109,15 @@ export function MetadataEditor({
     const fromData = Object.keys(metadata).filter(k =>
       isTiptapFieldMeta(fieldMeta[k]),
     );
-    return Array.from(new Set([...fromMeta, ...fromData]));
-  }, [fieldMeta, metadata]);
+    return Array.from(new Set([...fromMeta, ...fromData])).filter(
+      k => !omitted.has(k),
+    );
+  }, [fieldMeta, metadata, omitted]);
 
   const tiptapKeySet = useMemo(() => new Set(tiptapKeys), [tiptapKeys]);
-  const entries = Object.entries(metadata).filter(([k]) => !tiptapKeySet.has(k));
+  const entries = Object.entries(metadata).filter(
+    ([k]) => !tiptapKeySet.has(k) && !omitted.has(k),
+  );
 
   const handleValueChange = (key: string, raw: string) => {
     let parsed: unknown = raw;
@@ -289,7 +296,42 @@ export function CaptionItemEditor({
 
   const words: any[] = caption.words ?? [];
   const metadata: Record<string, unknown> = caption.metadata ?? {};
-  const metaCount = Object.keys(metadata).length;
+  const restMetaCount = Object.keys(metadata).filter(k => k !== 'htmlText').length;
+
+  const applyMetadata = (newMeta: Record<string, unknown>) => {
+    const prevHtml =
+      typeof metadata.htmlText === 'string' ? metadata.htmlText : '';
+    const nextHtml =
+      typeof newMeta.htmlText === 'string' ? newMeta.htmlText : '';
+    if (nextHtml !== prevHtml) {
+      const lineBounds = {
+        start:
+          typeof caption.absoluteStart === 'number'
+            ? caption.absoluteStart
+            : undefined,
+        end:
+          typeof caption.absoluteEnd === 'number'
+            ? caption.absoluteEnd
+            : undefined,
+      };
+      const synced = syncWordsFromHtmlText(nextHtml, words, lineBounds);
+      const keyword = extractKeywordsFromHtmlText(nextHtml);
+      const parsed = parseCaptionHtmlText(nextHtml, synced.words);
+      onChange({
+        ...caption,
+        text: synced.text,
+        words: synced.words,
+        metadata: {
+          ...newMeta,
+          htmlText: nextHtml,
+          keyword,
+          ...(parsed?.splitParts ? { splitParts: parsed.splitParts } : {}),
+        },
+      });
+      return;
+    }
+    onChange({ ...caption, metadata: newMeta });
+  };
 
   const absStart =
     typeof caption.absoluteStart === 'number' ? caption.absoluteStart : null;
@@ -327,6 +369,28 @@ export function CaptionItemEditor({
       </div>
 
       <div className="p-2.5 space-y-2.5">
+        <div className="space-y-0.5">
+          <label className="block text-[9px] font-mono text-muted-foreground/70 uppercase tracking-wide">
+            htmlText
+          </label>
+          <CaptionHtmlTextEditor
+            value={
+              typeof metadata.htmlText === 'string' ? metadata.htmlText : ''
+            }
+            captionText={caption.text}
+            keyword={
+              typeof metadata.keyword === 'string' ? metadata.keyword : undefined
+            }
+            splitParts={
+              Array.isArray(metadata.splitParts)
+                ? (metadata.splitParts as string[])
+                : undefined
+            }
+            lines={5}
+            onChange={html => applyMetadata({ ...metadata, htmlText: html })}
+          />
+        </div>
+
         <Collapsible open={timingOpen} onOpenChange={setTimingOpen}>
           <CollapsibleTrigger className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
             {timingOpen ? (
@@ -478,55 +542,15 @@ export function CaptionItemEditor({
               <ChevronRight className="h-2.5 w-2.5" />
             )}
             <span className="uppercase tracking-wide font-medium">Metadata</span>
-            <span className="ml-1 text-muted-foreground/50">({metaCount})</span>
+            <span className="ml-1 text-muted-foreground/50">({restMetaCount})</span>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <MetadataEditor
               metadata={metadata}
               captionText={caption.text}
               captionWords={words}
-              onChange={newMeta => {
-                const prevHtml =
-                  typeof metadata.htmlText === 'string'
-                    ? metadata.htmlText
-                    : '';
-                const nextHtml =
-                  typeof newMeta.htmlText === 'string' ? newMeta.htmlText : '';
-                if (nextHtml !== prevHtml) {
-                  const lineBounds = {
-                    start:
-                      typeof caption.absoluteStart === 'number'
-                        ? caption.absoluteStart
-                        : undefined,
-                    end:
-                      typeof caption.absoluteEnd === 'number'
-                        ? caption.absoluteEnd
-                        : undefined,
-                  };
-                  const synced = syncWordsFromHtmlText(
-                    nextHtml,
-                    words,
-                    lineBounds,
-                  );
-                  const keyword = extractKeywordsFromHtmlText(nextHtml);
-                  const parsed = parseCaptionHtmlText(nextHtml, synced.words);
-                  onChange({
-                    ...caption,
-                    text: synced.text,
-                    words: synced.words,
-                    metadata: {
-                      ...newMeta,
-                      htmlText: nextHtml,
-                      keyword,
-                      ...(parsed?.splitParts
-                        ? { splitParts: parsed.splitParts }
-                        : {}),
-                    },
-                  });
-                  return;
-                }
-                onChange({ ...caption, metadata: newMeta });
-              }}
+              omitKeys={['htmlText']}
+              onChange={applyMetadata}
             />
           </CollapsibleContent>
         </Collapsible>

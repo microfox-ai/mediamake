@@ -7,6 +7,7 @@ import { Bold, CornerDownLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { buildHtmlTextFromLegacy } from '@/lib/captions/html-text';
+import { normalizeSentenceHtml } from '@/lib/captions/paragraph-captions';
 import './full-captions-editor.css';
 
 interface CaptionHtmlTextEditorProps {
@@ -21,6 +22,11 @@ interface CaptionHtmlTextEditorProps {
   compact?: boolean;
   /** Visible content lines (default 5). */
   lines?: number;
+  /**
+   * html: bold + hard breaks inside one caption.
+   * sentences: each paragraph is its own caption sentence.
+   */
+  variant?: 'html' | 'sentences';
 }
 
 /**
@@ -36,7 +42,9 @@ export function CaptionHtmlTextEditor({
   className,
   compact = true,
   lines = 5,
+  variant = 'html',
 }: CaptionHtmlTextEditorProps) {
+  const normalize = variant === 'sentences' ? normalizeSentenceHtml : normalizeEditorHtml;
   const initialContent =
     value?.trim() ||
     buildHtmlTextFromLegacy({
@@ -76,7 +84,7 @@ export function CaptionHtmlTextEditor({
       },
     },
     onUpdate: ({ editor: ed }) => {
-      onChange(normalizeEditorHtml(ed.getHTML()));
+      onChange(normalize(ed.getHTML()));
     },
   });
 
@@ -90,7 +98,7 @@ export function CaptionHtmlTextEditor({
         splitParts,
       }) ||
       '';
-    const current = normalizeEditorHtml(editor.getHTML());
+    const current = normalize(editor.getHTML());
     if (next && next !== current) {
       editor.commands.setContent(
         next.includes('<') ? next : `<p>${next}</p>`,
@@ -123,19 +131,23 @@ export function CaptionHtmlTextEditor({
         >
           <Bold className="h-2.5 w-2.5" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-5 w-5 p-0 text-neutral-700 hover:bg-neutral-200/70 hover:text-neutral-900"
-          title="Insert line break"
-          onClick={() => editor.chain().focus().setHardBreak().run()}
-        >
-          <CornerDownLeft className="h-2.5 w-2.5" />
-        </Button>
+        {variant === 'html' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-5 w-5 p-0 text-neutral-700 hover:bg-neutral-200/70 hover:text-neutral-900"
+            title="Insert line break"
+            onClick={() => editor.chain().focus().setHardBreak().run()}
+          >
+            <CornerDownLeft className="h-2.5 w-2.5" />
+          </Button>
+        )}
         {!compact && (
           <span className="ml-1 text-[9px] text-neutral-500">
-            Bold = highlight · Enter = new line
+            {variant === 'sentences'
+              ? 'Bold = highlight · Enter = new sentence'
+              : 'Bold = highlight · Enter = new line'}
           </span>
         )}
       </div>

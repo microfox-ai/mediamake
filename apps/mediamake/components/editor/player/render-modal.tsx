@@ -92,6 +92,14 @@ interface RenderModalProps {
   onClose: () => void;
 }
 
+/** Video filenames always end with exactly one `.mp4`. */
+function ensureSingleMp4(value: string): string {
+  let base = value.replace(/\.mp4/gi, '');
+  // Keep a partial ".mp4" from being left behind while the suffix is edited.
+  base = base.replace(/\.mp$/i, '').replace(/\.m$/i, '').replace(/\.$/, '');
+  return `${base}.mp4`;
+}
+
 // Icon mapping for presets
 const presetIcons: Record<string, React.ReactNode> = {
   Zap: <Zap className="h-4 w-4" />,
@@ -130,6 +138,26 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
   // Quota-exhausted modal for 403/429 responses from /api/remotion/render
   const { setQuotaError, dialog: quotaDialog } = useQuotaExhaustedDialog();
+
+  const updateVideoFileName = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.target;
+    const caret = input.selectionStart ?? input.value.length;
+    const next = ensureSingleMp4(input.value);
+    const nextCaret = Math.min(caret, Math.max(0, next.length - '.mp4'.length));
+    if (next === settings.fileName) {
+      input.value = next;
+      input.setSelectionRange(nextCaret, nextCaret);
+      return;
+    }
+    updateSetting('fileName', next);
+    const inputId = input.id;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(inputId);
+      if (el instanceof HTMLInputElement) {
+        el.setSelectionRange(nextCaret, nextCaret);
+      }
+    });
+  };
 
   // Ensure region has a sensible default
   useEffect(() => {
@@ -276,9 +304,13 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
 
     const isStill = settings.renderType === 'still';
     const ext = isStill ? settings.browserImageFormat : settings.browserContainer;
-    const fileName = settings.fileName.includes('.')
-      ? settings.fileName
-      : `${settings.fileName}.${ext}`;
+    const fileName = isStill
+      ? settings.fileName.includes('.')
+        ? settings.fileName
+        : `${settings.fileName}.${ext}`
+      : settings.browserContainer === 'webm'
+        ? ensureSingleMp4(settings.fileName).replace(/\.mp4$/i, '.webm')
+        : ensureSingleMp4(settings.fileName);
 
     const result = await startBrowserRender({
       inputProps: parsedInputProps,
@@ -474,6 +506,8 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                           if (settings.codec === 'png') updateSetting('codec', 'h264');
                           if (settings.fileName.startsWith('image-')) {
                             updateSetting('fileName', 'video-' + Date.now().toString().replaceAll('-', '') + '.mp4');
+                          } else {
+                            updateSetting('fileName', ensureSingleMp4(settings.fileName));
                           }
                         }
                       }}
@@ -1086,7 +1120,11 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                     <Input
                       id="fileName"
                       value={settings.fileName}
-                      onChange={e => updateSetting('fileName', e.target.value)}
+                      onChange={e =>
+                        settings.renderType === 'still'
+                          ? updateSetting('fileName', e.target.value)
+                          : updateVideoFileName(e)
+                      }
                       className="col-span-3"
                       placeholder="video.mp4"
                     />
@@ -1190,7 +1228,9 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                         } else {
                           updateSetting('renderType', 'video');
                           if (settings.fileName.startsWith('image-')) {
-                            updateSetting('fileName', 'video-' + Date.now().toString().replaceAll('-', ''));
+                            updateSetting('fileName', 'video-' + Date.now().toString().replaceAll('-', '') + '.mp4');
+                          } else {
+                            updateSetting('fileName', ensureSingleMp4(settings.fileName));
                           }
                         }
                       }}
@@ -1304,9 +1344,13 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   <Input
                     id="browserFileName"
                     value={settings.fileName}
-                    onChange={e => updateSetting('fileName', e.target.value)}
+                    onChange={e =>
+                      settings.renderType === 'still'
+                        ? updateSetting('fileName', e.target.value)
+                        : updateVideoFileName(e)
+                    }
                     className="col-span-3"
-                    placeholder="video"
+                    placeholder={settings.renderType === 'still' ? 'image' : 'video.mp4'}
                   />
                 </div>
 
@@ -1490,9 +1534,13 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   <Input
                     id="localFileName"
                     value={settings.fileName}
-                    onChange={e => updateSetting('fileName', e.target.value)}
+                    onChange={e =>
+                      settings.renderType === 'still'
+                        ? updateSetting('fileName', e.target.value)
+                        : updateVideoFileName(e)
+                    }
                     className="col-span-3"
-                    placeholder="video"
+                    placeholder={settings.renderType === 'still' ? 'image' : 'video.mp4'}
                   />
                 </div>
 

@@ -141,7 +141,8 @@ export const POST = async (req: NextRequest) => {
       };
     } else {
       // Render video (default)
-      const videoOutputPath = path.join(outputDir, `${outputFileName}.mp4`);
+      const videoBaseName = outputFileName.replace(/\.mp4$/i, '');
+      const videoOutputPath = path.join(outputDir, `${videoBaseName}.mp4`);
 
       await renderMedia({
         composition,
@@ -168,7 +169,7 @@ export const POST = async (req: NextRequest) => {
       result = {
         type: 'video',
         outputPath: videoOutputPath,
-        fileName: `${outputFileName}.mp4`,
+        fileName: `${videoBaseName}.mp4`,
         composition: composition,
       };
     }

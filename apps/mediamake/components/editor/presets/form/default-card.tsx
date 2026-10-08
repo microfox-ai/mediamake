@@ -110,13 +110,14 @@ export function DefaultCard({
         setSavingStates(prev => ({ ...prev, [index]: true }));
 
         try {
-            const response = await fetch(`/api/transcriptions/${reference.value._id}/metadata`, {
-                method: 'POST',
+            const response = await fetch(`/api/captions/${reference.value._id}`, {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    id: reference.value._id,
+                    title: reference.value.title,
+                    description: reference.value.description,
                     captions: reference.value.captions
                 }),
             });

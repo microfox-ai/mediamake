@@ -104,7 +104,7 @@ const defaultCustomConfig: CustomLambdaConfig = {
 };
 
 const defaultSettings: RenderSettings = {
-    fileName: "video-" + Date.now().toString().replaceAll("-", ""),
+    fileName: "video-" + Date.now().toString().replaceAll("-", "") + ".mp4",
     codec: "h264",
     audioCodec: "aac",
     composition: "DataMotion",
@@ -209,7 +209,7 @@ export function RenderProvider({
     const openModal = () => {
         setSettingsState(prev => ({
             ...prev,
-            fileName: "video-" + Date.now().toString().replaceAll("-", ""),
+            fileName: "video-" + Date.now().toString().replaceAll("-", "") + ".mp4",
         }));
         setIsModalOpen(true);
     }
