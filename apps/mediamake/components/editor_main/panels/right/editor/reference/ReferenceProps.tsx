@@ -10,6 +10,7 @@ import { remapDataReferenceKeys } from "@/components/editor/presets/engine/prese
 import type { DefaultPresetData, ReferenceItem } from "@/components/editor/presets/types";
 import type { Timeline } from "../../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
+import { useEditorStore } from "../../../../stores/editor-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
@@ -61,6 +62,7 @@ import { ParagraphCaptionsDialog } from "@/components/editor/captions/paragraph-
 import { AudioToTextDialog } from "@/components/editor/captions/audio-to-text-dialog";
 import type { Caption, CaptionsDocument, Transcription } from "@/app/types/transcription";
 import {
+  captionsDocumentId,
   captionsReferenceValue,
   createCaptionsDocument,
   getCaptionsDocument,
@@ -506,7 +508,31 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
       const nextReferences = [...currentReferences];
       const oldKey = currentReferences[referenceIndex]?.key;
-      nextReferences[referenceIndex] = { ...nextReferences[referenceIndex], ...updatedReference };
+      const previous = currentReferences[referenceIndex];
+      let mergedReference = { ...previous, ...updatedReference };
+      if (
+        previous?.type === "captions" &&
+        mergedReference.value &&
+        typeof mergedReference.value === "object" &&
+        !Array.isArray(mergedReference.value)
+      ) {
+        const prevValue = previous.value ?? {};
+        const nextValue = mergedReference.value;
+        const prevId = captionsDocumentId(prevValue._id);
+        const nextId = captionsDocumentId(nextValue._id);
+        const sourceId =
+          captionsDocumentId(nextValue.sourceTranscriptionId) ||
+          captionsDocumentId(prevValue.sourceTranscriptionId);
+        mergedReference = {
+          ...mergedReference,
+          value: {
+            ...nextValue,
+            ...(prevId && !nextId ? { _id: prevId } : nextId ? { _id: nextId } : {}),
+            ...(sourceId ? { sourceTranscriptionId: sourceId } : {}),
+          },
+        };
+      }
+      nextReferences[referenceIndex] = mergedReference;
       const newKey = nextReferences[referenceIndex]?.key;
       const keyMapping = oldKey && newKey && oldKey !== newKey ? { [oldKey]: newKey } : {};
 
@@ -588,17 +614,21 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   );
 
   const linkedCaptionsId =
-    selectedReference?.type === "captions" && selectedReference?.value?._id
-      ? String(selectedReference.value._id)
+    selectedReference?.type === "captions"
+      ? captionsDocumentId(selectedReference?.value?._id) || null
       : null;
 
   const captionsSyncKey = useMemo(() => {
-    if (selectedReference?.type !== "captions" || !selectedReference.value?._id) {
+    const id =
+      selectedReference?.type === "captions"
+        ? captionsDocumentId(selectedReference.value?._id)
+        : "";
+    if (!id) {
       return "";
     }
     const value = selectedReference.value;
     return JSON.stringify({
-      id: String(value._id),
+      id,
       title: value.title ?? "",
       description: value.description ?? "",
       captions: value.captions ?? [],
@@ -620,6 +650,9 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       const ref = latestTimeline.defaultData?.references?.[referenceIndex];
       if (!ref || ref.type !== "captions") return;
       const value = captionsReferenceValue(doc, fallbackCaptions);
+      if (!value._id) {
+        throw new Error("Captions document is missing an id");
+      }
       lastSavedCaptionsKeyRef.current = JSON.stringify({
         id: value._id,
         title: value.title ?? "",
@@ -630,13 +663,19 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       onReferenceChange({
         references: [{ ...ref, value }],
       });
+      const latest =
+        useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+      const saved = latest.defaultData?.references?.[referenceIndex];
+      if (saved) {
+        useEditorStore.getState().selectReference(saved, latest, referenceIndex);
+      }
     },
     [timeline, referenceIndex, onReferenceChange],
   );
 
   const handleSaveCaptionsToDatabase = useCallback(async (manual = false) => {
     const value = readLatestCaptionsValue();
-    const id = value?._id ? String(value._id) : "";
+    const id = captionsDocumentId(value?._id);
     if (!id) {
       if (manual) toast.error("Create or link captions before saving");
       return;
@@ -658,9 +697,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         if (!missing) throw error;
         const created = await createCaptionsDocument({
           ...payload,
-          sourceTranscriptionId: value.sourceTranscriptionId
-            ? String(value.sourceTranscriptionId)
-            : id,
+          sourceTranscriptionId: captionsDocumentId(value.sourceTranscriptionId) || id,
         });
         if (gen !== captionsSaveGenRef.current) return;
         bindCaptionsDocument(created, payload.captions);
@@ -727,13 +764,13 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   const handleLinkTranscription = useCallback(
     (transcription: Transcription) => {
-      const id = transcription._id?.toString() ?? "";
+      const id = captionsDocumentId(transcription._id);
       return handleCreateCaptions(
         {
           title: transcription.title || "Untitled Captions",
           description: transcription.description || "",
           captions: transcription.captions ?? [],
-          sourceTranscriptionId: id,
+          sourceTranscriptionId: id || undefined,
           projectId: transcription.projectId || timeline.projectId,
         },
         "Caption version created from transcription",
@@ -752,6 +789,15 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   );
 
   useEffect(() => {
+    const saved = lastSavedCaptionsKeyRef.current;
+    if (saved && linkedCaptionsId) {
+      try {
+        const parsed = JSON.parse(saved) as { id?: string };
+        if (parsed.id === linkedCaptionsId) return;
+      } catch {
+        // Snapshot is unreadable — treat this as a new document.
+      }
+    }
     lastSavedCaptionsKeyRef.current = null;
     setCaptionsSyncFailed(false);
   }, [linkedCaptionsId, referenceIndex]);

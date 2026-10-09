@@ -16,6 +16,7 @@ import { MediaPicker } from "../../media/media-picker";
 import { MediaFile } from "@/app/types/media";
 import { TranscriptionPicker } from "../../../transcriber/picker/transcription-picker";
 import { Transcription } from "@/app/types/transcription";
+import { captionsDocumentId, captionsReferenceValue, createCaptionsDocument } from "@/lib/captions/captions-client";
 import { JsonEditor } from "../../player/json-editor";
 import { SchemaForm } from "./schema-form";
 import { MediasGroupField } from "./inputs/medias-group-field";
@@ -90,6 +91,48 @@ export function DefaultCard({
         onDefaultDataChange({
             ...defaultData,
             references: updatedReferences
+        });
+    };
+
+    const linkTranscription = (index: number, transcription: Transcription) => {
+        void (async () => {
+            try {
+                const sourceId = captionsDocumentId(transcription._id);
+                const created = await createCaptionsDocument({
+                    title: transcription.title || "Untitled Captions",
+                    description: transcription.description || "",
+                    captions: transcription.captions ?? [],
+                    sourceTranscriptionId: sourceId || undefined,
+                    projectId: transcription.projectId,
+                });
+                updateReference(
+                    index,
+                    "value",
+                    captionsReferenceValue(created, transcription.captions ?? []),
+                );
+                toast.success("Caption version created from transcription");
+            } catch (error) {
+                toast.error(
+                    `Failed to create captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+                );
+            }
+        })();
+    };
+
+    const mergeCaptionsValue = (index: number, nextValue: any) => {
+        const current = defaultData.references[index]?.value;
+        const prev = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+        const next = nextValue && typeof nextValue === "object" && !Array.isArray(nextValue) ? nextValue : {};
+        const prevId = captionsDocumentId(prev._id);
+        const nextId = captionsDocumentId(next._id);
+        const sourceId =
+            captionsDocumentId(next.sourceTranscriptionId) ||
+            captionsDocumentId(prev.sourceTranscriptionId);
+        updateReference(index, "value", {
+            ...prev,
+            ...next,
+            ...(prevId && !nextId ? { _id: prevId } : nextId ? { _id: nextId } : {}),
+            ...(sourceId ? { sourceTranscriptionId: sourceId } : {}),
         });
     };
 
@@ -372,7 +415,7 @@ export function DefaultCard({
                                         ),
                                     )}
                                     value={reference.value || { _id: '', captions: [] }}
-                                    onChange={(val) => updateReference(index, 'value', val)}
+                                    onChange={(val) => mergeCaptionsValue(index, val)}
                                     showTabs={true}
                                     showResetButton={false}
                                     showReferencesDropdown={false}
@@ -479,9 +522,7 @@ export function DefaultCard({
                         )}
                         {reference.type === 'captions' && (
                             <TranscriptionPickerButton
-                                onSelect={({ captions, _id }) => {
-                                    updateReference(0, 'value', { captions, _id: _id?.toString() ?? "" });
-                                }}
+                                onSelect={(transcription) => linkTranscription(0, transcription)}
                             />
                         )}
                     </div>
@@ -617,9 +658,7 @@ export function DefaultCard({
                                                     )}
                                                     {reference.type === 'captions' && (
                                                         <TranscriptionPickerButton
-                                                            onSelect={({ captions, _id }) => {
-                                                                updateReference(index, 'value', { captions, _id: _id?.toString() ?? "" });
-                                                            }}
+                                                            onSelect={(transcription) => linkTranscription(index, transcription)}
                                                         />
                                                     )}
                                                 </div>

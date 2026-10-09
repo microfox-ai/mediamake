@@ -17,7 +17,7 @@ import {
  * Reads a captions document, asks the shared motion-graphics arranger to
  * re-break cards and re-pick highlights, then writes the cards back.
  * Word text and timestamps stay on the source words.
- * Mixed flow is accepted and currently arranged as singular.
+ * Each card is arranged on its own. htmlText is the only caption metadata written.
  */
 
 const aiRouter = new AiRouter();
@@ -31,44 +31,40 @@ const sentenceStructureFixerAgent = aiRouter
         transcriptionId,
         userRequest,
         applyToDatabase = false,
-        flow = 'singular',
-        layout,
+        frameChoice,
         fontScaling = 2,
-        maxCharacters = 'any',
+        staticFrameChoice = true,
       } = ctx.request.params as {
         captionId: string;
         transcriptionId?: string;
         userRequest?: string;
         applyToDatabase?: boolean;
-        flow?: 'singular' | 'mixed';
-        layout: (typeof CAPTION_LAYOUTS)[number];
+        frameChoice: (typeof CAPTION_LAYOUTS)[number];
         fontScaling?: number;
-        maxCharacters?: 'any' | '15-25' | '25to35' | '35to45' | '45+';
+        staticFrameChoice?: boolean;
       };
 
-      if (!layout) {
-        throw new Error('layout is required');
+      if (!frameChoice) {
+        throw new Error('frameChoice is required');
       }
 
       console.log('CAPTION LAYOUT FIXER: Starting...', {
         captionId,
         transcriptionId,
-        flow,
-        layout,
+        frameChoice,
         fontScaling,
-        maxCharacters,
+        staticFrameChoice,
       });
 
       ctx.response.writeMessageMetadata({
-        loader: `Arranging caption cards (${layout})...`,
+        loader: `Arranging caption cards (${frameChoice})...`,
       });
 
       const captions = ctx.state.captions;
       const result = await runSplitAndHighlight(captions, {
-        flow,
-        layout,
+        frameChoice,
         fontScaling,
-        maxCharacters,
+        staticFrameChoice,
         userRequest,
       });
 
@@ -100,11 +96,9 @@ const sentenceStructureFixerAgent = aiRouter
         htmlText: result.htmlText,
         changes: result.changes,
         confidence: result.confidence,
-        flow,
-        flowApplied: result.flowApplied,
-        layout,
+        frameChoice,
         fontScaling,
-        maxCharacters,
+        staticFrameChoice: result.staticFrameChoice,
         summary: result.summary,
       };
     } catch (error) {
@@ -116,7 +110,7 @@ const sentenceStructureFixerAgent = aiRouter
     id: 'sentenceStructureFixer',
     name: 'Caption Layout Fixer',
     description:
-      'Rearrange a captions document into motion-graphics cards. Two <br/> tags separate cards, one <br/> splits lines inside a card, and <b> marks words drawn larger by fontScaling. Words and timestamps are preserved.',
+      'Rearrange a captions document into motion-graphics cards. Two <br/> tags separate cards, one <br/> splits lines inside a card, and <b> marks the words emphasized on that line. Only htmlText is written. Words and timestamps are preserved.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
       captionId: z.string().describe('Captions document ID to rearrange'),
       transcriptionId: z
@@ -142,8 +136,8 @@ const sentenceStructureFixerAgent = aiRouter
       htmlText: z.string(),
       changes: z.array(z.any()),
       confidence: z.number().min(0).max(1),
-      flowApplied: z.literal('singular'),
-      layout: z.enum(CAPTION_LAYOUTS),
+      frameChoice: z.enum(CAPTION_LAYOUTS),
+      staticFrameChoice: z.boolean(),
       summary: z.string(),
     }),
     metadata: {

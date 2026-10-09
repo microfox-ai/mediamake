@@ -37,6 +37,8 @@ import '@/components/transcriber/tiptap/tiptap-editor.css';
 import './full-captions-editor.css';
 
 const DEFAULT_NEW_WORD_DURATION = 1;
+/** Spoken pace for typed lines: each letter adds this much time. */
+const SECONDS_PER_CHAR = 0.08;
 
 const CaptionParagraph = Paragraph.extend({
   addAttributes() {
@@ -75,6 +77,8 @@ type CaptionLike = {
   }>;
   metadata?: Record<string, unknown>;
   originalState?: Record<string, unknown>;
+  /** Typed line: start follows the previous line and duration follows the text. */
+  autoTiming?: boolean;
 };
 
 function captionsToDocContent(captions: CaptionLike[]) {
@@ -123,11 +127,20 @@ function captionsToDocContent(captions: CaptionLike[]) {
   };
 }
 
+type ParsedWord = NonNullable<CaptionLike['words']>[number] & {
+  fromMark: boolean;
+};
+
+function durationForText(text: string): number {
+  const chars = Math.max(1, Array.from(text.replace(/\s/g, '')).length);
+  return chars * SECONDS_PER_CHAR;
+}
+
 function parseParagraphWords(pNode: {
   content: { forEach: (fn: (child: any) => void) => void };
   textContent: string;
-}): NonNullable<CaptionLike['words']> {
-  const words: NonNullable<CaptionLike['words']> = [];
+}): ParsedWord[] {
+  const words: ParsedWord[] = [];
   let nextStart: number | null = null;
 
   const pushTimed = (
@@ -135,6 +148,7 @@ function parseParagraphWords(pNode: {
     absoluteStart: number,
     absoluteEnd: number,
     confidence = 1,
+    fromMark = true,
   ) => {
     words.push({
       id: generateId(),
@@ -145,6 +159,7 @@ function parseParagraphWords(pNode: {
       confidence,
       start: 0,
       end: 0,
+      fromMark,
     });
     nextStart = absoluteEnd;
   };
@@ -153,7 +168,8 @@ function parseParagraphWords(pNode: {
     const start =
       nextStart ??
       (words.length > 0 ? (words[words.length - 1].absoluteEnd ?? 0) : 0);
-    pushTimed(text, start, start + DEFAULT_NEW_WORD_DURATION, 1);
+    const duration = durationForText(text);
+    pushTimed(text, start, start + duration, 1, false);
   };
 
   pNode.content.forEach((child: any) => {
@@ -259,8 +275,59 @@ function docToCaptions(
     words: NonNullable<CaptionLike['words']>;
     absoluteStart: number;
     absoluteEnd: number;
+    autoTiming: boolean;
   };
   const drafts: Draft[] = [];
+
+  const placeByTextLength = (
+    words: ParsedWord[],
+    anchor: number,
+  ): { absoluteStart: number; absoluteEnd: number } => {
+    let cursor = anchor;
+    words.forEach(word => {
+      const duration = durationForText(word.text || '');
+      word.absoluteStart = cursor;
+      word.absoluteEnd = cursor + duration;
+      word.duration = duration;
+      word.fromMark = false;
+      cursor += duration;
+    });
+    const absoluteStart = words[0]?.absoluteStart ?? anchor;
+    words.forEach(word => {
+      word.start = (word.absoluteStart ?? 0) - absoluteStart;
+      word.end = (word.absoluteEnd ?? 0) - absoluteStart;
+    });
+    return {
+      absoluteStart,
+      absoluteEnd: cursor,
+    };
+  };
+
+  const placeNewWordsAfterTimed = (words: ParsedWord[]) => {
+    let cursor: number | null = null;
+    words.forEach(word => {
+      if (word.fromMark) {
+        cursor = word.absoluteEnd ?? cursor;
+        return;
+      }
+      const duration = durationForText(word.text || '');
+      const start = cursor ?? word.absoluteStart ?? 0;
+      word.absoluteStart = start;
+      word.absoluteEnd = start + duration;
+      word.duration = duration;
+      cursor = start + duration;
+    });
+    const absoluteStart = words[0]?.absoluteStart ?? 0;
+    const absoluteEnd = words.reduce(
+      (end, word) => Math.max(end, word.absoluteEnd ?? end),
+      absoluteStart,
+    );
+    words.forEach(word => {
+      word.start = (word.absoluteStart ?? 0) - absoluteStart;
+      word.end = (word.absoluteEnd ?? 0) - absoluteStart;
+    });
+    return { absoluteStart, absoluteEnd };
+  };
 
   doc.forEach((pNode: any) => {
     if (pNode.type.name !== 'paragraph') return;
@@ -272,52 +339,44 @@ function docToCaptions(
 
     if (words.length === 0 && !text) {
       const prev = prevById.get(id);
-      const start = prev?.absoluteStart ?? afterPrev;
-      const end =
-        prev?.absoluteEnd ?? start + DEFAULT_NEW_WORD_DURATION;
+      const keepPlaced = !!prev && !prev.autoTiming;
+      const start = keepPlaced ? (prev?.absoluteStart ?? afterPrev) : afterPrev;
       drafts.push({
         id,
         text: '',
         words: [],
         absoluteStart: start,
-        absoluteEnd: Math.max(end, start + DEFAULT_NEW_WORD_DURATION),
+        absoluteEnd: start + SECONDS_PER_CHAR,
+        autoTiming: !keepPlaced,
       });
       return;
     }
     if (words.length === 0) return;
 
-    let absoluteStart = words[0].absoluteStart ?? 0;
-    let absoluteEnd =
-      words[words.length - 1].absoluteEnd ??
-      absoluteStart + DEFAULT_NEW_WORD_DURATION;
     const prev = prevById.get(id);
+    const typedLine =
+      words.every(word => !word.fromMark) || Boolean(prev?.autoTiming);
 
-    // Brand-new line whose words defaulted to t=0 → place after previous line
-    if (!prev && absoluteStart === 0 && afterPrev > 0) {
-      const shift = afterPrev;
-      words.forEach(w => {
-        w.absoluteStart = (w.absoluteStart ?? 0) + shift;
-        w.absoluteEnd = (w.absoluteEnd ?? 0) + shift;
-        w.start = (w.start ?? 0);
-        w.end = (w.end ?? 0);
-      });
-      absoluteStart = words[0].absoluteStart ?? shift;
-      absoluteEnd =
-        words[words.length - 1].absoluteEnd ??
-        absoluteStart + DEFAULT_NEW_WORD_DURATION;
-      const sentenceStart = absoluteStart;
-      words.forEach(w => {
-        w.start = (w.absoluteStart ?? 0) - sentenceStart;
-        w.end = (w.absoluteEnd ?? 0) - sentenceStart;
-      });
+    let absoluteStart: number;
+    let absoluteEnd: number;
+    if (typedLine) {
+      // New line after line 4 starts when line 4 ends, and grows with the text.
+      const placed = placeByTextLength(words, afterPrev);
+      absoluteStart = placed.absoluteStart;
+      absoluteEnd = placed.absoluteEnd;
+    } else {
+      const placed = placeNewWordsAfterTimed(words);
+      absoluteStart = placed.absoluteStart;
+      absoluteEnd = placed.absoluteEnd;
     }
 
     drafts.push({
       id,
       text,
-      words,
+      words: words.map(({ fromMark: _fromMark, ...word }) => word),
       absoluteStart,
       absoluteEnd,
+      autoTiming: typedLine,
     });
   });
 
@@ -398,6 +457,7 @@ function docToCaptions(
       duration,
       words: draft.words,
       metadata,
+      ...(draft.autoTiming ? { autoTiming: true } : {}),
       ...(originalState ? { originalState } : {}),
     };
   });
@@ -651,8 +711,16 @@ export function FullCaptionsEditor({
               totalCount={captions.length}
               defaultMetaOpen
               onChange={updated => {
+                const timingTouched =
+                  updated.absoluteStart !== editingCaption.absoluteStart ||
+                  updated.absoluteEnd !== editingCaption.absoluteEnd ||
+                  JSON.stringify(updated.words) !==
+                    JSON.stringify(editingCaption.words);
+                const nextCaption = timingTouched
+                  ? { ...updated, autoTiming: false }
+                  : updated;
                 const next = [...captions];
-                next[editIndex] = updated;
+                next[editIndex] = nextCaption;
                 lastSyncedRef.current = JSON.stringify(next);
                 captionsRef.current = next;
                 onChange(next);

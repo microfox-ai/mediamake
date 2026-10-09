@@ -4,28 +4,22 @@ import type { ActionDefinition, ActionExecuteContext, ActionExecuteResult } from
 const AGENT_PATH = "/api/studio/chat/agent/autofix/sentence-structure";
 
 const inputSchema = z.object({
-  flow: z
-    .enum(["singular", "mixed"])
-    .default("singular")
-    .describe(
-      "singular uses one layout for every card. mixed is reserved and currently runs as singular.",
-    ),
-  layout: z
+  frameChoice: z
     .enum(["vertical_box", "horizontal_box", "square_box"])
     .default("vertical_box")
     .describe(
-      "vertical_box: 3–5 lines. horizontal_box: 1–2 lines. square_box: 2–3 lines.",
+      "Frame for every card. vertical_box: tall, up to 5 lines. horizontal_box: wide, up to 2 lines. square_box: up to 3 lines.",
     ),
   fontScaling: z
     .number()
     .positive()
     .default(2)
     .describe("How many times larger bold words are drawn than normal words"),
-  maxCharacters: z
-    .enum(["any", "15-25", "25to35", "35to45", "45+"])
-    .default("any")
+  staticFrameChoice: z
+    .boolean()
+    .default(true)
     .describe(
-      "Effective characters per line. Bold words count as letters × font scaling.",
+      "Keep on. Every card uses the same frame. A later pass can turn this off so each card picks its own frame.",
     ),
   userRequest: z
     .string()
@@ -125,10 +119,9 @@ export const captionSentenceStructure: ActionDefinition = {
   },
   inputSchema,
   defaultInputParams: {
-    flow: "singular",
-    layout: "vertical_box",
+    frameChoice: "vertical_box",
     fontScaling: 2,
-    maxCharacters: "any",
+    staticFrameChoice: true,
     userRequest: "",
   },
   execute: async (ctx): Promise<ActionExecuteResult> => {
@@ -144,10 +137,9 @@ export const captionSentenceStructure: ActionDefinition = {
         ...(value.sourceTranscriptionId
           ? { transcriptionId: String(value.sourceTranscriptionId) }
           : {}),
-        flow: parsed.flow,
-        layout: parsed.layout,
+        frameChoice: parsed.frameChoice,
         fontScaling: parsed.fontScaling,
-        maxCharacters: parsed.maxCharacters,
+        staticFrameChoice: parsed.staticFrameChoice,
         ...(parsed.userRequest?.trim()
           ? { userRequest: parsed.userRequest.trim() }
           : {}),
@@ -176,7 +168,7 @@ export const captionSentenceStructure: ActionDefinition = {
     const summary =
       typeof output.summary === "string"
         ? output.summary
-        : `${parsed.layout} · ${captions.length} cards`;
+        : `${parsed.frameChoice} · ${captions.length} cards`;
 
     return {
       outputs: [

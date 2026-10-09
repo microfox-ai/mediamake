@@ -44,7 +44,7 @@ export function AnchoredEditPopover({
         sideOffset={8}
         collisionPadding={12}
         className={cn(
-          "z-50 w-[min(28rem,calc(100vw-1.5rem))] max-h-[min(70vh,36rem)] overflow-y-auto p-3",
+          "z-50 w-[min(28rem,calc(100vw-1.5rem))] max-w-[min(28rem,calc(100vw-1.5rem))] min-w-0 max-h-[min(70vh,36rem)] overflow-x-hidden overflow-y-auto p-3",
           className,
         )}
         onOpenAutoFocus={(event) => event.preventDefault()}
@@ -56,7 +56,7 @@ export function AnchoredEditPopover({
         }}
       >
         <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="text-sm font-medium">{title}</p>
+          <p className="min-w-0 break-words text-sm font-medium">{title}</p>
           <Button
             type="button"
             variant="ghost"
@@ -68,7 +68,7 @@ export function AnchoredEditPopover({
             <span className="sr-only">Close</span>
           </Button>
         </div>
-        {children}
+        <div className="min-w-0 max-w-full">{children}</div>
       </PopoverContent>
     </Popover>
   );

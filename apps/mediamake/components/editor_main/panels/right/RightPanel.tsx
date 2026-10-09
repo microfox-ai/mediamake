@@ -44,8 +44,8 @@ export function RightPanel() {
     switch (currentPattern) {
       case 'edit':
         return (
-          <div className="flex h-full flex-col min-h-0">
-            <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex h-full min-h-0 min-w-0 flex-col">
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
               <EditorProps />
             </div>
           </div>
@@ -60,7 +60,7 @@ export function RightPanel() {
 
   return (
     <div
-      className="flex h-full flex-col border-l bg-background"
+      className="flex h-full min-w-0 flex-col overflow-hidden border-l bg-background"
       data-editor-scope="right"
     >
       {renderPatternContent()}

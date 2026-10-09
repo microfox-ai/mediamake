@@ -10,16 +10,12 @@
  * source captions.
  */
 
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import dedent from 'dedent';
 import { z } from 'zod/v4';
 import type { Caption, CaptionWord } from '@/app/types/transcription';
-import {
-  extractKeywordsFromHtmlText,
-  parseCaptionHtmlText,
-  tokenizeCaptionHtml,
-} from '@/lib/captions/html-text';
+import { tokenizeCaptionHtml } from '@/lib/captions/html-text';
 import {
   detectSegmentationChanges,
   type CaptionChange,
@@ -27,36 +23,19 @@ import {
 
 export const SPLIT_HIGHLIGHT_MODEL = 'gemini-2.5-pro';
 
-export const CAPTION_FLOWS = ['singular', 'mixed'] as const;
 export const CAPTION_LAYOUTS = [
   'vertical_box',
   'horizontal_box',
   'square_box',
 ] as const;
-export const MAX_CHARACTER_OPTIONS = [
-  'any',
-  '15-25',
-  '25to35',
-  '35to45',
-  '45+',
-] as const;
 
-export type CaptionFlow = (typeof CAPTION_FLOWS)[number];
 export type CaptionLayout = (typeof CAPTION_LAYOUTS)[number];
-export type MaxCharactersOption = (typeof MAX_CHARACTER_OPTIONS)[number];
 
 export const SplitAndHighlightParamsSchema = z.object({
-  flow: z
-    .enum(CAPTION_FLOWS)
-    .optional()
-    .default('singular')
-    .describe(
-      'singular: every caption card uses the same line count and emphasis pattern. mixed is reserved and currently runs as singular.',
-    ),
-  layout: z
+  frameChoice: z
     .enum(CAPTION_LAYOUTS)
     .describe(
-      'vertical_box: 3–5 lines per card. horizontal_box: 1–2 lines. square_box: 2–3 lines.',
+      'The frame every card is drawn in while staticFrameChoice is true. vertical_box: tall stack, up to 5 lines. horizontal_box: wide card, up to 2 lines. square_box: compact block, up to 3 lines.',
     ),
   fontScaling: z
     .number()
@@ -65,12 +44,11 @@ export const SplitAndHighlightParamsSchema = z.object({
     .describe(
       'How many times larger a bold word is drawn compared with a normal word. A bold word of N letters occupies about N × fontScaling of horizontal space.',
     ),
-  maxCharacters: z
-    .enum(MAX_CHARACTER_OPTIONS)
-    .optional()
-    .default('any')
+  staticFrameChoice: z
+    .boolean()
+    .default(true)
     .describe(
-      'Character budget for each visual line, counting a bold word at fontScaling × its letter count. any means no numeric cap.',
+      'When true, every card uses frameChoice. Keep this true. A later pass may set it false so each card can choose its own frame.',
     ),
 });
 
@@ -88,90 +66,51 @@ export interface SplitAndHighlightResult {
   changes: CaptionChange[];
   confidence: number;
   usage: unknown;
-  /** mixed is accepted and stored, but only singular arrangement is applied. */
-  flowApplied: 'singular';
+  staticFrameChoice: boolean;
   summary: string;
 }
 
-const HtmlTextSchema = z.object({
-  htmlText: z
-    .string()
-    .describe(
-      'The full caption document. <br/><br/> separates caption cards. A single <br/> splits lines inside a card. <b>...</b> marks highlighted words. Every source word appears once, in order.',
-    ),
-});
-
 const LAYOUT_SPEC: Record<
   CaptionLayout,
-  { minLines: number; maxLines: number; direction: string }
+  { maxLines: number; direction: string }
 > = {
   vertical_box: {
-    minLines: 3,
     maxLines: 5,
     direction: dedent`
-      VERTICAL BOX — a tall stack, 3 to 5 lines on every card.
-      The bold word is the visual anchor of the stack. It is drawn at fontScaling times body size, so its visual width is about (letter count × fontScaling).
-      Choose the highlighted word so that visual width sits flush with the shorter companion lines: wide enough to feel like it owns the stack, narrow enough that it does not spill past them.
-      Put the bold word on its own line when sharing the line with body copy would make the scaled word overflow.
-      Companion lines should be similar visual widths to each other, so the stack reads as a designed block rather than a ragged subtitle.
+      VERTICAL BOX — a tall stack, at most 5 lines.
+      Build a staircase: a short quiet line, then the line that lands. Lines do not need matching widths.
+      Bold words are drawn at fontScaling times body size, so each one's visual width is about (letter count × fontScaling).
+      Put scaled words on their own line when sharing the line with body copy would overflow.
     `,
   },
   horizontal_box: {
-    minLines: 1,
     maxLines: 2,
     direction: dedent`
-      HORIZONTAL BOX — a wide, short card, 1 or 2 lines only.
-      A 1-line card is a single designed phrase. A 2-line card is a pair, not a paragraph.
-      The bold word is larger by fontScaling, so pick a word whose scaled width still fits the card. Do not bold a long word that would blow out a short horizontal line.
-      On a 2-line card, give the bold word the line where it can sit cleanly — often alone — and let the other line carry the smaller words.
+      HORIZONTAL BOX — a wide card, at most 2 lines.
+      A 1-line card is one phrase. A 2-line card is a setup and a landing, not a paragraph.
+      Bold words are larger by fontScaling. Their combined scaled width has to stay inside the wide line.
     `,
   },
   square_box: {
-    minLines: 2,
     maxLines: 3,
     direction: dedent`
-      SQUARE BOX — a compact block, 2 or 3 lines on every card.
-      Balance the scaled bold word against the other line or lines. Its visual width (letter count × fontScaling) should be close to those lines, so the square stays even.
-      One highlighted word (or one tight adjacent phrase) per card. The second and third lines are body copy that frame it.
+      SQUARE BOX — a compact block, at most 3 lines.
+      Keep the block close to even. The combined visual width of bold words on a line (each word's letters × fontScaling) should stay near the other lines.
     `,
   },
 };
 
-const CHARACTER_BANDS: Record<
-  MaxCharactersOption,
-  { min: number | null; max: number | null; instruction: string }
-> = {
-  any: {
-    min: null,
-    max: null,
-    instruction:
-      'No numeric character cap. Still keep every line a deliberate width for the layout. Do not let a line run on just because it can.',
-  },
-  '15-25': {
-    min: 15,
-    max: 25,
-    instruction:
-      'Each visual line should land between 15 and 25 effective characters. Count a normal word by its letters. Count a bold word as letters × fontScaling.',
-  },
-  '25to35': {
-    min: 25,
-    max: 35,
-    instruction:
-      'Each visual line should land between 25 and 35 effective characters. Count a normal word by its letters. Count a bold word as letters × fontScaling.',
-  },
-  '35to45': {
-    min: 35,
-    max: 45,
-    instruction:
-      'Each visual line should land between 35 and 45 effective characters. Count a normal word by its letters. Count a bold word as letters × fontScaling.',
-  },
-  '45+': {
-    min: 45,
-    max: null,
-    instruction:
-      'Each visual line should be at least 45 effective characters. Count a normal word by its letters. Count a bold word as letters × fontScaling. Still break before a line becomes a paragraph.',
-  },
-};
+/**
+ * Frame for one card.
+ * staticFrameChoice keeps every card on frameChoice.
+ * A later pass can return a different frame per card when the flag is false.
+ */
+export function frameForCard(
+  options: SplitAndHighlightOptions,
+  _cardIndex: number,
+): CaptionLayout {
+  return options.frameChoice;
+}
 
 function escapeHtml(text: string): string {
   return text
@@ -179,6 +118,13 @@ function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Pull the html body out of a generateText reply. */
+export function extractHtmlFromModelText(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:html)?\s*([\s\S]*?)```/i);
+  return (fenced?.[1] ?? trimmed).trim();
 }
 
 /** Collapse model / editor HTML into `<br/>` and `<b>` only. */
@@ -220,54 +166,121 @@ export function serializeCaptionsToHtml(captions: Caption[]): string {
     .join('<br/><br/>');
 }
 
+function seconds(value: number): string {
+  return `${Math.max(0, value).toFixed(2)}s`;
+}
+
+/** Timed cards for the model. Markup stays out of this block so timings are not copied into htmlText. */
+export function formatTimedCaptions(captions: Caption[]): string {
+  return captions
+    .map((caption, index) => {
+      const start = caption.absoluteStart ?? caption.start ?? 0;
+      const end = caption.absoluteEnd ?? caption.end ?? start;
+      const words = caption.words ?? [];
+      const wordLines =
+        words.length > 0
+          ? words.map((word, wordIndex) => {
+              const duration =
+                word.duration ?? word.absoluteEnd - word.absoluteStart;
+              const next = words[wordIndex + 1];
+              const gap = next
+                ? next.absoluteStart - word.absoluteEnd
+                : end - word.absoluteEnd;
+              return `  ${seconds(duration)}  gap ${seconds(gap)}  ${word.text}`;
+            })
+          : [`  ${caption.text ?? ''}`];
+
+      return [
+        `CARD ${index + 1}  ${seconds(start)}–${seconds(end)}  (${seconds(end - start)} on screen)`,
+        ...wordLines,
+      ].join('\n');
+    })
+    .join('\n\n');
+}
+
+function frameDirection(options: SplitAndHighlightOptions): string {
+  const frame = frameForCard(options, 0);
+  const spec = LAYOUT_SPEC[frame];
+  const shared = dedent`
+    ${spec.direction}
+    ${spec.maxLines} lines is the ceiling, not a quota. A short phrase or a brief card uses fewer lines.
+  `;
+
+  if (options.staticFrameChoice !== false) {
+    return dedent`
+      STATIC FRAME — every card uses ${frame}.
+      Do not switch frames between cards or between lines.
+      ${shared}
+    `;
+  }
+
+  return dedent`
+    staticFrameChoice is false, so a later pass may give each card its own frame.
+    This pass still draws every card as ${frame}. Do not emit frame tags.
+    ${shared}
+  `;
+}
+
 export function buildSplitAndHighlightPrompt(
   sourceHtml: string,
   options: SplitAndHighlightOptions,
+  timedSource: string,
 ): { system: string; prompt: string } {
-  const layout = LAYOUT_SPEC[options.layout];
-  const band = CHARACTER_BANDS[options.maxCharacters ?? 'any'];
-  const scale = options.fontScaling;
+  const scale = options.fontScaling ?? 2;
+  const frame = frameForCard(options, 0);
 
   const system = dedent`
-    You arrange captions for motion graphics. This is not subtitling and it is not a transcript cleanup.
-    A motion-graphics card is a designed object: line count, line width, and which word is enlarged are the composition.
-    Be meticulous. Every break and every highlight should look intentional when the bold words are drawn larger than the rest.
+    You are a motion-graphics animator laying out caption cards. This is not subtitling and it is not a transcript cleanup.
+    A card is one moment on screen. A line break is a step for the eye. A bold word is the word that scales in on the beat.
 
-    MARKUP — this is the only language you may add
-    - Return one htmlText string for the entire piece.
+    MARKUP — return only the html, nothing else
+    - One html string for the entire piece. No preface, no explanation, no markdown fences, no timings.
     - <br/><br/> (two breaks) starts a new caption card.
     - <br/> (one break) splits lines inside the current card.
-    - <b>...</b> marks the highlighted word or a tight adjacent phrase. Those words render at ${scale}× the size of normal words.
-    - A bold word therefore takes about ${scale}× the horizontal space of the same letters at body size. Design widths with that scale, not with raw character count alone.
-    - Do not add, delete, reorder, merge, split, or rewrite words. Punctuation stays attached to the word it arrived on.
+    - <b>...</b> marks a word drawn large. Those words render at ${scale}× body size.
+    - A bold word takes about ${scale}× the horizontal space of the same letters at body size.
+    - Do not add, delete, reorder, merge, or rewrite words.
     - No other tags. No <p>, <div>, <strong>, <i>, or markdown.
 
-    LAYOUT
-    ${layout.direction}
-    Every card uses ${layout.minLines} to ${layout.maxLines} visual lines. Singular flow: the same line count and the same emphasis pattern on every card, so the sequence feels like one system.
+    TIMING
+    Each card shows how long it stays on screen. Each word shows its duration and the silence after it.
+    - Under 0.8s on screen: one line, one bold hit, even in a tall frame.
+    - From 0.8s to 2s: at most 2 or 3 lines, and never more than the frame ceiling.
+    - Longer than 2s: you may use the full ceiling.
+    - A gap of about 0.25s or more is a line break. A gap of about 0.6s or more starts a new card.
+    - Stack only as many lines as a viewer can read in that card's time. One glance.
 
-    LINE WIDTH
-    ${band.instruction}
+    WHERE TO SPLIT
+    - A period, question mark, or exclamation mark ends the card (<br/><br/>).
+    - A comma, semicolon, colon, dash, or ellipsis usually ends a line (<br/>), not a card.
+    - Also break where the meaning turns: a setup, then the payoff. Meaning can justify a break with no punctuation, and punctuation does not force a break when the words are still one idea.
+    - The punctuation stays on the line it closes. "ready," ends that line. The next line starts at the next word.
+    - Do not start a line with "and", "the", "to", "of", or "a" when that word can stay on the line before it.
+    - The line should open on the word the animation is about to hit.
+
+    FRAME
+    ${frameDirection(options)}
 
     HIGHLIGHTS
-    - Usually one word. A short adjacent phrase only when the words belong together as a single title ("New York", "hold on").
+    - Default to one <b> per line: the word that should land on the beat. Usually the landing word, the contrast, the name, or the number.
+    - A second bold word on the same line only when the two words are the point together ("not today", "New York") and their scaled width still fits the frame.
+    - Skip articles, prepositions, conjunctions, and filler unless the line has nothing else.
     - Never bold a piece of a word, and never bold the same occurrence twice.
-    - The highlighted word should be the one the card is built around — the image, the name, the turn — not a function word, unless the line is nothing but function words.
-    - Do not highlight every card with the same part of speech just to be consistent. Consistency is the layout, not the dictionary.
-
-    ${
-      options.flow === 'mixed'
-        ? 'Mixed flow (different styles per card) is not available yet. Arrange every card with the singular rules above.'
-        : 'Flow is singular: one layout system for the whole piece.'
-    }
+    - A line that is only connective tissue stays unbolded.
   `;
 
   const prompt = dedent`
-    CURRENT ARRANGEMENT (source of the words, and of any highlights or line splits already set):
+    TIMED CARDS (duration, then each word's duration and the gap after it):
+    ${timedSource}
+
+    CURRENT ARRANGEMENT:
     ${sourceHtml}
 
-    Redesign this into motion-graphics cards for layout "${options.layout}" with fontScaling ${scale} and maxCharacters "${options.maxCharacters ?? 'any'}".
+    Redesign every card in the ${frame} frame. Bold words are ${scale}× body size.
+    Use the timings. Keep punctuation on the line it closes.
+    One bold word per line unless a second word is part of the same hit and the frame still holds.
     Keep every word, in this order.
+    Return only the html.
     ${options.userRequest ? `\nADDITIONAL DIRECTION: ${options.userRequest}` : ''}
   `;
 
@@ -354,8 +367,6 @@ export function captionsFromMotionHtml(
       end: entry.word.absoluteEnd - first.absoluteStart,
     }));
     const htmlText = buildCardHtml(card);
-    const keyword = extractKeywordsFromHtmlText(htmlText);
-    const parsed = parseCaptionHtmlText(htmlText, captionWords);
 
     return {
       id: `caption-${captionIndex}`,
@@ -368,8 +379,6 @@ export function captionsFromMotionHtml(
       words: captionWords,
       metadata: {
         htmlText,
-        ...(keyword ? { keyword } : {}),
-        ...(parsed?.splitParts ? { splitParts: parsed.splitParts } : {}),
       },
     };
   });
@@ -413,28 +422,35 @@ export async function runSplitAndHighlight(
       changes: [],
       confidence: 0,
       usage: null,
-      flowApplied: 'singular',
+      staticFrameChoice: options.staticFrameChoice !== false,
       summary: 'No caption text to arrange',
     };
   }
 
-  const { system, prompt } = buildSplitAndHighlightPrompt(sourceHtml, options);
-  const result = await generateObject({
+  const frame = frameForCard(options, 0);
+  const { system, prompt } = buildSplitAndHighlightPrompt(
+    sourceHtml,
+    options,
+    formatTimedCaptions(captions),
+  );
+  const result = await generateText({
     model: google(SPLIT_HIGHLIGHT_MODEL),
-    schema: HtmlTextSchema,
     system,
     prompt,
     maxRetries: 2,
   });
 
-  const modelHtml = normalizeMotionHtml(result.object.htmlText || sourceHtml);
+  const modelHtml = normalizeMotionHtml(
+    extractHtmlFromModelText(result.text) || sourceHtml,
+  );
   const fixedCaptions = captionsFromMotionHtml(
     modelHtml || sourceHtml,
     captions,
   );
   const htmlText = serializeCaptionsToHtml(fixedCaptions);
   const changes = collectChanges(captions, fixedCaptions);
-  const layout = LAYOUT_SPEC[options.layout];
+  const layout = LAYOUT_SPEC[frame];
+  const staticFrame = options.staticFrameChoice !== false;
 
   return {
     htmlText,
@@ -442,10 +458,10 @@ export async function runSplitAndHighlight(
     changes,
     confidence: 0.86,
     usage: result.usage,
-    flowApplied: 'singular',
+    staticFrameChoice: staticFrame,
     summary: dedent`
-      Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${options.layout}
-      (${layout.minLines}–${layout.maxLines} lines, bold words at ${options.fontScaling}×, max characters ${options.maxCharacters ?? 'any'}).
+      Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
+      (up to ${layout.maxLines} lines, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
     `
       .replace(/\s+/g, ' ')
       .trim(),

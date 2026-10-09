@@ -24,8 +24,8 @@ export function ActionProps({ action, timeline }: ActionPropsPanelProps) {
   const definition = getActionDefinition(current.actionId);
 
   return (
-    <ScrollArea className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-4">
+    <ScrollArea className="h-full min-w-0 flex-1 overflow-y-auto [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!min-w-0 [&>[data-slot=scroll-area-viewport]>div]:!w-full">
+      <div className="min-w-0 max-w-full space-y-4 p-4">
         <div className="space-y-2">
           <h3 className="text-md font-semibold">{current.label}</h3>
           <div className="flex items-center gap-2">

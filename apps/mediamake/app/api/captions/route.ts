@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { Caption, CaptionsDocument } from '@/app/types/transcription';
 
+function withCaptionLineIds(captions: Caption[]): Caption[] {
+  return captions.map((caption, index) => ({
+    ...caption,
+    id: caption?.id || `caption-${index}`,
+    words: Array.isArray(caption?.words)
+      ? caption.words.map((word, wordIndex) => ({
+          ...word,
+          id: word?.id || `caption-${index}-word-${wordIndex}`,
+        }))
+      : caption?.words,
+  }));
+}
+
 export interface CreateCaptionsRequest {
   title?: string;
   description?: string;
@@ -76,7 +89,7 @@ export async function POST(req: NextRequest) {
       projectId: body.projectId,
       title: body.title?.trim() || 'Untitled Captions',
       description: body.description ?? '',
-      captions: Array.isArray(body.captions) ? body.captions : [],
+      captions: withCaptionLineIds(Array.isArray(body.captions) ? body.captions : []),
       sourceTranscriptionId: body.sourceTranscriptionId || undefined,
       sourceCaptionsId: body.sourceCaptionsId || undefined,
       createdAt: now,
@@ -84,9 +97,20 @@ export async function POST(req: NextRequest) {
     };
 
     const result = await collection.insertOne(doc as CaptionsDocument);
+    const insertedId = result.insertedId.toString();
     const created = await collection.findOne({ _id: result.insertedId });
 
-    return NextResponse.json({ success: true, captions: created }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        id: insertedId,
+        captions: {
+          ...(created ?? doc),
+          _id: insertedId,
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error('Error creating captions:', error);
     return NextResponse.json(

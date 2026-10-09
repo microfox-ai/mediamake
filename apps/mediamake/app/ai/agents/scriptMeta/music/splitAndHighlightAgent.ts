@@ -15,8 +15,8 @@ import {
 
 /**
  * Metadata pass that reuses the motion-graphics split-and-highlight prompt.
- * Writes htmlText (and the card boundaries it implies) onto a captions
- * document or a transcription.
+ * Writes htmlText onto a captions document or a transcription.
+ * keyword and splitParts are not written.
  */
 
 const aiRouter = new AiRouter();
@@ -102,22 +102,20 @@ const splitAndHighlightAgent = aiRouter
         captionId,
         transcriptionId,
         userRequest,
-        flow = 'singular',
-        layout,
+        frameChoice,
         fontScaling = 2,
-        maxCharacters = 'any',
+        staticFrameChoice = true,
       } = ctx.request.params as {
         captionId?: string;
         transcriptionId?: string;
         userRequest?: string;
-        flow?: 'singular' | 'mixed';
-        layout: (typeof CAPTION_LAYOUTS)[number];
+        frameChoice: (typeof CAPTION_LAYOUTS)[number];
         fontScaling?: number;
-        maxCharacters?: 'any' | '15-25' | '25to35' | '35to45' | '45+';
+        staticFrameChoice?: boolean;
       };
 
-      if (!layout) {
-        throw new Error('layout is required');
+      if (!frameChoice) {
+        throw new Error('frameChoice is required');
       }
 
       const captions = (ctx.state.captions ?? []) as Caption[];
@@ -126,10 +124,9 @@ const splitAndHighlightAgent = aiRouter
       }
 
       const result = await runSplitAndHighlight(captions, {
-        flow,
-        layout,
+        frameChoice,
         fontScaling,
-        maxCharacters,
+        staticFrameChoice,
         userRequest,
       });
 
@@ -190,11 +187,9 @@ const splitAndHighlightAgent = aiRouter
         htmlText: result.htmlText,
         totalSentences: result.fixedCaptions.length,
         confidence: result.confidence,
-        flow,
-        flowApplied: result.flowApplied,
-        layout,
+        frameChoice,
         fontScaling,
-        maxCharacters,
+        staticFrameChoice: result.staticFrameChoice,
         captionId: captionId ?? null,
         transcriptionId:
           transcriptionId ?? ctx.state.transcription?._id?.toString() ?? null,
@@ -232,8 +227,8 @@ const splitAndHighlightAgent = aiRouter
       htmlText: z.string(),
       totalSentences: z.number(),
       confidence: z.number(),
-      flowApplied: z.literal('singular'),
-      layout: z.enum(CAPTION_LAYOUTS),
+      frameChoice: z.enum(CAPTION_LAYOUTS),
+      staticFrameChoice: z.boolean(),
       summary: z.string(),
       sentences: z.array(z.any()),
     }),

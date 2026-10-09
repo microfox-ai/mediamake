@@ -164,7 +164,8 @@ export interface TranscriptionFilters {
 
 /** A caption version stored in the `captions` collection. */
 export interface CaptionsDocument {
-  _id?: ObjectId;
+  /** ObjectId in MongoDB; a hex string after JSON serialization. */
+  _id?: ObjectId | string;
   clientId?: string;
   projectId?: string;
   title: string;

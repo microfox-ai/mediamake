@@ -216,9 +216,25 @@ export function CaptionsTracksSection({
         ...((base?.defaultData?.references as ReferenceItem[]) || []),
       ];
       const current = refs[referenceIndex] || liveReference;
+      const previous = Array.isArray(current.value?.captions)
+        ? (current.value.captions as CaptionLine[])
+        : [];
+      const locked = next.map((line) => {
+        if (!line.autoTiming) return line;
+        const before = previous.find((caption) => caption.id && caption.id === line.id);
+        if (!before) return line;
+        const prevBounds = getLineBounds(before);
+        const nextBounds = getLineBounds(line);
+        const moved =
+          Math.abs(prevBounds.start - nextBounds.start) > 0.001 ||
+          Math.abs(prevBounds.end - nextBounds.end) > 0.001;
+        if (!moved) return line;
+        const { autoTiming: _autoTiming, ...rest } = line;
+        return rest;
+      });
       refs[referenceIndex] = {
         ...current,
-        value: { ...(current.value || {}), captions: next },
+        value: { ...(current.value || {}), captions: locked },
       };
       updateTimeline(timelineId, {
         defaultData: { ...(base?.defaultData || {}), references: refs },

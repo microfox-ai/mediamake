@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
+import { AnchoredEditPopover } from "@/components/editor/presets/form/inputs/anchored-edit-popover";
 import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
@@ -100,11 +101,6 @@ export function LinkedActionsSection({
     setExpandedActionId(created.id);
   };
 
-  const expandedAction =
-    expandedActionId != null
-      ? actions.find((a) => a.id === expandedActionId)
-      : undefined;
-
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className="flex items-center gap-2">
@@ -144,64 +140,69 @@ export function LinkedActionsSection({
         </DropdownMenu>
       </div>
       {actions.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-1">
-            {actions.map((action) => (
-              <Badge
+        <div className="flex flex-wrap gap-1">
+          {actions.map((action) => {
+            const open = expandedActionId === action.id;
+            return (
+              <AnchoredEditPopover
                 key={action.id}
-                variant={
-                  expandedActionId === action.id
-                    ? action.status === "error"
-                      ? "destructive"
-                      : "default"
-                    : "outline"
+                open={open}
+                onOpenChange={(next) =>
+                  setExpandedActionId(next ? action.id : null)
                 }
-                className="text-[10px] cursor-pointer gap-1 pr-1"
-                onClick={() =>
-                  setExpandedActionId((prev) =>
-                    prev === action.id ? null : action.id,
-                  )
+                title={action.label}
+                anchor={
+                  <span className="inline-flex">
+                  <Badge
+                    variant={
+                      open
+                        ? action.status === "error"
+                          ? "destructive"
+                          : "default"
+                        : "outline"
+                    }
+                    className="text-[10px] cursor-pointer gap-1 pr-1"
+                    onClick={() =>
+                      setExpandedActionId((prev) =>
+                        prev === action.id ? null : action.id,
+                      )
+                    }
+                  >
+                    {action.label}
+                    <button
+                      type="button"
+                      className="ml-0.5 rounded-sm hover:bg-background/50 p-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(action);
+                      }}
+                      title="Remove action"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                  </span>
                 }
               >
-                {action.label}
-                <button
-                  type="button"
-                  className="ml-0.5 rounded-sm hover:bg-background/50 p-0.5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemove(action);
-                  }}
-                  title="Remove action"
-                >
-                  <Trash2 className="h-2.5 w-2.5" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-          {expandedAction && (
-            <div className="rounded-md border p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium flex-1">
-                  {expandedAction.label}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-[10px] px-2"
-                  onClick={() => selectAction(expandedAction, timeline)}
-                >
-                  Open
-                </Button>
-              </div>
-              <ActionEditor
-                timeline={timeline}
-                action={expandedAction}
-                showTargetLink={false}
-              />
-            </div>
-          )}
+                <div className="mb-2 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() => selectAction(action, timeline)}
+                  >
+                    Open
+                  </Button>
+                </div>
+                <ActionEditor
+                  timeline={timeline}
+                  action={action}
+                  showTargetLink={false}
+                />
+              </AnchoredEditPopover>
+            );
+          })}
         </div>
       )}
     </div>
@@ -371,8 +372,12 @@ export function ActionEditor({
     return target.referenceKey;
   })();
 
+  const selectedOutput =
+    current.outputs.find((output) => output.id === current.selectedOutputId) ||
+    current.outputs[0];
+
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 max-w-full space-y-4">
       {showTargetLink && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>
@@ -434,31 +439,42 @@ export function ActionEditor({
       </div>
 
       {current.error && (
-        <p className="text-xs text-destructive">{current.error}</p>
+        <p className="break-words text-xs text-destructive">{current.error}</p>
       )}
 
       {current.outputs.length > 0 && (
-        <div className="space-y-2 rounded-md border p-3">
+        <div className="min-w-0 max-w-full space-y-2 overflow-hidden rounded-md border p-3">
           <div className="flex items-center gap-2">
-            <Star className="h-3.5 w-3.5 text-muted-foreground" />
+            <Star className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="text-xs font-medium">Generated outputs</span>
           </div>
           <Select
             value={current.selectedOutputId || current.outputs[0]?.id}
             onValueChange={handleSelectOutput}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 w-full min-w-0 max-w-full whitespace-normal text-xs [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate">
               <SelectValue placeholder="Select output" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[var(--radix-select-trigger-width)]">
               {current.outputs.map((output) => (
-                <SelectItem key={output.id} value={output.id} className="text-xs">
-                  {output.isFavorite ? "★ " : ""}
-                  {output.label}
+                <SelectItem
+                  key={output.id}
+                  value={output.id}
+                  className="text-xs whitespace-normal [&>span:last-child]:block [&>span:last-child]:min-w-0 [&>span:last-child]:whitespace-normal"
+                >
+                  <span className="line-clamp-2 break-words" title={output.label}>
+                    {output.isFavorite ? "★ " : ""}
+                    {output.label}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectedOutput?.label && (
+            <p className="break-words text-[10px] leading-snug text-muted-foreground">
+              {selectedOutput.label}
+            </p>
+          )}
           <p className="text-[10px] text-muted-foreground">
             Switching applies that variant to the linked preset/reference.
           </p>

@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: 'Captions not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ captions: doc });
+    return NextResponse.json({ id, captions: { ...doc, _id: id } });
   } catch (error) {
     console.error('Error fetching captions:', error);
     return NextResponse.json(
@@ -76,7 +76,11 @@ export async function PATCH(
     }
 
     const updated = await collection.findOne({ _id: new ObjectId(id) });
-    return NextResponse.json({ success: true, captions: updated });
+    return NextResponse.json({
+      success: true,
+      id,
+      captions: updated ? { ...updated, _id: id } : { _id: id },
+    });
   } catch (error) {
     console.error('Error updating captions:', error);
     return NextResponse.json(
