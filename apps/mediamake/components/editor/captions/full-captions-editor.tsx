@@ -1,6 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  captionHasOriginalState,
+  resetCaptionToOriginal,
+} from '@/lib/captions/original-state';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Paragraph from '@tiptap/extension-paragraph';
@@ -63,6 +74,7 @@ type CaptionLike = {
     confidence?: number;
   }>;
   metadata?: Record<string, unknown>;
+  originalState?: Record<string, unknown>;
 };
 
 function captionsToDocContent(captions: CaptionLike[]) {
@@ -346,9 +358,11 @@ function docToCaptions(
     // drops metadata. Neighbors keep theirs even if a join shifted sentence ids.
     // In-place edits (line count unchanged) keep the sentence's own metadata.
     let metadata: Record<string, unknown> = {};
+    let originalState: CaptionLike['originalState'];
     const keepFrom = (source: CaptionLike | undefined) => {
       if (!source || consumed.has(source)) return false;
       metadata = { ...(source.metadata || {}) };
+      originalState = source.originalState;
       consumed.add(source);
       return true;
     };
@@ -384,6 +398,7 @@ function docToCaptions(
       duration,
       words: draft.words,
       metadata,
+      ...(originalState ? { originalState } : {}),
     };
   });
 }
@@ -582,9 +597,37 @@ export function FullCaptionsEditor({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-[10px] text-muted-foreground">
-        One caption per line · click a word to seek · hover a line to edit
-      </p>
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] text-muted-foreground flex-1">
+          One caption per line · click a word to seek · hover a line to edit
+        </p>
+        {captions.some(caption => captionHasOriginalState(caption)) && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                onClick={() =>
+                  onChange(
+                    captions.map(caption =>
+                      captionHasOriginalState(caption)
+                        ? resetCaptionToOriginal(caption)
+                        : caption,
+                    ),
+                  )
+                }
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Reset all captions to their original state
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       <div className="caption-tiptap-light rounded-md border border-neutral-200 bg-white overflow-hidden">
         <EditorContent editor={editor} />
       </div>

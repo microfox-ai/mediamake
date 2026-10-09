@@ -69,6 +69,9 @@ export function parseAIOutputToCaptions(
           duration:
             words[words.length - 1].absoluteEnd - words[0].absoluteStart,
           words: words,
+          ...(caption.originalState
+            ? { originalState: caption.originalState }
+            : {}),
         });
       }
     }

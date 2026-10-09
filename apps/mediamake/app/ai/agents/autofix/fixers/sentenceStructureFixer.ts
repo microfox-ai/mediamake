@@ -2,6 +2,7 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { saveCaptionsFix } from '../helpers';
+import { stampCaptionOriginalState } from '@/lib/captions/original-state';
 import { loadCaption } from '../middlewares/loadTranscription';
 import {
   CAPTION_LAYOUTS,
@@ -75,16 +76,17 @@ const sentenceStructureFixerAgent = aiRouter
         appendUsage(ctx.state, `google/${SPLIT_HIGHLIGHT_MODEL}`, result.usage);
       }
 
+      const stampedCaptions = stampCaptionOriginalState(result.fixedCaptions);
       let captionDocument = ctx.state.captionDocument;
       if (applyToDatabase) {
         captionDocument = await saveCaptionsFix(
           captionId,
-          result.fixedCaptions,
+          stampedCaptions,
         );
       } else {
         captionDocument = {
           ...captionDocument,
-          captions: result.fixedCaptions,
+          captions: stampedCaptions,
         };
       }
 

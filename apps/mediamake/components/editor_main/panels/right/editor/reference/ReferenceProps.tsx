@@ -63,6 +63,7 @@ import type { Caption, CaptionsDocument, Transcription } from "@/app/types/trans
 import {
   captionsReferenceValue,
   createCaptionsDocument,
+  getCaptionsDocument,
   updateCaptionsDocument,
 } from "@/lib/captions/captions-client";
 import { generateId } from "@microfox/datamotion";
@@ -754,6 +755,52 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     lastSavedCaptionsKeyRef.current = null;
     setCaptionsSyncFailed(false);
   }, [linkedCaptionsId, referenceIndex]);
+
+  useEffect(() => {
+    if (!linkedCaptionsId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const doc = await getCaptionsDocument(linkedCaptionsId);
+        if (cancelled) return;
+        const latestTimeline =
+          useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+        const ref = latestTimeline.defaultData?.references?.[referenceIndex];
+        if (!ref || ref.type !== "captions") return;
+        const latest = ref.value ?? {};
+        if (String(latest._id ?? "") !== linkedCaptionsId) return;
+
+        const localTitle = typeof latest.title === "string" ? latest.title : "";
+        const localDescription =
+          typeof latest.description === "string" ? latest.description : "";
+        const nextTitle = localTitle.trim() ? localTitle : (doc.title ?? "");
+        const nextDescription = localDescription.trim()
+          ? localDescription
+          : (doc.description ?? "");
+        if (nextTitle === localTitle && nextDescription === localDescription) return;
+
+        const nextValue = {
+          ...latest,
+          title: nextTitle,
+          description: nextDescription,
+        };
+        lastSavedCaptionsKeyRef.current = JSON.stringify({
+          id: linkedCaptionsId,
+          title: nextTitle,
+          description: nextDescription,
+          captions: nextValue.captions ?? [],
+        });
+        onReferenceChange({
+          references: [{ ...ref, value: nextValue }],
+        });
+      } catch (error) {
+        console.error("Failed to load caption title and description", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedCaptionsId, referenceIndex, timeline.id]);
 
   useEffect(() => {
     if (!captionsSyncKey) return;

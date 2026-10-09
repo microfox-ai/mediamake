@@ -151,10 +151,10 @@ export function LinkedActionsSection({
                 key={action.id}
                 variant={
                   expandedActionId === action.id
-                    ? "default"
-                    : action.status === "error"
+                    ? action.status === "error"
                       ? "destructive"
-                      : "secondary"
+                      : "default"
+                    : "outline"
                 }
                 className="text-[10px] cursor-pointer gap-1 pr-1"
                 onClick={() =>

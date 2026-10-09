@@ -29,6 +29,15 @@ export async function createCaptionsDocument(
   return result.captions as CaptionsDocument;
 }
 
+export async function getCaptionsDocument(id: string): Promise<CaptionsDocument> {
+  const response = await fetch(`/api/captions/${id}`);
+  if (!response.ok) {
+    throw new Error(await readError(response, 'Failed to load captions'));
+  }
+  const result = await response.json();
+  return result.captions as CaptionsDocument;
+}
+
 export async function updateCaptionsDocument(
   id: string,
   body: CaptionsWriteBody,

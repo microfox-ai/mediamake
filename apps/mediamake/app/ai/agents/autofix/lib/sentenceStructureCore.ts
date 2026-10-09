@@ -10,6 +10,7 @@ import { google } from '@ai-sdk/google';
 import dedent from 'dedent';
 import { z } from 'zod';
 import type { Caption } from '@/app/types/transcription';
+import { stampCaptionOriginalState } from '@/lib/captions/original-state';
 import {
   DEFAULT_STRUCTURE_PROFILE_ID,
   resolveStructureParams,
@@ -246,7 +247,7 @@ export async function runSentenceStructureFix(
   // The profile's numbers are enforced in code, whatever the model returned.
   groups = enforceProfile(groups, words, params);
 
-  const fixedCaptions = buildCaptions(words, groups, captions);
+  const fixedCaptions = stampCaptionOriginalState(buildCaptions(words, groups, captions));
   const changes = detectSegmentationChanges(captions, fixedCaptions);
   const stats = summariseSegmentation(words, groups, params);
 

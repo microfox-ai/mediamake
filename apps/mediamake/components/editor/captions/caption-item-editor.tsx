@@ -1,7 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, RotateCcw, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  captionHasOriginalState,
+  resetCaptionToOriginal,
+} from '@/lib/captions/original-state';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -358,6 +368,24 @@ export function CaptionItemEditor({
         </span>
         <span className="text-[10px] text-muted-foreground">of {totalCount}</span>
         <div className="flex-1" />
+        {captionHasOriginalState(caption) && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                onClick={() => onChange(resetCaptionToOriginal(caption))}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Reset this caption to its original state
+            </TooltipContent>
+          </Tooltip>
+        )}
         {absStart !== null && absEnd !== null && (
           <>
             <span className="text-[10px] font-mono text-muted-foreground">

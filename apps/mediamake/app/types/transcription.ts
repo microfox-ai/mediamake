@@ -21,6 +21,11 @@ export interface Caption {
   words: CaptionWord[];
   duration: number;
   metadata?: Record<string, any>;
+  /**
+   * Caption line as sentence structure left it.
+   * Manual edits and line-level agents must not replace this snapshot.
+   */
+  originalState?: Omit<Caption, 'originalState'>;
 }
 
 export interface Sequence {

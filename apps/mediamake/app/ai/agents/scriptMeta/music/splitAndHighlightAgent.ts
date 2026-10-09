@@ -3,6 +3,7 @@ import { z } from 'zod/v4';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import type { Caption, CaptionsDocument, Transcription } from '@/app/types/transcription';
+import { preserveCaptionOriginalState } from '@/lib/captions/original-state';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadCaption } from '../middlewares/loadTranscription';
 import {
@@ -25,12 +26,28 @@ function stitchCaptions(
   selectedIndices: number[] | undefined,
   replacement: Caption[],
 ): Caption[] {
+  const kept = preserveCaptionOriginalState(
+    selectedIndices && selectedIndices.length === replacement.length
+      ? selectedIndices.map(index => full[index]).filter(Boolean)
+      : full,
+    replacement,
+  );
+  const nextReplacement =
+    selectedIndices && selectedIndices.length === replacement.length
+      ? replacement.map((caption, index) => {
+          const source = full[selectedIndices[index]];
+          return source?.originalState
+            ? { ...caption, originalState: source.originalState }
+            : caption;
+        })
+      : kept;
+
   if (
     !selectedIndices ||
     selectedIndices.length === 0 ||
     selectedIndices.length >= full.length
   ) {
-    return replacement;
+    return nextReplacement;
   }
 
   const selected = new Set(selectedIndices);
@@ -43,12 +60,12 @@ function stitchCaptions(
       return;
     }
     if (!inserted) {
-      next.push(...replacement);
+      next.push(...nextReplacement);
       inserted = true;
     }
   });
 
-  return inserted ? next : replacement;
+  return inserted ? next : nextReplacement;
 }
 
 const splitAndHighlightAgent = aiRouter
