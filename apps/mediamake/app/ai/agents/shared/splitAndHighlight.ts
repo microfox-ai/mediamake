@@ -111,13 +111,16 @@ const LAYOUT_SPEC: Record<
   },
 };
 
+const SHORT_SQUARE_EXAMPLE =
+  'where stifling walls<br/>sought to hold the spirit down .<br/>I bore the heavy shell<br/>across the shifting sand<br/>to learn the martial pulse<br/>of an unforgiving land.<br/>No lunar beast slumbers<br/>beneath my skin .<br/>Just brittle bones<br/>where the quiet wars begin .<br/>I traded whispered prayers';
+
 const LINE_LENGTH_SPEC: Record<LineLength, string> = {
   short:
-    'SHORT LINES — fewer words than the medium example. One word a line on the tall frame, one or two on the square, two or three on the wide frame. A clause may split into two cards where the image turns, the way the medium example splits after sunburst.',
+    'SHORT LINES — one phrase per line. On a square that is about 3 to 5 words, the way the short square example breaks. A tall frame may use fewer words. A wide frame may hold a slightly longer phrase. Still end the line on its punctuation.',
   medium:
-    'MEDIUM LINES — follow the medium example. A turn in the image may start a new card, the way sunburst closes one card and "to blind..." opens the next.',
+    'MEDIUM LINES — a phrase can be a little longer than the short example. A punctuation mark still ends that line. Do not run past a period or a comma onto the next phrase.',
   large:
-    'LARGE LINES — follow the large example. Keep one clause in one card. "A sudden blinding sunburst to blind the tyrant\'s gaze" is one card. Only a period, or a comma that finishes the thought, starts the next card. "year." still ends the card before "A sudden...". "gaze," still ends before "a solitary spark".',
+    'LARGE LINES — follow the large frame example. More words may share a line. A period or a comma that finishes the phrase still ends the line, and the mark stays on that line.',
 };
 
 /**
@@ -220,9 +223,9 @@ function frameDirection(options: SplitAndHighlightOptions): string {
     ${LINE_LENGTH_SPEC[lineLength]}
     ${spec.maxLines} lines is the ceiling. Use fewer when the clause is shorter.
 
-    ${lineLength === 'short' ? 'MEDIUM' : lineLength.toUpperCase()} wrap for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
+    ${lineLength === 'large' ? 'LARGE' : 'MEDIUM'} shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
     ${example}
-    Copy this rhythm: which words share a line, which word is bold, and whether sunburst ends the card.
+    That example shows width and bold. It does not override punctuation. The mark still ends its line.
   `;
 
   if (options.staticFrameChoice !== false) {
@@ -262,15 +265,25 @@ export function buildSplitAndHighlightPrompt(
     - Do not add, delete, reorder, merge, or rewrite words. Keep each word's punctuation attached to it.
     - No other tags. No <p>, <div>, <strong>, <i>, or markdown.
 
-    SENTENCE STRUCTURE — this decides every break
-    - Read the sentence. A finished thought becomes its own card. A clause inside that thought becomes its own line.
-    - A period, question mark, or exclamation mark ends the card. The word that carries the mark is the last word of that card. "death." ends the card. The next sentence starts the next card.
-    - A comma, semicolon, colon, dash, or ellipsis ends the line it sits on. "dirt," ends that line. "burn," ends that line. The next line starts at the next word.
-    - Never start a line or a card with a punctuation mark. ", I am the" is wrong. The comma stays on the word before it.
-    - Never leave the first word of the next sentence hanging on the previous card. "death. I" then "knew" is wrong. "death." closes the card. "I knew" opens the next card and stays together.
-    - Never strand a pronoun or an article away from the words it belongs to. "I" stays with "knew" or "am". "the" stays with the noun after it.
-    - A purpose clause or a new image can start a new card even without a period: "sunburst" ends one card, "to blind the tyrant's gaze" is the next.
-    - Do not break a clause just because a word is short, and do not keep two sentences on one line because they are brief.
+    PUNCTUATION — never break this
+    - A mark ends the line it belongs to. It is the last thing on that line.
+    - Never start a line or a card with . , ! ? ; : — or an ellipsis.
+    - "down ." then a new line "I bore..." is correct. A new line that starts with ". I bore" is wrong.
+    - "land." ends its line. "skin ." ends its line. "begin ." ends its line. The next line starts with the next word.
+    - If the mark is its own word, it still stays on the line before it, after a space: "spirit down ."
+    - Use a single <br/> after that line. Do not open a new card just to hold the mark.
+
+    SENTENCE MEANING — this decides where those lines break
+    - Break at a finished phrase: a subject, then what it does, then where it happens.
+    - "where stifling walls" is one line. "sought to hold the spirit down ." is the next, because that is the verb phrase and it ends on the period.
+    - "I bore the heavy shell" / "across the shifting sand" / "to learn the martial pulse" / "of an unforgiving land."
+    - "No lunar beast slumbers" / "beneath my skin ."
+    - "Just brittle bones" / "where the quiet wars begin ."
+    - Keep a preposition with the phrase it opens: "across the shifting sand", "of an unforgiving land.", "beneath my skin .", "where the quiet wars begin ."
+    - Do not fill a line with the next phrase just because there is room. Stop when the phrase, or its punctuation, is complete.
+
+    SHORT SQUARE — copy this break pattern when lines are short. Other frames use the same phrase cuts, with fewer words on a tall frame and a slightly longer phrase on a wide frame.
+    ${SHORT_SQUARE_EXAMPLE}
 
     ON-SCREEN TIME
     Each card notes how long it is visible. That is only a hint for how many lines a viewer can read.
@@ -295,7 +308,7 @@ export function buildSplitAndHighlightPrompt(
     ${sourceHtml}
 
     Redesign every card for ${frame} with ${lineLength} lines. Bold words are ${scale}× body size.
-    Break on the sentence: meaning first, then punctuation. Keep every mark on the line it closes.
+    Break on phrase meaning. Put every punctuation mark at the end of that line. Never start a line with a mark.
     Keep every word, in this order.
     Return only the html.
     ${options.userRequest ? `\nADDITIONAL DIRECTION: ${options.userRequest}` : ''}
@@ -310,6 +323,19 @@ type WordMark = {
   lineBreakBefore: boolean;
   cardBreakBefore: boolean;
 };
+
+function isPunctuationOnly(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 0 && /^[\p{P}\p{S}]+$/u.test(trimmed);
+}
+
+/** A mark that arrived as its own word stays on the previous line, at the end. */
+function pinPunctuationToPreviousLine(marks: WordMark[]): WordMark[] {
+  return marks.map((entry, index) => {
+    if (index === 0 || !isPunctuationOnly(entry.word.text)) return entry;
+    return { ...entry, lineBreakBefore: false, cardBreakBefore: false };
+  });
+}
 
 function marksForSourceWords(html: string, words: CaptionWord[]): WordMark[] {
   const tokens = tokenizeCaptionHtml(normalizeMotionHtml(html));
@@ -333,15 +359,17 @@ function marksForSourceWords(html: string, words: CaptionWord[]): WordMark[] {
     pendingBreaks = 0;
   }
 
-  return words.map((word, index) => {
-    const mark = marks[index];
-    return {
-      word,
-      bold: mark?.bold ?? false,
-      lineBreakBefore: mark?.lineBreakBefore ?? false,
-      cardBreakBefore: mark?.cardBreakBefore ?? false,
-    };
-  });
+  return pinPunctuationToPreviousLine(
+    words.map((word, index) => {
+      const mark = marks[index];
+      return {
+        word,
+        bold: mark?.bold ?? false,
+        lineBreakBefore: mark?.lineBreakBefore ?? false,
+        cardBreakBefore: mark?.cardBreakBefore ?? false,
+      };
+    }),
+  );
 }
 
 function buildCardHtml(card: WordMark[]): string {
