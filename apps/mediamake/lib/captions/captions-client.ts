@@ -6,6 +6,7 @@ export interface CaptionsWriteBody {
   captions?: Caption[];
   sourceTranscriptionId?: string;
   sourceCaptionsId?: string;
+  projectId?: string;
 }
 
 async function readError(response: Response, fallback: string) {
