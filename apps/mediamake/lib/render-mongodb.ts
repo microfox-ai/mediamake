@@ -258,6 +258,14 @@ export class RenderRequestMongoDB {
     return await collection.find(query).sort({ createdAt: -1 }).toArray();
   }
 
+  /** Load renders by Remotion render id, including archived ones (billing backfill). */
+  async getByRenderIds(renderIds: string[]): Promise<RenderRequestDocument[]> {
+    if (renderIds.length === 0) return [];
+    const db = await getDatabase();
+    const collection = db.collection<RenderRequestDocument>(this.collectionName);
+    return collection.find({ renderId: { $in: renderIds } }).toArray();
+  }
+
   /** Get render requests created in the last N days (for cron worker). */
   async getRecent(days = 2): Promise<RenderRequestDocument[]> {
     const db = await getDatabase();

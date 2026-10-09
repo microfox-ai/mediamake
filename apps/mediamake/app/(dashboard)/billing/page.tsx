@@ -29,7 +29,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -61,6 +63,102 @@ interface BillingAggregate {
   requestCount?: number;
   updatedAt?: string;
   breakdown?: Record<string, { totalCostUSD: number; requestCount?: number }>;
+}
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** Thursday of an ISO week, which is the week’s calendar month. */
+function isoWeekThursday(isoYear: number, isoWeek: number): Date {
+  const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+  const day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - day + 1 + (isoWeek - 1) * 7);
+  monday.setUTCDate(monday.getUTCDate() + 3);
+  return monday;
+}
+
+function yearMonthOf(periodValue: string): { year: string; month: number } | null {
+  const day = periodValue.match(/^(\d{4})-(\d{2})-\d{2}$/);
+  if (day) return { year: day[1], month: Number(day[2]) };
+  const month = periodValue.match(/^(\d{4})-(\d{2})$/);
+  if (month) return { year: month[1], month: Number(month[2]) };
+  const week = periodValue.match(/^(\d{4})-W(\d{2})$/);
+  if (week) {
+    const date = isoWeekThursday(Number(week[1]), Number(week[2]));
+    return { year: String(date.getUTCFullYear()), month: date.getUTCMonth() + 1 };
+  }
+  return null;
+}
+
+function periodInRange(periodValue: string, rangeId: string): boolean {
+  if (rangeId === "all") return true;
+  const ym = yearMonthOf(periodValue);
+  if (!ym) return false;
+  const [kind, value] = rangeId.split(":");
+  if (kind === "year") return ym.year === value;
+  if (kind === "quarter") {
+    const match = value.match(/^(\d{4})-Q([1-4])$/);
+    if (!match) return false;
+    const quarter = Math.ceil(ym.month / 3);
+    return ym.year === match[1] && String(quarter) === match[2];
+  }
+  if (kind === "month") {
+    const key = `${ym.year}-${String(ym.month).padStart(2, "0")}`;
+    return key === value;
+  }
+  return true;
+}
+
+interface RangeOption {
+  id: string;
+  label: string;
+}
+
+function buildRangeOptions(aggregates: BillingAggregate[]): {
+  years: RangeOption[];
+  quarters: RangeOption[];
+  months: RangeOption[];
+} {
+  const monthKeys = new Set<string>();
+  for (const row of aggregates) {
+    const ym = yearMonthOf(row.periodValue);
+    if (!ym || ym.month < 1 || ym.month > 12) continue;
+    monthKeys.add(`${ym.year}-${String(ym.month).padStart(2, "0")}`);
+  }
+  const years = [...new Set([...monthKeys].map((key) => key.slice(0, 4)))].sort((a, b) => b.localeCompare(a));
+  const quarters: RangeOption[] = [];
+  const months: RangeOption[] = [];
+  for (const year of years) {
+    for (let q = 4; q >= 1; q -= 1) {
+      const hasMonth = [0, 1, 2].some((offset) =>
+        monthKeys.has(`${year}-${String((q - 1) * 3 + offset + 1).padStart(2, "0")}`)
+      );
+      if (hasMonth) quarters.push({ id: `quarter:${year}-Q${q}`, label: `Q${q} ${year}` });
+    }
+    const yearMonths = [...monthKeys].filter((key) => key.startsWith(`${year}-`)).sort((a, b) => b.localeCompare(a));
+    for (const key of yearMonths) {
+      const month = Number(key.slice(5));
+      months.push({ id: `month:${key}`, label: `${MONTH_NAMES[month - 1]} ${year}` });
+    }
+  }
+  return {
+    years: years.map((year) => ({ id: `year:${year}`, label: year })),
+    quarters,
+    months,
+  };
 }
 
 const CHART_COLORS = [
@@ -221,10 +319,26 @@ function rollupSuccessMessage(output: { steps?: Array<{ output?: unknown }> }): 
 export default function BillingPage() {
   const [periodType, setPeriodType] = React.useState<PeriodType>("month");
   const [periodValue, setPeriodValue] = React.useState<string | null>(null);
+  const [range, setRange] = React.useState("all");
   const [scope, setScope] = React.useState("global");
   const [clientIds, setClientIds] = React.useState<string[]>([]);
   const { data, loading, error, refetch } = useBillingData(periodType, periodValue, scope);
-  const analytics = data ? deriveAnalytics(data.aggregates, scope) : null;
+  const rangeOptions = React.useMemo(
+    () => buildRangeOptions(data?.aggregates ?? []),
+    [data]
+  );
+  const rangeIds = React.useMemo(
+    () => new Set(["all", ...rangeOptions.years.map((o) => o.id), ...rangeOptions.quarters.map((o) => o.id), ...rangeOptions.months.map((o) => o.id)]),
+    [rangeOptions]
+  );
+  React.useEffect(() => {
+    if (range !== "all" && data && !rangeIds.has(range)) setRange("all");
+  }, [data, range, rangeIds]);
+  const visibleAggregates = React.useMemo(
+    () => (data?.aggregates ?? []).filter((row) => periodInRange(row.periodValue, range)),
+    [data, range]
+  );
+  const analytics = data ? deriveAnalytics(visibleAggregates, scope) : null;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -357,6 +471,44 @@ export default function BillingPage() {
                     <SelectItem value="month">Monthly</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={rangeIds.has(range) ? range : "all"} onValueChange={setRange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All time</SelectItem>
+                    {rangeOptions.years.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Year</SelectLabel>
+                        {rangeOptions.years.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {rangeOptions.quarters.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Quarter</SelectLabel>
+                        {rangeOptions.quarters.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {rangeOptions.months.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Month</SelectLabel>
+                        {rangeOptions.months.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="outline"
                   size="sm"
@@ -442,7 +594,7 @@ export default function BillingPage() {
               </div>
             )}
 
-            {!loading && analytics && (
+            {!loading && analytics && visibleAggregates.length > 0 && (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
@@ -687,6 +839,16 @@ export default function BillingPage() {
                   </CardContent>
                 </Card>
               </>
+            )}
+
+            {!loading && !error && data && data.aggregates.length > 0 && visibleAggregates.length === 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-muted-foreground text-center py-8">
+                    No usage in this range.
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
             {!loading && !error && data && data.aggregates.length === 0 && (

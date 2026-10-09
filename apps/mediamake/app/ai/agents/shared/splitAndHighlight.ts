@@ -20,7 +20,10 @@ import {
   parseCaptionHtmlText,
   tokenizeCaptionHtml,
 } from '@/lib/captions/html-text';
-import { detectSegmentationChanges } from '@/app/ai/agents/autofix/lib/segmentation';
+import {
+  detectSegmentationChanges,
+  type CaptionChange,
+} from '@/app/ai/agents/autofix/lib/segmentation';
 
 export const SPLIT_HIGHLIGHT_MODEL = 'gemini-2.5-pro';
 
@@ -82,7 +85,7 @@ export interface SplitAndHighlightOptions extends SplitAndHighlightParams {
 export interface SplitAndHighlightResult {
   htmlText: string;
   fixedCaptions: Caption[];
-  changes: Array<Record<string, unknown>>;
+  changes: CaptionChange[];
   confidence: number;
   usage: unknown;
   /** mixed is accepted and stored, but only singular arrangement is applied. */
@@ -372,7 +375,7 @@ export function captionsFromMotionHtml(
   });
 }
 
-function collectChanges(before: Caption[], after: Caption[]) {
+function collectChanges(before: Caption[], after: Caption[]): CaptionChange[] {
   const structural = detectSegmentationChanges(
     before,
     after,
@@ -380,7 +383,7 @@ function collectChanges(before: Caption[], after: Caption[]) {
   );
   if (structural.length > 0) return structural;
 
-  const highlightChanges: Array<Record<string, unknown>> = [];
+  const highlightChanges: CaptionChange[] = [];
   const max = Math.max(before.length, after.length);
   for (let i = 0; i < max; i++) {
     const original = String(before[i]?.metadata?.htmlText ?? '');

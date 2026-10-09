@@ -1,7 +1,8 @@
 /**
- * Remotion daily worker: progress + cost backfill.
- * Runs daily: queries render_requests from last 1–2 days, calls getRenderProgress for each,
- * updates render_requests with progressData and status; when done, writes cost to platform_cost_usage.
+ * Remotion cost backfill.
+ * Reads uncalculated aws_render rows and writes the cost already stored on the render.
+ * Live progress is fetched only when that stored cost is missing, using the region and
+ * function the render actually used.
  */
 
 import { createWorker, type WorkerConfig } from '@microfox/ai-worker';
@@ -38,6 +39,43 @@ function getDefaultAwsRenderConfigs(): Record<string, { disk: number; memory: nu
     lightweight: { memory: 1024, disk: 2048, timeout: 180 },
     broadcast: { memory: 6144, disk: 10240, timeout: 900 },
     enterprise: { memory: 10240, disk: 10240, timeout: 900 },
+  };
+}
+
+type StoredRenderCost = {
+  accruedSoFar: number;
+  currency: string;
+  done: boolean;
+  fatal: boolean;
+  lambdasInvoked?: number;
+  timeToFinishChunks?: number | null;
+  region?: string;
+  memorySizeInMb?: number;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+/** Progress is saved either as the Remotion payload or as { renderInfo: payload }. */
+function readStoredRenderCost(progressData: unknown): StoredRenderCost | null {
+  const root = asRecord(progressData);
+  if (!root) return null;
+  const payload = asRecord(root.renderInfo) ?? root;
+  const costs = asRecord(payload.costs);
+  const accruedSoFar = costs?.accruedSoFar;
+  if (typeof accruedSoFar !== 'number' || !Number.isFinite(accruedSoFar)) return null;
+  const meta = asRecord(payload.renderMetadata);
+  return {
+    accruedSoFar,
+    currency: typeof costs?.currency === 'string' ? costs.currency : 'USD',
+    done: payload.done === true,
+    fatal: payload.fatalErrorEncountered === true,
+    lambdasInvoked: typeof payload.lambdasInvoked === 'number' ? payload.lambdasInvoked : undefined,
+    timeToFinishChunks:
+      typeof payload.timeToFinishChunks === 'number' ? payload.timeToFinishChunks : null,
+    region: typeof meta?.region === 'string' ? meta.region : undefined,
+    memorySizeInMb: typeof meta?.memorySizeInMb === 'number' ? meta.memorySizeInMb : undefined,
   };
 }
 
@@ -87,87 +125,89 @@ export default createWorker<typeof InputSchema, Output>({
       }
     }
 
-    const renderRequests = await renderRequestDB.getRecent(14);
-    console.log('[cost-usage-remotion] Render requests to process:', { jobId, count: renderRequests.length });
-    for (const req of renderRequests) {
+    const pending = await platformCostUsageDB.findUncalculated('aws_render', 2000);
+    const renderIds = pending
+      .map((doc) => (typeof doc.metadata?.renderId === 'string' ? doc.metadata.renderId : ''))
+      .filter((id) => id.length > 0);
+    const renders = await renderRequestDB.getByRenderIds(renderIds);
+    const renderById = new Map(renders.map((render) => [render.renderId, render]));
+    console.log('[cost-usage-remotion] Uncalculated aws_render rows:', {
+      jobId,
+      count: pending.length,
+      renders: renders.length,
+    });
+
+    for (const doc of pending) {
+      const renderId = typeof doc.metadata?.renderId === 'string' ? doc.metadata.renderId : '';
+      if (!renderId) continue;
+      const req = renderById.get(renderId);
+      if (!req) continue;
+
       try {
         processed += 1;
-        const { renderId, bucketName, clientId, awsRenderPreset } = req;
-        if (!bucketName || !renderId) continue;
+        let stored = readStoredRenderCost(req.progressData);
+        const terminal =
+          stored != null &&
+          (stored.done || stored.fatal || req.status === 'completed' || req.status === 'failed');
 
-        const preset = (awsRenderPreset as string) || 'classic';
-        const config =
-          AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
-        const functionName = speculateFunctionName({
-          diskSizeInMb: config.disk,
-          memorySizeInMb: config.memory,
-          timeoutInSeconds: config.timeout,
-        });
-
-        const renderProgress = await getRenderProgress({
-          bucketName,
-          functionName,
-          region: REGION,
-          renderId,
-        });
-
-        await renderRequestDB.update(
-          renderId,
-          {
-            progressData: renderProgress,
-            status: renderProgress.fatalErrorEncountered
-              ? 'failed'
-              : renderProgress.done
-                ? 'completed'
-                : 'rendering',
-            downloadUrl: renderProgress.outputFile as string,
-            fileSize: renderProgress.outputSizeInBytes as number,
-          },
-          clientId ?? undefined
-        );
-        updated += 1;
-
-        if (
-          (renderProgress.done || renderProgress.fatalErrorEncountered) &&
-          renderProgress.costs
-        ) {
-          const costs = renderProgress.costs as {
-            accruedSoFar?: number;
-            displayCost?: string;
-            currency?: string;
-          };
-          const accrued =
-            typeof costs.accruedSoFar === 'number'
-              ? costs.accruedSoFar
-              : typeof costs.displayCost === 'string'
-                ? parseFloat(costs.displayCost.replace(/[^0-9.]/g, '')) || 0
-                : 0;
-          const progressMeta = renderProgress as {
-            lambdasInvoked?: number;
-            timeToFinishChunks?: number | null;
-            renderMetadata?: { region?: string; memorySizeInMb?: number };
-          };
-          const amount = resolveAwsRenderAmountUSD({
-            accruedSoFar: accrued,
-            region: progressMeta.renderMetadata?.region || REGION,
-            memorySizeInMb:
-              progressMeta.renderMetadata?.memorySizeInMb ||
-              (req.memoryUsed as number | undefined) ||
-              config.memory,
-            diskSizeInMb: (req.diskUsed as number | undefined) || config.disk,
-            lambdasInvoked: progressMeta.lambdasInvoked,
-            timeToFinishChunks: progressMeta.timeToFinishChunks,
-          });
-          const currency = costs.currency ?? 'USD';
-          const ok = await platformCostUsageDB.updateCostByRenderId(
+        if (!terminal && req.bucketName) {
+          const preset = (req.awsRenderPreset as string) || 'classic';
+          const config = AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
+          const functionName =
+            req.functionNameUsed ||
+            speculateFunctionName({
+              diskSizeInMb: config.disk,
+              memorySizeInMb: config.memory,
+              timeoutInSeconds: config.timeout,
+            });
+          const region = (req.regionUsed as AwsRegion | undefined) || REGION;
+          const renderProgress = await getRenderProgress({
+            bucketName: req.bucketName,
+            functionName,
+            region,
             renderId,
-            { amount, currency, amountUSD: amount },
-            clientId ?? undefined
+          });
+          await renderRequestDB.update(
+            renderId,
+            {
+              progressData: renderProgress,
+              status: renderProgress.fatalErrorEncountered
+                ? 'failed'
+                : renderProgress.done
+                  ? 'completed'
+                  : 'rendering',
+              downloadUrl: renderProgress.outputFile as string,
+              fileSize: renderProgress.outputSizeInBytes as number,
+            },
+            req.clientId
           );
-          if (ok) costBackfilled += 1;
+          updated += 1;
+          stored = readStoredRenderCost(renderProgress);
         }
+
+        const finished =
+          stored != null &&
+          (stored.done || stored.fatal || req.status === 'completed' || req.status === 'failed');
+        if (!stored || !finished) continue;
+
+        const preset = (req.awsRenderPreset as string) || 'classic';
+        const config = AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
+        const amount = resolveAwsRenderAmountUSD({
+          accruedSoFar: stored.accruedSoFar,
+          region: stored.region || req.regionUsed || REGION,
+          memorySizeInMb: stored.memorySizeInMb || req.memoryUsed || config.memory,
+          diskSizeInMb: req.diskUsed || config.disk,
+          lambdasInvoked: stored.lambdasInvoked,
+          timeToFinishChunks: stored.timeToFinishChunks,
+        });
+        const ok = await platformCostUsageDB.updateCostByRenderId(
+          renderId,
+          { amount, currency: stored.currency, amountUSD: amount },
+          doc.clientId
+        );
+        if (ok) costBackfilled += 1;
       } catch (e) {
-        console.error('[cost-usage-remotion] request failed', req?.renderId, e);
+        console.error('[cost-usage-remotion] request failed', renderId, e);
         errors += 1;
       }
     }
