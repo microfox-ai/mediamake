@@ -94,7 +94,7 @@ const LAYOUT_SPEC: Record<
   horizontal_box: {
     maxLines: 2,
     shape:
-      'HORIZONTAL RECTANGLE, 16:9. Wide and short. At most 2 lines. A bold word can sit on the same line as the words around it.',
+      'HORIZONTAL RECTANGLE, 16:9. At most 2 lines on a card. The width is the ceiling, not a target. A line stays as short as the phrase. One of the two lines can be plain. Both lines do not need a highlighted word.',
     mediumExample:
       'A sudden blinding<br/><b>sunburst</b><br/><br/>to blind the<br/><b>tyrant\'s gaze</b>',
     largeExample:
@@ -116,7 +116,7 @@ const SHORT_SQUARE_EXAMPLE =
 
 const LINE_LENGTH_SPEC: Record<LineLength, string> = {
   short:
-    'SHORT LINES — one phrase per line. On a square that is about 3 to 5 words, the way the short square example breaks. A tall frame may use fewer words. A wide frame may hold a slightly longer phrase. Still end the line on its punctuation.',
+    'SHORT LINES — one phrase per line, about 3 to 5 words. Cut at punctuation and at the end of a phrase. A wide frame does not make the line longer. If a horizontal card can only hold 2 lines, start a new card instead of stretching the line. The bold word owns its line: either the whole line is the bold phrase, or the bold word is alone. Do not leave a plain word sitting beside the bold word.',
   medium:
     'MEDIUM LINES — a phrase can be a little longer than the short example. A punctuation mark still ends that line. Do not run past a period or a comma onto the next phrase.',
   large:
@@ -218,14 +218,23 @@ function frameDirection(options: SplitAndHighlightOptions): string {
   const lineLength = options.lineLength ?? 'medium';
   const example =
     lineLength === 'large' ? spec.largeExample : spec.mediumExample;
+  const horizontalShort =
+    frame === 'horizontal_box' && lineLength === 'short'
+      ? dedent`
+        SHORT HORIZONTAL — the 16:9 frame still uses short lines. Cut at the phrase and at punctuation. Do not fill the width.
+        where stifling walls<br/>sought to hold the spirit down .<br/><br/>I bore the<br/><b>heavy shell</b><br/><br/>across the shifting sand<br/>to learn the martial pulse<br/><br/>of an<br/><b>unforgiving</b>
+        A new card starts when the two lines are full. The second line of a pair can stay plain. Only one line needs a highlight.
+      `
+      : '';
   const shared = dedent`
     ${spec.shape}
     ${LINE_LENGTH_SPEC[lineLength]}
     ${spec.maxLines} lines is the ceiling. Use fewer when the clause is shorter.
+    ${horizontalShort}
 
     ${lineLength === 'large' ? 'LARGE' : 'MEDIUM'} shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
     ${example}
-    That example shows width and bold. It does not override punctuation. The mark still ends its line.
+    That example shows a possible wrap. It does not override a short line length, and it does not override punctuation. On a horizontal card, the second line may have no bold word.
   `;
 
   if (options.staticFrameChoice !== false) {
@@ -282,7 +291,7 @@ export function buildSplitAndHighlightPrompt(
     - Keep a preposition with the phrase it opens: "across the shifting sand", "of an unforgiving land.", "beneath my skin .", "where the quiet wars begin ."
     - Do not fill a line with the next phrase just because there is room. Stop when the phrase, or its punctuation, is complete.
 
-    SHORT SQUARE — copy this break pattern when lines are short. Other frames use the same phrase cuts, with fewer words on a tall frame and a slightly longer phrase on a wide frame.
+    SHORT LINES — copy this break pattern when lines are short, including on a horizontal frame. Do not lengthen a line because the frame is wide. A horizontal card holds at most 2 of these lines, then the next phrase starts a new card.
     ${SHORT_SQUARE_EXAMPLE}
 
     ON-SCREEN TIME
@@ -294,10 +303,20 @@ export function buildSplitAndHighlightPrompt(
     Line length is ${lineLength}. It changes how many words share a line. It does not move a break off a punctuation mark or out of a clause.
 
     HIGHLIGHTS
-    - Bold the word the line is built to land on: the image, the name, the verb, the turn.
-    - On a wide line, a tight landing phrase may be bold together ("tyrant's gaze") when those words are one hit.
-    - On a tall or square line, the hero word is usually alone on its line.
-    - Skip articles and filler. Never bold a piece of a word. Never start a line with a comma inside the bold.
+    - Bold the word that carries the phrase: the image, the quality, the verb, the name. Not the last noun just because it ends the line.
+    - "unforgiving" is the word in "of an unforgiving land", not "land".
+    - "heavy" and "shell" are the weight in "I bore the heavy shell". Bold them as a pair, or bold "shell" alone. Do not bold a filler word.
+    - Skip articles and filler ("the", "an", "of"). Never bold a piece of a word.
+    - On a horizontal card, one line may carry the highlight and the other line may be entirely plain. Do not bold a word on the second line just to balance the first.
+    ${
+      lineLength === 'large'
+        ? '- Large lines may keep smaller words on the same line as the bold word: "A sudden blinding <b>sunburst</b>".'
+        : `- Short lines: the bold word owns the line.
+    - Either the whole line is the bold phrase: "I bore the<br/><b>heavy shell</b>"
+    - Or the bold word is alone and the words before it stay on the previous line: "I bore the heavy<br/><b>shell</b>"
+    - "I bore the<br/>heavy <b>shell</b>" is wrong. A plain word must not sit beside the bold word.
+    - "of an unforgiving land" becomes "Of an<br/><b>unforgiving</b><br/>land". The meaningful word is alone. "land" is not the word to scale.`
+    }
   `;
 
   const prompt = dedent`
@@ -309,6 +328,18 @@ export function buildSplitAndHighlightPrompt(
 
     Redesign every card for ${frame} with ${lineLength} lines. Bold words are ${scale}× body size.
     Break on phrase meaning. Put every punctuation mark at the end of that line. Never start a line with a mark.
+    ${
+      lineLength === 'large'
+        ? 'A bold word may share its line with smaller words.'
+        : 'On a short line, the bold word is alone or the whole line is bold. Do not leave a plain word next to it. Bold the word that carries the phrase, not the last noun.'
+    }
+    ${
+      frame === 'horizontal_box'
+        ? lineLength === 'short'
+          ? 'This is a horizontal frame with short lines. Cut at punctuation and at the phrase. Do not stretch a line to fill the width. A card has at most 2 lines. One of those lines can have no highlight.'
+          : 'On this horizontal card, both lines do not need a highlighted word.'
+        : ''
+    }
     Keep every word, in this order.
     Return only the html.
     ${options.userRequest ? `\nADDITIONAL DIRECTION: ${options.userRequest}` : ''}
