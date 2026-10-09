@@ -14,8 +14,8 @@ import {
   type AwsRegion,
 } from '@remotion/lambda/client';
 import { renderRequestDB } from '../../../../lib/render-mongodb';
+import type { RenderRequestDocument } from '../../../../lib/render-mongodb';
 import { platformCostUsageDB } from '../../../../lib/cost-usage-mongodb';
-import { resolveAwsRenderAmountUSD } from '../../../../lib/aws-render-cost';
 
 const InputSchema = z.object({}).catchall(z.unknown()).optional().default({});
 const OutputSchema = z.object({
@@ -126,31 +126,39 @@ export default createWorker<typeof InputSchema, Output>({
     }
 
     const pending = await platformCostUsageDB.findUncalculated('aws_render', 2000);
-    const renderIds = pending
-      .map((doc) => (typeof doc.metadata?.renderId === 'string' ? doc.metadata.renderId : ''))
-      .filter((id) => id.length > 0);
-    const renders = await renderRequestDB.getByRenderIds(renderIds);
-    const renderById = new Map(renders.map((render) => [render.renderId, render]));
-    console.log('[cost-usage-remotion] Uncalculated aws_render rows:', {
+    const finishedRenders = await renderRequestDB.listFinishedWithStoredCost(2000);
+    const renderIds = new Set<string>();
+    for (const doc of pending) {
+      if (typeof doc.metadata?.renderId === 'string' && doc.metadata.renderId) {
+        renderIds.add(doc.metadata.renderId);
+      }
+    }
+    for (const render of finishedRenders) {
+      if (render.renderId) renderIds.add(render.renderId);
+    }
+    const loaded = await renderRequestDB.getByRenderIds([...renderIds]);
+    const renderById = new Map<string, RenderRequestDocument>();
+    for (const render of [...finishedRenders, ...loaded]) {
+      if (render.renderId) renderById.set(render.renderId, render);
+    }
+    console.log('[cost-usage-remotion] Renders to cost:', {
       jobId,
-      count: pending.length,
-      renders: renders.length,
+      uncalculated: pending.length,
+      finishedWithCost: finishedRenders.length,
+      unique: renderById.size,
     });
 
-    for (const doc of pending) {
-      const renderId = typeof doc.metadata?.renderId === 'string' ? doc.metadata.renderId : '';
-      if (!renderId) continue;
-      const req = renderById.get(renderId);
-      if (!req) continue;
-
+    for (const [renderId, req] of renderById) {
       try {
         processed += 1;
         let stored = readStoredRenderCost(req.progressData);
-        const terminal =
-          stored != null &&
-          (stored.done || stored.fatal || req.status === 'completed' || req.status === 'failed');
+        const finished =
+          req.status === 'completed' ||
+          req.status === 'failed' ||
+          stored?.done === true ||
+          stored?.fatal === true;
 
-        if (!terminal && req.bucketName) {
+        if (!(stored && finished) && req.bucketName) {
           const preset = (req.awsRenderPreset as string) || 'classic';
           const config = AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
           const functionName =
@@ -161,50 +169,54 @@ export default createWorker<typeof InputSchema, Output>({
               timeoutInSeconds: config.timeout,
             });
           const region = (req.regionUsed as AwsRegion | undefined) || REGION;
-          const renderProgress = await getRenderProgress({
-            bucketName: req.bucketName,
-            functionName,
-            region,
-            renderId,
-          });
-          await renderRequestDB.update(
-            renderId,
-            {
-              progressData: renderProgress,
-              status: renderProgress.fatalErrorEncountered
-                ? 'failed'
-                : renderProgress.done
-                  ? 'completed'
-                  : 'rendering',
-              downloadUrl: renderProgress.outputFile as string,
-              fileSize: renderProgress.outputSizeInBytes as number,
-            },
-            req.clientId
-          );
-          updated += 1;
-          stored = readStoredRenderCost(renderProgress);
+          try {
+            const renderProgress = await getRenderProgress({
+              bucketName: req.bucketName,
+              functionName,
+              region,
+              renderId,
+            });
+            await renderRequestDB.update(
+              renderId,
+              {
+                progressData: renderProgress as RenderRequestDocument['progressData'],
+                status: renderProgress.fatalErrorEncountered
+                  ? 'failed'
+                  : renderProgress.done
+                    ? 'completed'
+                    : 'rendering',
+                downloadUrl: renderProgress.outputFile as string,
+                fileSize: renderProgress.outputSizeInBytes as number,
+              },
+              req.clientId
+            );
+            updated += 1;
+            stored = readStoredRenderCost(renderProgress);
+          } catch (e) {
+            console.error('[cost-usage-remotion] progress lookup failed', renderId, e);
+            errors += 1;
+          }
         }
 
-        const finished =
+        const canBill =
           stored != null &&
-          (stored.done || stored.fatal || req.status === 'completed' || req.status === 'failed');
-        if (!stored || !finished) continue;
+          (req.status === 'completed' ||
+            req.status === 'failed' ||
+            stored.done ||
+            stored.fatal);
+        if (!canBill || !stored) continue;
 
-        const preset = (req.awsRenderPreset as string) || 'classic';
-        const config = AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
-        const amount = resolveAwsRenderAmountUSD({
-          accruedSoFar: stored.accruedSoFar,
-          region: stored.region || req.regionUsed || REGION,
-          memorySizeInMb: stored.memorySizeInMb || req.memoryUsed || config.memory,
-          diskSizeInMb: req.diskUsed || config.disk,
-          lambdasInvoked: stored.lambdasInvoked,
-          timeToFinishChunks: stored.timeToFinishChunks,
-        });
-        const ok = await platformCostUsageDB.updateCostByRenderId(
+        const ok = await platformCostUsageDB.upsertAwsRenderCost({
           renderId,
-          { amount, currency: stored.currency, amountUSD: amount },
-          doc.clientId
-        );
+          clientId: req.clientId,
+          bucketName: req.bucketName,
+          createdAt: req.createdAt,
+          cost: {
+            amount: stored.accruedSoFar,
+            currency: stored.currency,
+            amountUSD: stored.accruedSoFar,
+          },
+        });
         if (ok) costBackfilled += 1;
       } catch (e) {
         console.error('[cost-usage-remotion] request failed', renderId, e);

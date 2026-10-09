@@ -81,6 +81,47 @@ export class PlatformCostUsageMongoDB {
     }) | null>;
   }
 
+  /**
+   * One aws_render row per render. Updates the existing row, or inserts one dated
+   * to the render so a finished render is not billed on the day the job happened to run.
+   */
+  async upsertAwsRenderCost(args: {
+    renderId: string;
+    cost: CostAmount;
+    clientId?: string;
+    bucketName?: string;
+    createdAt?: string;
+  }): Promise<boolean> {
+    const db = await getDatabase();
+    const coll = db.collection<PlatformCostUsageDocument>(RAW_COLLECTION);
+    const query: Record<string, unknown> = {
+      platform: 'aws_render',
+      'metadata.renderId': args.renderId,
+    };
+    if (args.clientId != null) query.clientId = args.clientId;
+    const existing = await coll.findOne(query);
+    const nowStr = now();
+    if (existing) {
+      const result = await coll.updateOne(
+        { _id: existing._id },
+        { $set: { cost: args.cost, isCalculated: true, updatedAt: nowStr } }
+      );
+      return result.matchedCount > 0;
+    }
+    const createdAt = args.createdAt ?? nowStr;
+    await coll.insertOne({
+      platform: 'aws_render',
+      source: 'remotion_lambda',
+      clientId: args.clientId,
+      metadata: { renderId: args.renderId, bucketName: args.bucketName },
+      isCalculated: true,
+      cost: args.cost,
+      createdAt,
+      updatedAt: nowStr,
+    });
+    return true;
+  }
+
   async updateCostByRenderId(
     renderId: string,
     cost: CostAmount,

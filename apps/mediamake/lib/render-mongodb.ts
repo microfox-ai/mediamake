@@ -258,6 +258,35 @@ export class RenderRequestMongoDB {
     return await collection.find(query).sort({ createdAt: -1 }).toArray();
   }
 
+  /**
+   * Finished renders that already have a Remotion cost on the document.
+   * Excludes inputProps so a billing sweep does not load multi-megabyte timelines.
+   */
+  async listFinishedWithStoredCost(limit = 1000): Promise<RenderRequestDocument[]> {
+    const db = await getDatabase();
+    const collection = db.collection<RenderRequestDocument>(this.collectionName);
+    return collection
+      .find(
+        {
+          status: { $in: ['completed', 'failed'] },
+          $or: [
+            { 'progressData.costs.accruedSoFar': { $type: 'number' } },
+            { 'progressData.renderInfo.costs.accruedSoFar': { $type: 'number' } },
+          ],
+        },
+        {
+          projection: {
+            inputProps: 0,
+            'progressData.renderMetadata.inputProps': 0,
+            'progressData.renderInfo.renderMetadata.inputProps': 0,
+          },
+        }
+      )
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+  }
+
   /** Load renders by Remotion render id, including archived ones (billing backfill). */
   async getByRenderIds(renderIds: string[]): Promise<RenderRequestDocument[]> {
     if (renderIds.length === 0) return [];
