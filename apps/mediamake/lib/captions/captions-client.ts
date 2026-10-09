@@ -87,6 +87,13 @@ export async function updateCaptionsDocument(
   return normalizeCaptionsDocument(result.captions, result.id ?? id);
 }
 
+/** Unique caption title derived from a transcription or captions source title. */
+export function captionTitleFromSource(sourceTitle?: string | null) {
+  const base = sourceTitle?.trim() || 'Untitled';
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${base}-${suffix}`;
+}
+
 export function captionsReferenceValue(
   doc: CaptionsDocument,
   fallbackCaptions?: Caption[],

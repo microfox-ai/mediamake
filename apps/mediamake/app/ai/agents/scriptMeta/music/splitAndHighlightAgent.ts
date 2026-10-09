@@ -103,6 +103,7 @@ const splitAndHighlightAgent = aiRouter
         transcriptionId,
         userRequest,
         frameChoice,
+        lineLength = 'medium',
         fontScaling = 2,
         staticFrameChoice = true,
       } = ctx.request.params as {
@@ -110,6 +111,7 @@ const splitAndHighlightAgent = aiRouter
         transcriptionId?: string;
         userRequest?: string;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
+        lineLength?: 'short' | 'medium' | 'large';
         fontScaling?: number;
         staticFrameChoice?: boolean;
       };
@@ -125,6 +127,7 @@ const splitAndHighlightAgent = aiRouter
 
       const result = await runSplitAndHighlight(captions, {
         frameChoice,
+        lineLength,
         fontScaling,
         staticFrameChoice,
         userRequest,

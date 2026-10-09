@@ -32,6 +32,7 @@ const sentenceStructureFixerAgent = aiRouter
         userRequest,
         applyToDatabase = false,
         frameChoice,
+        lineLength = 'medium',
         fontScaling = 2,
         staticFrameChoice = true,
       } = ctx.request.params as {
@@ -40,6 +41,7 @@ const sentenceStructureFixerAgent = aiRouter
         userRequest?: string;
         applyToDatabase?: boolean;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
+        lineLength?: 'short' | 'medium' | 'large';
         fontScaling?: number;
         staticFrameChoice?: boolean;
       };
@@ -52,6 +54,7 @@ const sentenceStructureFixerAgent = aiRouter
         captionId,
         transcriptionId,
         frameChoice,
+        lineLength,
         fontScaling,
         staticFrameChoice,
       });
@@ -63,6 +66,7 @@ const sentenceStructureFixerAgent = aiRouter
       const captions = ctx.state.captions;
       const result = await runSplitAndHighlight(captions, {
         frameChoice,
+        lineLength,
         fontScaling,
         staticFrameChoice,
         userRequest,

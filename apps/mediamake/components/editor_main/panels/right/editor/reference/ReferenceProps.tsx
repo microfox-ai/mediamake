@@ -62,6 +62,7 @@ import { ParagraphCaptionsDialog } from "@/components/editor/captions/paragraph-
 import { AudioToTextDialog } from "@/components/editor/captions/audio-to-text-dialog";
 import type { Caption, CaptionsDocument, Transcription } from "@/app/types/transcription";
 import {
+  captionTitleFromSource,
   captionsDocumentId,
   captionsReferenceValue,
   createCaptionsDocument,
@@ -767,7 +768,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       const id = captionsDocumentId(transcription._id);
       return handleCreateCaptions(
         {
-          title: transcription.title || "Untitled Captions",
+          title: captionTitleFromSource(transcription.title),
           description: transcription.description || "",
           captions: transcription.captions ?? [],
           sourceTranscriptionId: id || undefined,
@@ -781,11 +782,21 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   const handleLinkCaption = useCallback(
     (doc: CaptionsDocument) => {
-      bindCaptionsDocument(doc);
       setShowCaptionPicker(false);
-      toast.success("Caption linked");
+      return handleCreateCaptions(
+        {
+          title: captionTitleFromSource(doc.title),
+          description: doc.description || "",
+          captions: doc.captions ?? [],
+          sourceCaptionsId: captionsDocumentId(doc._id) || undefined,
+          sourceTranscriptionId:
+            captionsDocumentId(doc.sourceTranscriptionId) || undefined,
+          projectId: doc.projectId || timeline.projectId,
+        },
+        "Caption linked",
+      );
     },
-    [bindCaptionsDocument],
+    [handleCreateCaptions, timeline.projectId],
   );
 
   useEffect(() => {

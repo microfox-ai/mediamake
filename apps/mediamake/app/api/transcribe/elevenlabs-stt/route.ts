@@ -15,6 +15,7 @@ const TranscriptionRequestSchema = z.object({
   audioUrl: z.string().startsWith('https://'),
   language: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  title: z.string().optional(),
 });
 
 // --- Types ---
@@ -218,7 +219,8 @@ export const POST = async (req: NextRequest) => {
     const body = await req.json();
     const validatedRequest = TranscriptionRequestSchema.parse(body);
 
-    const { audioUrl, language, tags } = validatedRequest;
+    const { audioUrl, language, tags, title } = validatedRequest;
+    const trimmedTitle = title?.trim() || undefined;
 
     // Perform transcription
     const { captions, id, language_code, transcript } = await transcribeAudio(
@@ -232,6 +234,13 @@ export const POST = async (req: NextRequest) => {
     // Check if it already exists
     const existing = await collection.findOne({ assemblyId: id });
     if (existing) {
+      if (trimmedTitle && existing.title !== trimmedTitle) {
+        await collection.updateOne(
+          { _id: existing._id },
+          { $set: { title: trimmedTitle, updatedAt: new Date() } },
+        );
+        existing.title = trimmedTitle;
+      }
       return NextResponse.json(
         {
           success: true,
@@ -249,6 +258,7 @@ export const POST = async (req: NextRequest) => {
       language: language_code,
       status: 'completed',
       tags: tags || [],
+      ...(trimmedTitle ? { title: trimmedTitle } : {}),
       captions: captions || [],
       processingData: {
         step1: {

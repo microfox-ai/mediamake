@@ -20,7 +20,13 @@ const inputSchema = z.object({
     .enum(["vertical_box", "horizontal_box", "square_box"])
     .default("vertical_box")
     .describe(
-      "Frame for every card. vertical_box: tall, up to 5 lines. horizontal_box: wide, up to 2 lines. square_box: up to 3 lines.",
+      "Frame for every card. vertical_box is 3:4. horizontal_box is 16:9. square_box is 1:1.",
+    ),
+  lineLength: z
+    .enum(["short", "medium", "large"])
+    .default("medium")
+    .describe(
+      "How many words sit on a line. Meaning and punctuation still decide the break.",
     ),
   fontScaling: z
     .number()
@@ -31,7 +37,7 @@ const inputSchema = z.object({
     .boolean()
     .default(true)
     .describe(
-      "Keep on. Every card uses the same frame. A later pass can turn this off so each card picks its own frame.",
+      "Defaults to true. Every card uses the same frame. A later pass can turn this off so each card picks its own frame.",
     ),
   userRequest: z
     .string()
@@ -180,6 +186,7 @@ export const captionSplitHighlight: ActionDefinition = {
   defaultInputParams: {
     scope: SCOPE_SELECTED,
     frameChoice: "vertical_box",
+    lineLength: "medium",
     fontScaling: 2,
     staticFrameChoice: true,
     userRequest: "",
@@ -204,6 +211,7 @@ export const captionSplitHighlight: ActionDefinition = {
           : {}),
         ...(selectedIndices ? { selectedIndices } : {}),
         frameChoice: parsed.frameChoice,
+        lineLength: parsed.lineLength,
         fontScaling: parsed.fontScaling,
         staticFrameChoice: parsed.staticFrameChoice,
         ...(parsed.userRequest?.trim()

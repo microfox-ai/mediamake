@@ -43,6 +43,7 @@ function isValidUrl(url: string) {
 
 export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialogProps) {
   const [audioUrl, setAudioUrl] = useState('');
+  const [title, setTitle] = useState('');
   const [language, setLanguage] = useState('en');
   const [provider, setProvider] = useState<'assembly' | 'gemini' | 'elevenlabs'>('elevenlabs');
   const [autofix, setAutofix] = useState(false);
@@ -72,6 +73,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
           audioUrl: audioUrl.trim(),
           language: language === 'auto' ? undefined : language,
           tags,
+          title: title.trim() || undefined,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -80,6 +82,9 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
       }
 
       let transcription = result.transcription as Transcription;
+      if (title.trim() && !transcription.title) {
+        transcription = { ...transcription, title: title.trim() };
+      }
       if (autofix && transcription._id) {
         try {
           const autofixResponse = await fetch('/api/studio/chat/agent/transcription-fixer', {
@@ -103,6 +108,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
 
       onCreated(transcription);
       setAudioUrl('');
+      setTitle('');
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transcription failed');
@@ -119,7 +125,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
           if (!next && !isRunning) onClose();
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm">Audio to text</DialogTitle>
           </DialogHeader>
@@ -151,6 +157,18 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
             </div>
 
             <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1">
+                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Title
+                </Label>
+                <Input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Transcription title"
+                  className="h-8 text-xs"
+                  disabled={isRunning}
+                />
+              </div>
               <div className="flex-1 space-y-1">
                 <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   Language
@@ -189,11 +207,14 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
                   </SelectContent>
                 </Select>
               </div>
-              <label className="flex h-8 items-center gap-1.5 text-xs shrink-0">
+              <label
+                className="flex h-8 items-center gap-1.5 text-xs shrink-0 text-muted-foreground"
+                title="Autofix is temporarily disabled"
+              >
                 <Checkbox
                   checked={autofix}
                   onCheckedChange={value => setAutofix(value === true)}
-                  disabled={isRunning}
+                  disabled
                 />
                 Autofix
               </label>

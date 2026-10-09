@@ -106,6 +106,8 @@ interface SchemaFormProps {
     onReset?: () => void;
     customActions?: React.ReactNode;
     title?: string;
+    /** When false, the heading is omitted. Description still renders when set. */
+    showTitle?: boolean;
     description?: string;
     availableReferences?: string[]; // Available reference keys for data-referrable fields
     /** Track names from other presets on the timeline (for linkTrackName dropdowns). */
@@ -3292,6 +3294,7 @@ export function SchemaForm({
     onReset,
     customActions,
     title = "Input Parameters",
+    showTitle = true,
     description,
     availableReferences = [],
     baseData = {},
@@ -3418,8 +3421,10 @@ export function SchemaForm({
     return (
         <div className={className} data-schema-form="">
             <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>
+                <div className="min-w-0">
+                    {showTitle && title ? (
+                        <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>
+                    ) : null}
                     {description && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1 overflow-hidden text-ellipsis">{description}</p>
                     )}

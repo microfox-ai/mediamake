@@ -29,13 +29,22 @@ export const CAPTION_LAYOUTS = [
   'square_box',
 ] as const;
 
+export const LINE_LENGTHS = ['short', 'medium', 'large'] as const;
+
 export type CaptionLayout = (typeof CAPTION_LAYOUTS)[number];
+export type LineLength = (typeof LINE_LENGTHS)[number];
 
 export const SplitAndHighlightParamsSchema = z.object({
   frameChoice: z
     .enum(CAPTION_LAYOUTS)
     .describe(
-      'The frame every card is drawn in while staticFrameChoice is true. vertical_box: tall stack, up to 5 lines. horizontal_box: wide card, up to 2 lines. square_box: compact block, up to 3 lines.',
+      'The frame every card uses while staticFrameChoice is true. vertical_box is a 3:4 vertical rectangle. horizontal_box is a 16:9 horizontal rectangle. square_box is a 1:1 square.',
+    ),
+  lineLength: z
+    .enum(LINE_LENGTHS)
+    .default('medium')
+    .describe(
+      'How many words sit on a line. short, medium, or large. Meaning and punctuation still decide where a line is allowed to break.',
     ),
   fontScaling: z
     .number()
@@ -48,7 +57,7 @@ export const SplitAndHighlightParamsSchema = z.object({
     .boolean()
     .default(true)
     .describe(
-      'When true, every card uses frameChoice. Keep this true. A later pass may set it false so each card can choose its own frame.',
+      'Defaults to true. Every card uses frameChoice. A later pass may set this false so each card can choose its own frame.',
     ),
 });
 
@@ -72,32 +81,43 @@ export interface SplitAndHighlightResult {
 
 const LAYOUT_SPEC: Record<
   CaptionLayout,
-  { maxLines: number; direction: string }
+  { maxLines: number; shape: string; mediumExample: string; largeExample: string }
 > = {
   vertical_box: {
     maxLines: 5,
-    direction: dedent`
-      VERTICAL BOX — a tall stack, at most 5 lines.
-      Build a staircase: a short quiet line, then the line that lands. Lines do not need matching widths.
-      Bold words are drawn at fontScaling times body size, so each one's visual width is about (letter count × fontScaling).
-      Put scaled words on their own line when sharing the line with body copy would overflow.
-    `,
+    shape: 'VERTICAL RECTANGLE, 3:4. Narrow and tall. Up to 5 lines.',
+    mediumExample:
+      'A<br/>sudden<br/>blinding<br/><b>sunburst</b><br/><br/>to<br/>blind the<br/><b>tyrant\'s</b><br/>gaze',
+    largeExample:
+      'A sudden blinding<br/><b>sunburst</b><br/>to blind the<br/><b>tyrant\'s</b><br/>gaze',
   },
   horizontal_box: {
     maxLines: 2,
-    direction: dedent`
-      HORIZONTAL BOX — a wide card, at most 2 lines.
-      A 1-line card is one phrase. A 2-line card is a setup and a landing, not a paragraph.
-      Bold words are larger by fontScaling. Their combined scaled width has to stay inside the wide line.
-    `,
+    shape:
+      'HORIZONTAL RECTANGLE, 16:9. Wide and short. At most 2 lines. A bold word can sit on the same line as the words around it.',
+    mediumExample:
+      'A sudden blinding<br/><b>sunburst</b><br/><br/>to blind the<br/><b>tyrant\'s gaze</b>',
+    largeExample:
+      'A sudden blinding <b>sunburst</b><br/>to <b>blind</b> the tyrant\'s gaze',
   },
   square_box: {
-    maxLines: 3,
-    direction: dedent`
-      SQUARE BOX — a compact block, at most 3 lines.
-      Keep the block close to even. The combined visual width of bold words on a line (each word's letters × fontScaling) should stay near the other lines.
-    `,
+    maxLines: 4,
+    shape:
+      'SQUARE, 1:1. Between the tall frame and the wide frame. Up to 4 lines.',
+    mediumExample:
+      'A<br/>sudden blinding<br/><b>sunburst</b><br/><br/>to blind the<br/><b>tyrant\'s</b><br/>gaze',
+    largeExample:
+      'A sudden blinding<br/><b>sunburst</b><br/>to blind the<br/>tyrant\'s gaze',
   },
+};
+
+const LINE_LENGTH_SPEC: Record<LineLength, string> = {
+  short:
+    'SHORT LINES — fewer words than the medium example. One word a line on the tall frame, one or two on the square, two or three on the wide frame. A clause may split into two cards where the image turns, the way the medium example splits after sunburst.',
+  medium:
+    'MEDIUM LINES — follow the medium example. A turn in the image may start a new card, the way sunburst closes one card and "to blind..." opens the next.',
+  large:
+    'LARGE LINES — follow the large example. Keep one clause in one card. "A sudden blinding sunburst to blind the tyrant\'s gaze" is one card. Only a period, or a comma that finishes the thought, starts the next card. "year." still ends the card before "A sudden...". "gaze," still ends before "a solitary spark".',
 };
 
 /**
@@ -170,30 +190,21 @@ function seconds(value: number): string {
   return `${Math.max(0, value).toFixed(2)}s`;
 }
 
-/** Timed cards for the model. Markup stays out of this block so timings are not copied into htmlText. */
+/**
+ * Sentence text plus how long the card is on screen.
+ * Per-word gaps are omitted so the model does not break on silence.
+ */
 export function formatTimedCaptions(captions: Caption[]): string {
   return captions
     .map((caption, index) => {
       const start = caption.absoluteStart ?? caption.start ?? 0;
       const end = caption.absoluteEnd ?? caption.end ?? start;
       const words = caption.words ?? [];
-      const wordLines =
+      const text =
         words.length > 0
-          ? words.map((word, wordIndex) => {
-              const duration =
-                word.duration ?? word.absoluteEnd - word.absoluteStart;
-              const next = words[wordIndex + 1];
-              const gap = next
-                ? next.absoluteStart - word.absoluteEnd
-                : end - word.absoluteEnd;
-              return `  ${seconds(duration)}  gap ${seconds(gap)}  ${word.text}`;
-            })
-          : [`  ${caption.text ?? ''}`];
-
-      return [
-        `CARD ${index + 1}  ${seconds(start)}–${seconds(end)}  (${seconds(end - start)} on screen)`,
-        ...wordLines,
-      ].join('\n');
+          ? words.map(word => word.text).join(' ')
+          : (caption.text ?? '');
+      return `CARD ${index + 1} (${seconds(end - start)} on screen)\n${text}`;
     })
     .join('\n\n');
 }
@@ -201,14 +212,22 @@ export function formatTimedCaptions(captions: Caption[]): string {
 function frameDirection(options: SplitAndHighlightOptions): string {
   const frame = frameForCard(options, 0);
   const spec = LAYOUT_SPEC[frame];
+  const lineLength = options.lineLength ?? 'medium';
+  const example =
+    lineLength === 'large' ? spec.largeExample : spec.mediumExample;
   const shared = dedent`
-    ${spec.direction}
-    ${spec.maxLines} lines is the ceiling, not a quota. A short phrase or a brief card uses fewer lines.
+    ${spec.shape}
+    ${LINE_LENGTH_SPEC[lineLength]}
+    ${spec.maxLines} lines is the ceiling. Use fewer when the clause is shorter.
+
+    ${lineLength === 'short' ? 'MEDIUM' : lineLength.toUpperCase()} wrap for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
+    ${example}
+    Copy this rhythm: which words share a line, which word is bold, and whether sunburst ends the card.
   `;
 
   if (options.staticFrameChoice !== false) {
     return dedent`
-      STATIC FRAME — every card uses ${frame}.
+      STATIC FRAME — every card uses ${frame}. This is the default.
       Do not switch frames between cards or between lines.
       ${shared}
     `;
@@ -228,10 +247,11 @@ export function buildSplitAndHighlightPrompt(
 ): { system: string; prompt: string } {
   const scale = options.fontScaling ?? 2;
   const frame = frameForCard(options, 0);
+  const lineLength = options.lineLength ?? 'medium';
 
   const system = dedent`
     You are a motion-graphics animator laying out caption cards. This is not subtitling and it is not a transcript cleanup.
-    A card is one moment on screen. A line break is a step for the eye. A bold word is the word that scales in on the beat.
+    Split the sentence the way a title card is read: on meaning, then on punctuation. The frame only decides how narrow the lines are.
 
     MARKUP — return only the html, nothing else
     - One html string for the entire piece. No preface, no explanation, no markdown fences, no timings.
@@ -239,46 +259,43 @@ export function buildSplitAndHighlightPrompt(
     - <br/> (one break) splits lines inside the current card.
     - <b>...</b> marks a word drawn large. Those words render at ${scale}× body size.
     - A bold word takes about ${scale}× the horizontal space of the same letters at body size.
-    - Do not add, delete, reorder, merge, or rewrite words.
+    - Do not add, delete, reorder, merge, or rewrite words. Keep each word's punctuation attached to it.
     - No other tags. No <p>, <div>, <strong>, <i>, or markdown.
 
-    TIMING
-    Each card shows how long it stays on screen. Each word shows its duration and the silence after it.
-    - Under 0.8s on screen: one line, one bold hit, even in a tall frame.
-    - From 0.8s to 2s: at most 2 or 3 lines, and never more than the frame ceiling.
-    - Longer than 2s: you may use the full ceiling.
-    - A gap of about 0.25s or more is a line break. A gap of about 0.6s or more starts a new card.
-    - Stack only as many lines as a viewer can read in that card's time. One glance.
+    SENTENCE STRUCTURE — this decides every break
+    - Read the sentence. A finished thought becomes its own card. A clause inside that thought becomes its own line.
+    - A period, question mark, or exclamation mark ends the card. The word that carries the mark is the last word of that card. "death." ends the card. The next sentence starts the next card.
+    - A comma, semicolon, colon, dash, or ellipsis ends the line it sits on. "dirt," ends that line. "burn," ends that line. The next line starts at the next word.
+    - Never start a line or a card with a punctuation mark. ", I am the" is wrong. The comma stays on the word before it.
+    - Never leave the first word of the next sentence hanging on the previous card. "death. I" then "knew" is wrong. "death." closes the card. "I knew" opens the next card and stays together.
+    - Never strand a pronoun or an article away from the words it belongs to. "I" stays with "knew" or "am". "the" stays with the noun after it.
+    - A purpose clause or a new image can start a new card even without a period: "sunburst" ends one card, "to blind the tyrant's gaze" is the next.
+    - Do not break a clause just because a word is short, and do not keep two sentences on one line because they are brief.
 
-    WHERE TO SPLIT
-    - A period, question mark, or exclamation mark ends the card (<br/><br/>).
-    - A comma, semicolon, colon, dash, or ellipsis usually ends a line (<br/>), not a card.
-    - Also break where the meaning turns: a setup, then the payoff. Meaning can justify a break with no punctuation, and punctuation does not force a break when the words are still one idea.
-    - The punctuation stays on the line it closes. "ready," ends that line. The next line starts at the next word.
-    - Do not start a line with "and", "the", "to", "of", or "a" when that word can stay on the line before it.
-    - The line should open on the word the animation is about to hit.
+    ON-SCREEN TIME
+    Each card notes how long it is visible. That is only a hint for how many lines a viewer can read.
+    Do not break on silence, word duration, or gaps. A pause is not a line break. Meaning and punctuation are.
 
-    FRAME
-    ${frameDirection(options)}
+    FRAME AND LINE LENGTH
+    ${frameDirection({ ...options, lineLength })}
+    Line length is ${lineLength}. It changes how many words share a line. It does not move a break off a punctuation mark or out of a clause.
 
     HIGHLIGHTS
-    - Default to one <b> per line: the word that should land on the beat. Usually the landing word, the contrast, the name, or the number.
-    - A second bold word on the same line only when the two words are the point together ("not today", "New York") and their scaled width still fits the frame.
-    - Skip articles, prepositions, conjunctions, and filler unless the line has nothing else.
-    - Never bold a piece of a word, and never bold the same occurrence twice.
-    - A line that is only connective tissue stays unbolded.
+    - Bold the word the line is built to land on: the image, the name, the verb, the turn.
+    - On a wide line, a tight landing phrase may be bold together ("tyrant's gaze") when those words are one hit.
+    - On a tall or square line, the hero word is usually alone on its line.
+    - Skip articles and filler. Never bold a piece of a word. Never start a line with a comma inside the bold.
   `;
 
   const prompt = dedent`
-    TIMED CARDS (duration, then each word's duration and the gap after it):
+    SENTENCES (on-screen time is context only — do not cut on it):
     ${timedSource}
 
     CURRENT ARRANGEMENT:
     ${sourceHtml}
 
-    Redesign every card in the ${frame} frame. Bold words are ${scale}× body size.
-    Use the timings. Keep punctuation on the line it closes.
-    One bold word per line unless a second word is part of the same hit and the frame still holds.
+    Redesign every card for ${frame} with ${lineLength} lines. Bold words are ${scale}× body size.
+    Break on the sentence: meaning first, then punctuation. Keep every mark on the line it closes.
     Keep every word, in this order.
     Return only the html.
     ${options.userRequest ? `\nADDITIONAL DIRECTION: ${options.userRequest}` : ''}
@@ -461,7 +478,7 @@ export async function runSplitAndHighlight(
     staticFrameChoice: staticFrame,
     summary: dedent`
       Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
-      (up to ${layout.maxLines} lines, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
+      (${options.lineLength ?? 'medium'} lines, up to ${layout.maxLines}, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
     `
       .replace(/\s+/g, ' ')
       .trim(),

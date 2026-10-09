@@ -151,6 +151,17 @@ export function LinkedActionsSection({
                   setExpandedActionId(next ? action.id : null)
                 }
                 title={action.label}
+                headerActions={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 shrink-0 px-2 text-[10px]"
+                    onClick={() => selectAction(action, timeline)}
+                  >
+                    Open
+                  </Button>
+                }
                 anchor={
                   <span className="inline-flex">
                   <Badge
@@ -184,21 +195,11 @@ export function LinkedActionsSection({
                   </span>
                 }
               >
-                <div className="mb-2 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[10px] px-2"
-                    onClick={() => selectAction(action, timeline)}
-                  >
-                    Open
-                  </Button>
-                </div>
                 <ActionEditor
                   timeline={timeline}
                   action={action}
                   showTargetLink={false}
+                  showFormTitle={false}
                 />
               </AnchoredEditPopover>
             );
@@ -214,10 +215,12 @@ export function ActionEditor({
   timeline,
   action,
   showTargetLink = true,
+  showFormTitle = true,
 }: {
   timeline: Timeline;
   action: TimelineAction;
   showTargetLink?: boolean;
+  showFormTitle?: boolean;
 }) {
   const updateAction = useTimelineEditsStore((s) => s.updateAction);
   // Subscribe only to this action — avoids re-rendering the player host via full-store use.
@@ -406,6 +409,7 @@ export function ActionEditor({
 
       <SchemaForm
         title={definition.metadata.title}
+        showTitle={showFormTitle}
         description={definition.metadata.description}
         schema={definition.inputSchema}
         value={localInputData}

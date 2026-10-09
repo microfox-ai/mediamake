@@ -25,6 +25,7 @@ export function AnchoredEditPopover({
   onOpenChange,
   anchor,
   title,
+  headerActions,
   children,
   className,
 }: {
@@ -32,6 +33,7 @@ export function AnchoredEditPopover({
   onOpenChange: (open: boolean) => void;
   anchor: ReactNode;
   title: string;
+  headerActions?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -55,8 +57,9 @@ export function AnchoredEditPopover({
           if (isPortaledMenuTarget(event.target)) event.preventDefault();
         }}
       >
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="min-w-0 break-words text-sm font-medium">{title}</p>
+        <div className="mb-3 flex items-center gap-2">
+          <p className="min-w-0 flex-1 break-words text-sm font-medium">{title}</p>
+          {headerActions}
           <Button
             type="button"
             variant="ghost"

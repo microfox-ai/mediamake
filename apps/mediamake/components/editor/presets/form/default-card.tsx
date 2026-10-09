@@ -16,7 +16,7 @@ import { MediaPicker } from "../../media/media-picker";
 import { MediaFile } from "@/app/types/media";
 import { TranscriptionPicker } from "../../../transcriber/picker/transcription-picker";
 import { Transcription } from "@/app/types/transcription";
-import { captionsDocumentId, captionsReferenceValue, createCaptionsDocument } from "@/lib/captions/captions-client";
+import { captionTitleFromSource, captionsDocumentId, captionsReferenceValue, createCaptionsDocument } from "@/lib/captions/captions-client";
 import { JsonEditor } from "../../player/json-editor";
 import { SchemaForm } from "./schema-form";
 import { MediasGroupField } from "./inputs/medias-group-field";
@@ -99,7 +99,7 @@ export function DefaultCard({
             try {
                 const sourceId = captionsDocumentId(transcription._id);
                 const created = await createCaptionsDocument({
-                    title: transcription.title || "Untitled Captions",
+                    title: captionTitleFromSource(transcription.title),
                     description: transcription.description || "",
                     captions: transcription.captions ?? [],
                     sourceTranscriptionId: sourceId || undefined,
