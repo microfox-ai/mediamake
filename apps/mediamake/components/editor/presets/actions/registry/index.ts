@@ -4,8 +4,12 @@ import type { ReferenceItem } from "@/components/editor/presets/types";
 import { shakeEffectRangeGenerator } from "./shake-effect-range-generator";
 import { shakeEffectMinorBeats } from "./shake-effect-minor-beats";
 import { shakeEffectRange } from "./shake-effect-range";
+import { captionSentenceStructure } from "./caption-sentence-structure";
+import { captionSplitHighlight } from "./caption-split-highlight";
 
 const ACTION_REGISTRY: ActionDefinition[] = [
+  captionSentenceStructure,
+  captionSplitHighlight,
   shakeEffectMinorBeats,
   shakeEffectRange,
   shakeEffectRangeGenerator,
@@ -27,7 +31,12 @@ export function getSupportedActionsForPreset(
     // Hide deprecated alias from the add dropdown when the new name exists
     if (action.metadata.id === "shakeEffectRangeGenerator") return false;
     const ids = action.metadata.supportedPresetIds;
-    if (!ids || ids.length === 0) return true;
+    if (!ids || ids.length === 0) {
+      // Reference-only actions (captions, media, …) stay off preset menus.
+      const referenceTypes = action.metadata.supportedReferenceTypes;
+      if (referenceTypes && referenceTypes.length > 0) return false;
+      return true;
+    }
     return ids.includes(presetRegistryId);
   });
 }
@@ -57,4 +66,10 @@ export function getSupportedActionsForTarget(
   return getSupportedActionsForReference(reference);
 }
 
-export { shakeEffectRangeGenerator, shakeEffectMinorBeats, shakeEffectRange };
+export {
+  captionSentenceStructure,
+  captionSplitHighlight,
+  shakeEffectRangeGenerator,
+  shakeEffectMinorBeats,
+  shakeEffectRange,
+};

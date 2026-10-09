@@ -1,5 +1,5 @@
 import { getDatabase } from '@/lib/mongodb';
-import { Transcription } from '@/app/types/transcription';
+import { CaptionsDocument, Transcription } from '@/app/types/transcription';
 import { ObjectId } from 'mongodb';
 import { detectSegmentationChanges } from './lib/segmentation';
 
@@ -156,5 +156,31 @@ export async function saveTranscriptionFix(
   );
 
   return updatedTranscription;
+}
+
+/** Replace the caption lines on a captions document. */
+export async function saveCaptionsFix(
+  captionId: string,
+  fixedCaptions: CaptionsDocument['captions'],
+): Promise<CaptionsDocument> {
+  const db = await getDatabase();
+  const collection = db.collection<CaptionsDocument>('captions');
+
+  const existing = await collection.findOne({
+    _id: new ObjectId(captionId),
+  });
+
+  if (!existing) {
+    throw new Error('Captions not found');
+  }
+
+  const updated: CaptionsDocument = {
+    ...existing,
+    captions: fixedCaptions,
+    updatedAt: new Date(),
+  };
+
+  await collection.updateOne({ _id: existing._id }, { $set: updated });
+  return updated;
 }
 

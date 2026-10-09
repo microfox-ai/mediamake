@@ -93,7 +93,7 @@ export class PlatformCostUsageMongoDB {
       'metadata.renderId': renderId,
     };
     if (clientId != null) query.clientId = clientId;
-    const result = await coll.updateOne(query, {
+    const result = await coll.updateMany(query, {
       $set: { cost, isCalculated: true, updatedAt: now() },
     });
     return result.matchedCount > 0;

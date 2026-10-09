@@ -1,6 +1,6 @@
 import { AiMiddleware } from '@microfox/ai-router';
 import { getDatabase } from '@/lib/mongodb';
-import { Transcription } from '@/app/types/transcription';
+import { CaptionsDocument, Transcription } from '@/app/types/transcription';
 import { ObjectId } from 'mongodb';
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
@@ -11,9 +11,12 @@ export const loadTranscription: AiMiddleware<any, any, any, any, any> = async (
   props,
   next,
 ) => {
-  const { transcriptionId, userRequest, selectedIndices } = props.request.params;
+  const { transcriptionId, captionId, userRequest, selectedIndices } =
+    props.request.params;
 
+  // Caption-backed agents load the captions collection in loadCaption.
   if (!transcriptionId) {
+    if (captionId) return next();
     throw new Error('transcriptionId is required');
   }
 
@@ -91,6 +94,67 @@ ${userRequest ? `Please consider the user's specific request: ${userRequest}` : 
 
   // Store transcription info in context state
   props.state.transcriptionInfo = transcriptionInfoObject;
+
+  return next();
+};
+
+/**
+ * Load a captions document the same way loadTranscription loads a transcript.
+ * transcriptionId, when present, only attaches the source audio URL.
+ */
+export const loadCaption: AiMiddleware<any, any, any, any, any> = async (
+  props,
+  next,
+) => {
+  const { captionId, transcriptionId, selectedIndices } = props.request.params;
+
+  if (!captionId || !ObjectId.isValid(captionId)) {
+    throw new Error('captionId is required');
+  }
+
+  const db = await getDatabase();
+  const doc = await db
+    .collection<CaptionsDocument>('captions')
+    .findOne({ _id: new ObjectId(captionId) });
+
+  if (!doc) {
+    throw new Error('Captions not found');
+  }
+
+  if (!doc.captions || doc.captions.length === 0) {
+    throw new Error('No captions found');
+  }
+
+  let captionsToProcess = doc.captions;
+  let indicesToProcess: number[] = doc.captions.map((_, idx) => idx);
+
+  if (selectedIndices && Array.isArray(selectedIndices) && selectedIndices.length > 0) {
+    const validIndices = selectedIndices.filter(
+      (idx: number) =>
+        typeof idx === 'number' && idx >= 0 && idx < doc.captions.length,
+    );
+    if (validIndices.length === 0) {
+      throw new Error('No valid caption indices provided');
+    }
+    captionsToProcess = validIndices.map((idx: number) => doc.captions[idx]);
+    indicesToProcess = validIndices;
+  }
+
+  props.state.captionDocument = doc;
+  props.state.captions = captionsToProcess;
+  props.state.selectedIndices = indicesToProcess;
+  props.state.metadatas = captionsToProcess.map(caption => caption.metadata);
+  props.state.sentences = captionsToProcess.map(caption => caption.text);
+
+  if (transcriptionId && ObjectId.isValid(transcriptionId)) {
+    const transcription = await db
+      .collection<Transcription>('transcriptions')
+      .findOne({ _id: new ObjectId(transcriptionId) });
+    if (transcription) {
+      props.state.transcription = transcription;
+      props.state.audioUrl = transcription.audioUrl;
+    }
+  }
 
   return next();
 };

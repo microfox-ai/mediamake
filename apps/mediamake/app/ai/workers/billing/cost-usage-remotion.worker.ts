@@ -14,6 +14,7 @@ import {
 } from '@remotion/lambda/client';
 import { renderRequestDB } from '../../../../lib/render-mongodb';
 import { platformCostUsageDB } from '../../../../lib/cost-usage-mongodb';
+import { resolveAwsRenderAmountUSD } from '../../../../lib/aws-render-cost';
 
 const InputSchema = z.object({}).catchall(z.unknown()).optional().default({});
 const OutputSchema = z.object({
@@ -86,7 +87,7 @@ export default createWorker<typeof InputSchema, Output>({
       }
     }
 
-    const renderRequests = await renderRequestDB.getRecent(2);
+    const renderRequests = await renderRequestDB.getRecent(14);
     console.log('[cost-usage-remotion] Render requests to process:', { jobId, count: renderRequests.length });
     for (const req of renderRequests) {
       try {
@@ -135,12 +136,28 @@ export default createWorker<typeof InputSchema, Output>({
             displayCost?: string;
             currency?: string;
           };
-          const amount =
+          const accrued =
             typeof costs.accruedSoFar === 'number'
               ? costs.accruedSoFar
               : typeof costs.displayCost === 'string'
                 ? parseFloat(costs.displayCost.replace(/[^0-9.]/g, '')) || 0
                 : 0;
+          const progressMeta = renderProgress as {
+            lambdasInvoked?: number;
+            timeToFinishChunks?: number | null;
+            renderMetadata?: { region?: string; memorySizeInMb?: number };
+          };
+          const amount = resolveAwsRenderAmountUSD({
+            accruedSoFar: accrued,
+            region: progressMeta.renderMetadata?.region || REGION,
+            memorySizeInMb:
+              progressMeta.renderMetadata?.memorySizeInMb ||
+              (req.memoryUsed as number | undefined) ||
+              config.memory,
+            diskSizeInMb: (req.diskUsed as number | undefined) || config.disk,
+            lambdasInvoked: progressMeta.lambdasInvoked,
+            timeToFinishChunks: progressMeta.timeToFinishChunks,
+          });
           const currency = costs.currency ?? 'USD';
           const ok = await platformCostUsageDB.updateCostByRenderId(
             renderId,

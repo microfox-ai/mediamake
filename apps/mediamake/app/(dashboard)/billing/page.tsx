@@ -59,6 +59,7 @@ interface BillingAggregate {
   totalCostUSD: number;
   currency: string;
   requestCount?: number;
+  updatedAt?: string;
   breakdown?: Record<string, { totalCostUSD: number; requestCount?: number }>;
 }
 
@@ -71,7 +72,7 @@ const CHART_COLORS = [
   "hsl(var(--primary))",
 ];
 
-function useBillingData(periodType: PeriodType, periodValue: string | null) {
+function useBillingData(periodType: PeriodType, periodValue: string | null, scope: string) {
   const [data, setData] = React.useState<{
     aggregates: BillingAggregate[];
     periodType: PeriodType;
@@ -84,7 +85,7 @@ function useBillingData(periodType: PeriodType, periodValue: string | null) {
     (pt: PeriodType, pv: string | null) => {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams({ periodType: pt });
+      const params = new URLSearchParams({ periodType: pt, scope });
       if (pv) params.set("periodValue", pv);
       params.set("limit", "2000");
       return fetch(`/api/billing/aggregates?${params}`)
@@ -102,7 +103,7 @@ function useBillingData(periodType: PeriodType, periodValue: string | null) {
         .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
         .finally(() => setLoading(false));
     },
-    []
+    [scope]
   );
 
   React.useEffect(() => {
@@ -111,20 +112,34 @@ function useBillingData(periodType: PeriodType, periodValue: string | null) {
 
   const refetch = React.useCallback(() => {
     return fetchAggregates(periodType, periodValue);
-  }, [fetchAggregates, periodType, periodValue]);
+  }, [fetchAggregates, periodType, periodValue, scope]);
 
   return { data, loading, error, refetch };
 }
 
-function deriveAnalytics(aggregates: BillingAggregate[]) {
-  const global = aggregates.filter((a) => a.clientId == null || a.clientId === "");
-  const byClient = aggregates.filter((a) => a.clientId != null && a.clientId !== "");
+function dedupeAggregates(aggregates: BillingAggregate[]): BillingAggregate[] {
+  const map = new Map<string, BillingAggregate>();
+  for (const row of aggregates) {
+    const key = `${row.clientId ?? ""}|${row.platform}|${row.periodType}|${row.periodValue}`;
+    const prev = map.get(key);
+    if (!prev || (row.updatedAt ?? "") >= (prev.updatedAt ?? "")) map.set(key, row);
+  }
+  return [...map.values()];
+}
 
-  const totalCostGlobal = global.reduce((s, a) => s + a.totalCostUSD, 0);
-  const totalRequestsGlobal = global.reduce((s, a) => s + (a.requestCount ?? 0), 0);
+function deriveAnalytics(aggregates: BillingAggregate[], scope: string) {
+  const rows = dedupeAggregates(aggregates);
+  const isGlobalScope = scope === "global";
+  const primary = isGlobalScope
+    ? rows.filter((a) => a.clientId == null || a.clientId === "")
+    : rows.filter((a) => a.clientId === scope);
+  const byClient = rows.filter((a) => a.clientId != null && a.clientId !== "");
+
+  const totalCostGlobal = primary.reduce((s, a) => s + a.totalCostUSD, 0);
+  const totalRequestsGlobal = primary.reduce((s, a) => s + (a.requestCount ?? 0), 0);
 
   const byPeriod = new Map<string, { totalCostUSD: number; [platform: string]: number | string }>();
-  for (const a of global) {
+  for (const a of primary) {
     let row = byPeriod.get(a.periodValue);
     if (!row) {
       row = { periodValue: a.periodValue, totalCostUSD: 0 };
@@ -138,7 +153,7 @@ function deriveAnalytics(aggregates: BillingAggregate[]) {
   );
 
   const byPlatform = new Map<string, { totalCostUSD: number; requestCount: number }>();
-  for (const a of global) {
+  for (const a of primary) {
     const cur = byPlatform.get(a.platform) ?? { totalCostUSD: 0, requestCount: 0 };
     cur.totalCostUSD += a.totalCostUSD;
     cur.requestCount += a.requestCount ?? 0;
@@ -166,7 +181,7 @@ function deriveAnalytics(aggregates: BillingAggregate[]) {
   })).sort((a, b) => b.totalCostUSD - a.totalCostUSD);
 
   const sourceBreakdown = new Map<string, number>();
-  for (const a of aggregates) {
+  for (const a of primary) {
     if (!a.breakdown) continue;
     for (const [source, v] of Object.entries(a.breakdown)) {
       sourceBreakdown.set(source, (sourceBreakdown.get(source) ?? 0) + (v.totalCostUSD ?? 0));
@@ -184,9 +199,10 @@ function deriveAnalytics(aggregates: BillingAggregate[]) {
     platformBreakdown,
     byClientChart,
     bySource,
-    aggregates,
-    global,
+    aggregates: isGlobalScope ? rows : primary,
+    global: primary,
     byClient,
+    isGlobalScope,
   };
 }
 
@@ -205,8 +221,36 @@ function rollupSuccessMessage(output: { steps?: Array<{ output?: unknown }> }): 
 export default function BillingPage() {
   const [periodType, setPeriodType] = React.useState<PeriodType>("month");
   const [periodValue, setPeriodValue] = React.useState<string | null>(null);
-  const { data, loading, error, refetch } = useBillingData(periodType, periodValue);
-  const analytics = data ? deriveAnalytics(data.aggregates) : null;
+  const [scope, setScope] = React.useState("global");
+  const [clientIds, setClientIds] = React.useState<string[]>([]);
+  const { data, loading, error, refetch } = useBillingData(periodType, periodValue, scope);
+  const analytics = data ? deriveAnalytics(data.aggregates, scope) : null;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const quotaRes = await fetch("/api/quota");
+        const quota = await quotaRes.json();
+        const admin = !!quota.isAdmin;
+        const myId = typeof quota.clientId === "string" ? quota.clientId : "";
+        let ids: string[] = [];
+        if (admin) {
+          const clientsRes = await fetch("/api/db/client-ids");
+          const clients = await clientsRes.json();
+          ids = Array.isArray(clients.clientIds) ? clients.clientIds : [];
+        }
+        if (myId && !ids.includes(myId)) ids = [...ids, myId].sort();
+        if (!admin) ids = myId ? [myId] : [];
+        if (!cancelled) setClientIds(ids);
+      } catch {
+        if (!cancelled) setClientIds([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const successTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -292,7 +336,9 @@ export default function BillingPage() {
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p className="text-muted-foreground text-sm">
-                Aggregated cost and usage across all clients. Global totals are not tied to a specific client.
+                {scope === "global"
+                  ? "Aggregated cost and usage. Global totals are not tied to a specific client."
+                  : `Cost and usage for ${scope}.`}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Select
@@ -330,6 +376,19 @@ export default function BillingPage() {
                     </>
                   )}
                 </Button>
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Scope" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">Global</SelectItem>
+                    {clientIds.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {runRollupMessage && (
@@ -388,7 +447,9 @@ export default function BillingPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Card>
                     <CardHeader>
-                      <CardDescription>Total cost (global)</CardDescription>
+                      <CardDescription>
+                        {scope === "global" ? "Total cost (global)" : "Total cost"}
+                      </CardDescription>
                       <CardTitle className="text-2xl tabular-nums">
                         ${analytics.totalCostGlobal.toFixed(4)}
                       </CardTitle>
@@ -396,7 +457,9 @@ export default function BillingPage() {
                   </Card>
                   <Card>
                     <CardHeader>
-                      <CardDescription>Total requests (global)</CardDescription>
+                      <CardDescription>
+                        {scope === "global" ? "Total requests (global)" : "Total requests"}
+                      </CardDescription>
                       <CardTitle className="text-2xl tabular-nums">
                         {analytics.totalRequestsGlobal.toLocaleString()}
                       </CardTitle>
@@ -423,7 +486,9 @@ export default function BillingPage() {
                 {analytics.costOverTime.length > 0 && (
                   <Card>
                     <CardHeader>
-                      <CardTitle>Cost over time (global)</CardTitle>
+                      <CardTitle>
+                        {scope === "global" ? "Cost over time (global)" : "Cost over time"}
+                      </CardTitle>
                       <CardDescription>
                         Total cost per period across all platforms
                       </CardDescription>
@@ -471,7 +536,9 @@ export default function BillingPage() {
                   {analytics.platformBreakdown.length > 0 && (
                     <Card>
                       <CardHeader>
-                        <CardTitle>Cost by platform (global)</CardTitle>
+                        <CardTitle>
+                          {scope === "global" ? "Cost by platform (global)" : "Cost by platform"}
+                        </CardTitle>
                         <CardDescription>Breakdown by platform</CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -524,7 +591,7 @@ export default function BillingPage() {
                   )}
                 </div>
 
-                {analytics.byClientChart.length > 0 && (
+                {analytics.isGlobalScope && analytics.byClientChart.length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle>Cost by client</CardTitle>

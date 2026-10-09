@@ -11,6 +11,8 @@ import {
 import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { getClientId } from '@/lib/auth-utils';
+import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
+import { resolveAwsRenderAmountUSD } from '@/lib/aws-render-cost';
 
 export const GET = async (req: NextRequest) => {
   try {
@@ -79,6 +81,29 @@ export const GET = async (req: NextRequest) => {
         },
         clientId,
       );
+    }
+
+    if (renderProgress.done && renderProgress.costs && clientId) {
+      const accrued =
+        typeof renderProgress.costs.accruedSoFar === 'number'
+          ? renderProgress.costs.accruedSoFar
+          : 0;
+      const amount = resolveAwsRenderAmountUSD({
+        accruedSoFar: accrued,
+        region: renderProgress.renderMetadata?.region || effectiveRegion,
+        memorySizeInMb:
+          renderProgress.renderMetadata?.memorySizeInMb || config.memory,
+        diskSizeInMb: renderRequest.diskUsed || config.disk,
+        lambdasInvoked: renderProgress.lambdasInvoked,
+        timeToFinishChunks: renderProgress.timeToFinishChunks,
+      });
+      if (amount > 0) {
+        await platformCostUsageDB.updateCostByRenderId(
+          renderProgress.renderId,
+          { amount, currency: renderProgress.costs.currency ?? 'USD', amountUSD: amount },
+          clientId,
+        );
+      }
     }
 
     if (renderProgress.fatalErrorEncountered) {

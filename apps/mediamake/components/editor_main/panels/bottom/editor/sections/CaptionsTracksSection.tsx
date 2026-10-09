@@ -9,6 +9,7 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { setCaptionSelectionActive } from "../../../../stores/bottom-selection-gate";
+import { useCaptionTrackSelection } from "../../../../stores/caption-track-selection";
 import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
 import { isEditorFocusScope } from "../../../../stores/editor-focus-scope";
 import { ROW_HEIGHT, MIN_SEG_PX } from "../timeline-layout";
@@ -101,11 +102,43 @@ export function CaptionsTracksSection({
 
   const [localCaptions, setLocalCaptions] =
     useState<CaptionLine[]>(storeCaptions);
-  const [selected, setSelected] = useState<{
-    kind: "line" | "word";
-    lineIdx: number;
-    wordIdx?: number;
-  } | null>(null);
+  const trackSelection = useCaptionTrackSelection((s) => s.selection);
+  const setTrackSelection = useCaptionTrackSelection((s) => s.setSelection);
+  const selected =
+    trackSelection &&
+    trackSelection.timelineId === timelineId &&
+    trackSelection.referenceIndex === referenceIndex
+      ? trackSelection
+      : null;
+
+  const setSelected = useCallback(
+    (
+      next: {
+        kind: "line" | "word";
+        lineIdx: number;
+        wordIdx?: number;
+      } | null,
+    ) => {
+      if (!next) {
+        const current = useCaptionTrackSelection.getState().selection;
+        if (
+          current?.timelineId === timelineId &&
+          current.referenceIndex === referenceIndex
+        ) {
+          setTrackSelection(null);
+        }
+        return;
+      }
+      setTrackSelection({
+        timelineId,
+        referenceIndex,
+        kind: next.kind,
+        lineIdx: next.lineIdx,
+        wordIdx: next.wordIdx,
+      });
+    },
+    [timelineId, referenceIndex, setTrackSelection],
+  );
 
   const dragRef = useRef<{
     target: DragTarget;
@@ -155,14 +188,14 @@ export function CaptionsTracksSection({
       setCaptionSelectionActive(false);
       releaseBlockSelection(sectionId);
     };
-  }, [selected, sectionId]);
+  }, [selected, sectionId, setSelected]);
 
   const selectBlock = useCallback(
     (next: { kind: "line" | "word"; lineIdx: number; wordIdx?: number }) => {
       claimBlockSelection(sectionId, () => setSelected(null));
       setSelected(next);
     },
-    [sectionId],
+    [sectionId, setSelected],
   );
 
   const clearSelection = useCallback(() => {

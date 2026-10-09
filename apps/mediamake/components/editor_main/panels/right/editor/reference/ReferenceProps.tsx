@@ -13,7 +13,7 @@ import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, Plus, X, Check, Save, Loader2, ChevronDown } from "lucide-react";
+import { Clock, Plus, X, Check, Save, Loader2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { z } from "zod";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { usePlayerRefStore } from "../../../../stores/player-ref-store";
+import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
+import {
+  NEXT_CAPTION_SHORTCUT,
+  PREV_CAPTION_SHORTCUT,
+  captionEndSec,
+  useCaptionTrackSelection,
+} from "../../../../stores/caption-track-selection";
 import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
 import { CaptionItemEditor } from "@/components/editor/captions/caption-item-editor";
 import { FullCaptionsEditor } from "@/components/editor/captions/full-captions-editor";
@@ -119,6 +132,11 @@ interface ActiveItemsPanelProps {
   reference: ReferenceItem;
   activeIndices: Set<number>;
   currentTimeSec: number;
+  /** When set, the panel shows the timeline selection instead of playhead-active items. */
+  selectionMode?: boolean;
+  onStepCaption?: (direction: -1 | 1) => void;
+  canStepPrev?: boolean;
+  canStepNext?: boolean;
   onItemChange: (index: number, newItem: any) => void;
   /** Full-array replace for medias smart edits (add/delete/reorder mapping). */
   onMediasArrayChange?: (nextArray: any[]) => void;
@@ -172,10 +190,49 @@ function syncActiveMediasToFull(
   return result;
 }
 
+function CaptionStepButton({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: -1 | 1;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const shortcut = direction < 0 ? PREV_CAPTION_SHORTCUT : NEXT_CAPTION_SHORTCUT;
+  const label = direction < 0 ? "Previous caption" : "Next caption";
+  const Icon = direction < 0 ? ChevronLeft : ChevronRight;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            disabled={disabled}
+            onClick={onClick}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {label} ({shortcut})
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ActiveItemsPanel({
   reference,
   activeIndices,
   currentTimeSec,
+  selectionMode = false,
+  onStepCaption,
+  canStepPrev = false,
+  canStepNext = false,
   onItemChange,
   onMediasArrayChange,
 }: ActiveItemsPanelProps) {
@@ -186,13 +243,26 @@ function ActiveItemsPanel({
   if (reference.type === "captions") {
     const captions: any[] = reference.value?.captions ?? [];
     const total = captions.length;
+    const timeLabel = `${currentTimeSec.toFixed(3)}s`;
 
     return (
       <div className="space-y-2">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          Active at {currentTimeSec.toFixed(2)}s
-        </p>
+        <div className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center">
+          <CaptionStepButton
+            direction={-1}
+            disabled={!canStepPrev}
+            onClick={() => onStepCaption?.(-1)}
+          />
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center justify-center gap-1 text-center">
+            <Clock className="h-3 w-3" />
+            {selectionMode ? "Selected" : "Active"} at {timeLabel}
+          </p>
+          <CaptionStepButton
+            direction={1}
+            disabled={!canStepNext}
+            onClick={() => onStepCaption?.(1)}
+          />
+        </div>
         {sortedIndices.map((index) => {
           const caption = captions[index];
           if (!caption) return null;
@@ -751,6 +821,87 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     };
   }, []);
 
+  const trackSelection = useCaptionTrackSelection((s) => s.selection);
+  const setTrackSelection = useCaptionTrackSelection((s) => s.setSelection);
+
+  const selectedCaptionIndex = useMemo(() => {
+    if (selectedReference?.type !== "captions" || !trackSelection) return null;
+    if (trackSelection.timelineId !== displayTimeline.id) return null;
+    if (trackSelection.referenceIndex !== referenceIndex) return null;
+    const captions = selectedReference.value?.captions;
+    if (!Array.isArray(captions)) return null;
+    if (trackSelection.lineIdx < 0 || trackSelection.lineIdx >= captions.length) {
+      return null;
+    }
+    return trackSelection.lineIdx;
+  }, [trackSelection, selectedReference, displayTimeline.id, referenceIndex]);
+
+  const captionStepOrigin = useCallback(
+    (direction: -1 | 1) => {
+      if (selectedCaptionIndex != null) return selectedCaptionIndex;
+      const captions = selectedReference?.value?.captions;
+      if (!Array.isArray(captions) || captions.length === 0) return null;
+      if (activeIndices.size > 0) {
+        const sorted = Array.from(activeIndices).sort((a, b) => a - b);
+        return direction > 0 ? sorted[sorted.length - 1] : sorted[0];
+      }
+      let lastBefore = -1;
+      captions.forEach((caption: { absoluteStart?: number; start?: number }, index: number) => {
+        const start = Number(caption?.absoluteStart ?? caption?.start ?? 0) || 0;
+        if (start <= currentTimeSec) lastBefore = index;
+      });
+      return lastBefore;
+    },
+    [selectedCaptionIndex, selectedReference, activeIndices, currentTimeSec],
+  );
+
+  const stepCaption = useCallback(
+    (direction: -1 | 1) => {
+      const captions = selectedReference?.value?.captions;
+      if (!Array.isArray(captions) || captions.length === 0) return;
+      const origin = captionStepOrigin(direction);
+      if (origin == null) return;
+      const next = origin + direction;
+      if (next < 0 || next >= captions.length) return;
+
+      const frame = Math.max(0, Math.round(captionEndSec(captions[next]) * fps));
+      useLayerStateStore.getState().setCurrentFrame(frame);
+      usePlayerRefStore.getState().playerRef.current?.seekTo(frame);
+      setTrackSelection({
+        timelineId: displayTimeline.id,
+        referenceIndex,
+        kind: "line",
+        lineIdx: next,
+      });
+    },
+    [
+      selectedReference,
+      captionStepOrigin,
+      fps,
+      setTrackSelection,
+      displayTimeline.id,
+      referenceIndex,
+    ],
+  );
+
+  useEffect(() => {
+    if (selectedReference?.type !== "captions") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (
+        isEditableKeyboardTarget(event.target) ||
+        isEditableKeyboardTarget(document.activeElement)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      stepCaption(event.key === "ArrowLeft" ? -1 : 1);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedReference?.type, stepCaption]);
+
   const title = selectedReference?.key || `reference_${referenceIndex + 1}`;
   const referenceType = selectedReference?.type || "object";
   const selectedDefaultData: DefaultPresetData = {
@@ -968,39 +1119,89 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
                 {/* Active filter toggle — only in Smart tab for array / media types */}
                 {isSmartFilterType && activeTab === "smart" && (
-                  <Button
-                    variant={filterActive ? "default" : "outline"}
-                    size="sm"
-                    className="h-8 text-xs gap-1 shrink-0 px-2"
-                    onClick={() => setFilterActive((v) => !v)}
-                    title="Filter to items active at the current playhead position"
-                  >
-                    <Clock className="h-3 w-3" />
-                    {filterActive
-                      ? hasActiveItems
-                        ? `${activeIndices.size} active`
-                        : "0 active"
-                      : "All"}
-                  </Button>
+                  selectedCaptionIndex != null ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 text-xs gap-1 shrink-0 px-2"
+                      onClick={() => setTrackSelection(null)}
+                      title="Clear the timeline selection and show the caption at the playhead"
+                    >
+                      <Clock className="h-3 w-3" />
+                      1 selected
+                    </Button>
+                  ) : (
+                    <Button
+                      variant={filterActive ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs gap-1 shrink-0 px-2"
+                      onClick={() => setFilterActive((v) => !v)}
+                      title="Filter to items active at the current playhead position"
+                    >
+                      <Clock className="h-3 w-3" />
+                      {filterActive
+                        ? hasActiveItems
+                          ? `${activeIndices.size} active`
+                          : "0 active"
+                        : "All"}
+                    </Button>
+                  )
                 )}
               </div>
 
               {/* Smart tab */}
               <TabsContent value="smart" className="mt-3">
-                {isSmartFilterType && filterActive ? (
-                  hasActiveItems ? (
+                {isSmartFilterType && (selectedCaptionIndex != null || filterActive) ? (
+                  selectedCaptionIndex != null || hasActiveItems ? (
                     <ActiveItemsPanel
                       reference={selectedReference}
-                      activeIndices={activeIndices}
+                      activeIndices={
+                        selectedCaptionIndex != null
+                          ? new Set([selectedCaptionIndex])
+                          : activeIndices
+                      }
                       currentTimeSec={currentTimeSec}
+                      selectionMode={selectedCaptionIndex != null}
+                      onStepCaption={
+                        referenceType === "captions" ? stepCaption : undefined
+                      }
+                      canStepPrev={
+                        referenceType === "captions" &&
+                        (captionStepOrigin(-1) ?? -1) > 0
+                      }
+                      canStepNext={
+                        referenceType === "captions" &&
+                        (captionStepOrigin(1) ?? -1) <
+                          ((selectedReference?.value?.captions?.length as number | undefined) ?? 0) - 1
+                      }
                       onItemChange={handleActiveItemChange}
                       onMediasArrayChange={handleMediasArrayChange}
                     />
                   ) : (
-                    <div className="rounded-md border border-dashed p-4 text-center">
-                      <Clock className="h-5 w-5 mx-auto mb-2 text-muted-foreground/40" />
+                    <div className="rounded-md border border-dashed p-4 text-center space-y-3">
+                      {referenceType === "captions" && (
+                        <div className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center">
+                          <CaptionStepButton
+                            direction={-1}
+                            disabled={!((captionStepOrigin(-1) ?? -1) > 0)}
+                            onClick={() => stepCaption(-1)}
+                          />
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium text-center">
+                            {currentTimeSec.toFixed(3)}s
+                          </p>
+                          <CaptionStepButton
+                            direction={1}
+                            disabled={
+                              (captionStepOrigin(1) ?? -1) >=
+                              ((selectedReference?.value?.captions?.length as number | undefined) ?? 0) - 1
+                            }
+                            onClick={() => stepCaption(1)}
+                          />
+                        </div>
+                      )}
+                      <Clock className="h-5 w-5 mx-auto text-muted-foreground/40" />
                       <p className="text-xs text-muted-foreground">
-                        No items active at {currentTimeSec.toFixed(2)}s
+                        No items active at {currentTimeSec.toFixed(3)}s
                       </p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">
                         Scrub the video or click "All" to see every item.

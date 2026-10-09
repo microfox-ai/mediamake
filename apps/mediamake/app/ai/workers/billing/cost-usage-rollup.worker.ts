@@ -25,6 +25,32 @@ const OutputSchema = z.object({
 type Input = z.infer<typeof InputSchema>;
 type Output = z.infer<typeof OutputSchema>;
 
+function costAmountOf(doc: { cost?: { amountUSD?: number; amount?: number } }): number {
+  return doc.cost?.amountUSD ?? doc.cost?.amount ?? 0;
+}
+
+/** One render can leave more than one aws_render row. Keep the lower cost so a late progress poll cannot be added on top of the real one. */
+function dedupeAwsRenderDocs<T extends { platform: string; metadata?: { renderId?: string }; cost?: { amountUSD?: number; amount?: number } }>(
+  docs: T[],
+): T[] {
+  const byRender = new Map<string, T>();
+  const rest: T[] = [];
+  for (const doc of docs) {
+    const renderId = doc.platform === 'aws_render' ? doc.metadata?.renderId : undefined;
+    if (!renderId) {
+      rest.push(doc);
+      continue;
+    }
+    const prev = byRender.get(renderId);
+    const prevAmt = prev ? costAmountOf(prev) : 0;
+    const amt = costAmountOf(doc);
+    if (!prev || (amt > 0 && (prevAmt === 0 || amt < prevAmt))) {
+      byRender.set(renderId, doc);
+    }
+  }
+  return [...rest, ...byRender.values()];
+}
+
 function getPeriodValue(date: Date, periodType: PeriodType): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -57,9 +83,10 @@ export default createWorker<typeof InputSchema, Output>({
     let aggregatesUpserted = 0;
     let errors = 0;
 
-    const docs = await platformCostUsageDB.findWithCost({
+    const rawDocs = await platformCostUsageDB.findWithCost({
       limit: 20000,
     });
+    const docs = dedupeAwsRenderDocs(rawDocs);
     documentsRead = docs.length;
     console.log('[cost-usage-rollup] Documents with cost to aggregate:', { jobId, count: documentsRead });
 

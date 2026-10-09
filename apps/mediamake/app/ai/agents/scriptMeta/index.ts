@@ -3,6 +3,7 @@ import { z } from 'zod/v4';
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import musicKeywordAgent from './music/keywordAgent';
+import splitAndHighlightAgent from './music/splitAndHighlightAgent';
 import { loadTranscription } from './middlewares/loadTranscription';
 import ragImageAttacherAgent from './music/ragImageAttacher';
 import emptyImageAttacherAgent from './music/emptyImageAttacher';
@@ -21,6 +22,7 @@ export const scriptMetaOrchestor = aiRouter
   })
   .before('/', loadTranscription)
   .agent('/music/keyword', musicKeywordAgent)
+  .agent('/music/split-and-highlight', splitAndHighlightAgent)
   .agent('/music/rag-image-attacher', ragImageAttacherAgent)
   .agent('/music/empty-image-attacher', emptyImageAttacherAgent)
   .agent('/text-to-image', textToImageAgent)

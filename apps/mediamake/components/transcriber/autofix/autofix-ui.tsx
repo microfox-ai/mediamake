@@ -19,15 +19,8 @@ import {
     Users,
     Copy,
     Edit2,
-    Scissors,
     FileText
 } from "lucide-react";
-import {
-    STRUCTURE_PROFILES,
-    SPLIT_DENSITY_OPTIONS,
-    DEFAULT_STRUCTURE_PROFILE_ID,
-    type SplitDensity,
-} from "@/app/ai/agents/autofix/lib/structureProfiles";
 import { getReferenceLyricsText } from "@/app/ai/agents/autofix/lib/lyricsReference";
 import { useTranscriber } from "../contexts/transcriber-context";
 import { AudioPlayerProvider, useAudioPlayer } from "../audio-player-context";
@@ -62,9 +55,6 @@ function AutofixUIInner() {
     const [isSavingTitle, setIsSavingTitle] = useState(false);
     const [selectedAgentPath, setSelectedAgentPath] = useState<string>("");
 
-    // Sentence-structure options
-    const [structureStyle, setStructureStyle] = useState<string>(DEFAULT_STRUCTURE_PROFILE_ID);
-    const [splitDensity, setSplitDensity] = useState<SplitDensity>("auto");
     // Spelling options
     const [useReferenceLyrics, setUseReferenceLyrics] = useState(true);
     const [allowWordRemoval, setAllowWordRemoval] = useState(false);
@@ -94,15 +84,8 @@ function AutofixUIInner() {
     // Which extra option panels apply to the currently selected agent. The
     // orchestrator can dispatch to either fixer, so it shows both.
     const isOrchestrator = selectedAgentPath.replace(/\/$/, "").endsWith("/autofix");
-    const showStructureOptions =
-        isOrchestrator || selectedAgentPath.endsWith("sentence-structure");
     const showSpellingOptions =
         isOrchestrator || selectedAgentPath.endsWith("spelling");
-
-    const selectedProfile = useMemo(
-        () => STRUCTURE_PROFILES.find(p => p.id === structureStyle),
-        [structureStyle]
-    );
 
     const referenceLyrics =
         getReferenceLyricsText(transcriptionData ?? undefined) ?? "";
@@ -260,10 +243,6 @@ function AutofixUIInner() {
                 userRequest: userRequest.trim() || undefined,
                 userWrittenTranscription: userWrittenTranscription.trim() || undefined,
                 applyToDatabase: true, // Apply directly to database
-                ...(showStructureOptions && {
-                    structureStyle,
-                    splitDensity,
-                }),
                 ...(showSpellingOptions && {
                     useReferenceLyrics,
                     allowWordRemoval,
@@ -485,76 +464,6 @@ function AutofixUIInner() {
                             <div className="text-sm text-muted-foreground p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                 <span className="font-semibold">Description: </span>
                                 {availableAutofixAgents.find(a => a.path === selectedAgentPath)?.description || 'No description available'}
-                            </div>
-                        )}
-
-                        {/* Sentence structure options */}
-                        {showStructureOptions && (
-                            <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
-                                <div className="flex items-center gap-2">
-                                    <Scissors className="h-4 w-4 text-primary" />
-                                    <Label className="text-sm font-semibold">Caption structure</Label>
-                                    {isOrchestrator && (
-                                        <Badge variant="outline" className="text-[10px]">
-                                            applies if the structure fixer runs
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="structureStyle" className="text-xs text-muted-foreground">
-                                            Delivery style
-                                        </Label>
-                                        <Select value={structureStyle} onValueChange={setStructureStyle}>
-                                            <SelectTrigger id="structureStyle" className="w-full">
-                                                <SelectValue placeholder="Select a delivery style" />
-                                            </SelectTrigger>
-                                            <SelectContent className="max-h-80">
-                                                {STRUCTURE_PROFILES.map((profile) => (
-                                                    <SelectItem key={profile.id} value={profile.id}>
-                                                        {profile.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="splitDensity" className="text-xs text-muted-foreground">
-                                            Division amount
-                                        </Label>
-                                        <Select
-                                            value={splitDensity}
-                                            onValueChange={(v) => setSplitDensity(v as SplitDensity)}
-                                        >
-                                            <SelectTrigger id="splitDensity" className="w-full">
-                                                <SelectValue placeholder="Profile default" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {SPLIT_DENSITY_OPTIONS.map((option) => (
-                                                    <SelectItem key={option.id} value={option.id}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                {selectedProfile && (
-                                    <div className="text-xs text-muted-foreground space-y-1">
-                                        <p>{selectedProfile.description}</p>
-                                        <p className="font-mono text-[11px] opacity-80">
-                                            ~{selectedProfile.targetChars} chars / ~{selectedProfile.targetWords} words per line
-                                            {" · "}max {selectedProfile.maxChars} chars
-                                            {" · "}breaks on gaps ≥ {selectedProfile.hardGapSeconds}s
-                                            {splitDensity !== "auto" && (
-                                                <> {" · "}adjusted: {SPLIT_DENSITY_OPTIONS.find(o => o.id === splitDensity)?.label.toLowerCase()}</>
-                                            )}
-                                        </p>
-                                    </div>
-                                )}
                             </div>
                         )}
 
