@@ -2,7 +2,7 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
-import type { Caption, CaptionsDocument, Transcription } from '@/app/types/transcription';
+import type { Caption, CaptionsDocument } from '@/app/types/transcription';
 import { preserveCaptionOriginalState } from '@/lib/captions/original-state';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadCaption } from '../middlewares/loadTranscription';
@@ -15,7 +15,7 @@ import {
 
 /**
  * Metadata pass that reuses the motion-graphics split-and-highlight prompt.
- * Writes htmlText onto a captions document or a transcription.
+ * Writes htmlText onto a captions document only. The transcription is never updated.
  * keyword and splitParts are not written.
  */
 
@@ -69,29 +69,7 @@ function stitchCaptions(
 }
 
 const splitAndHighlightAgent = aiRouter
-  .before('/', async (ctx, next) => {
-    if (ctx.request.params?.captionId) {
-      return loadCaption(ctx, next);
-    }
-
-    const transcription = ctx.state as { transcription?: Transcription } | undefined;
-    if (!transcription?.transcription?.captions?.length) {
-      throw new Error('No captions available');
-    }
-
-    const selected = ctx.state as { selectedIndices?: number[] } | undefined;
-    const useSubset =
-      Array.isArray(selected?.selectedIndices) &&
-      selected?.selectedIndices.length > 0 &&
-      selected?.selectedIndices.length < transcription?.transcription?.captions?.length;
-
-    ctx.state = { ...ctx.state, captions: useSubset
-      ? selected?.selectedIndices?.map(index => transcription?.transcription?.captions?.[index])
-      : transcription?.transcription?.captions,
-    };
-
-    return next();
-  })
+  .before('/', loadCaption)
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
@@ -137,43 +115,22 @@ const splitAndHighlightAgent = aiRouter
         appendUsage(ctx.state, `google/${SPLIT_HIGHLIGHT_MODEL}`, result.usage);
       }
 
+      if (!captionId || !ctx.state.captionDocument) {
+        throw new Error('captionId is required');
+      }
+
       const selectedIndices = ctx.state.selectedIndices as number[] | undefined;
       const db = await getDatabase();
-      let savedCaptions: Caption[] = result.fixedCaptions;
-
-      if (captionId && ctx.state.captionDocument) {
-        const doc = ctx.state.captionDocument as CaptionsDocument;
-        savedCaptions = stitchCaptions(
-          doc.captions,
-          selectedIndices,
-          result.fixedCaptions,
-        );
-        await db.collection<CaptionsDocument>('captions').updateOne(
-          { _id: new ObjectId(captionId) },
-          { $set: { captions: savedCaptions, updatedAt: new Date() } },
-        );
-      } else if (ctx.state.transcription?._id) {
-        const transcription = ctx.state.transcription as Transcription;
-        savedCaptions = stitchCaptions(
-          transcription.captions,
-          selectedIndices,
-          result.fixedCaptions,
-        );
-        await db.collection<Transcription>('transcriptions').updateOne(
-          { _id: transcription._id },
-          {
-            $set: {
-              captions: savedCaptions,
-              'processingData.step4.metadata.sentences': savedCaptions.map(
-                caption => caption.metadata,
-              ),
-              'processingData.step4.metadata.generatedAt':
-                new Date().toISOString(),
-              updatedAt: new Date(),
-            },
-          },
-        );
-      }
+      const doc = ctx.state.captionDocument as CaptionsDocument;
+      const savedCaptions = stitchCaptions(
+        doc.captions,
+        selectedIndices,
+        result.fixedCaptions,
+      );
+      await db.collection<CaptionsDocument>('captions').updateOne(
+        { _id: new ObjectId(captionId) },
+        { $set: { captions: savedCaptions, updatedAt: new Date() } },
+      );
 
       return {
         captions: savedCaptions,
@@ -193,9 +150,8 @@ const splitAndHighlightAgent = aiRouter
         frameChoice,
         fontScaling,
         staticFrameChoice: result.staticFrameChoice,
-        captionId: captionId ?? null,
-        transcriptionId:
-          transcriptionId ?? ctx.state.transcription?._id?.toString() ?? null,
+        captionId,
+        transcriptionId: transcriptionId ?? null,
         summary: result.summary,
       };
     } catch (error) {
@@ -207,17 +163,14 @@ const splitAndHighlightAgent = aiRouter
     id: 'splitAndHighlightAgent',
     name: 'Split and Highlight',
     description:
-      'Motion-graphics line split and highlight. Rewrites caption cards from one HTML document: <br/><br/> between cards, <br/> inside a card, <b> for words scaled by fontScaling. Saves onto the captions document or transcription.',
+      'Motion-graphics line split and highlight. Rewrites caption cards from one HTML document: <br/><br/> between cards, <br/> inside a card, <b> for words scaled by fontScaling. Saves onto the captions document only. Does not update the transcription.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
-      captionId: z
-        .string()
-        .optional()
-        .describe('Captions document to arrange. Used instead of transcription captions when set.'),
+      captionId: z.string().describe('Captions document to arrange.'),
       transcriptionId: z
         .string()
         .optional()
         .describe(
-          'Transcription to arrange, or the source of audioUrl when captionId is set.',
+          'Source transcription id, used only to read the audio URL. The transcription is not updated.',
         ),
       userRequest: z.string().optional(),
       selectedIndices: z

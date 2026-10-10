@@ -18,6 +18,7 @@ import {
  * re-break cards and re-pick highlights, then writes the cards back.
  * Word text and timestamps stay on the source words.
  * Each card is arranged on its own. htmlText is the only caption metadata written.
+ * The transcription is never updated.
  */
 
 const aiRouter = new AiRouter();
@@ -114,14 +115,14 @@ const sentenceStructureFixerAgent = aiRouter
     id: 'sentenceStructureFixer',
     name: 'Caption Layout Fixer',
     description:
-      'Rearrange a captions document into motion-graphics cards. Two <br/> tags separate cards, one <br/> splits lines inside a card, and <b> marks the words emphasized on that line. Only htmlText is written. Words and timestamps are preserved.',
+      'Rearrange a captions document into motion-graphics cards. Two <br/> tags separate cards, one <br/> splits lines inside a card, and <b> marks the words emphasized on that line. Only htmlText is written on the captions document. The transcription is not updated. Words and timestamps are preserved.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
       captionId: z.string().describe('Captions document ID to rearrange'),
       transcriptionId: z
         .string()
         .optional()
         .describe(
-          'Source transcription ID. Loaded for its audio URL when a later pass needs the audio.',
+          'Source transcription ID. Read only, for its audio URL. The transcription is not updated.',
         ),
       userRequest: z
         .string()
@@ -131,7 +132,9 @@ const sentenceStructureFixerAgent = aiRouter
         .boolean()
         .optional()
         .default(false)
-        .describe('Save the rearranged captions onto the captions document'),
+        .describe(
+          'Save the rearranged cards onto the captions document. Never writes the transcription.',
+        ),
     }),
     outputSchema: z.object({
       success: z.boolean(),
