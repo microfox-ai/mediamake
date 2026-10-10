@@ -20,6 +20,19 @@ export const paramMetaTypes = {
    */
   rangeField: 'rangeField',
   /**
+   * How extra segments of a range are stored.
+   * - `"comma"`: one string, segments joined by comma (`00:00-00:05,00:10-00:15`).
+   * - `"array"`: each segment is its own array item. Splitting clones the item
+   *   instead of appending a comma segment to the same string.
+   * Omit to infer from the current value (comma if the string contains `,`).
+   *
+   * @example z.string().meta({
+   *   [paramMetaTypes.rangeField]: true,
+   *   [paramMetaTypes.rangeLayout]: 'array',
+   * })
+   */
+  rangeLayout: 'rangeLayout',
+  /**
    * Marks an object or array that contains a range field somewhere inside it (nested path).
    * Value: the dot-bracket path to the range field within the object/array, e.g. "captions" or "items[].ref".
    * Use "[]" to indicate the items themselves are range fields.
@@ -79,6 +92,12 @@ export const paramMetaTypes = {
    * Value: true
    */
   shakeEffectsGroup: 'shakeEffectsGroup',
+  /**
+   * Marks an array of motion effects (pan / zoom / generic).
+   * Same Smart / Full / JSON layout as shakeEffectsGroup.
+   * Value: true
+   */
+  effectsGroup: 'effectsGroup',
   /**
    * Nested field edit scope inside an imagesGroup (or similar) item schema.
    * Value: true = can be bulk-edited across items; false = per-item only.

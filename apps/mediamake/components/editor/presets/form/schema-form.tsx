@@ -57,12 +57,14 @@ import { ContainerInsetsInput } from "./inputs/container-insets-input";
 import { LinkTrackNameInput } from "./inputs/link-track-name-input";
 import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue, extractMediaSrc, toMediaRefEntry } from "./inputs/images-group-field";
 import { ShakeEffectsField } from "./inputs/shake-effects-field";
+import { EffectsField } from "./inputs/effects-field";
 import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { isValidRangeString } from "../engine/range-validation";
+import { fitRangeAtPlayhead, formatRangeClock, parseTimeToSeconds } from "../engine/preset-stdlib";
 import { CaptionHtmlTextEditor } from "@/components/editor/captions/caption-html-text-editor";
 
 const availableFonts = getAvailableFonts();
@@ -178,6 +180,7 @@ function isMediaSelectableField(fieldKey: string, field: FormField): boolean {
     // imagesGroup has its own gallery add/swap UI; avoid label picker replacing the object.
     if (field.meta?.[paramMetaTypes.imagesGroup] === true) return false;
     if (field.meta?.[paramMetaTypes.shakeEffectsGroup] === true) return false;
+    if (field.meta?.[paramMetaTypes.effectsGroup] === true) return false;
     if (field.type === "string") {
         return isUrlField(fieldKey, field);
     }
@@ -405,6 +408,10 @@ function isImagesGroupField(field: FormField): boolean {
 
 function isShakeEffectsGroupField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.shakeEffectsGroup] === true;
+}
+
+function isEffectsGroupField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.effectsGroup] === true;
 }
 
 function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
@@ -1810,14 +1817,6 @@ function normalizeTimeInput(raw: string): string {
     return `${m}:${sec}`;
 }
 
-/** Format seconds as M:SS for range form inputs. */
-function formatRangeFormTime(sec: number): string {
-    const safe = Math.max(0, sec);
-    const m = Math.floor(safe / 60);
-    const s = Math.floor(safe % 60);
-    return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 function RangeStringInput({
     value,
     onChange,
@@ -1867,12 +1866,15 @@ function RangeStringInput({
 
     const addSeg = () => {
         const startSec = Math.max(0, currentFrame / (fps || 30));
-        const endSec = startSec + 5;
+        const otherStarts = segs
+            .map((seg) => parseTimeToSeconds(seg.start))
+            .filter((start): start is number => start !== null);
+        const fitted = fitRangeAtPlayhead(startSec, otherStarts);
         commit([
             ...segs,
             {
-                start: formatRangeFormTime(startSec),
-                end: formatRangeFormTime(endSec),
+                start: formatRangeClock(fitted.start),
+                end: formatRangeClock(fitted.end),
             },
         ]);
     };
@@ -2240,6 +2242,17 @@ function renderField(
         if (isShakeEffectsGroupField(field)) {
             return (
                 <ShakeEffectsField
+                    value={fieldValue}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                    title={field.title || fieldKey}
+                    description={field.description}
+                />
+            );
+        }
+
+        if (isEffectsGroupField(field)) {
+            return (
+                <EffectsField
                     value={fieldValue}
                     onChange={(val) => handleChange(fieldKey, val)}
                     title={field.title || fieldKey}
@@ -2687,18 +2700,20 @@ function renderField(
         ? Boolean(imagesGroupParsed.mediaRef)
         : Boolean(parsedReference);
     const canAutoReference = Boolean(showReferencableAuto);
-    // containerObject / imagesGroup / shakeEffectsGroup use custom widgets (not NestedForm), so they still need FieldLabel
-    // (except shakeEffectsGroup, which owns its own label + Smart/Full tabs).
+    // containerObject / imagesGroup / shakeEffectsGroup / effectsGroup use custom widgets (not NestedForm), so they still need FieldLabel
+    // (except shakeEffectsGroup and effectsGroup, which own their label + Smart/Full tabs).
     const isStructuredField =
         (field.type === "object" &&
             Boolean(field.properties) &&
             !isContainerObjectField(field) &&
             !isImagesGroupField(field) &&
-            !isShakeEffectsGroupField(field)) ||
+            !isShakeEffectsGroupField(field) &&
+            !isEffectsGroupField(field)) ||
         (field.type === "array" &&
             Boolean(field.items) &&
             !isImagesGroupField(field) &&
-            !isShakeEffectsGroupField(field));
+            !isShakeEffectsGroupField(field) &&
+            !isEffectsGroupField(field));
 
     const handleLinkToReference = (referenceKey: string) => {
         if (isImagesGroupField(field)) {
@@ -2806,8 +2821,8 @@ function renderField(
 
     // Always show FieldLabel for structured fields (help / ref / media icons).
     // When linked, still render the linked-value editor under the same label.
-    // shakeEffectsGroup owns its label row (Smart / Full tabs), so skip the outer label.
-    if (isShakeEffectsGroupField(field)) {
+    // shakeEffectsGroup and effectsGroup own their label row (Smart / Full tabs).
+    if (isShakeEffectsGroupField(field) || isEffectsGroupField(field)) {
         return (
             <div key={fieldKey} className="space-y-2">
                 {renderInput()}

@@ -3,6 +3,7 @@ import { continueRender, delayRender, Img, staticFile } from 'remotion';
 import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 
 interface ImageAtomProps extends BaseRenderableProps {
     data: {
@@ -106,10 +107,10 @@ export const Atom: React.FC<ImageAtomProps> = ({ data, id }) => {
         return staticFile(data.src);
     }, [data.src, imageSource]);
 
-    const enhancedStyle = useMemo(() => ({
-        ...data.style,
-        ...overrideStyles,
-    }), [data.style, overrideStyles, isLoading, hasError]);
+    const enhancedStyle = useMemo(
+        () => mergeCSSStyles(data.style ?? {}, overrideStyles ?? {}),
+        [data.style, overrideStyles, isLoading, hasError]
+    );
 
     return (
         <Img

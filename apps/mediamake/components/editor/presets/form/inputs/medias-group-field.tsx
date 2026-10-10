@@ -140,7 +140,10 @@ const KIND_POPUP_KEYS: Record<MediaKind, string[]> = {
   video: [
     "type",
     "fit",
+    "filter",
+    "blendMode",
     "opacity",
+    "colorTint",
     "volume",
     "muted",
     "playbackRate",

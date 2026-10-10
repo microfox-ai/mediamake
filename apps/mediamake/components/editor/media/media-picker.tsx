@@ -670,15 +670,15 @@ export function MediaPicker({
     };
 
     const containerClasses = pickerMode
-        ? "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+        ? "fixed inset-0 z-50 pointer-events-auto bg-background/80 backdrop-blur-sm"
         : "flex-1 bg-background";
 
     const contentClasses = pickerMode
-        ? "fixed right-0 top-0 h-full w-[80vw] md:w-[80vw] bg-background border-l shadow-lg z-50"
+        ? "fixed right-0 top-0 h-full w-[80vw] md:w-[80vw] bg-background border-l shadow-lg z-50 pointer-events-auto"
         : "flex-1 bg-background";
 
     const pickerContent = (
-        <div className={containerClasses}>
+        <div className={containerClasses} data-media-picker-root>
             {pickerMode && (
                 <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
             )}

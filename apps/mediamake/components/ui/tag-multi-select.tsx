@@ -29,6 +29,7 @@ interface TagMultiSelectProps {
   showCreateNew?: boolean;
   placeholder?: string;
   className?: string;
+  popoverClassName?: string;
 }
 
 export function TagMultiSelect({
@@ -39,6 +40,7 @@ export function TagMultiSelect({
   showCreateNew = true,
   placeholder = "Search or select tags...",
   className,
+  popoverClassName,
 }: TagMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -177,7 +179,7 @@ export function TagMultiSelect({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className={cn("w-[--radix-popover-trigger-width] p-0", popoverClassName)} align="start">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder="Search tags..."

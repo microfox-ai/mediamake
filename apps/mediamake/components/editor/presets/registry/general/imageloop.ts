@@ -113,7 +113,10 @@ const effectSchema = z.object({
   range: z
     .string()
     .optional()
-    .meta({ [paramMetaTypes.rangeField]: true })
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.rangeLayout]: 'array',
+    })
     .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   pan: z
     .object({
@@ -197,7 +200,10 @@ const shakeEffectSchema = z.object({
   range: z
     .string()
     .optional()
-    .meta({ [paramMetaTypes.rangeField]: true })
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.rangeLayout]: 'array',
+    })
     .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
 });
 
@@ -210,7 +216,10 @@ const beatEffectSchema = z.object({
   range: z
     .string()
     .optional()
-    .meta({ [paramMetaTypes.rangeField]: true })
+    .meta({
+      [paramMetaTypes.rangeField]: true,
+      [paramMetaTypes.rangeLayout]: 'array',
+    })
     .describe('Range of the effect in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
   beatZoom: z
     .object({
@@ -441,7 +450,10 @@ const presetParams = z.object({
   effects: z
     .array(effectSchema)
     .min(1)
-    .meta({ [paramMetaTypes.nestedRangeField]: '[].range' })
+    .meta({
+      [paramMetaTypes.nestedRangeField]: '[].range',
+      [paramMetaTypes.effectsGroup]: true,
+    })
     .describe('Motion effects: pan, zoom, generic'),
   shakeEffects: z
     .array(shakeEffectSchema)
@@ -574,6 +586,76 @@ const presetExecution = async (
       default:
         return 'none';
     }
+  };
+
+  /** Join every CSS filter function into one `filter` value. */
+  const buildMediaFilter = (
+    filter: string | undefined,
+    colorTint: string | undefined,
+  ): string | undefined => {
+    const parts: string[] = [];
+    if (filter && filter !== 'none') {
+      const css = generateFilterStyle(filter);
+      if (css && css !== 'none') parts.push(css);
+    }
+    const tintFilter = colorTintFilter(colorTint);
+    if (tintFilter) parts.push(tintFilter);
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  };
+
+  const colorTintFilter = (colorTint: string | undefined): string | undefined => {
+    if (!colorTint || !colorTint.trim()) return undefined;
+    const parsed = parseCssColor(colorTint);
+    if (!parsed) return undefined;
+    const max = Math.max(parsed.r, parsed.g, parsed.b);
+    const min = Math.min(parsed.r, parsed.g, parsed.b);
+    let hue = 0;
+    const d = max - min;
+    if (d !== 0) {
+      if (max === parsed.r) hue = ((parsed.g - parsed.b) / d) % 6;
+      else if (max === parsed.g) hue = (parsed.b - parsed.r) / d + 2;
+      else hue = (parsed.r - parsed.g) / d + 4;
+      hue *= 60;
+      if (hue < 0) hue += 360;
+    }
+    // sepia() lands near hue 40°. hue-rotate shifts that toward the picked color.
+    // Amount follows the color alpha when one is set, otherwise a visible wash.
+    const amount = Math.min(
+      1,
+      Math.max(0.2, parsed.a < 1 ? parsed.a : 0.65),
+    );
+    const rotate = Math.round(hue - 40);
+    return `sepia(${amount}) hue-rotate(${rotate}deg) saturate(${(1 + amount).toFixed(2)})`;
+  };
+
+  const parseCssColor = (
+    input: string,
+  ): { r: number; g: number; b: number; a: number } | null => {
+    const s = input.trim();
+    const hex = s.match(/^#([0-9a-f]{3,8})$/i);
+    if (hex) {
+      let h = hex[1];
+      if (h.length === 3 || h.length === 4) {
+        h = h.split('').map(c => c + c).join('');
+      }
+      if (h.length !== 6 && h.length !== 8) return null;
+      return {
+        r: parseInt(h.slice(0, 2), 16),
+        g: parseInt(h.slice(2, 4), 16),
+        b: parseInt(h.slice(4, 6), 16),
+        a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1,
+      };
+    }
+    const rgb = s.match(
+      /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i,
+    );
+    if (!rgb) return null;
+    return {
+      r: Number(rgb[1]),
+      g: Number(rgb[2]),
+      b: Number(rgb[3]),
+      a: rgb[4] !== undefined ? Number(rgb[4]) : 1,
+    };
   };
 
   // Helper function to map fit prop to object-* class
@@ -865,6 +947,7 @@ const presetExecution = async (
 
       const imageFit = image.fit || 'cover';
       const objectFitClass = getObjectFitClass(imageFit);
+      const filterCss = buildMediaFilter(image.filter, image.colorTint);
 
       return {
         id: `${params.trackName ?? 'imageloop'}-image-${imageIndex}`,
@@ -886,18 +969,11 @@ const presetExecution = async (
                     ((_panEffectData?.panDistance as number) ?? 0),
                 }
               : {}),
-            ...(image.filter && image.filter !== 'none'
-              ? { filter: generateFilterStyle(image.filter) }
-              : {}),
+            ...(filterCss ? { filter: filterCss } : {}),
             ...(image.blendMode && image.blendMode !== 'normal'
               ? { mixBlendMode: image.blendMode }
               : {}),
             ...(image.opacity !== undefined ? { opacity: image.opacity } : {}),
-            ...(image.colorTint
-              ? {
-                  boxShadow: `inset 0 0 0 9999px ${image.colorTint}40`,
-                }
-              : {}),
           },
         },
         context: {

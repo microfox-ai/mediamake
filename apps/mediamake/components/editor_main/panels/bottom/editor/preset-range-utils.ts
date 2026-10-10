@@ -2,6 +2,9 @@
 
 export type RangeKind = "data-reference" | "plain-range";
 
+/** How extra segments of a range field are stored. See `paramMetaTypes.rangeLayout`. */
+export type RangeLayout = "comma" | "array";
+
 export interface RawRange {
   path: string;
   key: string;
@@ -16,6 +19,8 @@ export interface TrackGroup {
   key: string;
   concretePaths: string[];
   currentRanges: string[];
+  /** Set from schema meta, or inferred when meta is absent. */
+  rangeLayout?: RangeLayout;
 }
 
 export type SegmentKind = "time" | "index";
@@ -148,11 +153,76 @@ export function toTemplatePath(path: string): string {
   return path.replace(/\[\d+\]/g, "[]");
 }
 
-export function buildTrackGroups(raw: RawRange[]): TrackGroup[] {
+function readRangeLayout(node: Record<string, unknown>): RangeLayout | undefined {
+  const direct = node.rangeLayout;
+  if (direct === "comma" || direct === "array") return direct;
+  return undefined;
+}
+
+/**
+ * Walk a Zod JSON schema and collect `rangeLayout` by template path
+ * (`shakeEffects[].range`).
+ */
+export function collectRangeLayouts(
+  schema: unknown,
+): Map<string, RangeLayout> {
+  const out = new Map<string, RangeLayout>();
+
+  const walk = (node: unknown, path: string) => {
+    if (!node || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    const layout = readRangeLayout(record);
+    if (layout && path) out.set(path, layout);
+
+    const properties = record.properties;
+    if (properties && typeof properties === "object") {
+      for (const [key, value] of Object.entries(
+        properties as Record<string, unknown>,
+      )) {
+        walk(value, path ? `${path}.${key}` : key);
+      }
+    }
+    if (record.items) walk(record.items, path ? `${path}[]` : "[]");
+    for (const key of ["anyOf", "oneOf", "allOf"] as const) {
+      const branch = record[key];
+      if (Array.isArray(branch)) {
+        for (const item of branch) walk(item, path);
+      }
+    }
+  };
+
+  walk(schema, "");
+  return out;
+}
+
+export function layoutForPath(
+  path: string,
+  layouts?: Map<string, RangeLayout>,
+): RangeLayout | undefined {
+  if (!layouts || layouts.size === 0) return undefined;
+  return layouts.get(toTemplatePath(path));
+}
+
+/**
+ * Comma-joined string (one field) vs one range per array item.
+ * Explicit `rangeLayout` wins over the single-path heuristic.
+ */
+export function usesJoinedRangeString(group: TrackGroup): boolean {
+  if (group.kind === "data-reference") return true;
+  if (group.rangeLayout === "array") return false;
+  if (group.rangeLayout === "comma") return true;
+  return group.concretePaths.length === 1;
+}
+
+export function buildTrackGroups(
+  raw: RawRange[],
+  layouts?: Map<string, RangeLayout>,
+): TrackGroup[] {
   const groups = new Map<string, TrackGroup>();
 
   for (const r of raw) {
     const tp = toTemplatePath(r.path);
+    const declared = layoutForPath(r.path, layouts);
 
     if (r.kind === "data-reference") {
       const existing = groups.get(r.path);
@@ -166,9 +236,10 @@ export function buildTrackGroups(raw: RawRange[]): TrackGroup[] {
           key: r.key,
           concretePaths: [r.path],
           currentRanges: [r.range],
+          rangeLayout: "comma",
         });
       }
-    } else if (r.range.includes(",")) {
+    } else if (declared === "comma" || (!declared && r.range.includes(","))) {
       groups.set(r.path, {
         templatePath: r.path,
         label: r.path.replace(/\[\d+\]/g, "[ ]"),
@@ -176,6 +247,7 @@ export function buildTrackGroups(raw: RawRange[]): TrackGroup[] {
         key: r.key,
         concretePaths: [r.path],
         currentRanges: [r.range],
+        rangeLayout: "comma",
       });
     } else {
       const existing = groups.get(tp);
@@ -190,6 +262,7 @@ export function buildTrackGroups(raw: RawRange[]): TrackGroup[] {
           key: r.key,
           concretePaths: [r.path],
           currentRanges: [r.range],
+          rangeLayout: declared === "array" ? "array" : undefined,
         });
       }
     }
@@ -228,12 +301,13 @@ export function segsFromTrackGroup(group: TrackGroup): ParsedSegment[] {
   if (group.kind === "data-reference") {
     return parseEditableSegments(group.currentRanges[0] ?? "");
   }
-  if (group.concretePaths.length === 1) {
-    return parseEditableSegments(group.currentRanges[0] ?? "");
+  // Array layout: one segment per item, even when only one item exists.
+  if (group.rangeLayout === "array" || group.concretePaths.length > 1) {
+    return group.currentRanges
+      .map((r) => parseSingleSegment(r) ?? parseEditableSegments(r)[0] ?? null)
+      .filter((s): s is ParsedSegment => s !== null);
   }
-  return group.currentRanges
-    .map((r) => parseSingleSegment(r) ?? parseEditableSegments(r)[0] ?? null)
-    .filter((s): s is ParsedSegment => s !== null);
+  return parseEditableSegments(group.currentRanges[0] ?? "");
 }
 
 export function applySegsToInputData(
@@ -244,18 +318,15 @@ export function applySegsToInputData(
 ): any {
   let next = structuredClone(inputData);
 
-  if (group.kind === "data-reference") {
+  if (usesJoinedRangeString(group)) {
     const path = group.concretePaths[0]!;
     const rangeStr = segs.map(serializeSegment).join(",");
-    const newVal = rangeStr
-      ? `data:[${group.key}][${rangeStr}]`
-      : `data:[${group.key}]`;
-    return setAtPath(next, path, newVal);
-  }
-
-  if (group.concretePaths.length === 1) {
-    const path = group.concretePaths[0]!;
-    const rangeStr = segs.map(serializeSegment).join(",");
+    if (group.kind === "data-reference") {
+      const newVal = rangeStr
+        ? `data:[${group.key}][${rangeStr}]`
+        : `data:[${group.key}]`;
+      return setAtPath(next, path, newVal);
+    }
     return setAtPath(next, path, rangeStr || undefined);
   }
 

@@ -39,16 +39,19 @@ import {
   claimBlockSelection,
   releaseBlockSelection,
 } from "../timeline-block-selection";
+import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import {
   applySegsToInputData,
   buildTrackGroups,
   canEditSegStructure,
+  collectRangeLayouts,
   collectRawRanges,
   insertClonedArrayItemWithRange,
   parseArrayItemFieldPath,
   segsFromTrackGroup,
   serializeSegment,
   setAtPath,
+  usesJoinedRangeString,
   type ParsedSegment,
   type RangeKind,
   type SegmentKind,
@@ -112,9 +115,18 @@ export function PresetTracksSection({
   const preset = timeline?.presets?.find((p) => p.id === presetId);
   const presetInputData = preset?.presetInputData || {};
 
+  const registryPresetId = (preset as { presetId?: string } | undefined)
+    ?.presetId;
+  const rangeLayouts = useMemo(() => {
+    if (!registryPresetId) return undefined;
+    return collectRangeLayouts(
+      getPredefinedPresetById(registryPresetId)?.presetParams,
+    );
+  }, [registryPresetId]);
+
   const trackGroups = useMemo(
-    () => buildTrackGroups(collectRawRanges(presetInputData)),
-    [presetInputData],
+    () => buildTrackGroups(collectRawRanges(presetInputData), rangeLayouts),
+    [presetInputData, rangeLayouts],
   );
 
   const [segsMap, setSegsMap] = useState<Record<string, ParsedSegment[]>>({});
@@ -329,8 +341,7 @@ export function PresetTracksSection({
 
   const deleteSegment = useCallback(
     (group: TrackGroup, segIdx: number) => {
-      const useJoinedSegs =
-        group.kind === "data-reference" || group.concretePaths.length === 1;
+      const useJoinedSegs = usesJoinedRangeString(group);
 
       if (useJoinedSegs) {
         setSegsMap((prev) => {
@@ -400,8 +411,7 @@ export function PresetTracksSection({
       const group = getGroup(target.templatePath);
       if (!group) return;
 
-      const useJoinedSegs =
-        group.kind === "data-reference" || group.concretePaths.length === 1;
+      const useJoinedSegs = usesJoinedRangeString(group);
 
       if (useJoinedSegs) {
         setSegsMap((prev) => {
@@ -593,7 +603,7 @@ export function PresetTracksSection({
       const left: ParsedSegment = { ...orig, end: cutAt };
       const right: ParsedSegment = { ...orig, start: cutAt };
 
-      if (group.kind === "data-reference" || group.concretePaths.length === 1) {
+      if (usesJoinedRangeString(group)) {
         setSegsMap((prev) => {
           const segs = [...(prev[tp] ?? [])];
           segs.splice(idx, 1, left, right);
@@ -815,8 +825,7 @@ export function PresetTracksSection({
       const color = TRACK_COLORS[ti % TRACK_COLORS.length]!;
       const isPlain = group.kind === "plain-range";
       const structureEditable = canEditSegStructure(group);
-      const useJoinedDelete =
-        group.kind === "data-reference" || group.concretePaths.length === 1;
+      const useJoinedDelete = usesJoinedRangeString(group);
       const shortLabel = group.label.includes(".")
         ? (group.label.split(".").pop() ?? group.label)
         : group.label;
@@ -857,7 +866,11 @@ export function PresetTracksSection({
             }}
             onDoubleClick={(e) => {
               if (e.target !== e.currentTarget) return;
-              if (group.kind === "plain-range" && group.concretePaths.length !== 1)
+              if (
+                group.kind === "plain-range" &&
+                !usesJoinedRangeString(group) &&
+                group.rangeLayout !== "array"
+              )
                 return;
               const rect = e.currentTarget.getBoundingClientRect();
               const clickSec = Math.max(
@@ -867,6 +880,32 @@ export function PresetTracksSection({
                   (e.clientX - rect.left) / pixelsPerSecond,
                 ),
               );
+              if (group.rangeLayout === "array") {
+                const path =
+                  group.concretePaths[group.concretePaths.length - 1];
+                if (!path) return;
+                const existingKind: SegmentKind =
+                  (segsMap[group.templatePath] ?? [])[0]?.kind ?? "time";
+                const newSeg: ParsedSegment = {
+                  kind: existingKind,
+                  start: Math.max(0, clickSec),
+                  end:
+                    existingKind === "index"
+                      ? Math.round(clickSec) + 10
+                      : Math.min(totalDuration, clickSec + 5),
+                };
+                const next = insertClonedArrayItemWithRange(
+                  presetInputData,
+                  path,
+                  serializeSegment(newSeg),
+                );
+                if (!next || !timeline || !preset) return;
+                updatePresetInputData(timelineId, presetId, next);
+                const latestTimeline =
+                  getEditedTimeline(timelineId) || timeline;
+                generateOutput(latestTimeline);
+                return;
+              }
               setSegsMap((prev) => {
                 const nextSegs = [...(prev[group.templatePath] ?? [])];
                 const existingKind: SegmentKind = nextSegs[0]?.kind ?? "time";
@@ -1021,6 +1060,14 @@ export function PresetTracksSection({
     splitAtPlayhead,
     selectSeg,
     clearSelection,
+    presetInputData,
+    timeline,
+    preset,
+    timelineId,
+    presetId,
+    updatePresetInputData,
+    getEditedTimeline,
+    generateOutput,
   ]);
 
   useRegisterTimelineSection(section);

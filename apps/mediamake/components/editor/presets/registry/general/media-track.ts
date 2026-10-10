@@ -30,7 +30,7 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { GenericEffectData } from '@microfox/remotion';
-import { paramMetaTypes } from '../../dataTypes';
+import { paramInputTypes, paramMetaTypes } from '../../dataTypes';
 
 // Extended effect data type for shake effects
 interface ShakeEffectData extends GenericEffectData {
@@ -113,6 +113,63 @@ const mediaTrackItemSchema = z.object({
     .optional()
     .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Opacity 0–1'),
+  filter: z
+    .enum([
+      'none',
+      'blur',
+      'brightness',
+      'contrast',
+      'saturate',
+      'grayscale',
+      'sepia',
+      'hue-rotate',
+      'invert',
+      'distorted',
+      'vintage',
+      'dramatic',
+      'soft',
+      'sharp',
+    ])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: true })
+    .describe('CSS filter preset'),
+  colorTint: z
+    .string()
+    .optional()
+    .meta({
+      [paramMetaTypes.inputType]: paramInputTypes.color,
+      [paramMetaTypes.groupEditable]: true,
+    })
+    .describe('Optional color tint overlay'),
+  position: z
+    .object({
+      left: z.number().optional().describe('Left inset'),
+      top: z.number().optional().describe('Top inset'),
+      right: z.number().optional().describe('Right inset'),
+      bottom: z.number().optional().describe('Bottom inset'),
+      width: z.number().optional().describe('Width'),
+      height: z.number().optional().describe('Height'),
+      positioning: z
+        .enum([
+          'top-left',
+          'top-center',
+          'top-right',
+          'center-left',
+          'center',
+          'center-right',
+          'bottom-left',
+          'bottom-center',
+          'bottom-right',
+        ])
+        .optional()
+        .describe('Anchor position within the track container'),
+    })
+    .optional()
+    .meta({
+      [paramMetaTypes.containerObject]: true,
+      [paramMetaTypes.groupEditable]: true,
+    })
+    .describe('Position of this media inside the track container'),
   fadeInTransition: z
     .enum([
       'none',
@@ -192,6 +249,52 @@ const presetParams = z.object({
     .string()
     .describe('Fit duration to the track ( only for aligned/random tracks )')
     .optional(),
+  containerObject: z
+    .object({
+      left: z
+        .number()
+        .optional()
+        .describe('Container left position in pixels or percentage'),
+      top: z
+        .number()
+        .optional()
+        .describe('Container top position in pixels or percentage'),
+      right: z
+        .number()
+        .optional()
+        .describe('Container right position in pixels or percentage'),
+      bottom: z
+        .number()
+        .optional()
+        .describe('Container bottom position in pixels or percentage'),
+      width: z
+        .number()
+        .optional()
+        .describe('Container width in pixels'),
+      height: z
+        .number()
+        .optional()
+        .describe('Container height in pixels'),
+      positioning: z
+        .enum([
+          'top-left',
+          'top-center',
+          'top-right',
+          'center-left',
+          'center',
+          'center-right',
+          'bottom-left',
+          'bottom-center',
+          'bottom-right',
+        ])
+        .optional()
+        .describe('Anchor position within the parent'),
+    })
+    .optional()
+    .meta({ [paramMetaTypes.containerObject]: true })
+    .describe(
+      'Container layout (insets, size, positioning). Omit a field to leave unset.',
+    ),
 });
 
 /** Normalize legacy array or { mediaRef?, items } into a flat items list. */
@@ -239,6 +342,151 @@ const presetExecution = (
     ((v: unknown) => (typeof v === 'string' ? v : ''))) as (
     v: unknown,
   ) => string;
+
+  const generateFilterStyle = (filter: string): string => {
+    switch (filter) {
+      case 'blur':
+        return 'blur(2px)';
+      case 'brightness':
+        return 'brightness(1.2)';
+      case 'contrast':
+        return 'contrast(1.3)';
+      case 'saturate':
+        return 'saturate(1.5)';
+      case 'grayscale':
+        return 'grayscale(100%)';
+      case 'sepia':
+        return 'sepia(100%)';
+      case 'hue-rotate':
+        return 'hue-rotate(180deg)';
+      case 'invert':
+        return 'invert(100%)';
+      case 'distorted':
+        return 'contrast(1.5) saturate(1.3) hue-rotate(15deg)';
+      case 'vintage':
+        return 'sepia(50%) contrast(1.2) brightness(0.9) saturate(1.1)';
+      case 'dramatic':
+        return 'contrast(1.4) saturate(1.3) brightness(0.8)';
+      case 'soft':
+        return 'blur(0.5px) brightness(1.1) contrast(0.9)';
+      case 'sharp':
+        return 'contrast(1.2) saturate(1.1) brightness(1.05)';
+      case 'none':
+      default:
+        return 'none';
+    }
+  };
+
+  const parseCssColor = (
+    input: string,
+  ): { r: number; g: number; b: number; a: number } | null => {
+    const s = input.trim();
+    const hex = s.match(/^#([0-9a-f]{3,8})$/i);
+    if (hex) {
+      let h = hex[1];
+      if (h.length === 3 || h.length === 4) {
+        h = h.split('').map(c => c + c).join('');
+      }
+      if (h.length !== 6 && h.length !== 8) return null;
+      return {
+        r: parseInt(h.slice(0, 2), 16),
+        g: parseInt(h.slice(2, 4), 16),
+        b: parseInt(h.slice(4, 6), 16),
+        a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1,
+      };
+    }
+    const rgb = s.match(
+      /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i,
+    );
+    if (!rgb) return null;
+    return {
+      r: Number(rgb[1]),
+      g: Number(rgb[2]),
+      b: Number(rgb[3]),
+      a: rgb[4] !== undefined ? Number(rgb[4]) : 1,
+    };
+  };
+
+  const colorTintFilter = (colorTint: string | undefined): string | undefined => {
+    if (!colorTint || !colorTint.trim()) return undefined;
+    const parsed = parseCssColor(colorTint);
+    if (!parsed) return undefined;
+    const max = Math.max(parsed.r, parsed.g, parsed.b);
+    const min = Math.min(parsed.r, parsed.g, parsed.b);
+    let hue = 0;
+    const d = max - min;
+    if (d !== 0) {
+      if (max === parsed.r) hue = ((parsed.g - parsed.b) / d) % 6;
+      else if (max === parsed.g) hue = (parsed.b - parsed.r) / d + 2;
+      else hue = (parsed.r - parsed.g) / d + 4;
+      hue *= 60;
+      if (hue < 0) hue += 360;
+    }
+    const amount = Math.min(
+      1,
+      Math.max(0.2, parsed.a < 1 ? parsed.a : 0.65),
+    );
+    const rotate = Math.round(hue - 40);
+    return `sepia(${amount}) hue-rotate(${rotate}deg) saturate(${(1 + amount).toFixed(2)})`;
+  };
+
+  const buildMediaFilter = (
+    filter: string | undefined,
+    colorTint: string | undefined,
+  ): string | undefined => {
+    const parts: string[] = [];
+    if (filter && filter !== 'none') {
+      const css = generateFilterStyle(filter);
+      if (css && css !== 'none') parts.push(css);
+    }
+    const tint = colorTintFilter(colorTint);
+    if (tint) parts.push(tint);
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  };
+
+  const applyPositioning = (
+    positioning: string | undefined,
+  ): Record<string, string | number> => {
+    switch (positioning) {
+      case 'top-left':
+        return { top: 0, left: 0 };
+      case 'top-center':
+        return { top: 0, left: '50%', transform: 'translateX(-50%)' };
+      case 'top-right':
+        return { top: 0, right: 0 };
+      case 'center-left':
+        return { top: '50%', left: 0, transform: 'translateY(-50%)' };
+      case 'center':
+        return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+      case 'center-right':
+        return { top: '50%', right: 0, transform: 'translateY(-50%)' };
+      case 'bottom-left':
+        return { bottom: 0, left: 0 };
+      case 'bottom-center':
+        return { bottom: 0, left: '50%', transform: 'translateX(-50%)' };
+      case 'bottom-right':
+        return { bottom: 0, right: 0 };
+      default:
+        return {};
+    }
+  };
+
+  const positionStyle = (
+    position: MediaTrackItem['position'],
+  ): Record<string, string | number> => {
+    if (!position) return {};
+    const style: Record<string, string | number> = {
+      ...applyPositioning(position.positioning),
+    };
+    if (position.left !== undefined) style.left = position.left;
+    if (position.top !== undefined) style.top = position.top;
+    if (position.right !== undefined) style.right = position.right;
+    if (position.bottom !== undefined) style.bottom = position.bottom;
+    if (position.width !== undefined) style.width = position.width;
+    if (position.height !== undefined) style.height = position.height;
+    if (Object.keys(style).length > 0) style.position = 'absolute';
+    return style;
+  };
 
   // Helper function to create transition effects
   const createTransitionEffects = (
@@ -506,6 +754,32 @@ const presetExecution = (
     return { start: tr.start, duration: tr.end - tr.start };
   };
 
+  const resolveMediaType = (
+    mediaItem: MediaTrackItem,
+  ): 'video' | 'image' | 'audio' => {
+    if (
+      mediaItem.type === 'video' ||
+      mediaItem.type === 'image' ||
+      mediaItem.type === 'audio'
+    ) {
+      return mediaItem.type;
+    }
+    const src = String(mediaItem.src || '');
+    if (/\.(png|jpe?g|gif|webp|svg|avif)(\?|$)/i.test(src)) return 'image';
+    if (/\.(mp4|webm|mov|avi|mkv|flv|wmv)(\?|$)/i.test(src)) return 'video';
+    return 'audio';
+  };
+
+  const visualStyle = (mediaItem: MediaTrackItem): Record<string, unknown> => {
+    const filterCss = buildMediaFilter(mediaItem.filter, mediaItem.colorTint);
+    return {
+      ...positionStyle(mediaItem.position),
+      ...(filterCss ? { filter: filterCss } : {}),
+      ...(mediaItem.blendMode ? { mixBlendMode: mediaItem.blendMode } : {}),
+      ...(mediaItem.opacity !== undefined ? { opacity: mediaItem.opacity } : {}),
+    };
+  };
+
   // Create scenes for each video
   const scenes = mediaItems
     .flatMap((mediaItem, index) => {
@@ -537,50 +811,29 @@ const presetExecution = (
     // Create transition effects
     const timeRangeOffset = timeRange ? timeRange.start : 0;
     const timeRangeDuration = timeRange ? timeRange.duration : undefined;
-    const fadeInEffects = createTransitionEffects(
-      mediaItem,
-      sceneId,
-      true,
-      timeRangeOffset,
-      timeRangeDuration,
-    );
-    const fadeOutEffects = createTransitionEffects(
-      mediaItem,
-      sceneId,
-      false,
-      timeRangeOffset,
-      timeRangeDuration,
-    );
+    const isAudio = resolveMediaType(mediaItem) === 'audio';
+    const fadeInEffects = isAudio
+      ? []
+      : createTransitionEffects(
+          mediaItem,
+          sceneId,
+          true,
+          timeRangeOffset,
+          timeRangeDuration,
+        );
+    const fadeOutEffects = isAudio
+      ? []
+      : createTransitionEffects(
+          mediaItem,
+          sceneId,
+          false,
+          timeRangeOffset,
+          timeRangeDuration,
+        );
     const allEffects = [...fadeInEffects, ...fadeOutEffects];
 
-    let mediaType = mediaItem.type;
+    const mediaType = resolveMediaType(mediaItem);
     const src = String(mediaItem.src || '');
-
-    if (!mediaType) {
-      if (
-        src.endsWith('.png') ||
-        src.endsWith('.jpg') ||
-        src.endsWith('.jpeg') ||
-        src.endsWith('.gif') ||
-        src.endsWith('.webp') ||
-        src.endsWith('.svg') ||
-        src.endsWith('.avif')
-      ) {
-        mediaType = 'image';
-      } else if (
-        src.endsWith('.mp4') ||
-        src.endsWith('.webm') ||
-        src.endsWith('.mov') ||
-        src.endsWith('.avi') ||
-        src.endsWith('.mkv') ||
-        src.endsWith('.flv') ||
-        src.endsWith('.wmv')
-      ) {
-        mediaType = 'video';
-      } else {
-        mediaType = 'audio';
-      }
-    }
 
     if (mediaType === 'video') {
       const thumbnail =
@@ -604,14 +857,7 @@ const presetExecution = (
           muted: mediaItem.mute ?? false,
           volume: mediaItem.volume ?? 1,
           playbackRate: mediaItem.playbackRate ?? 1,
-          style: {
-            ...(mediaItem.blendMode
-              ? { mixBlendMode: mediaItem.blendMode }
-              : {}),
-            ...(mediaItem.opacity !== undefined
-              ? { opacity: mediaItem.opacity }
-              : {}),
-          },
+          style: visualStyle(mediaItem),
           startFrom: mediaItem.startCropVideo ?? 0,
           ...(timeRange &&
             !mediaItem.duration && {
@@ -654,11 +900,7 @@ const presetExecution = (
           src,
           className: 'w-full h-auto object-cover',
           fit: mediaItem.fit ?? ('cover' as const),
-          style: {
-            ...(mediaItem.opacity !== undefined
-              ? { opacity: mediaItem.opacity }
-              : {}),
-          },
+          style: visualStyle(mediaItem),
         },
         context: {
           timing: {
@@ -729,6 +971,23 @@ const presetExecution = (
     }
   }
 
+  const container = params.containerObject ?? {};
+  const containerStyle: Record<string, string | number> = {
+    ...applyPositioning(container.positioning),
+  };
+  if (container.left !== undefined) containerStyle.left = container.left;
+  if (container.top !== undefined) containerStyle.top = container.top;
+  if (container.right !== undefined) containerStyle.right = container.right;
+  if (container.bottom !== undefined) containerStyle.bottom = container.bottom;
+  if (container.width !== undefined) containerStyle.width = container.width;
+  if (container.height !== undefined) containerStyle.height = container.height;
+  const hasPositioning = Object.keys(containerStyle).length > 0;
+  const containerClassName = hasPositioning ? 'absolute' : 'absolute inset-0';
+  const containerProps = {
+    className: containerClassName,
+    ...(hasPositioning ? { style: containerStyle } : {}),
+  };
+
   return {
     output: {
       config: {
@@ -743,9 +1002,7 @@ const presetExecution = (
               ? 'layout'
               : ('scene' as const),
           data: {
-            containerProps: {
-              className: 'absolute inset-0',
-            },
+            containerProps,
           },
           context: {
             timing:
@@ -765,11 +1022,7 @@ const presetExecution = (
     },
     options: {
       attachedToId: `BaseScene`,
-      attachedContainers: [
-        {
-          className: 'absolute inset-0',
-        },
-      ],
+      attachedContainers: [containerProps],
     },
   };
 };

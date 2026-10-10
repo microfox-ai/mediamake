@@ -18,7 +18,8 @@ import { AnchoredEditPopover } from "./anchored-edit-popover";
 import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
-import { toMediaItem } from "../../dataTypes/media";
+import { detectMediaKind, toMediaItem } from "../../dataTypes/media";
+import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { isValidRangeString } from "../../engine/range-validation";
@@ -101,6 +102,35 @@ function isColorProp(prop: ItemPropSchema): boolean {
 function isRangeProp(prop: ItemPropSchema): boolean {
   return prop.meta?.[paramMetaTypes.rangeField] === true;
 }
+
+function isContainerProp(prop: ItemPropSchema): boolean {
+  return prop.meta?.[paramMetaTypes.containerObject] === true;
+}
+
+/** Visual controls that do not apply to audio items. */
+const VISUAL_PROP_KEYS = new Set([
+  "fit",
+  "filter",
+  "blendMode",
+  "opacity",
+  "colorTint",
+  "position",
+  "fadeInTransition",
+  "fadeInDuration",
+  "fadeOutTransition",
+  "fadeOutDuration",
+]);
+
+const AUDIO_POPUP_KEYS = [
+  "volume",
+  "mute",
+  "muted",
+  "playbackRate",
+  "startCropVideo",
+  "startFrom",
+  "loop",
+  "rangeString",
+];
 
 /** Normalize legacy array or { mediaRef, items } into a consistent shape. */
 export function parseImagesGroupValue(value: any): {
@@ -217,6 +247,12 @@ export function ImagesGroupField({
   const props = useMemo(() => getItemPropSchemas(itemSchema), [itemSchema]);
   const groupProps = props.filter(
     (p) => p.key !== "src" && isGroupEditable(p) && !isRangeProp(p),
+  );
+  const hasVisualItems = displayImages.some(
+    (img) => detectMediaKind(img) !== "audio",
+  );
+  const groupEditProps = groupProps.filter(
+    (p) => hasVisualItems || !VISUAL_PROP_KEYS.has(p.key),
   );
   const popupProps = props.filter((p) => p.key !== "src");
 
@@ -361,9 +397,11 @@ export function ImagesGroupField({
     const keys = Object.keys(groupDraft);
     if (keys.length === 0) return;
 
-    const nextItems = displayImages.map((_, i) => {
+    const nextItems = displayImages.map((img, i) => {
       const base = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
+      const isAudio = detectMediaKind(img) === "audio";
       for (const key of keys) {
+        if (isAudio && VISUAL_PROP_KEYS.has(key)) continue;
         const val = groupDraft[key];
         if (val === undefined || val === "") {
           delete base[key];
@@ -417,7 +455,7 @@ export function ImagesGroupField({
               Form
             </TabsTrigger>
           </TabsList>
-          {groupProps.length > 0 && (
+          {groupEditProps.length > 0 && (
             <AnchoredEditPopover
               open={groupOpen}
               onOpenChange={setGroupOpen}
@@ -438,7 +476,7 @@ export function ImagesGroupField({
             >
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  {groupProps.map((prop) => (
+                  {groupEditProps.map((prop) => (
                     <PropEditor
                       key={prop.key}
                       prop={prop}
@@ -542,53 +580,11 @@ export function ImagesGroupField({
                   </div>
                 }
               >
-                <div className="space-y-3">
-                  <MediaItemThumb
-                    item={img}
-                    className="h-28 w-full rounded-md object-cover border"
-                  />
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["fit", "filter", "blendMode"] as const).map((key) => {
-                      const prop = popupProps.find((p) => p.key === key);
-                      if (!prop) return <div key={key} />;
-                      return (
-                        <PropEditor
-                          key={key}
-                          prop={prop}
-                          value={img[key]}
-                          onChange={(val) => updateLocalItem(index, { [key]: val })}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["opacity", "colorTint"] as const).map((key) => {
-                      const prop = popupProps.find((p) => p.key === key);
-                      if (!prop) return <div key={key} />;
-                      return (
-                        <PropEditor
-                          key={key}
-                          prop={prop}
-                          value={img[key]}
-                          onChange={(val) => updateLocalItem(index, { [key]: val })}
-                        />
-                      );
-                    })}
-                  </div>
-                  {(() => {
-                    const prop = popupProps.find((p) => p.key === "rangeString");
-                    if (!prop) return null;
-                    return (
-                      <PropEditor
-                        prop={prop}
-                        value={img.rangeString}
-                        onChange={(val) =>
-                          updateLocalItem(index, { rangeString: val })
-                        }
-                      />
-                    );
-                  })()}
-                </div>
+                <ItemPopupFields
+                  img={img}
+                  popupProps={popupProps}
+                  onChange={(patch) => updateLocalItem(index, patch)}
+                />
               </AnchoredEditPopover>
             ))}
             <button
@@ -656,6 +652,96 @@ function GridColsIcon({ cols }: { cols: 3 | 4 | 5 }) {
   );
 }
 
+function ItemPopupFields({
+  img,
+  popupProps,
+  onChange,
+}: {
+  img: any;
+  popupProps: ItemPropSchema[];
+  onChange: (patch: Record<string, any>) => void;
+}) {
+  const isAudio = detectMediaKind(img) === "audio";
+  const find = (key: string) => popupProps.find((p) => p.key === key);
+
+  if (isAudio) {
+    const audioProps = AUDIO_POPUP_KEYS.map(find).filter(
+      (p): p is ItemPropSchema => Boolean(p),
+    );
+    return (
+      <div className="space-y-3">
+        <MediaItemThumb
+          item={img}
+          className="h-28 w-full rounded-md object-cover border"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          {audioProps.map((prop) => (
+            <PropEditor
+              key={prop.key}
+              prop={prop}
+              value={img[prop.key]}
+              onChange={(val) => onChange({ [prop.key]: val })}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const row = (keys: string[]) =>
+    keys.map((key) => {
+      const prop = find(key);
+      if (!prop || isContainerProp(prop)) return <div key={key} />;
+      return (
+        <PropEditor
+          key={key}
+          prop={prop}
+          value={img[key]}
+          onChange={(val) => onChange({ [key]: val })}
+        />
+      );
+    });
+
+  const positionProps = popupProps.filter(isContainerProp);
+
+  return (
+    <div className="space-y-3">
+      <MediaItemThumb
+        item={img}
+        className="h-28 w-full rounded-md object-cover border"
+      />
+      <div className="grid grid-cols-3 gap-2">{row(["fit", "filter", "blendMode"])}</div>
+      <div className="grid grid-cols-2 gap-2">{row(["opacity", "colorTint"])}</div>
+      {(() => {
+        const prop = find("rangeString");
+        if (!prop) return null;
+        return (
+          <PropEditor
+            prop={prop}
+            value={img.rangeString}
+            onChange={(val) => onChange({ rangeString: val })}
+          />
+        );
+      })()}
+      {positionProps.map((prop) => (
+        <div key={prop.key} className="space-y-1">
+          <Label className="text-[10px] uppercase text-muted-foreground">
+            {prop.key}
+          </Label>
+          <ContainerInsetsInput
+            value={
+              img[prop.key] && typeof img[prop.key] === "object"
+                ? img[prop.key]
+                : undefined
+            }
+            onChange={(val) => onChange({ [prop.key]: val })}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PropEditor({
   prop,
   value,
@@ -666,6 +752,20 @@ function PropEditor({
   onChange: (val: any) => void;
 }) {
   const label = prop.key;
+
+  if (isContainerProp(prop)) {
+    return (
+      <div className="space-y-1 col-span-2">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          {label}
+        </Label>
+        <ContainerInsetsInput
+          value={value && typeof value === "object" ? value : undefined}
+          onChange={onChange}
+        />
+      </div>
+    );
+  }
 
   if (isColorProp(prop)) {
     return (
@@ -678,6 +778,33 @@ function PropEditor({
           onChange={onChange}
           placeholder="#000000"
         />
+      </div>
+    );
+  }
+
+  if (prop.type === "boolean") {
+    return (
+      <div className="space-y-1">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          {label}
+        </Label>
+        <Select
+          value={
+            value === true ? "true" : value === false ? "false" : "__unset__"
+          }
+          onValueChange={(v) =>
+            onChange(v === "__unset__" ? undefined : v === "true")
+          }
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__unset__">Unset</SelectItem>
+            <SelectItem value="true">True</SelectItem>
+            <SelectItem value="false">False</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     );
   }

@@ -22,7 +22,12 @@ import { Switch } from "@/components/ui/switch";
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
-import { parseTimeRange } from "../../engine/preset-stdlib";
+import {
+  fitRangeAtPlayhead,
+  formatRangeClock,
+  parseTimeRange,
+  parseTimeRanges,
+} from "../../engine/preset-stdlib";
 import { isValidRangeString } from "../../engine/range-validation";
 import { JsonEditor } from "../../../player/json-editor";
 import { cn } from "@/lib/utils";
@@ -325,6 +330,12 @@ export function ShakeEffectsField({
   };
 
   const addEffect = () => {
+    const otherStarts = effects.flatMap((effect) =>
+      parseTimeRanges(typeof effect.range === "string" ? effect.range : "").map(
+        (segment) => segment.start,
+      ),
+    );
+    const fitted = fitRangeAtPlayhead(timeSec, otherStarts);
     onChange([
       ...effects,
       {
@@ -335,7 +346,7 @@ export function ShakeEffectsField({
           decay: true,
           axis: "both",
         },
-        range: "",
+        range: `${formatRangeClock(fitted.start)}-${formatRangeClock(fitted.end)}`,
       },
     ]);
     setTab("full");

@@ -159,6 +159,31 @@ export const parseTimeRange = (
   return { start, end };
 };
 
+/** Clock label used by range form inputs (`M:SS`). */
+export const formatRangeClock = (sec: number): string => {
+  const safe = Math.max(0, sec);
+  const m = Math.floor(safe / 60);
+  const s = Math.floor(safe % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * New range at the playhead. Default length is 5s.
+ * If another range starts inside that window, end exactly at that start.
+ */
+export const fitRangeAtPlayhead = (
+  startSec: number,
+  otherRangeStarts: number[],
+  durationSec = 5,
+): { start: number; end: number } => {
+  const start = Math.max(0, startSec);
+  let end = start + durationSec;
+  for (const other of otherRangeStarts) {
+    if (other > start && other < end) end = other;
+  }
+  return { start, end };
+};
+
 /**
  * Parses all comma-separated MM:SS-MM:SS segments (imageloop-style multi-range).
  */

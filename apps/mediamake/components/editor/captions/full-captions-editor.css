@@ -1,5 +1,6 @@
 /* Force light surface — do not follow system/app dark mode */
 .caption-tiptap-light {
+  color-scheme: light;
   background-color: #ffffff !important;
   color: #1a1a1a !important;
 }
@@ -35,7 +36,14 @@
 }
 
 .full-captions-editor p:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Beat global tiptap dark-mode word hover (prefers-color-scheme) */
+.caption-tiptap-light .word-highlight:hover,
+.full-captions-editor .word-highlight:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  color: inherit !important;
 }
 
 .caption-line-edit-btn {
@@ -79,7 +87,13 @@
   }
 
   .full-captions-editor p:hover {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .caption-tiptap-light .word-highlight:hover,
+  .full-captions-editor .word-highlight:hover {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+    color: inherit !important;
   }
 
   .caption-line-edit-btn {

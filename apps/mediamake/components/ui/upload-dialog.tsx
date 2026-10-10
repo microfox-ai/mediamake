@@ -737,7 +737,17 @@ export function UploadDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+            <DialogContent
+                overlayClassName="z-[80]"
+                className="z-[80] max-w-6xl max-h-[95vh] overflow-y-auto"
+                onFocusOutside={event => event.preventDefault()}
+                onPointerDownOutside={event => {
+                    const target = event.target;
+                    if (target instanceof Element && target.closest("[data-media-picker-root]")) {
+                        event.preventDefault();
+                    }
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {getContentTypeIcon('video')}
@@ -973,7 +983,7 @@ export function UploadDialog({
                                 <SelectTrigger className="w-64">
                                     <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Stocksearch (shared namespace)"} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[90]">
                                     <SelectItem value="default">Stocksearch (shared namespace)</SelectItem>
                                     {projects.map((p) => (
                                         <SelectItem key={p.id} value={p.id}>
@@ -1084,6 +1094,7 @@ export function UploadDialog({
                         <TagMultiSelect
                             selectedTags={selectedTags}
                             onTagsChange={handleTagsChange}
+                            popoverClassName="z-[90]"
                             label={`Tags${selectedTags.length === 0 && uploadedMedia.length > 0 ? ' (Required to create entries)' : ''}`}
                             required={uploadedMedia.length > 0}
                         />

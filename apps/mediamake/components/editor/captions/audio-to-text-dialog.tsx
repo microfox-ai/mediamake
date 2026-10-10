@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,25 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
   const [showPicker, setShowPicker] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showPickerRef = useRef(false);
+  const blockDismissRef = useRef(false);
+  showPickerRef.current = showPicker;
+
+  const closePicker = () => {
+    blockDismissRef.current = true;
+    showPickerRef.current = false;
+    setShowPicker(false);
+    window.setTimeout(() => {
+      blockDismissRef.current = false;
+    }, 350);
+  };
+
+  const shouldKeepOpen = () => showPickerRef.current || blockDismissRef.current;
+
+  const requestClose = () => {
+    if (isRunning || shouldKeepOpen()) return;
+    onClose();
+  };
 
   const handleSubmit = async () => {
     if (!audioUrl.trim() || !isValidUrl(audioUrl.trim())) {
@@ -121,11 +140,28 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
     <>
       <Dialog
         open={open}
+        modal={!showPicker}
         onOpenChange={next => {
-          if (!next && !isRunning) onClose();
+          if (!next) requestClose();
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent
+          className="sm:max-w-2xl"
+          onPointerDownOutside={event => {
+            if (shouldKeepOpen()) event.preventDefault();
+          }}
+          onInteractOutside={event => {
+            if (shouldKeepOpen()) event.preventDefault();
+          }}
+          onFocusOutside={event => {
+            if (shouldKeepOpen()) event.preventDefault();
+          }}
+          onEscapeKeyDown={event => {
+            if (!showPickerRef.current) return;
+            event.preventDefault();
+            closePicker();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-sm">Audio to text</DialogTitle>
           </DialogHeader>
@@ -229,7 +265,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isRunning}>
+            <Button type="button" variant="outline" size="sm" onClick={requestClose} disabled={isRunning}>
               Cancel
             </Button>
             <Button type="button" size="sm" onClick={() => void handleSubmit()} disabled={isRunning}>
@@ -245,9 +281,9 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
           onSelect={(files: MediaFile | MediaFile[]) => {
             const file = Array.isArray(files) ? files[0] : files;
             if (file?.filePath) setAudioUrl(file.filePath);
-            setShowPicker(false);
+            closePicker();
           }}
-          onClose={() => setShowPicker(false)}
+          onClose={closePicker}
         />
       )}
     </>

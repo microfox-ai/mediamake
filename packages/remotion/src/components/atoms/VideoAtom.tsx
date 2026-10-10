@@ -4,6 +4,7 @@ import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { z } from 'zod';
 import { useAnimatedStyles } from '../effects';
+import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { calculateComponentDuration } from '../../core';
 
 // ============================================================================
@@ -165,8 +166,19 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
         return data.endAt ? data.endAt * fps : undefined;
     }, [data.endAt, fps]);
 
-    // Note: Animated styles (overrideStyles) are now applied to the wrapper div
-    // while video-specific styles are applied directly to the video tag
+    // Animated filters/transforms merge with the base style so a preset filter
+    // (including color tint) is kept when an effect adds another filter function.
+    const videoStyle = useMemo(
+        () =>
+            mergeCSSStyles(
+                {
+                    ...(data.style ?? {}),
+                    ...(data.fit ? { objectFit: data.fit } : {}),
+                },
+                data.containerClassName ? {} : (overrideStyles ?? {})
+            ),
+        [data.style, data.fit, data.containerClassName, overrideStyles]
+    );
 
     // <OffthreadVideo> throws in @remotion/web-renderer; see core/clientMediaTags.
     const clientTags = getClientSideMediaTags();
@@ -184,7 +196,7 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
         <VideoTag
             className={data.className}
             src={source}
-            style={data.style ? { ...data.style, ...(data.fit ? { objectFit: data.fit } : {}) } : {}}
+            style={videoStyle}
             trimBefore={trimBefore}
             trimAfter={trimAfter}
             playbackRate={data.playbackRate}
@@ -194,20 +206,7 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
         />
     );
 
-    // Apply animated styles directly to video if no container className is provided
-    const videoWithStyles = data.containerClassName ? videoComponent : (
-        <VideoTag
-            className={data.className}
-            src={source}
-            style={data.style ? { ...data.style, ...(data.fit ? { objectFit: data.fit } : {}), ...overrideStyles } : overrideStyles}
-            trimBefore={trimBefore}
-            trimAfter={trimAfter}
-            playbackRate={data.playbackRate}
-            volume={data.volume}
-            muted={data.muted}
-            loop={loopsNatively || undefined}
-        />
-    );
+    const videoWithStyles = videoComponent;
 
     if (data.loop && !loopsNatively) {
         const loopDurationInFrames = data.srcDuration
