@@ -380,13 +380,11 @@ function docToCaptions(
       });
     }
 
-    const absoluteStart = lineStart ?? words[0]?.absoluteStart ?? 0;
-    const absoluteEnd =
-      lineEnd ??
-      words.reduce(
-        (end, word) => Math.max(end, word.absoluteEnd ?? end),
-        absoluteStart,
-      );
+    const absoluteStart = words[0]?.absoluteStart ?? lineStart ?? 0;
+    const absoluteEnd = words.reduce(
+      (end, word) => Math.max(end, word.absoluteEnd ?? end),
+      absoluteStart,
+    );
     applyRelative(words, absoluteStart);
     return { absoluteStart, absoluteEnd };
   };
@@ -444,9 +442,6 @@ function docToCaptions(
         firstUntimed && lineStart != null ? lineStart : placed.absoluteStart;
       absoluteEnd =
         lastUntimed && lineEnd != null ? lineEnd : placed.absoluteEnd;
-      if (!firstUntimed && words[0]?.absoluteStart != null && lineStart == null) {
-        absoluteStart = words[0].absoluteStart;
-      }
       applyRelative(words, absoluteStart);
     }
 
