@@ -199,6 +199,17 @@ const presetParams = z.object({
           title: 'Ignore metadata',
           [paramMetaTypes.layoutGroup]: 'sync-flags',
         }),
+      autoHighlight: z
+        .boolean()
+        .default(true)
+        .optional()
+        .meta({
+          title: 'Auto highlight',
+          [paramMetaTypes.layoutGroup]: 'sync-flags',
+        })
+        .describe(
+          'When on, pick a highlight word if htmlText has no bold word. When off, only words marked bold in htmlText are highlighted.',
+        ),
       maxLines: z
         .number()
         .optional()
@@ -2283,6 +2294,7 @@ const presetExecution = (
     floatThreshold?: number,
     textAlign?: string,
     disableMetadata?: boolean,
+    autoHighlight?: boolean,
     animationStyle?: string,
     layout?: string,
     globalImpact?: number,
@@ -2343,7 +2355,9 @@ const presetExecution = (
         let highlightedPartIndex = -1;
         let highlightedWordIndex = -1;
 
-        if (highlightedWordIndices.length === 0) {
+        // autoHighlight off: htmlText is the only highlight source. No bold
+        // word means nothing is highlighted.
+        if (autoHighlight !== false && highlightedWordIndices.length === 0) {
           // Only apply fallback logic if no keyword was found in metadata
           if (highlightedPartIndex === -1 && highlightedWordIndex === -1) {
             // Always select a single word to highlight, never entire parts
@@ -2374,8 +2388,9 @@ const presetExecution = (
           }
         }
 
-        // Ensure at least one word is highlighted
+        // Ensure at least one word is highlighted when auto highlight is on
         if (
+          autoHighlight !== false &&
           highlightedWordIndices.length === 0 &&
           highlightedPartIndex === -1 &&
           highlightedWordIndex === -1
@@ -2577,6 +2592,7 @@ const presetExecution = (
     subtitleSync?.floatThreshold,
     textAlign ?? (position as any)?.textAlign,
     subtitleSync?.disableMetadata,
+    subtitleSync?.autoHighlight,
     subtitleSync?.animationStyle,
     subtitleSync?.layout,
     subtitleSync?.impact,
@@ -2682,6 +2698,7 @@ const presetMetadata: PresetMetadata = {
       maxLines: 5,
       floatThreshold: 15,
       disableMetadata: false,
+      autoHighlight: true,
       noGaps: {
         enabled: false,
         maxLength: 3,

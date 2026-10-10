@@ -182,7 +182,12 @@ function parseParagraphWords(pNode: {
       const markStart = parseFloat(wordMark.attrs['data-absolute-start']);
       const markEnd = parseFloat(wordMark.attrs['data-absolute-end']);
       const confidence = wordMark.attrs['data-confidence'] ?? 1;
-      if (!isNaN(markStart) && !isNaN(markEnd) && markEnd > markStart) {
+      // Zero-length or inverted ranges are untimed. Line bounds fill those in later.
+      if (
+        Number.isFinite(markStart) &&
+        Number.isFinite(markEnd) &&
+        markEnd > markStart
+      ) {
         if (tokens.length === 1) {
           pushTimed(tokens[0], markStart, markEnd, confidence);
           return;
@@ -303,29 +308,86 @@ function docToCaptions(
     };
   };
 
-  const placeNewWordsAfterTimed = (words: ParsedWord[]) => {
-    let cursor: number | null = null;
+  const applyRelative = (words: ParsedWord[], lineStart: number) => {
     words.forEach(word => {
-      if (word.fromMark) {
-        cursor = word.absoluteEnd ?? cursor;
-        return;
-      }
-      const duration = durationForText(word.text || '');
-      const start = cursor ?? word.absoluteStart ?? 0;
+      const start = word.absoluteStart ?? lineStart;
+      const end = word.absoluteEnd ?? start;
       word.absoluteStart = start;
-      word.absoluteEnd = start + duration;
-      word.duration = duration;
-      cursor = start + duration;
+      word.absoluteEnd = end;
+      word.start = start - lineStart;
+      word.end = end - lineStart;
+      word.duration = end - start;
     });
-    const absoluteStart = words[0]?.absoluteStart ?? 0;
-    const absoluteEnd = words.reduce(
-      (end, word) => Math.max(end, word.absoluteEnd ?? end),
-      absoluteStart,
-    );
-    words.forEach(word => {
-      word.start = (word.absoluteStart ?? 0) - absoluteStart;
-      word.end = (word.absoluteEnd ?? 0) - absoluteStart;
-    });
+  };
+
+  /** Untimed words borrow the line: first word starts at absStart, last ends at absEnd. */
+  const placeUntimedWords = (
+    words: ParsedWord[],
+    lineStart?: number,
+    lineEnd?: number,
+  ): { absoluteStart: number; absoluteEnd: number } => {
+    let index = 0;
+    while (index < words.length) {
+      if (words[index]?.fromMark) {
+        index++;
+        continue;
+      }
+      const runStart = index;
+      while (index < words.length && !words[index]?.fromMark) index++;
+      const run = words.slice(runStart, index);
+      const prevTimed = words
+        .slice(0, runStart)
+        .reverse()
+        .find(word => word.fromMark);
+      const nextTimed = words.slice(index).find(word => word.fromMark);
+      const atLineStart = runStart === 0;
+      const atLineEnd = index === words.length;
+
+      let spanStart = 0;
+      if (atLineStart && lineStart != null) spanStart = lineStart;
+      else if (prevTimed?.absoluteEnd != null) spanStart = prevTimed.absoluteEnd;
+      else if (lineStart != null) spanStart = lineStart;
+
+      let spanEnd: number | null = null;
+      if (atLineEnd && lineEnd != null) spanEnd = lineEnd;
+      else if (nextTimed?.absoluteStart != null) spanEnd = nextTimed.absoluteStart;
+
+      if (spanEnd == null) {
+        let cursor = spanStart;
+        run.forEach(word => {
+          const duration = durationForText(word.text || '');
+          word.absoluteStart = cursor;
+          word.absoluteEnd = cursor + duration;
+          word.duration = duration;
+          cursor += duration;
+        });
+        continue;
+      }
+
+      const weights = run.map(word => durationForText(word.text || ''));
+      const total = weights.reduce((sum, weight) => sum + weight, 0) || run.length;
+      const span = spanEnd - spanStart;
+      let cursor = spanStart;
+      run.forEach((word, wordIndex) => {
+        const isLast = wordIndex === run.length - 1;
+        const end = isLast
+          ? spanEnd!
+          : cursor + (span * (weights[wordIndex] ?? 0)) / total;
+        word.absoluteStart = cursor;
+        word.absoluteEnd = end;
+        word.duration = end - cursor;
+        cursor = end;
+      });
+    }
+
+    const absoluteStart = lineStart ?? words[0]?.absoluteStart ?? 0;
+    const absoluteEnd =
+      lineEnd ??
+      words.reduce(
+        (end, word) => Math.max(end, word.absoluteEnd ?? end),
+        absoluteStart,
+      );
+    applyRelative(words, absoluteStart);
     return { absoluteStart, absoluteEnd };
   };
 
@@ -354,8 +416,18 @@ function docToCaptions(
     if (words.length === 0) return;
 
     const prev = prevById.get(id);
-    const typedLine =
-      words.every(word => !word.fromMark) || Boolean(prev?.autoTiming);
+    const allUntimed = words.every(word => !word.fromMark);
+    const lineStart =
+      prev && !prev.autoTiming && typeof prev.absoluteStart === 'number'
+        ? prev.absoluteStart
+        : undefined;
+    const lineEnd =
+      prev && !prev.autoTiming && typeof prev.absoluteEnd === 'number'
+        ? prev.absoluteEnd
+        : undefined;
+    // A typed line has no stored range yet. An existing line with untimed
+    // words keeps its own absoluteStart / absoluteEnd.
+    const typedLine = (allUntimed && lineStart == null) || Boolean(prev?.autoTiming);
 
     let absoluteStart: number;
     let absoluteEnd: number;
@@ -365,9 +437,17 @@ function docToCaptions(
       absoluteStart = placed.absoluteStart;
       absoluteEnd = placed.absoluteEnd;
     } else {
-      const placed = placeNewWordsAfterTimed(words);
-      absoluteStart = placed.absoluteStart;
-      absoluteEnd = placed.absoluteEnd;
+      const firstUntimed = !words[0]?.fromMark;
+      const lastUntimed = !words[words.length - 1]?.fromMark;
+      const placed = placeUntimedWords(words, lineStart, lineEnd);
+      absoluteStart =
+        firstUntimed && lineStart != null ? lineStart : placed.absoluteStart;
+      absoluteEnd =
+        lastUntimed && lineEnd != null ? lineEnd : placed.absoluteEnd;
+      if (!firstUntimed && words[0]?.absoluteStart != null && lineStart == null) {
+        absoluteStart = words[0].absoluteStart;
+      }
+      applyRelative(words, absoluteStart);
     }
 
     drafts.push({
