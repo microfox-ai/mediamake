@@ -67,6 +67,11 @@ export type SplitAndHighlightParams = z.infer<
 
 export interface SplitAndHighlightOptions extends SplitAndHighlightParams {
   userRequest?: string;
+  /**
+   * Keep every caption card. Only the htmlText metadata is rewritten.
+   * Card count, words, and timestamps stay on the source captions.
+   */
+  preserveCards?: boolean;
 }
 
 export interface SplitAndHighlightResult {
@@ -223,7 +228,11 @@ function frameDirection(options: SplitAndHighlightOptions): string {
       ? dedent`
         SHORT HORIZONTAL — the 16:9 frame still uses short lines. Cut at the phrase and at punctuation. Do not fill the width.
         where stifling walls<br/>sought to hold the spirit down .<br/><br/>I bore the<br/><b>heavy shell</b><br/><br/>across the shifting sand<br/>to learn the martial pulse<br/><br/>of an<br/><b>unforgiving</b>
-        A new card starts when the two lines are full. The second line of a pair can stay plain. Only one line needs a highlight.
+        ${
+          options.preserveCards
+            ? 'Stay inside the card you were given. The second line of a pair can stay plain. Only one line needs a highlight.'
+            : 'A new card starts when the two lines are full. The second line of a pair can stay plain. Only one line needs a highlight.'
+        }
       `
       : '';
   const shared = dedent`
@@ -261,14 +270,26 @@ export function buildSplitAndHighlightPrompt(
   const frame = frameForCard(options, 0);
   const lineLength = options.lineLength ?? 'medium';
 
+  const cardRule = options.preserveCards
+    ? dedent`
+      CARD BOUNDARIES ARE FIXED
+      - Each CARD below is already one caption. Keep that exact number of cards, in this order.
+      - Do not merge cards, split a card into new cards, or move a word onto another card.
+      - <br/><br/> only separates those existing cards. Do not add or remove a separator.
+      - <br/> (one break) only splits lines inside the current card.
+    `
+    : dedent`
+      - <br/><br/> (two breaks) starts a new caption card.
+      - <br/> (one break) splits lines inside the current card.
+    `;
+
   const system = dedent`
     You are a motion-graphics animator laying out caption cards. This is not subtitling and it is not a transcript cleanup.
     Split the sentence the way a title card is read: on meaning, then on punctuation. The frame only decides how narrow the lines are.
 
     MARKUP — return only the html, nothing else
     - One html string for the entire piece. No preface, no explanation, no markdown fences, no timings.
-    - <br/><br/> (two breaks) starts a new caption card.
-    - <br/> (one break) splits lines inside the current card.
+    ${cardRule}
     - <b>...</b> marks a word drawn large. Those words render at ${scale}× body size.
     - A bold word takes about ${scale}× the horizontal space of the same letters at body size.
     - Do not add, delete, reorder, merge, or rewrite words. Keep each word's punctuation attached to it.
@@ -291,7 +312,7 @@ export function buildSplitAndHighlightPrompt(
     - Keep a preposition with the phrase it opens: "across the shifting sand", "of an unforgiving land.", "beneath my skin .", "where the quiet wars begin ."
     - Do not fill a line with the next phrase just because there is room. Stop when the phrase, or its punctuation, is complete.
 
-    SHORT LINES — copy this break pattern when lines are short, including on a horizontal frame. Do not lengthen a line because the frame is wide. A horizontal card holds at most 2 of these lines, then the next phrase starts a new card.
+    SHORT LINES — copy this break pattern when lines are short, including on a horizontal frame. Do not lengthen a line because the frame is wide. A horizontal card holds at most 2 of these lines.${options.preserveCards ? ' Keep the extra phrases inside this card. Do not start a new card.' : ' Then the next phrase starts a new card.'}
     ${SHORT_SQUARE_EXAMPLE}
 
     ON-SCREEN TIME
@@ -326,7 +347,11 @@ export function buildSplitAndHighlightPrompt(
     CURRENT ARRANGEMENT:
     ${sourceHtml}
 
-    Redesign every card for ${frame} with ${lineLength} lines. Bold words are ${scale}× body size.
+    ${
+      options.preserveCards
+        ? `Rewrite line breaks and bold words inside each existing card for ${frame} with ${lineLength} lines. Do not change which words belong to which card.`
+        : `Redesign every card for ${frame} with ${lineLength} lines.`
+    } Bold words are ${scale}× body size.
     Break on phrase meaning. Put every punctuation mark at the end of that line. Never start a line with a mark.
     ${
       lineLength === 'large'
@@ -460,6 +485,77 @@ export function captionsFromMotionHtml(
   });
 }
 
+function withHtmlText(caption: Caption, htmlText: string): Caption {
+  if (!htmlText.trim()) return caption;
+  return {
+    ...caption,
+    metadata: {
+      ...(caption.metadata ?? {}),
+      htmlText,
+    },
+  };
+}
+
+/** Line breaks inside one existing card. A card separator never starts a new card. */
+function htmlForCaptionWords(segmentHtml: string, words: CaptionWord[]): string {
+  if (words.length === 0) return '';
+  const marks = marksForSourceWords(segmentHtml, words).map((entry, index) => ({
+    ...entry,
+    cardBreakBefore: false,
+    lineBreakBefore:
+      index === 0 ? false : entry.lineBreakBefore || entry.cardBreakBefore,
+  }));
+  return buildCardHtml(marks);
+}
+
+/**
+ * Map model HTML onto the source cards.
+ * Words, timings, and card count stay. Only htmlText changes.
+ */
+export function htmlTextForExistingCaptions(
+  html: string,
+  sourceCaptions: Caption[],
+): Caption[] {
+  const normalized = normalizeMotionHtml(html);
+  const segments = normalized
+    .split(/(?:<br\/>\s*){2,}/i)
+    .map(segment => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length === sourceCaptions.length) {
+    return sourceCaptions.map((caption, index) =>
+      withHtmlText(
+        caption,
+        htmlForCaptionWords(segments[index], caption.words ?? []),
+      ),
+    );
+  }
+
+  const marks = marksForSourceWords(
+    normalized,
+    sourceCaptions.flatMap(caption => caption.words ?? []),
+  );
+  let offset = 0;
+  return sourceCaptions.map(caption => {
+    const count = caption.words?.length ?? 0;
+    const slice = marks.slice(offset, offset + count);
+    offset += count;
+    return withHtmlText(caption, htmlForCaptionWordsFromMarks(slice));
+  });
+}
+
+function htmlForCaptionWordsFromMarks(marks: WordMark[]): string {
+  if (marks.length === 0) return '';
+  return buildCardHtml(
+    marks.map((entry, index) => ({
+      ...entry,
+      cardBreakBefore: false,
+      lineBreakBefore:
+        index === 0 ? false : entry.lineBreakBefore || entry.cardBreakBefore,
+    })),
+  );
+}
+
 function collectChanges(before: Caption[], after: Caption[]): CaptionChange[] {
   const structural = detectSegmentationChanges(
     before,
@@ -519,14 +615,21 @@ export async function runSplitAndHighlight(
   const modelHtml = normalizeMotionHtml(
     extractHtmlFromModelText(result.text) || sourceHtml,
   );
-  const fixedCaptions = captionsFromMotionHtml(
-    modelHtml || sourceHtml,
-    captions,
-  );
+  const fixedCaptions = options.preserveCards
+    ? htmlTextForExistingCaptions(modelHtml || sourceHtml, captions)
+    : captionsFromMotionHtml(modelHtml || sourceHtml, captions);
   const htmlText = serializeCaptionsToHtml(fixedCaptions);
   const changes = collectChanges(captions, fixedCaptions);
   const layout = LAYOUT_SPEC[frame];
   const staticFrame = options.staticFrameChoice !== false;
+  const summary = options.preserveCards
+    ? `Updated htmlText on ${fixedCaptions.length} caption cards for ${frame} (${options.lineLength ?? 'medium'} lines, bold words at ${options.fontScaling ?? 2}×).`
+    : dedent`
+      Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
+      (${options.lineLength ?? 'medium'} lines, up to ${layout.maxLines}, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
+    `
+        .replace(/\s+/g, ' ')
+        .trim();
 
   return {
     htmlText,
@@ -535,11 +638,6 @@ export async function runSplitAndHighlight(
     confidence: 0.86,
     usage: result.usage,
     staticFrameChoice: staticFrame,
-    summary: dedent`
-      Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
-      (${options.lineLength ?? 'medium'} lines, up to ${layout.maxLines}, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
-    `
-      .replace(/\s+/g, ' ')
-      .trim(),
+    summary,
   };
 }

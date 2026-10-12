@@ -12,6 +12,7 @@ import {
   captionHasOriginalState,
   resetCaptionToOriginal,
 } from '@/lib/captions/original-state';
+import { syncCaptionFieldsFromWords } from '@/lib/captions/html-text';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Paragraph from '@tiptap/extension-paragraph';
@@ -520,6 +521,13 @@ function docToCaptions(
         });
         if (match && keepFrom(match)) break;
       }
+    }
+
+    if (typeof metadata.htmlText === 'string' && metadata.htmlText.trim()) {
+      metadata = syncCaptionFieldsFromWords(
+        draft.words as Array<Record<string, unknown>>,
+        metadata,
+      ).metadata;
     }
 
     return {

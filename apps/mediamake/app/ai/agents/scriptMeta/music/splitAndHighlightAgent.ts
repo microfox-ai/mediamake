@@ -3,7 +3,6 @@ import { z } from 'zod/v4';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import type { Caption, CaptionsDocument } from '@/app/types/transcription';
-import { preserveCaptionOriginalState } from '@/lib/captions/original-state';
 import { appendUsage } from '@/app/ai/middlewares/usageCapture';
 import { loadCaption } from '../middlewares/loadTranscription';
 import {
@@ -15,57 +14,40 @@ import {
 
 /**
  * Metadata pass that reuses the motion-graphics split-and-highlight prompt.
- * Writes htmlText onto a captions document only. The transcription is never updated.
- * keyword and splitParts are not written.
+ * Writes htmlText onto the loaded captions document only.
+ * Cards, words, and timestamps stay. The transcription is never updated.
  */
 
 const aiRouter = new AiRouter();
 
-function stitchCaptions(
+function applyHtmlText(
   full: Caption[],
   selectedIndices: number[] | undefined,
-  replacement: Caption[],
+  updated: Caption[],
 ): Caption[] {
-  const kept = preserveCaptionOriginalState(
-    selectedIndices && selectedIndices.length === replacement.length
-      ? selectedIndices.map(index => full[index]).filter(Boolean)
-      : full,
-    replacement,
-  );
-  const nextReplacement =
-    selectedIndices && selectedIndices.length === replacement.length
-      ? replacement.map((caption, index) => {
-          const source = full[selectedIndices[index]];
-          return source?.originalState
-            ? { ...caption, originalState: source.originalState }
-            : caption;
-        })
-      : kept;
+  const indices =
+    selectedIndices &&
+    selectedIndices.length > 0 &&
+    selectedIndices.length === updated.length
+      ? selectedIndices
+      : updated.length === full.length
+        ? full.map((_, index) => index)
+        : [];
 
-  if (
-    !selectedIndices ||
-    selectedIndices.length === 0 ||
-    selectedIndices.length >= full.length
-  ) {
-    return nextReplacement;
-  }
-
-  const selected = new Set(selectedIndices);
-  const next: Caption[] = [];
-  let inserted = false;
-
-  full.forEach((caption, index) => {
-    if (!selected.has(index)) {
-      next.push(caption);
-      return;
-    }
-    if (!inserted) {
-      next.push(...nextReplacement);
-      inserted = true;
-    }
+  const next = full.map(caption => ({ ...caption }));
+  indices.forEach((index, position) => {
+    const htmlText = updated[position]?.metadata?.htmlText;
+    const target = next[index];
+    if (!target || typeof htmlText !== 'string' || !htmlText.trim()) return;
+    next[index] = {
+      ...target,
+      metadata: {
+        ...(target.metadata ?? {}),
+        htmlText,
+      },
+    };
   });
-
-  return inserted ? next : nextReplacement;
+  return next;
 }
 
 const splitAndHighlightAgent = aiRouter
@@ -73,7 +55,7 @@ const splitAndHighlightAgent = aiRouter
   .agent('/', async ctx => {
     try {
       ctx.response.writeMessageMetadata({
-        loader: 'Splitting lines and choosing highlights...',
+        loader: 'Choosing line breaks and highlights...',
       });
 
       const {
@@ -100,7 +82,7 @@ const splitAndHighlightAgent = aiRouter
 
       const captions = (ctx.state.captions ?? []) as Caption[];
       if (captions.length === 0) {
-        throw new Error('No captions available for arrangement');
+        throw new Error('No captions available');
       }
 
       const result = await runSplitAndHighlight(captions, {
@@ -109,6 +91,7 @@ const splitAndHighlightAgent = aiRouter
         fontScaling,
         staticFrameChoice,
         userRequest,
+        preserveCards: true,
       });
 
       if (result.usage) {
@@ -122,7 +105,7 @@ const splitAndHighlightAgent = aiRouter
       const selectedIndices = ctx.state.selectedIndices as number[] | undefined;
       const db = await getDatabase();
       const doc = ctx.state.captionDocument as CaptionsDocument;
-      const savedCaptions = stitchCaptions(
+      const savedCaptions = applyHtmlText(
         doc.captions,
         selectedIndices,
         result.fixedCaptions,
@@ -163,9 +146,11 @@ const splitAndHighlightAgent = aiRouter
     id: 'splitAndHighlightAgent',
     name: 'Split and Highlight',
     description:
-      'Motion-graphics line split and highlight. Rewrites caption cards from one HTML document: <br/><br/> between cards, <br/> inside a card, <b> for words scaled by fontScaling. Saves onto the captions document only. Does not update the transcription.',
+      'Rewrite htmlText on the captions document loaded from the database. Cards, words, and timestamps stay. <br/> splits lines inside a card and <b> marks words scaled by fontScaling. Does not update the transcription.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
-      captionId: z.string().describe('Captions document to arrange.'),
+      captionId: z
+        .string()
+        .describe('Captions document to load and update.'),
       transcriptionId: z
         .string()
         .optional()
@@ -176,7 +161,9 @@ const splitAndHighlightAgent = aiRouter
       selectedIndices: z
         .array(z.number())
         .optional()
-        .describe('Caption indices to rearrange. Others stay in place.'),
+        .describe(
+          'Caption indices whose htmlText is rewritten. Other captions are left unchanged.',
+        ),
     }),
     outputSchema: z.object({
       captions: z.array(z.any()),
@@ -194,7 +181,7 @@ const splitAndHighlightAgent = aiRouter
       icon: '✨',
       title: 'Split and Highlight',
       description:
-        'Arrange caption lines and highlights for a motion-graphics layout',
+        'Rewrite caption htmlText without moving cards',
       hidden: true,
     },
   });

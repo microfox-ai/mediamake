@@ -97,6 +97,7 @@
     "@tiptap/react": "^3.3.0",
     "@tiptap/starter-kit": "^3.3.0",
     "@upstash/redis": "^1.35.3",
+    "@vercel/analytics": "^2.0.1",
     "ai": "^5.0.52",
     "assemblyai": "^4.16.1",
     "class-variance-authority": "^0.7.1",

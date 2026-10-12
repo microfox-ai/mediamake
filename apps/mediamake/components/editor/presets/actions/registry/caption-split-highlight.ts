@@ -14,7 +14,7 @@ const inputSchema = z.object({
     .enum([SCOPE_SELECTED, SCOPE_ALL])
     .default(SCOPE_SELECTED)
     .describe(
-      "Selected / active caption uses the timeline selection, or the caption under the playhead when nothing is selected. All captions rearranges the whole reference.",
+      "Selected / active caption uses the timeline selection, or the caption under the playhead when nothing is selected. All captions rewrites htmlText on every line in this captions document.",
     ),
   frameChoice: z
     .enum(["vertical_box", "horizontal_box", "square_box"])
@@ -42,7 +42,7 @@ const inputSchema = z.object({
   userRequest: z
     .string()
     .optional()
-    .describe("Extra direction for the arrangement"),
+    .describe("Extra direction for line breaks and highlights"),
 });
 
 type CaptionReferenceValue = {
@@ -59,7 +59,7 @@ type CaptionReferenceValue = {
 };
 
 function readCaptionReference(ctx: ActionExecuteContext): {
-  value: CaptionReferenceValue;
+  id: string;
   referenceIndex: number;
 } {
   const target = ctx.action.target;
@@ -79,14 +79,24 @@ function readCaptionReference(ctx: ActionExecuteContext): {
     throw new Error("Link this action to a captions reference");
   }
 
-  const value = reference.value;
-  if (!value?._id) {
-    throw new Error("Create or link a captions document before arranging");
+  const id = reference.value?._id;
+  if (!id) {
+    throw new Error("Create or link a captions document before highlighting");
   }
-  if (!Array.isArray(value.captions) || value.captions.length === 0) {
-    throw new Error("Add captions before arranging them");
+  return { id: String(id), referenceIndex };
+}
+
+async function fetchCaptionsDocument(id: string): Promise<CaptionReferenceValue> {
+  const response = await fetch(`/api/captions/${id}`);
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to load the captions document"));
   }
-  return { value, referenceIndex };
+  const data = (await response.json()) as { captions?: CaptionReferenceValue };
+  const doc = data.captions;
+  if (!doc || !Array.isArray(doc.captions) || doc.captions.length === 0) {
+    throw new Error("The captions document has no lines");
+  }
+  return { ...doc, _id: doc._id ?? id };
 }
 
 function captionWindow(caption: {
@@ -140,21 +150,6 @@ async function readError(response: Response, fallback: string) {
   );
 }
 
-async function flushCaptions(value: CaptionReferenceValue) {
-  const response = await fetch(`/api/captions/${value._id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: value.title ?? "",
-      description: value.description ?? "",
-      captions: value.captions ?? [],
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(await readError(response, "Failed to save captions before arranging"));
-  }
-}
-
 function outputFromAgentResponse(result: unknown): Record<string, unknown> | null {
   if (!result || typeof result !== "object") return null;
   if (Array.isArray(result)) {
@@ -178,7 +173,7 @@ export const captionSplitHighlight: ActionDefinition = {
     id: "captionSplitHighlight",
     title: "Split and Highlight",
     description:
-      "Split lines and choose highlights for the selected or active caption. Choose All captions to rearrange the whole reference.",
+      "Rewrite htmlText on the selected or active caption in this captions document. Choose All captions to rewrite every line. Cards, words, and timestamps stay.",
     supportedReferenceTypes: ["captions"],
     tags: ["caption", "split-and-highlight", "htmlText"],
   },
@@ -193,22 +188,18 @@ export const captionSplitHighlight: ActionDefinition = {
   },
   execute: async (ctx): Promise<ActionExecuteResult> => {
     const parsed = inputSchema.parse(ctx.inputData);
-    const { value, referenceIndex } = readCaptionReference(ctx);
+    const { id, referenceIndex } = readCaptionReference(ctx);
+    const value = await fetchCaptionsDocument(id);
     const selectedIndices =
       parsed.scope === SCOPE_ALL
         ? undefined
         : selectedOrActiveIndices(ctx, value, referenceIndex);
-
-    await flushCaptions(value);
 
     const response = await fetch(AGENT_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         captionId: String(value._id),
-        ...(value.sourceTranscriptionId
-          ? { transcriptionId: String(value.sourceTranscriptionId) }
-          : {}),
         ...(selectedIndices ? { selectedIndices } : {}),
         frameChoice: parsed.frameChoice,
         lineLength: parsed.lineLength,
@@ -238,7 +229,7 @@ export const captionSplitHighlight: ActionDefinition = {
       typeof output?.summary === "string"
         ? output.summary
         : parsed.scope === SCOPE_ALL
-          ? `All captions · ${captions.length} cards`
+          ? `htmlText · ${captions.length} captions`
           : `Caption ${ (selectedIndices?.[0] ?? 0) + 1 }`;
 
     return {
