@@ -228,7 +228,13 @@ export async function POST(req: NextRequest) {
     if (!force) {
       try {
         const existing = await findLatestAudioAnalysis(audioSrc);
-        if (existing && (existing.frameCount ?? 0) > 0) {
+        const sample = existing?.analysis?.[0];
+        const hasPhraseFeatures =
+          !!sample &&
+          typeof sample.rms === "number" &&
+          typeof sample.bassRatio === "number" &&
+          typeof sample.spectralFlux === "number";
+        if (existing && (existing.frameCount ?? 0) > 0 && hasPhraseFeatures) {
           return NextResponse.json({
             status: "completed",
             ...toAudioAnalysisJobOutput(existing),

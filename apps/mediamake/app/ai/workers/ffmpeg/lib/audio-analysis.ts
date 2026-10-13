@@ -8,6 +8,12 @@ export interface AudioAnalysisResult {
   intensity: number;
   frequency: number;
   beatType: 'low' | 'mid' | 'high';
+  /** Raw window RMS, before min–max normalization. */
+  rms: number;
+  /** Share of spectral power below ~180Hz. */
+  bassRatio: number;
+  /** Half-wave spectral flux. Higher means a busier attack. */
+  spectralFlux: number;
   spectralCentroid: number;
   spectralRolloff: number;
   zeroCrossingRate: number;
@@ -55,16 +61,6 @@ const fft = (
   }
 
   return { real: resultReal, imag: resultImag };
-};
-
-const calculateSpectralCentroid = (magnitude: number[]): number => {
-  let weightedSum = 0;
-  let magnitudeSum = 0;
-  for (let i = 0; i < magnitude.length; i++) {
-    weightedSum += i * magnitude[i];
-    magnitudeSum += magnitude[i];
-  }
-  return magnitudeSum > 0 ? weightedSum / magnitudeSum : 0;
 };
 
 const calculateSpectralRolloff = (
@@ -149,6 +145,9 @@ export function analyzeAudioPcm(
   const minRMS = Math.min(...allRMS);
   const maxRMS = Math.max(...allRMS);
   const rmsRange = maxRMS - minRMS;
+  // bin Hz = bin * sampleRate / windowSize. This is the last bass bin (~180Hz).
+  const bassCut = Math.max(2, Math.round((180 * windowSize) / sampleRate));
+  let prevMagnitude: number[] | null = null;
 
   for (let i = 0; i < numWindows; i++) {
     const start = i * hopSize;
@@ -162,22 +161,41 @@ export function analyzeAudioPcm(
 
     const rms = allRMS[i];
     const intensity = rmsRange > 0 ? (rms - minRMS) / rmsRange : 0;
-    if (intensity < 0.05) continue;
 
     const fftResult = fft(windowed);
     const magnitude = fftResult.real.map((real, idx) =>
       Math.sqrt(real * real + fftResult.imag[idx] * fftResult.imag[idx]),
     );
 
+    const half = Math.floor(magnitude.length / 2);
     let maxMagnitude = 0;
-    let dominantFreq = 0;
-    for (let j = 0; j < magnitude.length / 2; j++) {
-      if (magnitude[j] > maxMagnitude) {
-        maxMagnitude = magnitude[j];
-        dominantFreq = (j * sampleRate) / windowSize;
+    let dominantBin = 0;
+    let lowPower = 0;
+    let highPower = 0;
+    let flux = 0;
+    let weighted = 0;
+    let magSum = 0;
+    for (let j = 1; j < half; j++) {
+      const m = magnitude[j];
+      magSum += m;
+      weighted += j * m;
+      if (j <= bassCut) lowPower += m * m;
+      else highPower += m * m;
+      if (prevMagnitude) {
+        const delta = m - (prevMagnitude[j] ?? 0);
+        if (delta > 0) flux += delta;
+      }
+      if (m > maxMagnitude) {
+        maxMagnitude = m;
+        dominantBin = j;
       }
     }
+    prevMagnitude = magnitude;
 
+    // Keep the fade. Only true silence is dropped; the segmenter treats those gaps as a rest.
+    if (intensity < 0.02) continue;
+
+    const dominantFreq = (dominantBin * sampleRate) / windowSize;
     let beatType: 'low' | 'mid' | 'high';
     if (dominantFreq < 250) beatType = 'low';
     else if (dominantFreq < 2000) beatType = 'mid';
@@ -188,7 +206,10 @@ export function analyzeAudioPcm(
       intensity,
       frequency: dominantFreq,
       beatType,
-      spectralCentroid: calculateSpectralCentroid(magnitude),
+      rms,
+      bassRatio: lowPower / (lowPower + highPower + 1e-12),
+      spectralFlux: flux,
+      spectralCentroid: magSum > 0 ? weighted / magSum : 0,
       spectralRolloff: calculateSpectralRolloff(magnitude),
       zeroCrossingRate: calculateZeroCrossingRate(
         Array.from(channelWaveform.slice(start, start + windowSize)),

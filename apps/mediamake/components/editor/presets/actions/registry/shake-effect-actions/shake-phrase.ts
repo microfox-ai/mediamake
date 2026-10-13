@@ -1,5 +1,5 @@
 /**
- * Phrase shakes for the browser action.
+ * Phrase shakes for the server and browser shake actions.
  *
  * Remotion shake (`packages/remotion` ShakeEffect):
  *   time = frame * frequency

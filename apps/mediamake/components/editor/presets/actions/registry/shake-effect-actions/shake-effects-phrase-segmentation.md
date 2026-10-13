@@ -1,6 +1,6 @@
-# Shake Effect Range (Browser) — phrase segmentation
+# Shake Effect Range — phrase segmentation
 
-Notes for `shake-effect-range-browser.ts`. The server shake action does not use this.
+Notes for `shake-effect-range.ts` (server) and `shake-effect-range-browser.ts`. Both actions use these cuts.
 
 ## What a phrase is
 
@@ -10,9 +10,9 @@ It is not a bar count and it is not a single drum hit. A new phrase starts only 
 
 ## What the analysis returns
 
-The browser action does not receive the waveform or a list of beats. It receives a document whose `analysis` array is a series of short windows.
+Neither action receives the waveform or a list of beats. Each receives a document whose `analysis` array is a series of short windows.
 
-The browser path decodes the file at 16 kHz and steps through it in windows of 1024 samples, so each frame is about 64 ms. Near-silence (intensity under 0.02) is dropped. The segmenter treats those gaps as a rest.
+The browser path decodes the file at 16 kHz and steps through it in windows of 1024 samples, so each frame is about 64 ms. The server path is the analyze-audio worker: ffmpeg PCM, then the same loudness, bass, flux, and brightness fields. A stored analysis that is missing those fields is ignored and computed again. Near-silence (intensity under 0.02) is dropped. The segmenter treats those gaps as a rest.
 
 Each frame:
 
