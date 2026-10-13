@@ -1,6 +1,6 @@
 import React, { useMemo, createContext, useContext, ReactNode } from 'react';
 import mergeCSSStyles from './mergeCSSStyles';
-import { useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion';
+import { useCurrentFrame, useVideoConfig, interpolate, Easing, spring } from 'remotion';
 import { BaseRenderableProps } from '../../core/types/renderable.types';
 
 // Animation range type for keyframe animations
@@ -14,7 +14,15 @@ export interface AnimationRange {
 export interface UniversalEffectData {
     start?: number; // Start time in seconds
     duration?: number; // Duration in seconds
-    type?: 'spring' | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+    type?: 'spring' | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'bezier';
+    /**
+     * What to draw outside the effect window.
+     * - hold: start value before, end value after (default)
+     * - none: no styles while inactive
+     * - hold-end: nothing before, end value after
+     * - hold-start: start value before, nothing after
+     */
+    inactiveBehavior?: 'hold' | 'none' | 'hold-end' | 'hold-start';
     ranges?: AnimationRange[]; // Animation keyframes
     targetIds?: string[]; // IDs of child components to target (for provider mode)
     mode?: 'wrapper' | 'provider'; // How the effect is applied
@@ -524,18 +532,32 @@ export const useUniversalAnimation = (data: UniversalEffectData, context?: any) 
     const targetIds = effectData?.targetIds || [];
     const mode = effectData?.mode || 'wrapper';
 
-    // Calculate animation progress normally
-    const easing = getEasingFunction(type);
-    const progress = interpolate(
-        frame - start,
-        [0, duration],
-        [0, 1],
-        {
-            easing,
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp',
-        }
-    );
+    // linear / ease* use interpolate. spring and bezier are clamped to 0–1
+    // so a transition cannot overshoot past its end keyframe.
+    let progress: number;
+    if (type === 'spring') {
+        const sprung = spring({
+            frame: frame - start,
+            fps,
+            durationInFrames: Math.max(1, duration),
+        });
+        progress = Math.max(0, Math.min(1, sprung));
+    } else {
+        const easing = type === 'bezier'
+            ? Easing.bezier(0.22, 1, 0.36, 1)
+            : getEasingFunction(type);
+        const raw = interpolate(
+            frame - start,
+            [0, duration],
+            [0, 1],
+            {
+                easing,
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+            }
+        );
+        progress = Math.max(0, Math.min(1, raw));
+    }
 
     // Determine if effect should contribute styles based on frame timing
     const isActive = frame >= start && frame <= (start + duration);
@@ -574,6 +596,16 @@ export const UniversalEffect: React.FC<BaseRenderableProps & {
     customAnimationLogic
 }) => {
         const { progress, isActive, isBeforeStart, isAfterEnd, frame, ranges, mode, targetIds, effectData } = useUniversalAnimation(data, context);
+        const inactiveBehavior = effectData?.inactiveBehavior || 'hold';
+        const styleProgress = isActive
+            ? progress
+            : inactiveBehavior === 'none'
+                ? null
+                : isBeforeStart
+                    ? (inactiveBehavior === 'hold-end' ? null : 0)
+                    : isAfterEnd
+                        ? (inactiveBehavior === 'hold-start' ? null : 1)
+                        : null;
         const parentContext = useUniversalEffectOptional();
 
         const animatedStyles: React.CSSProperties = useMemo(() => {
@@ -581,26 +613,11 @@ export const UniversalEffect: React.FC<BaseRenderableProps & {
 
             let currentStyles = {} as React.CSSProperties;
 
-            if (isActive) {
-                // Effect is active - use normal animation
+            if (styleProgress !== null) {
                 if (customAnimationLogic) {
-                    currentStyles = customAnimationLogic(effectData, progress, frame);
+                    currentStyles = customAnimationLogic(effectData, styleProgress, frame);
                 } else if (ranges.length > 0) {
-                    currentStyles = rangesToCSSProperties(ranges, progress);
-                }
-            } else if (isBeforeStart) {
-                // Before start - use start values (progress = 0)
-                if (customAnimationLogic) {
-                    currentStyles = customAnimationLogic(effectData, 0, frame);
-                } else if (ranges.length > 0) {
-                    currentStyles = rangesToCSSProperties(ranges, 0);
-                }
-            } else if (isAfterEnd) {
-                // After end - use end values (progress = 1)
-                if (customAnimationLogic) {
-                    currentStyles = customAnimationLogic(effectData, 1, frame);
-                } else if (ranges.length > 0) {
-                    currentStyles = rangesToCSSProperties(ranges, 1);
+                    currentStyles = rangesToCSSProperties(ranges, styleProgress);
                 }
             }
 
@@ -619,7 +636,7 @@ export const UniversalEffect: React.FC<BaseRenderableProps & {
 
             // No parent or not provider: just the current styles
             return currentStyles;
-        }, [ranges, progress, parentContext?.animatedStyles, mode, customAnimationLogic, effectData, frame]);
+        }, [ranges, progress, styleProgress, parentContext?.animatedStyles, mode, customAnimationLogic, effectData, frame, isActive, isBeforeStart, isAfterEnd]);
 
         const contextValue: UniversalEffectContextType = useMemo(() => ({
             animatedStyles,
