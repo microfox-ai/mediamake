@@ -11,10 +11,18 @@ const inputSchema = z.object({
       "Frame for every card. vertical_box is 3:4. horizontal_box is 16:9. square_box is 1:1.",
     ),
   lineLength: z
-    .enum(["short", "medium", "large"])
+    .enum([
+      "xx-short",
+      "x-short",
+      "short",
+      "medium",
+      "large",
+      "x-large",
+      "xx-large",
+    ])
     .default("medium")
     .describe(
-      "How many words sit on a line. Meaning and punctuation still decide the break.",
+      "How much text sits on one caption. xx-short suggests about 1–2 words. x-short suggests about 2–3 words. x-large and xx-large hold longer thoughts. Length is a suggestion. Meaning decides the break.",
     ),
   staticFrameChoice: z
     .boolean()

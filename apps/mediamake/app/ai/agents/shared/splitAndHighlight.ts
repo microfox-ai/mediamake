@@ -29,7 +29,15 @@ export const CAPTION_LAYOUTS = [
   'square_box',
 ] as const;
 
-export const LINE_LENGTHS = ['short', 'medium', 'large'] as const;
+export const LINE_LENGTHS = [
+  'xx-short',
+  'x-short',
+  'short',
+  'medium',
+  'large',
+  'x-large',
+  'xx-large',
+] as const;
 
 export type CaptionLayout = (typeof CAPTION_LAYOUTS)[number];
 export type LineLength = (typeof LINE_LENGTHS)[number];
@@ -44,7 +52,7 @@ export const SplitAndHighlightParamsSchema = z.object({
     .enum(LINE_LENGTHS)
     .default('medium')
     .describe(
-      'How many words sit on a line. short, medium, or large. Meaning and punctuation still decide where a line is allowed to break.',
+      'How much text sits on one caption. xx-short suggests 1–2 words. x-short suggests 2–3 words. short, medium, and large stay as they are. x-large and xx-large hold longer thoughts. These are suggestions. Meaning decides the break.',
     ),
   fontScaling: z
     .number()
@@ -136,13 +144,70 @@ const SHORT_SQUARE_EXAMPLE =
   'where stifling walls<br/>sought to hold the spirit down .<br/>I bore the heavy shell<br/>across the shifting sand<br/>to learn the martial pulse<br/>of an unforgiving land.<br/>No lunar beast slumbers<br/>beneath my skin .<br/>Just brittle bones<br/>where the quiet wars begin .<br/>I traded whispered prayers';
 
 const LINE_LENGTH_SPEC: Record<LineLength, string> = {
+  'xx-short':
+    'XX-SHORT LINES — suggested length is 1 or 2 words: a single image, verb, or name. This is a suggestion, not a cap. Keep a longer group when a shorter cut would break the meaning. A wide frame does not add words. The bold word is alone on its line.',
+  'x-short':
+    'X-SHORT LINES — suggested length is 2 or 3 words, one fragment. This is a suggestion, not a cap. Keep the group together when splitting it would break the meaning. A wide frame does not add words. The bold word owns its line.',
   short:
     'SHORT LINES — one phrase per line, about 3 to 5 words. Cut at punctuation and at the end of a phrase. A wide frame does not make the line longer. If a horizontal card can only hold 2 lines, start a new card instead of stretching the line. The bold word owns its line: either the whole line is the bold phrase, or the bold word is alone. Do not leave a plain word sitting beside the bold word.',
   medium:
     'MEDIUM LINES — a phrase can be a little longer than the short example. A punctuation mark still ends that line. Do not run past a period or a comma onto the next phrase.',
   large:
     'LARGE LINES — follow the large frame example. More words may share a line. A period or a comma that finishes the phrase still ends the line, and the mark stays on that line.',
+  'x-large':
+    'X-LARGE LINES — longer than large. A full sentence may share a line when the frame allows. Still end the line on a period, question mark, or exclamation mark, and keep that mark on the line.',
+  'xx-large':
+    'XX-LARGE LINES — the longest lines. Keep a whole sentence on a line when the frame allows, and the next sentence when they are one thought. Split only when the topic changes. A hard stop still ends the line.',
 };
+
+/** How many words belong on one caption card. Sentence structure uses this. */
+const CAPTION_SIZE_SPEC: Record<LineLength, string> = {
+  'xx-short':
+    'XX-SHORT — suggested length is 1 or 2 words: one image, one verb, or one name. Suggestion only. Keep "stifling walls" together if splitting them loses the image. Go longer whenever a shorter cut would break the sentence.',
+  'x-short':
+    'X-SHORT — suggested length is 2 or 3 words, one fragment. Suggestion only. "where stifling walls" can stay one caption if that is the meaning. Go longer whenever a shorter cut would break the sentence.',
+  short:
+    'SHORT — one phrase, or two short phrases. Cut at punctuation and where the meaning turns. A wide frame does not make the caption longer.',
+  medium: 'MEDIUM — a caption can hold a clause.',
+  large:
+    'LARGE — a caption can hold a longer clause, and still ends on a period or a finished comma.',
+  'x-large':
+    'X-LARGE — longer than large. A caption holds a full sentence, or two clauses that belong together. Split on a period, question mark, exclamation mark, or a major turn.',
+  'xx-large':
+    'XX-LARGE — the longest captions. Keep a whole sentence, and the next sentence when they are one thought. Split only when the topic actually changes. Fewest cards.',
+};
+
+function isShortLineLength(lineLength: LineLength): boolean {
+  return (
+    lineLength === 'xx-short' ||
+    lineLength === 'x-short' ||
+    lineLength === 'short'
+  );
+}
+
+function isLargeLineLength(lineLength: LineLength): boolean {
+  return (
+    lineLength === 'large' ||
+    lineLength === 'x-large' ||
+    lineLength === 'xx-large'
+  );
+}
+
+function captionSizeReminder(lineLength: LineLength): string {
+  if (lineLength === 'xx-short') {
+    return 'Suggested length: about 1 or 2 words. Keep a longer group when a shorter cut would break the meaning.';
+  }
+  if (lineLength === 'x-short') {
+    return 'Suggested length: about 2 or 3 words. Keep a longer group when a shorter cut would break the meaning.';
+  }
+  if (lineLength === 'x-large') {
+    return 'Hold a full sentence on one caption when it is one thought.';
+  }
+  if (lineLength === 'xx-large') {
+    return 'Hold a sentence or two on one caption. Split only when the topic changes.';
+  }
+  return '';
+}
 
 /**
  * Frame for one card.
@@ -237,10 +302,11 @@ function frameDirection(options: SplitAndHighlightOptions): string {
   const frame = frameForCard(options, 0);
   const spec = LAYOUT_SPEC[frame];
   const lineLength = options.lineLength ?? 'medium';
-  const example =
-    lineLength === 'large' ? spec.largeExample : spec.mediumExample;
+  const example = isLargeLineLength(lineLength)
+    ? spec.largeExample
+    : spec.mediumExample;
   const horizontalShort =
-    frame === 'horizontal_box' && lineLength === 'short'
+    frame === 'horizontal_box' && isShortLineLength(lineLength)
       ? dedent`
         SHORT HORIZONTAL — the 16:9 frame still uses short lines. Cut at the phrase and at punctuation. Do not fill the width.
         where stifling walls<br/>sought to hold the spirit down .<br/><br/>I bore the<br/><b>heavy shell</b><br/><br/>across the shifting sand<br/>to learn the martial pulse<br/><br/>of an<br/><b>unforgiving</b>
@@ -257,7 +323,7 @@ function frameDirection(options: SplitAndHighlightOptions): string {
     ${spec.maxLines} lines is the ceiling. Use fewer when the clause is shorter.
     ${horizontalShort}
 
-    ${lineLength === 'large' ? 'LARGE' : 'MEDIUM'} shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
+    ${isLargeLineLength(lineLength) ? 'LARGE' : 'MEDIUM'} shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
     ${example}
     That example shows a possible wrap. It does not override a short line length, and it does not override punctuation. On a horizontal card, the second line may have no bold word.
   `;
@@ -301,15 +367,14 @@ function buildCaptionSplitPrompt(
     - Meaning first, then punctuation. A finished thought is its own caption.
     - A period, question mark, or exclamation mark ends the caption. "land." is the last word of that caption. The next word starts the next caption.
     - A comma, semicolon, colon, or dash can end a caption when the clause is complete. The mark stays on that caption.
-    - Do not cut a pronoun away from its verb, or a preposition away from its phrase, unless the line length cannot hold them.
+    - Do not cut a pronoun away from its verb, or a preposition away from its phrase, to chase a shorter length.
     - On-screen time is context only. Do not cut on a silence or a gap.
 
-    SIZE
+    SIZE — the selected length is a suggestion. Meaning decides the break. Stay near the suggestion, and go longer when a shorter cut would break the sentence. It sets how much text belongs in one caption, not how the words wrap inside it.
     - Frame ${frame}: ${spec.shape}
-    - Line length is ${lineLength}. This sets how much text belongs in one caption, not how the words wrap inside it.
-    - short: a caption is one phrase, or two short phrases. Cut at punctuation and where the meaning turns. A wide frame does not make the caption longer.
-    - medium: a caption can hold a clause.
-    - large: a caption can hold a longer clause, and still ends on a period or a finished comma.
+    - Selected length: ${lineLength}.
+    - ${CAPTION_SIZE_SPEC[lineLength]}
+    - A wide frame does not make the caption longer.
     - ${spec.maxLines} is a hint for how many phrases fit. Use fewer when the thought is shorter.
     ${options.staticFrameChoice !== false ? `- Every caption uses ${frame}.` : `- This pass still uses ${frame} for every caption.`}
   `;
@@ -322,6 +387,7 @@ function buildCaptionSplitPrompt(
     ${sourceHtml}
 
     Split these into caption cards for ${frame} with ${lineLength} captions.
+    ${captionSizeReminder(lineLength)}
     Use only <br/><br/> between captions. No line breaks inside a caption. No bold.
     Keep every word, in this order. Keep each punctuation mark at the end of its caption.
     Return only the html.
@@ -410,7 +476,7 @@ export function buildSplitAndHighlightPrompt(
     - Skip articles and filler ("the", "an", "of"). Never bold a piece of a word.
     - On a horizontal card, one line may carry the highlight and the other line may be entirely plain. Do not bold a word on the second line just to balance the first.
     ${
-      lineLength === 'large'
+      isLargeLineLength(lineLength)
         ? '- Large lines may keep smaller words on the same line as the bold word: "A sudden blinding <b>sunburst</b>".'
         : `- Short lines: the bold word owns the line.
     - Either the whole line is the bold phrase: "I bore the<br/><b>heavy shell</b>"
@@ -434,13 +500,13 @@ export function buildSplitAndHighlightPrompt(
     } Bold words are ${scale}× body size.
     Break on phrase meaning. Put every punctuation mark at the end of that line. Never start a line with a mark.
     ${
-      lineLength === 'large'
+      isLargeLineLength(lineLength)
         ? 'A bold word may share its line with smaller words.'
         : 'On a short line, the bold word is alone or the whole line is bold. Do not leave a plain word next to it. Bold the word that carries the phrase, not the last noun.'
     }
     ${
       frame === 'horizontal_box'
-        ? lineLength === 'short'
+        ? isShortLineLength(lineLength)
           ? 'This is a horizontal frame with short lines. Cut at punctuation and at the phrase. Do not stretch a line to fill the width. A card has at most 2 lines. One of those lines can have no highlight.'
           : 'On this horizontal card, both lines do not need a highlighted word.'
         : ''

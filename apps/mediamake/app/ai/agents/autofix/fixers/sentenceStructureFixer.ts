@@ -9,6 +9,7 @@ import {
   SPLIT_HIGHLIGHT_MODEL,
   SentenceStructureParamsSchema,
   runSplitAndHighlight,
+  type LineLength,
 } from '../../shared/splitAndHighlight';
 
 /**
@@ -40,7 +41,7 @@ const sentenceStructureFixerAgent = aiRouter
         userRequest?: string;
         applyToDatabase?: boolean;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
-        lineLength?: 'short' | 'medium' | 'large';
+        lineLength?: LineLength;
         staticFrameChoice?: boolean;
       };
 

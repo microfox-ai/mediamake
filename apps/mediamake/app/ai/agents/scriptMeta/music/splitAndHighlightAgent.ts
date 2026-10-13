@@ -10,6 +10,7 @@ import {
   SPLIT_HIGHLIGHT_MODEL,
   SplitAndHighlightParamsSchema,
   runSplitAndHighlight,
+  type LineLength,
 } from '../../shared/splitAndHighlight';
 
 /**
@@ -72,7 +73,7 @@ const splitAndHighlightAgent = aiRouter
         transcriptionId?: string;
         userRequest?: string;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
-        lineLength?: 'short' | 'medium' | 'large';
+        lineLength?: LineLength;
         fontScaling?: number;
         staticFrameChoice?: boolean;
       };
