@@ -1,7 +1,7 @@
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { ReferenceItem } from "@/components/editor/presets/types";
 import { parseTimeRanges } from "@/components/editor/presets/engine/preset-stdlib";
-import { detectMediaKind } from "@/components/editor/presets/dataTypes/media";
+import { detectMediaKind, overlayMediaStatic } from "@/components/editor/presets/dataTypes/media";
 
 export type TimelineAudioClip = {
   id: string;
@@ -108,29 +108,13 @@ function collectFromMediaItems(
   ) {
     const group = mediaItemsRaw as { mediaRef?: string; items: any[] };
     items = group.items;
-    // When linked to a medias ref, merge srcs from the reference array
+    // When linked, identity (src, type, name, thumbnail, …) comes from the reference.
     if (group.mediaRef && Array.isArray(baseData[group.mediaRef])) {
       const refArr = baseData[group.mediaRef] as any[];
-      items = items.map((local, i) => {
-        const ref = refArr[i];
-        const refSrc =
-          typeof ref === "string"
-            ? ref
-            : ref?.src || ref?.filePath || ref?.url || "";
-        return {
-          ...(local && typeof local === "object" ? local : {}),
-          ...(ref && typeof ref === "object" ? ref : {}),
-          src: refSrc || local?.src || "",
-        };
-      });
-      for (let i = items.length; i < refArr.length; i++) {
-        const ref = refArr[i];
-        items.push(
-          typeof ref === "object" && ref
-            ? ref
-            : { src: typeof ref === "string" ? ref : "" },
-        );
-      }
+      const len = Math.max(items.length, refArr.length);
+      items = Array.from({ length: len }, (_, i) =>
+        overlayMediaStatic(items[i], refArr[i]),
+      );
     }
   }
 

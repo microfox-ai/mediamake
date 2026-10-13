@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import { MediasGroupField } from "@/components/editor/presets/form/inputs/medias-group-field";
+import { MediaReferencePanel } from "./MediaReferencePanel";
 import {
   getDefaultDataTypeForReferenceType,
   getDefaultValueForReferenceType,
@@ -1319,7 +1320,18 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
           <Separator className="my-4" />
 
-          {/* Tabs */}
+          {referenceType === "media" || referenceType === "medias" ? (
+            <MediaReferencePanel
+              singular={referenceType === "media"}
+              value={selectedReference?.value}
+              onChange={(val) => {
+                if (!selectedReference) return;
+                onReferenceChange({
+                  references: [{ ...selectedReference, value: val }],
+                });
+              }}
+            />
+          ) : (
           <div className="space-y-3">
             <Tabs
               value={activeTab}
@@ -1559,6 +1571,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
               </TabsContent>
             </Tabs>
           </div>
+          )}
         </div>
       </div>
     </ScrollArea>

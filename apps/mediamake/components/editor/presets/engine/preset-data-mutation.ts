@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { overlayMediaStatic } from '../dataTypes/media';
 
 export interface ReferenceItem {
   key: string;
@@ -133,7 +134,7 @@ function processDataReferencesRecursive(
   }
 
   if (data && typeof data === 'object') {
-    // imagesGroup linked shape: { mediaRef, items } → merge srcs from medias ref
+    // imagesGroup linked shape: { mediaRef, items } → overlay static identity from the medias ref
     if (
       typeof (data as any).mediaRef === 'string' &&
       (data as any).mediaRef &&
@@ -146,24 +147,9 @@ function processDataReferencesRecursive(
         items.length,
         Array.isArray(medias) ? medias.length : 0,
       );
-      return Array.from({ length: len }, (_, index) => {
-        const item = items[index];
-        const local = item && typeof item === 'object' ? { ...item } : {};
-        let src = local.src;
-        if (Array.isArray(medias) && medias[index] !== undefined) {
-          const entry = medias[index];
-          if (typeof entry === 'string') src = entry;
-          else if (entry && typeof entry === 'object') {
-            src =
-              entry.src ||
-              entry.filePath ||
-              entry.url ||
-              entry.metadata?.src ||
-              src;
-          }
-        }
-        return { ...local, src };
-      });
+      return Array.from({ length: len }, (_, index) =>
+        overlayMediaStatic(items[index], Array.isArray(medias) ? medias[index] : undefined),
+      );
     }
 
     const processed: any = {};

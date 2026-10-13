@@ -128,6 +128,80 @@ export const mediaItemSchema = z
 export type MediaItem = z.infer<typeof mediaItemSchema>;
 export type MediaKind = z.infer<typeof mediaKindEnum>;
 
+/**
+ * File identity stored on a `media` / `medias` reference.
+ * Preset items keep styling and timing; these keys are overwritten from the reference when linked.
+ */
+export const MEDIA_STATIC_KEYS = [
+  "src",
+  "type",
+  "name",
+  "thumbnail",
+  "title",
+  "fileName",
+  "thumbnailUrl",
+  "filePath",
+  "url",
+  "contentType",
+  "contentMimeType",
+] as const;
+
+export type MediaStaticKey = (typeof MEDIA_STATIC_KEYS)[number];
+
+const MEDIA_STATIC_KEY_SET = new Set<string>(MEDIA_STATIC_KEYS);
+
+/** Identity fields copied onto a preset item from a linked media reference. */
+export function readMediaStatic(entry: unknown): Record<string, unknown> {
+  if (typeof entry === "string") {
+    return entry ? { src: entry } : {};
+  }
+  if (!entry || typeof entry !== "object") return {};
+  const record = entry as Record<string, any>;
+  const src = String(
+    record.src || record.filePath || record.url || record.metadata?.src || "",
+  );
+  const explicitType = record.type ?? record.contentType;
+  const type =
+    explicitType === "image" || explicitType === "video" || explicitType === "audio"
+      ? explicitType
+      : undefined;
+  const name =
+    record.name || record.title || record.fileName || record.metadata?.title;
+  const thumbnail =
+    record.thumbnail ||
+    record.thumbnailUrl ||
+    record.metadata?.thumbnail ||
+    record.metadata?.thumbnailUrl;
+
+  const out: Record<string, unknown> = {};
+  if (src) out.src = src;
+  if (type) out.type = type;
+  if (name) out.name = String(name);
+  if (thumbnail) out.thumbnail = String(thumbnail);
+  if (record.fileName) out.fileName = String(record.fileName);
+  if (record.title) out.title = String(record.title);
+  if (record.contentType) out.contentType = record.contentType;
+  if (record.contentMimeType) out.contentMimeType = String(record.contentMimeType);
+  return out;
+}
+
+/** Preset item with reference identity winning over any local copy of those fields. */
+export function overlayMediaStatic(local: unknown, entry: unknown): Record<string, unknown> {
+  const base =
+    local && typeof local === "object" && !Array.isArray(local)
+      ? { ...(local as Record<string, unknown>) }
+      : {};
+  return { ...base, ...readMediaStatic(entry) };
+}
+
+/** Drop identity keys so a linked preset item only stores styling and timing. */
+export function stripMediaStatic(item: unknown): Record<string, unknown> {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return {};
+  const next: Record<string, unknown> = { ...(item as Record<string, unknown>) };
+  for (const key of MEDIA_STATIC_KEY_SET) delete next[key];
+  return next;
+}
+
 export const mediaDataType: DataTypeDefinition = {
   id: "media",
   title: "Media",

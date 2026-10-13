@@ -55,7 +55,8 @@ import { ColorInput } from "./inputs/color-input";
 import { SliderInput } from "./inputs/slider-input";
 import { ContainerInsetsInput } from "./inputs/container-insets-input";
 import { LinkTrackNameInput } from "./inputs/link-track-name-input";
-import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue, extractMediaSrc, toMediaRefEntry } from "./inputs/images-group-field";
+import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue } from "./inputs/images-group-field";
+import { overlayMediaStatic, readMediaStatic, stripMediaStatic } from "../dataTypes/media";
 import { ShakeEffectsField } from "./inputs/shake-effects-field";
 import { EffectsField } from "./inputs/effects-field";
 import { TransitionEffectsField } from "./inputs/transition-effects-field";
@@ -478,6 +479,184 @@ function DescriptionHint({ description }: { description?: string }) {
     );
 }
 
+function ReferenceLinkCluster({
+    isReferenceLinked,
+    linkedKey,
+    availableReferences,
+    onLinkToReference,
+    onCreateReference,
+    onUnlinkReference,
+    onEditLinkedReference,
+    createReferenceTypes,
+    useImageIconForLinkedEdit = false,
+    variant = "icon",
+}: {
+    isReferenceLinked: boolean;
+    linkedKey?: string;
+    availableReferences?: string[];
+    onLinkToReference: (referenceKey: string) => void;
+    onCreateReference?: (referenceType: string) => string | null;
+    onUnlinkReference: () => void;
+    onEditLinkedReference: () => void;
+    createReferenceTypes: Array<{ value: string; label: string }>;
+    useImageIconForLinkedEdit?: boolean;
+    /** `select` shows the media-array name; the open icon sits beside it. */
+    variant?: "icon" | "select";
+}) {
+    const menu = (
+        <DropdownMenuContent align="start" side="bottom">
+            {availableReferences?.map((refKey) => (
+                <DropdownMenuItem key={refKey} onClick={() => onLinkToReference(refKey)}>
+                    {refKey}
+                </DropdownMenuItem>
+            ))}
+            {createReferenceTypes.length === 1 ? (
+                <DropdownMenuItem
+                    onClick={() => {
+                        const createdKey = onCreateReference?.(createReferenceTypes[0].value);
+                        if (createdKey) {
+                            onLinkToReference(createdKey);
+                        }
+                    }}
+                >
+                    + New {createReferenceTypes[0].label} Ref
+                </DropdownMenuItem>
+            ) : (
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                        {createReferenceTypes.map((option) => (
+                            <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => {
+                                    const createdKey = onCreateReference?.(option.value);
+                                    if (createdKey) {
+                                        onLinkToReference(createdKey);
+                                    }
+                                }}
+                            >
+                                {option.label}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+            )}
+        </DropdownMenuContent>
+    );
+
+    const openButton = isReferenceLinked ? (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={onEditLinkedReference}
+                >
+                    {useImageIconForLinkedEdit ? (
+                        <ImageIcon className="h-3.5 w-3.5" />
+                    ) : (
+                        <Pencil className="h-3.5 w-3.5" />
+                    )}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>
+                    {useImageIconForLinkedEdit
+                        ? "Open linked media reference"
+                        : "Edit linked reference"}
+                </p>
+            </TooltipContent>
+        </Tooltip>
+    ) : null;
+
+    const unlinkButton = isReferenceLinked ? (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={onUnlinkReference}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Unlink reference — keep current values locally</p>
+            </TooltipContent>
+        </Tooltip>
+    ) : null;
+
+    if (variant === "select") {
+        return (
+            <div className="inline-flex items-center gap-0.5">
+                <DropdownMenu>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 max-w-[10rem] gap-1 px-2 text-xs"
+                                >
+                                    <span className="truncate">
+                                        {isReferenceLinked && linkedKey ? linkedKey : "Media array"}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>
+                                {isReferenceLinked
+                                    ? "Switch linked media array"
+                                    : "Link a media array reference"}
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                    {menu}
+                </DropdownMenu>
+                {openButton}
+                {unlinkButton}
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <DropdownMenu>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                {isReferenceLinked ? (
+                                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Plus className="h-3.5 w-3.5" />
+                                )}
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>
+                            {isReferenceLinked
+                                ? "Switch linked data reference"
+                                : "Link to a shared data reference"}
+                        </p>
+                    </TooltipContent>
+                </Tooltip>
+                {menu}
+            </DropdownMenu>
+            {unlinkButton}
+            {openButton}
+        </>
+    );
+}
+
 function FieldLabel({
     fieldKey,
     title,
@@ -513,110 +692,16 @@ function FieldLabel({
                 </Tooltip>
             )}
             {canAutoReference && (
-                <DropdownMenu>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                                <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                    {isReferenceLinked ? (
-                                        <ArrowLeftRight className="h-3.5 w-3.5" />
-                                    ) : (
-                                        <Plus className="h-3.5 w-3.5" />
-                                    )}
-                                </Button>
-                            </DropdownMenuTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>
-                                {isReferenceLinked
-                                    ? "Switch linked data reference"
-                                    : "Link to a shared data reference"}
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="start" side="bottom">
-                        {availableReferences?.map((refKey) => (
-                            <DropdownMenuItem key={refKey} onClick={() => onLinkToReference(refKey)}>
-                                {refKey}
-                            </DropdownMenuItem>
-                        ))}
-                        {createReferenceTypes.length === 1 ? (
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    const createdKey = onCreateReference?.(createReferenceTypes[0].value);
-                                    if (createdKey) {
-                                        onLinkToReference(createdKey);
-                                    }
-                                }}
-                            >
-                                + New {createReferenceTypes[0].label} Ref
-                            </DropdownMenuItem>
-                        ) : (
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>+ New Ref</DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    {createReferenceTypes.map((option) => (
-                                        <DropdownMenuItem
-                                            key={option.value}
-                                            onClick={() => {
-                                                const createdKey = onCreateReference?.(option.value);
-                                                if (createdKey) {
-                                                    onLinkToReference(createdKey);
-                                                }
-                                            }}
-                                        >
-                                            {option.label}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
-            {canAutoReference && isReferenceLinked && (
-                <>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={onUnlinkReference}
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Unlink reference — keep current values locally</p>
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={onEditLinkedReference}
-                            >
-                                {useImageIconForLinkedEdit ? (
-                                    <ImageIcon className="h-3.5 w-3.5" />
-                                ) : (
-                                    <Pencil className="h-3.5 w-3.5" />
-                                )}
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>
-                                {useImageIconForLinkedEdit
-                                    ? "Open linked images reference"
-                                    : "Edit linked reference"}
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                </>
+                <ReferenceLinkCluster
+                    isReferenceLinked={isReferenceLinked}
+                    availableReferences={availableReferences}
+                    onLinkToReference={onLinkToReference}
+                    onCreateReference={onCreateReference}
+                    onUnlinkReference={onUnlinkReference}
+                    onEditLinkedReference={onEditLinkedReference}
+                    createReferenceTypes={createReferenceTypes}
+                    useImageIconForLinkedEdit={useImageIconForLinkedEdit}
+                />
             )}
             {actions}
         </div>
@@ -2202,6 +2287,8 @@ function renderField(
         );
     }
 
+    let mediaArrayLinkControl: ReactNode | undefined;
+
     const renderImagesGroup = () => {
         const itemSchema = getImagesGroupItemSchema(field);
         const arraySchemaForForm = {
@@ -2217,6 +2304,7 @@ function renderField(
                 onUpdateMediaRef={(refKey, medias) => {
                     onUpdateReferenceValue?.(refKey, medias);
                 }}
+                linkControl={mediaArrayLinkControl}
                 renderForm={(items, onItemsChange) => (
                     <ArrayManager
                         schema={arraySchemaForForm}
@@ -2739,18 +2827,16 @@ function renderField(
             const { items } = parseImagesGroupValue(fieldValue);
             const existing = baseData?.[referenceKey];
             if (Array.isArray(existing) && existing.length > 0) {
-                const nextItems = existing.map((_: any, i: number) => {
-                    const local = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
-                    // Mirror src for unlink fallback; ref remains source of truth while linked
-                    const src = extractMediaSrc(existing[i]) || local.src || "";
-                    return { ...local, src };
-                });
+                const nextItems = existing.map((_: any, i: number) => stripMediaStatic(items[i]));
                 handleChange(fieldKey, serializeImagesGroupValue(referenceKey, nextItems));
                 return;
             }
-            const medias = items.map((item) => toMediaRefEntry(extractMediaSrc(item)));
+            const medias = items.map((item) => readMediaStatic(item));
             onUpdateReferenceValue?.(referenceKey, medias);
-            handleChange(fieldKey, serializeImagesGroupValue(referenceKey, items));
+            handleChange(
+                fieldKey,
+                serializeImagesGroupValue(referenceKey, items.map((item) => stripMediaStatic(item))),
+            );
             return;
         }
         const range = parsedReference?.range || "";
@@ -2763,13 +2849,9 @@ function renderField(
             if (!mediaRef) return;
             const refMedias = Array.isArray(baseData?.[mediaRef]) ? baseData![mediaRef] : [];
             const len = Math.max(items.length, refMedias.length);
-            const baked = Array.from({ length: len }, (_, i) => {
-                const local = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
-                return {
-                    ...local,
-                    src: extractMediaSrc(refMedias[i]) || local.src || "",
-                };
-            });
+            const baked = Array.from({ length: len }, (_, i) =>
+                overlayMediaStatic(items[i], refMedias[i]),
+            );
             handleChange(fieldKey, serializeImagesGroupValue(undefined, baked));
             return;
         }
@@ -2777,6 +2859,26 @@ function renderField(
         const fallbackValue = baseData?.[parsedReference.key];
         handleChange(fieldKey, resolveUnlinkedValue(field.type, fallbackValue));
     };
+
+    if (isImagesGroupField(field) && showReferencableAuto) {
+        const linkedMediaRef = imagesGroupParsed?.mediaRef;
+        mediaArrayLinkControl = (
+            <ReferenceLinkCluster
+                variant="select"
+                isReferenceLinked={Boolean(linkedMediaRef)}
+                linkedKey={linkedMediaRef}
+                availableReferences={availableReferences}
+                onLinkToReference={handleLinkToReference}
+                onCreateReference={onCreateReference}
+                onUnlinkReference={handleUnlinkReference}
+                onEditLinkedReference={() => {
+                    if (linkedMediaRef) onSelectReferenceKey?.(linkedMediaRef);
+                }}
+                createReferenceTypes={[{ value: "medias", label: "Medias" }]}
+                useImageIconForLinkedEdit
+            />
+        );
+    }
 
     const showMediaAction = isMediaSelectableField(fieldKey, field);
     const mediaSingular = field.type !== "array";
@@ -2817,7 +2919,7 @@ function renderField(
             title={field.title}
             isRequired={isRequired}
             description={field.description}
-            canAutoReference={canAutoReference}
+            canAutoReference={canAutoReference && !isImagesGroupField(field)}
             isReferenceLinked={isReferenceLinked}
             availableReferences={availableReferences}
             onLinkToReference={handleLinkToReference}

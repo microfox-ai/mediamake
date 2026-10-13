@@ -29,6 +29,7 @@ import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import {
   detectMediaKind,
   mediaItemSchema,
+  readMediaStatic,
   toMediaItem,
   type MediaKind,
 } from "../../dataTypes/media";
@@ -180,12 +181,15 @@ export function MediasGroupField({
   onChange,
   itemSchema,
   singular = false,
+  identityOnly = false,
 }: {
   value: any;
   onChange: (next: any[]) => void;
   itemSchema?: any;
   /** When true, at most one media item (for `media` reference type). */
   singular?: boolean;
+  /** Reference editor: identity grid only. No pencil, group edit, or form tab. */
+  identityOnly?: boolean;
 }) {
   const items: any[] = Array.isArray(value) ? value : [];
   const resolvedItemSchema = itemSchema || defaultItemJsonSchema;
@@ -218,12 +222,23 @@ export function MediasGroupField({
   };
 
   const deleteItem = (index: number) => {
-    onChange(items.filter((_, i) => i !== index));
+    const next = items.filter((_, i) => i !== index);
+    onChange(identityOnly ? next.map((item) => readMediaStatic(item)) : next);
     if (editIndex === index) setEditIndex(null);
   };
 
   const replaceSrc = (index: number, file: MediaFile) => {
     const nextItem = toMediaItem(file);
+    if (identityOnly) {
+      const identity = readMediaStatic(nextItem);
+      onChange(
+        items.map((item, i) =>
+          i === index ? identity : readMediaStatic(item),
+        ),
+      );
+      setReplaceIndex(null);
+      return;
+    }
     const existing = items[index];
     const preserved =
       existing && typeof existing === "object"
@@ -231,6 +246,8 @@ export function MediasGroupField({
             ...existing,
             src: nextItem.src,
             type: nextItem.type,
+            name: (nextItem as any).name,
+            thumbnail: (nextItem as any).thumbnail,
           }
         : nextItem;
     const next = items.map((item, i) => (i === index ? preserved : item));
@@ -240,7 +257,9 @@ export function MediasGroupField({
 
   const addItems = (files: MediaFile | MediaFile[]) => {
     const list = Array.isArray(files) ? files : [files];
-    const additions = list.map((f) => toMediaItem(f)).filter((m) => m.src);
+    const additions = list
+      .map((f) => (identityOnly ? readMediaStatic(toMediaItem(f)) : toMediaItem(f)))
+      .filter((m) => m.src);
     if (additions.length === 0) {
       setAdding(false);
       return;
@@ -248,7 +267,11 @@ export function MediasGroupField({
     if (singular) {
       onChange([additions[0]]);
     } else {
-      onChange([...items, ...additions]);
+      onChange(
+        identityOnly
+          ? [...items.map((item) => readMediaStatic(item)), ...additions]
+          : [...items, ...additions],
+      );
     }
     setAdding(false);
   };
@@ -283,6 +306,7 @@ export function MediasGroupField({
         className="w-full"
       >
         <div className="flex items-center gap-1.5">
+          {!identityOnly && (
           <TabsList className="h-8">
             <TabsTrigger value="medias" className="h-7 text-xs">
               Medias
@@ -291,7 +315,8 @@ export function MediasGroupField({
               Form
             </TabsTrigger>
           </TabsList>
-          {groupProps.length > 0 && (
+          )}
+          {!identityOnly && groupProps.length > 0 && (
             <AnchoredEditPopover
               open={groupOpen}
               onOpenChange={setGroupOpen}
@@ -380,13 +405,17 @@ export function MediasGroupField({
                   title={`Edit ${kind} ${index + 1}`}
                   anchor={
                     <div
-                      className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
-                      onClick={() => setEditIndex(index)}
+                      className={`group relative aspect-square overflow-hidden rounded-md border bg-muted ${identityOnly ? "" : "cursor-pointer"}`}
+                      onClick={() => {
+                        if (!identityOnly) setEditIndex(index);
+                      }}
                     >
                       <MediaItemThumb item={item} />
+                      {!identityOnly && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
                         <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
                       </div>
+                      )}
                       <div className="absolute left-1 top-1">
                         <KindBadge kind={kind} />
                       </div>

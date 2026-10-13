@@ -18,7 +18,14 @@ import { AnchoredEditPopover } from "./anchored-edit-popover";
 import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
-import { detectMediaKind, toMediaItem } from "../../dataTypes/media";
+import {
+  detectMediaKind,
+  MEDIA_STATIC_KEYS,
+  overlayMediaStatic,
+  readMediaStatic,
+  stripMediaStatic,
+  toMediaItem,
+} from "../../dataTypes/media";
 import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
 import { TransitionEffectsField } from "./transition-effects-field";
@@ -212,9 +219,12 @@ export function mediaFileToTrackItem(file: MediaFile): Record<string, unknown> {
   };
 }
 
+const STATIC_PROP_KEYS = new Set<string>(MEDIA_STATIC_KEYS);
+
 /**
  * Images / Form editor for imagesGroup fields.
- * When `mediaRef` is set, srcs are sourced from (and written to) that medias reference.
+ * When `mediaRef` is set, file identity (src, type, name, thumbnail, …)
+ * is read from and written to that medias reference. Styling stays on the preset item.
  */
 export function ImagesGroupField({
   value,
@@ -223,6 +233,7 @@ export function ImagesGroupField({
   renderForm,
   baseData = {},
   onUpdateMediaRef,
+  linkControl,
 }: {
   value: any;
   onChange: (next: any) => void;
@@ -231,6 +242,8 @@ export function ImagesGroupField({
   baseData?: Record<string, any>;
   /** Persist medias array for the linked reference key. */
   onUpdateMediaRef?: (refKey: string, medias: any[]) => void;
+  /** Reference dropdown + open icon, rendered beside the Images / Form tabs. */
+  linkControl?: ReactNode;
 }) {
   const { mediaRef, items } = parseImagesGroupValue(value);
   const linked = Boolean(mediaRef);
@@ -241,24 +254,9 @@ export function ImagesGroupField({
   const displayImages = useMemo(() => {
     if (!linked) return items;
     const len = Math.max(items.length, refMedias.length);
-    const out: any[] = [];
-    for (let i = 0; i < len; i++) {
-      const local = items[i] && typeof items[i] === "object" ? items[i] : {};
-      const ref = refMedias[i];
-      const refObj = ref && typeof ref === "object" ? ref : {};
-      out.push({
-        ...refObj,
-        ...local,
-        src: extractMediaSrc(ref) || local.src || "",
-        type: local.type || (refObj as any).type,
-        name: local.name || (refObj as any).name || (refObj as any).fileName,
-        thumbnail:
-          local.thumbnail ||
-          (refObj as any).thumbnail ||
-          (refObj as any).metadata?.thumbnail,
-      });
-    }
-    return out;
+    return Array.from({ length: len }, (_, i) =>
+      overlayMediaStatic(items[i], refMedias[i]),
+    );
   }, [linked, items, refMedias]);
 
   const props = useMemo(() => getItemPropSchemas(itemSchema), [itemSchema]);
@@ -271,7 +269,7 @@ export function ImagesGroupField({
   const groupEditProps = groupProps.filter(
     (p) => hasVisualItems || !VISUAL_PROP_KEYS.has(p.key),
   );
-  const popupProps = props.filter((p) => p.key !== "src");
+  const popupProps = props.filter((p) => !STATIC_PROP_KEYS.has(p.key));
 
   const [tab, setTab] = useState<"images" | "form">("images");
   const [editIndex, setEditIndex] = useState<number | null>(null);
@@ -291,122 +289,87 @@ export function ImagesGroupField({
     }
   };
 
+  const splitPatch = (patch: Record<string, any>) => {
+    const identity: Record<string, any> = {};
+    const styling: Record<string, any> = {};
+    for (const [key, val] of Object.entries(patch)) {
+      if (STATIC_PROP_KEYS.has(key)) identity[key] = val;
+      else styling[key] = val;
+    }
+    return { identity, styling };
+  };
+
   const updateLocalItem = (index: number, patch: Record<string, any>) => {
-    const nextItems = displayImages.map((img, i) => {
-      if (i !== index) {
-        const { src: _s, ...rest } = img;
-        // Preserve local props; src handled separately when linked
-        return items[i] ?? rest;
-      }
+    const { identity, styling } = splitPatch(patch);
+    if (linked && Object.keys(identity).length > 0) {
+      syncRefMedias(
+        displayImages.map((img, i) =>
+          readMediaStatic(i === index ? { ...img, ...identity } : img),
+        ),
+      );
+    }
+
+    const stylingPatch = linked ? styling : patch;
+    if (Object.keys(stylingPatch).length === 0 && linked) return;
+
+    const nextItems = Array.from({ length: Math.max(items.length, displayImages.length) }, (_, i) => {
       const base = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
-      const next = { ...base, ...patch };
-      if (linked && "src" in patch) {
-        // src goes to ref; keep local without relying on it as source of truth
-        // but mirror for unlink fallback
-        next.src = patch.src;
-      }
-      return next;
+      const next = i === index ? { ...base, ...stylingPatch } : base;
+      return linked ? stripMediaStatic(next) : next;
     });
-
-    // Ensure length
-    while (nextItems.length < displayImages.length) {
-      nextItems.push({});
-    }
-
-    if (linked && "src" in patch) {
-      const medias = displayImages.map((img, i) => {
-        const nextSrc =
-          i === index ? String(patch.src ?? "") : extractMediaSrc(img);
-        const existing = refMedias[i];
-        const mediaMeta =
-          i === index
-            ? {
-                type: patch.type ?? img?.type,
-                name: patch.name ?? img?.name,
-                thumbnail: patch.thumbnail ?? img?.thumbnail,
-              }
-            : {
-                type: img?.type,
-                name: img?.name,
-                thumbnail: img?.thumbnail,
-              };
-        if (existing && typeof existing === "object") {
-          return { ...existing, src: nextSrc, ...mediaMeta };
-        }
-        return toMediaRefEntry(nextSrc, mediaMeta);
-      });
-      syncRefMedias(medias);
-    }
-
     commit(mediaRef, nextItems);
   };
 
   const deleteImage = (index: number) => {
-    const nextItems = items.filter((_, i) => i !== index);
     if (linked) {
-      const medias = displayImages
-        .filter((_, i) => i !== index)
-        .map((img, i) => {
-          // Map back to original ref index (before filter)
-          const origIndex = i < index ? i : i + 1;
-          const existing = refMedias[origIndex];
-          const src = extractMediaSrc(img);
-          if (existing && typeof existing === "object") {
-            return { ...existing, src };
-          }
-          return toMediaRefEntry(src);
-        });
-      syncRefMedias(medias);
+      syncRefMedias(
+        displayImages.filter((_, i) => i !== index).map((img) => readMediaStatic(img)),
+      );
     }
+    const nextItems = (linked ? items.map((item) => stripMediaStatic(item)) : items).filter(
+      (_, i) => i !== index,
+    );
     commit(mediaRef, nextItems);
     if (editIndex === index) setEditIndex(null);
   };
 
   const replaceSrc = (index: number, file: MediaFile) => {
-    const next = mediaFileToTrackItem(file);
-    updateLocalItem(index, next);
+    const identity = readMediaStatic(toMediaItem(file));
+    if (linked) {
+      syncRefMedias(
+        displayImages.map((img, i) =>
+          readMediaStatic(i === index ? identity : img),
+        ),
+      );
+      setReplaceIndex(null);
+      return;
+    }
+    updateLocalItem(index, identity);
     setReplaceIndex(null);
   };
 
   const addImages = (files: MediaFile | MediaFile[]) => {
     const list = Array.isArray(files) ? files : [files];
     const additions = list
-      .map((file) => mediaFileToTrackItem(file))
+      .map((file) => readMediaStatic(mediaFileToTrackItem(file)))
       .filter((a) => a.src);
     if (additions.length === 0) {
       setAddingImages(false);
       return;
     }
 
-    const nextItems = [
-      ...items,
-      ...additions.map((a) => (linked ? { ...a } : a)),
-    ];
     if (linked) {
-      const medias = [
-        ...displayImages.map((img, i) => {
-          const existing = refMedias[i];
-          const src = extractMediaSrc(img);
-          if (existing && typeof existing === "object") {
-            return { ...existing, src };
-          }
-          return toMediaRefEntry(src, {
-            type: img?.type,
-            name: img?.name,
-            thumbnail: img?.thumbnail,
-          });
-        }),
-        ...additions.map((a) =>
-          toMediaRefEntry(String(a.src), {
-            type: a.type as string | undefined,
-            name: a.name as string | undefined,
-            thumbnail: a.thumbnail as string | undefined,
-          }),
-        ),
-      ];
-      syncRefMedias(medias);
+      syncRefMedias([
+        ...displayImages.map((img) => readMediaStatic(img)),
+        ...additions,
+      ]);
+      commit(mediaRef, [
+        ...items.map((item) => stripMediaStatic(item)),
+        ...additions.map(() => ({})),
+      ]);
+    } else {
+      commit(mediaRef, [...items, ...additions]);
     }
-    commit(mediaRef, nextItems);
     setAddingImages(false);
   };
 
@@ -426,7 +389,7 @@ export function ImagesGroupField({
           base[key] = val;
         }
       }
-      return base;
+      return linked ? stripMediaStatic(base) : base;
     });
     commit(mediaRef, nextItems);
     setGroupOpen(false);
@@ -434,30 +397,15 @@ export function ImagesGroupField({
 
   const onItemsChangeFromForm = (nextItems: any[]) => {
     if (linked) {
-      // Form may edit src — push srcs to ref, preserving other media item props
-      const medias = nextItems.map((item, i) => {
-        const src = extractMediaSrc(item);
-        const existing = refMedias[i];
-        if (existing && typeof existing === "object") {
-          return { ...existing, src };
-        }
-        return toMediaRefEntry(src);
-      });
-      syncRefMedias(medias);
+      syncRefMedias(nextItems.map((item) => readMediaStatic(item)));
+      commit(mediaRef, nextItems.map((item) => stripMediaStatic(item)));
+      return;
     }
     commit(mediaRef, nextItems);
   };
 
   return (
     <>
-      {linked && mediaRef && (
-        <p
-          className="mb-1.5 text-[11px] text-muted-foreground truncate"
-          title={`Image sources linked from ${mediaRef}`}
-        >
-          ref: {mediaRef}
-        </p>
-      )}
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as "images" | "form")}
@@ -472,6 +420,7 @@ export function ImagesGroupField({
               Form
             </TabsTrigger>
           </TabsList>
+          {linkControl}
           {groupEditProps.length > 0 && (
             <AnchoredEditPopover
               open={groupOpen}

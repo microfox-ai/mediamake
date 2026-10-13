@@ -28,6 +28,7 @@ import {
     getReferenceSchemaForType,
     getReferenceTypeOptions,
     mediaItemSchema,
+    readMediaStatic,
     toMediaItem,
 } from "../dataTypes";
 
@@ -307,6 +308,7 @@ export function DefaultCard({
                         value={Array.isArray(reference.value) ? reference.value : []}
                         onChange={(val) => updateReference(index, 'value', val)}
                         itemSchema={z.toJSONSchema(mediaItemSchema)}
+                        identityOnly
                     />
                 );
             case 'media':
@@ -321,11 +323,12 @@ export function DefaultCard({
                             updateReference(
                                 index,
                                 'value',
-                                val[0] ? toMediaItem(val[0]) : { src: '' },
+                                val[0] ? readMediaStatic(val[0]) : { src: '' },
                             )
                         }
                         itemSchema={z.toJSONSchema(mediaItemSchema)}
                         singular
+                        identityOnly
                     />
                 );
             case 'object':
@@ -510,10 +513,10 @@ export function DefaultCard({
                             <MediaPickerButton
                                 onSelect={(media) => {
                                     if (reference.type === 'media') {
-                                        updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
+                                        updateReference(0, 'value', readMediaStatic(toMediaItem(Array.isArray(media) ? media[0] : media)));
                                     } else {
                                         const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                        const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                        const additions = (Array.isArray(media) ? media : [media]).map((file) => readMediaStatic(toMediaItem(file)));
                                         updateReference(0, 'value', [...currentValue, ...additions]);
                                     }
                                 }}
@@ -543,10 +546,10 @@ export function DefaultCard({
                         <MediaPickerButton
                             onSelect={(media) => {
                                 if (reference.type === 'media') {
-                                    updateReference(0, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
+                                    updateReference(0, 'value', readMediaStatic(toMediaItem(Array.isArray(media) ? media[0] : media)));
                                 } else {
                                     const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                    const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                    const additions = (Array.isArray(media) ? media : [media]).map((file) => readMediaStatic(toMediaItem(file)));
                                     updateReference(0, 'value', [...currentValue, ...additions]);
                                 }
                             }}
@@ -646,10 +649,10 @@ export function DefaultCard({
                                                         <MediaPickerButton
                                                             onSelect={(media) => {
                                                                 if (reference.type === 'media') {
-                                                                    updateReference(index, 'value', toMediaItem(Array.isArray(media) ? media[0] : media));
+                                                                    updateReference(index, 'value', readMediaStatic(toMediaItem(Array.isArray(media) ? media[0] : media)));
                                                                 } else {
                                                                     const currentValue = Array.isArray(reference.value) ? reference.value : [];
-                                                                    const additions = (Array.isArray(media) ? media : [media]).map(toMediaItem);
+                                                                    const additions = (Array.isArray(media) ? media : [media]).map((file) => readMediaStatic(toMediaItem(file)));
                                                                     updateReference(index, 'value', [...currentValue, ...additions]);
                                                                 }
                                                             }}

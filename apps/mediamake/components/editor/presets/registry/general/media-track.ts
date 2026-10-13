@@ -42,7 +42,21 @@ interface ShakeEffectData extends GenericEffectData {
 
 const mediaTrackItemSchema = z.object({
   src: z.string().describe('Media source URL'),
-  type: z.enum(['video', 'image', 'audio']).optional(),
+  type: z
+    .enum(['video', 'image', 'audio'])
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Media kind (video, image, or audio)'),
+  name: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Display name from the linked media reference'),
+  thumbnail: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Thumbnail URL from the linked media reference'),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
     .optional()
@@ -222,7 +236,7 @@ const presetParams = z.object({
         .string()
         .optional()
         .describe(
-          'Linked medias reference key — srcs are read/written from this ref',
+          'Linked medias reference key — src, type, name, and thumbnail are read from this ref',
         ),
       items: z
         .array(mediaTrackItemSchema)
