@@ -12,7 +12,55 @@ import { NextRequest, NextResponse } from 'next/server';
 import { renderRequestDB } from '@/lib/render-mongodb';
 import { getClientId } from '@/lib/auth-utils';
 import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
-import { resolveAwsRenderAmountUSD } from '@/lib/aws-render-cost';
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+/** Accrued cost already saved when the render completed or failed. */
+function readStoredAccrued(progressData: unknown): {
+  accruedSoFar: number;
+  currency: string;
+  payload: Record<string, unknown>;
+} | null {
+  const root = asRecord(progressData);
+  if (!root) return null;
+  const payload = asRecord(root.renderInfo) ?? root;
+  const costs = asRecord(payload.costs);
+  const accruedSoFar = costs?.accruedSoFar;
+  if (typeof accruedSoFar !== 'number' || !Number.isFinite(accruedSoFar)) return null;
+  return {
+    accruedSoFar,
+    currency: typeof costs?.currency === 'string' ? costs.currency : 'USD',
+    payload,
+  };
+}
+
+function responseFromStored(payload: Record<string, unknown>) {
+  const fatal = payload.fatalErrorEncountered === true;
+  if (fatal) {
+    const errors = Array.isArray(payload.errors) ? payload.errors : [];
+    const first = asRecord(errors[0]);
+    return NextResponse.json({
+      type: 'error',
+      message: typeof first?.message === 'string' ? first.message : 'Render failed',
+      renderInfo: payload,
+    });
+  }
+  if (payload.done === true) {
+    return NextResponse.json({
+      type: 'done',
+      url: payload.outputFile as string,
+      size: payload.outputSizeInBytes as number,
+      renderInfo: payload,
+    });
+  }
+  return NextResponse.json({
+    type: 'progress',
+    progress: Math.max(0.03, typeof payload.overallProgress === 'number' ? payload.overallProgress : 0),
+    renderInfo: payload,
+  });
+}
 
 export const GET = async (req: NextRequest) => {
   try {
@@ -34,6 +82,13 @@ export const GET = async (req: NextRequest) => {
 
     if (!renderRequest) {
       return NextResponse.json({ error: 'Render not found' }, { status: 404 });
+    }
+
+    const alreadyFinished =
+      renderRequest.status === 'completed' || renderRequest.status === 'failed';
+    const storedCost = alreadyFinished ? readStoredAccrued(renderRequest.progressData) : null;
+    if (storedCost) {
+      return responseFromStored(storedCost.payload);
     }
 
     const awsRenderPreset = renderRequest.awsRenderPreset || 'classic';
@@ -83,27 +138,20 @@ export const GET = async (req: NextRequest) => {
       );
     }
 
-    if (renderProgress.done && renderProgress.costs && clientId) {
-      const accrued =
-        typeof renderProgress.costs.accruedSoFar === 'number'
-          ? renderProgress.costs.accruedSoFar
-          : 0;
-      const amount = resolveAwsRenderAmountUSD({
-        accruedSoFar: accrued,
-        region: renderProgress.renderMetadata?.region || effectiveRegion,
-        memorySizeInMb:
-          renderProgress.renderMetadata?.memorySizeInMb || config.memory,
-        diskSizeInMb: renderRequest.diskUsed || config.disk,
-        lambdasInvoked: renderProgress.lambdasInvoked,
-        timeToFinishChunks: renderProgress.timeToFinishChunks,
+    const renderSettled = renderProgress.done || renderProgress.fatalErrorEncountered;
+    const accrued = renderProgress.costs?.accruedSoFar;
+    if (renderSettled && typeof accrued === 'number' && Number.isFinite(accrued) && clientId) {
+      await platformCostUsageDB.upsertAwsRenderCost({
+        renderId: renderProgress.renderId,
+        clientId,
+        bucketName: renderRequest.bucketName,
+        createdAt: renderRequest.createdAt,
+        cost: {
+          amount: accrued,
+          currency: renderProgress.costs?.currency ?? 'USD',
+          amountUSD: accrued,
+        },
       });
-      if (amount > 0) {
-        await platformCostUsageDB.updateCostByRenderId(
-          renderProgress.renderId,
-          { amount, currency: renderProgress.costs.currency ?? 'USD', amountUSD: amount },
-          clientId,
-        );
-      }
     }
 
     if (renderProgress.fatalErrorEncountered) {

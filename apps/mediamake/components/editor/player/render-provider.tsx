@@ -57,7 +57,11 @@ export interface RenderSettings {
     helperDuration?: number;
     
     // Still image settings
+    /** Seconds into the composition, used when stillPositionMode is "time". */
     frameTime?: number;
+    /** 0-based frame index, used when stillPositionMode is "frame". */
+    frame?: number;
+    stillPositionMode: 'time' | 'frame';
 
     // Browser (client-side) render settings
     browserContainer: 'mp4' | 'webm';
@@ -142,6 +146,8 @@ const defaultSettings: RenderSettings = {
     
     // Still
   frameTime: 0,
+  frame: 0,
+  stillPositionMode: 'time',
 
   // Browser render
   browserContainer: 'mp4',

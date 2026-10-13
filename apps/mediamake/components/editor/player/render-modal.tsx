@@ -92,12 +92,97 @@ interface RenderModalProps {
   onClose: () => void;
 }
 
+/** Still renders send either a frame index or a time in seconds, never both. */
+function stillPositionPayload(settings: {
+  stillPositionMode: 'time' | 'frame';
+  frame?: number;
+  frameTime?: number;
+}): { frame: number } | { frameTime: number } {
+  if (settings.stillPositionMode === 'frame') {
+    return { frame: Math.max(0, Math.round(settings.frame ?? 0)) };
+  }
+  return { frameTime: settings.frameTime ?? 0 };
+}
+
 /** Video filenames always end with exactly one `.mp4`. */
 function ensureSingleMp4(value: string): string {
   let base = value.replace(/\.mp4/gi, '');
   // Keep a partial ".mp4" from being left behind while the suffix is edited.
   base = base.replace(/\.mp$/i, '').replace(/\.m$/i, '').replace(/\.$/, '');
   return `${base}.mp4`;
+}
+
+function StillPositionFields({ idPrefix }: { idPrefix: string }) {
+  const { settings, updateSetting } = useRender();
+  const byFrame = settings.stillPositionMode === 'frame';
+
+  return (
+    <>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor={`${idPrefix}-capture`} className="text-right">
+          Capture
+        </Label>
+        <Select
+          value={settings.stillPositionMode}
+          onValueChange={value =>
+            updateSetting('stillPositionMode', value as 'time' | 'frame')
+          }
+        >
+          <SelectTrigger id={`${idPrefix}-capture`} className="col-span-3">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="time">Time (seconds)</SelectItem>
+            <SelectItem value="frame">Frame number</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {byFrame ? (
+        <div className="grid grid-cols-4 items-start gap-4">
+          <Label htmlFor={`${idPrefix}-frame`} className="text-right pt-2">
+            Frame
+          </Label>
+          <div className="col-span-3 space-y-1">
+            <Input
+              id={`${idPrefix}-frame`}
+              type="number"
+              step="1"
+              min="0"
+              value={settings.frame ?? 0}
+              onChange={e =>
+                updateSetting(
+                  'frame',
+                  Math.max(0, parseInt(e.target.value, 10) || 0),
+                )
+              }
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              0 is the first frame.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor={`${idPrefix}-time`} className="text-right">
+            Frame Time (seconds)
+          </Label>
+          <Input
+            id={`${idPrefix}-time`}
+            type="number"
+            step="0.1"
+            min="0"
+            value={settings.frameTime || 0}
+            onChange={e =>
+              updateSetting('frameTime', parseFloat(e.target.value) || 0)
+            }
+            className="col-span-3"
+            placeholder="0"
+          />
+        </div>
+      )}
+    </>
+  );
 }
 
 // Icon mapping for presets
@@ -319,7 +404,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
       container: settings.browserContainer,
       imageFormat: settings.browserImageFormat,
       fileName,
-      frameTime: settings.frameTime,
+      ...stillPositionPayload(settings),
       projectId: settings.projectId,
       tags: settings.tags,
       clientId: session.clientId,
@@ -367,6 +452,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
       isDownloadable: settings.isDownloadable,
       configMode: settings.configMode,
       region: settings.region ?? DEFAULT_REGION,
+      ...(settings.renderType === 'still' ? stillPositionPayload(settings) : {}),
     };
 
     if (settings.configMode === 'preset') {
@@ -425,7 +511,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         renderType: settings.renderType,
         outputLocation: settings.outputLocation,
         fileName: settings.fileName,
-        frameTime: settings.frameTime,
+        ...stillPositionPayload(settings),
       }),
     });
 
@@ -515,11 +601,15 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                     >
                       <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="video">Video</TabsTrigger>
-                        <TabsTrigger value="image">Image (frame 1)</TabsTrigger>
+                        <TabsTrigger value="image">Image</TabsTrigger>
                       </TabsList>
                     </Tabs>
                   </div>
                 </div>
+
+                {settings.renderType === 'still' && (
+                  <StillPositionFields idPrefix="aws" />
+                )}
 
                 {/* Project + tags metadata */}
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -1317,23 +1407,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="browserFrameTime" className="text-right">
-                        Frame Time (seconds)
-                      </Label>
-                      <Input
-                        id="browserFrameTime"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={settings.frameTime || 0}
-                        onChange={e =>
-                          updateSetting('frameTime', parseFloat(e.target.value) || 0)
-                        }
-                        className="col-span-3"
-                        placeholder="0"
-                      />
-                    </div>
+                    <StillPositionFields idPrefix="browser" />
                   </>
                 )}
 
@@ -1464,26 +1538,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                 </div>
 
                 {settings.renderType === 'still' && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="frameTime" className="text-right">
-                      Frame Time (seconds)
-                    </Label>
-                    <Input
-                      id="frameTime"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={settings.frameTime || 0}
-                      onChange={e =>
-                        updateSetting(
-                          'frameTime',
-                          parseFloat(e.target.value) || 0,
-                        )
-                      }
-                      className="col-span-3"
-                      placeholder="0"
-                    />
-                  </div>
+                  <StillPositionFields idPrefix="local" />
                 )}
 
                 <div className="grid grid-cols-4 items-center gap-4">

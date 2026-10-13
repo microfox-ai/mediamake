@@ -18,6 +18,7 @@ interface LocalRenderRequest {
   outputLocation?: string;
   fileName?: string;
   frameTime?: number; // Frame time in seconds for still image rendering
+  frame?: number; // 0-based frame index; takes precedence over frameTime
 }
 
 export const POST = async (req: NextRequest) => {
@@ -31,6 +32,7 @@ export const POST = async (req: NextRequest) => {
       outputLocation,
       fileName,
       frameTime = 0,
+      frame,
     }: LocalRenderRequest = await req.json();
 
     // Validate required fields
@@ -93,7 +95,12 @@ export const POST = async (req: NextRequest) => {
         serveUrl: bundleLocation,
         output: stillOutputPath,
         inputProps,
-        frame: Math.round(frameTime * composition.fps), // Convert seconds to frame number
+        frame: resolveStillFrame({
+          frame,
+          frameTime,
+          fps: composition.fps,
+          durationInFrames: composition.durationInFrames,
+        }),
         logLevel: 'error',
       });
 
@@ -197,3 +204,26 @@ export const POST = async (req: NextRequest) => {
     );
   }
 };
+
+/** Absolute frame for a still. An explicit frame index wins over seconds. */
+function resolveStillFrame({
+  frame,
+  frameTime,
+  fps,
+  durationInFrames,
+}: {
+  frame?: number;
+  frameTime?: number;
+  fps: number;
+  durationInFrames?: number;
+}): number {
+  const requested =
+    typeof frame === 'number' && Number.isFinite(frame)
+      ? Math.round(frame)
+      : Math.round((frameTime ?? 0) * (fps > 0 ? fps : 30));
+  const last =
+    typeof durationInFrames === 'number' && durationInFrames > 0
+      ? durationInFrames - 1
+      : requested;
+  return Math.max(0, Math.min(last, requested));
+}

@@ -29,7 +29,7 @@ function costAmountOf(doc: { cost?: { amountUSD?: number; amount?: number } }): 
   return doc.cost?.amountUSD ?? doc.cost?.amount ?? 0;
 }
 
-/** One render can leave more than one aws_render row. Keep the lower cost so a late progress poll cannot be added on top of the real one. */
+/** One accrued amount per finished render. A second row for the same render is not added again. */
 function dedupeAwsRenderDocs<T extends { platform: string; metadata?: { renderId?: string }; cost?: { amountUSD?: number; amount?: number } }>(
   docs: T[],
 ): T[] {
@@ -42,9 +42,7 @@ function dedupeAwsRenderDocs<T extends { platform: string; metadata?: { renderId
       continue;
     }
     const prev = byRender.get(renderId);
-    const prevAmt = prev ? costAmountOf(prev) : 0;
-    const amt = costAmountOf(doc);
-    if (!prev || (amt > 0 && (prevAmt === 0 || amt < prevAmt))) {
+    if (!prev || (costAmountOf(prev) === 0 && costAmountOf(doc) > 0)) {
       byRender.set(renderId, doc);
     }
   }

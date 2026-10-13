@@ -1,111 +1,96 @@
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { ReferenceItem } from "@/components/editor/presets/types";
+import { findAudioMediaClipsFromTimeline } from "./find-audio-media";
+
+/** A fetchable audio file pasted into the track field. */
+function isDirectAudioUrl(value: string): boolean {
+  const s = value.trim();
+  return (
+    /^https?:\/\//i.test(s) ||
+    /^blob:/i.test(s) ||
+    /^data:audio\//i.test(s)
+  );
+}
+
+function urlFromUnknown(value: unknown): string | null {
+  if (typeof value === "string" && isDirectAudioUrl(value)) return value.trim();
+  if (!value || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = urlFromUnknown(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    urlFromUnknown(record.src) ||
+    urlFromUnknown(record.filePath) ||
+    urlFromUnknown(record.url) ||
+    urlFromUnknown(record.contentSourceUrl) ||
+    null
+  );
+}
+
+/** `data:[key]` → the referenced media URL, when the track field holds a data link. */
+function resolveDataAudioLink(
+  raw: string,
+  timeline: Timeline,
+  references?: ReferenceItem[],
+): string | null {
+  const match = raw.match(/^data:\[([^\]]+)\]/);
+  if (!match) return null;
+  const refs = references || timeline.defaultData?.references || [];
+  const value = refs.find((ref) => ref.key === match[1])?.value;
+  return urlFromUnknown(value);
+}
 
 /**
- * Resolve an audio src for a trackName by scanning timeline presets
- * (and resolving data:[key] refs when present).
+ * Resolve an audio file for a preset `trackName`, or use the value itself
+ * when it is already an audio URL / `data:[key]` link.
+ *
+ * Track lookup uses the same clip discovery as the timeline waveform rows:
+ * - media-track `mediaItems` as an array or `{ mediaRef, items }`
+ * - src from the item, or from the linked medias ref (`src` / `filePath` / `url`)
+ * - waveform / beatstitch `{ audio: { src, start, duration } }`
+ * - `trackName` on that preset object (nested audio inherits it)
  */
 export function findAudioSrcForTrackName(
   timeline: Timeline,
   trackName: string,
   references?: ReferenceItem[],
 ): { src: string; start?: number; duration?: number } | null {
-  if (!trackName?.trim()) return null;
-  const target = trackName.trim();
-  const baseData = Object.fromEntries(
-    (references || timeline.defaultData?.references || []).map(
-      (ref: ReferenceItem) => [ref.key, ref.value],
-    ),
+  const target = trackName?.trim();
+  if (!target) return null;
+
+  if (isDirectAudioUrl(target)) {
+    return { src: target };
+  }
+
+  const linked = resolveDataAudioLink(target, timeline, references);
+  if (linked) {
+    return { src: linked };
+  }
+
+  const clips = findAudioMediaClipsFromTimeline(timeline, references, {
+    resolveDataRefs: true,
+  }).filter((clip) => (clip.trackName || "").trim() === target);
+
+  if (!clips.length) return null;
+
+  const src = clips[0].src;
+  const sameFile = clips.filter((clip) => clip.src === src);
+  const start = Math.min(...sameFile.map((clip) => clip.start || 0));
+  const ends = sameFile.map((clip) =>
+    typeof clip.duration === "number" ? (clip.start || 0) + clip.duration : null,
   );
+  const duration = ends.every((end) => end != null)
+    ? Math.max(...(ends as number[])) - start
+    : undefined;
 
-  const resolveSrc = (raw: unknown): string | null => {
-    if (typeof raw !== "string" || !raw.trim()) return null;
-    const dataMatch = raw.match(/^data:\[([^\]]+)\]/);
-    if (dataMatch) {
-      const val = baseData[dataMatch[1]];
-      if (typeof val === "string") return val;
-      if (val && typeof val === "object" && typeof (val as any).src === "string") {
-        return (val as any).src;
-      }
-      return null;
-    }
-    return raw;
+  return {
+    src,
+    start: start > 0 ? start : undefined,
+    duration: duration && duration > 0 ? duration : undefined,
   };
-
-  for (const preset of timeline.presets || []) {
-    const data = preset.presetInputData;
-    if (!data || typeof data !== "object") continue;
-
-    const found = walkForTrackAudio(data, target, resolveSrc);
-    if (found) return found;
-  }
-
-  return null;
-}
-
-function walkForTrackAudio(
-  value: unknown,
-  trackName: string,
-  resolveSrc: (raw: unknown) => string | null,
-): { src: string; start?: number; duration?: number } | null {
-  if (!value || typeof value !== "object") return null;
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = walkForTrackAudio(item, trackName, resolveSrc);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  const obj = value as Record<string, unknown>;
-  const thisTrack =
-    typeof obj.trackName === "string" && obj.trackName.trim() === trackName;
-
-  if (thisTrack) {
-    // beatstitch / waveform style: { audio: { src } }
-    if (obj.audio && typeof obj.audio === "object") {
-      const audio = obj.audio as Record<string, unknown>;
-      const src = resolveSrc(audio.src);
-      if (src) {
-        return {
-          src,
-          start: typeof audio.start === "number" ? audio.start : undefined,
-          duration:
-            typeof audio.duration === "number" ? audio.duration : undefined,
-        };
-      }
-    }
-
-    // media-track style: mediaItems[]
-    if (Array.isArray(obj.mediaItems)) {
-      for (const item of obj.mediaItems) {
-        if (!item || typeof item !== "object") continue;
-        const media = item as Record<string, unknown>;
-        if (media.type === "audio" || !media.type) {
-          const src = resolveSrc(media.src);
-          if (src) {
-            return {
-              src,
-              start:
-                typeof media.start === "number"
-                  ? media.start
-                  : typeof media.startCropVideo === "number"
-                    ? media.startCropVideo
-                    : undefined,
-              duration:
-                typeof media.duration === "number" ? media.duration : undefined,
-            };
-          }
-        }
-      }
-    }
-  }
-
-  for (const child of Object.values(obj)) {
-    const found = walkForTrackAudio(child, trackName, resolveSrc);
-    if (found) return found;
-  }
-
-  return null;
 }

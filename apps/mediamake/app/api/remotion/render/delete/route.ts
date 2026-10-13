@@ -57,39 +57,51 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    // Save final pricing and render details from Remotion before deleting from Lambda
-    try {
-      const awsRenderPreset = doc.awsRenderPreset || 'classic';
-      const config =
-        AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] ??
-        AWS_RENDER_CONFIGS['classic'];
-      const renderProgress = await getRenderProgress({
-        bucketName,
-        functionName: speculateFunctionName({
-          diskSizeInMb: config.disk,
-          memorySizeInMb: config.memory,
-          timeoutInSeconds: config.timeout,
-        }),
-        region,
-        renderId,
-      });
-      await renderRequestDB.update(
-        renderId,
-        {
-          progressData: renderProgress,
-          status: renderProgress.fatalErrorEncountered
-            ? 'failed'
-            : renderProgress.done
-              ? 'completed'
-              : 'rendering',
-          downloadUrl: renderProgress.outputFile as string,
-          fileSize: renderProgress.outputSizeInBytes as number,
-        },
-        clientId,
-      );
-    } catch (progressErr) {
-      // Lambda render may already be gone or not found; continue with delete
-      console.warn('Could not fetch final progress before delete:', progressErr);
+    const progressRoot =
+      doc.progressData != null && typeof doc.progressData === 'object'
+        ? (doc.progressData as { renderInfo?: { costs?: { accruedSoFar?: number } }; costs?: { accruedSoFar?: number } })
+        : null;
+    const storedAccrued =
+      progressRoot?.renderInfo?.costs?.accruedSoFar ?? progressRoot?.costs?.accruedSoFar;
+    const alreadyBilled =
+      (doc.status === 'completed' || doc.status === 'failed') &&
+      typeof storedAccrued === 'number';
+
+    // Capture the accrued amount once, when the render ends. A later delete must not replace it.
+    if (!alreadyBilled) {
+      try {
+        const awsRenderPreset = doc.awsRenderPreset || 'classic';
+        const config =
+          AWS_RENDER_CONFIGS[awsRenderPreset as keyof typeof AWS_RENDER_CONFIGS] ??
+          AWS_RENDER_CONFIGS['classic'];
+        const renderProgress = await getRenderProgress({
+          bucketName,
+          functionName: speculateFunctionName({
+            diskSizeInMb: config.disk,
+            memorySizeInMb: config.memory,
+            timeoutInSeconds: config.timeout,
+          }),
+          region,
+          renderId,
+        });
+        await renderRequestDB.update(
+          renderId,
+          {
+            progressData: renderProgress,
+            status: renderProgress.fatalErrorEncountered
+              ? 'failed'
+              : renderProgress.done
+                ? 'completed'
+                : 'rendering',
+            downloadUrl: renderProgress.outputFile as string,
+            fileSize: renderProgress.outputSizeInBytes as number,
+          },
+          clientId,
+        );
+      } catch (progressErr) {
+        // Lambda render may already be gone or not found; continue with delete
+        console.warn('Could not fetch final progress before delete:', progressErr);
+      }
     }
 
     let freedBytes = 0;

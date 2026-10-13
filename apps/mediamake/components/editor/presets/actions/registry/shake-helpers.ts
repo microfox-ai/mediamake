@@ -99,7 +99,7 @@ async function loadTrackAudio(timeline: Timeline, trackName: string) {
   );
   if (!audio?.src) {
     throw new Error(
-      `No audio found for track "${trackName}". Add a waveform/beatstitch/media-track with that trackName.`,
+      `No audio found for "${trackName}". Pick a waveform, beatstitch, or media-track name, or paste an audio URL.`,
     );
   }
   return audio;

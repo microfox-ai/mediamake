@@ -1,18 +1,12 @@
 /**
  * Remotion cost backfill.
- * Reads uncalculated aws_render rows and writes the cost already stored on the render.
- * Live progress is fetched only when that stored cost is missing, using the region and
- * function the render actually used.
+ * Copies the accrued amount already stored on a finished render (completed or failed).
+ * That snapshot is taken when the render ends. This worker does not call Lambda again.
  */
 
 import { createWorker, type WorkerConfig } from '@microfox/ai-worker';
 import { z } from 'zod';
 import type { WorkerHandlerParams } from '@microfox/ai-worker/handler';
-import {
-  speculateFunctionName,
-  getRenderProgress,
-  type AwsRegion,
-} from '@remotion/lambda/client';
 import { renderRequestDB } from '../../../../lib/render-mongodb';
 import type { RenderRequestDocument } from '../../../../lib/render-mongodb';
 import { platformCostUsageDB } from '../../../../lib/cost-usage-mongodb';
@@ -28,29 +22,11 @@ const OutputSchema = z.object({
 type Input = z.infer<typeof InputSchema>;
 type Output = z.infer<typeof OutputSchema>;
 
-/** Inline defaults for Lambda when config.mjs is not in deployment package. Matches config.mjs classic/complex-fast. */
-function getDefaultAwsRenderConfigs(): Record<string, { disk: number; memory: number; timeout: number }> {
-  return {
-    classic: { memory: 3008, disk: 10240, timeout: 240 },
-    'complex-fast': { memory: 3008, disk: 10240, timeout: 900 },
-    'complex-slow': { memory: 3008, disk: 10240, timeout: 900 },
-    'basic-fast': { memory: 2048, disk: 10240, timeout: 900 },
-    throttled: { memory: 2048, disk: 10240, timeout: 900 },
-    lightweight: { memory: 1024, disk: 2048, timeout: 180 },
-    broadcast: { memory: 6144, disk: 10240, timeout: 900 },
-    enterprise: { memory: 10240, disk: 10240, timeout: 900 },
-  };
-}
-
 type StoredRenderCost = {
   accruedSoFar: number;
   currency: string;
   done: boolean;
   fatal: boolean;
-  lambdasInvoked?: number;
-  timeToFinishChunks?: number | null;
-  region?: string;
-  memorySizeInMb?: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -65,18 +41,21 @@ function readStoredRenderCost(progressData: unknown): StoredRenderCost | null {
   const costs = asRecord(payload.costs);
   const accruedSoFar = costs?.accruedSoFar;
   if (typeof accruedSoFar !== 'number' || !Number.isFinite(accruedSoFar)) return null;
-  const meta = asRecord(payload.renderMetadata);
   return {
     accruedSoFar,
     currency: typeof costs?.currency === 'string' ? costs.currency : 'USD',
     done: payload.done === true,
     fatal: payload.fatalErrorEncountered === true,
-    lambdasInvoked: typeof payload.lambdasInvoked === 'number' ? payload.lambdasInvoked : undefined,
-    timeToFinishChunks:
-      typeof payload.timeToFinishChunks === 'number' ? payload.timeToFinishChunks : null,
-    region: typeof meta?.region === 'string' ? meta.region : undefined,
-    memorySizeInMb: typeof meta?.memorySizeInMb === 'number' ? meta.memorySizeInMb : undefined,
   };
+}
+
+function isTerminal(req: RenderRequestDocument, stored: StoredRenderCost | null): boolean {
+  return (
+    req.status === 'completed' ||
+    req.status === 'failed' ||
+    stored?.done === true ||
+    stored?.fatal === true
+  );
 }
 
 export const workerConfig: WorkerConfig = {
@@ -94,36 +73,8 @@ export default createWorker<typeof InputSchema, Output>({
     console.log('[cost-usage-remotion] Handler started:', { jobId, workerId });
 
     let processed = 0;
-    let updated = 0;
     let costBackfilled = 0;
     let errors = 0;
-
-    // Use env on Lambda (config.mjs not in deployment package); never dynamic import in Lambda to avoid init errors
-    let AWS_RENDER_CONFIGS: Record<string, { disk: number; memory: number; timeout: number }>;
-    let REGION: AwsRegion;
-    const regionEnv = process.env.REMOTION_REGION?.trim();
-    const configJsonEnv = process.env.REMOTION_AWS_RENDER_CONFIGS;
-    const isLambda = typeof process.env.AWS_LAMBDA_FUNCTION_NAME === 'string';
-    if (regionEnv && configJsonEnv) {
-      REGION = regionEnv as AwsRegion;
-      try {
-        AWS_RENDER_CONFIGS = JSON.parse(configJsonEnv) as Record<string, { disk: number; memory: number; timeout: number }>;
-      } catch {
-        AWS_RENDER_CONFIGS = getDefaultAwsRenderConfigs();
-      }
-    } else if (isLambda) {
-      REGION = (regionEnv ?? 'us-east-2') as AwsRegion;
-      AWS_RENDER_CONFIGS = getDefaultAwsRenderConfigs();
-    } else {
-      try {
-        const configModule = await import('../../../../config.mjs');
-        AWS_RENDER_CONFIGS = configModule.AWS_RENDER_CONFIGS as Record<string, { disk: number; memory: number; timeout: number }>;
-        REGION = (configModule.REGION ?? 'us-east-2') as AwsRegion;
-      } catch {
-        REGION = (regionEnv ?? 'us-east-2') as AwsRegion;
-        AWS_RENDER_CONFIGS = getDefaultAwsRenderConfigs();
-      }
-    }
 
     const pending = await platformCostUsageDB.findUncalculated('aws_render', 2000);
     const finishedRenders = await renderRequestDB.listFinishedWithStoredCost(2000);
@@ -151,60 +102,8 @@ export default createWorker<typeof InputSchema, Output>({
     for (const [renderId, req] of renderById) {
       try {
         processed += 1;
-        let stored = readStoredRenderCost(req.progressData);
-        const finished =
-          req.status === 'completed' ||
-          req.status === 'failed' ||
-          stored?.done === true ||
-          stored?.fatal === true;
-
-        if (!(stored && finished) && req.bucketName) {
-          const preset = (req.awsRenderPreset as string) || 'classic';
-          const config = AWS_RENDER_CONFIGS[preset] ?? AWS_RENDER_CONFIGS['classic'];
-          const functionName =
-            req.functionNameUsed ||
-            speculateFunctionName({
-              diskSizeInMb: config.disk,
-              memorySizeInMb: config.memory,
-              timeoutInSeconds: config.timeout,
-            });
-          const region = (req.regionUsed as AwsRegion | undefined) || REGION;
-          try {
-            const renderProgress = await getRenderProgress({
-              bucketName: req.bucketName,
-              functionName,
-              region,
-              renderId,
-            });
-            await renderRequestDB.update(
-              renderId,
-              {
-                progressData: renderProgress as RenderRequestDocument['progressData'],
-                status: renderProgress.fatalErrorEncountered
-                  ? 'failed'
-                  : renderProgress.done
-                    ? 'completed'
-                    : 'rendering',
-                downloadUrl: renderProgress.outputFile as string,
-                fileSize: renderProgress.outputSizeInBytes as number,
-              },
-              req.clientId
-            );
-            updated += 1;
-            stored = readStoredRenderCost(renderProgress);
-          } catch (e) {
-            console.error('[cost-usage-remotion] progress lookup failed', renderId, e);
-            errors += 1;
-          }
-        }
-
-        const canBill =
-          stored != null &&
-          (req.status === 'completed' ||
-            req.status === 'failed' ||
-            stored.done ||
-            stored.fatal);
-        if (!canBill || !stored) continue;
+        const stored = readStoredRenderCost(req.progressData);
+        if (!stored || !isTerminal(req, stored)) continue;
 
         const ok = await platformCostUsageDB.upsertAwsRenderCost({
           renderId,
@@ -224,7 +123,7 @@ export default createWorker<typeof InputSchema, Output>({
       }
     }
 
-    console.log('[cost-usage-remotion] Handler completed:', { jobId, workerId, processed, updated, costBackfilled, errors });
-    return { processed, updated, costBackfilled, errors };
+    console.log('[cost-usage-remotion] Handler completed:', { jobId, workerId, processed, costBackfilled, errors });
+    return { processed, updated: 0, costBackfilled, errors };
   },
 });

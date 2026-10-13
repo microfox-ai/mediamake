@@ -193,8 +193,9 @@ export function TimelineControlBar({
       updateSetting('inputProps', JSON.stringify(generatedOutput, null, 2));
       updateSetting('composition', 'DataMotion');
     }
+    updateSetting('frame', currentFrame);
     openModal();
-  }, [generatedOutput, updateSetting, openModal]);
+  }, [generatedOutput, updateSetting, openModal, currentFrame]);
 
   const handleRecompile = useCallback(() => {
     if (!currentTimeline) return;

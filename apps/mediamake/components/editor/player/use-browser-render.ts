@@ -39,8 +39,10 @@ export interface BrowserRenderInput {
   /** Still image format. */
   imageFormat: 'png' | 'jpeg';
   fileName: string;
-  /** Second to grab for stills. */
+  /** Second to grab for stills. Ignored when `frame` is set. */
   frameTime?: number;
+  /** 0-based frame index for stills. Takes precedence over `frameTime`. */
+  frame?: number;
   projectId?: string;
   tags?: string[];
   clientId: string;
@@ -189,12 +191,13 @@ export function useBrowserRender() {
         let blob: Blob;
         let contentType: string;
         if (input.renderType === 'still') {
+          const requestedFrame =
+            typeof input.frame === 'number' && Number.isFinite(input.frame)
+              ? Math.round(input.frame)
+              : Math.round((input.frameTime ?? 0) * fps);
           const frame = Math.max(
             0,
-            Math.min(
-              durationInFrames - 1,
-              Math.round((input.frameTime ?? 0) * fps),
-            ),
+            Math.min(durationInFrames - 1, requestedFrame),
           );
           const still = await renderStillOnWeb({
             composition,

@@ -16,7 +16,7 @@ import {
 const inputSchema = z.object({
   trackName: z
     .string()
-    .describe("Track whose audio is analyzed for beat ranges")
+    .describe("Track name, or a direct audio URL")
     .meta({ [paramMetaTypes.linkTrackName]: true }),
   shakeType: z
     .enum(["simple"])

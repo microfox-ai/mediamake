@@ -96,6 +96,7 @@ function collectFromMediaItems(
   baseData: Record<string, unknown>,
   out: TimelineAudioClip[],
   presetId: string,
+  resolveDataRefs: boolean,
 ): void {
   let items: any[] = [];
   if (Array.isArray(mediaItemsRaw)) {
@@ -135,14 +136,16 @@ function collectFromMediaItems(
 
   items.forEach((item, index) => {
     if (!item || typeof item !== "object") return;
-    const kind = detectMediaKind(item);
-    if (kind !== "audio") return;
 
-    // Skip items whose src is only a data:[...] / ref:... pointer to another track
-    if (isIndirectAudioSrc(item.src)) return;
+    const rawSrc = String(item.src || "").trim();
+    if (/^ref:/i.test(rawSrc)) return;
+    if (!resolveDataRefs && isIndirectAudioSrc(rawSrc)) return;
 
     const src = resolveSrc(item.src, baseData);
     if (!src) return;
+
+    const kind = detectMediaKind({ ...item, src });
+    if (kind !== "audio") return;
 
     const rangeRaw =
       typeof item.rangeString === "string"
@@ -188,6 +191,7 @@ function collectFromMediaItems(
 export function findAudioMediaClipsFromTimeline(
   timeline: Timeline | null | undefined,
   references?: ReferenceItem[],
+  options?: { resolveDataRefs?: boolean },
 ): TimelineAudioClip[] {
   if (!timeline) return [];
 
@@ -195,13 +199,21 @@ export function findAudioMediaClipsFromTimeline(
   const baseData: Record<string, unknown> = Object.fromEntries(
     refs.map((ref: ReferenceItem) => [ref.key, ref.value]),
   );
+  const resolveDataRefs = options?.resolveDataRefs === true;
 
   const out: TimelineAudioClip[] = [];
 
   for (const preset of timeline.presets || []) {
     const data = preset.presetInputData;
     if (!data || typeof data !== "object") continue;
-    walkForMediaItems(data, baseData, out, preset.id || "preset");
+    walkForMediaItems(
+      data,
+      baseData,
+      out,
+      preset.id || "preset",
+      undefined,
+      resolveDataRefs,
+    );
   }
 
   // Deduplicate by src+start+duration
@@ -221,27 +233,53 @@ function walkForMediaItems(
   baseData: Record<string, unknown>,
   out: TimelineAudioClip[],
   presetId: string,
+  inheritedTrackName?: string,
+  resolveDataRefs = false,
 ): void {
   if (!value || typeof value !== "object") return;
 
   if (Array.isArray(value)) {
-    for (const item of value) walkForMediaItems(item, baseData, out, presetId);
+    for (const item of value) {
+      walkForMediaItems(
+        item,
+        baseData,
+        out,
+        presetId,
+        inheritedTrackName,
+        resolveDataRefs,
+      );
+    }
     return;
   }
 
   const obj = value as Record<string, unknown>;
+  // Presets keep `trackName` on the same object as `mediaItems` / `audio`
+  // (media-track, waveform, beatstitch). Nested audio inherits that name.
   const trackName =
-    typeof obj.trackName === "string" ? obj.trackName : undefined;
+    typeof obj.trackName === "string" && obj.trackName.trim()
+      ? obj.trackName.trim()
+      : inheritedTrackName;
 
   if (obj.mediaItems != null) {
-    collectFromMediaItems(obj.mediaItems, trackName, baseData, out, presetId);
+    collectFromMediaItems(
+      obj.mediaItems,
+      trackName,
+      baseData,
+      out,
+      presetId,
+      resolveDataRefs,
+    );
   }
 
-  // beatstitch / waveform style: only include concrete http(s) audio URLs —
-  // skip data:[...] / ref:... (those duplicate the owning media-track waveform).
+  // beatstitch / waveform style: { audio: { src, start, duration } }
+  // Timeline rows skip data:[...] / ref:... so they don't duplicate the
+  // owning media-track. Action lookup can resolve data:[key] to the file URL.
   if (obj.audio && typeof obj.audio === "object") {
     const audio = obj.audio as Record<string, unknown>;
-    if (!isIndirectAudioSrc(audio.src)) {
+    const rawSrc = String(audio.src || "").trim();
+    const skip =
+      /^ref:/i.test(rawSrc) || (!resolveDataRefs && isIndirectAudioSrc(rawSrc));
+    if (!skip) {
       const src = resolveSrc(audio.src, baseData);
       if (src) {
         out.push({
@@ -259,6 +297,13 @@ function walkForMediaItems(
 
   for (const child of Object.values(obj)) {
     if (child === obj.mediaItems || child === obj.audio) continue;
-    walkForMediaItems(child, baseData, out, presetId);
+    walkForMediaItems(
+      child,
+      baseData,
+      out,
+      presetId,
+      trackName,
+      resolveDataRefs,
+    );
   }
 }

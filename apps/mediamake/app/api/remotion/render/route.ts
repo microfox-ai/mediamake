@@ -49,6 +49,9 @@ export const POST = async (req: NextRequest) => {
       customConfig,
       // Region selection (optional - falls back to env/default)
       region: requestedRegion,
+      // Still image position. `frame` is a 0-based index and wins over `frameTime`.
+      frame,
+      frameTime,
     } = await req.json();
 
     if (
@@ -220,7 +223,11 @@ export const POST = async (req: NextRequest) => {
         composition: id ?? 'DataMotion',
         inputProps: inputProps,
         imageFormat: 'png',
-        frame: 0,
+        frame: resolveStillFrame({
+          frame,
+          frameTime,
+          fps: Number(inputProps?.config?.fps) || 30,
+        }),
         privacy: 'public',
       });
 
@@ -349,6 +356,23 @@ export const POST = async (req: NextRequest) => {
     );
   }
 };
+
+/** Absolute frame for a still. An explicit frame index wins over seconds. */
+function resolveStillFrame({
+  frame,
+  frameTime,
+  fps,
+}: {
+  frame?: number;
+  frameTime?: number;
+  fps: number;
+}): number {
+  if (typeof frame === 'number' && Number.isFinite(frame)) {
+    return Math.max(0, Math.round(frame));
+  }
+  const safeFps = fps > 0 ? fps : 30;
+  return Math.max(0, Math.round((Number(frameTime) || 0) * safeFps));
+}
 
 /**
  * Validate and sanitize custom configuration
