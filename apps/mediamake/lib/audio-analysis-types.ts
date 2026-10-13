@@ -8,6 +8,12 @@ export interface AudioAnalysisFrame {
   intensity: number;
   frequency: number;
   beatType: "low" | "mid" | "high";
+  /** Raw window RMS, before min–max normalization. */
+  rms?: number;
+  /** Share of spectral power below ~180Hz. */
+  bassRatio?: number;
+  /** Half-wave spectral flux. Higher means a busier attack. */
+  spectralFlux?: number;
   spectralCentroid?: number;
   spectralRolloff?: number;
   zeroCrossingRate?: number;

@@ -19,7 +19,7 @@ import {
  * 2) Segment on envelope / pulse-character changes (musical phrases)
  * 3) Map amp from energy, freq from pulse rate (vibrate vs dance/sway)
  */
-const inputSchema = z.object({
+export const inputSchema = z.object({
   trackName: z
     .string()
     .describe("Track name, or a direct audio URL")

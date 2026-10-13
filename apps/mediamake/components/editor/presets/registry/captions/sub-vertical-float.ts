@@ -321,6 +321,25 @@ const presetExecution = (
     return String(value);
   };
 
+  // Highlight/sub Glow wins over legacy saves and stringly enabled/disabled values.
+  const readGlowEnabled = (value: unknown, fallback: boolean) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', 'enabled', 'on', '1'].includes(normalized)) return true;
+      if (['false', 'disabled', 'off', '0', ''].includes(normalized))
+        return false;
+    }
+    return fallback;
+  };
+
+  const stripDropShadows = (value: string) =>
+    value
+      .replace(/drop-shadow\((?:[^)(]+|\([^)]*\))*\)/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
   const resolveTextStyle = (
     next: any,
     legacyFont: string | undefined,
@@ -347,10 +366,12 @@ const presetExecution = (
       font: source?.font ?? legacyFont ?? fallback.font,
       textScale:
         Number.isFinite(scale) && scale > 0 ? scale : fallback.textScale,
-      isGlowEnabled:
-        typeof source?.isGlowEnabled === 'boolean'
-          ? source.isGlowEnabled
-          : Boolean(legacyGlow),
+      isGlowEnabled: readGlowEnabled(
+        source?.isGlowEnabled,
+        // The style's own Glow switch wins. Legacy glow only fills in
+        // when this style object was never saved.
+        source ? false : Boolean(legacyGlow),
+      ),
     };
   };
 
@@ -1879,6 +1900,30 @@ const presetExecution = (
         }
       }
 
+      // Glow on the highlight/sub style overrides every animation style.
+      const resolvedEffects = isGlowEnabled
+        ? effects
+        : effects
+            .map(effect => {
+              const ranges = effect?.data?.ranges;
+              if (!Array.isArray(ranges)) return effect;
+              const nextRanges = ranges.flatMap((range: any) => {
+                if (range?.key !== 'filter' || typeof range.val !== 'string') {
+                  return [range];
+                }
+                if (!/drop-shadow\(/i.test(range.val)) return [range];
+                const nextVal = stripDropShadows(range.val);
+                if (!nextVal) return [];
+                return [{ ...range, val: nextVal }];
+              });
+              if (nextRanges.length === 0) return null;
+              return {
+                ...effect,
+                data: { ...effect.data, ranges: nextRanges },
+              };
+            })
+            .filter(Boolean);
+
       const activeTextStyle = isHighlight
         ? textStyles.highlight
         : textStyles.sub;
@@ -1934,7 +1979,7 @@ const presetExecution = (
         type: 'atom',
         id: wordId,
         componentId: 'TextAtom',
-        effects: effects,
+        effects: resolvedEffects,
         data: {
           text: transformedText,
           className: isHighlight
@@ -1944,8 +1989,10 @@ const presetExecution = (
             fontSize: fontCalculatedSize,
             color: textColor,
             letterSpacing: activeTextStyle.letterSpacing,
-            textShadow: `0 2px 12px ${selectedColorChoice.accent}`,
             ...fontStyle,
+            textShadow: isGlowEnabled
+              ? `0 2px 12px ${selectedColorChoice.accent}`
+              : 'none',
           },
           font: {
             family: fontFamily,

@@ -233,7 +233,7 @@ const shakeEffectSchema = z.object({
       frequency: z
         .number()
         .optional()
-        .describe('Shake frequency (typical 0.5–3)'),
+        .describe('Shake speed. 0.1 is a slow sway, 3 is a fast vibrate'),
       decay: z
         .boolean()
         .optional()
@@ -738,7 +738,8 @@ const presetExecution = async (
       ? image.transitionEffects
       : [];
     const targetId = `${params.trackName ?? 'imageloop'}-image-${imageIndex}`;
-    const imageStart = imageRange?.start ?? 0;
+    // The image atom is mounted in a Sequence, so effect time starts at 0
+    // when the image appears — not at the composition clock.
     const imageDuration = imageRange?.duration ?? 0;
     const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
     const animType = (value: unknown) =>
@@ -832,10 +833,14 @@ const presetExecution = async (
         });
       };
 
-      if (wantsIn) push('in', imageStart, inDur);
+      if (wantsIn) {
+        const cappedIn =
+          imageDuration > 0 ? Math.min(inDur, imageDuration) : inDur;
+        push('in', 0, cappedIn);
+      }
       if (wantsOut && imageDuration > 0) {
         const capped = Math.min(outDur, imageDuration);
-        push('out', imageStart + imageDuration - capped, capped);
+        push('out', Math.max(0, imageDuration - capped), capped);
       }
     });
     return built;

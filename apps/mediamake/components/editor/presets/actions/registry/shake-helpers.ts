@@ -15,6 +15,10 @@ export type BeatPoint = {
   timestamp: number;
   intensity: number;
   frequency: number;
+  rms?: number;
+  bassRatio?: number;
+  spectralFlux?: number;
+  zeroCrossingRate?: number;
   spectralCentroid?: number;
   totalScore?: number;
   isLocalPeak?: boolean;

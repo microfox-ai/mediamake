@@ -169,15 +169,20 @@ async function analyzeDecoded(
   const real = new Float32Array(WINDOW);
   const imag = new Float32Array(WINDOW);
   const frames: AudioAnalysisFrame[] = [];
+  let prevMag: Float32Array | null = null;
+  // bin Hz = bin * sampleRate / WINDOW, so this is the last bass bin (~180Hz).
+  const bassCut = Math.max(2, Math.round((180 * WINDOW) / sampleRate));
 
   for (let i = 0; i < numWindows; i++) {
     const intensity = range > 0 ? (rms[i] - minRms) / range : 0;
-    if (intensity < 0.05) continue;
-
     const start = i * HOP;
+    let crossings = 0;
+    let prevSample = 0;
     imag.fill(0);
     for (let n = 0; n < WINDOW; n++) {
       const sample = samples[start + n] || 0;
+      if (n > 0 && (sample >= 0) !== (prevSample >= 0)) crossings += 1;
+      prevSample = sample;
       const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / (WINDOW - 1));
       real[n] = sample * w;
     }
@@ -187,15 +192,37 @@ async function analyzeDecoded(
     let dominantBin = 0;
     let weighted = 0;
     let magSum = 0;
+    let lowPower = 0;
+    let highPower = 0;
+    let flux = 0;
     const half = WINDOW / 2;
+    const mag = new Float32Array(half);
     for (let bin = 1; bin < half; bin++) {
-      const mag = Math.hypot(real[bin], imag[bin]);
-      magSum += mag;
-      weighted += bin * mag;
-      if (mag > maxMag) {
-        maxMag = mag;
+      const m = Math.hypot(real[bin], imag[bin]);
+      mag[bin] = m;
+      magSum += m;
+      weighted += bin * m;
+      if (bin <= bassCut) lowPower += m * m;
+      else highPower += m * m;
+      if (prevMag) {
+        const delta = m - prevMag[bin];
+        if (delta > 0) flux += delta;
+      }
+      if (m > maxMag) {
+        maxMag = m;
         dominantBin = bin;
       }
+    }
+    prevMag = mag;
+
+    // Keep the fade. Only true silence is dropped, and the segmenter treats
+    // those gaps as a rest.
+    if (intensity < 0.02) {
+      if (i > 0 && i % 24 === 0) {
+        onProgress?.(`Analyzing audio… ${Math.round((i / numWindows) * 100)}%`);
+        await sleepTick();
+      }
+      continue;
     }
 
     const frequency = (dominantBin * sampleRate) / WINDOW;
@@ -207,6 +234,10 @@ async function analyzeDecoded(
       intensity,
       frequency,
       beatType,
+      rms: rms[i],
+      bassRatio: lowPower / (lowPower + highPower + 1e-12),
+      spectralFlux: flux,
+      zeroCrossingRate: crossings / WINDOW,
       spectralCentroid: magSum > 0 ? weighted / magSum : 0,
     });
 
