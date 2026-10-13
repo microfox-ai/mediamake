@@ -13,9 +13,10 @@ import {
 } from '../../shared/splitAndHighlight';
 
 /**
- * Metadata pass that reuses the motion-graphics split-and-highlight prompt.
- * Writes htmlText onto the loaded captions document only.
- * Cards, words, and timestamps stay. The transcription is never updated.
+ * Internal splits for each caption.
+ * Keeps the caption cards from sentence structure, then writes line breaks
+ * and bold words into htmlText. fontScaling is used here. The transcription
+ * is never updated.
  */
 
 const aiRouter = new AiRouter();
@@ -146,7 +147,7 @@ const splitAndHighlightAgent = aiRouter
     id: 'splitAndHighlightAgent',
     name: 'Split and Highlight',
     description:
-      'Rewrite htmlText on the captions document loaded from the database. Cards, words, and timestamps stay. <br/> splits lines inside a card and <b> marks words scaled by fontScaling. Does not update the transcription.',
+      'Split lines and choose highlights inside each existing caption. Cards stay as sentence structure left them. <br/> splits lines inside a caption and <b> marks words scaled by fontScaling. Does not update the transcription.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
       captionId: z
         .string()

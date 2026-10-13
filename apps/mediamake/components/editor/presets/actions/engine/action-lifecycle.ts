@@ -147,7 +147,7 @@ export async function executeAndApply(
   edits.updateAction(
     timelineId,
     actionId,
-    { status: "running", error: undefined },
+    { status: "running", error: undefined, progressMessage: "Starting…" },
     { skipHistory: true },
   );
 
@@ -155,6 +155,17 @@ export async function executeAndApply(
     const { outputs, selectedOutputId } = await runTimelineAction({
       timeline,
       action,
+      onProgress: (message) => {
+        const latest = resolveTimeline(timelineId);
+        const current = latest?.actions?.find((item) => item.id === actionId);
+        if (current && current.status !== "running") return;
+        edits.updateAction(
+          timelineId,
+          actionId,
+          { status: "running", progressMessage: message },
+          { skipHistory: true },
+        );
+      },
     });
     const selected = outputs.find((o) => o.id === selectedOutputId) || outputs[0];
     const definition = getActionDefinition(action.actionId);
@@ -177,6 +188,7 @@ export async function executeAndApply(
       lastRunAt: new Date().toISOString(),
       status: "done",
       error: undefined,
+      progressMessage: undefined,
     });
 
     // Preset writes already bump presetsHash → useTimelineRenderer auto-compiles.
@@ -190,6 +202,7 @@ export async function executeAndApply(
       actionId,
       {
         status: "error",
+        progressMessage: undefined,
         error: err instanceof Error ? err.message : "Action failed",
       },
       { skipHistory: true },

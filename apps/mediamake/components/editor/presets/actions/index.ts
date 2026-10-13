@@ -6,6 +6,7 @@ export type {
   ActionDefinition,
   ActionExecuteContext,
   ActionExecuteResult,
+  ActionBrowser,
 } from "./types";
 
 export {

@@ -7,6 +7,7 @@ import type {
 } from "../types";
 import { findAudioSrcForTrackName } from "./find-audio-for-track";
 import { getActionDefinition } from "../registry";
+import { createActionBrowser } from "./browser-runtime";
 
 /** Tag written onto generated effects so re-runs can replace prior output. */
 export const ACTION_GENERATED_KEY = "_generatedByActionId";
@@ -15,6 +16,8 @@ export async function runTimelineAction(args: {
   timeline: Parameters<typeof findAudioSrcForTrackName>[0];
   action: TimelineAction;
   fetcher?: (url: string, data?: unknown) => Promise<Response>;
+  /** Live status for worker polls and browser steps. Not written to history by itself. */
+  onProgress?: (message: string) => void;
 }): Promise<{
   outputs: ActionOutputVariant[];
   selectedOutputId: string;
@@ -39,6 +42,7 @@ export async function runTimelineAction(args: {
     action: args.action,
     inputData: args.action.inputData || {},
     fetcher,
+    browser: createActionBrowser({ onProgress: args.onProgress }),
   };
 
   const result: ActionExecuteResult = await definition.execute(ctx);

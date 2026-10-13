@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ClipboardPaste,
   ClipboardX,
   Copy,
   CopyPlus,
@@ -46,8 +47,11 @@ import {
   canEditSegStructure,
   collectRangeLayouts,
   collectRawRanges,
+  deleteArrayRangeItem,
+  getAtPath,
   insertClonedArrayItemWithRange,
   parseArrayItemFieldPath,
+  parseDirectArrayIndexPath,
   segsFromTrackGroup,
   serializeSegment,
   setAtPath,
@@ -67,6 +71,8 @@ interface SegSelection {
 
 interface SegClipboard {
   seg: ParsedSegment;
+  /** Object copied from an object-array track, so paste keeps the other fields. */
+  item?: unknown;
 }
 
 export interface PresetTracksSectionProps {
@@ -212,11 +218,6 @@ export function PresetTracksSection({
     [trackGroups],
   );
 
-  const canMutateMultiSeg = useCallback(
-    (tp: string) => getGroup(tp)?.kind === "data-reference",
-    [getGroup],
-  );
-
   const canEditStructure = useCallback(
     (tp: string) => {
       const g = getGroup(tp);
@@ -339,11 +340,37 @@ export function PresetTracksSection({
     [],
   );
 
+  const copySegment = useCallback(
+    (group: TrackGroup, segIdx: number, seg: ParsedSegment) => {
+      let item: unknown;
+      if (!usesJoinedRangeString(group)) {
+        const path = group.concretePaths[segIdx];
+        const field = path ? parseArrayItemFieldPath(path) : null;
+        if (field) {
+          const arr = getAtPath(presetInputData, field.arrayPath);
+          const raw = Array.isArray(arr) ? arr[field.index] : undefined;
+          if (raw && typeof raw === "object") item = structuredClone(raw);
+        }
+      }
+      setClipboard({ seg: { ...seg }, item });
+    },
+    [presetInputData],
+  );
+
   const deleteSegment = useCallback(
     (group: TrackGroup, segIdx: number) => {
-      const useJoinedSegs = usesJoinedRangeString(group);
+      const adjustSelection = () => {
+        setSelectedSeg((sel) => {
+          if (!sel || sel.templatePath !== group.templatePath) return sel;
+          if (sel.segIdx === segIdx) return null;
+          if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
+          return sel;
+        });
+      };
 
-      if (useJoinedSegs) {
+      // Comma-separated string (and data: references): drop that segment's
+      // text and keep the field as a string.
+      if (usesJoinedRangeString(group)) {
         setSegsMap((prev) => {
           const segs = (prev[group.templatePath] ?? []).filter(
             (_, i) => i !== segIdx,
@@ -351,27 +378,19 @@ export function PresetTracksSection({
           commitRef.current(group.templatePath, segs);
           return { ...prev, [group.templatePath]: segs };
         });
-        setSelectedSeg((sel) => {
-          if (!sel || sel.templatePath !== group.templatePath) return sel;
-          if (sel.segIdx === segIdx) return null;
-          if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
-          return sel;
-        });
+        adjustSelection();
         return;
       }
 
       if (!timeline || !preset) return;
       const path = group.concretePaths[segIdx];
       if (!path) return;
-      const nextInputData = setAtPath(presetInputData, path, "");
+      const nextInputData = deleteArrayRangeItem(presetInputData, path);
+      if (!nextInputData) return;
       updatePresetInputData(timelineId, presetId, nextInputData);
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
-      setSelectedSeg((sel) =>
-        sel?.templatePath === group.templatePath && sel.segIdx === segIdx
-          ? null
-          : sel,
-      );
+      adjustSelection();
     },
     [
       timeline,
@@ -387,11 +406,13 @@ export function PresetTracksSection({
 
   const copySelected = useCallback(() => {
     if (!selectedSeg) return;
+    const group = getGroup(selectedSeg.templatePath);
+    if (!group) return;
     const segs = segsMap[selectedSeg.templatePath] ?? [];
     const seg = segs[selectedSeg.segIdx];
     if (!seg) return;
-    setClipboard({ seg: { ...seg } });
-  }, [selectedSeg, segsMap]);
+    copySegment(group, selectedSeg.segIdx, seg);
+  }, [selectedSeg, segsMap, getGroup, copySegment]);
 
   const cutSelected = useCallback(() => {
     if (!selectedSeg) return;
@@ -400,9 +421,9 @@ export function PresetTracksSection({
     const segs = segsMap[selectedSeg.templatePath] ?? [];
     const seg = segs[selectedSeg.segIdx];
     if (!seg) return;
-    setClipboard({ seg: { ...seg } });
+    copySegment(group, selectedSeg.segIdx, seg);
     deleteSegment(group, selectedSeg.segIdx);
-  }, [selectedSeg, segsMap, getGroup, deleteSegment]);
+  }, [selectedSeg, segsMap, getGroup, copySegment, deleteSegment]);
 
   const duplicateSelected = useCallback(
     (sel?: SegSelection | null) => {
@@ -507,20 +528,22 @@ export function PresetTracksSection({
     ],
   );
 
-  const pasteClipboard = useCallback(() => {
-    const targetTp =
-      (selectedSeg && canMutateMultiSeg(selectedSeg.templatePath)
-        ? selectedSeg.templatePath
-        : trackGroups.find((g) => g.kind === "data-reference")
-            ?.templatePath) ?? null;
-    if (!targetTp || !clipboard) return;
-    const group = getGroup(targetTp);
-    if (!group || group.kind !== "data-reference") return;
+  const pasteClipboard = useCallback(
+    (explicit?: SegSelection | null) => {
+      if (!clipboard) return;
+      const preferred = explicit !== undefined ? explicit : selectedSeg;
+      const targetTp =
+        (preferred && canEditStructure(preferred.templatePath)
+          ? preferred.templatePath
+          : trackGroups.find((g) => g.kind === "data-reference")
+              ?.templatePath) ?? null;
+      if (!targetTp) return;
+      const group = getGroup(targetTp);
+      if (!group || !canEditSegStructure(group)) return;
 
-    setSegsMap((prev) => {
-      const segs = [...(prev[targetTp] ?? [])];
       const duration = clipboard.seg.end - clipboard.seg.start;
-      const kind: SegmentKind = segs[0]?.kind ?? clipboard.seg.kind;
+      const existing = segsMap[targetTp] ?? [];
+      const kind: SegmentKind = existing[0]?.kind ?? clipboard.seg.kind;
       const start =
         kind === "index"
           ? Math.round(currentTimeSec)
@@ -528,39 +551,80 @@ export function PresetTracksSection({
       const end =
         kind === "index"
           ? start + Math.max(1, Math.round(duration))
-          : Math.min(
-              totalDuration,
-              start + Math.max(MIN_SPLIT_GAP, duration),
-            );
-      if (end <= start) return prev;
+          : Math.min(totalDuration, start + Math.max(MIN_SPLIT_GAP, duration));
+      if (end <= start) return;
       const pasted: ParsedSegment = { kind, start, end };
-      segs.push(pasted);
-      segs.sort((a, b) => a.start - b.start);
-      const newIdx = segs.findIndex(
-        (s) =>
-          s.start === pasted.start &&
-          s.end === pasted.end &&
-          s.kind === pasted.kind,
-      );
-      commitRef.current(targetTp, segs);
-      queueMicrotask(() => {
-        selectSeg({
-          templatePath: targetTp,
-          segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
+
+      if (usesJoinedRangeString(group)) {
+        setSegsMap((prev) => {
+          const segs = [...(prev[targetTp] ?? [])];
+          segs.push(pasted);
+          segs.sort((a, b) => a.start - b.start);
+          const newIdx = segs.findIndex(
+            (s) =>
+              s.start === pasted.start &&
+              s.end === pasted.end &&
+              s.kind === pasted.kind,
+          );
+          commitRef.current(targetTp, segs);
+          queueMicrotask(() => {
+            selectSeg({
+              templatePath: targetTp,
+              segIdx: newIdx >= 0 ? newIdx : segs.length - 1,
+            });
+          });
+          return { ...prev, [targetTp]: segs };
         });
+        return;
+      }
+
+      if (!timeline || !preset) return;
+      const anchorIdx =
+        preferred && preferred.templatePath === targetTp
+          ? preferred.segIdx
+          : Math.max(0, group.concretePaths.length - 1);
+      const path = group.concretePaths[anchorIdx];
+      if (!path) return;
+      const source =
+        clipboard.item &&
+        typeof clipboard.item === "object" &&
+        !Array.isArray(clipboard.item)
+          ? clipboard.item
+          : undefined;
+      const next = insertClonedArrayItemWithRange(
+        presetInputData,
+        path,
+        serializeSegment(pasted),
+        source,
+      );
+      if (!next) return;
+      updatePresetInputData(timelineId, presetId, next);
+      const latestTimeline = getEditedTimeline(timelineId) || timeline;
+      generateOutput(latestTimeline);
+      queueMicrotask(() => {
+        selectSeg({ templatePath: targetTp, segIdx: anchorIdx + 1 });
       });
-      return { ...prev, [targetTp]: segs };
-    });
-  }, [
-    selectedSeg,
-    canMutateMultiSeg,
-    trackGroups,
-    clipboard,
-    getGroup,
-    currentTimeSec,
-    totalDuration,
-    selectSeg,
-  ]);
+    },
+    [
+      clipboard,
+      selectedSeg,
+      canEditStructure,
+      trackGroups,
+      getGroup,
+      segsMap,
+      currentTimeSec,
+      totalDuration,
+      selectSeg,
+      timeline,
+      preset,
+      presetInputData,
+      timelineId,
+      presetId,
+      updatePresetInputData,
+      getEditedTimeline,
+      generateOutput,
+    ],
+  );
 
   const splitAtPlayhead = useCallback(
     (sel?: SegSelection | null) => {
@@ -874,10 +938,15 @@ export function PresetTracksSection({
             }}
             onDoubleClick={(e) => {
               if (e.target !== e.currentTarget) return;
+              const arrayBacked =
+                group.rangeLayout === "array" ||
+                group.concretePaths.some(
+                  (p) => parseDirectArrayIndexPath(p) !== null,
+                );
               if (
                 group.kind === "plain-range" &&
                 !usesJoinedRangeString(group) &&
-                group.rangeLayout !== "array"
+                !arrayBacked
               )
                 return;
               const rect = e.currentTarget.getBoundingClientRect();
@@ -888,7 +957,7 @@ export function PresetTracksSection({
                   (e.clientX - rect.left) / pixelsPerSecond,
                 ),
               );
-              if (group.rangeLayout === "array") {
+              if (!usesJoinedRangeString(group) && arrayBacked) {
                 const path =
                   group.concretePaths[group.concretePaths.length - 1];
                 if (!path) return;
@@ -945,10 +1014,12 @@ export function PresetTracksSection({
               const canSplit =
                 structureEditable && isPlayheadInsideSeg(seg);
               const canDuplicate = structureEditable;
-              const onDelete = useJoinedDelete
-                ? () => deleteSegment(group, si)
-                : group.concretePaths[si] &&
-                    parseArrayItemFieldPath(group.concretePaths[si]!)
+              const path = group.concretePaths[si];
+              const onDelete =
+                useJoinedDelete ||
+                (path &&
+                  (parseArrayItemFieldPath(path) ||
+                    parseDirectArrayIndexPath(path)))
                   ? () => deleteSegment(group, si)
                   : null;
 
@@ -1022,12 +1093,19 @@ export function PresetTracksSection({
                       templatePath: group.templatePath,
                       segIdx: si,
                     });
-                    setClipboard({ seg: { ...seg } });
+                    copySegment(group, si, seg);
                   }}
                   onCut={() => {
-                    setClipboard({ seg: { ...seg } });
+                    copySegment(group, si, seg);
                     deleteSegment(group, si);
                   }}
+                  onPaste={() =>
+                    pasteClipboard({
+                      templatePath: group.templatePath,
+                      segIdx: si,
+                    })
+                  }
+                  canPaste={!!clipboard}
                 />
               );
             })}
@@ -1069,6 +1147,9 @@ export function PresetTracksSection({
     splitAtPlayhead,
     selectSeg,
     clearSelection,
+    copySegment,
+    pasteClipboard,
+    clipboard,
     presetInputData,
     timeline,
     preset,
@@ -1102,6 +1183,8 @@ function SegBlock({
   onSplit,
   onCopy,
   onCut,
+  onPaste,
+  canPaste,
 }: {
   left: number;
   width: number;
@@ -1121,6 +1204,8 @@ function SegBlock({
   onSplit: () => void;
   onCopy: () => void;
   onCut: () => void;
+  onPaste: () => void;
+  canPaste: boolean;
 }) {
   return (
     <ContextMenu>
@@ -1218,6 +1303,14 @@ function SegBlock({
           <Copy className="h-4 w-4" />
           Copy
           <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={onPaste}
+          disabled={!canPaste || !canDuplicate}
+        >
+          <ClipboardPaste className="h-4 w-4" />
+          Paste
+          <ContextMenuShortcut>⌘V</ContextMenuShortcut>
         </ContextMenuItem>
         {onDelete && (
           <>

@@ -7,18 +7,17 @@ import { loadCaption } from '../middlewares/loadTranscription';
 import {
   CAPTION_LAYOUTS,
   SPLIT_HIGHLIGHT_MODEL,
-  SplitAndHighlightParamsSchema,
+  SentenceStructureParamsSchema,
   runSplitAndHighlight,
 } from '../../shared/splitAndHighlight';
 
 /**
- * Caption layout fixer.
+ * Caption splits only.
  *
- * Reads a captions document, asks the shared motion-graphics arranger to
- * re-break cards and re-pick highlights, then writes the cards back.
- * Word text and timestamps stay on the source words.
- * Each card is arranged on its own. htmlText is the only caption metadata written.
- * The transcription is never updated.
+ * Decides where one caption ends and the next begins. Line breaks and bold
+ * words inside a caption are left to split-and-highlight. fontScaling is not
+ * an input. Words and timestamps stay on the source words. The transcription
+ * is never updated.
  */
 
 const aiRouter = new AiRouter();
@@ -34,7 +33,6 @@ const sentenceStructureFixerAgent = aiRouter
         applyToDatabase = false,
         frameChoice,
         lineLength = 'medium',
-        fontScaling = 2,
         staticFrameChoice = true,
       } = ctx.request.params as {
         captionId: string;
@@ -43,7 +41,6 @@ const sentenceStructureFixerAgent = aiRouter
         applyToDatabase?: boolean;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
         lineLength?: 'short' | 'medium' | 'large';
-        fontScaling?: number;
         staticFrameChoice?: boolean;
       };
 
@@ -56,7 +53,6 @@ const sentenceStructureFixerAgent = aiRouter
         transcriptionId,
         frameChoice,
         lineLength,
-        fontScaling,
         staticFrameChoice,
       });
 
@@ -68,9 +64,9 @@ const sentenceStructureFixerAgent = aiRouter
       const result = await runSplitAndHighlight(captions, {
         frameChoice,
         lineLength,
-        fontScaling,
         staticFrameChoice,
         userRequest,
+        captionSplitsOnly: true,
       });
 
       if (result.usage) {
@@ -102,7 +98,7 @@ const sentenceStructureFixerAgent = aiRouter
         changes: result.changes,
         confidence: result.confidence,
         frameChoice,
-        fontScaling,
+        lineLength,
         staticFrameChoice: result.staticFrameChoice,
         summary: result.summary,
       };
@@ -115,8 +111,8 @@ const sentenceStructureFixerAgent = aiRouter
     id: 'sentenceStructureFixer',
     name: 'Caption Layout Fixer',
     description:
-      'Rearrange a captions document into motion-graphics cards. Two <br/> tags separate cards, one <br/> splits lines inside a card, and <b> marks the words emphasized on that line. Only htmlText is written on the captions document. The transcription is not updated. Words and timestamps are preserved.',
-    inputSchema: SplitAndHighlightParamsSchema.extend({
+      'Split a captions document into caption cards. <br/><br/> separates captions. Does not split lines inside a caption and does not bold words. Only htmlText is written. The transcription is not updated. Words and timestamps are preserved.',
+    inputSchema: SentenceStructureParamsSchema.extend({
       captionId: z.string().describe('Captions document ID to rearrange'),
       transcriptionId: z
         .string()
@@ -153,7 +149,7 @@ const sentenceStructureFixerAgent = aiRouter
       icon: '📝',
       title: 'Caption Layout Fixer',
       description:
-        'Re-break caption cards and re-pick highlights for a motion-graphics layout',
+        'Split captions into cards from meaning, punctuation, frame, and line length',
       hideUI: false,
     },
   });

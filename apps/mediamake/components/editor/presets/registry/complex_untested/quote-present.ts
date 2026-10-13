@@ -8,6 +8,7 @@ import { RenderableComponentData } from '@microfox/datamotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { CSSProperties } from 'react';
+import { loadAudioAnalysisBySrc } from '@/lib/audio-analysis-client';
 
 const presetParams = z.object({
   trackName: z.string().describe('Track name'),
@@ -191,14 +192,11 @@ const presetExecution = async (
     return styles;
   };
 
-  const { config, fetcher } = props;
+  const { config } = props;
 
   // Analyze audio for beat detection
-  const { analysis, durationInSeconds, summary } = await fetcher(
-    '/api/analyze-audio',
-    {
-      audioSrc: audioUrl,
-    },
+  const { analysis, durationInSeconds, summary } = await loadAudioAnalysisBySrc(
+    audioUrl,
   );
 
   // Calculate quote duration based on character length - make it longer for readability

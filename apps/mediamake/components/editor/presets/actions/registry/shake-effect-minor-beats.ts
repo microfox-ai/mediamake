@@ -195,7 +195,7 @@ export const shakeEffectMinorBeats: ActionDefinition = {
     const { beats: clipped, durationInSeconds } = await loadTrackBeats({
       timeline: ctx.timeline,
       trackName: parsed.trackName,
-      fetcher: ctx.fetcher,
+      browser: ctx.browser,
     });
 
     const autoCount = calculateOptimalBeatCount(

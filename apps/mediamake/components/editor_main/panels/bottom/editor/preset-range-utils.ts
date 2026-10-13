@@ -206,11 +206,15 @@ export function layoutForPath(
 /**
  * Comma-joined string (one field) vs one range per array item.
  * Explicit `rangeLayout` wins over the single-path heuristic.
+ * A string array (`ranges[0]`, `ranges[1]`) is never a joined string,
+ * even when it currently holds a single element.
  */
 export function usesJoinedRangeString(group: TrackGroup): boolean {
   if (group.kind === "data-reference") return true;
   if (group.rangeLayout === "array") return false;
   if (group.rangeLayout === "comma") return true;
+  const sample = group.concretePaths[0] ?? "";
+  if (parseDirectArrayIndexPath(sample)) return false;
   return group.concretePaths.length === 1;
 }
 
@@ -327,7 +331,9 @@ export function applySegsToInputData(
         : `data:[${group.key}]`;
       return setAtPath(next, path, newVal);
     }
-    return setAtPath(next, path, rangeStr || undefined);
+    // Clearing a comma-separated segment replaces that part with "".
+    // The field stays a string; sibling segments are kept.
+    return setAtPath(next, path, rangeStr || "");
   }
 
   if (changedSegIdx !== undefined) {
@@ -368,15 +374,80 @@ export function parseArrayItemFieldPath(
   return { arrayPath: m[1]!, index: Number(m[2]), fieldPath: m[3]! };
 }
 
+/** Parse `ranges[2]` → array path and index. Object fields (`effects[0].range`) do not match. */
+export function parseDirectArrayIndexPath(
+  path: string,
+): { arrayPath: string; index: number } | null {
+  const m = path.match(/^(.*)\[(\d+)\]$/);
+  if (!m) return null;
+  return { arrayPath: m[1]!, index: Number(m[2]) };
+}
+
+export function removeArrayItem(
+  source: any,
+  arrayPath: string,
+  index: number,
+): any | null {
+  const arr = getAtPath(source, arrayPath);
+  if (!Array.isArray(arr) || index < 0 || index >= arr.length) return null;
+  const clone = structuredClone(source);
+  const cloneArr = getAtPath(clone, arrayPath) as unknown[];
+  cloneArr.splice(index, 1);
+  return clone;
+}
+
 /**
- * Clone the array item at `concretePath`'s index, set its range field, and insert
- * it immediately after. Used for plain-range split/duplicate.
+ * Delete one array-backed range.
+ * - Object array (`effects[i].range`): remove the whole object.
+ * - String array (`ranges[i]`): remove the string. Do not leave `""`.
+ */
+export function deleteArrayRangeItem(
+  inputData: any,
+  concretePath: string,
+): any | null {
+  const field = parseArrayItemFieldPath(concretePath);
+  if (field) return removeArrayItem(inputData, field.arrayPath, field.index);
+  const direct = parseDirectArrayIndexPath(concretePath);
+  if (direct) return removeArrayItem(inputData, direct.arrayPath, direct.index);
+  return null;
+}
+
+function setNestedField(item: any, fieldPath: string, value: string): boolean {
+  const fieldTokens = fieldPath.split(".");
+  let cur: any = item;
+  for (let i = 0; i < fieldTokens.length - 1; i++) {
+    cur = cur?.[fieldTokens[i]!];
+    if (cur == null || typeof cur !== "object") return false;
+  }
+  const leaf = fieldTokens[fieldTokens.length - 1]!;
+  if (cur == null || typeof cur !== "object") return false;
+  cur[leaf] = value;
+  return true;
+}
+
+/**
+ * Insert a range immediately after `concretePath`.
+ * - String array: insert the range string.
+ * - Object array: clone the object (or `sourceItem` when pasting a copied object),
+ *   set its range field, and insert that object.
  */
 export function insertClonedArrayItemWithRange(
   inputData: any,
   concretePath: string,
   newRange: string,
+  sourceItem?: unknown,
 ): any | null {
+  const direct = parseDirectArrayIndexPath(concretePath);
+  if (direct) {
+    const arr = getAtPath(inputData, direct.arrayPath);
+    if (!Array.isArray(arr) || direct.index < 0 || direct.index >= arr.length)
+      return null;
+    const clone = structuredClone(inputData);
+    const cloneArr = getAtPath(clone, direct.arrayPath) as unknown[];
+    cloneArr.splice(direct.index + 1, 0, newRange);
+    return clone;
+  }
+
   const parsed = parseArrayItemFieldPath(concretePath);
   if (!parsed) return null;
   const arr = getAtPath(inputData, parsed.arrayPath);
@@ -385,14 +456,12 @@ export function insertClonedArrayItemWithRange(
 
   const clone = structuredClone(inputData);
   const cloneArr = getAtPath(clone, parsed.arrayPath) as any[];
-  const itemClone = structuredClone(cloneArr[parsed.index]);
-  const fieldTokens = parsed.fieldPath.split(".");
-  let cur: any = itemClone;
-  for (let i = 0; i < fieldTokens.length - 1; i++) {
-    cur = cur[fieldTokens[i]!];
-    if (cur == null) return null;
-  }
-  cur[fieldTokens[fieldTokens.length - 1]!] = newRange;
+  const base =
+    sourceItem && typeof sourceItem === "object" && !Array.isArray(sourceItem)
+      ? sourceItem
+      : cloneArr[parsed.index];
+  const itemClone = structuredClone(base);
+  if (!setNestedField(itemClone, parsed.fieldPath, newRange)) return null;
   cloneArr.splice(parsed.index + 1, 0, itemClone);
   return clone;
 }
@@ -400,6 +469,10 @@ export function insertClonedArrayItemWithRange(
 /** Whether a track group can grow/split/duplicate segments. */
 export function canEditSegStructure(group: TrackGroup): boolean {
   if (group.kind === "data-reference") return true;
-  if (group.concretePaths.length === 1) return true;
-  return group.concretePaths.some((p) => parseArrayItemFieldPath(p) !== null);
+  if (usesJoinedRangeString(group)) return true;
+  return group.concretePaths.some(
+    (p) =>
+      parseArrayItemFieldPath(p) !== null ||
+      parseDirectArrayIndexPath(p) !== null,
+  );
 }

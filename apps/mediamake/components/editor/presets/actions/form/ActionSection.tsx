@@ -442,6 +442,10 @@ export function ActionEditor({
         )}
       </div>
 
+      {(isRunning || current.status === "running") && current.progressMessage ? (
+        <p className="text-[11px] text-muted-foreground">{current.progressMessage}</p>
+      ) : null}
+
       {current.error && (
         <p className="break-words text-xs text-destructive">{current.error}</p>
       )}

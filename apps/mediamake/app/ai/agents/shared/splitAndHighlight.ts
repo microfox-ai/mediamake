@@ -65,14 +65,30 @@ export type SplitAndHighlightParams = z.infer<
   typeof SplitAndHighlightParamsSchema
 >;
 
-export interface SplitAndHighlightOptions extends SplitAndHighlightParams {
+export interface SplitAndHighlightOptions extends Omit<
+  SplitAndHighlightParams,
+  'fontScaling'
+> {
+  /** Used by split-and-highlight. Sentence structure does not set this. */
+  fontScaling?: number;
   userRequest?: string;
   /**
    * Keep every caption card. Only the htmlText metadata is rewritten.
    * Card count, words, and timestamps stay on the source captions.
+   * Used by split-and-highlight for the line breaks and bold words inside each caption.
    */
   preserveCards?: boolean;
+  /**
+   * Sentence structure. Only decide where one caption ends and the next begins.
+   * No in-card line breaks and no bold words. fontScaling is ignored.
+   */
+  captionSplitsOnly?: boolean;
 }
+
+/** Params for the sentence-structure pass. fontScaling is not an input. */
+export const SentenceStructureParamsSchema = SplitAndHighlightParamsSchema.omit({
+  fontScaling: true,
+});
 
 export interface SplitAndHighlightResult {
   htmlText: string;
@@ -259,6 +275,70 @@ function frameDirection(options: SplitAndHighlightOptions): string {
     This pass still draws every card as ${frame}. Do not emit frame tags.
     ${shared}
   `;
+}
+
+function buildCaptionSplitPrompt(
+  sourceHtml: string,
+  options: SplitAndHighlightOptions,
+  timedSource: string,
+): { system: string; prompt: string } {
+  const frame = frameForCard(options, 0);
+  const lineLength = options.lineLength ?? 'medium';
+  const spec = LAYOUT_SPEC[frame];
+
+  const system = dedent`
+    You split a transcript into caption cards. You do not design the lines inside a card, and you do not highlight words.
+    A later pass splits each caption into lines and chooses bold words. Your only job is where one caption ends and the next begins.
+
+    MARKUP — return only the html, nothing else
+    - One html string. No preface, no markdown fences.
+    - <br/><br/> starts a new caption card.
+    - Do not use a single <br/>. Do not use <b>.
+    - Do not add, delete, reorder, or rewrite words. Punctuation stays on the word it arrived on.
+    - A punctuation mark that ends a caption stays at the end of that caption. Never start the next caption with . , ! ? ; : or an ellipsis.
+
+    WHERE A CAPTION ENDS
+    - Meaning first, then punctuation. A finished thought is its own caption.
+    - A period, question mark, or exclamation mark ends the caption. "land." is the last word of that caption. The next word starts the next caption.
+    - A comma, semicolon, colon, or dash can end a caption when the clause is complete. The mark stays on that caption.
+    - Do not cut a pronoun away from its verb, or a preposition away from its phrase, unless the line length cannot hold them.
+    - On-screen time is context only. Do not cut on a silence or a gap.
+
+    SIZE
+    - Frame ${frame}: ${spec.shape}
+    - Line length is ${lineLength}. This sets how much text belongs in one caption, not how the words wrap inside it.
+    - short: a caption is one phrase, or two short phrases. Cut at punctuation and where the meaning turns. A wide frame does not make the caption longer.
+    - medium: a caption can hold a clause.
+    - large: a caption can hold a longer clause, and still ends on a period or a finished comma.
+    - ${spec.maxLines} is a hint for how many phrases fit. Use fewer when the thought is shorter.
+    ${options.staticFrameChoice !== false ? `- Every caption uses ${frame}.` : `- This pass still uses ${frame} for every caption.`}
+  `;
+
+  const prompt = dedent`
+    SENTENCES (on-screen time is context only — do not cut on it):
+    ${timedSource}
+
+    CURRENT ARRANGEMENT:
+    ${sourceHtml}
+
+    Split these into caption cards for ${frame} with ${lineLength} captions.
+    Use only <br/><br/> between captions. No line breaks inside a caption. No bold.
+    Keep every word, in this order. Keep each punctuation mark at the end of its caption.
+    Return only the html.
+    ${options.userRequest ? `\nADDITIONAL DIRECTION: ${options.userRequest}` : ''}
+  `;
+
+  return { system, prompt };
+}
+
+/** Drop in-card breaks and bold so a caption-split result is one plain caption per card. */
+export function htmlForCaptionSplits(html: string): string {
+  return normalizeMotionHtml(html)
+    .replace(/<\/?b>/gi, '')
+    .split('<br/><br/>')
+    .map(card => card.replace(/<br\/>/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('<br/><br/>');
 }
 
 export function buildSplitAndHighlightPrompt(
@@ -600,11 +680,10 @@ export async function runSplitAndHighlight(
   }
 
   const frame = frameForCard(options, 0);
-  const { system, prompt } = buildSplitAndHighlightPrompt(
-    sourceHtml,
-    options,
-    formatTimedCaptions(captions),
-  );
+  const timedSource = formatTimedCaptions(captions);
+  const { system, prompt } = options.captionSplitsOnly
+    ? buildCaptionSplitPrompt(sourceHtml, options, timedSource)
+    : buildSplitAndHighlightPrompt(sourceHtml, options, timedSource);
   const result = await generateText({
     model: google(SPLIT_HIGHLIGHT_MODEL),
     system,
@@ -612,9 +691,12 @@ export async function runSplitAndHighlight(
     maxRetries: 2,
   });
 
-  const modelHtml = normalizeMotionHtml(
+  const extracted = normalizeMotionHtml(
     extractHtmlFromModelText(result.text) || sourceHtml,
   );
+  const modelHtml = options.captionSplitsOnly
+    ? htmlForCaptionSplits(extracted)
+    : extracted;
   const fixedCaptions = options.preserveCards
     ? htmlTextForExistingCaptions(modelHtml || sourceHtml, captions)
     : captionsFromMotionHtml(modelHtml || sourceHtml, captions);
@@ -622,14 +704,16 @@ export async function runSplitAndHighlight(
   const changes = collectChanges(captions, fixedCaptions);
   const layout = LAYOUT_SPEC[frame];
   const staticFrame = options.staticFrameChoice !== false;
-  const summary = options.preserveCards
-    ? `Updated htmlText on ${fixedCaptions.length} caption cards for ${frame} (${options.lineLength ?? 'medium'} lines, bold words at ${options.fontScaling ?? 2}×).`
-    : dedent`
+  const summary = options.captionSplitsOnly
+    ? `Split ${captions.length} captions into ${fixedCaptions.length} for ${frame} (${options.lineLength ?? 'medium'}, ${staticFrame ? 'one frame for every caption' : 'per-caption frames reserved'}).`
+    : options.preserveCards
+      ? `Updated htmlText on ${fixedCaptions.length} caption cards for ${frame} (${options.lineLength ?? 'medium'} lines, bold words at ${options.fontScaling ?? 2}×).`
+      : dedent`
       Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
       (${options.lineLength ?? 'medium'} lines, up to ${layout.maxLines}, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
     `
-        .replace(/\s+/g, ' ')
-        .trim();
+          .replace(/\s+/g, ' ')
+          .trim();
 
   return {
     htmlText,

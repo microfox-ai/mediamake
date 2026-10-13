@@ -16,11 +16,6 @@ const inputSchema = z.object({
     .describe(
       "How many words sit on a line. Meaning and punctuation still decide the break.",
     ),
-  fontScaling: z
-    .number()
-    .positive()
-    .default(2)
-    .describe("How many times larger bold words are drawn than normal words"),
   staticFrameChoice: z
     .boolean()
     .default(true)
@@ -119,7 +114,7 @@ export const captionSentenceStructure: ActionDefinition = {
     id: "captionSentenceStructure",
     title: "Sentence Structure",
     description:
-      "Arrange this captions reference into motion-graphics cards. Bold words scale by fontScaling. Words and timestamps stay on the source lines.",
+      "Split this captions reference into caption cards. Line breaks and highlights inside a caption are a later pass. Words and timestamps stay on the source lines.",
     supportedReferenceTypes: ["captions"],
     tags: ["caption", "caption-autofix", "sentence-structure"],
   },
@@ -127,7 +122,6 @@ export const captionSentenceStructure: ActionDefinition = {
   defaultInputParams: {
     frameChoice: "vertical_box",
     lineLength: "medium",
-    fontScaling: 2,
     staticFrameChoice: true,
     userRequest: "",
   },
@@ -146,7 +140,6 @@ export const captionSentenceStructure: ActionDefinition = {
           : {}),
         frameChoice: parsed.frameChoice,
         lineLength: parsed.lineLength,
-        fontScaling: parsed.fontScaling,
         staticFrameChoice: parsed.staticFrameChoice,
         ...(parsed.userRequest?.trim()
           ? { userRequest: parsed.userRequest.trim() }

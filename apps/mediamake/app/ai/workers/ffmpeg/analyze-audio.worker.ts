@@ -4,8 +4,9 @@
  * Replaces the Vercel `/api/analyze-audio` ffprobe/ffmpeg path (binaries fail on serverless).
  * Runs in the `ffmpeg` group so the FFmpeg Lambda layer is available.
  *
- * Output shape matches the legacy API used by shake-effect-range / beatstitch:
- *   { analysis, durationInSeconds, summary }
+ * The frame list is stored in Mongo (`audioAnalyses`). The job output is only
+ * `{ analysisId, durationInSeconds, summary, frameCount }` so status polls stay small.
+ * Callers load frames with GET /api/audio-analyses/:analysisId.
  */
 
 import { createWorker, type WorkerConfig } from '@microfox/ai-worker';
@@ -21,17 +22,7 @@ import {
   buildAnalysisSummary,
   s16leToFloat32,
 } from './lib/audio-analysis';
-
-const AnalysisFrameSchema = z.object({
-  timestamp: z.number(),
-  intensity: z.number(),
-  frequency: z.number(),
-  beatType: z.enum(['low', 'mid', 'high']),
-  spectralCentroid: z.number(),
-  spectralRolloff: z.number(),
-  zeroCrossingRate: z.number(),
-  mfcc: z.array(z.number()),
-});
+import { saveAudioAnalysis } from '../../../../lib/audio-analysis-store';
 
 const InputSchema = z.object({
   audioSrc: z.string().url().describe('URL of the audio file to analyze'),
@@ -47,16 +38,19 @@ const InputSchema = z.object({
   sampleRate: z.number().int().min(8000).max(48000).optional().default(22050),
 });
 
+const SummarySchema = z.object({
+  totalBeats: z.number(),
+  averageIntensity: z.number(),
+  lowBeats: z.number(),
+  midBeats: z.number(),
+  highBeats: z.number(),
+});
+
 const OutputSchema = z.object({
-  analysis: z.array(AnalysisFrameSchema),
+  analysisId: z.string(),
   durationInSeconds: z.number(),
-  summary: z.object({
-    totalBeats: z.number(),
-    averageIntensity: z.number(),
-    lowBeats: z.number(),
-    midBeats: z.number(),
-    highBeats: z.number(),
-  }),
+  frameCount: z.number(),
+  summary: SummarySchema,
 });
 
 type Input = z.infer<typeof InputSchema>;
@@ -241,15 +235,22 @@ export default createWorker<typeof InputSchema, Output>({
       await ctx.jobStore?.update({
         status: 'running',
         progressMessage: 'Downloading audio…',
+        metadata: { progressMessage: 'Downloading audio…' },
       });
 
       await downloadToFile(parsed.audioSrc, inputPath, parsed.maxBytes);
 
-      await ctx.jobStore?.update({ progressMessage: 'Probing audio…' });
+      await ctx.jobStore?.update({
+        progressMessage: 'Probing audio…',
+        metadata: { progressMessage: 'Probing audio…' },
+      });
       const probed = await probeDurationAndSampleRate(inputPath);
       const targetRate = parsed.sampleRate || probed.sampleRate || 22050;
 
-      await ctx.jobStore?.update({ progressMessage: 'Decoding PCM…' });
+      await ctx.jobStore?.update({
+        progressMessage: 'Decoding PCM…',
+        metadata: { progressMessage: 'Decoding PCM…' },
+      });
       const ffmpeg = resolveBinary('ffmpeg');
       const decode = await runCmd({
         cmd: ffmpeg,
@@ -276,6 +277,7 @@ export default createWorker<typeof InputSchema, Output>({
 
       await ctx.jobStore?.update({
         progressMessage: 'Analyzing energy frames…',
+        metadata: { progressMessage: 'Analyzing energy frames…' },
       });
       const pcmBuffer = await fsp.readFile(pcmPath);
       const samples = s16leToFloat32(pcmBuffer);
@@ -285,15 +287,33 @@ export default createWorker<typeof InputSchema, Output>({
       const durationInSeconds =
         probed.duration > 0 ? probed.duration : durationFromSamples;
 
-      const output: Output = {
-        analysis,
+      const summary = buildAnalysisSummary(analysis);
+      await ctx.jobStore?.update({
+        progressMessage: 'Saving analysis…',
+        metadata: { progressMessage: 'Saving analysis…' },
+      });
+
+      const analysisId = await saveAudioAnalysis({
+        audioSrc: parsed.audioSrc,
         durationInSeconds,
-        summary: buildAnalysisSummary(analysis),
+        summary,
+        analysis,
+        sampleRate: targetRate,
+        source: 'worker',
+      });
+
+      const output: Output = {
+        analysisId,
+        durationInSeconds,
+        frameCount: analysis.length,
+        summary,
       };
 
       await ctx.jobStore?.update({
         status: 'completed',
-        progressMessage: `Analyzed ${analysis.length} frames`,
+        output,
+        progressMessage: `Saved ${analysis.length} frames`,
+        metadata: { progressMessage: `Saved ${analysis.length} frames` },
       });
 
       return output;

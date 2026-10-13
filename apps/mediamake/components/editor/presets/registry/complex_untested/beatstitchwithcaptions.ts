@@ -29,6 +29,7 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import { loadAudioAnalysisBySrc } from '@/lib/audio-analysis-client';
 
 type Effect = {
   id: string;
@@ -168,7 +169,7 @@ const presetExecution = async (
     captionMode,
   } = params;
 
-  const { config, fetcher, helpers } = props;
+  const { config, helpers } = props;
   const normalizeRangeString = helpers!.normalizeRangeString as (
     v: unknown,
   ) => string;
@@ -368,11 +369,8 @@ const presetExecution = async (
     return nonSpeakingRanges.length > 0 ? nonSpeakingRanges : clipRanges;
   };
 
-  const { analysis, durationInSeconds, summary } = await fetcher(
-    '/api/analyze-audio',
-    {
-      audioSrc: audio.src,
-    },
+  const { analysis, durationInSeconds, summary } = await loadAudioAnalysisBySrc(
+    audio.src,
   );
 
   if (!analysis || analysis.length === 0) {

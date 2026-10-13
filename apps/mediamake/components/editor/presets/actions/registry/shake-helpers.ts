@@ -1,7 +1,12 @@
 /**
  * Shared helpers for shake-effect actions (apply + formatting + audio clip).
  */
-import type { ActionDefinition, TimelineAction, ActionOutputVariant } from "../types";
+import type {
+  ActionBrowser,
+  ActionDefinition,
+  TimelineAction,
+  ActionOutputVariant,
+} from "../types";
 import { ACTION_GENERATED_KEY } from "../engine/run-action";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import { findAudioSrcForTrackName } from "../engine/find-audio-for-track";
@@ -32,11 +37,12 @@ export function formatRange(start: number, end: number): string {
   return `${formatSeconds(start)}-${formatSeconds(end)}`;
 }
 
-export async function loadTrackBeats(args: {
-  timeline: Timeline;
-  trackName: string;
-  fetcher: (url: string, data?: unknown) => Promise<Response>;
-}): Promise<{
+function clipLoadedBeats(args: {
+  analysis: BeatPoint[];
+  durationInSeconds: number;
+  summary: unknown;
+  audio: { src: string; start?: number; duration?: number };
+}): {
   beats: BeatPoint[];
   durationInSeconds: number;
   audioSrc: string;
@@ -44,36 +50,10 @@ export async function loadTrackBeats(args: {
   audioDuration?: number;
   rawAnalysis: unknown;
   summary: unknown;
-}> {
-  const audio = findAudioSrcForTrackName(
-    args.timeline,
-    args.trackName,
-    args.timeline.defaultData?.references,
-  );
-  if (!audio?.src) {
-    throw new Error(
-      `No audio found for track "${args.trackName}". Add a waveform/beatstitch/media-track with that trackName.`,
-    );
-  }
-
-  const response = await args.fetcher("/api/analyze-audio", {
-    audioSrc: audio.src,
-  });
-  if (!response.ok) {
-    throw new Error(`Audio analysis failed (${response.status})`);
-  }
-  const body = await response.json();
-  const analysis: BeatPoint[] = Array.isArray(body?.analysis) ? body.analysis : [];
-  const durationInSeconds =
-    typeof body?.durationInSeconds === "number"
-      ? body.durationInSeconds
-      : analysis.length
-        ? analysis[analysis.length - 1].timestamp
-        : 0;
-
-  if (!analysis.length) {
-    throw new Error("Audio analysis returned no beats");
-  }
+} {
+  const { audio } = args;
+  const analysis = args.analysis;
+  const durationInSeconds = args.durationInSeconds;
 
   let clipped = analysis;
   if (typeof audio.start === "number" && audio.start > 0) {
@@ -106,9 +86,101 @@ export async function loadTrackBeats(args: {
     audioSrc: audio.src,
     audioStart: audio.start,
     audioDuration: audio.duration,
-    rawAnalysis: body?.analysis ?? analysis,
-    summary: body?.summary ?? null,
+    rawAnalysis: analysis,
+    summary: args.summary ?? null,
   };
+}
+
+async function loadTrackAudio(timeline: Timeline, trackName: string) {
+  const audio = findAudioSrcForTrackName(
+    timeline,
+    trackName,
+    timeline.defaultData?.references,
+  );
+  if (!audio?.src) {
+    throw new Error(
+      `No audio found for track "${trackName}". Add a waveform/beatstitch/media-track with that trackName.`,
+    );
+  }
+  return audio;
+}
+
+function framesFromDoc(doc: {
+  analysis: Array<{
+    timestamp: number;
+    intensity: number;
+    frequency: number;
+    spectralCentroid?: number;
+  }>;
+  durationInSeconds: number;
+}): { analysis: BeatPoint[]; durationInSeconds: number } {
+  const analysis: BeatPoint[] = Array.isArray(doc.analysis) ? doc.analysis : [];
+  const durationInSeconds =
+    typeof doc.durationInSeconds === "number"
+      ? doc.durationInSeconds
+      : analysis.length
+        ? analysis[analysis.length - 1].timestamp
+        : 0;
+  if (!analysis.length) {
+    throw new Error("Audio analysis returned no beats");
+  }
+  return { analysis, durationInSeconds };
+}
+
+/**
+ * Server path: start analyze-audio, poll until the job finishes, then fetch
+ * the Mongo document by id. The job itself only carries `analysisId`.
+ */
+export async function loadTrackBeats(args: {
+  timeline: Timeline;
+  trackName: string;
+  browser: ActionBrowser;
+}): Promise<{
+  beats: BeatPoint[];
+  durationInSeconds: number;
+  audioSrc: string;
+  audioStart?: number;
+  audioDuration?: number;
+  rawAnalysis: unknown;
+  summary: unknown;
+}> {
+  const audio = await loadTrackAudio(args.timeline, args.trackName);
+  const doc = await args.browser.analyzeAudioOnServer(audio.src);
+  const { analysis, durationInSeconds } = framesFromDoc(doc);
+  return clipLoadedBeats({
+    analysis,
+    durationInSeconds,
+    summary: doc.summary,
+    audio,
+  });
+}
+
+/**
+ * Browser path: decode the track with Web Audio (same fetch as the timeline
+ * waveform) and build energy frames locally.
+ */
+export async function loadTrackBeatsInBrowser(args: {
+  timeline: Timeline;
+  trackName: string;
+  browser: ActionBrowser;
+}): Promise<{
+  beats: BeatPoint[];
+  durationInSeconds: number;
+  audioSrc: string;
+  audioStart?: number;
+  audioDuration?: number;
+  rawAnalysis: unknown;
+  summary: unknown;
+}> {
+  const audio = await loadTrackAudio(args.timeline, args.trackName);
+  const doc = await args.browser.analyzeAudioInBrowser(audio.src);
+  const { analysis, durationInSeconds } = framesFromDoc(doc);
+  return clipLoadedBeats({
+    analysis,
+    durationInSeconds,
+    summary: doc.summary,
+    audio,
+  });
 }
 
 export const applyShakeEffectsOutput: ActionDefinition["applyOutput"] = ({

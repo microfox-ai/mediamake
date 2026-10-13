@@ -4,6 +4,7 @@ import type { ReferenceItem } from "@/components/editor/presets/types";
 import { shakeEffectRangeGenerator } from "./shake-effect-range-generator";
 import { shakeEffectMinorBeats } from "./shake-effect-minor-beats";
 import { shakeEffectRange } from "./shake-effect-range";
+import { shakeEffectRangeBrowser } from "./shake-effect-range-browser";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSplitHighlight } from "./caption-split-highlight";
 
@@ -12,6 +13,7 @@ const ACTION_REGISTRY: ActionDefinition[] = [
   captionSplitHighlight,
   shakeEffectMinorBeats,
   shakeEffectRange,
+  shakeEffectRangeBrowser,
   shakeEffectRangeGenerator,
 ];
 
@@ -72,4 +74,5 @@ export {
   shakeEffectRangeGenerator,
   shakeEffectMinorBeats,
   shakeEffectRange,
+  shakeEffectRangeBrowser,
 };

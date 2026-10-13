@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { paramMetaTypes } from "../../dataTypes";
-import type { ActionDefinition, ActionExecuteResult } from "../types";
+import type { ActionDefinition, ActionExecuteContext, ActionExecuteResult } from "../types";
 import { ACTION_GENERATED_KEY } from "../engine/run-action";
 import {
   applyShakeEffectsOutput,
   formatRange,
   loadTrackBeats,
+  loadTrackBeatsInBrowser,
   type BeatPoint,
 } from "./shake-helpers";
 
@@ -606,13 +607,27 @@ export const shakeEffectRange: ActionDefinition = {
     minRange: 10,
     beatDetection: 0.5,
   },
-  execute: async (ctx): Promise<ActionExecuteResult> => {
+  execute: (ctx) => executeShakeEffectRange(ctx, "server"),
+  applyOutput: applyShakeEffectsOutput,
+};
+
+export async function executeShakeEffectRange(
+  ctx: ActionExecuteContext,
+  source: "server" | "browser" = "server",
+): Promise<ActionExecuteResult> {
     const parsed = inputSchema.parse(ctx.inputData);
-    const loaded = await loadTrackBeats({
-      timeline: ctx.timeline,
-      trackName: parsed.trackName,
-      fetcher: ctx.fetcher,
-    });
+    const loaded =
+      source === "browser"
+        ? await loadTrackBeatsInBrowser({
+            timeline: ctx.timeline,
+            trackName: parsed.trackName,
+            browser: ctx.browser,
+          })
+        : await loadTrackBeats({
+            timeline: ctx.timeline,
+            trackName: parsed.trackName,
+            browser: ctx.browser,
+          });
     const { beats, durationInSeconds } = loaded;
 
     if (parsed.beatDetection <= 0) {
@@ -725,7 +740,7 @@ export const shakeEffectRange: ActionDefinition = {
       actionId: actionInstanceId,
       inputs: { ...parsed },
       note:
-        "analyze-audio micro-frames are aggregated into an intensity envelope; pulseRate uses envelope peaks (not frame density).",
+        "Energy frames are aggregated into an intensity envelope; pulseRate uses envelope peaks (not frame density).",
       audio: {
         src: loaded.audioSrc,
         start: loaded.audioStart,
@@ -735,6 +750,7 @@ export const shakeEffectRange: ActionDefinition = {
         envelopeBins: base.envelope.length,
         envelopePeaks: base.peaks.length,
         summary: loaded.summary,
+        source,
       },
       rawBeats: loaded.rawAnalysis,
       clippedBeats: beats,
@@ -807,6 +823,4 @@ export const shakeEffectRange: ActionDefinition = {
     }
 
     return { outputs };
-  },
-  applyOutput: applyShakeEffectsOutput,
-};
+}

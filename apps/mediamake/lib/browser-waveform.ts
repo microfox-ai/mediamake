@@ -183,6 +183,35 @@ export async function generateBrowserWaveform(
   return promise;
 }
 
+/**
+ * Fetch and decode an audio URL in the browser.
+ * Same path as the timeline waveform: direct CORS fetch, then `/api/proxy/audio`.
+ */
+export async function decodeBrowserAudio(src: string): Promise<AudioBuffer> {
+  if (!src || typeof window === "undefined") {
+    throw new Error("Browser audio decode is only available in the browser");
+  }
+  const trimmed = src.trim();
+  if (
+    /^ref:/i.test(trimmed) ||
+    /^data:\[[^\]]+\]/.test(trimmed) ||
+    !isFetchableHttpUrl(trimmed)
+  ) {
+    throw new Error("Audio URL is not fetchable in the browser");
+  }
+
+  const arrayBuffer = await fetchAudioArrayBuffer(trimmed);
+  const ctx = getAudioContext();
+  if (ctx.state === "suspended") {
+    try {
+      await ctx.resume();
+    } catch {
+      /* decode still works when resume is blocked */
+    }
+  }
+  return ctx.decodeAudioData(arrayBuffer.slice(0));
+}
+
 /** Clear the in-memory waveform cache (e.g. on project switch). */
 export function clearBrowserWaveformCache(): void {
   memoryCache.clear();
