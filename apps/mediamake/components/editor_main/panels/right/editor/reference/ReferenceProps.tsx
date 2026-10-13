@@ -14,7 +14,7 @@ import { useEditorStore } from "../../../../stores/editor-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, Plus, X, Check, Save, Loader2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Plus, X, Check, Save, Loader2, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,7 @@ import {
 } from "@/lib/captions/captions-client";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -130,6 +131,20 @@ function createBlankHelloCaptions(): Caption[] {
   ];
 }
 
+function captionsValueKey(value: {
+  _id?: unknown;
+  title?: string;
+  description?: string;
+  captions?: unknown;
+} | null) {
+  return JSON.stringify({
+    id: captionsDocumentId(value?._id),
+    title: value?.title ?? "",
+    description: value?.description ?? "",
+    captions: value?.captions ?? [],
+  });
+}
+
 // ─── Active items panel ────────────────────────────────────────────────────────
 
 interface ActiveItemsPanelProps {
@@ -142,6 +157,8 @@ interface ActiveItemsPanelProps {
   canStepPrev?: boolean;
   canStepNext?: boolean;
   onItemChange: (index: number, newItem: any) => void;
+  /** Clears a timeline caption selection. */
+  onUnselectCaption?: () => void;
   /** Full-array replace for medias smart edits (add/delete/reorder mapping). */
   onMediasArrayChange?: (nextArray: any[]) => void;
 }
@@ -198,10 +215,12 @@ function CaptionStepButton({
   direction,
   disabled,
   onClick,
+  className,
 }: {
   direction: -1 | 1;
   disabled?: boolean;
   onClick: () => void;
+  className?: string;
 }) {
   const shortcut = direction < 0 ? PREV_CAPTION_SHORTCUT : NEXT_CAPTION_SHORTCUT;
   const label = direction < 0 ? "Previous caption" : "Next caption";
@@ -214,7 +233,7 @@ function CaptionStepButton({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-6 w-6 shrink-0"
+            className={cn("h-6 w-6 shrink-0", className)}
             disabled={disabled}
             onClick={onClick}
           >
@@ -238,6 +257,7 @@ function ActiveItemsPanel({
   canStepPrev = false,
   canStepNext = false,
   onItemChange,
+  onUnselectCaption,
   onMediasArrayChange,
 }: ActiveItemsPanelProps) {
   if (activeIndices.size === 0) return null;
@@ -251,13 +271,28 @@ function ActiveItemsPanel({
 
     return (
       <div className="space-y-2">
-        <div className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center">
+        <div
+          className={cn(
+            "grid grid-cols-[1.5rem_1fr_1.5rem] items-center",
+            selectionMode && "rounded-md bg-black px-1",
+          )}
+        >
           <CaptionStepButton
             direction={-1}
             disabled={!canStepPrev}
             onClick={() => onStepCaption?.(-1)}
+            className={
+              selectionMode
+                ? "text-white hover:bg-white/10 hover:text-white"
+                : undefined
+            }
           />
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center justify-center gap-1 text-center">
+          <p
+            className={cn(
+              "flex items-center justify-center gap-1 text-center text-[10px] font-medium uppercase tracking-wide",
+              selectionMode ? "text-white" : "text-muted-foreground",
+            )}
+          >
             <Clock className="h-3 w-3" />
             {selectionMode ? "Selected" : "Active"} at {timeLabel}
           </p>
@@ -265,6 +300,11 @@ function ActiveItemsPanel({
             direction={1}
             disabled={!canStepNext}
             onClick={() => onStepCaption?.(1)}
+            className={
+              selectionMode
+                ? "text-white hover:bg-white/10 hover:text-white"
+                : undefined
+            }
           />
         </div>
         {sortedIndices.map((index) => {
@@ -277,6 +317,8 @@ function ActiveItemsPanel({
               index={index}
               totalCount={total}
               defaultMetaOpen
+              selected={selectionMode}
+              onUnselect={selectionMode ? onUnselectCaption : undefined}
               onChange={(updated) => onItemChange(index, updated)}
             />
           );
@@ -382,12 +424,14 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const [showParagraphDialog, setShowParagraphDialog] = useState(false);
   const [showAudioToText, setShowAudioToText] = useState(false);
   const [isSavingCaptions, setIsSavingCaptions] = useState(false);
+  const [isRefreshingCaptions, setIsRefreshingCaptions] = useState(false);
   const [captionsSyncFailed, setCaptionsSyncFailed] = useState(false);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const captionsSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedCaptionsKeyRef = useRef<string | null>(null);
   const captionsSaveGenRef = useRef(0);
+  const captionsHydratedIdRef = useRef<string | null>(null);
 
   const editedTimeline = getEditedTimeline(timeline.id);
   const displayTimeline = editedTimeline || timeline;
@@ -724,6 +768,34 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     }
   }, [readLatestCaptionsValue, bindCaptionsDocument]);
 
+  const handleRefreshCaptions = useCallback(async () => {
+    const value = readLatestCaptionsValue();
+    const id = captionsDocumentId(value?._id);
+    if (!id) {
+      toast.error("Create or link captions before refreshing");
+      return;
+    }
+    if (captionsSyncTimerRef.current) {
+      clearTimeout(captionsSyncTimerRef.current);
+      captionsSyncTimerRef.current = null;
+    }
+    setIsRefreshingCaptions(true);
+    try {
+      const doc = await getCaptionsDocument(id);
+      const latestId = captionsDocumentId(readLatestCaptionsValue()?._id);
+      if (latestId !== id) return;
+      captionsHydratedIdRef.current = id;
+      bindCaptionsDocument(doc);
+      toast.success("Captions refreshed");
+    } catch (error) {
+      toast.error(
+        `Failed to refresh captions: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsRefreshingCaptions(false);
+    }
+  }, [readLatestCaptionsValue, bindCaptionsDocument]);
+
   const handleCreateCaptions = useCallback(
     async (
       body: {
@@ -799,9 +871,16 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     [handleCreateCaptions, timeline.projectId],
   );
 
+  const bindCaptionsDocumentRef = useRef(bindCaptionsDocument);
+  bindCaptionsDocumentRef.current = bindCaptionsDocument;
+  const saveCaptionsRef = useRef(handleSaveCaptionsToDatabase);
+  saveCaptionsRef.current = handleSaveCaptionsToDatabase;
+  const timelineFallbackRef = useRef(timeline);
+  timelineFallbackRef.current = timeline;
+
   useEffect(() => {
     const saved = lastSavedCaptionsKeyRef.current;
-    if (saved && linkedCaptionsId) {
+    if (saved && linkedCaptionsId && captionsHydratedIdRef.current === linkedCaptionsId) {
       try {
         const parsed = JSON.parse(saved) as { id?: string };
         if (parsed.id === linkedCaptionsId) return;
@@ -810,48 +889,52 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       }
     }
     lastSavedCaptionsKeyRef.current = null;
+    captionsHydratedIdRef.current = null;
     setCaptionsSyncFailed(false);
   }, [linkedCaptionsId, referenceIndex]);
 
   useEffect(() => {
     if (!linkedCaptionsId) return;
     let cancelled = false;
+    const timelineId = timeline.id;
+    const readNow = () => {
+      const latestTimeline =
+        useTimelineEditsStore.getState().getEditedTimeline(timelineId) ||
+        timelineFallbackRef.current;
+      const ref = latestTimeline.defaultData?.references?.[referenceIndex];
+      if (!ref || ref.type !== "captions") return null;
+      return ref.value ?? null;
+    };
+    const startedKey = captionsValueKey(readNow());
     void (async () => {
       try {
         const doc = await getCaptionsDocument(linkedCaptionsId);
         if (cancelled) return;
-        const latestTimeline =
-          useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
-        const ref = latestTimeline.defaultData?.references?.[referenceIndex];
-        if (!ref || ref.type !== "captions") return;
-        const latest = ref.value ?? {};
-        if (String(latest._id ?? "") !== linkedCaptionsId) return;
+        const latest = readNow();
+        if (captionsDocumentId(latest?._id) !== linkedCaptionsId) return;
 
-        const localTitle = typeof latest.title === "string" ? latest.title : "";
-        const localDescription =
-          typeof latest.description === "string" ? latest.description : "";
-        const nextTitle = localTitle.trim() ? localTitle : (doc.title ?? "");
-        const nextDescription = localDescription.trim()
-          ? localDescription
-          : (doc.description ?? "");
-        if (nextTitle === localTitle && nextDescription === localDescription) return;
+        const currentKey = captionsValueKey(latest);
+        captionsHydratedIdRef.current = linkedCaptionsId;
+        if (currentKey !== startedKey) {
+          // Edits landed while the document was loading. Keep them and write them through.
+          lastSavedCaptionsKeyRef.current = startedKey;
+          void saveCaptionsRef.current(false);
+          return;
+        }
 
-        const nextValue = {
-          ...latest,
-          title: nextTitle,
-          description: nextDescription,
-        };
-        lastSavedCaptionsKeyRef.current = JSON.stringify({
-          id: linkedCaptionsId,
-          title: nextTitle,
-          description: nextDescription,
-          captions: nextValue.captions ?? [],
-        });
-        onReferenceChange({
-          references: [{ ...ref, value: nextValue }],
-        });
+        const dbKey = captionsValueKey(captionsReferenceValue(doc));
+        if (dbKey === currentKey) {
+          lastSavedCaptionsKeyRef.current = dbKey;
+          return;
+        }
+        bindCaptionsDocumentRef.current(doc);
       } catch (error) {
-        console.error("Failed to load caption title and description", error);
+        if (cancelled) return;
+        captionsHydratedIdRef.current = linkedCaptionsId;
+        if (lastSavedCaptionsKeyRef.current === null) {
+          lastSavedCaptionsKeyRef.current = startedKey;
+        }
+        console.error("Failed to load captions", error);
       }
     })();
     return () => {
@@ -861,6 +944,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   useEffect(() => {
     if (!captionsSyncKey) return;
+    if (linkedCaptionsId && captionsHydratedIdRef.current !== linkedCaptionsId) return;
     if (lastSavedCaptionsKeyRef.current === null) {
       lastSavedCaptionsKeyRef.current = captionsSyncKey;
       return;
@@ -868,12 +952,26 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     if (lastSavedCaptionsKeyRef.current === captionsSyncKey) return;
     if (captionsSyncTimerRef.current) clearTimeout(captionsSyncTimerRef.current);
     captionsSyncTimerRef.current = setTimeout(() => {
+      captionsSyncTimerRef.current = null;
       void handleSaveCaptionsToDatabase(false);
     }, 800);
     return () => {
       if (captionsSyncTimerRef.current) clearTimeout(captionsSyncTimerRef.current);
     };
-  }, [captionsSyncKey, handleSaveCaptionsToDatabase]);
+  }, [captionsSyncKey, handleSaveCaptionsToDatabase, linkedCaptionsId]);
+
+  useEffect(() => {
+    const save = handleSaveCaptionsToDatabase;
+    return () => {
+      if (!captionsSyncTimerRef.current) return;
+      clearTimeout(captionsSyncTimerRef.current);
+      captionsSyncTimerRef.current = null;
+      void save(false);
+    };
+    // Keystrokes stay on the debounce above. This flushes that write when the
+    // linked document changes or the panel unmounts, using the save from this document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedCaptionsId, referenceIndex]);
 
   /**
    * Called when the user edits an active item (caption, object, media) at a specific index.
@@ -1102,7 +1200,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                         <ChevronDown className="h-3 w-3 opacity-60" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                    <DropdownMenuContent align="start" className="min-w-[220px]">
                       <DropdownMenuItem
                         onClick={() => void handleCreateBlankCaptions()}
                       >
@@ -1116,12 +1214,12 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                       <DropdownMenuItem
                         onClick={() => setShowTranscriptionPicker(true)}
                       >
-                        Link Transcription
+                        Create From Transcription
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setShowCaptionPicker(true)}
                       >
-                        Link Caption
+                        Copy From Caption
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setShowAudioToText(true)}
@@ -1150,6 +1248,21 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Save className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 p-0"
+                    onClick={() => void handleRefreshCaptions()}
+                    disabled={isRefreshingCaptions || isSavingCaptions || !linkedCaptionsId}
+                    title="Refresh captions from the database"
+                  >
+                    {isRefreshingCaptions ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
                     )}
                   </Button>
                   {showTranscriptionPicker && (
@@ -1215,13 +1328,23 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
             >
               <div className="flex items-center gap-2">
                 <TabsList className="grid grid-cols-4 flex-1">
-                  <TabsTrigger value="smart" className="text-xs">Smart</TabsTrigger>
+                  <TabsTrigger
+                    value="smart"
+                    className={cn(
+                      "text-xs",
+                      referenceType === "captions" &&
+                        selectedCaptionIndex != null &&
+                        "data-[state=active]:bg-black data-[state=active]:text-white",
+                    )}
+                  >
+                    {referenceType === "captions" ? "Selected" : "Smart"}
+                  </TabsTrigger>
                   <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
                   <TabsTrigger value="full" className="text-xs">Full</TabsTrigger>
                   <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
 
-                {/* Active filter toggle — only in Smart tab for array / media types */}
+                {/* Active filter toggle — only in Selected tab for array / media types */}
                 {isSmartFilterType && activeTab === "smart" && (
                   selectedCaptionIndex != null ? (
                     <Button
@@ -1253,7 +1376,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                 )}
               </div>
 
-              {/* Smart tab */}
+              {/* Selected tab */}
               <TabsContent value="smart" className="mt-3">
                 {isSmartFilterType && (selectedCaptionIndex != null || filterActive) ? (
                   selectedCaptionIndex != null || hasActiveItems ? (
@@ -1279,6 +1402,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                           ((selectedReference?.value?.captions?.length as number | undefined) ?? 0) - 1
                       }
                       onItemChange={handleActiveItemChange}
+                      onUnselectCaption={() => setTrackSelection(null)}
                       onMediasArrayChange={handleMediasArrayChange}
                     />
                   ) : (

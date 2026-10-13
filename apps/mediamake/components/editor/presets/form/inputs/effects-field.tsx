@@ -21,14 +21,10 @@ import {
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
-import {
-  fitRangeAtPlayhead,
-  formatRangeClock,
-  parseTimeRange,
-  parseTimeRanges,
-} from "../../engine/preset-stdlib";
+import { parseTimeRange } from "../../engine/preset-stdlib";
 import { isValidRangeString } from "../../engine/range-validation";
 import { JsonEditor } from "../../../player/json-editor";
+import { EffectDurationMenu } from "./effect-duration-menu";
 
 type EffectType = "pan" | "zoom" | "generic";
 type PanDirection = "up" | "down" | "left" | "right";
@@ -593,20 +589,14 @@ export function EffectsField({
     onChange(effects.filter((_, i) => i !== index));
   };
 
-  const addEffect = () => {
-    const otherStarts = effects.flatMap((effect) =>
-      parseTimeRanges(typeof effect.range === "string" ? effect.range : "").map(
-        (segment) => segment.start,
-      ),
-    );
-    const fitted = fitRangeAtPlayhead(timeSec, otherStarts);
+  const addEffect = (range: string) => {
     onChange([
       ...effects,
       {
         type: "pan",
         id: `fx-${Date.now().toString(36).slice(-5)}`,
         pan: { direction: "up", distance: 200, loopTimes: 1 },
-        range: `${formatRangeClock(fitted.start)}-${formatRangeClock(fitted.end)}`,
+        range,
       },
     ]);
     setTab("full");
@@ -673,16 +663,7 @@ export function EffectsField({
           </TooltipContent>
         </Tooltip>
         {tab !== "json" && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={addEffect}
-            title="Add effect"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
+          <EffectDurationMenu title="Add effect" onPick={addEffect} />
         )}
       </div>
 

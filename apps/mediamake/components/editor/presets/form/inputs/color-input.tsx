@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Pipette, Check, Copy, RotateCcw } from "lucide-react";
+import { Pipette, Check, Copy, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEyeDropper } from "./use-eyedropper";
 import {
@@ -415,7 +415,7 @@ export function ColorInput({
                         style={CHECKERBOARD_STYLE}
                     >
                         <span className="absolute inset-0" style={{ background: swatchPreview }} />
-                        {!isParsable && (
+                        {!isParsable && value?.trim() && (
                             <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-muted-foreground bg-background/80">
                                 CSS
                             </span>
@@ -628,6 +628,23 @@ export function ColorInput({
                 spellCheck={false}
                 className={cn("font-mono text-xs flex-1 min-w-0", compact && "h-8")}
             />
+            {value?.trim() ? (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={disabled}
+                    className={cn("shrink-0", compact ? "h-8 w-8" : "h-9 w-9")}
+                    aria-label="Clear color"
+                    title="Clear"
+                    onClick={() => {
+                        setText("");
+                        onChange("");
+                    }}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </Button>
+            ) : null}
 
             <EyeDropperButton
                 supported={eyeDropperSupported}

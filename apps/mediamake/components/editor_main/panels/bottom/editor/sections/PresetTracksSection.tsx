@@ -820,7 +820,15 @@ export function PresetTracksSection({
   ]);
 
   const section: TimelineTrackSectionData = useMemo(() => {
-    const rows = trackGroups.map((group, ti) => {
+    const visibleGroups = clubbed
+      ? trackGroups.filter((group) => {
+          const segs =
+            segsMap[group.templatePath] ?? segsFromTrackGroup(group);
+          return segs.length > 0;
+        })
+      : trackGroups;
+
+    const rows = visibleGroups.map((group, ti) => {
       const segs = segsMap[group.templatePath] ?? [];
       const color = TRACK_COLORS[ti % TRACK_COLORS.length]!;
       const isPlain = group.kind === "plain-range";
@@ -1043,6 +1051,7 @@ export function PresetTracksSection({
   }, [
     trackGroups,
     segsMap,
+    clubbed,
     sectionId,
     order,
     sourceTag,

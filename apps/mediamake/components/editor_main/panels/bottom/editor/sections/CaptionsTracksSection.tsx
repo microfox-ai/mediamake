@@ -579,8 +579,11 @@ export function CaptionsTracksSection({
     const linesTitle = sourceTag ? `Lines - ${refTag}` : "Lines";
     const wordsTitle = sourceTag ? `Words - ${refTag}` : "Words";
 
+    const showLines = !clubbed || localCaptions.length > 0;
+    const showWords = !clubbed || wordCount > 0;
+
     const rows = [
-      {
+      showLines ? {
         id: `${sectionId}:lines:${captionTrackKey(captionsKey, localCaptions.length)}`,
         label: (
           <div
@@ -666,8 +669,8 @@ export function CaptionsTracksSection({
             })}
           </div>
         ),
-      },
-      {
+      } : null,
+      showWords ? {
         id: `${sectionId}:words:${captionTrackKey(captionsKey, localCaptions.length)}`,
         label: (
           <div
@@ -759,8 +762,8 @@ export function CaptionsTracksSection({
             })}
           </div>
         ),
-      },
-    ];
+      } : null,
+    ].filter((row): row is NonNullable<typeof row> => row !== null);
 
     return {
       id: sectionId,

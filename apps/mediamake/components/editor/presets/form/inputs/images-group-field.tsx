@@ -22,6 +22,9 @@ import { detectMediaKind, toMediaItem } from "../../dataTypes/media";
 import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
+import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
+import { useCompileStore } from "@/components/editor_main/stores/compile-store";
+import { formatRangeClock } from "../../engine/preset-stdlib";
 import { isValidRangeString } from "../../engine/range-validation";
 
 const JSON_SCHEMA_STANDARD_KEYS = new Set([
@@ -120,6 +123,15 @@ const VISUAL_PROP_KEYS = new Set([
   "fadeOutTransition",
   "fadeOutDuration",
 ]);
+
+const COLOR_TINT_PROP: ItemPropSchema = {
+  key: "colorTint",
+  type: "string",
+  meta: {
+    [paramMetaTypes.inputType]: paramInputTypes.color,
+    [paramMetaTypes.groupEditable]: true,
+  },
+};
 
 const AUDIO_POPUP_KEYS = [
   "volume",
@@ -661,8 +673,12 @@ function ItemPopupFields({
   popupProps: ItemPropSchema[];
   onChange: (patch: Record<string, any>) => void;
 }) {
-  const isAudio = detectMediaKind(img) === "audio";
+  const kind = detectMediaKind(img);
+  const isAudio = kind === "audio";
   const find = (key: string) => popupProps.find((p) => p.key === key);
+  const kindLabel = (
+    <p className="text-[11px] font-medium capitalize text-foreground">{kind}</p>
+  );
 
   if (isAudio) {
     const audioProps = AUDIO_POPUP_KEYS.map(find).filter(
@@ -670,6 +686,7 @@ function ItemPopupFields({
     );
     return (
       <div className="space-y-3">
+        {kindLabel}
         <MediaItemThumb
           item={img}
           className="h-28 w-full rounded-md object-cover border"
@@ -706,12 +723,20 @@ function ItemPopupFields({
 
   return (
     <div className="space-y-3">
+      {kindLabel}
       <MediaItemThumb
         item={img}
         className="h-28 w-full rounded-md object-cover border"
       />
       <div className="grid grid-cols-3 gap-2">{row(["fit", "filter", "blendMode"])}</div>
-      <div className="grid grid-cols-2 gap-2">{row(["opacity", "colorTint"])}</div>
+      <div className="grid grid-cols-2 gap-2">
+        {row(["opacity"])}
+        <PropEditor
+          prop={find("colorTint") ?? COLOR_TINT_PROP}
+          value={img.colorTint}
+          onChange={(val) => onChange({ colorTint: val || undefined })}
+        />
+      </div>
       {(() => {
         const prop = find("rangeString");
         if (!prop) return null;
@@ -775,8 +800,8 @@ function PropEditor({
         </Label>
         <ColorInput
           value={typeof value === "string" ? value : ""}
-          onChange={onChange}
-          placeholder="#000000"
+          onChange={(next) => onChange(next?.trim() ? next : undefined)}
+          placeholder=""
         />
       </div>
     );
@@ -865,9 +890,17 @@ function PropEditor({
 
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </Label>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          {label}
+        </Label>
+        {isRangeProp(prop) && (
+          <RangePlayheadLinks
+            value={typeof value === "string" ? value : ""}
+            onChange={onChange}
+          />
+        )}
+      </div>
       {isRangeProp(prop) ? (
         <RangePropInput
           value={typeof value === "string" ? value : ""}
@@ -882,6 +915,39 @@ function PropEditor({
         />
       )}
     </div>
+  );
+}
+
+function RangePlayheadLinks({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const currentFrame = useLayerStateStore((s) => s.currentFrame);
+  const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
+
+  const add = (seconds: number) => {
+    const startSec = Math.max(0, currentFrame / (fps || 30));
+    const segment = `${formatRangeClock(startSec)}-${formatRangeClock(startSec + seconds)}`;
+    const base = value.trim().replace(/,+$/, "");
+    onChange(base ? `${base},${segment}` : segment);
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {[5, 15, 30].map((seconds) => (
+        <button
+          key={seconds}
+          type="button"
+          className="text-[10px] font-normal normal-case text-primary underline-offset-2 hover:underline"
+          onClick={() => add(seconds)}
+        >
+          {seconds}secs
+        </button>
+      ))}
+    </span>
   );
 }
 

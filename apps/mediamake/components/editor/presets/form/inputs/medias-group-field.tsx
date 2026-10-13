@@ -33,6 +33,9 @@ import {
   type MediaKind,
 } from "../../dataTypes/media";
 import { ColorInput } from "./color-input";
+import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
+import { useCompileStore } from "@/components/editor_main/stores/compile-store";
+import { formatRangeClock } from "../../engine/preset-stdlib";
 import { z } from "zod";
 
 const JSON_SCHEMA_STANDARD_KEYS = new Set([
@@ -419,6 +422,9 @@ export function MediasGroupField({
                   }
                 >
                   <div className="space-y-3">
+                    <p className="text-[11px] font-medium capitalize text-foreground">
+                      {kind}
+                    </p>
                     <MediaItemThumb
                       item={item}
                       className="h-28 w-full rounded-md object-cover border"
@@ -591,8 +597,8 @@ function PropEditor({
         </Label>
         <ColorInput
           value={typeof value === "string" ? value : ""}
-          onChange={onChange}
-          placeholder="#000000"
+          onChange={(next) => onChange(next?.trim() ? next : undefined)}
+          placeholder=""
         />
       </div>
     );
@@ -681,9 +687,17 @@ function PropEditor({
 
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] uppercase text-muted-foreground">
-        {label}
-      </Label>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          {label}
+        </Label>
+        {isRangeProp(prop) && (
+          <RangePlayheadLinks
+            value={typeof value === "string" ? value : ""}
+            onChange={(next) => onChange(next || undefined)}
+          />
+        )}
+      </div>
       <Input
         className="h-8 text-xs font-mono"
         value={typeof value === "string" ? value : ""}
@@ -691,5 +705,38 @@ function PropEditor({
         placeholder={isRangeProp(prop) ? "0:00-0:30" : "—"}
       />
     </div>
+  );
+}
+
+function RangePlayheadLinks({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const currentFrame = useLayerStateStore((s) => s.currentFrame);
+  const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
+
+  const add = (seconds: number) => {
+    const startSec = Math.max(0, currentFrame / (fps || 30));
+    const segment = `${formatRangeClock(startSec)}-${formatRangeClock(startSec + seconds)}`;
+    const base = value.trim().replace(/,+$/, "");
+    onChange(base ? `${base},${segment}` : segment);
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {[5, 15, 30].map((seconds) => (
+        <button
+          key={seconds}
+          type="button"
+          className="text-[10px] font-normal normal-case text-primary underline-offset-2 hover:underline"
+          onClick={() => add(seconds)}
+        >
+          {seconds}secs
+        </button>
+      ))}
+    </span>
   );
 }

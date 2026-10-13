@@ -2,6 +2,11 @@ import type { ReferenceItem } from "@/components/editor/presets/types";
 import type { TimelineAction } from "@/components/editor/presets/actions/types";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { SelectedItem } from "@/components/editor_main/stores/editor-store";
+import {
+  collectRawRanges,
+  parseEditableSegments,
+  type ParsedSegment,
+} from "./preset-range-utils";
 
 /**
  * A pluggable track source on a timeline.
@@ -31,8 +36,31 @@ export type TimelineTrackSource =
     };
 
 /**
+ * Timed spans stored on an action (input or the selected/favorite output).
+ * Empty when the action has no ranges — those actions stay off the timeline.
+ */
+export function collectActionTimelineSegments(
+  action: TimelineAction,
+): ParsedSegment[] {
+  const selected =
+    action.outputs?.find((output) => output.id === action.selectedOutputId) ??
+    action.outputs?.find((output) => output.isFavorite);
+
+  const blobs: unknown[] = [action.inputData];
+  if (selected?.payload !== undefined) blobs.push(selected.payload);
+
+  const segments: ParsedSegment[] = [];
+  for (const blob of blobs) {
+    for (const raw of collectRawRanges(blob)) {
+      segments.push(...parseEditableSegments(raw.range));
+    }
+  }
+  return segments;
+}
+
+/**
  * Discover every track-bearing source on a timeline.
- * Order: presets → caption references → actions (future track UIs).
+ * Order: presets → caption references → actions.
  */
 export function collectTimelineTrackSources(
   timeline: Timeline,

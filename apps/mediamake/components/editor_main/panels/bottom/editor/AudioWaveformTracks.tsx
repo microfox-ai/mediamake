@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,9 +11,31 @@ import type { TimelineAudioClip } from "@/components/editor/presets/actions/engi
 
 const DEFAULT_ROW_HEIGHT = 40;
 
+/** High-resolution peaks so zooming in reveals shape instead of stretching bars. */
+const PEAK_RESOLUTION = 8192;
+/** 1px stroke + 1px gap. Pitch stays fixed so zoom adds detail instead of width. */
+const BAR_PITCH = 2;
+const BAR_WIDTH = 1;
+/** Stay under Chrome's max canvas size when a clip is very wide at high zoom. */
+const TILE_PX = 4096;
+const BAR_COLOR = "rgba(167, 139, 250, 0.9)";
+
+function samplePeak(peaks: number[], startT: number, endT: number): number {
+  const n = peaks.length;
+  if (n === 0) return 0;
+  const i0 = Math.max(0, Math.min(n - 1, Math.floor(startT * n)));
+  const i1 = Math.max(i0 + 1, Math.min(n, Math.ceil(endT * n)));
+  let max = 0;
+  for (let i = i0; i < i1; i++) {
+    const v = peaks[i] ?? 0;
+    if (v > max) max = v;
+  }
+  return max;
+}
+
 /**
- * DOM bars (not canvas) — avoids Chrome's sad-face when the clip is wider than
- * the browser's max canvas dimension at high zoom.
+ * Thin 1px strokes, tiled across canvases so a zoomed-in clip never widens
+ * the bars (and never exceeds the browser's max canvas dimension).
  */
 function WaveformBars({
   peaks,
@@ -22,21 +44,65 @@ function WaveformBars({
   peaks: number[];
   className?: string;
 }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    let lastW = -1;
+    let lastH = -1;
+
+    const draw = () => {
+      const width = host.clientWidth;
+      const height = host.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      if (width === lastW && height === lastH && host.childElementCount > 0) {
+        return;
+      }
+      lastW = width;
+      lastH = height;
+
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const tileCount = Math.max(1, Math.ceil(width / TILE_PX));
+      host.replaceChildren();
+
+      for (let t = 0; t < tileCount; t++) {
+        const origin = t * TILE_PX;
+        const tileW = Math.min(TILE_PX, width - origin);
+        const canvas = document.createElement("canvas");
+        canvas.style.width = `${tileW}px`;
+        canvas.style.height = `${height}px`;
+        canvas.style.display = "block";
+        canvas.style.flexShrink = "0";
+        canvas.width = Math.max(1, Math.floor(tileW * dpr));
+        canvas.height = Math.max(1, Math.floor(height * dpr));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = BAR_COLOR;
+
+        for (let x = 0; x < tileW; x += BAR_PITCH) {
+          const g0 = origin + x;
+          const amp = samplePeak(peaks, g0 / width, (g0 + BAR_PITCH) / width);
+          const barH = Math.max(1, amp * height * 0.92);
+          ctx.fillRect(x, (height - barH) / 2, BAR_WIDTH, barH);
+        }
+        host.appendChild(canvas);
+      }
+    };
+
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [peaks]);
+
   return (
     <div
-      className={cn(
-        "flex h-full w-full items-center gap-px overflow-hidden px-0.5",
-        className,
-      )}
-    >
-      {peaks.map((amp, i) => (
-        <div
-          key={i}
-          className="min-w-[1px] flex-1 rounded-[1px] bg-violet-400/85"
-          style={{ height: `${Math.max(8, amp * 90)}%` }}
-        />
-      ))}
-    </div>
+      ref={hostRef}
+      className={cn("flex h-full w-full overflow-hidden", className)}
+    />
   );
 }
 
@@ -57,7 +123,7 @@ function AudioWaveformClip({
     let cancelled = false;
     setLoading(true);
     setError(false);
-    void generateBrowserWaveform(clip.src, 256).then((result) => {
+    void generateBrowserWaveform(clip.src, PEAK_RESOLUTION).then((result) => {
       if (cancelled) return;
       setData(result);
       setLoading(false);
@@ -78,27 +144,7 @@ function AudioWaveformClip({
   const left = secToPx(clip.start);
   const width = Math.max(8, secToPx(duration));
   const innerH = Math.max(12, rowHeight - 8);
-
-  // Cap bar count to clip pixel width so we don't render thousands of DOM nodes
-  const barCount = Math.max(24, Math.min(256, Math.floor(width / 2) || 64));
-
-  const displayPeaks = useMemo(() => {
-    const peaks = data?.peaks ?? [];
-    if (!peaks.length) return [];
-    if (peaks.length <= barCount) return peaks;
-    const step = peaks.length / barCount;
-    const out: number[] = [];
-    for (let i = 0; i < barCount; i++) {
-      const start = Math.floor(i * step);
-      const end = Math.floor((i + 1) * step);
-      let max = 0;
-      for (let j = start; j < end; j++) {
-        max = Math.max(max, peaks[j] ?? 0);
-      }
-      out.push(max);
-    }
-    return out;
-  }, [data?.peaks, barCount]);
+  const peaks = data?.peaks ?? [];
 
   return (
     <div
@@ -111,8 +157,8 @@ function AudioWaveformClip({
           <Music className="h-3 w-3 animate-pulse" />
           Decoding…
         </div>
-      ) : displayPeaks.length > 0 ? (
-        <WaveformBars peaks={displayPeaks} />
+      ) : peaks.length > 0 ? (
+        <WaveformBars peaks={peaks} />
       ) : (
         <div className="flex h-full items-center gap-1 px-1.5 text-[9px] text-violet-200/70">
           <Music className="h-3 w-3 shrink-0" />

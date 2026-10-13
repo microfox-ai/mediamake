@@ -159,7 +159,8 @@ export async function generateBrowserWaveform(
       }
       const copy = arrayBuffer.slice(0);
       const audioBuffer = await ctx.decodeAudioData(copy);
-      const peaks = extractPeaksFromBuffer(audioBuffer, barCount);
+      const count = Math.max(1, Math.min(barCount, audioBuffer.length));
+      const peaks = extractPeaksFromBuffer(audioBuffer, count);
       const result: BrowserWaveformResult = {
         peaks,
         duration: audioBuffer.duration,

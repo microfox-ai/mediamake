@@ -2,11 +2,16 @@
 
 import { useMemo } from "react";
 import type { TimelineAction } from "@/components/editor/presets/actions/types";
-import { ROW_HEIGHT } from "../timeline-layout";
+import { ROW_HEIGHT, MIN_SEG_PX, formatTimeLabel } from "../timeline-layout";
+import { useTimelineViewport } from "../timeline-viewport";
+import { collectActionTimelineSegments } from "../timeline-track-sources";
 import {
   useRegisterTimelineSection,
   type TimelineTrackSectionData,
 } from "../TimelineShell";
+
+const ACTION_COLOR =
+  "border-amber-500/50 bg-amber-500/20 text-amber-200";
 
 export interface ActionTracksSectionProps {
   sectionId: string;
@@ -20,8 +25,9 @@ export interface ActionTracksSectionProps {
 }
 
 /**
- * Placeholder track section for timeline actions.
- * Ready for a future action-specific track UI — registers a single empty row today.
+ * Action row on the timeline overview.
+ * Renders only when the action carries ranges. Actions with no ranges
+ * register an empty section so they take no row.
  */
 export function ActionTracksSection({
   sectionId,
@@ -29,16 +35,25 @@ export function ActionTracksSection({
   action,
   sourceTag,
 }: ActionTracksSectionProps) {
+  const { secToPx } = useTimelineViewport();
   const name = action.label || action.actionId || "Action";
   const trackTitle = sourceTag ? `Action - ${sourceTag}` : name;
+  const segments = useMemo(
+    () => collectActionTimelineSegments(action),
+    [action],
+  );
 
-  const section: TimelineTrackSectionData = useMemo(
-    () => ({
+  const section: TimelineTrackSectionData = useMemo(() => {
+    if (segments.length === 0) {
+      return { id: sectionId, order, rows: [] };
+    }
+
+    return {
       id: sectionId,
       order,
       rows: [
         {
-          id: `${sectionId}:placeholder`,
+          id: `${sectionId}:ranges`,
           label: (
             <div
               className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
@@ -52,7 +67,7 @@ export function ActionTracksSection({
                   {trackTitle}
                 </p>
                 <p className="text-[9px] text-muted-foreground/50 truncate">
-                  Action tracks coming soon
+                  {segments.length} range{segments.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -62,18 +77,37 @@ export function ActionTracksSection({
               className="relative border-b border-border/40 bg-muted/5"
               style={{ height: ROW_HEIGHT }}
             >
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[10px] text-muted-foreground/30">
-                  No action tracks yet
-                </span>
-              </div>
+              {segments.map((seg, index) => {
+                const left = secToPx(seg.start);
+                const width = Math.max(
+                  MIN_SEG_PX,
+                  secToPx(seg.end - seg.start),
+                );
+                const label =
+                  seg.kind === "index"
+                    ? `[${Math.round(seg.start)}–${Math.round(seg.end)}]`
+                    : `${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
+                return (
+                  <div
+                    key={`${seg.start}-${seg.end}-${index}`}
+                    className={`absolute top-1.5 bottom-1.5 rounded border flex items-center overflow-hidden pointer-events-none ${ACTION_COLOR}`}
+                    style={{ left, width }}
+                    title={label}
+                  >
+                    {width > 28 && (
+                      <span className="px-1.5 text-[9px] font-medium truncate select-none">
+                        {label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ),
         },
       ],
-    }),
-    [sectionId, order, trackTitle],
-  );
+    };
+  }, [sectionId, order, trackTitle, segments, secToPx]);
 
   useRegisterTimelineSection(section);
   return null;

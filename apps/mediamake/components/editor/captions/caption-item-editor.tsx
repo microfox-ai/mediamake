@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { CaptionHtmlTextEditor } from '@/components/editor/captions/caption-html-text-editor';
+import { cn } from '@/lib/utils';
 import {
   extractKeywordsFromHtmlText,
   parseCaptionHtmlText,
@@ -293,12 +294,17 @@ export function CaptionItemEditor({
   totalCount,
   onChange,
   defaultMetaOpen = false,
+  selected = false,
+  onUnselect,
 }: {
   caption: any;
   index: number;
   totalCount: number;
   onChange: (updated: any) => void;
   defaultMetaOpen?: boolean;
+  /** Timeline selection: black filled card with an unselect control. */
+  selected?: boolean;
+  onUnselect?: () => void;
 }) {
   const [timingOpen, setTimingOpen] = useState(false);
   const [wordsOpen, setWordsOpen] = useState(false);
@@ -360,13 +366,59 @@ export function CaptionItemEditor({
     ['duration', 'Duration'],
   ];
 
+  const sectionTrigger = selected
+    ? 'text-white/70 hover:text-white'
+    : 'text-muted-foreground hover:text-foreground';
+  const fieldLabel = selected
+    ? 'text-white/60'
+    : 'text-muted-foreground/70';
+
   return (
-    <div className="rounded-md border overflow-hidden">
-      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-muted/30 border-b">
-        <span className="font-mono text-[11px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+    <div
+      className={cn(
+        'relative rounded-md',
+        selected ? 'overflow-visible' : 'overflow-hidden',
+        selected
+          ? 'border border-black bg-black text-white [&_input]:bg-white [&_input]:text-neutral-900 [&_textarea]:bg-white [&_textarea]:text-neutral-900'
+          : 'border',
+      )}
+    >
+      {selected && onUnselect && (
+        <button
+          type="button"
+          aria-label="Unselect caption"
+          title="Unselect caption"
+          className="absolute -right-1.5 -top-1.5 z-20 flex size-5 items-center justify-center rounded-full bg-red-600 text-white shadow-sm hover:bg-red-700"
+          onClick={event => {
+            event.stopPropagation();
+            onUnselect();
+          }}
+        >
+          <X className="size-3" />
+        </button>
+      )}
+      <div
+        className={cn(
+          'flex items-center gap-2 border-b px-2.5 py-1.5',
+          selected ? 'rounded-t-md border-white/15 bg-black pr-8' : 'bg-muted/30',
+        )}
+      >
+        <span
+          className={cn(
+            'rounded px-1.5 py-0.5 font-mono text-[11px] font-bold',
+            selected ? 'bg-white text-black' : 'bg-primary/10 text-primary',
+          )}
+        >
           #{index}
         </span>
-        <span className="text-[10px] text-muted-foreground">of {totalCount}</span>
+        <span
+          className={cn(
+            'text-[10px]',
+            selected ? 'text-white/70' : 'text-muted-foreground',
+          )}
+        >
+          of {totalCount}
+        </span>
         <div className="flex-1" />
         {captionHasOriginalState(caption) && (
           <Tooltip>
@@ -375,7 +427,10 @@ export function CaptionItemEditor({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0"
+                className={cn(
+                  'h-6 w-6 shrink-0',
+                  selected && 'text-white hover:bg-white/10 hover:text-white',
+                )}
                 onClick={() => onChange(resetCaptionToOriginal(caption))}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -388,17 +443,34 @@ export function CaptionItemEditor({
         )}
         {absStart !== null && absEnd !== null && (
           <>
-            <span className="text-[10px] font-mono text-muted-foreground">
+            <span
+              className={cn(
+                'font-mono text-[10px]',
+                selected ? 'text-white/80' : 'text-muted-foreground',
+              )}
+            >
               {absStart.toFixed(3)}s → {absEnd.toFixed(3)}s
             </span>
-            <span className="text-[10px] text-muted-foreground/60">({dur}s)</span>
+            <span
+              className={cn(
+                'text-[10px]',
+                selected ? 'text-white/60' : 'text-muted-foreground/60',
+              )}
+            >
+              ({dur}s)
+            </span>
           </>
         )}
       </div>
 
       <div className="p-2.5 space-y-2.5">
         <div className="space-y-0.5">
-          <label className="block text-[9px] font-mono text-muted-foreground/70 uppercase tracking-wide">
+          <label
+            className={cn(
+              'block font-mono text-[9px] uppercase tracking-wide',
+              fieldLabel,
+            )}
+          >
             htmlText
           </label>
           <CaptionHtmlTextEditor
@@ -420,7 +492,12 @@ export function CaptionItemEditor({
         </div>
 
         <Collapsible open={timingOpen} onOpenChange={setTimingOpen}>
-          <CollapsibleTrigger className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+          <CollapsibleTrigger
+            className={cn(
+              'flex w-full items-center gap-1 text-[10px] transition-colors',
+              sectionTrigger,
+            )}
+          >
             {timingOpen ? (
               <ChevronDown className="h-2.5 w-2.5" />
             ) : (
@@ -432,7 +509,12 @@ export function CaptionItemEditor({
             <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-1.5">
               {timingFields.map(([field, label]) => (
                 <div key={field} className="space-y-0.5">
-                  <label className="block text-[9px] text-muted-foreground/70 uppercase tracking-wide">
+                  <label
+                    className={cn(
+                      'block text-[9px] uppercase tracking-wide',
+                      fieldLabel,
+                    )}
+                  >
                     {label}
                   </label>
                   <Input
@@ -456,16 +538,28 @@ export function CaptionItemEditor({
         </Collapsible>
 
         <Collapsible open={wordsOpen} onOpenChange={setWordsOpen}>
-          <CollapsibleTrigger className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+          <CollapsibleTrigger
+            className={cn(
+              'flex w-full items-center gap-1 text-[10px] transition-colors',
+              sectionTrigger,
+            )}
+          >
             {wordsOpen ? (
               <ChevronDown className="h-2.5 w-2.5" />
             ) : (
               <ChevronRight className="h-2.5 w-2.5" />
             )}
             <span className="uppercase tracking-wide font-medium">Words</span>
-            <span className="ml-1 text-muted-foreground/50">({words.length})</span>
+            <span className={cn('ml-1', selected ? 'text-white/50' : 'text-muted-foreground/50')}>
+              ({words.length})
+            </span>
             {!wordsOpen && caption.text ? (
-              <span className="ml-auto max-w-[55%] truncate text-[10px] text-muted-foreground/60 normal-case font-normal tracking-normal">
+              <span
+                className={cn(
+                  'ml-auto max-w-[55%] truncate text-[10px] font-normal normal-case tracking-normal',
+                  selected ? 'text-white/60' : 'text-muted-foreground/60',
+                )}
+              >
                 {String(caption.text)}
               </span>
             ) : null}
@@ -473,7 +567,12 @@ export function CaptionItemEditor({
           <CollapsibleContent>
             <div className="mt-1.5 space-y-2">
               <div className="space-y-0.5">
-                <label className="block text-[9px] text-muted-foreground/70 uppercase tracking-wide">
+                <label
+                  className={cn(
+                    'block text-[9px] uppercase tracking-wide',
+                    fieldLabel,
+                  )}
+                >
                   Full text
                 </label>
                 <Textarea
@@ -524,10 +623,22 @@ export function CaptionItemEditor({
                 />
               </div>
               {words.length === 0 ? (
-                <p className="text-[10px] text-muted-foreground/50">No words</p>
+                <p
+                  className={cn(
+                    'text-[10px]',
+                    selected ? 'text-white/50' : 'text-muted-foreground/50',
+                  )}
+                >
+                  No words
+                </p>
               ) : (
                 <div className="space-y-0.5">
-                  <div className="flex items-center gap-1 px-1.5 text-[9px] text-muted-foreground/50 uppercase tracking-wide">
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 px-1.5 text-[9px] uppercase tracking-wide',
+                      selected ? 'text-white/50' : 'text-muted-foreground/50',
+                    )}
+                  >
                     <span className="w-5 text-center">#</span>
                     <span className="flex-1">text</span>
                     <span className="w-16 text-center">abs start</span>
@@ -563,14 +674,21 @@ export function CaptionItemEditor({
         </Collapsible>
 
         <Collapsible open={metaOpen} onOpenChange={setMetaOpen}>
-          <CollapsibleTrigger className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+          <CollapsibleTrigger
+            className={cn(
+              'flex w-full items-center gap-1 text-[10px] transition-colors',
+              sectionTrigger,
+            )}
+          >
             {metaOpen ? (
               <ChevronDown className="h-2.5 w-2.5" />
             ) : (
               <ChevronRight className="h-2.5 w-2.5" />
             )}
             <span className="uppercase tracking-wide font-medium">Metadata</span>
-            <span className="ml-1 text-muted-foreground/50">({restMetaCount})</span>
+            <span className={cn('ml-1', selected ? 'text-white/50' : 'text-muted-foreground/50')}>
+              ({restMetaCount})
+            </span>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <MetadataEditor

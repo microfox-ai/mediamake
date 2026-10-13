@@ -8,6 +8,7 @@ import { useProjectStore } from "../../../stores/project-store";
 import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
 import { TimelineShell } from "./TimelineShell";
 import {
+  collectActionTimelineSegments,
   collectTimelineTrackSources,
   timelineFromSelection,
 } from "./timeline-track-sources";
@@ -68,7 +69,9 @@ export function TimelineOverviewContent() {
   const captionCount = sources.filter(
     (s) => s.kind === "captions-reference",
   ).length;
-  const actionCount = sources.filter((s) => s.kind === "action").length;
+  const actionCount = sources.filter(
+    (s) => s.kind === "action" && collectActionTimelineSegments(s.action).length > 0,
+  ).length;
   const subtitleParts = [
     presetCount > 0
       ? `${presetCount} preset${presetCount !== 1 ? "s" : ""}`
@@ -81,8 +84,6 @@ export function TimelineOverviewContent() {
       : null,
   ].filter(Boolean);
 
-  // Action track UIs are placeholders for now — include them so overview
-  // shows every source kind, without blocking editing of presets/captions.
   return (
     <TimelineShell
       totalDuration={totalDuration}
@@ -91,7 +92,7 @@ export function TimelineOverviewContent() {
         subtitleParts.length > 0 ? `· ${subtitleParts.join(" · ")}` : undefined
       }
       audioClips={audioClips}
-      emptyMessage="This timeline has no presets, caption references, or actions with tracks yet."
+      emptyMessage="This timeline has no ranges, words, or lines to show."
     >
       {sources.map((source, index) => {
         if (source.kind === "preset") {
