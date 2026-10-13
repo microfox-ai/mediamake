@@ -618,6 +618,45 @@ const presetExecution = async (
     return { start: timeRange.start, duration };
   };
 
+  /**
+   * Shake ranges are composition time. The image atom is mounted in a
+   * Sequence that starts at the image range, so effect time is local.
+   * Shift the shake onto that clock and skip it when it misses this image.
+   * A shake with no range stays at the start of the image.
+   */
+  const placeShakeOnImage = (
+    timeRange: { start: number; end: number } | null,
+    fallbackDuration: number,
+    imageRange: { start: number; duration: number } | null,
+  ): { start: number; duration: number; end: number } | null => {
+    if (!timeRange || !(timeRange.end > timeRange.start)) {
+      if (!(fallbackDuration > 0)) return null;
+      return {
+        start: 0,
+        duration: fallbackDuration,
+        end: fallbackDuration,
+      };
+    }
+
+    const duration = timeRange.end - timeRange.start;
+    if (!imageRange) {
+      return { start: timeRange.start, duration, end: timeRange.end };
+    }
+
+    const imageEnd = imageRange.start + imageRange.duration;
+    const overlapStart = Math.max(timeRange.start, imageRange.start);
+    const overlapEnd = Math.min(timeRange.end, imageEnd);
+    if (!(overlapEnd > overlapStart)) return null;
+
+    // Keep the full envelope so a shake that began before this image
+    // is already partway through when the image appears.
+    return {
+      start: timeRange.start - imageRange.start,
+      duration,
+      end: timeRange.end - imageRange.start,
+    };
+  };
+
   // Helper function to generate CSS filter styles
   const generateFilterStyle = (filter: string): string => {
     switch (filter) {
@@ -864,6 +903,19 @@ const presetExecution = async (
   // Create image components with effects
   const imageComponents = await Promise.all(
     images.map(async (image, imageIndex) => {
+      const imageRange = parseRangeString(image.rangeString);
+
+      let imageStart: number | undefined;
+      let imageDuration: number;
+
+      if (imageRange) {
+        imageStart = imageRange.start;
+        imageDuration = imageRange.duration;
+      } else {
+        imageStart = undefined;
+        imageDuration = 0;
+      }
+
       const mapOneEffect = async (
         effect:
           | z.infer<typeof effectSchema>
@@ -948,24 +1000,33 @@ const presetExecution = async (
                 } as GenericEffectData,
               };
 
-            case 'shake':
+            case 'shake': {
+              const placed = placeShakeOnImage(
+                timeRange,
+                effectDuration,
+                imageRange,
+              );
+              if (!placed) return null;
               return {
-                id: effectId,
+                id: effect.id
+                  ? `${effect.id}-image-${imageIndex}`
+                  : effectId,
                 componentId: 'shake',
                 data: {
                   amplitude: (effect as any).shake?.amplitude ?? 0.5,
                   frequency: (effect as any).shake?.frequency ?? 0.5,
                   decay: (effect as any).shake?.decay ?? true,
                   axis: (effect as any).shake?.axis || 'both',
-                  duration: effectDuration,
-                  start: timeRange?.start || 0,
-                  end: timeRange?.end || undefined,
+                  duration: placed.duration,
+                  start: placed.start,
+                  end: placed.end,
                   mode: 'provider',
                   targetIds: [
                     `${params.trackName ?? 'imageloop'}-image-${imageIndex}`,
                   ],
                 },
               };
+            }
 
             case 'beat-zoom': {
               if (!presets || !presets.beatZoomEffect) {
@@ -1113,20 +1174,6 @@ const presetExecution = async (
         effect => effect.componentId === 'pan',
       )?.data as PanEffectData;
 
-      // Parse rangeString if provided; otherwise duration defaults to 0
-      const imageRange = parseRangeString(image.rangeString);
-
-      let imageStart: number | undefined;
-      let imageDuration: number;
-
-      if (imageRange) {
-        imageStart = imageRange.start;
-        imageDuration = imageRange.duration;
-      } else {
-        imageStart = undefined;
-        imageDuration = 0;
-      }
-
       const imageFit = image.fit || 'cover';
       const objectFitClass = getObjectFitClass(imageFit);
       const filterCss = buildMediaFilter(image.filter, image.colorTint);
@@ -1270,13 +1317,24 @@ const presetExecution = async (
     trackTiming.fitDurationTo = params.trackFitDurationTo;
   }
 
+  // Image ranges are absolute on the timeline. A scene stacks children in a
+  // Series and treats `start` as a gap after the previous image, so a second
+  // image lands late and its shakes drift further. A layout places each image
+  // Sequence at its own range.
+  const hasAbsoluteImageRanges = images.some(
+    (image) => parseRangeString(image.rangeString) !== null,
+  );
+
   return {
     output: {
       childrenData: [
         {
           id: `${params.trackName}`,
           componentId: 'BaseLayout',
-          type: params.trackFitDurationTo ? 'layout' : ('scene' as const),
+          type:
+            params.trackFitDurationTo || hasAbsoluteImageRanges
+              ? 'layout'
+              : ('scene' as const),
           data: {
             containerProps: {
               className: containerClassName,
