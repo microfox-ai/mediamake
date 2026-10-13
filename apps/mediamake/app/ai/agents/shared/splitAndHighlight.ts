@@ -42,17 +42,35 @@ export const LINE_LENGTHS = [
 export type CaptionLayout = (typeof CAPTION_LAYOUTS)[number];
 export type LineLength = (typeof LINE_LENGTHS)[number];
 
+const frameChoiceSchema = z
+  .enum(CAPTION_LAYOUTS)
+  .describe(
+    'The frame every card uses while staticFrameChoice is true. vertical_box is a 3:4 vertical rectangle. horizontal_box is a 16:9 horizontal rectangle. square_box is a 1:1 square.',
+  );
+
+const staticFrameChoiceSchema = z
+  .boolean()
+  .default(true)
+  .describe(
+    'Defaults to true. Every card uses frameChoice. A later pass may set this false so each card can choose its own frame.',
+  );
+
+/** 0, blank, and missing are the same: derive the cap from the frame at run time. */
+export function normalizeStoredMaxLines(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === 'string' && value.trim() === '') return 0;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
+}
+
 export const SplitAndHighlightParamsSchema = z.object({
-  frameChoice: z
-    .enum(CAPTION_LAYOUTS)
+  frameChoice: frameChoiceSchema,
+  maxLines: z
+    .preprocess(normalizeStoredMaxLines, z.number().int().min(0))
+    .default(0)
     .describe(
-      'The frame every card uses while staticFrameChoice is true. vertical_box is a 3:4 vertical rectangle. horizontal_box is a 16:9 horizontal rectangle. square_box is a 1:1 square.',
-    ),
-  lineLength: z
-    .enum(LINE_LENGTHS)
-    .default('medium')
-    .describe(
-      'How much text sits on one caption. xx-short suggests 1–2 words. x-short suggests 2–3 words. short, medium, and large stay as they are. x-large and xx-large hold longer thoughts. These are suggestions. Meaning decides the break.',
+      'Maximum lines on one card. 0 and empty are the same. The limit is then taken from frameChoice: vertical_box is 5, horizontal_box is 2, square_box is 4.',
     ),
   fontScaling: z
     .number()
@@ -61,12 +79,7 @@ export const SplitAndHighlightParamsSchema = z.object({
     .describe(
       'How many times larger a bold word is drawn compared with a normal word. A bold word of N letters occupies about N × fontScaling of horizontal space.',
     ),
-  staticFrameChoice: z
-    .boolean()
-    .default(true)
-    .describe(
-      'Defaults to true. Every card uses frameChoice. A later pass may set this false so each card can choose its own frame.',
-    ),
+  staticFrameChoice: staticFrameChoiceSchema,
 });
 
 export type SplitAndHighlightParams = z.infer<
@@ -75,8 +88,16 @@ export type SplitAndHighlightParams = z.infer<
 
 export interface SplitAndHighlightOptions extends Omit<
   SplitAndHighlightParams,
-  'fontScaling'
+  'fontScaling' | 'maxLines'
 > {
+  /**
+   * Maximum lines on one card.
+   * 0, blank, and omitted are the same: the cap is taken from frameChoice
+   * when the prompt is built.
+   */
+  maxLines?: number | null | string;
+  /** Sentence structure only. Split-and-highlight does not set this. */
+  lineLength?: LineLength;
   /** Used by split-and-highlight. Sentence structure does not set this. */
   fontScaling?: number;
   userRequest?: string;
@@ -93,9 +114,16 @@ export interface SplitAndHighlightOptions extends Omit<
   captionSplitsOnly?: boolean;
 }
 
-/** Params for the sentence-structure pass. fontScaling is not an input. */
-export const SentenceStructureParamsSchema = SplitAndHighlightParamsSchema.omit({
-  fontScaling: true,
+/** Params for the sentence-structure pass. fontScaling and maxLines are not inputs. */
+export const SentenceStructureParamsSchema = z.object({
+  frameChoice: frameChoiceSchema,
+  lineLength: z
+    .enum(LINE_LENGTHS)
+    .default('medium')
+    .describe(
+      'How much text sits on one caption. xx-short suggests 1–2 words. x-short suggests 2–3 words. short, medium, and large stay as they are. x-large and xx-large hold longer thoughts. These are suggestions. Meaning decides the break.',
+    ),
+  staticFrameChoice: staticFrameChoiceSchema,
 });
 
 export interface SplitAndHighlightResult {
@@ -110,55 +138,48 @@ export interface SplitAndHighlightResult {
 
 const LAYOUT_SPEC: Record<
   CaptionLayout,
-  { maxLines: number; shape: string; mediumExample: string; largeExample: string }
+  {
+    maxLines: number;
+    frameShape: string;
+    shape: string;
+    mediumExample: string;
+  }
 > = {
   vertical_box: {
     maxLines: 5,
+    frameShape: 'VERTICAL RECTANGLE, 3:4. Narrow and tall.',
     shape: 'VERTICAL RECTANGLE, 3:4. Narrow and tall. Up to 5 lines.',
     mediumExample:
       'A<br/>sudden<br/>blinding<br/><b>sunburst</b><br/><br/>to<br/>blind the<br/><b>tyrant\'s</b><br/>gaze',
-    largeExample:
-      'A sudden blinding<br/><b>sunburst</b><br/>to blind the<br/><b>tyrant\'s</b><br/>gaze',
   },
   horizontal_box: {
     maxLines: 2,
+    frameShape:
+      'HORIZONTAL RECTANGLE, 16:9. The width is the ceiling, not a target. A line stays as short as the phrase. A line can stay plain. Not every line needs a highlighted word.',
     shape:
       'HORIZONTAL RECTANGLE, 16:9. At most 2 lines on a card. The width is the ceiling, not a target. A line stays as short as the phrase. One of the two lines can be plain. Both lines do not need a highlighted word.',
     mediumExample:
       'A sudden blinding<br/><b>sunburst</b><br/><br/>to blind the<br/><b>tyrant\'s gaze</b>',
-    largeExample:
-      'A sudden blinding <b>sunburst</b><br/>to <b>blind</b> the tyrant\'s gaze',
   },
   square_box: {
     maxLines: 4,
+    frameShape: 'SQUARE, 1:1. Between the tall frame and the wide frame.',
     shape:
       'SQUARE, 1:1. Between the tall frame and the wide frame. Up to 4 lines.',
     mediumExample:
       'A<br/>sudden blinding<br/><b>sunburst</b><br/><br/>to blind the<br/><b>tyrant\'s</b><br/>gaze',
-    largeExample:
-      'A sudden blinding<br/><b>sunburst</b><br/>to blind the<br/>tyrant\'s gaze',
   },
 };
 
+/** Positive maxLines wins. 0 and empty use the frame's own cap. */
+function resolveMaxLines(maxLines: unknown, frame: CaptionLayout): number {
+  const stored = normalizeStoredMaxLines(maxLines);
+  if (stored === 0) return LAYOUT_SPEC[frame].maxLines;
+  return stored;
+}
+
 const SHORT_SQUARE_EXAMPLE =
   'where stifling walls<br/>sought to hold the spirit down .<br/>I bore the heavy shell<br/>across the shifting sand<br/>to learn the martial pulse<br/>of an unforgiving land.<br/>No lunar beast slumbers<br/>beneath my skin .<br/>Just brittle bones<br/>where the quiet wars begin .<br/>I traded whispered prayers';
-
-const LINE_LENGTH_SPEC: Record<LineLength, string> = {
-  'xx-short':
-    'XX-SHORT LINES — suggested length is 1 or 2 words: a single image, verb, or name. This is a suggestion, not a cap. Keep a longer group when a shorter cut would break the meaning. A wide frame does not add words. The bold word is alone on its line.',
-  'x-short':
-    'X-SHORT LINES — suggested length is 2 or 3 words, one fragment. This is a suggestion, not a cap. Keep the group together when splitting it would break the meaning. A wide frame does not add words. The bold word owns its line.',
-  short:
-    'SHORT LINES — one phrase per line, about 3 to 5 words. Cut at punctuation and at the end of a phrase. A wide frame does not make the line longer. If a horizontal card can only hold 2 lines, start a new card instead of stretching the line. The bold word owns its line: either the whole line is the bold phrase, or the bold word is alone. Do not leave a plain word sitting beside the bold word.',
-  medium:
-    'MEDIUM LINES — a phrase can be a little longer than the short example. A punctuation mark still ends that line. Do not run past a period or a comma onto the next phrase.',
-  large:
-    'LARGE LINES — follow the large frame example. More words may share a line. A period or a comma that finishes the phrase still ends the line, and the mark stays on that line.',
-  'x-large':
-    'X-LARGE LINES — longer than large. A full sentence may share a line when the frame allows. Still end the line on a period, question mark, or exclamation mark, and keep that mark on the line.',
-  'xx-large':
-    'XX-LARGE LINES — the longest lines. Keep a whole sentence on a line when the frame allows, and the next sentence when they are one thought. Split only when the topic changes. A hard stop still ends the line.',
-};
 
 /** How many words belong on one caption card. Sentence structure uses this. */
 const CAPTION_SIZE_SPEC: Record<LineLength, string> = {
@@ -176,22 +197,6 @@ const CAPTION_SIZE_SPEC: Record<LineLength, string> = {
   'xx-large':
     'XX-LARGE — the longest captions. Keep a whole sentence, and the next sentence when they are one thought. Split only when the topic actually changes. Fewest cards.',
 };
-
-function isShortLineLength(lineLength: LineLength): boolean {
-  return (
-    lineLength === 'xx-short' ||
-    lineLength === 'x-short' ||
-    lineLength === 'short'
-  );
-}
-
-function isLargeLineLength(lineLength: LineLength): boolean {
-  return (
-    lineLength === 'large' ||
-    lineLength === 'x-large' ||
-    lineLength === 'xx-large'
-  );
-}
 
 function captionSizeReminder(lineLength: LineLength): string {
   if (lineLength === 'xx-short') {
@@ -301,31 +306,25 @@ export function formatTimedCaptions(captions: Caption[]): string {
 function frameDirection(options: SplitAndHighlightOptions): string {
   const frame = frameForCard(options, 0);
   const spec = LAYOUT_SPEC[frame];
-  const lineLength = options.lineLength ?? 'medium';
-  const example = isLargeLineLength(lineLength)
-    ? spec.largeExample
-    : spec.mediumExample;
-  const horizontalShort =
-    frame === 'horizontal_box' && isShortLineLength(lineLength)
-      ? dedent`
-        SHORT HORIZONTAL — the 16:9 frame still uses short lines. Cut at the phrase and at punctuation. Do not fill the width.
-        where stifling walls<br/>sought to hold the spirit down .<br/><br/>I bore the<br/><b>heavy shell</b><br/><br/>across the shifting sand<br/>to learn the martial pulse<br/><br/>of an<br/><b>unforgiving</b>
-        ${
-          options.preserveCards
-            ? 'Stay inside the card you were given. The second line of a pair can stay plain. Only one line needs a highlight.'
-            : 'A new card starts when the two lines are full. The second line of a pair can stay plain. Only one line needs a highlight.'
-        }
-      `
-      : '';
+  const maxLines = resolveMaxLines(options.maxLines, frame);
   const shared = dedent`
-    ${spec.shape}
-    ${LINE_LENGTH_SPEC[lineLength]}
-    ${spec.maxLines} lines is the ceiling. Use fewer when the clause is shorter.
-    ${horizontalShort}
+    ${spec.frameShape}
+    ${maxLines} lines is the ceiling on one card. Use fewer when the clause is shorter.
+    ${
+      frame === 'horizontal_box'
+        ? options.preserveCards
+          ? 'Stay inside the card you were given. A line can stay plain. Only one line needs a highlight.'
+          : 'A new card starts when the line ceiling is full. A line can stay plain. Only one line needs a highlight.'
+        : ''
+    }
 
-    ${isLargeLineLength(lineLength) ? 'LARGE' : 'MEDIUM'} shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
-    ${example}
-    That example shows a possible wrap. It does not override a short line length, and it does not override punctuation. On a horizontal card, the second line may have no bold word.
+    Shape example for "${frame}", phrase "A sudden blinding sunburst to blind the tyrant's gaze":
+    ${spec.mediumExample}
+    That example shows a possible wrap. It does not override punctuation, and it does not override the ${maxLines}-line ceiling.${
+      frame === 'horizontal_box'
+        ? ' On a horizontal card, a line may have no bold word.'
+        : ''
+    }
   `;
 
   if (options.staticFrameChoice !== false) {
@@ -414,7 +413,7 @@ export function buildSplitAndHighlightPrompt(
 ): { system: string; prompt: string } {
   const scale = options.fontScaling ?? 2;
   const frame = frameForCard(options, 0);
-  const lineLength = options.lineLength ?? 'medium';
+  const maxLines = resolveMaxLines(options.maxLines, frame);
 
   const cardRule = options.preserveCards
     ? dedent`
@@ -458,32 +457,28 @@ export function buildSplitAndHighlightPrompt(
     - Keep a preposition with the phrase it opens: "across the shifting sand", "of an unforgiving land.", "beneath my skin .", "where the quiet wars begin ."
     - Do not fill a line with the next phrase just because there is room. Stop when the phrase, or its punctuation, is complete.
 
-    SHORT LINES — copy this break pattern when lines are short, including on a horizontal frame. Do not lengthen a line because the frame is wide. A horizontal card holds at most 2 of these lines.${options.preserveCards ? ' Keep the extra phrases inside this card. Do not start a new card.' : ' Then the next phrase starts a new card.'}
+    LINE BREAKS — copy this break pattern. Do not lengthen a line because the frame is wide. A card holds at most ${maxLines} lines.${options.preserveCards ? ' Keep the extra phrases inside this card. Do not start a new card.' : ' Then the next phrase starts a new card.'}
     ${SHORT_SQUARE_EXAMPLE}
 
     ON-SCREEN TIME
     Each card notes how long it is visible. That is only a hint for how many lines a viewer can read.
     Do not break on silence, word duration, or gaps. A pause is not a line break. Meaning and punctuation are.
 
-    FRAME AND LINE LENGTH
-    ${frameDirection({ ...options, lineLength })}
-    Line length is ${lineLength}. It changes how many words share a line. It does not move a break off a punctuation mark or out of a clause.
+    FRAME
+    ${frameDirection(options)}
+    Use at most ${maxLines} lines on a card. Use fewer when the phrase is shorter. That does not move a break off a punctuation mark or out of a clause.
 
     HIGHLIGHTS
     - Bold the word that carries the phrase: the image, the quality, the verb, the name. Not the last noun just because it ends the line.
     - "unforgiving" is the word in "of an unforgiving land", not "land".
     - "heavy" and "shell" are the weight in "I bore the heavy shell". Bold them as a pair, or bold "shell" alone. Do not bold a filler word.
     - Skip articles and filler ("the", "an", "of"). Never bold a piece of a word.
-    - On a horizontal card, one line may carry the highlight and the other line may be entirely plain. Do not bold a word on the second line just to balance the first.
-    ${
-      isLargeLineLength(lineLength)
-        ? '- Large lines may keep smaller words on the same line as the bold word: "A sudden blinding <b>sunburst</b>".'
-        : `- Short lines: the bold word owns the line.
+    - On a horizontal card, one line may carry the highlight and another line may be entirely plain. Do not bold a word on a later line just to balance the first.
+    - The bold word owns the line.
     - Either the whole line is the bold phrase: "I bore the<br/><b>heavy shell</b>"
     - Or the bold word is alone and the words before it stay on the previous line: "I bore the heavy<br/><b>shell</b>"
     - "I bore the<br/>heavy <b>shell</b>" is wrong. A plain word must not sit beside the bold word.
-    - "of an unforgiving land" becomes "Of an<br/><b>unforgiving</b><br/>land". The meaningful word is alone. "land" is not the word to scale.`
-    }
+    - "of an unforgiving land" becomes "Of an<br/><b>unforgiving</b><br/>land". The meaningful word is alone. "land" is not the word to scale.
   `;
 
   const prompt = dedent`
@@ -495,20 +490,14 @@ export function buildSplitAndHighlightPrompt(
 
     ${
       options.preserveCards
-        ? `Rewrite line breaks and bold words inside each existing card for ${frame} with ${lineLength} lines. Do not change which words belong to which card.`
-        : `Redesign every card for ${frame} with ${lineLength} lines.`
+        ? `Rewrite line breaks and bold words inside each existing card for ${frame}. Use at most ${maxLines} lines on a card. Do not change which words belong to which card.`
+        : `Redesign every card for ${frame}. Use at most ${maxLines} lines on a card.`
     } Bold words are ${scale}× body size.
     Break on phrase meaning. Put every punctuation mark at the end of that line. Never start a line with a mark.
-    ${
-      isLargeLineLength(lineLength)
-        ? 'A bold word may share its line with smaller words.'
-        : 'On a short line, the bold word is alone or the whole line is bold. Do not leave a plain word next to it. Bold the word that carries the phrase, not the last noun.'
-    }
+    The bold word is alone or the whole line is bold. Do not leave a plain word next to it. Bold the word that carries the phrase, not the last noun.
     ${
       frame === 'horizontal_box'
-        ? isShortLineLength(lineLength)
-          ? 'This is a horizontal frame with short lines. Cut at punctuation and at the phrase. Do not stretch a line to fill the width. A card has at most 2 lines. One of those lines can have no highlight.'
-          : 'On this horizontal card, both lines do not need a highlighted word.'
+        ? `This is a horizontal frame. A card has at most ${maxLines} lines. Cut at punctuation and at the phrase. Do not stretch a line to fill the width. A line can have no highlight.`
         : ''
     }
     Keep every word, in this order.
@@ -768,15 +757,15 @@ export async function runSplitAndHighlight(
     : captionsFromMotionHtml(modelHtml || sourceHtml, captions);
   const htmlText = serializeCaptionsToHtml(fixedCaptions);
   const changes = collectChanges(captions, fixedCaptions);
-  const layout = LAYOUT_SPEC[frame];
+  const maxLines = resolveMaxLines(options.maxLines, frame);
   const staticFrame = options.staticFrameChoice !== false;
   const summary = options.captionSplitsOnly
     ? `Split ${captions.length} captions into ${fixedCaptions.length} for ${frame} (${options.lineLength ?? 'medium'}, ${staticFrame ? 'one frame for every caption' : 'per-caption frames reserved'}).`
     : options.preserveCards
-      ? `Updated htmlText on ${fixedCaptions.length} caption cards for ${frame} (${options.lineLength ?? 'medium'} lines, bold words at ${options.fontScaling ?? 2}×).`
+      ? `Updated htmlText on ${fixedCaptions.length} caption cards for ${frame} (up to ${maxLines} lines, bold words at ${options.fontScaling ?? 2}×).`
       : dedent`
       Arranged ${captions.length} caption cards into ${fixedCaptions.length} for ${frame}
-      (${options.lineLength ?? 'medium'} lines, up to ${layout.maxLines}, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
+      (up to ${maxLines} lines, bold words at ${options.fontScaling ?? 2}×, ${staticFrame ? 'one frame for every card' : 'per-card frames reserved'}).
     `
           .replace(/\s+/g, ' ')
           .trim();

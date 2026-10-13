@@ -22,11 +22,17 @@ const inputSchema = z.object({
     .describe(
       "Frame for every card. vertical_box is 3:4. horizontal_box is 16:9. square_box is 1:1.",
     ),
-  lineLength: z
-    .enum(["short", "medium", "large"])
-    .default("medium")
+  maxLines: z
+    .preprocess((value) => {
+      if (value == null) return 0;
+      if (typeof value === "string" && value.trim() === "") return 0;
+      const parsed = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+      return Math.floor(parsed);
+    }, z.number().int().min(0))
+    .default(0)
     .describe(
-      "How many words sit on a line. Meaning and punctuation still decide the break.",
+      "Maximum lines on one card. 0 and empty are the same. The limit then comes from the frame: vertical_box is 5, horizontal_box is 2, square_box is 4.",
     ),
   fontScaling: z
     .number()
@@ -181,7 +187,7 @@ export const captionSplitHighlight: ActionDefinition = {
   defaultInputParams: {
     scope: SCOPE_SELECTED,
     frameChoice: "vertical_box",
-    lineLength: "medium",
+    maxLines: 0,
     fontScaling: 2,
     staticFrameChoice: true,
     userRequest: "",
@@ -202,7 +208,7 @@ export const captionSplitHighlight: ActionDefinition = {
         captionId: String(value._id),
         ...(selectedIndices ? { selectedIndices } : {}),
         frameChoice: parsed.frameChoice,
-        lineLength: parsed.lineLength,
+        maxLines: parsed.maxLines,
         fontScaling: parsed.fontScaling,
         staticFrameChoice: parsed.staticFrameChoice,
         ...(parsed.userRequest?.trim()

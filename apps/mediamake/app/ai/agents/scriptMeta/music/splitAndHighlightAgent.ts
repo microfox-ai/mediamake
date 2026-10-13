@@ -10,7 +10,6 @@ import {
   SPLIT_HIGHLIGHT_MODEL,
   SplitAndHighlightParamsSchema,
   runSplitAndHighlight,
-  type LineLength,
 } from '../../shared/splitAndHighlight';
 
 /**
@@ -65,7 +64,7 @@ const splitAndHighlightAgent = aiRouter
         transcriptionId,
         userRequest,
         frameChoice,
-        lineLength = 'medium',
+        maxLines = 0,
         fontScaling = 2,
         staticFrameChoice = true,
       } = ctx.request.params as {
@@ -73,7 +72,7 @@ const splitAndHighlightAgent = aiRouter
         transcriptionId?: string;
         userRequest?: string;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
-        lineLength?: LineLength;
+        maxLines?: number | string | null;
         fontScaling?: number;
         staticFrameChoice?: boolean;
       };
@@ -89,7 +88,7 @@ const splitAndHighlightAgent = aiRouter
 
       const result = await runSplitAndHighlight(captions, {
         frameChoice,
-        lineLength,
+        maxLines,
         fontScaling,
         staticFrameChoice,
         userRequest,

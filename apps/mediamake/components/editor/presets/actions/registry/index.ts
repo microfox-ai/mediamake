@@ -5,12 +5,16 @@ import { shakeEffectRangeGenerator } from "./shake-effect-actions/shake-effect-r
 import { shakeEffectMinorBeats } from "./shake-effect-actions/shake-effect-minor-beats";
 import { shakeEffectRange } from "./shake-effect-actions/shake-effect-range";
 import { shakeEffectRangeBrowser } from "./shake-effect-actions/shake-effect-range-browser";
+import { captionClean } from "./caption-clean";
+import { captionFillWordGaps } from "./caption-fill-word-gaps";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSplitHighlight } from "./caption-split-highlight";
 
 const ACTION_REGISTRY: ActionDefinition[] = [
   captionSentenceStructure,
   captionSplitHighlight,
+  captionFillWordGaps,
+  captionClean,
   shakeEffectMinorBeats,
   shakeEffectRange,
   shakeEffectRangeBrowser,
@@ -69,6 +73,8 @@ export function getSupportedActionsForTarget(
 }
 
 export {
+  captionClean,
+  captionFillWordGaps,
   captionSentenceStructure,
   captionSplitHighlight,
   shakeEffectRangeGenerator,
