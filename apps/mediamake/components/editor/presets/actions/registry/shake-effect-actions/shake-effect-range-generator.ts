@@ -3,7 +3,7 @@
  * Same per-beat hit logic as shakeEffectMinorBeats.
  */
 import { shakeEffectMinorBeats } from "./shake-effect-minor-beats";
-import type { ActionDefinition } from "../types";
+import type { ActionDefinition } from "../../types";
 
 export const shakeEffectRangeGenerator: ActionDefinition = {
   ...shakeEffectMinorBeats,

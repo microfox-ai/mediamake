@@ -6,10 +6,10 @@ import type {
   ActionDefinition,
   TimelineAction,
   ActionOutputVariant,
-} from "../types";
-import { ACTION_GENERATED_KEY } from "../engine/run-action";
+} from "../../types";
+import { ACTION_GENERATED_KEY } from "../../engine/run-action";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
-import { findAudioSrcForTrackName } from "../engine/find-audio-for-track";
+import { findAudioSrcForTrackName } from "../../engine/find-audio-for-track";
 
 export type BeatPoint = {
   timestamp: number;

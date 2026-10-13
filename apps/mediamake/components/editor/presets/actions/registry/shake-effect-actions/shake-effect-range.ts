@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { paramMetaTypes } from "../../dataTypes";
-import type { ActionDefinition, ActionExecuteContext, ActionExecuteResult } from "../types";
-import { ACTION_GENERATED_KEY } from "../engine/run-action";
+import { paramMetaTypes } from "../../../dataTypes";
+import type { ActionDefinition, ActionExecuteContext, ActionExecuteResult } from "../../types";
+import { ACTION_GENERATED_KEY } from "../../engine/run-action";
 import {
   applyShakeEffectsOutput,
   formatRange,

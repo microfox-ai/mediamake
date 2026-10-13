@@ -1,10 +1,10 @@
 import type { ActionDefinition, ActionTarget } from "../types";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { ReferenceItem } from "@/components/editor/presets/types";
-import { shakeEffectRangeGenerator } from "./shake-effect-range-generator";
-import { shakeEffectMinorBeats } from "./shake-effect-minor-beats";
-import { shakeEffectRange } from "./shake-effect-range";
-import { shakeEffectRangeBrowser } from "./shake-effect-range-browser";
+import { shakeEffectRangeGenerator } from "./shake-effect-actions/shake-effect-range-generator";
+import { shakeEffectMinorBeats } from "./shake-effect-actions/shake-effect-minor-beats";
+import { shakeEffectRange } from "./shake-effect-actions/shake-effect-range";
+import { shakeEffectRangeBrowser } from "./shake-effect-actions/shake-effect-range-browser";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSplitHighlight } from "./caption-split-highlight";
 

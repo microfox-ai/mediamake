@@ -31,6 +31,9 @@ export type PhraseShake = {
   role: string;
 };
 
+/** Four readings of the same phrase cuts. */
+export type PhraseStyle = "phrases" | "pulse" | "drift" | "impact";
+
 type Bin = {
   rms: number;
   zcr: number;
@@ -78,7 +81,9 @@ export function buildPhraseShakes(args: {
   duration: number;
   minRange: number;
   beatDetection: number;
+  style?: PhraseStyle;
 }): PhraseShake[] {
+  const style: PhraseStyle = args.style ?? "phrases";
   const duration = Math.max(0, args.duration);
   if (args.beatDetection <= 0 || duration < 0.5 || !args.frames.length) return [];
 
@@ -297,7 +302,9 @@ export function buildPhraseShakes(args: {
     sections = merged;
   }
 
-  if (args.beatDetection <= 0.65 && sections.length > 2) {
+  // Pulse and Impact keep the lift inside a phrase as its own range.
+  // Phrases and Drift fold that lift back into the surrounding groove.
+  if ((style === "phrases" || style === "drift") && args.beatDetection <= 0.65 && sections.length > 2) {
     const audible = sections.filter((section) => !isSilent(section));
     const maxNow = Math.max(...audible.map((section) => section.rms), 0.0001);
     const bassNow = percentile(
@@ -329,18 +336,59 @@ export function buildPhraseShakes(args: {
     sections = merged;
   }
 
-  const audible = sections.filter((section) => !isSilent(section));
+  let audible = sections.filter((section) => !isSilent(section));
   if (!audible.length) return [];
-  const maxRms = Math.max(...audible.map((section) => section.rms), 0.0001);
-  const bassMed = percentile(
+  let maxRms = Math.max(...audible.map((section) => section.rms), 0.0001);
+  let bassMed = percentile(
     audible.map((section) => section.bass),
     0.5,
   );
-  const zcrMed = percentile(
+  let zcrMed = percentile(
     audible.map((section) => section.zcr),
     0.5,
   );
+
+  const isLanding = (section: Section, next?: Section) => {
+    const air = section.zcr / (zcrMed || 0.01);
+    return air < 0.72 && section.bass > bassMed && (!next || isSilent(next));
+  };
+
+  // Drift keeps the chorus and the breakdown as their own moments, and
+  // joins everything else into long slow moves.
+  if (style === "drift" && sections.length > 2) {
+    const merged: Section[] = [sections[0]];
+    for (let i = 1; i < sections.length; i++) {
+      const prev = merged[merged.length - 1];
+      const cur = sections[i];
+      const next = sections[i + 1];
+      const prevIsPeak = !isSilent(prev) && prev.rms >= maxRms * 0.995;
+      const curIsPeak = !isSilent(cur) && cur.rms >= maxRms * 0.995;
+      const join =
+        !prevIsPeak &&
+        !curIsPeak &&
+        !isSilent(prev) &&
+        !isSilent(cur) &&
+        !isCollapse(prev, merged[merged.length - 2], cur) &&
+        !isCollapse(cur, prev, next) &&
+        !isLanding(cur, next);
+      if (join) merged[merged.length - 1] = mergePair(prev, cur);
+      else merged.push(cur);
+    }
+    sections = merged;
+    audible = sections.filter((section) => !isSilent(section));
+    maxRms = Math.max(...audible.map((section) => section.rms), 0.0001);
+    bassMed = percentile(
+      audible.map((section) => section.bass),
+      0.5,
+    );
+    zcrMed = percentile(
+      audible.map((section) => section.zcr),
+      0.5,
+    );
+  }
+
   const peakIdx = sections.findIndex((section) => section.rms === maxRms && !isSilent(section));
+  const fluxMax = Math.max(...audible.map((section) => section.flux), 0.0001);
 
   const shakes: PhraseShake[] = [];
   sections.forEach((section, index) => {
@@ -349,19 +397,50 @@ export function buildPhraseShakes(args: {
     if (isSilent(section) || isCollapse(section, prev, next)) return;
 
     const energy = section.rms / maxRms;
+    const motion = section.flux / fluxMax;
     const air = section.zcr / (zcrMed || 0.01);
-    const landing =
-      air < 0.72 && section.bass > bassMed && (!next || isSilent(next));
+    const landing = air < 0.72 && section.bass > bassMed && (!next || isSilent(next));
     const beforePeak = peakIdx >= 0 && index < peakIdx;
     const afterGap = sections.slice(0, index).some((item, itemIndex) =>
       isCollapse(item, sections[itemIndex - 1], sections[itemIndex + 1]),
     );
+    const leadIn = !!next && next.rms >= maxRms * 0.995 && !isSilent(next);
 
     let role = "drive";
     let frequency = round1(clamp(1.2 + energy * 1.8, 1.2, 3));
     let amplitude = round1(clamp(1 + energy * 2.2, 1, 4));
 
-    if (beforePeak && index === 0 && section.bass < bassMed * 0.85 && energy < 0.8) {
+    if (style === "pulse") {
+      role = "pulse";
+      frequency = motion < 0.72 ? 1.5 : motion < 0.9 ? 2.5 : 3;
+      amplitude = round1(clamp(1 + energy * 1.4, 1, 2.5));
+    } else if (style === "drift") {
+      if (index === peakIdx) {
+        role = "wide";
+        frequency = 0.5;
+        amplitude = 4;
+      } else if (landing) {
+        role = "drift";
+        frequency = 0.1;
+        amplitude = 2;
+      } else {
+        role = "drift";
+        frequency = 0.1;
+        amplitude = energy > 0.8 ? 2.5 : 2;
+      }
+    } else if (style === "impact") {
+      if (energy >= 0.9) {
+        role = "impact";
+        frequency = 3;
+        amplitude = 4;
+      } else if (leadIn) {
+        role = "windup";
+        frequency = 2.5;
+        amplitude = 2;
+      } else {
+        return;
+      }
+    } else if (beforePeak && index === 0 && section.bass < bassMed * 0.85 && energy < 0.8) {
       role = "sway";
       frequency = 0.1;
       amplitude = 2;
