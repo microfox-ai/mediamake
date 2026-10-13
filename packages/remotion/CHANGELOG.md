@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.2
+
+### Patch Changes
+
+- 7842560: Triggered by issue #407: release @microfox/remotion patch
+
 ## 2.0.1
 
 ### Patch Changes
