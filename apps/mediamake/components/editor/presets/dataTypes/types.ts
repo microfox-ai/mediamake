@@ -99,6 +99,12 @@ export const paramMetaTypes = {
    */
   effectsGroup: 'effectsGroup',
   /**
+   * Marks per-image transition effects (in / out windows).
+   * Same Smart / Full / JSON layout as shakeEffectsGroup, rendered in the image popup.
+   * Value: true
+   */
+  transitionEffectsGroup: 'transitionEffectsGroup',
+  /**
    * Nested field edit scope inside an imagesGroup (or similar) item schema.
    * Value: true = can be bulk-edited across items; false = per-item only.
    *

@@ -40,7 +40,9 @@ function resolveDataAudioLink(
 ): string | null {
   const match = raw.match(/^data:\[([^\]]+)\]/);
   if (!match) return null;
-  const refs = references || timeline.defaultData?.references || [];
+  const refs = (references ||
+    timeline.defaultData?.references ||
+    []) as ReferenceItem[];
   const value = refs.find((ref) => ref.key === match[1])?.value;
   return urlFromUnknown(value);
 }

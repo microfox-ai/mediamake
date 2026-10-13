@@ -301,6 +301,33 @@ export function setAtPath(
   return clone;
 }
 
+/** Like setAtPath, but the leaf can be a number or any other JSON value. */
+export function setAtPathValue(
+  source: any,
+  path: string,
+  nextValue: unknown,
+): any {
+  const tokens: string[] = [];
+  path.split(".").forEach((chunk) => {
+    const [head, ...rest] = chunk.split("[");
+    if (head) tokens.push(head);
+    rest.forEach((part) => tokens.push(part.replace("]", "")));
+  });
+  const clone = structuredClone(source);
+  let cursor = clone;
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const token = tokens[i]!;
+    const nextToken = tokens[i + 1];
+    if (cursor[token] === undefined)
+      cursor[token] = /^\d+$/.test(nextToken ?? "") ? [] : {};
+    cursor = cursor[token];
+  }
+  const lastKey = tokens[tokens.length - 1]!;
+  if (nextValue === undefined) delete cursor[lastKey];
+  else cursor[lastKey] = nextValue;
+  return clone;
+}
+
 export function segsFromTrackGroup(group: TrackGroup): ParsedSegment[] {
   if (group.kind === "data-reference") {
     return parseEditableSegments(group.currentRanges[0] ?? "");

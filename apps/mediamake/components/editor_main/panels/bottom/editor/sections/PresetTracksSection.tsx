@@ -34,6 +34,7 @@ import {
 import { useTimelineViewport } from "../timeline-viewport";
 import {
   useRegisterTimelineSection,
+  type TimelineTrackRow,
   type TimelineTrackSectionData,
 } from "../TimelineShell";
 import {
@@ -41,6 +42,7 @@ import {
   releaseBlockSelection,
 } from "../timeline-block-selection";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
+import { migrateImageLoopInputData } from "@/components/editor/presets/registry/general/imageloop";
 import {
   applySegsToInputData,
   buildTrackGroups,
@@ -55,12 +57,22 @@ import {
   segsFromTrackGroup,
   serializeSegment,
   setAtPath,
+  setAtPathValue,
   usesJoinedRangeString,
   type ParsedSegment,
   type RangeKind,
   type SegmentKind,
   type TrackGroup,
 } from "../preset-range-utils";
+import {
+  imageItemPathFromRangePath,
+  readTransitionEffects,
+  TransitionEdgeIcons,
+  TransitionLaneLabel,
+  TransitionRangeTrack,
+  transitionEdgeFlags,
+  type TransitionEdge,
+} from "../image-transition-tracks";
 
 const MIN_SPLIT_GAP = 0.05;
 
@@ -135,8 +147,29 @@ export function PresetTracksSection({
     [presetInputData, rangeLayouts],
   );
 
+  useEffect(() => {
+    if (registryPresetId !== "imageloop" || !timeline || !preset) return;
+    const migrated = migrateImageLoopInputData(presetInputData);
+    if (migrated === presetInputData) return;
+    updatePresetInputData(timelineId, presetId, migrated);
+    const latest = getEditedTimeline(timelineId) || timeline;
+    generateOutput(latest);
+  }, [
+    registryPresetId,
+    presetInputData,
+    timeline,
+    preset,
+    timelineId,
+    presetId,
+    updatePresetInputData,
+    getEditedTimeline,
+    generateOutput,
+  ]);
+
   const [segsMap, setSegsMap] = useState<Record<string, ParsedSegment[]>>({});
   const [selectedSeg, setSelectedSeg] = useState<SegSelection | null>(null);
+  const [expandedTransition, setExpandedTransition] =
+    useState<SegSelection | null>(null);
   const [clipboard, setClipboard] = useState<SegClipboard | null>(null);
 
   const dragRef = useRef<{
@@ -170,7 +203,10 @@ export function PresetTracksSection({
       return;
     }
     setSegmentSelectionActive(true);
-    claimBlockSelection(sectionId, () => setSelectedSeg(null));
+    claimBlockSelection(sectionId, () => {
+      setSelectedSeg(null);
+      setExpandedTransition(null);
+    });
     return () => {
       setSegmentSelectionActive(false);
       releaseBlockSelection(sectionId);
@@ -179,14 +215,42 @@ export function PresetTracksSection({
 
   const selectSeg = useCallback(
     (next: SegSelection) => {
-      claimBlockSelection(sectionId, () => setSelectedSeg(null));
+      claimBlockSelection(sectionId, () => {
+        setSelectedSeg(null);
+        setExpandedTransition(null);
+      });
       setSelectedSeg(next);
+      setExpandedTransition((cur) => {
+        if (!cur) return null;
+        if (
+          cur.templatePath === next.templatePath &&
+          cur.segIdx === next.segIdx
+        ) {
+          return cur;
+        }
+        return null;
+      });
     },
     [sectionId],
   );
 
+  const toggleTransitionLanes = useCallback((next: SegSelection) => {
+    selectSeg(next);
+    setExpandedTransition((cur) => {
+      if (
+        cur &&
+        cur.templatePath === next.templatePath &&
+        cur.segIdx === next.segIdx
+      ) {
+        return null;
+      }
+      return next;
+    });
+  }, [selectSeg]);
+
   const clearSelection = useCallback(() => {
     setSelectedSeg(null);
+    setExpandedTransition(null);
     releaseBlockSelection(sectionId);
   }, [sectionId]);
 
@@ -360,12 +424,14 @@ export function PresetTracksSection({
   const deleteSegment = useCallback(
     (group: TrackGroup, segIdx: number) => {
       const adjustSelection = () => {
-        setSelectedSeg((sel) => {
+        const shift = (sel: SegSelection | null) => {
           if (!sel || sel.templatePath !== group.templatePath) return sel;
           if (sel.segIdx === segIdx) return null;
           if (sel.segIdx > segIdx) return { ...sel, segIdx: sel.segIdx - 1 };
           return sel;
-        });
+        };
+        setSelectedSeg(shift);
+        setExpandedTransition(shift);
       };
 
       // Comma-separated string (and data: references): drop that segment's
@@ -391,6 +457,31 @@ export function PresetTracksSection({
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
       adjustSelection();
+    },
+    [
+      timeline,
+      preset,
+      presetInputData,
+      timelineId,
+      presetId,
+      updatePresetInputData,
+      getEditedTimeline,
+      generateOutput,
+    ],
+  );
+
+  const commitTransitionDuration = useCallback(
+    (itemPath: string, effectIndex: number, edge: TransitionEdge, seconds: number) => {
+      if (!timeline || !preset) return;
+      const key = edge === "in" ? "inRange" : "outRange";
+      const next = setAtPathValue(
+        presetInputData,
+        `${itemPath}.transitionEffects[${effectIndex}].${key}`,
+        seconds,
+      );
+      updatePresetInputData(timelineId, presetId, next);
+      const latestTimeline = getEditedTimeline(timelineId) || timeline;
+      generateOutput(latestTimeline);
     },
     [
       timeline,
@@ -892,7 +983,7 @@ export function PresetTracksSection({
         })
       : trackGroups;
 
-    const rows = visibleGroups.map((group, ti) => {
+    const rows = visibleGroups.flatMap((group, ti) => {
       const segs = segsMap[group.templatePath] ?? [];
       const color = TRACK_COLORS[ti % TRACK_COLORS.length]!;
       const isPlain = group.kind === "plain-range";
@@ -905,7 +996,7 @@ export function PresetTracksSection({
         ? `${shortLabel} - ${sourceTag}`
         : group.label;
 
-      return {
+      const mainRow = {
         id: `${sectionId}:${group.templatePath}`,
         label: (
           <div
@@ -1022,6 +1113,16 @@ export function PresetTracksSection({
                     parseDirectArrayIndexPath(path)))
                   ? () => deleteSegment(group, si)
                   : null;
+              const itemPath = imageItemPathFromRangePath(path);
+              const transitions = itemPath
+                ? readTransitionEffects(getAtPath(presetInputData, itemPath))
+                : [];
+              const edges = transitionEdgeFlags(transitions);
+              const hasTransition = edges.hasIn || edges.hasOut;
+              const laneTarget = {
+                templatePath: group.templatePath,
+                segIdx: si,
+              };
 
               return (
                 <SegBlock
@@ -1106,6 +1207,20 @@ export function PresetTracksSection({
                     })
                   }
                   canPaste={!!clipboard}
+                  overlay={
+                    hasTransition ? (
+                      <TransitionEdgeIcons
+                        hasIn={edges.hasIn}
+                        hasOut={edges.hasOut}
+                        onToggle={() => toggleTransitionLanes(laneTarget)}
+                      />
+                    ) : null
+                  }
+                  onDoubleClick={
+                    hasTransition
+                      ? () => toggleTransitionLanes(laneTarget)
+                      : undefined
+                  }
                 />
               );
             })}
@@ -1119,6 +1234,44 @@ export function PresetTracksSection({
           </div>
         ),
       };
+
+      const extraRows: TimelineTrackRow[] = [];
+      const openLane = expandedTransition;
+      if (openLane && openLane.templatePath === group.templatePath) {
+        const seg = segs[openLane.segIdx];
+        const path = group.concretePaths[openLane.segIdx];
+        const itemPath = imageItemPathFromRangePath(path);
+        if (seg && itemPath) {
+          const effects = readTransitionEffects(
+            getAtPath(presetInputData, itemPath),
+          );
+          effects.forEach((effect, effectIndex) => {
+            extraRows.push({
+              id: `${sectionId}:${group.templatePath}:tr:${openLane.segIdx}:${effectIndex}`,
+              label: <TransitionLaneLabel effect={effect} />,
+              track: (
+                <TransitionRangeTrack
+                  effect={effect}
+                  imageStart={seg.start}
+                  imageEnd={seg.end}
+                  secToPx={secToPx}
+                  pixelsPerSecond={pixelsPerSecond}
+                  onCommit={(edge, seconds) =>
+                    commitTransitionDuration(
+                      itemPath,
+                      effectIndex,
+                      edge,
+                      seconds,
+                    )
+                  }
+                />
+              ),
+            });
+          });
+        }
+      }
+
+      return [mainRow, ...extraRows];
     });
 
     return {
@@ -1146,6 +1299,9 @@ export function PresetTracksSection({
     duplicateSelected,
     splitAtPlayhead,
     selectSeg,
+    toggleTransitionLanes,
+    expandedTransition,
+    commitTransitionDuration,
     clearSelection,
     copySegment,
     pasteClipboard,
@@ -1185,6 +1341,8 @@ function SegBlock({
   onCut,
   onPaste,
   canPaste,
+  overlay,
+  onDoubleClick,
 }: {
   left: number;
   width: number;
@@ -1206,6 +1364,8 @@ function SegBlock({
   onCut: () => void;
   onPaste: () => void;
   canPaste: boolean;
+  overlay?: React.ReactNode;
+  onDoubleClick?: () => void;
 }) {
   return (
     <ContextMenu>
@@ -1220,6 +1380,12 @@ function SegBlock({
           onClick={(e) => {
             e.stopPropagation();
             onSelect();
+          }}
+          onDoubleClick={(e) => {
+            if (!onDoubleClick) return;
+            e.stopPropagation();
+            e.preventDefault();
+            onDoubleClick();
           }}
         >
           <div
@@ -1280,6 +1446,7 @@ function SegBlock({
               <Trash2 className="h-2.5 w-2.5" />
             </button>
           )}
+          {overlay}
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">

@@ -5,7 +5,8 @@
  * images. It creates engaging visual sequences with smooth motion and transitions.
  *
  * Features:
- * - **Multiple Effects**: Pan, zoom, shake, and custom generic animations
+ * - **Loop Effects**: Pan, zoom, and custom generic animations (`loopEffects`)
+ * - **Transitions**: Per-image in/out transitions (fade, blur, slide, scale)
  * - **Image Filters**: Blur, brightness, contrast, saturation, grayscale, sepia, and more
  * - **Blend Modes**: Various blend modes for creative compositing
  * - **Time Range Control**: Apply effects to specific time ranges (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss)
@@ -28,6 +29,44 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes, paramInputTypes } from '../../dataTypes';
+
+const transitionEffectSchema = z.object({
+  id: z.string().optional().describe('Custom transition id'),
+  timing: z
+    .enum(['in', 'out', 'in&out'])
+    .default('in&out')
+    .describe('Which edge of the image plays this transition'),
+  animation: z
+    .enum([
+      'blur',
+      'fade',
+      'slide-left',
+      'slide-right',
+      'slide-up',
+      'slide-down',
+      'scale-in',
+    ])
+    .default('fade')
+    .describe('Transition animation'),
+  impact: z
+    .number()
+    .default(1)
+    .describe('Strength of the transition (default 1)'),
+  animationType: z
+    .enum(['linear', 'spring', 'bezier'])
+    .default('linear')
+    .describe('linear, spring + clamp, or bezier + clamp'),
+  inRange: z
+    .number()
+    .min(0)
+    .default(0.5)
+    .describe('Transition in length in seconds (default 0.5)'),
+  outRange: z
+    .number()
+    .min(0)
+    .default(0.5)
+    .describe('Transition out length in seconds (default 0.5)'),
+});
 
 // Define the schema for image sources
 const imageSourceSchema = z.object({
@@ -102,6 +141,15 @@ const imageSourceSchema = z.object({
       [paramMetaTypes.groupEditable]: true,
     })
     .describe('Optional color tint overlay'),
+  transitionEffects: z
+    .array(transitionEffectSchema)
+    .optional()
+    .default([])
+    .meta({
+      [paramMetaTypes.transitionEffectsGroup]: true,
+      [paramMetaTypes.groupEditable]: false,
+    })
+    .describe('In and out transitions for this image'),
 });
 
 // Visual motion effects only (pan / zoom / generic)
@@ -447,14 +495,14 @@ const presetParams = z.object({
       [paramMetaTypes.referrableDataType]: 'medias',
     })
     .describe('Image sources with optional linked medias ref for srcs'),
-  effects: z
+  loopEffects: z
     .array(effectSchema)
     .min(1)
     .meta({
       [paramMetaTypes.nestedRangeField]: '[].range',
       [paramMetaTypes.effectsGroup]: true,
     })
-    .describe('Motion effects: pan, zoom, generic'),
+    .describe('Loop motion effects: pan, zoom, generic'),
   shakeEffects: z
     .array(shakeEffectSchema)
     .optional()
@@ -493,7 +541,9 @@ const presetExecution = async (
     : Array.isArray(rawImages?.items)
       ? rawImages.items
       : [];
-  const { effects: rawEffects } = params;
+  // loopEffects is the current field; effects is the previous name
+  const rawEffects =
+    (params as any).loopEffects ?? (params as any).effects;
   // Migrate legacy entries that still live on effects[] / shakeEffects
   const legacyShake: z.infer<typeof shakeEffectSchema>[] = [];
   const legacyBeat: z.infer<typeof beatEffectSchema>[] = [];
@@ -678,6 +728,118 @@ const presetExecution = async (
 
   const isVertical =
     config?.width && config?.height && config?.width < config?.height;
+
+  const buildImageTransitions = (
+    image: any,
+    imageIndex: number,
+    imageRange: { start: number; duration: number } | null,
+  ) => {
+    const list = Array.isArray(image?.transitionEffects)
+      ? image.transitionEffects
+      : [];
+    const targetId = `${params.trackName ?? 'imageloop'}-image-${imageIndex}`;
+    const imageStart = imageRange?.start ?? 0;
+    const imageDuration = imageRange?.duration ?? 0;
+    const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+    const animType = (value: unknown) =>
+      value === 'spring' || value === 'bezier' ? value : 'linear';
+
+    const rangesFor = (
+      animation: string,
+      impact: number,
+      direction: 'in' | 'out',
+    ) => {
+      const amount = Number.isFinite(impact) ? impact : 1;
+      const fade = clamp01(amount);
+      const slide = `${amount * 100}%`;
+      const slideNeg = `-${amount * 100}%`;
+      const blurPx = Math.max(0, amount * 20);
+      const scaleFrom = Math.max(0, 1 - amount);
+      const isIn = direction === 'in';
+      switch (animation) {
+        case 'blur':
+          return [
+            { key: 'blur', val: isIn ? blurPx : 0, prog: 0 },
+            { key: 'blur', val: isIn ? 0 : blurPx, prog: 1 },
+          ];
+        case 'slide-left':
+          return [
+            { key: 'translateX', val: isIn ? slide : '0%', prog: 0 },
+            { key: 'translateX', val: isIn ? '0%' : slideNeg, prog: 1 },
+          ];
+        case 'slide-right':
+          return [
+            { key: 'translateX', val: isIn ? slideNeg : '0%', prog: 0 },
+            { key: 'translateX', val: isIn ? '0%' : slide, prog: 1 },
+          ];
+        case 'slide-up':
+          return [
+            { key: 'translateY', val: isIn ? slide : '0%', prog: 0 },
+            { key: 'translateY', val: isIn ? '0%' : slideNeg, prog: 1 },
+          ];
+        case 'slide-down':
+          return [
+            { key: 'translateY', val: isIn ? slideNeg : '0%', prog: 0 },
+            { key: 'translateY', val: isIn ? '0%' : slide, prog: 1 },
+          ];
+        case 'scale-in':
+          return [
+            { key: 'scale', val: isIn ? scaleFrom : 1, prog: 0 },
+            { key: 'scale', val: isIn ? 1 : scaleFrom, prog: 1 },
+          ];
+        case 'fade':
+        default:
+          return [
+            { key: 'opacity', val: isIn ? 1 - fade : 1, prog: 0 },
+            { key: 'opacity', val: isIn ? 1 : 1 - fade, prog: 1 },
+          ];
+      }
+    };
+
+    const built: any[] = [];
+    list.forEach((tr: any, effectIndex: number) => {
+      const timing = tr?.timing || 'in&out';
+      const animation = tr?.animation || 'fade';
+      const impact = typeof tr?.impact === 'number' ? tr.impact : 1;
+      const inDur = typeof tr?.inRange === 'number' ? tr.inRange : 0.5;
+      const outDur = typeof tr?.outRange === 'number' ? tr.outRange : 0.5;
+      const wantsIn = timing === 'in' || timing === 'in&out';
+      const wantsOut = timing === 'out' || timing === 'in&out';
+      const idBase =
+        tr?.id ||
+        `${params.trackName ?? 'imageloop'}-transition-${imageIndex}-${effectIndex}`;
+
+      const push = (
+        direction: 'in' | 'out',
+        startSec: number,
+        durSec: number,
+      ) => {
+        if (!(durSec > 0)) return;
+        built.push({
+          id: `${idBase}-${direction}`,
+          componentId: 'generic',
+          data: {
+            mode: 'provider',
+            targetIds: [targetId],
+            type: animType(tr?.animationType),
+            ranges: rangesFor(animation, impact, direction),
+            duration: durSec,
+            start: startSec,
+            // In releases back to the resting image. Out holds the end state
+            // so the image stays hidden after the exit.
+            inactiveBehavior: direction === 'out' ? 'hold-end' : 'none',
+          } as GenericEffectData,
+        });
+      };
+
+      if (wantsIn) push('in', imageStart, inDur);
+      if (wantsOut && imageDuration > 0) {
+        const capped = Math.min(outDur, imageDuration);
+        push('out', imageStart + imageDuration - capped, capped);
+      }
+    });
+    return built;
+  };
 
   // Create image components with effects
   const imageComponents = await Promise.all(
@@ -982,7 +1144,10 @@ const presetExecution = async (
             duration: imageDuration,
           },
         },
-        effects: imageEffects,
+        effects: [
+          ...imageEffects,
+          ...buildImageTransitions(image, imageIndex, imageRange),
+        ],
       };
     }),
   );
@@ -1042,6 +1207,18 @@ const presetExecution = async (
   }
   if (container.height !== undefined) {
     containerStyle.height = container.height;
+  }
+
+  const hasSlideTransition = images.some(
+    (image) =>
+      Array.isArray(image?.transitionEffects) &&
+      image.transitionEffects.some(
+        (tr: any) =>
+          typeof tr?.animation === 'string' && tr.animation.startsWith('slide'),
+      ),
+  );
+  if (hasSlideTransition) {
+    containerStyle.overflow = 'hidden';
   }
 
   const hasPositioning =
@@ -1114,7 +1291,7 @@ const presetMetadata: PresetMetadata = {
   id: 'imageloop',
   title: 'imageloop',
   description:
-    'Apply pan, zoom, generic, shake, and beat-synchronized effects to single or multiple images',
+    'Apply loop motion, per-image transitions, shake, and beat-synchronized effects to images',
   type: 'predefined',
   presetType: 'children',
   tags: ['image', 'effects', 'visual', 'animation', 'beat', 'audio'],
@@ -1135,7 +1312,7 @@ const presetMetadata: PresetMetadata = {
         },
       ],
     },
-    effects: [
+    loopEffects: [
       {
         type: 'pan',
         pan: {
@@ -1149,6 +1326,15 @@ const presetMetadata: PresetMetadata = {
     beatEffects: [],
   },
 };
+
+/** Rename saved imageloop input from `effects` to `loopEffects`. */
+export function migrateImageLoopInputData<T>(data: T): T {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+  const record = data as Record<string, unknown>;
+  if (record.loopEffects != null || !Array.isArray(record.effects)) return data;
+  const { effects, ...rest } = record;
+  return { ...rest, loopEffects: effects } as T;
+}
 
 const presetFunction = presetExecution.toString();
 const presetParamsSchema = z.toJSONSchema(presetParams);

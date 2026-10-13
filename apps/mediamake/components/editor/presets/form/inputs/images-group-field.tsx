@@ -21,6 +21,7 @@ import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import { detectMediaKind, toMediaItem } from "../../dataTypes/media";
 import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
+import { TransitionEffectsField } from "./transition-effects-field";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
@@ -108,6 +109,10 @@ function isRangeProp(prop: ItemPropSchema): boolean {
 
 function isContainerProp(prop: ItemPropSchema): boolean {
   return prop.meta?.[paramMetaTypes.containerObject] === true;
+}
+
+function isTransitionEffectsProp(prop: ItemPropSchema): boolean {
+  return prop.meta?.[paramMetaTypes.transitionEffectsGroup] === true;
 }
 
 /** Visual controls that do not apply to audio items. */
@@ -551,6 +556,11 @@ export function ImagesGroupField({
                 onOpenChange={(open) => {
                   if (!open && editIndex === index) setEditIndex(null);
                 }}
+                className={
+                  popupProps.some(isTransitionEffectsProp)
+                    ? "w-[min(40rem,calc(100vw-1.5rem))] max-w-[min(40rem,calc(100vw-1.5rem))]"
+                    : undefined
+                }
                 title={`Edit image ${index + 1}${linked ? " (src from ref)" : ""}`}
                 anchor={
                   <div
@@ -745,6 +755,21 @@ function ItemPopupFields({
             prop={prop}
             value={img.rangeString}
             onChange={(val) => onChange({ rangeString: val })}
+          />
+        );
+      })()}
+      {(() => {
+        const prop = popupProps.find(isTransitionEffectsProp);
+        if (!prop) return null;
+        return (
+          <TransitionEffectsField
+            value={img.transitionEffects}
+            onChange={(next) => onChange({ transitionEffects: next })}
+            hostRange={
+              typeof img.rangeString === "string" ? img.rangeString : undefined
+            }
+            title="transitionEffects"
+            description={prop.description}
           />
         );
       })()}

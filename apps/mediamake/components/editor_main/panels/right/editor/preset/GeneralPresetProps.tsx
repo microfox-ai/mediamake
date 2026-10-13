@@ -16,6 +16,7 @@ import type { Preset } from "../../../../stores/editor-store";
 import type { Timeline } from "../../../../stores/project-store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
+import { migrateImageLoopInputData } from "@/components/editor/presets/registry/general/imageloop";
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -50,8 +51,18 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const editedTimeline = getEditedTimeline(timeline.id);
   const currentPreset = editedTimeline?.presets?.find(p => p.id === preset.id) || preset;
 
+  const normalizeInput = useCallback(
+    (data: any) =>
+      preset.presetId === "imageloop" ? migrateImageLoopInputData(data) : data,
+    [preset.presetId],
+  );
+
   // Initialize local state with current preset data
-  const [localInputData, setLocalInputData] = useState(currentPreset.presetInputData || {});
+  const [localInputData, setLocalInputData] = useState(() =>
+    preset.presetId === "imageloop"
+      ? migrateImageLoopInputData(currentPreset.presetInputData || {})
+      : currentPreset.presetInputData || {},
+  );
 
   // Initialize the ref with the initial value
   useEffect(() => {
@@ -67,15 +78,28 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     // Skip if we're currently compiling (to prevent re-renders during generation)
     if (isCompilingRef.current) return;
 
-    const newInputData = currentPreset.presetInputData || {};
+    const newInputData = normalizeInput(currentPreset.presetInputData || {});
     const newInputDataStr = JSON.stringify(newInputData);
 
     // Only update if the data actually changed
     if (newInputDataStr !== lastSyncedInputDataRef.current) {
       lastSyncedInputDataRef.current = newInputDataStr;
       setLocalInputData(newInputData);
+      if (
+        preset.presetId === "imageloop" &&
+        JSON.stringify(currentPreset.presetInputData || {}) !== newInputDataStr
+      ) {
+        updatePresetInputData(timeline.id, preset.id, newInputData);
+      }
     }
-  }, [currentPreset.presetInputData]);
+  }, [
+    currentPreset.presetInputData,
+    normalizeInput,
+    preset.presetId,
+    preset.id,
+    timeline.id,
+    updatePresetInputData,
+  ]);
 
   // Update editedLabel when preset changes
   useEffect(() => {

@@ -265,7 +265,7 @@
             "fit": "cover"
           }
         ],
-        "effects": [
+        "loopEffects": [
           {
             "type": "zoom",
             "pan": {
@@ -342,7 +342,7 @@
             "fit": "cover"
           }
         ],
-        "effects": [
+        "loopEffects": [
           {
             "type": "pan",
             "pan": {

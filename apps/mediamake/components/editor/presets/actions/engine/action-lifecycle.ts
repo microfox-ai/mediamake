@@ -76,23 +76,24 @@ export function stripActionOutputFromTargetData(
     next.shakeEffects = kept;
   }
 
-  // Also scrub legacy action shakes left on effects[]
-  if (Array.isArray(next.effects)) {
-    const effects = next.effects as any[];
-    const keptEffects = effects.filter((effect) => {
-      if (isOwned(effect)) return false;
-      if (
-        effect?.type === "shake" ||
-        effect?.type === "beat-shake" ||
-        effect?.type === "beat-zoom" ||
-        effect?.type === "beat-exposure"
-      ) {
-        return false;
-      }
-      return true;
-    });
+  const keepLoopMotion = (effect: any) => {
+    if (isOwned(effect)) return false;
+    if (
+      effect?.type === "shake" ||
+      effect?.type === "beat-shake" ||
+      effect?.type === "beat-zoom" ||
+      effect?.type === "beat-exposure"
+    ) {
+      return false;
+    }
+    return true;
+  };
+  for (const key of ["loopEffects", "effects"] as const) {
+    if (!Array.isArray(next[key])) continue;
+    const effects = next[key] as any[];
+    const keptEffects = effects.filter(keepLoopMotion);
     if (keptEffects.length !== effects.length) {
-      next.effects = keptEffects;
+      next[key] = keptEffects;
     }
   }
 

@@ -203,19 +203,22 @@ export const applyShakeEffectsOutput: ActionDefinition["applyOutput"] = ({
     (effect) => !isOwned(effect) && effect?.type !== "beat-shake",
   );
 
+  const keepMotion = (effect: any) => {
+    if (!isOwned(effect)) {
+      return (
+        effect?.type === "pan" ||
+        effect?.type === "zoom" ||
+        effect?.type === "generic" ||
+        !effect?.type
+      );
+    }
+    return false;
+  };
+  if (Array.isArray(next.loopEffects)) {
+    next.loopEffects = (next.loopEffects as any[]).filter(keepMotion);
+  }
   if (Array.isArray(next.effects)) {
-    next.effects = (next.effects as any[]).filter((effect) => {
-      if (!isOwned(effect)) {
-        // Keep only pan/zoom/generic on effects
-        return (
-          effect?.type === "pan" ||
-          effect?.type === "zoom" ||
-          effect?.type === "generic" ||
-          !effect?.type
-        );
-      }
-      return false;
-    });
+    next.effects = (next.effects as any[]).filter(keepMotion);
   }
 
   // Move any action-owned beat-shake off shakeEffects into beatEffects cleanup

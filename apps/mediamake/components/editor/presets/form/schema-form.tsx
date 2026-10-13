@@ -58,6 +58,7 @@ import { LinkTrackNameInput } from "./inputs/link-track-name-input";
 import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue, extractMediaSrc, toMediaRefEntry } from "./inputs/images-group-field";
 import { ShakeEffectsField } from "./inputs/shake-effects-field";
 import { EffectsField } from "./inputs/effects-field";
+import { TransitionEffectsField } from "./inputs/transition-effects-field";
 import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
@@ -181,6 +182,7 @@ function isMediaSelectableField(fieldKey: string, field: FormField): boolean {
     if (field.meta?.[paramMetaTypes.imagesGroup] === true) return false;
     if (field.meta?.[paramMetaTypes.shakeEffectsGroup] === true) return false;
     if (field.meta?.[paramMetaTypes.effectsGroup] === true) return false;
+    if (field.meta?.[paramMetaTypes.transitionEffectsGroup] === true) return false;
     if (field.type === "string") {
         return isUrlField(fieldKey, field);
     }
@@ -412,6 +414,10 @@ function isShakeEffectsGroupField(field: FormField): boolean {
 
 function isEffectsGroupField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.effectsGroup] === true;
+}
+
+function isTransitionEffectsGroupField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.transitionEffectsGroup] === true;
 }
 
 function parseDataReferenceValue(value: unknown): { key: string; range: string } | null {
@@ -2250,6 +2256,17 @@ function renderField(
             );
         }
 
+        if (isTransitionEffectsGroupField(field)) {
+            return (
+                <TransitionEffectsField
+                    value={fieldValue}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                    title={field.title || fieldKey}
+                    description={field.description}
+                />
+            );
+        }
+
         if (isEffectsGroupField(field)) {
             return (
                 <EffectsField
@@ -2708,12 +2725,14 @@ function renderField(
             !isContainerObjectField(field) &&
             !isImagesGroupField(field) &&
             !isShakeEffectsGroupField(field) &&
-            !isEffectsGroupField(field)) ||
+            !isEffectsGroupField(field) &&
+            !isTransitionEffectsGroupField(field)) ||
         (field.type === "array" &&
             Boolean(field.items) &&
             !isImagesGroupField(field) &&
             !isShakeEffectsGroupField(field) &&
-            !isEffectsGroupField(field));
+            !isEffectsGroupField(field) &&
+            !isTransitionEffectsGroupField(field));
 
     const handleLinkToReference = (referenceKey: string) => {
         if (isImagesGroupField(field)) {
@@ -2822,7 +2841,7 @@ function renderField(
     // Always show FieldLabel for structured fields (help / ref / media icons).
     // When linked, still render the linked-value editor under the same label.
     // shakeEffectsGroup and effectsGroup own their label row (Smart / Full tabs).
-    if (isShakeEffectsGroupField(field) || isEffectsGroupField(field)) {
+    if (isShakeEffectsGroupField(field) || isEffectsGroupField(field) || isTransitionEffectsGroupField(field)) {
         return (
             <div key={fieldKey} className="space-y-2">
                 {renderInput()}
