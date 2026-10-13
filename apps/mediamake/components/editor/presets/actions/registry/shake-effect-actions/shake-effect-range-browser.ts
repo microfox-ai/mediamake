@@ -2,7 +2,9 @@ import type { ActionDefinition, ActionExecuteContext, ActionExecuteResult } from
 import { ACTION_GENERATED_KEY } from "../../engine/run-action";
 import { applyShakeEffectsOutput, formatRange, loadTrackBeatsInBrowser } from "./shake-helpers";
 import { inputSchema, shakeEffectRange } from "./shake-effect-range";
-import { buildPhraseShakes, type PhraseStyle } from "./shake-phrase";
+import { buildImpactShakes } from "./shake-impacts";
+import { buildIntelligentShakes } from "./shake-intelligent";
+import { buildPhraseShakes } from "./shake-phrase";
 
 /**
  * Browser-only phrase shakes. Energy frames come from the Web Audio decode
@@ -16,7 +18,7 @@ export const shakeEffectRangeBrowser: ActionDefinition = {
     id: "shakeEffectRangeBrowser",
     title: "Shake Effect Range (Browser)",
     description:
-      "Segment the track in the browser into four shake readings: Phrases, Pulse, Drift, and Impact. Amplitude is travel in pixels; frequency is how fast that shake cycles. See shake-effects-phrase-segmentation.md beside this action.",
+      "Segment the track in the browser: short-phrase, short-pulse, short-drift, long-impact, and intelligent. Intelligent follows the beat with no song structure. See shake-effects-phrase-segmentation.md beside this action.",
     supportedPresetIds: shakeEffectRange.metadata.supportedPresetIds,
     supportedReferenceTypes: shakeEffectRange.metadata.supportedReferenceTypes,
     tags: ["shake", "range", "browser", "waveform", "imageloop"],
@@ -48,26 +50,31 @@ async function executeBrowserPhraseShakes(
     trackName: parsed.trackName,
     browser: ctx.browser,
   });
-  ctx.browser.reportProgress("Segmenting phrases…");
+  ctx.browser.reportProgress("Segmenting audio…");
 
-  const styles: Array<{ style: PhraseStyle; label: string; favorite?: boolean }> = [
-    { style: "phrases", label: "Phrases", favorite: true },
-    { style: "pulse", label: "Pulse" },
-    { style: "drift", label: "Drift" },
-    { style: "impact", label: "Impact" },
+  const shared = {
+    frames: loaded.beats,
+    duration: loaded.durationInSeconds,
+    minRange: parsed.minRange,
+    beatDetection: parsed.beatDetection,
+  };
+  const readings: Array<{
+    id: string;
+    label: string;
+    favorite?: boolean;
+    phrases: ReturnType<typeof buildPhraseShakes>;
+  }> = [
+    { id: "short-phrase", label: "short-phrase", favorite: true, phrases: buildPhraseShakes({ ...shared, style: "phrases" }) },
+    { id: "short-pulse", label: "short-pulse", phrases: buildPhraseShakes({ ...shared, style: "pulse" }) },
+    { id: "short-drift", label: "short-drift", phrases: buildPhraseShakes({ ...shared, style: "drift" }) },
+    { id: "long-impact", label: "long-impact", phrases: buildImpactShakes(shared) },
+    { id: "intelligent", label: "intelligent", phrases: buildIntelligentShakes(shared) },
   ];
 
-  const built = styles.map(({ style, label, favorite }) => {
-    const phrases = buildPhraseShakes({
-      frames: loaded.beats,
-      duration: loaded.durationInSeconds,
-      minRange: parsed.minRange,
-      beatDetection: parsed.beatDetection,
-      style,
-    });
+  const built = readings.map(({ id, label, favorite, phrases }) => {
     const shakeEffects = phrases.map((phrase, index) => ({
       type: "shake" as const,
-      id: `${style}-${index}`,
+      id: `${id}-${index}`,
       range: formatRange(phrase.start, phrase.end),
       shake: {
         amplitude: phrase.amplitude,
@@ -77,7 +84,7 @@ async function executeBrowserPhraseShakes(
       },
       [ACTION_GENERATED_KEY]: ctx.action.id,
     }));
-    return { style, label, favorite, phrases, shakeEffects };
+    return { id, label, favorite, phrases, shakeEffects };
   });
 
   const outputs = built
@@ -102,7 +109,7 @@ async function executeBrowserPhraseShakes(
     for (const item of built) {
       console.table(
         item.phrases.map((phrase) => ({
-          style: item.style,
+          style: item.id,
           range: formatRange(phrase.start, phrase.end),
           role: phrase.role,
           amplitude: phrase.amplitude,

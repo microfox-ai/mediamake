@@ -37,17 +37,17 @@ Those frames are averaged into half-second bins. Cuts are the places where bass,
 Remotion shake (`packages/remotion` `ShakeEffect`):
 
 - `amplitude` is travel in pixels. This action stays in about 1–4.
-- `frequency` multiplies the frame clock. At 30 fps, `0.1` is about a 2 second sway and `3` is a fast vibrate.
+- `frequency` multiplies the frame clock. At 30 fps, `0.05` is about a 4 second sway, `0.1` is about 2 seconds, and `3` is a fast vibrate.
 - `decay` is false and `axis` is `"both"`, so the move holds for the whole range.
 
-## The four splits
+## The splits
 
-All four start from the same bins. They keep or join different phrases, and they pick amplitude and frequency differently.
+**short-phrase** (default). One shake per arrangement role. The intro sways (`frequency` 0.1, `amplitude` 2). The first locked pocket is small and quicker (1 / 1.5). The build is 2 / 2.5. The chorus is 4 / 3. A breakdown and the fade are left still. The return is 2 / 2.5, the long main section is 2.5 / 3, and the dark landing eases off to 2 / 1.5.
 
-**Phrases** (default). One shake per arrangement role. The intro sways (`frequency` 0.1, `amplitude` 2). The first locked pocket is small and quicker (1 / 1.5). The build is 2 / 2.5. The chorus is 4 / 3. A breakdown and the fade are left still. The return is 2 / 2.5, the long main section is 2.5 / 3, and the dark landing eases off to 2 / 1.5.
+**short-pulse.** The shake speed follows how busy the attacks are (`spectralFlux`), and the travel stays small (about 1–2.5). A lift inside a long groove stays its own range. A breakdown is still empty.
 
-**Pulse.** The shake speed follows how busy the attacks are (`spectralFlux`), and the travel stays small (about 1–2.5). A lift inside a long groove stays its own range. A breakdown is still empty. This reads as the rhythm ticking the picture, not a camera throw.
+**short-drift.** Neighboring phrases join into long slow moves. Frequency stays at 0.1 except the loudest section, which opens up to a wide sway (`amplitude` 4, `frequency` 0.5). The breakdown stays empty.
 
-**Drift.** Neighboring phrases join into long slow moves. Frequency stays at 0.1 except the loudest section, which opens up to a wide sway (`amplitude` 4, `frequency` 0.5). The breakdown stays empty so the drift has a still moment in the middle.
+**long-impact.** Detector in `shake-impacts.ts`. A hit starts when loudness and attacks rise above the previous stretch and stay there, so a later chorus can land even when an earlier one was quieter. It ends when the level or the attacks fall back. Strength follows that hit, from about 2 / 2 up to 4 / 3. The verse between hits is left still.
 
-**Impact.** Only the hits. A section is kept when its loudness is near the file's peak (`amplitude` 4, `frequency` 3), plus the phrase just before that peak as a wind-up (2 / 2.5). The intro, the pocket, the breakdown, the return, and the landing are left still.
+**intelligent.** Detector in `shake-intelligent.ts`. No song structure. A range can sit at the start, the middle, or the end, wherever the beat changes and holds. Amplitude is how hard the beats in that range hit. Frequency is how fast they come: a hanging melody with almost no pulse uses about `0.05`–`0.1` (a multi-second sway), and a busy beat climbs toward `3`. Near-silence is the only stretch left still.

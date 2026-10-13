@@ -32,7 +32,7 @@ export type PhraseShake = {
 };
 
 /** Four readings of the same phrase cuts. */
-export type PhraseStyle = "phrases" | "pulse" | "drift" | "impact";
+export type PhraseStyle = "phrases" | "pulse" | "drift";
 
 type Bin = {
   rms: number;
@@ -302,7 +302,7 @@ export function buildPhraseShakes(args: {
     sections = merged;
   }
 
-  // Pulse and Impact keep the lift inside a phrase as its own range.
+  // Pulse keeps a lift inside a phrase as its own range.
   // Phrases and Drift fold that lift back into the surrounding groove.
   if ((style === "phrases" || style === "drift") && args.beatDetection <= 0.65 && sections.length > 2) {
     const audible = sections.filter((section) => !isSilent(section));
@@ -404,8 +404,6 @@ export function buildPhraseShakes(args: {
     const afterGap = sections.slice(0, index).some((item, itemIndex) =>
       isCollapse(item, sections[itemIndex - 1], sections[itemIndex + 1]),
     );
-    const leadIn = !!next && next.rms >= maxRms * 0.995 && !isSilent(next);
-
     let role = "drive";
     let frequency = round1(clamp(1.2 + energy * 1.8, 1.2, 3));
     let amplitude = round1(clamp(1 + energy * 2.2, 1, 4));
@@ -427,18 +425,6 @@ export function buildPhraseShakes(args: {
         role = "drift";
         frequency = 0.1;
         amplitude = energy > 0.8 ? 2.5 : 2;
-      }
-    } else if (style === "impact") {
-      if (energy >= 0.9) {
-        role = "impact";
-        frequency = 3;
-        amplitude = 4;
-      } else if (leadIn) {
-        role = "windup";
-        frequency = 2.5;
-        amplitude = 2;
-      } else {
-        return;
       }
     } else if (beforePeak && index === 0 && section.bass < bassMed * 0.85 && energy < 0.8) {
       role = "sway";
