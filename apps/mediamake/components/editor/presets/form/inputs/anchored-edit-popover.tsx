@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,38 @@ const PORTALED_MENU_SELECTOR = [
 
 function isPortaledMenuTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(PORTALED_MENU_SELECTOR));
+}
+
+/** Source URL stored on an image or media item. */
+export function mediaSourceUrl(item: unknown): string {
+  if (typeof item === "string") return item.trim();
+  if (!item || typeof item !== "object") return "";
+  const record = item as Record<string, any>;
+  return String(
+    record.src || record.filePath || record.url || record.metadata?.src || "",
+  ).trim();
+}
+
+/** Header action that opens a media source in a new tab. */
+export function OpenSourceButton({ item }: { item: unknown }) {
+  const url = mediaSourceUrl(item);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-6 shrink-0 gap-1 px-2 text-[10px]"
+      title="Open source in a new tab"
+      disabled={!url}
+      onClick={() => {
+        if (!url) return;
+        window.open(url, "_blank", "noopener,noreferrer");
+      }}
+    >
+      <ExternalLink className="h-3 w-3" />
+      Open
+    </Button>
+  );
 }
 
 /** Edit panel that opens to the left of its field anchor instead of a centered dialog. */

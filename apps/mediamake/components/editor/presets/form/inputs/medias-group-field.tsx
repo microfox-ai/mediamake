@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaPicker } from "@/components/editor/media/media-picker";
-import { AnchoredEditPopover } from "./anchored-edit-popover";
+import { AnchoredEditPopover, OpenSourceButton } from "./anchored-edit-popover";
 import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
@@ -403,6 +403,7 @@ export function MediasGroupField({
                     if (!open && editIndex === index) setEditIndex(null);
                   }}
                   title={`Edit ${kind} ${index + 1}`}
+                  headerActions={<OpenSourceButton item={item} />}
                   anchor={
                     <div
                       className={`group relative aspect-square overflow-hidden rounded-md border bg-muted ${identityOnly ? "" : "cursor-pointer"}`}

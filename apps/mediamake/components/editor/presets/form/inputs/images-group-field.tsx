@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaPicker } from "@/components/editor/media/media-picker";
-import { AnchoredEditPopover } from "./anchored-edit-popover";
+import { AnchoredEditPopover, OpenSourceButton } from "./anchored-edit-popover";
 import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
@@ -511,6 +511,7 @@ export function ImagesGroupField({
                     : undefined
                 }
                 title={`Edit image ${index + 1}${linked ? " (src from ref)" : ""}`}
+                headerActions={<OpenSourceButton item={img} />}
                 anchor={
                   <div
                     className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
