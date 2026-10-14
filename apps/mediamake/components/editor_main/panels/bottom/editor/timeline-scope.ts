@@ -26,7 +26,11 @@ export type TimelineScope =
 /** The fields of editor selection this resolver reads. */
 export interface TimelineScopeSelection {
   type: string;
-  item?: { id?: string };
+  /**
+   * Preset selections carry `{ id }`. References and other kinds use a
+   * different item shape, so this stays open.
+   */
+  item?: unknown;
 }
 
 export function baseSceneOf(tree: AppliedNode): AppliedNode {
@@ -45,7 +49,10 @@ export function baseSceneOf(tree: AppliedNode): AppliedNode {
 function isPresetSelection(
   selected: TimelineScopeSelection | null,
 ): selected is TimelineScopeSelection & { item: { id: string } } {
-  return selected?.type === "preset" && typeof selected.item?.id === "string";
+  if (selected?.type !== "preset" || selected.item == null || typeof selected.item !== "object") {
+    return false;
+  }
+  return typeof (selected.item as { id?: unknown }).id === "string";
 }
 
 /** Map the editor selection onto one bottom-timeline scope. */

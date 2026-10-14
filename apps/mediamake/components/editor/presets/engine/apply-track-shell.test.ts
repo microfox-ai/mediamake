@@ -21,7 +21,7 @@ describe('applyTrackShell', () => {
       'container',
     );
 
-    const root = output.output.childrenData?.[0] as {
+    const root = output.output.childrenData?.[0] as unknown as {
       id: string;
       componentId: string;
       type: string;
