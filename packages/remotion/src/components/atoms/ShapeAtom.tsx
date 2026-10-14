@@ -1,6 +1,7 @@
 import React from 'react';
 import { Easing, interpolate, useCurrentFrame } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
+import { atomCategory } from '../../atom-category';
 import { ShapeAtomInput } from './input-schemas';
 
 export { ShapeAtomInput } from './input-schemas';
@@ -59,4 +60,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: ShapeAtomInput,
+    category: atomCategory('atoms'),
 };

@@ -67,6 +67,7 @@ class ComponentRegistryManager {
         componentId,
         displayName: entry.config?.displayName || componentId,
         inputSchema: entry.config?.inputSchema,
+        category: entry.config?.category,
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
@@ -124,6 +125,7 @@ export interface RegisteredAtom {
   componentId: string;
   displayName: string;
   inputSchema?: ComponentConfig['inputSchema'];
+  category?: string;
 }
 
 export const registerComponent = (

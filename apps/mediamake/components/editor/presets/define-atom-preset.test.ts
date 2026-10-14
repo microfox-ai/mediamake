@@ -19,6 +19,26 @@ function runBuild(presetFunction: string, data: Record<string, unknown>) {
 }
 
 describe('defineAtomPreset', () => {
+  it('categories atoms by folder, with the atoms folder as BaseAtoms', () => {
+    assert.equal(
+      defineAtomPreset({ componentId: 'A', displayName: 'A', folder: 'atoms' }).metadata.category,
+      'BaseAtoms',
+    );
+    assert.equal(
+      defineAtomPreset({ componentId: 'B', displayName: 'B', folder: 'waveforms' }).metadata.category,
+      'waveforms',
+    );
+    assert.equal(
+      defineAtomPreset({
+        componentId: 'C',
+        displayName: 'C',
+        folder: 'waveforms',
+        category: 'Spectrum',
+      }).metadata.category,
+      'Spectrum',
+    );
+  });
+
   it('keeps inputType and rangeField meta on the generated schema', () => {
     const preset = defineAtomPreset({
       componentId: 'MetaAtom',
@@ -91,6 +111,11 @@ describe('atom block registry', () => {
     assert.ok(text);
     assert.equal(text.metadata.placement, 'atom');
     assert.equal(text.metadata.title, 'TextAtom');
+    assert.equal(text.metadata.category, 'BaseAtoms');
+    assert.equal(getPredefinedPresetById('atom:WaveformHistogram')?.metadata.category, 'waveforms');
+    assert.equal(getPredefinedPresetById('atom:CaptionSmear')?.metadata.category, 'captions');
+    assert.equal(getPredefinedPresetById('atom:CanvasPipeline')?.metadata.category, 'canvas');
+    assert.equal(getPredefinedPresetById('atom:WaveformHistogramRanged')?.metadata.category, 'waveforms');
     const json = JSON.stringify(text.presetParams);
     assert.match(json, /"inputType":"color"/);
     assert.match(json, /"inputType":"textarea"/);

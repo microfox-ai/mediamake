@@ -6,7 +6,6 @@ import {
 } from '@microfox/datamotion';
 import {
   PanEffectData,
-  WaveformConfig,
   WaveformHistogramRangedDataProps,
 } from '@microfox/remotion';
 import fs from 'fs';
@@ -3741,16 +3740,11 @@ const histogramStatic = {
   componentId: 'WaveformHistogramRanged',
   type: 'atom',
   data: {
-    config: {
-      audioSrc: audioFile,
-      numberOfSamples: 64,
-      windowInSeconds: 1 / 30,
-      amplitude: 1,
-      width: 1920,
-      height: 300,
-      dataOffsetInSeconds: 0,
-      useFrequencyData: true,
-    } as WaveformConfig,
+    audio: { src: audioFile, start: 0 },
+    width: 1920,
+    height: 300,
+    numberOfSamples: 64,
+    windowInSeconds: 1 / 30,
     barColor: '#A41117',
     barSpacing: 10,
     barBorderRadius: 8,
@@ -3927,7 +3921,7 @@ const mainScene = {
       },
     },
     {
-      id: 'WaveformLine-xyz',
+      id: 'Waveform-xyz',
       ...histogramStatic,
     },
     {

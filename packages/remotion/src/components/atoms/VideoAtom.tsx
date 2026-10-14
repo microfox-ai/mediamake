@@ -5,6 +5,7 @@ import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { calculateComponentDuration, resolveLoopSrcDuration } from '../../core';
+import { atomCategory } from '../../atom-category';
 import { VideoAtomDataProps } from './input-schemas';
 
 export { VideoAtomDataProps } from './input-schemas';
@@ -320,4 +321,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: VideoAtomDataProps,
+    category: atomCategory('atoms'),
 };

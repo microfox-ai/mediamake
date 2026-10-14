@@ -1,4 +1,4 @@
-import { Composition, PanEffectData, RenderableComponentData, TextAtomData, WaveformCircleDataProps, WaveformConfig, WaveformHistogramDataProps, WaveformHistogramRangedDataProps, WaveformLineDataProps, WaveformPresets, ZoomEffectData } from "@microfox/remotion";
+import { Composition, PanEffectData, RenderableComponentData, TextAtomData, WaveformHistogramDataProps, WaveformHistogramRangedDataProps, ZoomEffectData } from "@microfox/remotion";
 
 const audioMetadata = {
     // turntogold - https://cdn1.suno.ai/db192e72-b371-4462-b7b8-78278c550450.webm
@@ -32,54 +32,19 @@ const imageMetadata = {
     channelText: "Get into Zone",
 }
 
-const stopgapLine = WaveformPresets.stopgapLine({
-    config: {
-        audioSrc: audioMetadata.src,
-        posterize: 4,
-        width: 1920 * 2,
-    },
-    strokeColor: '#FFF',
-})
-
-const stopgapCircle = {
-    componentId: "WaveformCircle",
-    type: "atom",
-    data: {
-        config: {
-            audioSrc: audioMetadata.src,
-            height: 1080,
-            numberOfSamples: 128,
-            amplitude: 1,
-        },
-        strokeColor: '#FFF',
-        strokeWidth: 8,
-
-        gradientStartColor: '#FFF',
-        gradientEndColor: '#BFCE45',
-        radius: 20,
-        centerX: 0,
-        centerY: 0,
-        startAngle: 0,
-        endAngle: 360,
-        amplitude: 1,
-        rotationSpeed: 0.5,
-    } as WaveformCircleDataProps
-}
-
 const histogram = {
     componentId: "WaveformHistogram",
     type: "atom",
     data: {
-        config: {
-            audioSrc: audioMetadata.src,
-            numberOfSamples: 32,
-            windowInSeconds: 1,
-            amplitude: 2,
-            width: 1920,
-            height: 200,
-            dataOffsetInSeconds: - 0.1,
-            useFrequencyData: false,
-        } as WaveformConfig,
+        audio: {
+            src: audioMetadata.src,
+            start: -0.1,
+        },
+        width: 1920,
+        height: 200,
+        numberOfSamples: 32,
+        windowInSeconds: 1,
+        useFrequencyData: false,
         barColor: '#A41117',
         barSpacing: 8,
         barBorderRadius: 4,
@@ -95,23 +60,18 @@ const histogram = {
         gradientStyle: 'mirrored',
         className: 'rounded-lg absolute bottom-0',
         waveDirection: 'right-to-left',
-    } as WaveformHistogramRangedDataProps
+    } as WaveformHistogramDataProps
 }
 
 const histogramStatic = {
     componentId: "WaveformHistogramRanged",
     type: "atom",
     data: {
-        config: {
-            audioSrc: audioMetadata.src,
-            numberOfSamples: 64,
-            windowInSeconds: 1 / 30,
-            amplitude: 1,
-            width: 1920,
-            height: 300,
-            dataOffsetInSeconds: 0,
-            useFrequencyData: true,
-        } as WaveformConfig,
+        audio: { src: audioMetadata.src, start: 0 },
+        width: 1920,
+        height: 300,
+        numberOfSamples: 64,
+        windowInSeconds: 1 / 30,
         barColor: '#A41117',
         barSpacing: 10,
         barBorderRadius: 8,
@@ -203,7 +163,7 @@ export const AudioScene = {
             }
         },
         {
-            id: 'WaveformLine-xyz',
+            id: 'Waveform-xyz',
             ...histogramStatic,
         },
         {

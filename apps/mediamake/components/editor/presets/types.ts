@@ -29,6 +29,10 @@ export interface PresetMetadata {
    */
   placement?: 'container' | 'atom';
   targetId?: string; // For inserting into specific component
+  /**
+   * Add Atoms submenu. Defaults to the atom's folder; the atoms folder is BaseAtoms.
+   */
+  category?: string;
   tags?: string[];
   createdAt?: Date;
   updatedAt?: Date;

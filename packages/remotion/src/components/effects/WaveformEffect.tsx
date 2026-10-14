@@ -7,7 +7,7 @@ import {
     useUniversalEffectOptional,
 } from './UniversalEffect';
 import mergeCSSStyles from './mergeCSSStyles';
-import { useWaveformData } from '../../templates/waveform/hooks/useWaveformData';
+import { useWaveformData } from '../waveforms/hooks/useWaveformData';
 
 // Waveform effect data interface
 export interface WaveformEffectData extends UniversalEffectData {

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Audio as Html5Audio, staticFile, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
+import { atomCategory } from '../../atom-category';
 import { AudioAtomDataProps } from './input-schemas';
 
 export {
@@ -153,4 +154,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: AudioAtomDataProps,
-}
+    category: atomCategory('atoms'),
+};

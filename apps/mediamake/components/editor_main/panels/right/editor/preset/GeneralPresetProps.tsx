@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2, Check, X, Copy } from "lucide-react";
+import { RefreshCw, Loader2, Check, X, Copy, Play } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
 import { collectLockTargetNames, collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
@@ -121,6 +121,11 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   // Get preset info from cache
   const presetInfo = useCompileStore(state => state.presetInfoCache.get(preset.presetId));
   const actualPreset = presetInfo?.preset as PresetType | DatabasePreset | null;
+
+  const handleRegenerate = () => {
+    const finalTimeline = getEditedTimeline(timeline.id) || timeline;
+    generateOutput(finalTimeline);
+  };
 
   const handleCopyInputProps = async () => {
     try {
@@ -422,6 +427,22 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
                   <span>Generating... {generationProgress}%</span>
                 </div>
               )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground"
+                    onClick={handleRegenerate}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Regenerate only this preset</p>
+                </TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

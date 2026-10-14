@@ -1,4 +1,4 @@
-import { editorAtomCatalog } from '@microfox/remotion/editor-atom-catalog';
+import { atomCategory, editorAtomCatalog } from '@microfox/remotion/editor-atom-catalog';
 import { z } from 'zod';
 import {
   definePreset,
@@ -72,10 +72,15 @@ export function defineAtomPreset(atom: {
   componentId: string;
   displayName: string;
   inputSchema?: unknown;
+  /** Folder the atom file lives in. `atoms` becomes BaseAtoms. */
+  folder?: string;
+  /** Overrides the folder default. */
+  category?: string;
 }): Preset {
   const schema = asZodObject(atom.inputSchema);
   const params = schema ?? rawDataParams;
   const title = atom.displayName || atom.componentId;
+  const category = atomCategory(atom.folder ?? 'atoms', atom.category);
 
   return definePreset({
     metadata: {
@@ -85,6 +90,7 @@ export function defineAtomPreset(atom: {
       type: 'predefined',
       presetType: 'children',
       role: 'track',
+      category,
       tags: ['atom'],
       defaultInputParams: {
         trackType: 'aligned',

@@ -1,12 +1,22 @@
-import React from 'react';
-import { Waveform, useWaveformContext } from '../Waveform';
-import { BaseRenderableData } from '../../..';
+import React, { useMemo } from 'react';
+import { Waveform, WaveformConfig, useWaveformContext } from './Waveform';
+import { BaseRenderableData } from '../../core/types/renderable.types';
+import { WaveformAudioSource, toWaveformConfig } from './audio-source';
 
-// Histogram waveform specific props
+// Bass, mid and treble frequency bars
 export interface WaveformHistogramRangedDataProps {
-    config: any; // Extends base WaveformConfig
+    audio?: WaveformAudioSource;
+    width?: number; // Defaults to the composition width
+    height?: number; // Defaults to the composition height
+    /** @deprecated Saved compositions only; use `audio`, `width`, `height` and the analysis props. */
+    config?: WaveformConfig;
     className?: string;
     style?: React.CSSProperties;
+
+    // Audio analysis (always frequency data)
+    numberOfSamples?: number; // Power of 2 (default: 64)
+    windowInSeconds?: number; // Default: 1/30
+    smoothNormalisation?: number; // 0 = none, 1 = default, >1 = smoother
 
     // Histogram-specific styling
     barColor?: string;
@@ -51,7 +61,13 @@ export interface WaveformHistogramRangedProps extends BaseRenderableData {
 // Histogram waveform component
 export const WaveformHistogramRanged: React.FC<WaveformHistogramRangedProps> = ({ data }) => {
     const {
-        config,
+        audio,
+        width,
+        height,
+        config: legacyConfig,
+        numberOfSamples = 64,
+        windowInSeconds = 1 / 30,
+        smoothNormalisation,
         className = '',
         style = {},
         barColor = '#FF6B6B',
@@ -76,6 +92,20 @@ export const WaveformHistogramRanged: React.FC<WaveformHistogramRangedProps> = (
         waveDirection = 'right-to-left',
         barSlant = 0,
     } = data;
+    const config = useMemo<WaveformConfig>(
+        () =>
+            !audio && legacyConfig
+                ? legacyConfig
+                : toWaveformConfig(audio, {
+                      width,
+                      height,
+                      numberOfSamples,
+                      windowInSeconds,
+                      useFrequencyData: true,
+                      smoothNormalisation,
+                  }),
+        [audio?.src, audio?.start, legacyConfig, width, height, numberOfSamples, windowInSeconds, smoothNormalisation]
+    );
     return (
         <Waveform config={config} className={className} style={style}>
             <WaveformHistogramRangedContent
@@ -106,7 +136,12 @@ export const WaveformHistogramRanged: React.FC<WaveformHistogramRangedProps> = (
 };
 
 // Internal content component
-const WaveformHistogramRangedContent: React.FC<Omit<WaveformHistogramRangedDataProps, 'config' | 'className' | 'style'>> = ({
+const WaveformHistogramRangedContent: React.FC<
+    Omit<
+        WaveformHistogramRangedDataProps,
+        'audio' | 'width' | 'height' | 'config' | 'className' | 'style' | 'numberOfSamples' | 'windowInSeconds' | 'smoothNormalisation'
+    >
+> = ({
     barColor,
     barWidth,
     barSpacing,

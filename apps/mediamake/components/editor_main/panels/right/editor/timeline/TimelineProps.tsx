@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, X, Loader2, Copy } from "lucide-react";
+import { Check, X, Loader2, Copy, Play } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
 import { createBaseDataFromReferences, remapDataReferenceKeys } from "@/components/editor/presets/engine/preset-data-mutation";
@@ -692,6 +692,26 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                 onRequestRangeEditor={handleRequestRangeEditor}
                 onUpdateReferenceValue={handleUpdateReferenceValue}
                 customActions={
+                  <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground"
+                        onClick={() => {
+                          const finalTimeline = getEditedTimeline(timeline.id) || timeline;
+                          generateOutput(finalTimeline);
+                        }}
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Regenerate only this preset</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -718,6 +738,7 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                       <p>Copy preset input props</p>
                     </TooltipContent>
                   </Tooltip>
+                  </>
                 }
               />
             </div>

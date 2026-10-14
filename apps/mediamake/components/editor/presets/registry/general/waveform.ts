@@ -21,12 +21,9 @@
  */
 
 import {
-  InputCompositionProps,
   AudioAtomDataProps,
-  WaveformConfig,
   WaveformHistogramRangedDataProps,
   WaveformHistogramDataProps,
-  WaveformCircleDataProps,
 } from '@microfox/remotion';
 import z from 'zod';
 import {
@@ -51,10 +48,8 @@ const audioSourceSchema = z.object({
 // Define the schema for waveform configuration
 const waveformConfigSchema = z.object({
   type: z
-    .enum(['static', 'waves', 'circle'])
-    .describe(
-      'Waveform type: static (frequency-based), waves (animated), or circle (circular waveform)',
-    ),
+    .enum(['static', 'waves'])
+    .describe('Waveform type: static (frequency-based) or waves (animated)'),
   isHidden: z
     .boolean()
     .optional()
@@ -81,7 +76,9 @@ const waveformConfigSchema = z.object({
   useFrequencyData: z
     .boolean()
     .optional()
-    .describe('Use frequency data (default: true for static)'),
+    .describe(
+      'Use frequency data for the waves type (default: false). The static type always uses frequency data.',
+    ),
   // Wave animation parameters
   waveAmplitude: z
     .number()
@@ -163,58 +160,6 @@ const waveformConfigSchema = z.object({
     .describe(
       'Frame-based smoothing control (0 = no smoothing, 1 = default, >1 = more smoothing)',
     ),
-  // Circle-specific parameters
-  strokeColor: z
-    .string()
-    .optional()
-    .describe('Circle stroke color (default: #FF6B6B)'),
-  strokeWidth: z
-    .number()
-    .min(1)
-    .max(20)
-    .optional()
-    .describe('Circle stroke width (default: 3)'),
-  fill: z.string().optional().describe('Circle fill color (default: none)'),
-  radius: z
-    .number()
-    .min(0)
-    .max(100)
-    .optional()
-    .describe('Circle radius as percentage of container (default: 80)'),
-  centerX: z
-    .number()
-    .min(0)
-    .max(100)
-    .optional()
-    .describe('Circle center X as percentage (default: 50)'),
-  centerY: z
-    .number()
-    .min(0)
-    .max(100)
-    .optional()
-    .describe('Circle center Y as percentage (default: 50)'),
-  startAngle: z
-    .number()
-    .min(0)
-    .max(360)
-    .optional()
-    .describe('Circle start angle in degrees (default: 0)'),
-  endAngle: z
-    .number()
-    .min(0)
-    .max(360)
-    .optional()
-    .describe('Circle end angle in degrees (default: 360)'),
-  rotationSpeed: z
-    .number()
-    .optional()
-    .describe('Circle rotation speed in degrees per frame (default: 0)'),
-  opacity: z
-    .number()
-    .min(0)
-    .max(1)
-    .optional()
-    .describe('Opacity (0-1, default: 1)'),
 });
 
 // Define the schema for container styling
@@ -290,85 +235,25 @@ const presetExecution = (
       duration: number;
       width: number;
       height: number;
-      fps: number;
-      fitDurationTo?: string;
     };
   },
 ) => {
   const { audio, waveform, container } = params;
   const { config } = props;
 
-  // Create waveform configuration based on type
-  const createWaveformConfig = (): WaveformConfig => {
-    const baseConfig = {
-      smoothNormalisation: waveform.smoothNormalisation ?? 1,
-    };
-
-    if (waveform.type === 'static') {
-      return {
-        audioSrc: audio?.src ?? '',
-        numberOfSamples: waveform.numberOfSamples || 64,
-        windowInSeconds: waveform.windowInSeconds || 1 / 30,
-        amplitude: waveform.amplitude || 1,
-        width: container?.width || config.width || 1920,
-        height: container?.height || 300,
-        dataOffsetInSeconds: audio?.start || 0,
-        useFrequencyData: waveform.useFrequencyData ?? true,
-        ...baseConfig,
-      };
-    } else if (waveform.type === 'circle') {
-      return {
-        audioSrc: audio?.src ?? '',
-        numberOfSamples: waveform.numberOfSamples || 64,
-        windowInSeconds: waveform.windowInSeconds || 1 / 30,
-        amplitude: waveform.amplitude || 1,
-        width: container?.width || config.width || 1920,
-        height: container?.height || config.height || 1080,
-        dataOffsetInSeconds: audio?.start || 0,
-        useFrequencyData: waveform.useFrequencyData ?? false,
-        ...baseConfig,
-      };
-    } else {
-      return {
-        audioSrc: audio?.src ?? '',
-        numberOfSamples: waveform.waveNumberOfSamples || 32,
-        windowInSeconds: waveform.waveWindowInSeconds || 1,
-        amplitude: waveform.waveAmplitude || 2,
-        width: container?.width || config.width || 1920,
-        height: container?.height || 200,
-        dataOffsetInSeconds: audio?.start || -0.1,
-        useFrequencyData: waveform.useFrequencyData ?? false,
-        ...baseConfig,
-      };
-    }
-  };
-
   // Create waveform data props based on type
   const createWaveformData = () => {
-    const baseConfig = createWaveformConfig();
-
-    if (waveform.type === 'circle') {
-      const circleData: WaveformCircleDataProps = {
-        config: baseConfig,
-        strokeColor: waveform.strokeColor || '#FF6B6B',
-        strokeWidth: waveform.strokeWidth || 3,
-        fill: waveform.fill || 'none',
-        opacity: waveform.opacity ?? 1,
-        radius: waveform.radius ?? 80,
-        centerX: waveform.centerX ?? 50,
-        centerY: waveform.centerY ?? 50,
-        startAngle: waveform.startAngle ?? 0,
-        endAngle: waveform.endAngle ?? 360,
-        amplitude: waveform.amplitude || 1,
-        rotationSpeed: waveform.rotationSpeed ?? 0,
-        gradientStartColor: waveform.gradientStartColor,
-        gradientEndColor: waveform.gradientEndColor,
-        className: waveform.isHidden ? 'opacity-0' : 'rounded-lg',
-      };
-      return { data: circleData, componentId: 'WaveformCircle' };
-    } else if (waveform.type === 'static') {
+    if (waveform.type === 'static') {
       const rangedData: WaveformHistogramRangedDataProps = {
-        config: baseConfig,
+        audio: {
+          src: audio?.src ?? '',
+          start: audio?.start || 0,
+        },
+        width: container?.width || config.width || 1920,
+        height: container?.height || 300,
+        numberOfSamples: waveform.numberOfSamples || 64,
+        windowInSeconds: waveform.windowInSeconds || 1 / 30,
+        smoothNormalisation: waveform.smoothNormalisation ?? 1,
         barColor: waveform.barColor || '#A41117',
         barSpacing: waveform.barSpacing || 10,
         barBorderRadius: waveform.barBorderRadius || 8,
@@ -388,7 +273,16 @@ const presetExecution = (
       return { data: rangedData, componentId: 'WaveformHistogramRanged' };
     } else {
       const histogramData: WaveformHistogramDataProps = {
-        config: baseConfig,
+        audio: {
+          src: audio?.src ?? '',
+          start: audio?.start || -0.1,
+        },
+        width: container?.width || config.width || 1920,
+        height: container?.height || 200,
+        numberOfSamples: waveform.waveNumberOfSamples || 32,
+        windowInSeconds: waveform.waveWindowInSeconds || 1,
+        useFrequencyData: waveform.useFrequencyData ?? false,
+        smoothNormalisation: waveform.smoothNormalisation ?? 1,
         barColor: waveform.barColor || '#A41117',
         barSpacing: waveform.barSpacing || 8,
         barBorderRadius: waveform.barBorderRadius || 4,
@@ -445,13 +339,7 @@ const presetExecution = (
         right: container?.right ?? 0,
         top: container?.top,
         width: config.width || 1920,
-        height:
-          container?.height ||
-          (waveform.type === 'static'
-            ? 300
-            : waveform.type === 'circle'
-              ? config.height || 1080
-              : 200),
+        height: container?.height || (waveform.type === 'static' ? 300 : 200),
         ...(buildTransform() && {
           transform: buildTransform(),
           transformOrigin: 'center',
@@ -636,7 +524,12 @@ export function migrateWaveformInputData<T>(data: T): T {
   const next: Record<string, unknown> = {
     ...(data as Record<string, unknown>),
   };
-  const changed = applyLegacyTrackTiming(next, 'aligned');
+  let changed = applyLegacyTrackTiming(next, 'aligned');
+  const waveform = next.waveform as Record<string, unknown> | undefined;
+  if (waveform && waveform.type === 'circle') {
+    next.waveform = { ...waveform, type: 'waves' };
+    changed = true;
+  }
   return changed ? (next as T) : data;
 }
 

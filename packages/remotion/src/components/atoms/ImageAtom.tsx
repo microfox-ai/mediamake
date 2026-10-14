@@ -4,6 +4,7 @@ import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
+import { atomCategory } from '../../atom-category';
 import { ImageAtomInput } from './input-schemas';
 
 export { ImageAtomInput } from './input-schemas';
@@ -135,4 +136,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: ImageAtomInput,
+    category: atomCategory('atoms'),
 }; 

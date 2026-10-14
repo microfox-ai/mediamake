@@ -23,7 +23,7 @@ import {
   InputCompositionProps,
   PanEffectData,
   TextAtomData,
-  WaveformConfig,
+  WaveformHistogramDataProps,
   WaveformHistogramRangedDataProps,
   ZoomEffectData,
 } from '@microfox/remotion';
@@ -77,16 +77,15 @@ const presetExecution = (
     componentId: 'WaveformHistogram',
     type: 'atom' as const,
     data: {
-      config: {
-        audioSrc: params.audio.src,
-        numberOfSamples: 32,
-        windowInSeconds: 1,
-        amplitude: 2,
-        width: 1920,
-        height: 200,
-        dataOffsetInSeconds: params.audio.start ?? -0.1,
-        useFrequencyData: false,
-      } as WaveformConfig,
+      audio: {
+        src: params.audio.src,
+        start: params.audio.start ?? -0.1,
+      },
+      width: 1920,
+      height: 200,
+      numberOfSamples: 32,
+      windowInSeconds: 1,
+      useFrequencyData: false,
       barColor: '#A41117',
       barSpacing: 8,
       barBorderRadius: 4,
@@ -102,23 +101,18 @@ const presetExecution = (
       gradientStyle: 'mirrored',
       className: 'rounded-lg absolute bottom-0',
       waveDirection: 'right-to-left',
-    } as WaveformHistogramRangedDataProps,
+    } as WaveformHistogramDataProps,
   };
 
   const histogramStatic = {
     componentId: 'WaveformHistogramRanged',
     type: 'atom' as const,
     data: {
-      config: {
-        audioSrc: params.audio.src,
-        numberOfSamples: 64,
-        windowInSeconds: 1 / 30,
-        amplitude: 1,
-        width: 1920,
-        height: 300,
-        dataOffsetInSeconds: params.audio.start ?? 0,
-        useFrequencyData: true,
-      } as WaveformConfig,
+      audio: { src: params.audio.src, start: params.audio.start ?? 0 },
+      width: 1920,
+      height: 300,
+      numberOfSamples: 64,
+      windowInSeconds: 1 / 30,
       barColor: '#A41117',
       barSpacing: 10,
       barBorderRadius: 8,
@@ -221,7 +215,7 @@ const presetExecution = (
               },
             },
             {
-              id: 'WaveformLine-xyz',
+              id: 'Waveform-xyz',
               ...(params.waveformType === 'fixed'
                 ? histogramStatic
                 : histogramWaves),

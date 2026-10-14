@@ -4,6 +4,7 @@ import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useFont } from '../../hooks/useFontLoader';
 import { useAnimatedStyles } from '../effects';
+import { atomCategory } from '../../atom-category';
 import { TextAtomInput } from './input-schemas';
 
 export { TextAtomInput } from './input-schemas';
@@ -162,4 +163,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: TextAtomInput,
+    category: atomCategory('atoms'),
 };

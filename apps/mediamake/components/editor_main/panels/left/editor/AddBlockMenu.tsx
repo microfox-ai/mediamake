@@ -69,6 +69,38 @@ function presetLabel(preset: BlockPreset) {
     return MENU_LABELS[preset.metadata.id] ?? preset.metadata.title;
 }
 
+function atomCategoryOf(preset: BlockPreset) {
+    const category = preset.metadata.category?.trim();
+    return category || "BaseAtoms";
+}
+
+function categoryMenuLabel(category: string) {
+    if (category === "BaseAtoms") return "BaseAtoms";
+    return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
+function atomGroups(atoms: BlockPreset[]) {
+    const groups = new Map<string, BlockPreset[]>();
+    for (const preset of atoms) {
+        const category = atomCategoryOf(preset);
+        const list = groups.get(category);
+        if (list) list.push(preset);
+        else groups.set(category, [preset]);
+    }
+    return [...groups.entries()]
+        .sort(([a], [b]) => {
+            if (a === "BaseAtoms") return -1;
+            if (b === "BaseAtoms") return 1;
+            return a.localeCompare(b);
+        })
+        .map(([category, presets]) => ({
+            category,
+            presets: [...presets].sort((a, b) =>
+                presetLabel(a).localeCompare(presetLabel(b)),
+            ),
+        }));
+}
+
 function presetsByIds(ids: readonly string[]): BlockPreset[] {
     return ids.flatMap((id) => {
         const preset = getPredefinedPresetById(id);
@@ -116,6 +148,7 @@ function AddBlockMenuItems({
 }) {
     const { Item, Sub, SubTrigger, SubContent, Separator } = parts;
     const { scene, basic, tracks, captions, atoms, isLoadingDatabase } = useAddBlockCatalog();
+    const groupedAtoms = atomGroups(atoms);
 
     const renderGroup = (presets: BlockPreset[], emptyLabel: string) => {
         if (isLoadingDatabase && presets.length === 0) {
@@ -156,14 +189,21 @@ function AddBlockMenuItems({
             </Sub>
             <Sub>
                 <SubTrigger>Add Atoms</SubTrigger>
-                <SubContent className="max-h-80 overflow-y-auto">
-                    {atoms.length === 0 ? (
+                <SubContent>
+                    {groupedAtoms.length === 0 ? (
                         <Item disabled>No atoms found</Item>
                     ) : (
-                        atoms.map((preset) => (
-                            <Item key={preset.metadata.id} onClick={() => onAdd(preset)}>
-                                {presetLabel(preset)}
-                            </Item>
+                        groupedAtoms.map((group) => (
+                            <Sub key={group.category}>
+                                <SubTrigger>{categoryMenuLabel(group.category)}</SubTrigger>
+                                <SubContent>
+                                    {group.presets.map((preset) => (
+                                        <Item key={preset.metadata.id} onClick={() => onAdd(preset)}>
+                                            {presetLabel(preset)}
+                                        </Item>
+                                    ))}
+                                </SubContent>
+                            </Sub>
                         ))
                     )}
                 </SubContent>
@@ -233,17 +273,28 @@ export function AddBlockDropdownMenuItems({
 export function BlocksHeaderAddButton({
     onAdd,
     onOpenLibrary,
+    className,
+    open: openProp,
+    onOpenChange,
 }: {
     onAdd: (preset: BlockPreset) => void;
     onOpenLibrary?: () => void;
+    className?: string;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }) {
-    const [open, setOpen] = useState(false);
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+    const open = openProp ?? uncontrolledOpen;
+    const setOpen = (next: boolean) => {
+        onOpenChange?.(next);
+        if (openProp === undefined) setUncontrolledOpen(next);
+    };
 
     return (
         <div
             className={cn(
                 "h-full",
-                open ? "flex" : "hidden group-hover/blocks:flex",
+                className ?? (open ? "flex" : "hidden group-hover/blocks:flex"),
             )}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}

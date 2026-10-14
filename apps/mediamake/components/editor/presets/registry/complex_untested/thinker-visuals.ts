@@ -3,7 +3,6 @@ import {
   InputCompositionProps,
   VideoAtomDataProps,
   PanEffectData,
-  WaveformConfig,
   WaveformHistogramRangedDataProps,
 } from '@microfox/remotion';
 import z from 'zod';
@@ -493,16 +492,11 @@ const presetExecution = (
     componentId: 'WaveformHistogramRanged',
     type: 'atom' as const,
     data: {
-      config: {
-        audioSrc: params.bottomArtWork?.audioUrl,
-        numberOfSamples: 64,
-        windowInSeconds: 1 / 30,
-        amplitude: 1,
-        width: 1920,
-        height: 300,
-        dataOffsetInSeconds: 0,
-        useFrequencyData: true,
-      } as WaveformConfig,
+      audio: { src: params.bottomArtWork?.audioUrl ?? '', start: 0 },
+      width: 1920,
+      height: 300,
+      numberOfSamples: 64,
+      windowInSeconds: 1 / 30,
       barSpacing: 10,
       barBorderRadius: 8,
       barWidth: 4,

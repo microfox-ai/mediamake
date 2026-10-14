@@ -3,6 +3,7 @@ import { continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfi
 import { Lottie, LottieAnimationData } from '@remotion/lottie';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { atomCategory } from '../../atom-category';
 import { LottieAtomDataProps } from './input-schemas';
 
 export { LottieAtomDataProps } from './input-schemas';
@@ -191,6 +192,7 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: LottieAtomDataProps,
+    category: atomCategory('atoms'),
 };
 
 // ============================================================================

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { getRemotionEnvironment, useCurrentScale } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../core/types';
 import { useAnimatedStyles } from '../components/effects';
+import { atomCategory } from '../atom-category';
 import { CanvasPipelineData, CanvasPipelineDataSchema } from './types';
 import { useCanvasPipeline } from './useCanvasPipeline';
 import './ops';
@@ -84,4 +85,5 @@ export const config: ComponentConfig = {
     isInnerSequence: false,
     props: CanvasPipelineDataSchema,
     inputSchema: CanvasPipelineDataSchema,
+    category: atomCategory('canvas'),
 };

@@ -1,12 +1,15 @@
 import React, { useId, useMemo } from 'react';
 import { createSmoothSvgPath } from '@remotion/media-utils';
-import { Waveform, WaveformConfig, useWaveformContext } from '../../templates/waveform/Waveform';
+import { Waveform, useWaveformContext } from './Waveform';
 import { BaseRenderableData } from '../../core/types/renderable.types';
+import { WaveformAudioSource, toSpectrumWaveformConfig } from './audio-source';
 import { computeSmoothedSpectrum, computeSpectrumLineHeights } from './spectrum-line-math';
 
 // Thin single-stroke spectrum line: flat baseline with smooth upward-only peaks
 export interface WaveformSpectrumLineDataProps {
-    config: WaveformConfig;
+    audio: WaveformAudioSource;
+    width?: number; // Defaults to the composition width
+    height?: number; // Defaults to the composition height
     className?: string;
     style?: React.CSSProperties;
 
@@ -42,12 +45,10 @@ export interface WaveformSpectrumLineProps extends BaseRenderableData {
 }
 
 export const WaveformSpectrumLine: React.FC<WaveformSpectrumLineProps> = ({ data }) => {
-    const { config, className = '', style = {}, ...lineProps } = data;
-    // The base Waveform always computes a time-domain waveform; keep it as cheap as possible
-    // since this component runs its own FFT.
-    const waveformConfig = useMemo<WaveformConfig>(
-        () => ({ ...config, numberOfSamples: 32, smoothNormalisation: 0, useFrequencyData: false }),
-        [config]
+    const { audio, width, height, className = '', style = {}, ...lineProps } = data;
+    const waveformConfig = useMemo(
+        () => toSpectrumWaveformConfig(audio, width, height),
+        [audio?.src, audio?.start, width, height]
     );
     return (
         <Waveform config={waveformConfig} className={className} style={style}>
@@ -56,7 +57,9 @@ export const WaveformSpectrumLine: React.FC<WaveformSpectrumLineProps> = ({ data
     );
 };
 
-const WaveformSpectrumLineContent: React.FC<Omit<WaveformSpectrumLineDataProps, 'config' | 'className' | 'style'>> = ({
+const WaveformSpectrumLineContent: React.FC<
+    Omit<WaveformSpectrumLineDataProps, 'audio' | 'width' | 'height' | 'className' | 'style'>
+> = ({
     strokeColor = '#FFFFFF',
     strokeWidth = 5,
     opacity = 1,

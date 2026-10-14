@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Play, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AddBlockContextMenuItems } from "./AddBlockMenu";
+import { AddBlockContextMenuItems, BlocksHeaderAddButton } from "./AddBlockMenu";
 import { BlockIcon } from "./block-icon";
 import { groupSelectedBlocks } from "./group-selection";
 import { canGroupPresets } from "@/components/editor_main/timing/group-presets";
@@ -74,6 +74,7 @@ export function PresetItem({
     onOpenPresetLibrary,
 }: PresetItemProps) {
     const [isHovered, setIsHovered] = useState(false);
+    const [addMenuOpen, setAddMenuOpen] = useState(false);
     const { selectPreset, focusPreset, togglePresetSelection, selectPresetRange, selectedItem, selectedPresetIds } = useEditorStore();
     const { getEditedTimeline, updatePresetDisabled, addPresetToTimeline } = useTimelineEditsStore();
     const { hasOverridesForPresetItem, clearOverridesForPresetItem } = useLayerStateStore();
@@ -168,15 +169,16 @@ export function PresetItem({
         }
     };
 
-    const handleRegenerate = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-
-        // TODO: In the future, this should regenerate only this specific preset's output
-        // For now, regenerate the entire timeline output
-        if (loadedTimeline) {
-            const finalTimeline = getEditedTimeline(loadedTimeline.id) || loadedTimeline;
-            generateOutput(finalTimeline);
-        }
+    const handleAddBlock = (blockPreset: Preset | DatabasePreset) => {
+        if (isScene && !expanded) onToggleExpand?.();
+        addPresetToTimeline(
+            timeline.id,
+            blockPreset,
+            isScene ? displayPreset.id : undefined,
+        );
+        if (!isScene || !loadedTimeline) return;
+        const finalTimeline = getEditedTimeline(loadedTimeline.id) || loadedTimeline;
+        generateOutput(finalTimeline);
     };
 
     const handleRevertToPreset = () => {
@@ -239,7 +241,7 @@ export function PresetItem({
     const canMoveUp = place > 0;
     const canMoveDown = place < places - 1;
     const canPasteItem = itemClipboard?.kind === "preset";
-    const showActions = isHovered || isSelected;
+    const showActions = isHovered || isSelected || addMenuOpen;
 
     const stopDrag = (event: React.PointerEvent) => {
         event.stopPropagation();
@@ -308,21 +310,15 @@ export function PresetItem({
 
                     {showActions ? (
                         <div className="flex items-center h-full gap-0" onPointerDown={stopDrag}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div
-                                        onPointerDown={stopDrag}
-                                        onClick={handleRegenerate}
-                                        className="p-0 px-1 h-full flex items-center justify-center text-foreground hover:text-primary hover:bg-black/10 cursor-pointer"
-                                    >
-                                        <Play className="h-3.5 w-3.5" />
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Regenerate only this preset</p>
-                                </TooltipContent>
-                            </Tooltip>
-
+                            {isScene && (
+                                <BlocksHeaderAddButton
+                                    className="flex"
+                                    open={addMenuOpen}
+                                    onOpenChange={setAddMenuOpen}
+                                    onAdd={handleAddBlock}
+                                    onOpenLibrary={onOpenPresetLibrary}
+                                />
+                            )}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div
@@ -366,17 +362,7 @@ export function PresetItem({
             </ContextMenuTrigger>
             <ContextMenuContent className="w-56">
                 <AddBlockContextMenuItems
-                    onAdd={(blockPreset: Preset | DatabasePreset) => {
-                        if (isScene && !expanded) onToggleExpand?.();
-                        addPresetToTimeline(
-                            timeline.id,
-                            blockPreset,
-                            isScene ? displayPreset.id : undefined,
-                        );
-                        if (!isScene || !loadedTimeline) return;
-                        const finalTimeline = getEditedTimeline(loadedTimeline.id) || loadedTimeline;
-                        generateOutput(finalTimeline);
-                    }}
+                    onAdd={handleAddBlock}
                     onOpenLibrary={onOpenPresetLibrary}
                 />
                 <ContextMenuSeparator />

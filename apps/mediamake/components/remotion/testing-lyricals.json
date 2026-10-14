@@ -60,20 +60,18 @@
       }
     },
     {
-      "id": "WaveformLine-xyz",
+      "id": "Waveform-xyz",
       "componentId": "WaveformHistogramRanged",
       "type": "atom",
       "data": {
-        "config": {
-          "audioSrc": "https://cdn1.suno.ai/db192e72-b371-4462-b7b8-78278c550450.webm",
-          "numberOfSamples": 64,
-          "windowInSeconds": 0.03333333333333333,
-          "amplitude": 1,
-          "width": 1920,
-          "height": 300,
-          "dataOffsetInSeconds": 0,
-          "useFrequencyData": true
+        "audio": {
+          "src": "https://cdn1.suno.ai/db192e72-b371-4462-b7b8-78278c550450.webm",
+          "start": 0
         },
+        "width": 1920,
+        "height": 300,
+        "numberOfSamples": 64,
+        "windowInSeconds": 0.03333333333333333,
         "barColor": "#A41117",
         "barSpacing": 10,
         "barBorderRadius": 8,

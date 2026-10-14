@@ -16,6 +16,11 @@ export interface ComponentConfig {
   inputSchema?: ZodType;
   /** When false, the atom is hidden from Add Atoms. Defaults to shown. */
   editorBlock?: boolean;
+  /**
+   * Add Atoms submenu. Set with `atomCategory(folder)`.
+   * The `atoms` folder is BaseAtoms; every other folder name is the category.
+   */
+  category?: string;
   // Component-specific configuration
   [key: string]: any;
 }

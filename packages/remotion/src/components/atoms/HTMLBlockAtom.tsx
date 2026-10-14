@@ -1,6 +1,7 @@
 import React from 'react';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { atomCategory } from '../../atom-category';
 import { HTMLBlockAtomInput } from './input-schemas';
 
 export { HTMLBlockAtomInput } from './input-schemas';
@@ -51,5 +52,6 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     inputSchema: HTMLBlockAtomInput,
+    category: atomCategory('atoms'),
 };
 
