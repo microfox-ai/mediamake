@@ -686,7 +686,7 @@ function ItemPopupFields({
 
   if (isAudio) {
     const audioProps = AUDIO_POPUP_KEYS.map(find).filter(
-      (p): p is ItemPropSchema => Boolean(p) && !isRangeProp(p),
+      (p): p is ItemPropSchema => p != null && !isRangeProp(p),
     );
     return (
       <div className="space-y-3">
