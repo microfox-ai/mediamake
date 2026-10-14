@@ -5,6 +5,7 @@ interface StampTiming {
   start?: number;
   startInFrames?: number;
   duration?: number;
+  durationInFrames?: number;
   /** Negative seconds. Skips that much from the head without moving the end. */
   startOffset?: number;
   fitDurationTo?: string | string[];
