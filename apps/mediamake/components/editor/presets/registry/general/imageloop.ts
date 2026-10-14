@@ -11,7 +11,7 @@
  * - **Blend Modes**: Various blend modes for creative compositing
  * - **Time Range Control**: Apply effects to specific time ranges (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss)
  * - **Effect Looping**: Repeat effects multiple times within their duration
- * - **Flexible Duration**: Set per-image duration or use automatic fitting
+ * - **Track timing**: Lock to another track, align on a start and duration, or sequence images
  *
  * Use cases:
  * - Creating dynamic image slideshows with motion
@@ -94,6 +94,26 @@ const imageSourceSchema = z.object({
       [paramMetaTypes.groupEditable]: false,
     })
     .describe('Range in MM:SS-MM:SS or MM:SS.sss-MM:SS.sss format like 01:00-02:00'),
+  lockTo: z
+    .string()
+    .optional()
+    .meta({
+      [paramMetaTypes.lockTarget]: true,
+      [paramMetaTypes.groupEditable]: false,
+    })
+    .describe(
+      'Lock this image to a sibling or parent track. When set, the range is not edited.',
+    ),
+  start: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Start inside an aligned track, in seconds'),
+  duration: z
+    .number()
+    .optional()
+    .meta({ [paramMetaTypes.groupEditable]: false })
+    .describe('Fixed duration in seconds'),
   fit: z
     .enum(['cover', 'contain', 'fill', 'none', 'scale-down'])
     .optional()
@@ -434,18 +454,39 @@ const presetParams = z.object({
     .string()
     .meta({ [paramMetaTypes.trackName]: true })
     .describe('Name of the track ( used for the ID )'),
-  trackFitDurationTo: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.linkTrackName]: true })
-    .describe('Fit duration to the track ( only for aligned/random tracks )'),
-  trackRange: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.rangeField]: true })
+  trackType: z
+    .enum(['lockedTo', 'sequence', 'aligned'])
+    .default('lockedTo')
     .describe(
-      'Track time range (MM:SS-MM:SS or MM:SS.sss-MM:SS.sss). Empty = no offset.',
+      'Lock copies another track. Sequence plays images in order. Aligned uses start and duration.',
     ),
+  start: z
+    .number()
+    .default(0)
+    .describe('Start of this track in its parent scene, in seconds'),
+  startOffset: z
+    .number()
+    .optional()
+    .describe(
+      'Negative trim from the head, in seconds. The end stays put.',
+    ),
+  duration: z
+    .number()
+    .optional()
+    .describe(
+      'Duration in seconds. Required for aligned tracks. For a sequence, provide this or perImageDuration.',
+    ),
+  perImageDuration: z
+    .number()
+    .optional()
+    .describe(
+      'Length of each image in a sequence, in seconds. Required for sequence when duration is empty.',
+    ),
+  lock: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.lockTarget]: true })
+    .describe('Lock start and duration to a sibling or parent track'),
   containerObject: z
     .object({
       left: z
@@ -617,6 +658,58 @@ const presetExecution = async (
     if (duration <= 0) return null;
     return { start: timeRange.start, duration };
   };
+
+  // Lock copies another track. Sequence plays images back to back.
+  // Aligned places each image on its own start, the same way a media track does.
+  const legacy = params as unknown as {
+    trackType?: string;
+    start?: number;
+    startOffset?: number;
+    duration?: number;
+    perImageDuration?: number;
+    lock?: string;
+    trackFitDurationTo?: string;
+    trackRange?: string;
+    trackStartOffset?: number;
+    trackDuration?: number;
+  };
+  const trackType = legacy.trackType;
+  const lockTarget =
+    (typeof legacy.lock === 'string' && legacy.lock) ||
+    (typeof legacy.trackFitDurationTo === 'string' && legacy.trackFitDurationTo) ||
+    '';
+  const locked =
+    trackType === 'lockedTo' ||
+    (lockTarget.trim().length > 0 &&
+      trackType !== 'sequence' &&
+      trackType !== 'aligned');
+  const sequence = !locked && trackType === 'sequence';
+  const perImageDuration =
+    typeof legacy.perImageDuration === 'number' && legacy.perImageDuration > 0
+      ? legacy.perImageDuration
+      : undefined;
+  const authoredDuration =
+    (typeof legacy.duration === 'number' && legacy.duration > 0
+      ? legacy.duration
+      : undefined) ??
+    (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
+      ? legacy.trackDuration
+      : undefined);
+  const imagesMissingLength = sequence
+    ? images.filter((image) => {
+        if (parseRangeString(image?.rangeString)) return false;
+        return !(typeof image?.duration === 'number' && image.duration > 0);
+      }).length
+    : 0;
+  // A sequence with no per-image length splits the track duration evenly.
+  const evenShare =
+    sequence &&
+    perImageDuration === undefined &&
+    authoredDuration &&
+    images.length > 0 &&
+    imagesMissingLength === images.length
+      ? authoredDuration / images.length
+      : undefined;
 
   /**
    * Shake ranges are composition time. The image atom is mounted in a
@@ -904,17 +997,37 @@ const presetExecution = async (
   const imageComponents = await Promise.all(
     images.map(async (image, imageIndex) => {
       const imageRange = parseRangeString(image.rangeString);
+      const ownDuration =
+        typeof image.duration === 'number' && image.duration > 0
+          ? image.duration
+          : undefined;
+      const ownStart =
+        typeof image.start === 'number' && Number.isFinite(image.start)
+          ? image.start
+          : 0;
 
       let imageStart: number | undefined;
       let imageDuration: number;
 
-      if (imageRange) {
+      if (sequence) {
+        // A sequence scene treats start as a gap, so only the length is kept.
+        imageStart = undefined;
+        imageDuration = imageRange
+          ? imageRange.duration
+          : (ownDuration ?? perImageDuration ?? evenShare ?? 0);
+      } else if (imageRange) {
         imageStart = imageRange.start;
         imageDuration = imageRange.duration;
       } else {
-        imageStart = undefined;
-        imageDuration = 0;
+        imageStart = ownStart;
+        imageDuration = ownDuration ?? 0;
       }
+      // Sequence images sit back to back, so effects use the image clock.
+      const effectWindow = sequence
+        ? imageDuration > 0
+          ? { start: 0, duration: imageDuration }
+          : null
+        : imageRange;
 
       const mapOneEffect = async (
         effect:
@@ -1004,7 +1117,7 @@ const presetExecution = async (
               const placed = placeShakeOnImage(
                 timeRange,
                 effectDuration,
-                imageRange,
+                effectWindow,
               );
               if (!placed) return null;
               return {
@@ -1213,7 +1326,7 @@ const presetExecution = async (
         },
         effects: [
           ...imageEffects,
-          ...buildImageTransitions(image, imageIndex, imageRange),
+          ...buildImageTransitions(image, imageIndex, effectWindow),
         ],
       };
     }),
@@ -1298,32 +1411,34 @@ const presetExecution = async (
     container.height !== undefined;
   const containerClassName = hasPositioning ? 'absolute' : 'absolute inset-0';
 
-  const trackTimeRange = parseTimeRange(params.trackRange || '');
+  const trackTimeRange = parseTimeRange(legacy.trackRange || '');
+  const start =
+    legacy.start ??
+    legacy.trackStartOffset ??
+    trackTimeRange?.start ??
+    0;
+  const durationFromRange =
+    trackTimeRange && trackTimeRange.end > trackTimeRange.start
+      ? trackTimeRange.end - trackTimeRange.start
+      : undefined;
+  const duration = authoredDuration ?? durationFromRange;
   const trackTiming: {
-    start?: number;
+    start: number;
     duration?: number;
-    fitDurationTo?: string;
-  } = {};
-  if (trackTimeRange) {
-    trackTiming.start = trackTimeRange.start;
-    if (!params.trackFitDurationTo) {
-      const duration = trackTimeRange.end - trackTimeRange.start;
-      if (duration > 0) {
-        trackTiming.duration = duration;
-      }
-    }
+    startOffset?: number;
+  } = { start };
+  // A lock takes its length from the target. Sequence and aligned keep an
+  // authored duration when one was written.
+  if (!locked && typeof duration === 'number' && duration > 0) {
+    trackTiming.duration = duration;
   }
-  if (params.trackFitDurationTo) {
-    trackTiming.fitDurationTo = params.trackFitDurationTo;
+  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
+    trackTiming.startOffset = legacy.startOffset;
   }
 
-  // Image ranges are absolute on the timeline. A scene stacks children in a
-  // Series and treats `start` as a gap after the previous image, so a second
-  // image lands late and its shakes drift further. A layout places each image
-  // Sequence at its own range.
-  const hasAbsoluteImageRanges = images.some(
-    (image) => parseRangeString(image.rangeString) !== null,
-  );
+  // Sequence stacks images in order. Aligned and lock place each image on
+  // its own start, so a range is not a gap after the previous image.
+  const trackLayout = sequence ? ('scene' as const) : ('layout' as const);
 
   return {
     output: {
@@ -1331,10 +1446,7 @@ const presetExecution = async (
         {
           id: `${params.trackName}`,
           componentId: 'BaseLayout',
-          type:
-            params.trackFitDurationTo || hasAbsoluteImageRanges
-              ? 'layout'
-              : ('scene' as const),
+          type: trackLayout,
           data: {
             containerProps: {
               className: containerClassName,
@@ -1379,7 +1491,8 @@ const presetMetadata: PresetMetadata = {
   },
   defaultInputParams: {
     trackName: 'imageloop-track',
-    trackRange: '',
+    trackType: 'lockedTo',
+    start: 0,
     images: {
       items: [
         {
@@ -1406,13 +1519,93 @@ const presetMetadata: PresetMetadata = {
   },
 };
 
-/** Rename saved imageloop input from `effects` to `loopEffects`. */
+function clockToSeconds(value: string): number | null {
+  const text = value.trim();
+  if (!text) return null;
+  if (text.includes(':')) {
+    const parts = text.split(':');
+    if (parts.length !== 2 && parts.length !== 3) return null;
+    const nums = parts.map((part) => Number(part));
+    if (nums.some((num) => Number.isNaN(num))) return null;
+    if (nums.length === 2) return nums[0]! * 60 + nums[1]!;
+    return nums[0]! * 3600 + nums[1]! * 60 + nums[2]!;
+  }
+  const plain = Number(text);
+  return Number.isNaN(plain) ? null : plain;
+}
+
+function clockRange(range: string): { start: number; duration: number } | null {
+  const dash = range.indexOf('-', 1);
+  if (dash <= 0) return null;
+  const start = clockToSeconds(range.slice(0, dash));
+  const end = clockToSeconds(range.slice(dash + 1));
+  if (start === null || end === null || !(end > start)) return null;
+  return { start, duration: end - start };
+}
+
+function imagesHaveRanges(images: unknown): boolean {
+  const list = Array.isArray(images)
+    ? images
+    : images && typeof images === 'object' && Array.isArray((images as { items?: unknown }).items)
+      ? (images as { items: unknown[] }).items
+      : [];
+  return list.some(
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as { rangeString?: unknown }).rangeString === 'string' &&
+      (item as { rangeString: string }).rangeString.trim().length > 0,
+  );
+}
+
+/** Bring saved imageloop input onto lock / sequence / aligned timing. */
 export function migrateImageLoopInputData<T>(data: T): T {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
-  const record = data as Record<string, unknown>;
-  if (record.loopEffects != null || !Array.isArray(record.effects)) return data;
-  const { effects, ...rest } = record;
-  return { ...rest, loopEffects: effects } as T;
+  const next: Record<string, unknown> = { ...(data as Record<string, unknown>) };
+  let changed = false;
+
+  if (next.loopEffects == null && Array.isArray(next.effects)) {
+    next.loopEffects = next.effects;
+    delete next.effects;
+    changed = true;
+  }
+
+  const fit = next.trackFitDurationTo;
+  if (typeof fit === 'string' && fit.trim() && typeof next.lock !== 'string') {
+    next.lock = fit;
+    changed = true;
+  }
+  if ('trackFitDurationTo' in next) {
+    delete next.trackFitDurationTo;
+    changed = true;
+  }
+
+  if (typeof next.trackRange === 'string' && next.trackRange.trim()) {
+    const parsed = clockRange(next.trackRange);
+    if (parsed) {
+      if (typeof next.start !== 'number') next.start = parsed.start;
+      if (typeof next.duration !== 'number') next.duration = parsed.duration;
+    }
+    delete next.trackRange;
+    changed = true;
+  } else if ('trackRange' in next) {
+    delete next.trackRange;
+    changed = true;
+  }
+
+  if (typeof next.start !== 'number' && typeof next.trackStartOffset === 'number') {
+    next.start = next.trackStartOffset;
+    changed = true;
+  }
+
+  if (typeof next.trackType !== 'string') {
+    const lock = typeof next.lock === 'string' ? next.lock.trim() : '';
+    next.trackType =
+      lock || !imagesHaveRanges(next.images) ? 'lockedTo' : 'aligned';
+    changed = true;
+  }
+
+  return changed ? (next as T) : data;
 }
 
 const presetFunction = presetExecution.toString();

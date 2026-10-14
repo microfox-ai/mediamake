@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { ChevronRight, ChevronDown, HashIcon, Copy, Trash2, FolderTree, Link2, Plus, Pencil, Zap, ArrowUp, ArrowDown, ClipboardCopy, ClipboardPaste } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -18,7 +18,13 @@ import {
 import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
-import { usePresetsStore } from "../../../stores/presets-store";
+import { useCompileStore } from "../../../stores/compile-store";
+import {
+    findNode,
+    listBlockRows,
+    loadInstanceTree,
+    parentOfNode,
+} from "@/components/editor_main/timing/load-instance-tree";
 import {
     altShortcutLabel,
     copySelectedItem,
@@ -36,9 +42,9 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PresetItem } from "./PresetItem";
 import { TimelineAddPresetMenu } from "./TimelineAddPresetMenu";
+import { AddBlockContextMenuItems, BlocksHeaderAddButton } from "./AddBlockMenu";
 import { Preset, DatabasePreset, ReferenceItem } from "@/components/editor/presets/types";
 import { PresetLibraryDialog } from "./PresetLibraryDialog";
-import { Library } from "lucide-react";
 import {
     getDefaultDataTypeForReferenceType,
     getDefaultValueForReferenceType,
@@ -61,6 +67,7 @@ import {
     useSensor,
     useSensors,
     DragEndEvent,
+    DragOverEvent,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -70,6 +77,13 @@ import {
 
 interface TimelineItemProps {
     timeline: Timeline;
+}
+
+function pointerAfter(event: DragEndEvent): boolean {
+    const translated = event.active.rect.current.translated;
+    const over = event.over?.rect;
+    if (!translated || !over) return true;
+    return translated.top + translated.height / 2 > over.top + over.height / 2;
 }
 
 /** True when this timeline has unpublished local history entries at/before the cursor. */
@@ -100,12 +114,14 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const renameInputRef = useRef<HTMLInputElement>(null);
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectAction, selectedItem } = useEditorStore();
-    const { getEditedTimeline, reorderPresets, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
+    const { getEditedTimeline, moveInstanceNode, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
+    const generateOutput = useCompileStore((s) => s.generateOutput);
+    const [nestTargetId, setNestTargetId] = useState<string | null>(null);
+    const [collapsedBlockIds, setCollapsedBlockIds] = useState<Set<string>>(() => new Set());
     const itemClipboard = useBlockClipboardStore((s) => s.itemClipboard);
     const isUnsynced = useTimelineEditsStore((state) =>
         hasLocalHistoryChanges(state.history, state.historyIndex, timeline.id)
     );
-    const { basicBlocksPresets, captionPresets, isLoadingDatabase } = usePresetsStore();
     const session = useSession();
     const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
 
@@ -117,6 +133,68 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const isLoaded = loadedTimeline?.id === timeline.id;
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
     const presets = displayTimeline.presets || [];
+    const blockRows = useMemo(() => {
+        const tree = loadInstanceTree(displayTimeline);
+        const byId = new Map(presets.map((preset) => [preset.id, preset]));
+        const rows = listBlockRows(tree).flatMap((row) => {
+            const preset = byId.get(row.id);
+            const node = findNode(tree, row.id);
+            const parent = parentOfNode(tree, row.id);
+            if (!preset || !node || !parent) return [];
+            return [{
+                preset,
+                depth: row.depth,
+                isScene: node.role === "scene",
+                hasChildren: node.children.length > 0,
+                siblingIndex: parent.children.findIndex((child) => child.id === row.id),
+                siblingCount: parent.children.length,
+            }];
+        });
+        const listed = new Set(rows.map((row) => row.preset.id));
+        for (const preset of presets) {
+            if (listed.has(preset.id) || preset.id === tree.id) continue;
+            rows.push({
+                preset,
+                depth: 0,
+                isScene: preset.presetId === "scene",
+                hasChildren: false,
+                siblingIndex: 0,
+                siblingCount: 1,
+            });
+        }
+        return rows;
+    }, [displayTimeline, presets]);
+    const visibleBlockRows = useMemo(() => {
+        let hiddenBelow: number | null = null;
+        return blockRows.filter((row) => {
+            if (hiddenBelow !== null) {
+                if (row.depth > hiddenBelow) return false;
+                hiddenBelow = null;
+            }
+            if (row.hasChildren && collapsedBlockIds.has(row.preset.id)) {
+                hiddenBelow = row.depth;
+            }
+            return true;
+        });
+    }, [blockRows, collapsedBlockIds]);
+
+    const expandBlock = (id: string) => {
+        setCollapsedBlockIds((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+    };
+
+    const toggleBlock = (id: string) => {
+        setCollapsedBlockIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
     const references = (displayTimeline.defaultData?.references || []) as ReferenceItem[];
     const actions = displayTimeline.actions || [];
 
@@ -311,24 +389,56 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     };
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 4 },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
 
-    function handleDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
+    function publishTreeMove(moved: boolean) {
+        if (!moved) return;
+        const latest = getEditedTimeline(timeline.id) || displayTimeline;
+        generateOutput(latest);
+    }
 
-        if (active.id !== over?.id && presets) {
-            const oldIndex = presets.findIndex((preset) => preset.id === active.id);
-            const newIndex = presets.findIndex((preset) => preset.id === over?.id);
-
-            if (oldIndex !== -1 && newIndex !== -1 && oldIndex > 0 && newIndex > 0) {
-                // Only allow reordering of presets after the first one (index > 0)
-                reorderPresets(timeline.id, oldIndex, newIndex);
-            }
+    function handleDragOver(event: DragOverEvent) {
+        const overId = event.over ? String(event.over.id) : "";
+        const activeId = String(event.active.id);
+        if (!overId || overId === activeId) {
+            setNestTargetId(null);
+            return;
         }
+        const tree = loadInstanceTree(displayTimeline);
+        const overNode = findNode(tree, overId);
+        const activeNode = findNode(tree, activeId);
+        const cycle = Boolean(activeNode && findNode(activeNode, overId));
+        setNestTargetId(overNode?.role === "scene" && !cycle ? overId : null);
+    }
+
+    function handleDragEnd(event: DragEndEvent) {
+        setNestTargetId(null);
+        const overId = event.over ? String(event.over.id) : "";
+        const activeId = String(event.active.id);
+        if (!overId || overId === activeId) return;
+        const tree = loadInstanceTree(displayTimeline);
+        const overNode = findNode(tree, overId);
+        const activeNode = findNode(tree, activeId);
+        if (!overNode || !activeNode) return;
+        const cycle = Boolean(findNode(activeNode, overId));
+        if (overNode.role === "scene" && !cycle) {
+            expandBlock(overId);
+            publishTreeMove(moveInstanceNode(timeline.id, activeId, overId));
+            return;
+        }
+        const parent = parentOfNode(tree, overId) ?? tree;
+        const siblingIds = parent.children
+            .map((child) => child.id)
+            .filter((id) => id !== activeId);
+        const overIndex = siblingIds.indexOf(overId);
+        const index = overIndex < 0 ? siblingIds.length : overIndex + (pointerAfter(event) ? 1 : 0);
+        publishTreeMove(moveInstanceNode(timeline.id, activeId, parent.id, index));
     }
 
     const referenceTypeOptions = getReferenceTypeOptions();
@@ -355,11 +465,11 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     {isOpen ? (
                                         <ChevronDown
                                             onClick={closeTimeline}
-                                            className="h-3 w-3 text-muted-foreground" />
+                                            className="h-2.5 w-2.5 text-muted-foreground" />
                                     ) : (
-                                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                        <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
                                     )}
-                                    <HashIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <HashIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                     {isRenaming ? (
                                         <Input
                                             ref={renameInputRef}
@@ -368,7 +478,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                             onBlur={handleCommitRename}
                                             onKeyDown={handleRenameKeyDown}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="h-5 flex-1 min-w-0 text-xs px-1 py-0 border-primary"
+                                            className="h-5 flex-1 min-w-0 text-sm px-1 py-0 border-primary"
                                         />
                                     ) : (
                                         <span className="flex-1 truncate">
@@ -411,67 +521,6 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 </ContextMenuSub>
 
                                 <ContextMenuSeparator />
-                                {/* Add Basic Block Submenu */}
-                                <ContextMenuSub>
-                                    <ContextMenuSubTrigger>
-                                        Add Basic Block
-                                    </ContextMenuSubTrigger>
-                                    <ContextMenuSubContent>
-                                        {isLoadingDatabase ? (
-                                            <ContextMenuItem disabled>
-                                                Loading...
-                                            </ContextMenuItem>
-                                        ) : basicBlocksPresets.length > 0 ? (
-                                            basicBlocksPresets.map((preset) => (
-                                                <ContextMenuItem
-                                                    key={preset.metadata.id}
-                                                    onClick={() => handleAddPreset(preset)}
-                                                >
-                                                    {preset.metadata.title}
-                                                </ContextMenuItem>
-                                            ))
-                                        ) : (
-                                            <ContextMenuItem disabled>
-                                                No basic blocks found
-                                            </ContextMenuItem>
-                                        )}
-                                    </ContextMenuSubContent>
-                                </ContextMenuSub>
-
-                                {/* Add Caption Block Submenu */}
-                                <ContextMenuSub>
-                                    <ContextMenuSubTrigger>
-                                        Add Caption Block
-                                    </ContextMenuSubTrigger>
-                                    <ContextMenuSubContent>
-                                        {isLoadingDatabase ? (
-                                            <ContextMenuItem disabled>
-                                                Loading...
-                                            </ContextMenuItem>
-                                        ) : captionPresets.length > 0 ? (
-                                            captionPresets.map((preset) => (
-                                                <ContextMenuItem
-                                                    key={preset.metadata.id}
-                                                    onClick={() => handleAddPreset(preset)}
-                                                >
-                                                    {preset.metadata.title}
-                                                </ContextMenuItem>
-                                            ))
-                                        ) : (
-                                            <ContextMenuItem disabled>
-                                                No caption presets found
-                                            </ContextMenuItem>
-                                        )}
-                                    </ContextMenuSubContent>
-                                </ContextMenuSub>
-
-                                {/* Add From Library */}
-                                <ContextMenuItem onClick={() => setShowPresetLibrary(true)}>
-                                    <Library className="h-4 w-4 mr-2" />
-                                    Add From Library
-                                </ContextMenuItem>
-
-                                <ContextMenuSeparator />
 
                                 <ContextMenuItem
                                     onClick={handleDeleteTimeline}
@@ -485,7 +534,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                     </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                    <div className="ml-4 space-y-1 border-l">
+                    <div className="ml-3 space-y-1 border-l">
                         {!isLoadingTimeline && (
                             <Collapsible
                                 open={isReferencesOpen}
@@ -495,16 +544,16 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     <ContextMenuTrigger asChild>
                                         <div
                                             onClick={() => setIsReferencesOpen((prev) => !prev)}
-                                            className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none"
+                                            className="flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none"
                                         >
                                             {isReferencesOpen ? (
-                                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                                <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
                                             ) : (
-                                                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                                <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
                                             )}
-                                            <FolderTree className="h-3 w-3 text-muted-foreground" />
+                                            <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
                                             <span className="flex-1">References</span>
-                                            <span className="text-[10px] text-muted-foreground">
+                                            <span className="text-xs text-muted-foreground">
                                                 {references.length}
                                             </span>
                                         </div>
@@ -529,7 +578,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     </ContextMenuContent>
                                 </ContextMenu>
                                 <CollapsibleContent>
-                                    <div className="ml-5 border-l space-y-1 py-1">
+                                    <div className="ml-3.5 border-l py-0.5 space-y-1">
                                         {references.length > 0 ? (
                                             references.map((reference, index: number) => {
                                                 const isRefSelected =
@@ -545,13 +594,13 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                 selectReference(reference, displayTimeline, index);
                                                             }}
                                                             className={cn(
-                                                                "group/ref flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                "group/ref flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none",
                                                                 isRefSelected
                                                                     ? "bg-blue-100 text-blue-950"
                                                                     : "text-muted-foreground",
                                                             )}
                                                         >
-                                                            <Link2 className="h-3 w-3" />
+                                                            <Link2 className="h-3.5 w-3.5" />
                                                             <span className="truncate flex-1">
                                                                 {reference.key || `reference_${index + 1}`}
                                                             </span>
@@ -566,7 +615,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                             }}
                                                                             className="p-0.5 hover:text-destructive"
                                                                         >
-                                                                            <Trash2 className="h-3 w-3" />
+                                                                            <Trash2 className="h-3.5 w-3.5" />
                                                                         </div>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
@@ -669,7 +718,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                 );
                                             })
                                         ) : (
-                                            <div className="px-2 py-1 text-[11px] text-muted-foreground">
+                                            <div className="px-2 py-1 text-sm text-muted-foreground">
                                                 No references
                                             </div>
                                         )}
@@ -677,8 +726,8 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                         <div className="px-1 pt-1">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <div className="flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent rounded-sm transition-colors select-none text-muted-foreground">
-                                                        <Plus className="h-3 w-3" />
+                                                    <div className="flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent rounded-sm transition-colors select-none text-muted-foreground">
+                                                        <Plus className="h-3.5 w-3.5" />
                                                         <span>Add Data</span>
                                                     </div>
                                                 </DropdownMenuTrigger>
@@ -711,21 +760,21 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 onOpenChange={setIsActionsOpen}
                             >
                                 <CollapsibleTrigger asChild>
-                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
+                                    <div className="flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none">
                                         {isActionsOpen ? (
-                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                            <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
                                         ) : (
-                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                            <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
                                         )}
-                                        <Zap className="h-3 w-3 text-muted-foreground" />
+                                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="flex-1">Actions</span>
-                                        <span className="text-[10px] text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground">
                                             {actions.length}
                                         </span>
                                     </div>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                    <div className="ml-5 border-l space-y-1 py-1">
+                                    <div className="ml-3.5 border-l py-0.5 space-y-1">
                                         {actions.length > 0 ? (
                                             actions.map((action, actionIndex) => {
                                                 const isActionSelected =
@@ -741,13 +790,13 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                 selectAction(action, displayTimeline);
                                                             }}
                                                             className={cn(
-                                                                "group/action flex items-center gap-2 px-2 h-7 text-xs cursor-pointer hover:bg-accent transition-colors select-none",
+                                                                "group/action flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none",
                                                                 isActionSelected
                                                                     ? "bg-blue-100 text-blue-950"
                                                                     : "text-muted-foreground",
                                                             )}
                                                         >
-                                                            <Zap className="h-3 w-3" />
+                                                            <Zap className="h-3.5 w-3.5" />
                                                             <span className="truncate flex-1">
                                                                 {action.label}
                                                             </span>
@@ -765,7 +814,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                                             }}
                                                                             className="p-0.5 hover:text-destructive"
                                                                         >
-                                                                            <Trash2 className="h-3 w-3" />
+                                                                            <Trash2 className="h-3.5 w-3.5" />
                                                                         </div>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
@@ -868,7 +917,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                 );
                                             })
                                         ) : (
-                                            <div className="px-2 py-1 text-[11px] text-muted-foreground">
+                                            <div className="px-2 py-1 text-sm text-muted-foreground">
                                                 Add from a preset or reference
                                             </div>
                                         )}
@@ -878,11 +927,11 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                         )}
 
                         {isLoadingTimeline && presets.length === 0 && (
-                            <div className="space-y-1 py-2 pl-2">
+                            <div className="py-1 pl-1.5">
                                 {Array.from({ length: 3 }).map((_, index) => (
                                     <div
                                         key={index}
-                                        className="flex items-center gap-2 px-2 py-1"
+                                        className="flex items-center gap-1 px-1.5 py-0.5"
                                     >
                                         <Skeleton className="h-4 w-4 rounded" />
                                         <Skeleton className="h-3 w-32" />
@@ -896,37 +945,65 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 open={isBlocksOpen}
                                 onOpenChange={setIsBlocksOpen}
                             >
-                                <CollapsibleTrigger asChild>
-                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
-                                        {isBlocksOpen ? (
-                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                                        ) : (
-                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                        )}
-                                        <FolderTree className="h-3 w-3 text-muted-foreground" />
-                                        <span className="flex-1">Blocks</span>
-                                        <span className="text-[10px] text-muted-foreground">
-                                            {Math.max(presets.length - 1, 0)}
-                                        </span>
-                                    </div>
-                                </CollapsibleTrigger>
+                                <div className="group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none">
+                                    <ContextMenu>
+                                        <CollapsibleTrigger asChild>
+                                            <ContextMenuTrigger asChild>
+                                                <div className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer">
+                                                    {isBlocksOpen ? (
+                                                        <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+                                                    ) : (
+                                                        <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+                                                    )}
+                                                    <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    <span className="flex-1">Blocks</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {Math.max(presets.length - 1, 0)}
+                                                    </span>
+                                                </div>
+                                            </ContextMenuTrigger>
+                                        </CollapsibleTrigger>
+                                        <ContextMenuContent className="w-56">
+                                            <AddBlockContextMenuItems
+                                                onAdd={handleAddPreset}
+                                                onOpenLibrary={() => setShowPresetLibrary(true)}
+                                            />
+                                        </ContextMenuContent>
+                                    </ContextMenu>
+                                    <BlocksHeaderAddButton
+                                        onAdd={handleAddPreset}
+                                        onOpenLibrary={() => setShowPresetLibrary(true)}
+                                    />
+                                </div>
                                 <CollapsibleContent>
-                                    <div className="ml-5 border-l space-y-1 py-1">
+                                    <div className="ml-3.5 border-l py-0.5 space-y-1">
                                         <DndContext
                                             sensors={sensors}
                                             collisionDetection={closestCenter}
+                                            onDragOver={handleDragOver}
                                             onDragEnd={handleDragEnd}
+                                            onDragCancel={() => setNestTargetId(null)}
                                         >
                                             <SortableContext
-                                                items={presets.slice(1).map(preset => preset.id)}
+                                                items={visibleBlockRows.map((row) => row.preset.id)}
                                                 strategy={verticalListSortingStrategy}
                                             >
-                                                {presets.slice(1).map((preset, index) => (
+                                                {visibleBlockRows.map((row) => (
                                                     <PresetItem
-                                                        key={`${preset.presetId}-${index + 1}`}
-                                                        preset={preset}
+                                                        key={row.preset.id}
+                                                        preset={row.preset}
                                                         timeline={timeline}
-                                                        index={index + 1}
+                                                        index={row.siblingIndex + 1}
+                                                        siblingIndex={row.siblingIndex}
+                                                        siblingCount={row.siblingCount}
+                                                        depth={row.depth}
+                                                        selectionOrder={visibleBlockRows.map((item) => item.preset.id)}
+                                                        isScene={row.isScene}
+                                                        hasChildren={row.hasChildren}
+                                                        expanded={!collapsedBlockIds.has(row.preset.id)}
+                                                        onToggleExpand={() => toggleBlock(row.preset.id)}
+                                                        nestHighlight={nestTargetId === row.preset.id}
+                                                        onOpenPresetLibrary={() => setShowPresetLibrary(true)}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -948,21 +1025,37 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 open={isBlocksOpen}
                                 onOpenChange={setIsBlocksOpen}
                             >
-                                <CollapsibleTrigger asChild>
-                                    <div className="flex items-center gap-2 px-2 h-8 text-xs cursor-pointer hover:bg-accent transition-colors select-none">
-                                        {isBlocksOpen ? (
-                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                                        ) : (
-                                            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                        )}
-                                        <FolderTree className="h-3 w-3 text-muted-foreground" />
-                                        <span className="flex-1">Blocks</span>
-                                        <span className="text-[10px] text-muted-foreground">0</span>
-                                    </div>
-                                </CollapsibleTrigger>
+                                <div className="group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none">
+                                    <ContextMenu>
+                                        <CollapsibleTrigger asChild>
+                                            <ContextMenuTrigger asChild>
+                                                <div className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer">
+                                                    {isBlocksOpen ? (
+                                                        <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+                                                    ) : (
+                                                        <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+                                                    )}
+                                                    <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    <span className="flex-1">Blocks</span>
+                                                    <span className="text-xs text-muted-foreground">0</span>
+                                                </div>
+                                            </ContextMenuTrigger>
+                                        </CollapsibleTrigger>
+                                        <ContextMenuContent className="w-56">
+                                            <AddBlockContextMenuItems
+                                                onAdd={handleAddPreset}
+                                                onOpenLibrary={() => setShowPresetLibrary(true)}
+                                            />
+                                        </ContextMenuContent>
+                                    </ContextMenu>
+                                    <BlocksHeaderAddButton
+                                        onAdd={handleAddPreset}
+                                        onOpenLibrary={() => setShowPresetLibrary(true)}
+                                    />
+                                </div>
                                 <CollapsibleContent>
-                                    <div className="ml-5 border-l py-1">
-                                        <div className="text-xs text-muted-foreground px-2 py-1">
+                                    <div className="ml-3.5 border-l py-0.5 space-y-1">
+                                        <div className="text-sm text-muted-foreground px-2 py-1">
                                             First preset is configured in Timeline Properties
                                         </div>
                                         <TimelineAddPresetMenu

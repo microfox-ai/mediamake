@@ -9,6 +9,7 @@
  * - **Visual Customization**: Bar colors, spacing, width, border radius, gradients
  * - **Positioning Options**: Horizontal or vertical orientation with flexible positioning
  * - **Audio Synchronization**: Automatically syncs with audio source timing
+ * - **Track timing**: Lock to another track, or place this visual on a start and duration
  * - **Container Styling**: Background colors, positioning, z-index control
  * - **Gradient Support**: Custom gradient colors and directions
  *
@@ -29,6 +30,8 @@ import {
 } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
+import { paramMetaTypes } from '../../dataTypes';
+import { applyLegacyTrackTiming } from './track-timing-legacy';
 
 // Define the schema for audio sources
 const audioSourceSchema = z.object({
@@ -270,11 +273,37 @@ const containerStyleSchema = z.object({
 
 // Main preset parameters schema
 const presetParams = z.object({
-  trackName: z.string().describe('Name of the track (used for the ID)'),
-  trackFitDurationTo: z
+  trackName: z
+    .string()
+    .meta({ [paramMetaTypes.trackName]: true })
+    .describe('Name of the track (used for the ID)'),
+  trackType: z
+    .enum(['lockedTo', 'sequence', 'aligned'])
+    .default('aligned')
+    .describe(
+      'Lock copies another track. Sequence plays this track in order. Aligned uses start and duration.',
+    ),
+  start: z
+    .number()
+    .default(0)
+    .describe('Start of this track in its parent scene, in seconds'),
+  startOffset: z
+    .number()
+    .optional()
+    .describe(
+      'Negative trim from the head, in seconds. The end stays put.',
+    ),
+  duration: z
+    .number()
+    .optional()
+    .describe(
+      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
+    ),
+  lock: z
     .string()
     .optional()
-    .describe('Fit duration to the track (only for aligned/random tracks)'),
+    .meta({ [paramMetaTypes.lockTarget]: true })
+    .describe('Lock start and duration to a sibling or parent track'),
   audio: audioSourceSchema.describe('Audio source configuration'),
   waveform: waveformConfigSchema.describe('Waveform configuration'),
   container: containerStyleSchema
@@ -505,6 +534,62 @@ const presetExecution = (
 
   const verticalPositioning = getVerticalPositioning();
 
+  // Lock copies another track. Aligned and sequence keep a start and duration.
+  // The audio and the bars overlap, so the wrapper stays a layout.
+  // trackFitDurationTo is the previous name of lock.
+  const legacy = params as z.infer<typeof presetParams> & {
+    trackType?: string;
+    start?: number;
+    startOffset?: number;
+    duration?: number;
+    lock?: string;
+    trackFitDurationTo?: string;
+    trackStartOffset?: number;
+    trackDuration?: number;
+  };
+  const lockTarget =
+    (typeof legacy.lock === 'string' && legacy.lock) ||
+    (typeof legacy.trackFitDurationTo === 'string' &&
+      legacy.trackFitDurationTo) ||
+    '';
+  const trackType = legacy.trackType;
+  const locked =
+    trackType === 'lockedTo' ||
+    (lockTarget.trim().length > 0 &&
+      trackType !== 'sequence' &&
+      trackType !== 'aligned');
+  const start =
+    (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
+      ? legacy.start
+      : undefined) ??
+    (typeof legacy.trackStartOffset === 'number' &&
+    Number.isFinite(legacy.trackStartOffset)
+      ? legacy.trackStartOffset
+      : 0);
+  const authoredDuration =
+    (typeof legacy.duration === 'number' && legacy.duration > 0
+      ? legacy.duration
+      : undefined) ??
+    (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
+      ? legacy.trackDuration
+      : undefined) ??
+    (typeof audio?.duration === 'number' && audio.duration > 0
+      ? audio.duration
+      : undefined);
+  const trackTiming: {
+    start: number;
+    duration?: number;
+    startOffset?: number;
+  } = { start };
+  if (!locked && typeof authoredDuration === 'number') {
+    trackTiming.duration = authoredDuration;
+  }
+  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
+    trackTiming.startOffset = legacy.startOffset;
+  }
+  // The audio and the visual overlap for the whole window, so this stays a layout.
+  const trackLayout = 'layout' as const;
+
   const containerClassName = [
     container?.className || '',
     waveform.isHidden ? 'opacity-0' : '',
@@ -522,15 +607,10 @@ const presetExecution = (
         {
           id: `${params.trackName}`,
           componentId: 'BaseLayout',
-          type: params.trackFitDurationTo ? 'layout' : ('scene' as const),
+          type: trackLayout,
           data: {},
           context: {
-            timing: params.trackFitDurationTo
-              ? {
-                  start: 0,
-                  fitDurationTo: params.trackFitDurationTo ?? 'this',
-                }
-              : {},
+            timing: trackTiming,
           },
           childrenData: [
             // Audio component
@@ -620,6 +700,9 @@ const presetMetadata: PresetMetadata = {
   tags: ['audio', 'waveform', 'visualization', 'animation', 'music'],
   defaultInputParams: {
     trackName: 'waveform-track',
+    trackType: 'aligned',
+    start: 0,
+    duration: 20,
     audio: {
       src: 'https://cdn1.suno.ai/6aded313-9bd5-4c8b-bb6f-fd5f158642e3.m4a',
       volume: 1,
@@ -653,6 +736,16 @@ const presetMetadata: PresetMetadata = {
     },
   },
 };
+
+/** Bring saved waveform input onto lock / sequence / aligned timing. */
+export function migrateWaveformInputData<T>(data: T): T {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+  const next: Record<string, unknown> = {
+    ...(data as Record<string, unknown>),
+  };
+  const changed = applyLegacyTrackTiming(next, 'aligned');
+  return changed ? (next as T) : data;
+}
 
 const presetFunction = presetExecution.toString();
 const presetParamsSchema = z.toJSONSchema(presetParams);

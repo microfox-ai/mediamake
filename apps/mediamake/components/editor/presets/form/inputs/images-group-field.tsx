@@ -30,6 +30,7 @@ import {
 import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
 import { TransitionEffectsField } from "./transition-effects-field";
+import { LockTargetInput } from "./lock-target-input";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
@@ -220,6 +221,14 @@ export function mediaFileToTrackItem(file: MediaFile): Record<string, unknown> {
 
 const STATIC_PROP_KEYS = new Set<string>(MEDIA_STATIC_KEYS);
 
+/** Item schemas that list a type enum only accept those media kinds. */
+function schemaMediaKinds(itemSchema: any): Set<string> | null {
+  const typeEnum = itemSchema?.properties?.type?.enum;
+  if (!Array.isArray(typeEnum) || typeEnum.length === 0) return null;
+  const kinds = typeEnum.filter((kind) => typeof kind === "string");
+  return kinds.length > 0 ? new Set(kinds) : null;
+}
+
 /**
  * Images / Form editor for imagesGroup fields.
  * When `mediaRef` is set, file identity (src, type, name, thumbnail, …)
@@ -259,6 +268,11 @@ export function ImagesGroupField({
   }, [linked, items, refMedias]);
 
   const props = useMemo(() => getItemPropSchemas(itemSchema), [itemSchema]);
+  const allowedKinds = useMemo(() => schemaMediaKinds(itemSchema), [itemSchema]);
+  const acceptsFile = (file: MediaFile) => {
+    if (!allowedKinds) return true;
+    return allowedKinds.has(detectMediaKind(file));
+  };
   const groupProps = props.filter(
     (p) => p.key !== "src" && isGroupEditable(p) && !isRangeProp(p),
   );
@@ -333,6 +347,10 @@ export function ImagesGroupField({
   };
 
   const replaceSrc = (index: number, file: MediaFile) => {
+    if (!acceptsFile(file)) {
+      setReplaceIndex(null);
+      return;
+    }
     const identity = readMediaStatic(toMediaItem(file));
     if (linked) {
       syncRefMedias(
@@ -350,6 +368,7 @@ export function ImagesGroupField({
   const addImages = (files: MediaFile | MediaFile[]) => {
     const list = Array.isArray(files) ? files : [files];
     const additions = list
+      .filter(acceptsFile)
       .map((file) => readMediaStatic(mediaFileToTrackItem(file)))
       .filter((a) => a.src);
     if (additions.length === 0) {
@@ -628,17 +647,25 @@ function RangeWithLoop({
   rangeValue,
   showLoop,
   loopValue,
+  lockToProp,
+  lockToValue,
   onRangeChange,
   onLoopChange,
+  onLockToChange,
 }: {
   rangeProp?: ItemPropSchema;
   rangeValue: unknown;
   showLoop: boolean;
   loopValue: boolean;
+  lockToProp?: ItemPropSchema;
+  lockToValue?: unknown;
   onRangeChange: (val: string | undefined) => void;
   onLoopChange: (val: boolean) => void;
+  onLockToChange?: (val: string) => void;
 }) {
-  if (!rangeProp && !showLoop) return null;
+  const rangeLocked =
+    typeof lockToValue === "string" && lockToValue.trim().length > 0;
+  if (!rangeProp && !showLoop && !lockToProp) return null;
   return (
     <div className="flex items-end gap-2">
       {rangeProp ? (
@@ -646,7 +673,21 @@ function RangeWithLoop({
           <PropEditor
             prop={rangeProp}
             value={rangeValue}
+            disabled={rangeLocked}
             onChange={(val) => onRangeChange(val || undefined)}
+          />
+        </div>
+      ) : null}
+      {lockToProp ? (
+        <div className="w-36 shrink-0 space-y-1">
+          <Label className="text-[10px] uppercase text-muted-foreground">
+            lockTo
+          </Label>
+          <LockTargetInput
+            value={typeof lockToValue === "string" ? lockToValue : ""}
+            onChange={(next) => onLockToChange?.(next)}
+            size="sm"
+            className="text-xs"
           />
         </div>
       ) : null}
@@ -710,8 +751,11 @@ function ItemPopupFields({
           rangeValue={img.rangeString}
           showLoop={Boolean(find("loop"))}
           loopValue={img.loop === true}
+          lockToProp={find("lockTo")}
+          lockToValue={img.lockTo}
           onRangeChange={(val) => onChange({ rangeString: val })}
           onLoopChange={(val) => onChange({ loop: val })}
+          onLockToChange={(val) => onChange({ lockTo: val || undefined })}
         />
       </div>
     );
@@ -732,6 +776,8 @@ function ItemPopupFields({
     });
 
   const positionProps = popupProps.filter(isContainerProp);
+  const volumeProp = find("volume");
+  const muteProp = find("mute") ?? find("muted");
 
   return (
     <div className="space-y-3">
@@ -741,6 +787,28 @@ function ItemPopupFields({
         className="h-28 w-full rounded-md object-cover border"
       />
       <div className="grid grid-cols-3 gap-2">{row(["fit", "filter", "blendMode"])}</div>
+      {volumeProp || muteProp ? (
+        <div className="grid grid-cols-2 gap-2">
+          {volumeProp ? (
+            <PropEditor
+              prop={volumeProp}
+              value={img.volume}
+              onChange={(val) => onChange({ volume: val })}
+            />
+          ) : (
+            <div />
+          )}
+          {muteProp ? (
+            <PropEditor
+              prop={muteProp}
+              value={img[muteProp.key]}
+              onChange={(val) => onChange({ [muteProp.key]: val })}
+            />
+          ) : (
+            <div />
+          )}
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
         {row(["opacity"])}
         <PropEditor
@@ -754,8 +822,11 @@ function ItemPopupFields({
         rangeValue={img.rangeString}
         showLoop={Boolean(find("loop"))}
         loopValue={img.loop === true}
+        lockToProp={find("lockTo")}
+        lockToValue={img.lockTo}
         onRangeChange={(val) => onChange({ rangeString: val })}
         onLoopChange={(val) => onChange({ loop: val })}
+        onLockToChange={(val) => onChange({ lockTo: val || undefined })}
       />
       {(() => {
         const prop = popupProps.find(isTransitionEffectsProp);
@@ -795,10 +866,12 @@ function PropEditor({
   prop,
   value,
   onChange,
+  disabled = false,
 }: {
   prop: ItemPropSchema;
   value: any;
   onChange: (val: any) => void;
+  disabled?: boolean;
 }) {
   const label = prop.key;
 
@@ -922,6 +995,7 @@ function PropEditor({
           <RangePlayheadLinks
             value={typeof value === "string" ? value : ""}
             onChange={onChange}
+            disabled={disabled}
           />
         )}
       </div>
@@ -929,6 +1003,7 @@ function PropEditor({
         <RangePropInput
           value={typeof value === "string" ? value : ""}
           onChange={onChange}
+          disabled={disabled}
         />
       ) : (
         <Input
@@ -936,6 +1011,7 @@ function PropEditor({
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value || undefined)}
           placeholder="—"
+          disabled={disabled}
         />
       )}
     </div>
@@ -945,9 +1021,11 @@ function PropEditor({
 function RangePlayheadLinks({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
   onChange: (next: string) => void;
+  disabled?: boolean;
 }) {
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
   const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
@@ -965,7 +1043,8 @@ function RangePlayheadLinks({
         <button
           key={seconds}
           type="button"
-          className="text-[10px] font-normal normal-case text-primary underline-offset-2 hover:underline"
+          disabled={disabled}
+          className="text-[10px] font-normal normal-case text-primary underline-offset-2 hover:underline disabled:pointer-events-none disabled:opacity-40"
           onClick={() => add(seconds)}
         >
           {seconds}secs
@@ -978,9 +1057,11 @@ function RangePlayheadLinks({
 function RangePropInput({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
   onChange: (val: any) => void;
+  disabled?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   const beginRangeEdit = useEditorUIStore((s) => s.beginRangeEdit);
@@ -996,6 +1077,7 @@ function RangePropInput({
       className="h-8 text-xs font-mono"
       value={draft}
       placeholder="0:00-0:30"
+      disabled={disabled}
       onFocus={() => beginRangeEdit()}
       onChange={(e) => {
         const next = e.target.value;

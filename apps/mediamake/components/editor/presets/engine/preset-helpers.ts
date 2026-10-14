@@ -534,17 +534,81 @@ export const insertPresetToComposition = (
   return data;
 };
 
-/** Insert an empty scene container. Nested presets attach to `node.id`. */
+function anchorStyle(
+  positioning: unknown,
+): Record<string, string | number> {
+  switch (positioning) {
+    case 'top-left':
+      return { top: 0, left: 0 };
+    case 'top-center':
+      return { top: 0, left: '50%', transform: 'translateX(-50%)' };
+    case 'top-right':
+      return { top: 0, right: 0 };
+    case 'center-left':
+      return { top: '50%', left: 0, transform: 'translateY(-50%)' };
+    case 'center':
+      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    case 'center-right':
+      return { top: '50%', right: 0, transform: 'translateY(-50%)' };
+    case 'bottom-left':
+      return { bottom: 0, left: 0 };
+    case 'bottom-center':
+      return { bottom: 0, left: '50%', transform: 'translateX(-50%)' };
+    case 'bottom-right':
+      return { bottom: 0, right: 0 };
+    default:
+      return {};
+  }
+}
+
+/** Same container placement a media track writes from `containerObject`. */
+export function sceneContainerProps(input: unknown): {
+  className: string;
+  style?: Record<string, string | number>;
+} {
+  const record =
+    input && typeof input === 'object' && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : {};
+  const container =
+    record.containerObject &&
+    typeof record.containerObject === 'object' &&
+    !Array.isArray(record.containerObject)
+      ? (record.containerObject as Record<string, unknown>)
+      : {};
+  const style: Record<string, string | number> = {
+    ...anchorStyle(container.positioning),
+  };
+  for (const key of ['left', 'top', 'right', 'bottom', 'width', 'height'] as const) {
+    const value = container[key];
+    if (typeof value === 'number' && Number.isFinite(value)) style[key] = value;
+  }
+  const positioned = Object.keys(style).length > 0;
+  if (typeof record.backgroundColor === 'string' && record.backgroundColor) {
+    style.backgroundColor = record.backgroundColor;
+  }
+  return {
+    className: positioned ? 'absolute' : 'absolute inset-0',
+    ...(Object.keys(style).length > 0 ? { style } : {}),
+  };
+}
+
+/** Insert a scene container. Nested presets attach to `node.id`. */
 export function insertSceneContainer(
   data: InputCompositionProps,
-  node: { id: string; arrangement?: 'sequence' | 'aligned' },
+  node: {
+    id: string;
+    arrangement?: 'sequence' | 'aligned' | 'autoRange';
+    input?: unknown;
+  },
   parentRenderId: string | null,
 ): InputCompositionProps {
+  const containerProps = sceneContainerProps(node.input);
   const container = {
     id: node.id,
     componentId: 'BaseLayout',
     type: node.arrangement === 'sequence' ? 'scene' : 'layout',
-    data: {},
+    data: { containerProps },
     context: { timing: { start: 0 } },
     childrenData: [],
     _presetItemId: node.id,

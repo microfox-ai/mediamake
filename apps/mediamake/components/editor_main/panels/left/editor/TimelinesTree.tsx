@@ -146,7 +146,7 @@ export function TimelinesTree() {
                 <TimelineHistoryPanel />
             ) : (
                 <ScrollArea className="flex-1 overflow-y-auto">
-                    <div className="p-1 space-y-1">
+                    <div className="py-1 space-y-1">
                         {timelines.map((timeline) => (
                             <TimelineItem key={timeline.id} timeline={timeline} />
                         ))}

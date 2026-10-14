@@ -51,6 +51,12 @@ export const paramMetaTypes = {
    */
   linkTrackName: 'linkTrackName',
   /**
+   * Marks a string field that locks start and duration to a sibling or parent.
+   * Renders a dropdown of those track names.
+   * Value: true
+   */
+  lockTarget: 'lockTarget',
+  /**
    * Marks an object with optional left/right/top/bottom numeric insets.
    * Renders a Figma-style 4-block insets editor. Missing keys stay undefined
    * (distinct from 0). Value: true

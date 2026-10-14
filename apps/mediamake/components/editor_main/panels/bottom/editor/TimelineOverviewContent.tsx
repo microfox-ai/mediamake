@@ -5,7 +5,15 @@ import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
-import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
+import { useCompiledAudioClips } from "./use-compiled-audio-clips";
+import { loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
+import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
+import {
+  collectIntrinsicDurations,
+  collectMediaItemDurations,
+} from "@/components/editor_main/timing/stamp-timing";
+import type { AppliedNode } from "@/components/editor_main/timing/types";
+import { atomContentEnd, presetUsesSceneBlocks } from "./media-scene-blocks";
 import { TimelineShell } from "./TimelineShell";
 import {
   collectActionTimelineSegments,
@@ -40,12 +48,10 @@ export function TimelineOverviewContent() {
     [effectiveTimeline],
   );
 
-  const audioClips = useMemo(
-    () => findAudioMediaClipsFromTimeline(effectiveTimeline ?? undefined),
-    [effectiveTimeline],
-  );
+  const audioClips = useCompiledAudioClips(effectiveTimeline);
 
   const fps = calculatedMetadata?.fps ?? 30;
+  const compiledChildren = calculatedMetadata?.props?.childrenData;
   const compiledSec =
     calculatedMetadata?.durationInFrames &&
     calculatedMetadata.durationInFrames > 0
@@ -54,7 +60,35 @@ export function TimelineOverviewContent() {
   const configSec = Number(
     effectiveTimeline?.configuration?.config?.duration || 0,
   );
-  const totalDuration = Math.max(1, compiledSec || configSec || 60);
+  const contentEnd = useMemo(() => {
+    if (!effectiveTimeline) return 0;
+    const intrinsicDurations = collectIntrinsicDurations(compiledChildren);
+    const tree = loadInstanceTree(effectiveTimeline);
+    const resolved = resolveTiming(tree, { intrinsicDurations });
+    let end = 0;
+    for (const span of resolved.nodes.values()) {
+      const edge = span.absoluteStart + span.duration;
+      if (edge > end) end = edge;
+    }
+    const walk = (node: AppliedNode) => {
+      if (presetUsesSceneBlocks(node.presetId)) {
+        const origin = resolved.nodes.get(node.id)?.absoluteStart ?? 0;
+        end = Math.max(
+          end,
+          atomContentEnd(
+            node.input,
+            origin,
+            collectMediaItemDurations(compiledChildren, node.id),
+            node.presetId,
+          ),
+        );
+      }
+      for (const child of node.children) walk(child);
+    };
+    walk(tree);
+    return end;
+  }, [effectiveTimeline, compiledChildren]);
+  const totalDuration = Math.max(1, compiledSec || configSec || 60, contentEnd);
 
   if (!effectiveTimeline) {
     return (

@@ -17,9 +17,11 @@ export interface ResolveTimingResult {
 /**
  * Resolve every instance span from the tree alone.
  * Start is always parent-relative. Absolute time is derived.
- * A lock may target a sibling or an ancestor, never a descendant.
+ * A lock may target a sibling or an ancestor. A scene may also lock to a
+ * descendant, and then its window is that child's start and duration.
  * Inside a sequence, start is packed from sibling order; a lock there
- * contributes duration only.
+ * contributes duration only, except a scene locked to its own child, which
+ * keeps the packed start and takes that child's duration.
  */
 export function resolveTiming(
   root: AppliedNode,
@@ -85,7 +87,12 @@ export function resolveTiming(
       for (const child of node.children) {
         if (child.disabled || child.role === 'modifier') continue;
         const span = resolveNode(child, node, cursor);
-        if (span) cursor += span.duration;
+        const locksToOwnChild =
+          child.timing.kind === 'lock' &&
+          descendantIds(child.id).has(child.timing.refId);
+        if (span && (child.timing.kind !== 'lock' || locksToOwnChild)) {
+          cursor += span.duration;
+        }
       }
       return;
     }
@@ -138,10 +145,15 @@ export function resolveTiming(
       placeChildren(node);
       visiting.delete(node.id);
 
-      if (parent && parent.arrangement !== 'sequence') {
+      if (
+        parent &&
+        parent.arrangement !== 'sequence' &&
+        parent.arrangement !== 'autoRange'
+      ) {
         const parentSpan = nodes.get(parent.id);
         if (
           parentSpan &&
+          parentSpan.duration > 0 &&
           span.start + span.duration > parentSpan.duration + 1e-4
         ) {
           fail(
@@ -197,6 +209,92 @@ export function resolveTiming(
       return span;
     }
 
+    if (node.timing.kind === 'autoRange') {
+      const packed = sequenceParent ? (packedStart ?? 0) : 0;
+      const provisional: ResolvedSpan = {
+        start: packed,
+        duration: 0,
+        absoluteStart: parentAbsoluteStart + packed,
+        parentAbsoluteStart,
+        locked: false,
+      };
+      nodes.set(node.id, provisional);
+
+      const spans: ResolvedSpan[] = [];
+      for (const child of node.children) {
+        if (child.disabled || child.role === 'modifier') continue;
+        const childSpan = resolveNode(child, node);
+        if (childSpan && childSpan.duration > 0 && Number.isFinite(childSpan.start)) {
+          spans.push(childSpan);
+        }
+      }
+
+      if (spans.length === 0) {
+        nodes.delete(node.id);
+        fail(
+          node.id,
+          'missing-duration',
+          `"${node.name}" has no child timings to range.`,
+        );
+        visiting.delete(node.id);
+        return undefined;
+      }
+
+      let first = Infinity;
+      let last = -Infinity;
+      for (const span of spans) {
+        const end = span.start + span.duration;
+        if (span.start < first) first = span.start;
+        if (end > last) last = end;
+      }
+      const content = last - first;
+      if (!Number.isFinite(first) || !Number.isFinite(last) || !(content > 0)) {
+        nodes.delete(node.id);
+        fail(
+          node.id,
+          'non-positive-duration',
+          `"${node.name}" needs a range greater than zero.`,
+        );
+        visiting.delete(node.id);
+        return undefined;
+      }
+
+      // Sequence packing owns the scene position and drops the leading gap.
+      // Otherwise the scene moves to the first child and children stay put in time.
+      const sceneStart = sequenceParent ? packed : first;
+      const relativeDelta = -first;
+      const absoluteDelta = sequenceParent ? -first : 0;
+      const shiftDescendants = (current: AppliedNode, delta: number) => {
+        for (const child of current.children) {
+          const childSpan = nodes.get(child.id);
+          if (childSpan) {
+            childSpan.absoluteStart += delta;
+            childSpan.parentAbsoluteStart += delta;
+          }
+          shiftDescendants(child, delta);
+        }
+      };
+      for (const child of node.children) {
+        const childSpan = nodes.get(child.id);
+        if (!childSpan) continue;
+        childSpan.start += relativeDelta;
+        childSpan.absoluteStart += absoluteDelta;
+        childSpan.parentAbsoluteStart = parentAbsoluteStart + sceneStart;
+        if (absoluteDelta !== 0) shiftDescendants(child, absoluteDelta);
+      }
+
+      const span: ResolvedSpan = {
+        start: sceneStart,
+        duration: content,
+        absoluteStart: parentAbsoluteStart + sceneStart,
+        parentAbsoluteStart,
+        locked: false,
+      };
+      nodes.set(node.id, span);
+      visiting.delete(node.id);
+      return span;
+    }
+
     const timing = node.timing;
     const authoredStart = sequenceParent
       ? (packedStart ?? 0)
@@ -230,7 +328,103 @@ export function resolveTiming(
         visiting.delete(node.id);
         return undefined;
       }
-      if (descendantIds(node.id).has(refId)) {
+      const locksToDescendant = descendantIds(node.id).has(refId);
+      if (locksToDescendant && node.role === 'scene' && timing.kind === 'lock') {
+        const packed = sequenceParent ? (packedStart ?? 0) : 0;
+        const provisional: ResolvedSpan = {
+          start: packed,
+          duration: 0,
+          absoluteStart: parentAbsoluteStart + packed,
+          parentAbsoluteStart,
+          locked: true,
+        };
+        nodes.set(node.id, provisional);
+        for (const child of node.children) {
+          if (child.disabled || child.role === 'modifier') continue;
+          resolveNode(child, node);
+        }
+        const refSpan = nodes.get(refId);
+        if (!refSpan || !(refSpan.duration > 0) || !Number.isFinite(refSpan.absoluteStart)) {
+          nodes.delete(node.id);
+          fail(
+            node.id,
+            'missing-duration',
+            `"${node.name}" cannot lock to "${ref.name}" because it has no duration.`,
+          );
+          visiting.delete(node.id);
+          return undefined;
+        }
+        const childOffset = refSpan.absoluteStart - provisional.absoluteStart;
+        const duration = refSpan.duration;
+        if (sequenceParent) {
+          // Packing owns the scene position. Pull the locked child to that
+          // start and drop the time before it.
+          const delta = -childOffset;
+          const shiftDescendants = (current: AppliedNode, amount: number) => {
+            for (const child of current.children) {
+              const childSpan = nodes.get(child.id);
+              if (childSpan) {
+                childSpan.absoluteStart += amount;
+                childSpan.parentAbsoluteStart += amount;
+              }
+              shiftDescendants(child, amount);
+            }
+          };
+          for (const child of node.children) {
+            const childSpan = nodes.get(child.id);
+            if (!childSpan) continue;
+            childSpan.start += delta;
+            childSpan.absoluteStart += delta;
+            childSpan.parentAbsoluteStart = provisional.absoluteStart;
+            if (delta !== 0) shiftDescendants(child, delta);
+          }
+          const span: ResolvedSpan = {
+            start: packed,
+            duration,
+            absoluteStart: provisional.absoluteStart,
+            parentAbsoluteStart,
+            locked: true,
+          };
+          nodes.set(node.id, span);
+          visiting.delete(node.id);
+          return span;
+        }
+        for (const child of node.children) {
+          const childSpan = nodes.get(child.id);
+          if (!childSpan) continue;
+          childSpan.start -= childOffset;
+          childSpan.parentAbsoluteStart = provisional.absoluteStart + childOffset;
+        }
+        const span: ResolvedSpan = {
+          start: childOffset,
+          duration,
+          absoluteStart: provisional.absoluteStart + childOffset,
+          parentAbsoluteStart,
+          locked: true,
+        };
+        nodes.set(node.id, span);
+        visiting.delete(node.id);
+        if (
+          parent &&
+          parent.arrangement !== 'sequence' &&
+          parent.arrangement !== 'autoRange'
+        ) {
+          const parentSpan = nodes.get(parent.id);
+          if (
+            parentSpan &&
+            parentSpan.duration > 0 &&
+            span.start + span.duration > parentSpan.duration + 1e-4
+          ) {
+            fail(
+              node.id,
+              'child-overflow',
+              `"${node.name}" extends past its scene.`,
+            );
+          }
+        }
+        return span;
+      }
+      if (locksToDescendant) {
         fail(
           node.id,
           'lock-out-of-scope',
@@ -259,7 +453,7 @@ export function resolveTiming(
       }
       const duration = refSpan.duration;
       let start = authoredStart;
-      if (!sequenceParent && timing.kind === 'lock') {
+      if (timing.kind === 'lock') {
         start = isSibling
           ? refSpan.start
           : refSpan.absoluteStart - parentAbsoluteStart;
@@ -278,4 +472,18 @@ export function resolveTiming(
 
   resolveNode(root, null);
   return { nodes, diagnostics };
+}
+
+/** Latest absolute end among resolved spans. Zero when nothing placed. */
+export function latestSpanEnd(
+  root: AppliedNode,
+  options: ResolveTimingOptions = {},
+): number {
+  const { nodes } = resolveTiming(root, options);
+  let end = 0;
+  for (const span of nodes.values()) {
+    const edge = span.absoluteStart + span.duration;
+    if (Number.isFinite(edge) && edge > end) end = edge;
+  }
+  return end;
 }

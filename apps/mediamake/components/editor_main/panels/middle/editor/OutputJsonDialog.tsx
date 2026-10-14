@@ -6,7 +6,20 @@ import { JsonEditor } from "@/components/editor/player/json-editor";
 import type { InputCompositionProps } from "@microfox/remotion";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
+import { useProjectStore, type Timeline } from "../../../stores/project-store";
+import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useMemo } from "react";
+
+/** Payload `generateOutput` reads. Preset definitions are fetched by id, so cached `presetInfo` is omitted. */
+function compilerInputFromTimeline(timeline: Timeline) {
+  return {
+    configuration: timeline.configuration ?? null,
+    defaultData: timeline.defaultData ?? null,
+    presets: (timeline.presets ?? []).map(({ presetInfo: _presetInfo, ...preset }) => preset),
+    nodes: timeline.nodes ?? null,
+    actions: timeline.actions ?? [],
+  };
+}
 
 interface OutputJsonDialogProps {
   open: boolean;
@@ -20,11 +33,23 @@ export function OutputJsonDialog({
   generatedOutput,
 }: OutputJsonDialogProps) {
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
+  const currentTimeline = useCompileStore((s) => s.currentTimeline);
+  const loadedTimeline = useProjectStore((s) => s.loadedTimeline);
+  const timelineId = loadedTimeline?.id ?? currentTimeline?.id ?? null;
+  const editedTimeline = useTimelineEditsStore((s) =>
+    timelineId ? s.editedTimelines.get(timelineId) : undefined,
+  );
   const getLayerStateSnapshot = useLayerStateStore((s) => s.getLayerStateSnapshot);
   const childrenOrderByParentId = useLayerStateStore((s) => s.childrenOrderByParentId);
   const overrides = useLayerStateStore((s) => s.overrides);
   const addedNodes = useLayerStateStore((s) => s.addedNodes);
   const loadedChildrenData = useLayerStateStore((s) => s.loadedChildrenData);
+
+  const timelineInput = useMemo(() => {
+    const source = editedTimeline ?? loadedTimeline ?? currentTimeline;
+    if (!source) return {};
+    return compilerInputFromTimeline(source);
+  }, [editedTimeline, loadedTimeline, currentTimeline]);
 
   const timelineProps: InputCompositionProps | Record<string, never> = useMemo(() => {
     const fromMetadata = calculatedMetadata?.props as InputCompositionProps | undefined;
@@ -70,6 +95,9 @@ export function OutputJsonDialog({
               <TabsTrigger value="layers" className="flex-1">
                 Layers Output JSON
               </TabsTrigger>
+              <TabsTrigger value="input" className="flex-1">
+                Timeline Input
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="timeline" className="flex-1 min-h-0">
               <JsonEditor
@@ -82,6 +110,14 @@ export function OutputJsonDialog({
             <TabsContent value="layers" className="flex-1 min-h-0">
               <JsonEditor
                 value={layersOutput || {}}
+                onChange={() => {}} // Read-only
+                height="100%"
+                className="h-full"
+              />
+            </TabsContent>
+            <TabsContent value="input" className="flex-1 min-h-0">
+              <JsonEditor
+                value={timelineInput}
                 onChange={() => {}} // Read-only
                 height="100%"
                 className="h-full"

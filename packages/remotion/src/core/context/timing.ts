@@ -295,6 +295,31 @@ export const calculateDuration = async (
   return calculatedDuration;
 };
 
+/**
+ * Length of a container once its children have durations.
+ * A scene plays them in order, so the length is the sum.
+ * A layout overlaps them, so the length is the latest end.
+ */
+export function durationFromChildren(
+  type: 'scene' | 'layout',
+  children: Array<{ context?: { timing?: { start?: number; duration?: number } } }>,
+): number {
+  if (type === 'scene') {
+    return children.reduce(
+      (total, child) => total + (child.context?.timing?.duration ?? 0),
+      0,
+    );
+  }
+  let end = 0;
+  for (const child of children) {
+    const duration = child.context?.timing?.duration ?? 0;
+    if (!(duration > 0)) continue;
+    const start = child.context?.timing?.start;
+    end = Math.max(end, (typeof start === 'number' ? start : 0) + duration);
+  }
+  return end;
+}
+
 export const setDurationsInContext = async (root: InputCompositionProps) => {
   // Clear cache at the start of each rendering cycle to ensure fresh calculations
   durationCache.clear();
@@ -389,14 +414,13 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
             });
           }
         }
-        // If fitDurationTo is 'this' or same as component id, or no fitDurationTo, sum children durations
-        // Only calculate if duration is not already set (from client-side calculation)
+        // No authored duration. A scene sums its children. A layout ends
+        // when the last child ends. Skip this when a duration is already set.
         else if (!updatedComponent.context?.timing?.duration) {
-          duration =
-            updatedComponent.childrenData.reduce(
-              (acc, child) => acc + (child.context?.timing?.duration ?? 0),
-              0
-            ) ?? 10;
+          duration = durationFromChildren(
+            updatedComponent.type === 'scene' ? 'scene' : 'layout',
+            updatedComponent.childrenData ?? [],
+          );
         } else {
           // Use existing duration if already set
           duration = updatedComponent.context.timing.duration;

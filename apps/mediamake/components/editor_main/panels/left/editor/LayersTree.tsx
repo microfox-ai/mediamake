@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, GripVertical, Type, Music, ArrowUp, ArrowDown, Copy, Trash2, Edit2, History, Users, Loader2 } from "lucide-react";
+import { File, ChevronRight, ChevronDown, Eye, EyeOff, ChevronsLeft, ChevronsRight, Lock, Unlock, Image, Video, Plus, Type, Music, ArrowUp, ArrowDown, Copy, Trash2, Edit2, History, Users, Loader2 } from "lucide-react";
 import { LayerHistoryPanel } from "./LayerHistoryPanel";
 import { useLayerHistoryStore } from "../../../stores/layer-history-store";
 import {
@@ -89,46 +89,65 @@ function findParentAndSiblings(
   return null;
 }
 
-function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
+function layerThumbnailSrc(node: LayerTreeNode): string | undefined {
+  const thumb = node.previewThumbnail?.trim();
+  if (thumb) return thumb;
+  if (node.componentId === "ImageAtom") {
+    const src = node.previewSrc?.trim();
+    if (src) return src;
+  }
+  return undefined;
+}
+
+function LayerTypeIcon({ node }: { node: LayerTreeNode }) {
   if (node.componentId === "TextAtom") {
-    const text =
-      node.previewText != null && node.previewText !== ""
-        ? node.previewText.length > PREVIEW_TEXT_MAX
-          ? node.previewText.slice(0, PREVIEW_TEXT_MAX) + "…"
-          : node.previewText
-        : node.label || node.id;
     return (
-      <>
-        <span
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground"
-          title="Text"
-        >
-          T
-        </span>
-        <span className="min-w-0 truncate">{text}</span>
-      </>
+      <span
+        className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[9px] font-semibold text-muted-foreground"
+        title="Text"
+      >
+        T
+      </span>
     );
   }
   if (node.componentId === "ImageAtom") {
-    return (
-      <>
-        <Image className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 truncate">{node.label || node.id}</span>
-      </>
-    );
+    return <Image className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
   }
   if (node.componentId === "VideoAtom") {
-    return (
-      <>
-        <Video className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 truncate">{node.label || node.id}</span>
-      </>
-    );
+    return <Video className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
   }
+  if (node.componentId === "AudioAtom") {
+    return <Music className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+  }
+  return <File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+}
+
+function LayerMark({ node }: { node: LayerTreeNode }) {
+  const src = layerThumbnailSrc(node);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (!src || failedSrc === src) return <LayerTypeIcon node={node} />;
+  return (
+    <img
+      src={src}
+      alt=""
+      draggable={false}
+      onError={() => setFailedSrc(src)}
+      className="h-[22px] w-[22px] shrink-0 rounded-[4px] border border-border object-cover bg-muted"
+    />
+  );
+}
+
+function LayerIconAndLabel({ node }: { node: LayerTreeNode }) {
+  const text =
+    node.componentId === "TextAtom" && node.previewText
+      ? node.previewText.length > PREVIEW_TEXT_MAX
+        ? node.previewText.slice(0, PREVIEW_TEXT_MAX) + "…"
+        : node.previewText
+      : node.label || node.id;
   return (
     <>
-      <File className="h-3 w-3 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 truncate">{node.label || node.id}</span>
+      <LayerMark node={node} />
+      <span className="min-w-0 truncate">{text}</span>
     </>
   );
 }
@@ -331,16 +350,22 @@ export function LayersTree() {
     const isLocked = lockedLayerIds.has(node.id);
     const hasChildren = node.children.length > 0;
     const isExpanded = expandedIds.has(node.id);
-    const indent = depth * 16;
+    const indent = depth * 14;
     const startFrame = node.timing.startInFrames ?? 0;
     const durationFrames = node.timing.durationInFrames ?? 1;
     const endFrame = Math.max(startFrame, startFrame + Math.max(1, durationFrames) - 1);
 
     const controls = (
-      <div className="ml-auto flex items-center gap-1">
+      <div
+        className={cn(
+          "ml-auto items-center gap-0.5 shrink-0",
+          isHidden || isLocked ? "flex" : "hidden group-hover/row:flex",
+        )}
+        data-no-drag
+      >
         <button
           type="button"
-          className="p-1 rounded hover:bg-accent"
+          className="p-0.5 rounded hover:bg-accent"
           title={isHidden ? "Show layer" : "Hide layer"}
           onClick={(e) => {
             e.stopPropagation();
@@ -348,14 +373,14 @@ export function LayersTree() {
           }}
         >
           {isHidden ? (
-            <EyeOff className="h-3 w-3 text-muted-foreground" />
+            <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
-            <Eye className="h-3 w-3 text-muted-foreground" />
+            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
           )}
         </button>
         <button
           type="button"
-          className="p-1 rounded hover:bg-accent"
+          className="p-0.5 rounded hover:bg-accent"
           title={isLocked ? "Unlock layer" : "Lock layer"}
           onClick={(e) => {
             e.stopPropagation();
@@ -363,9 +388,9 @@ export function LayersTree() {
           }}
         >
           {isLocked ? (
-            <Unlock className="h-3 w-3 text-muted-foreground" />
+            <Unlock className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
-            <Lock className="h-3 w-3 text-muted-foreground" />
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
           )}
         </button>
       </div>
@@ -379,15 +404,6 @@ export function LayersTree() {
       }
     };
     const isAddedNode = addedNodeIds.has(node.id);
-    const rowClassName = cn(
-      "flex flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-sm min-w-0",
-      "hover:bg-accent cursor-pointer",
-      isHidden && "opacity-40",
-      isSelected && "bg-primary/20 font-medium",
-      dragOverId === node.id && "ring-1 ring-primary/50"
-    );
-    const rowTitle = `${node.label} (active: ${node.timing.startInFrames ?? 0}-${(node.timing.startInFrames ?? 0) + (node.timing.durationInFrames ?? 0)})`;
-
     const parentInfo = findParentAndSiblings(layerTree, node.id);
     const siblingIds = parentInfo?.siblingIds ?? [];
     const indexInSiblings = siblingIds.indexOf(node.id);
@@ -395,10 +411,30 @@ export function LayersTree() {
     const canMoveUp = hasSiblings && indexInSiblings < siblingIds.length - 1;
     const canMoveDown = hasSiblings && indexInSiblings > 0;
     const canAddInside = node.type === "layout" || hasChildren;
+    const rowClassName = cn(
+      "flex flex-1 items-center gap-2 rounded px-2 h-8 text-left text-sm min-w-0",
+      "hover:bg-accent",
+      hasSiblings ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+      isHidden && "opacity-40",
+      isSelected && "bg-primary/20 font-medium",
+      dragOverId === node.id && "ring-1 ring-primary/50"
+    );
+    const rowTitle = `${node.label} (active: ${node.timing.startInFrames ?? 0}-${(node.timing.startInFrames ?? 0) + (node.timing.durationInFrames ?? 0)})`;
 
     const dragProps = {
       draggable: hasSiblings,
-      onDragStart: (e: React.DragEvent) => handleDragStart(e, node.id),
+      onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLElement | null;
+        const blocked = Boolean(target?.closest("[data-no-drag]"));
+        e.currentTarget.draggable = hasSiblings && !blocked;
+      },
+      onDragStart: (e: React.DragEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.draggable) {
+          e.preventDefault();
+          return;
+        }
+        handleDragStart(e, node.id);
+      },
       onDragOver: (e: React.DragEvent) => handleDragOver(e, node.id),
       onDragLeave: handleDragLeave,
       onDrop: (e: React.DragEvent) => handleDrop(e, node.id),
@@ -496,12 +532,9 @@ export function LayersTree() {
         <div
           key={nodeKey}
           style={{ paddingLeft: `${indent}px` }}
-          className="flex items-center"
+          className="group/row flex items-center"
           {...dragProps}
         >
-          <span className="shrink-0 text-muted-foreground/60 cursor-grab active:cursor-grabbing" title="Drag to reorder">
-            <GripVertical className="h-3.5 w-3.5" />
-          </span>
           <div
             role="button"
             tabIndex={0}
@@ -511,8 +544,8 @@ export function LayersTree() {
             title={rowTitle}
           >
             <LayerIconAndLabel node={node} />
+            {controls}
           </div>
-          {controls}
         </div>
       ) : (
         // Parent node with children - collapsible
@@ -522,22 +555,20 @@ export function LayersTree() {
           onOpenChange={() => toggleExpanded(node.id)}
         >
           <div style={{ paddingLeft: `${indent}px` }} className="flex flex-col" {...dragProps}>
-            <div className="flex items-center">
-              <span className="shrink-0 text-muted-foreground/60 cursor-grab active:cursor-grabbing" title="Drag to reorder">
-                <GripVertical className="h-3.5 w-3.5" />
-              </span>
+            <div className="group/row flex items-center">
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
-                  className="p-1 hover:bg-accent rounded shrink-0"
+                  data-no-drag
+                  className="p-0.5 hover:bg-accent rounded shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
                   {isExpanded ? (
-                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
                   )}
                 </button>
               </CollapsibleTrigger>
@@ -550,11 +581,11 @@ export function LayersTree() {
                 title={rowTitle}
               >
                 <LayerIconAndLabel node={node} />
+                {controls}
               </div>
-              {controls}
             </div>
-            <CollapsibleContent className="ml-4">
-              <div className="space-y-0.5">
+            <CollapsibleContent className="ml-3">
+              <div className="space-y-1">
                 {node.children
                   .slice()
                   .reverse()
@@ -654,25 +685,25 @@ export function LayersTree() {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Same toolbar so History is always reachable */}
-        <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 shrink-0">
+        <div className="px-2 py-1.5 flex items-center justify-between gap-1 shrink-0">
           <span className="text-sm font-medium">Output layers</span>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-8 p-0 shrink-0"
+            className="h-6 w-6 p-0 shrink-0"
             title="View layer history"
             onClick={() => setShowHistory(true)}
           >
-            <History className="h-3.5 w-3.5" />
+            <History className="h-3 w-3" />
           </Button>
         </div>
-        <div className="flex-1 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <File className="h-4 w-4" />
+        <div className="flex-1 px-2 py-2 space-y-1">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <File className="h-3 w-3" />
             <span>No layers</span>
           </div>
-          <p className="text-xs text-muted-foreground ml-6">
+          <p className="text-sm text-muted-foreground ml-6">
             Load a timeline and generate output to see layers.
           </p>
         </div>
@@ -683,7 +714,7 @@ export function LayersTree() {
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* ── Toolbar ── */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 shrink-0">
+      <div className="px-2 py-1.5 flex items-center justify-between gap-1 shrink-0">
         <span className="text-sm font-medium">
           {showHistory ? "Layer History" : "Output layers"}
         </span>
@@ -694,7 +725,7 @@ export function LayersTree() {
               type="button"
               size="sm"
               variant="outline"
-              className="h-8 w-8 p-0 shrink-0"
+              className="h-6 w-6 p-0 shrink-0"
               disabled={isReverting || !currentProjectId || !loadedTimeline}
               title="Revert to team base — discards unpublished local edits and loads the last published team state. Undoable (Ctrl+Z)."
               onClick={async () => {
@@ -708,9 +739,9 @@ export function LayersTree() {
               }}
             >
               {isReverting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Users className="h-3.5 w-3.5" />
+                <Users className="h-3 w-3" />
               )}
             </Button>
           )}
@@ -720,11 +751,11 @@ export function LayersTree() {
             type="button"
             size="sm"
             variant={showHistory ? "default" : "outline"}
-            className="h-8 w-8 p-0 shrink-0 relative"
+            className="h-6 w-6 p-0 shrink-0 relative"
             title={showHistory ? "Back to layers" : "View layer history"}
             onClick={() => setShowHistory((v) => !v)}
           >
-            <History className="h-3.5 w-3.5" />
+            <History className="h-3 w-3" />
             {historyCount > 0 && !showHistory && (
               <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground leading-none">
                 {historyCount > 99 ? "99+" : historyCount}
@@ -741,10 +772,10 @@ export function LayersTree() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 w-8 p-0 shrink-0"
+                    className="h-6 w-6 p-0 shrink-0"
                     title="Add layer at root"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -774,11 +805,11 @@ export function LayersTree() {
                 type="button"
                 size="sm"
                 variant={editModeEnabled ? "default" : "outline"}
-                className="h-8 w-8 p-0 shrink-0"
+                className="h-6 w-6 p-0 shrink-0"
                 title={editModeEnabled ? "Disable canvas editing" : "Enable canvas editing"}
                 onClick={toggleEditMode}
               >
-                <Edit2 className="h-3.5 w-3.5" />
+                <Edit2 className="h-3 w-3" />
               </Button>
             </>
           )}
@@ -789,8 +820,8 @@ export function LayersTree() {
       {showHistory ? (
         <LayerHistoryPanel />
       ) : (
-        <div className="flex-1 min-h-0 overflow-auto px-4 pb-4">
-          <div className="space-y-0.5">
+        <div className="flex-1 min-h-0 overflow-auto px-1 pb-2">
+          <div className="space-y-1 py-1">
             {layerTree
               .slice()
               .reverse()

@@ -8,7 +8,7 @@
  * - **Background Color**: Set any background color for the scene
  * - **Resolution Control**: Configure width and height (defaults to 1080p)
  * - **Aspect Ratio**: Support for custom aspect ratios (e.g., "16:9", "9:16", "1:1")
- * - **Duration Management**: Set explicit duration or fit to other components
+ * - **Track type**: Sequence hugs child tracks. Aligned uses a start and duration you can drag.
  * - **Clip Support**: Optional clip start and duration for trimming
  *
  * Use cases:
@@ -28,14 +28,34 @@ import {
   ZoomEffectData,
 } from '@microfox/remotion';
 import z from 'zod';
+import { paramMetaTypes } from '../../dataTypes';
 import { PresetMetadata, PresetOutput } from '../../types';
 
 const presetParams = z.object({
   backgroundColor: z.string(),
   resolution: z.number().default(1080).optional(),
-  duration: z.number().optional(),
-  fitDurationTo: z.string().optional(),
   aspectRatio: z.string().optional(),
+  trackType: z
+    .enum(['lockedTo', 'sequence', 'aligned', 'autoRange'])
+    .default('aligned')
+    .describe(
+      'Lock copies another track. Sequence plays children in order. Aligned uses start and duration. Auto range starts at the first child and ends at the last child.',
+    ),
+  start: z
+    .number()
+    .optional()
+    .describe('Start of this scene in its parent, in seconds'),
+  duration: z
+    .number()
+    .optional()
+    .describe('Duration in seconds. Used when track type is aligned.'),
+  lock: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.lockTarget]: true })
+    .describe(
+      'Lock start and duration to another track. A scene can lock to a child, and the scene window becomes that child.',
+    ),
   clip: z
     .object({
       start: z.number().optional(),
@@ -47,7 +67,13 @@ const presetParams = z.object({
 const presetExecution = (
   params: z.infer<typeof presetParams>,
 ): PresetOutput => {
-  const { backgroundColor, duration, fitDurationTo } = params;
+  const { backgroundColor, duration, lock } = params;
+  const trackType =
+    params.trackType === 'sequence'
+      ? 'sequence'
+      : params.trackType === 'autoRange'
+        ? 'autoRange'
+        : 'aligned';
 
   const [widthRatio, heightRatio] = params.aspectRatio
     ?.split(':')
@@ -64,42 +90,38 @@ const presetExecution = (
     baseHeight = Math.round(baseWidth / aspectRatio);
   }
 
-  const sceneDuration =
-    params.clip?.duration && params.clip?.duration > 0
+  const clipDuration =
+    params.clip?.duration && params.clip.duration > 0
       ? params.clip.duration
-      : duration && duration > 0
-        ? duration
-        : 20;
-  const sceneFitDuration =
-    params.clip?.duration && params.clip?.duration > 0
-      ? {}
-      : { fitDurationTo: 'BaseScene' };
-  const externalFit =
-    fitDurationTo &&
-    fitDurationTo !== 'this' &&
-    fitDurationTo !== 'fill' &&
-    fitDurationTo !== 'parent' &&
-    fitDurationTo !== 'BaseScene'
-      ? fitDurationTo
       : undefined;
-  const fitDuarationToData = externalFit ? { fitDurationTo: externalFit } : {};
+  const authoredDuration =
+    clipDuration ??
+    (typeof duration === 'number' && duration > 0 ? duration : undefined);
+  const sceneDuration =
+    (trackType === 'sequence' && authoredDuration === undefined) ||
+    trackType === 'autoRange'
+      ? undefined
+      : (authoredDuration ?? 20);
+  const lockRef = typeof lock === 'string' && lock ? lock : undefined;
 
-  const start = params.clip?.start ? -params.clip.start : 0;
+  const start = params.clip?.start
+    ? -params.clip.start
+    : typeof params.start === 'number'
+      ? params.start
+      : 0;
   const durationData =
-    params.clip?.duration && params.clip?.duration > 0
-      ? {
-          duration: params.clip?.duration,
-        }
-      : params.clip
-        ? {}
-        : { duration: sceneDuration ?? 20 };
+    lockRef ||
+    trackType === 'autoRange' ||
+    (trackType === 'sequence' && authoredDuration === undefined)
+      ? {}
+      : { duration: sceneDuration ?? 20 };
   return {
     output: {
       childrenData: [
         {
           id: 'BaseScene',
           componentId: 'BaseLayout',
-          type: 'layout' as const,
+          type: trackType === 'sequence' ? ('scene' as const) : ('layout' as const),
           data: {
             containerProps: {
               className: 'flex items-center justify-center absolute inset-0',
@@ -113,7 +135,6 @@ const presetExecution = (
             timing: {
               start: start,
               ...durationData,
-              ...fitDuarationToData,
             },
           },
           childrenData: [],
@@ -123,8 +144,7 @@ const presetExecution = (
         width: baseWidth,
         height: baseHeight,
         fps: 30,
-        duration: sceneDuration ?? 20,
-        ...sceneFitDuration,
+        ...(sceneDuration !== undefined ? { duration: sceneDuration } : {}),
       },
     },
     options: {
@@ -146,8 +166,9 @@ const presetMetadata: PresetMetadata = {
   tags: ['base', 'scene'],
   defaultInputParams: {
     backgroundColor: 'black',
+    trackType: 'aligned',
+    start: 0,
     duration: 20,
-    fitDurationTo: 'BaseScene',
   },
 };
 

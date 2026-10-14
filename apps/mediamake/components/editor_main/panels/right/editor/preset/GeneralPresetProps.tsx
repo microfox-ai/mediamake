@@ -7,16 +7,20 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2, Check, X, Copy } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
-import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
+import { collectLockTargetNames, collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
 import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
 import { useProjectStore } from "../../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { PresetSkeleton } from "./PresetSkeleton";
 import type { Preset } from "../../../../stores/editor-store";
 import type { Timeline } from "../../../../stores/project-store";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { findNode, loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
+import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
+import { estimateSequenceDuration } from "@/components/editor_main/timing/sequence-estimate";
+import { sceneBlocksFromMediaInput } from "@/components/editor_main/panels/bottom/editor/media-scene-blocks";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
-import { migrateImageLoopInputData } from "@/components/editor/presets/registry/general/imageloop";
+import { migratePresetTrackInput } from "@/components/editor/presets/registry/general/migrate-preset-track-input";
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -35,7 +39,7 @@ interface GeneralPresetPropsProps {
 }
 
 export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps) {
-  const { fetchPresetInfo, generateOutput, isGenerating, generationProgress } = useCompileStore();
+  const { fetchPresetInfo, generateOutput, isGenerating, generationProgress, calculatedMetadata } = useCompileStore();
   const { isReady, isLoading, error } = usePresetReady(preset.presetId);
   const { updatePresetLabel, updatePresetInputData, getEditedTimeline } = useTimelineEditsStore();
   const [isEditingLabel, setIsEditingLabel] = useState(false);
@@ -52,16 +56,13 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const currentPreset = editedTimeline?.presets?.find(p => p.id === preset.id) || preset;
 
   const normalizeInput = useCallback(
-    (data: any) =>
-      preset.presetId === "imageloop" ? migrateImageLoopInputData(data) : data,
+    (data: any) => migratePresetTrackInput(preset.presetId, data),
     [preset.presetId],
   );
 
   // Initialize local state with current preset data
   const [localInputData, setLocalInputData] = useState(() =>
-    preset.presetId === "imageloop"
-      ? migrateImageLoopInputData(currentPreset.presetInputData || {})
-      : currentPreset.presetInputData || {},
+    migratePresetTrackInput(preset.presetId, currentPreset.presetInputData || {}),
   );
 
   // Initialize the ref with the initial value
@@ -85,10 +86,7 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     if (newInputDataStr !== lastSyncedInputDataRef.current) {
       lastSyncedInputDataRef.current = newInputDataStr;
       setLocalInputData(newInputData);
-      if (
-        preset.presetId === "imageloop" &&
-        JSON.stringify(currentPreset.presetInputData || {}) !== newInputDataStr
-      ) {
+      if (JSON.stringify(currentPreset.presetInputData || {}) !== newInputDataStr) {
         updatePresetInputData(timeline.id, preset.id, newInputData);
       }
     }
@@ -217,55 +215,29 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     };
   }, []);
 
-  // // Show skeleton while loading
-  // if (isLoading || !isReady) {
-  //   return (
-  //     <ScrollArea className="flex-1">
-  //       <div className="p-4 space-y-4">
-  //         <div className="space-y-2">
-  //           <PresetSkeleton className="h-8 w-32" />
-  //           <PresetSkeleton className="h-4 w-24" />
-  //         </div>
-  //         <PresetSkeleton className="h-64 w-full" />
-  //       </div>
-  //     </ScrollArea>
-  //   );
-  // }
+  const sequenceDuration = useMemo(() => {
+    const source = getEditedTimeline(timeline.id) || timeline;
+    return estimateSequenceDuration({
+      input: localInputData,
+      presetId: preset.id,
+      root: loadInstanceTree(source),
+      compiledChildren: calculatedMetadata?.props?.childrenData,
+    });
+  }, [localInputData, timeline, preset.id, getEditedTimeline, calculatedMetadata]);
 
-  // Show error state
-  if (error || !actualPreset) {
-    return (
-      <ScrollArea className="flex-1">
-        <div className="p-4">
-          <Card className="border-destructive">
-            <CardHeader>
-              <h3 className="text-sm font-semibold text-destructive">Error Loading Preset</h3>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {error || `Preset ${preset.presetId} not found`}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => fetchPresetInfo(preset.presetId)}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </ScrollArea>
-    );
-  }
-
-  // Get default data from latest edited timeline
-  const effectiveTimeline = getEditedTimeline(timeline.id) || timeline;
-  const defaultData = effectiveTimeline.defaultData || { references: [] };
-  const availableReferences = defaultData.references?.map((ref: any) => ref.key) || [];
-  const availableTrackNames = collectTrackNamesFromPresets(effectiveTimeline.presets);
+  const autoRange = useMemo(() => {
+    const media = sceneBlocksFromMediaInput(localInputData);
+    if (media.mode === "autoRange" && media.duration > 0) {
+      return { start: media.trackStart, duration: media.duration };
+    }
+    const source = getEditedTimeline(timeline.id) || timeline;
+    const tree = loadInstanceTree(source);
+    const node = findNode(tree, preset.id);
+    if (!node || node.timing.kind !== "autoRange") return undefined;
+    const span = resolveTiming(tree).nodes.get(preset.id);
+    if (!span || !(span.duration > 0)) return undefined;
+    return { start: span.start, duration: span.duration };
+  }, [localInputData, timeline, preset.id, getEditedTimeline]);
 
   const handleCreateReference = useCallback((referenceType: string) => {
     const typedReference = referenceType as any;
@@ -330,6 +302,56 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
       useCompileStore.setState({ currentTimeline: refreshedTimeline });
     }
   }, [getEditedTimeline, timeline]);
+
+  // // Show skeleton while loading
+  // if (isLoading || !isReady) {
+  //   return (
+  //     <ScrollArea className="flex-1">
+  //       <div className="p-4 space-y-4">
+  //         <div className="space-y-2">
+  //           <PresetSkeleton className="h-8 w-32" />
+  //           <PresetSkeleton className="h-4 w-24" />
+  //         </div>
+  //         <PresetSkeleton className="h-64 w-full" />
+  //       </div>
+  //     </ScrollArea>
+  //   );
+  // }
+
+  // Show error state
+  if (error || !actualPreset) {
+    return (
+      <ScrollArea className="flex-1">
+        <div className="p-4">
+          <Card className="border-destructive">
+            <CardHeader>
+              <h3 className="text-sm font-semibold text-destructive">Error Loading Preset</h3>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {error || `Preset ${preset.presetId} not found`}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => fetchPresetInfo(preset.presetId)}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </ScrollArea>
+    );
+  }
+
+  // Get default data from latest edited timeline
+  const effectiveTimeline = getEditedTimeline(timeline.id) || timeline;
+  const defaultData = effectiveTimeline.defaultData || { references: [] };
+  const availableReferences = defaultData.references?.map((ref: any) => ref.key) || [];
+  const availableTrackNames = collectTrackNamesFromPresets(effectiveTimeline.presets);
 
   return (
     <ScrollArea className="flex-1 overflow-y-auto">
@@ -442,6 +464,9 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
           onChange={handleInputDataChange}
           availableReferences={availableReferences}
           availableTrackNames={availableTrackNames}
+          lockTargetNames={collectLockTargetNames(effectiveTimeline, preset.id)}
+          sequenceDuration={sequenceDuration}
+          autoRange={autoRange}
           baseData={createBaseDataFromReferences(defaultData.references || [])}
           showTabs={true}
           showReferencableAuto={true}

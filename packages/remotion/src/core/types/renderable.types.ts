@@ -13,6 +13,11 @@ export type Boundaries = {
 export type Timing = {
   start?: number; // in seconds
   duration?: number; // in seconds
+  /**
+   * Seconds to skip from the head of this node. Negative.
+   * Remotion clips that head when a sequence `from` is negative.
+   */
+  startOffset?: number;
 };
 
 export type CalculatedBoundaries = {
@@ -31,6 +36,8 @@ export type CalculatedTiming = {
   durationInFrames?: number;
   start?: number;
   duration?: number;
+  /** Negative seconds. The head of this node is clipped by that much. */
+  startOffset?: number;
   fitDurationTo?: string[] | string;
 };
 

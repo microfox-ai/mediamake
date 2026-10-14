@@ -42,7 +42,16 @@ import {
   releaseBlockSelection,
 } from "../timeline-block-selection";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
-import { migrateImageLoopInputData } from "@/components/editor/presets/registry/general/imageloop";
+import { migratePresetTrackInput } from "@/components/editor/presets/registry/general/migrate-preset-track-input";
+import { loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
+import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
+import { collectIntrinsicDurations } from "@/components/editor_main/timing/stamp-timing";
+import {
+  absoluteToLocalEffectTime,
+  isSceneRelativeEffectPath,
+  sceneRelativeEffectAnchors,
+  type EffectAnchor,
+} from "../media-scene-blocks";
 import {
   applySegsToInputData,
   buildTrackGroups,
@@ -125,6 +134,9 @@ export function PresetTracksSection({
   );
   const getEditedTimeline = useTimelineEditsStore((s) => s.getEditedTimeline);
   const generateOutput = useCompileStore((s) => s.generateOutput);
+  const compiledChildren = useCompileStore(
+    (s) => s.calculatedMetadata?.props?.childrenData,
+  );
   const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
   const currentTimeSec = currentFrame / fps;
@@ -147,9 +159,39 @@ export function PresetTracksSection({
     [presetInputData, rangeLayouts],
   );
 
+  const effectAnchors = useMemo(() => {
+    if (registryPresetId !== "imageloop" || !timeline) return null;
+    const intrinsicDurations = collectIntrinsicDurations(compiledChildren);
+    const span = resolveTiming(loadInstanceTree(timeline), {
+      intrinsicDurations,
+    }).nodes.get(presetId);
+    return sceneRelativeEffectAnchors(
+      presetInputData,
+      span?.absoluteStart ?? 0,
+      span?.duration,
+    );
+  }, [registryPresetId, timeline, compiledChildren, presetId, presetInputData]);
+
+  const anchorsFor = useCallback(
+    (templatePath: string): EffectAnchor[] | null => {
+      if (!effectAnchors || !isSceneRelativeEffectPath(templatePath)) return null;
+      return effectAnchors;
+    },
+    [effectAnchors],
+  );
+
+  const localClock = useCallback(
+    (templatePath: string, absolute: number) => {
+      const anchors = anchorsFor(templatePath);
+      if (!anchors) return absolute;
+      return absoluteToLocalEffectTime(absolute, anchors);
+    },
+    [anchorsFor],
+  );
+
   useEffect(() => {
-    if (registryPresetId !== "imageloop" || !timeline || !preset) return;
-    const migrated = migrateImageLoopInputData(presetInputData);
+    if (!registryPresetId || !timeline || !preset) return;
+    const migrated = migratePresetTrackInput(registryPresetId, presetInputData);
     if (migrated === presetInputData) return;
     updatePresetInputData(timelineId, presetId, migrated);
     const latest = getEditedTimeline(timelineId) || timeline;
@@ -301,6 +343,21 @@ export function PresetTracksSection({
       );
     },
     [currentTimeSec],
+  );
+
+  const playheadHits = useCallback(
+    (templatePath: string, seg: ParsedSegment) => {
+      const anchors = anchorsFor(templatePath);
+      if (!anchors || seg.kind !== "time") return isPlayheadInsideSeg(seg);
+      return anchors.some((anchor) =>
+        isPlayheadInsideSeg({
+          ...seg,
+          start: anchor.start + seg.start,
+          end: anchor.start + seg.end,
+        }),
+      );
+    },
+    [anchorsFor, isPlayheadInsideSeg],
   );
 
   const startDrag = useCallback(
@@ -729,7 +786,7 @@ export function PresetTracksSection({
             const s = (segsMap[preferred.templatePath] ?? [])[
               preferred.segIdx
             ];
-            return !!s && isPlayheadInsideSeg(s);
+            return !!s && playheadHits(preferred.templatePath, s);
           })()
         ) {
           return preferred;
@@ -737,7 +794,7 @@ export function PresetTracksSection({
         for (const g of trackGroups) {
           if (!canEditStructure(g.templatePath)) continue;
           const segs = segsMap[g.templatePath] ?? [];
-          const fi = segs.findIndex((s) => isPlayheadInsideSeg(s));
+          const fi = segs.findIndex((s) => playheadHits(g.templatePath, s));
           if (fi >= 0) return { templatePath: g.templatePath, segIdx: fi };
         }
         return null;
@@ -749,10 +806,11 @@ export function PresetTracksSection({
       const group = getGroup(tp);
       if (!group) return;
       const orig = (segsMap[tp] ?? [])[idx];
-      if (!orig || !isPlayheadInsideSeg(orig)) return;
+      if (!orig || !playheadHits(tp, orig)) return;
 
-      const cutAt =
-        orig.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
+      const clock =
+        orig.kind === "index" ? currentTimeSec : localClock(tp, currentTimeSec);
+      const cutAt = orig.kind === "index" ? Math.round(clock) : clock;
       if (cutAt <= orig.start || cutAt >= orig.end) return;
 
       const left: ParsedSegment = { ...orig, end: cutAt };
@@ -792,7 +850,8 @@ export function PresetTracksSection({
       selectedSeg,
       trackGroups,
       segsMap,
-      isPlayheadInsideSeg,
+      playheadHits,
+      localClock,
       canEditStructure,
       currentTimeSec,
       getGroup,
@@ -822,8 +881,9 @@ export function PresetTracksSection({
         if (!seg) return prev;
         const minGap = seg.kind === "index" ? 1 : 0.01;
         const dur = Math.max(minGap, seg.end - seg.start);
-        const at =
-          seg.kind === "index" ? Math.round(currentTimeSec) : currentTimeSec;
+        const clock =
+          seg.kind === "index" ? currentTimeSec : localClock(tp, currentTimeSec);
+        const at = seg.kind === "index" ? Math.round(clock) : clock;
         const maxEnd =
           seg.kind === "time"
             ? totalDuration
@@ -887,7 +947,7 @@ export function PresetTracksSection({
         return { ...prev, [tp]: segs };
       });
     },
-    [selectedSeg, getGroup, currentTimeSec, totalDuration],
+    [selectedSeg, getGroup, currentTimeSec, totalDuration, localClock],
   );
 
   const deleteSelectedSeg = useCallback(() => {
@@ -1048,6 +1108,10 @@ export function PresetTracksSection({
                   (e.clientX - rect.left) / pixelsPerSecond,
                 ),
               );
+              const relative = Boolean(anchorsFor(group.templatePath));
+              const origin = relative
+                ? localClock(group.templatePath, clickSec)
+                : clickSec;
               if (!usesJoinedRangeString(group) && arrayBacked) {
                 const path =
                   group.concretePaths[group.concretePaths.length - 1];
@@ -1056,11 +1120,13 @@ export function PresetTracksSection({
                   (segsMap[group.templatePath] ?? [])[0]?.kind ?? "time";
                 const newSeg: ParsedSegment = {
                   kind: existingKind,
-                  start: Math.max(0, clickSec),
+                  start: Math.max(0, origin),
                   end:
                     existingKind === "index"
-                      ? Math.round(clickSec) + 10
-                      : Math.min(totalDuration, clickSec + 5),
+                      ? Math.round(origin) + 10
+                      : relative
+                        ? origin + 5
+                        : Math.min(totalDuration, origin + 5),
                 };
                 const next = insertClonedArrayItemWithRange(
                   presetInputData,
@@ -1079,11 +1145,13 @@ export function PresetTracksSection({
                 const existingKind: SegmentKind = nextSegs[0]?.kind ?? "time";
                 const newSeg: ParsedSegment = {
                   kind: existingKind,
-                  start: Math.max(0, clickSec),
+                  start: Math.max(0, origin),
                   end:
                     existingKind === "index"
-                      ? Math.round(clickSec) + 10
-                      : Math.min(totalDuration, clickSec + 5),
+                      ? Math.round(origin) + 10
+                      : relative
+                        ? origin + 5
+                        : Math.min(totalDuration, origin + 5),
                 };
                 nextSegs.push(newSeg);
                 nextSegs.sort((a, b) => a.start - b.start);
@@ -1092,18 +1160,21 @@ export function PresetTracksSection({
               });
             }}
           >
-            {segs.map((seg, si) => {
-              const left = secToPx(seg.start);
-              const width = Math.max(MIN_SEG_PX, secToPx(seg.end - seg.start));
+            {segs.flatMap((seg, si) => {
+              const relativeAnchors = anchorsFor(group.templatePath);
+              const views =
+                relativeAnchors && seg.kind === "time"
+                  ? relativeAnchors.map((anchor, anchorIndex) => ({
+                      key: `${si}-${anchorIndex}`,
+                      start: anchor.start + seg.start,
+                      end: anchor.start + seg.end,
+                    }))
+                  : [{ key: String(si), start: seg.start, end: seg.end }];
               const isSelected =
                 selectedSeg?.templatePath === group.templatePath &&
                 selectedSeg.segIdx === si;
-              const innerLabel =
-                seg.kind === "index"
-                  ? `[${Math.round(seg.start)}–${Math.round(seg.end)}]`
-                  : `${formatTimeLabel(seg.start)}–${formatTimeLabel(seg.end)}`;
               const canSplit =
-                structureEditable && isPlayheadInsideSeg(seg);
+                structureEditable && playheadHits(group.templatePath, seg);
               const canDuplicate = structureEditable;
               const path = group.concretePaths[si];
               const onDelete =
@@ -1124,9 +1195,16 @@ export function PresetTracksSection({
                 segIdx: si,
               };
 
-              return (
+              return views.map((view) => {
+                const left = secToPx(view.start);
+                const width = Math.max(MIN_SEG_PX, secToPx(view.end - view.start));
+                const innerLabel =
+                  seg.kind === "index"
+                    ? `[${Math.round(seg.start)}–${Math.round(seg.end)}]`
+                    : `${formatTimeLabel(view.start)}–${formatTimeLabel(view.end)}`;
+                return (
                 <SegBlock
-                  key={si}
+                  key={view.key}
                   left={left}
                   width={width}
                   color={color}
@@ -1222,7 +1300,8 @@ export function PresetTracksSection({
                       : undefined
                   }
                 />
-              );
+                );
+              });
             })}
             {segs.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1295,6 +1374,9 @@ export function PresetTracksSection({
     totalDuration,
     pixelsPerSecond,
     isPlayheadInsideSeg,
+    playheadHits,
+    anchorsFor,
+    localClock,
     deleteSegment,
     duplicateSelected,
     splitAtPlayhead,

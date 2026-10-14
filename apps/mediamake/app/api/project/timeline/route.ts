@@ -410,7 +410,7 @@ export async function POST(request: NextRequest) {
       timelineData = {
         ...timelineData,
         configuration: {
-          config: { fps: 30, width: 1080, height: 1920, duration: 0, fitDurationTo: 'BaseScene' },
+          config: { fps: 30, width: 1080, height: 1920, duration: 20 },
           style: { backgroundColor: 'black' },
         },
         defaultData: { references: [] },
@@ -422,11 +422,12 @@ export async function POST(request: NextRequest) {
             presetType: 'full',
             presetInputData: {
               backgroundColor: 'black',
-              fitDurationTo: 'audio-track',
               aspectRatio: '16:9',
               clip: { start: 0, duration: 0 },
               resolution: 1080,
-              duration: 0,
+              trackType: 'aligned',
+              start: 0,
+              duration: 20,
             },
             disabled: false,
           },

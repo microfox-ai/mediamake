@@ -161,6 +161,26 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
         ? calculatedMetadata.durationInFrames
         : 20;
 
+    // Infinity is > 0, so it would otherwise reach <Player /> and crash inside Remotion.
+    if (
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      !Number.isFinite(fps) ||
+      !Number.isFinite(durationInFrames)
+    ) {
+      return (
+        <div className="flex flex-1 items-center justify-center bg-muted/20">
+          <div className="text-center space-y-3 max-w-md px-6">
+            <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+            <p className="text-sm font-medium text-destructive">Cannot render player</p>
+            <p className="text-xs text-muted-foreground break-words">
+              Composition props must be finite (width={width}, height={height}, fps={fps}, durationInFrames={durationInFrames}).
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     const interactionsEnabled =
       filePanelTab === "layers" && editModeEnabled;
     const showControls =

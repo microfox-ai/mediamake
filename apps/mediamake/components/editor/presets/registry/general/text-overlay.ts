@@ -9,7 +9,7 @@
  * - **Rich Typography**: Custom fonts with weight and style support, letter spacing, text transformations
  * - **Advanced Styling**: Colors, shadows, borders, backgrounds, filters, and backdrop effects
  * - **Smooth Animations**: Multiple transition types including fade, slide, scale, shake, and blur effects
- * - **Timing Control**: Custom duration, start offsets, and automatic duration fitting
+ * - **Track timing**: Lock to another track, or place the overlay on a start and duration
  *
  * Use cases:
  * - Adding titles and captions to videos
@@ -27,6 +27,10 @@ import {
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import {
+  applyLegacyTrackTiming,
+  clockRange,
+} from './track-timing-legacy';
 
 interface ShakeEffectData extends GenericEffectData {
   amplitude?: number;
@@ -36,6 +40,37 @@ interface ShakeEffectData extends GenericEffectData {
 }
 
 const presetParams = z.object({
+  trackName: z
+    .string()
+    .meta({ [paramMetaTypes.trackName]: true })
+    .describe('Name of the track (used for the ID)'),
+  trackType: z
+    .enum(['lockedTo', 'sequence', 'aligned'])
+    .default('aligned')
+    .describe(
+      'Lock copies another track. Sequence plays this track in order. Aligned uses start and duration.',
+    ),
+  start: z
+    .number()
+    .default(0)
+    .describe('Start of this track in its parent scene, in seconds'),
+  startOffset: z
+    .number()
+    .optional()
+    .describe(
+      'Negative trim from the head, in seconds. The end stays put.',
+    ),
+  duration: z
+    .number()
+    .optional()
+    .describe(
+      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
+    ),
+  lock: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.lockTarget]: true })
+    .describe('Lock start and duration to a sibling or parent track'),
   // Text content
   text: z.string().describe('Text content to display'),
 
@@ -125,21 +160,8 @@ const presetParams = z.object({
   }),
   // Border and shadow
 
-  // Timing and duration
+  // In and out animation. When the overlay appears is the track start and duration.
   transitions: z.object({
-    duration: z
-      .number()
-      .optional()
-      .describe('Duration of the text overlay in seconds'),
-    startOffset: z.number().optional().describe('Start offset in seconds'),
-    range: z
-      .string()
-      .nullable()
-      .optional()
-      .meta({ [paramMetaTypes.rangeField]: true })
-      .describe(
-        'Time range in format "MM:SS-MM:SS" or "MM:SS.sss-MM:SS.sss" (e.g., "00:00.00-00:09.50"). Overrides startOffset and duration if provided.',
-      ),
     // Animation effects
     fadeInTransition: z
       .enum([
@@ -188,6 +210,9 @@ const presetExecution = (
     style,
     transitions,
   } = params;
+  const legacyTransitions = (
+    params as { transitions?: { range?: string | null; startOffset?: number; duration?: number } }
+  ).transitions;
 
   const parseTimeRange = (props?.helpers?.parseTimeRange ?? (() => null)) as (
     range: string,
@@ -214,7 +239,10 @@ const presetExecution = (
     };
   };
   const textAtomId = `text-atom-${generateId()}`;
-  const textContainerId = `text-container-${generateId()}`;
+  const textContainerId =
+    typeof params.trackName === 'string' && params.trackName.trim()
+      ? params.trackName.trim()
+      : `text-container-${generateId()}`;
   // Calculate responsive font size if enabled
   const getResponsiveFontSize = () => fontSize;
 
@@ -319,8 +347,23 @@ const presetExecution = (
     if (!transition || transition === 'none') return effects;
 
     const transitionDuration = effectDuration || (isFadeIn ? 1.0 : 1.0);
-    const parsedRange = parseRange(transitions?.range);
-    const totalDuration = parsedRange?.duration ?? transitions?.duration ?? 20; // Default duration if not specified
+    const parsedRange = parseRange(legacyTransitions?.range);
+    const legacy = params as {
+      duration?: number;
+      trackDuration?: number;
+    };
+    const totalDuration =
+      (typeof legacy.duration === 'number' && legacy.duration > 0
+        ? legacy.duration
+        : undefined) ??
+      (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
+        ? legacy.trackDuration
+        : undefined) ??
+      parsedRange?.duration ??
+      (typeof legacyTransitions?.duration === 'number' &&
+      legacyTransitions.duration > 0
+        ? legacyTransitions.duration
+        : 20);
 
     // Effects start times are relative ot the starts of the targeting atom.
     const startTime = isFadeIn
@@ -572,25 +615,80 @@ const presetExecution = (
         {
           id: textContainerId,
           componentId: 'BaseLayout',
-          type: 'layout' as const,
           data: {
             containerProps: {
               className: 'absolute inset-0',
               style: containerStyle,
             },
           },
+          type: 'layout' as const,
           context: {
             timing: (() => {
-              const parsedRange = parseRange(transitions?.range);
-              const startOffset =
-                parsedRange?.startOffset ?? transitions?.startOffset;
-              const duration = parsedRange?.duration ?? transitions?.duration;
-
-              return {
-                ...(startOffset !== undefined ? { start: startOffset } : {}),
-                ...(duration && duration > 0 ? { duration } : {}),
-                ...(!duration ? { fitDurationTo: 'BaseScene' } : {}),
+              const legacy = params as {
+                trackType?: string;
+                start?: number;
+                startOffset?: number;
+                duration?: number;
+                lock?: string;
+                trackFitDurationTo?: string;
+                trackStartOffset?: number;
+                trackDuration?: number;
               };
+              const parsedRange = parseRange(legacyTransitions?.range);
+              const lockTarget =
+                (typeof legacy.lock === 'string' && legacy.lock) ||
+                (typeof legacy.trackFitDurationTo === 'string' &&
+                  legacy.trackFitDurationTo) ||
+                '';
+              const locked =
+                legacy.trackType === 'lockedTo' ||
+                (lockTarget.trim().length > 0 &&
+                  legacy.trackType !== 'sequence' &&
+                  legacy.trackType !== 'aligned');
+              const start =
+                (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
+                  ? legacy.start
+                  : undefined) ??
+                (typeof legacy.trackStartOffset === 'number' &&
+                Number.isFinite(legacy.trackStartOffset)
+                  ? legacy.trackStartOffset
+                  : undefined) ??
+                parsedRange?.startOffset ??
+                legacyTransitions?.startOffset ??
+                0;
+              const duration =
+                (typeof legacy.duration === 'number' && legacy.duration > 0
+                  ? legacy.duration
+                  : undefined) ??
+                (typeof legacy.trackDuration === 'number' &&
+                legacy.trackDuration > 0
+                  ? legacy.trackDuration
+                  : undefined) ??
+                parsedRange?.duration ??
+                (typeof legacyTransitions?.duration === 'number' &&
+                legacyTransitions.duration > 0
+                  ? legacyTransitions.duration
+                  : undefined);
+              const timing: {
+                start: number;
+                duration?: number;
+                startOffset?: number;
+                fitDurationTo?: string;
+              } = { start };
+              if (!locked && typeof duration === 'number') {
+                timing.duration = duration;
+              }
+              if (
+                typeof legacy.startOffset === 'number' &&
+                legacy.startOffset < 0
+              ) {
+                timing.startOffset = legacy.startOffset;
+              }
+              // Older overlays with no length filled the base scene.
+              if (!locked && timing.duration === undefined) {
+                timing.fitDurationTo = 'BaseScene';
+              }
+              return timing;
             })(),
           },
           childrenData: [
@@ -624,8 +722,13 @@ const presetMetadata: PresetMetadata = {
     'A customizable text overlay with positioning, styling, and animation controls',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: ['text', 'overlay', 'typography', 'positioning', 'animation'],
   defaultInputParams: {
+    trackName: 'text-overlay',
+    trackType: 'aligned',
+    start: 0,
+    duration: 20,
     text: 'Your Text Here',
     fontSize: 32,
     fontFamily: 'Inter:600',
@@ -638,8 +741,6 @@ const presetMetadata: PresetMetadata = {
       opacity: 1,
     },
     transitions: {
-      duration: 20,
-      startOffset: 0,
       fadeInTransition: 'opacity',
       fadeInDuration: 1,
       fadeOutTransition: 'none',
@@ -647,6 +748,66 @@ const presetMetadata: PresetMetadata = {
     },
   },
 };
+
+/** Bring saved text overlay input onto lock / sequence / aligned timing. */
+export function migrateTextOverlayInputData<T>(data: T): T {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+  const next: Record<string, unknown> = {
+    ...(data as Record<string, unknown>),
+  };
+  let changed = applyLegacyTrackTiming(next, 'aligned');
+
+  const rawTransitions = next.transitions;
+  if (rawTransitions && typeof rawTransitions === 'object' && !Array.isArray(rawTransitions)) {
+    const transitions: Record<string, unknown> = {
+      ...(rawTransitions as Record<string, unknown>),
+    };
+    let transitionsChanged = false;
+    if (typeof transitions.range === 'string' && transitions.range.trim()) {
+      const parsed = clockRange(transitions.range);
+      if (parsed) {
+        if (typeof next.start !== 'number') next.start = parsed.start;
+        if (typeof next.duration !== 'number') next.duration = parsed.duration;
+      }
+      delete transitions.range;
+      transitionsChanged = true;
+    } else if ('range' in transitions) {
+      delete transitions.range;
+      transitionsChanged = true;
+    }
+    if (typeof next.start !== 'number' && typeof transitions.startOffset === 'number') {
+      next.start = transitions.startOffset;
+      transitionsChanged = true;
+    }
+    if ('startOffset' in transitions) {
+      delete transitions.startOffset;
+      transitionsChanged = true;
+    }
+    if (
+      typeof next.duration !== 'number' &&
+      typeof transitions.duration === 'number' &&
+      transitions.duration > 0
+    ) {
+      next.duration = transitions.duration;
+      transitionsChanged = true;
+    }
+    if ('duration' in transitions) {
+      delete transitions.duration;
+      transitionsChanged = true;
+    }
+    if (transitionsChanged) {
+      next.transitions = transitions;
+      changed = true;
+    }
+  }
+
+  if (typeof next.trackName !== 'string' || !next.trackName.trim()) {
+    next.trackName = 'text-overlay';
+    changed = true;
+  }
+
+  return changed ? (next as T) : data;
+}
 
 const presetFunction = presetExecution.toString();
 const presetParamsSchema = z.toJSONSchema(presetParams);

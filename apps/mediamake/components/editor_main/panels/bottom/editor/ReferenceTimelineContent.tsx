@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import type { ReferenceItem } from "@/components/editor/presets/types";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
-import { findAudioMediaClipsFromTimeline } from "@/components/editor/presets/actions/engine/find-audio-media";
+import { useCompiledAudioClips } from "./use-compiled-audio-clips";
 import { TimelineShell } from "./TimelineShell";
 import { CaptionsTracksSection } from "./sections/CaptionsTracksSection";
 
@@ -83,10 +82,7 @@ function CaptionsReferenceFocused({
   fps: number;
   durationInFrames?: number;
 }) {
-  const audioClips = useMemo(
-    () => findAudioMediaClipsFromTimeline(effectiveTimeline),
-    [effectiveTimeline],
-  );
+  const audioClips = useCompiledAudioClips(effectiveTimeline);
 
   const compiledSec =
     durationInFrames && durationInFrames > 0 ? durationInFrames / fps : 0;

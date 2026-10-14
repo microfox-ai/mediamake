@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Check, X, Loader2, Copy } from "lucide-react";
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { DefaultCard } from "@/components/editor/presets/form/default-card";
 import { createBaseDataFromReferences, remapDataReferenceKeys } from "@/components/editor/presets/engine/preset-data-mutation";
-import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
+import { collectLockTargetNames, collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
 import type { Timeline } from "../../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../../stores/timeline-edits-store";
 import { useCompileStore, usePresetReady } from "../../../../stores/compile-store";
@@ -26,13 +26,17 @@ import { useEditorUIStore } from "../../../../stores/editor-ui-store";
 import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { sceneBlocksFromMediaInput } from "../../../bottom/editor/media-scene-blocks";
+import { findNode, loadInstanceTree } from "../../../../timing/load-instance-tree";
+import { resolveTiming } from "../../../../timing/resolve-timing";
+import { estimateSequenceDuration } from "../../../../timing/sequence-estimate";
 interface TimelinePropsProps {
   timeline: Timeline;
 }
 
 export function TimelineProps({ timeline }: TimelinePropsProps) {
   const { getEditedTimeline, updateTimeline, updatePresetInputData } = useTimelineEditsStore();
-  const { fetchPresetInfo, generateOutput, isGenerating, generationProgress } = useCompileStore();
+  const { fetchPresetInfo, generateOutput, isGenerating, generationProgress, calculatedMetadata } = useCompileStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(timeline.displayName);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -56,7 +60,6 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
     width: displayTimeline.configuration?.config?.width || 1080,
     height: displayTimeline.configuration?.config?.height || 1920,
     duration: displayTimeline.configuration?.config?.duration || 0,
-    fitDurationTo: displayTimeline.configuration?.config?.fitDurationTo || "",
     backgroundColor: displayTimeline.configuration?.style?.backgroundColor || "black",
   });
 
@@ -70,6 +73,32 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
 
   // Initialize local state with first preset data
   const [localInputData, setLocalInputData] = useState(firstPreset?.presetInputData || {});
+
+  const autoRange = useMemo(() => {
+    const media = sceneBlocksFromMediaInput(localInputData);
+    if (media.mode === "autoRange" && media.duration > 0) {
+      return { start: media.trackStart, duration: media.duration };
+    }
+    if (!firstPreset) return undefined;
+    const source = getEditedTimeline(timeline.id) || timeline;
+    const tree = loadInstanceTree(source);
+    const node = findNode(tree, firstPreset.id);
+    if (!node || node.timing.kind !== "autoRange") return undefined;
+    const span = resolveTiming(tree).nodes.get(firstPreset.id);
+    if (!span || !(span.duration > 0)) return undefined;
+    return { start: span.start, duration: span.duration };
+  }, [localInputData, firstPreset, timeline, getEditedTimeline]);
+
+  const sequenceDuration = useMemo(() => {
+    if (!firstPreset) return undefined;
+    const source = getEditedTimeline(timeline.id) || timeline;
+    return estimateSequenceDuration({
+      input: localInputData,
+      presetId: firstPreset.id,
+      root: loadInstanceTree(source),
+      compiledChildren: calculatedMetadata?.props?.childrenData,
+    });
+  }, [localInputData, firstPreset, timeline, getEditedTimeline, calculatedMetadata]);
 
   // Initialize the ref with the initial value
   useEffect(() => {
@@ -115,7 +144,6 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
       width: displayTimeline.configuration?.config?.width || 1080,
       height: displayTimeline.configuration?.config?.height || 1920,
       duration: displayTimeline.configuration?.config?.duration || 0,
-      fitDurationTo: displayTimeline.configuration?.config?.fitDurationTo || "",
       backgroundColor: displayTimeline.configuration?.style?.backgroundColor || "black",
     });
   }, [displayTimeline.configuration]);
@@ -304,14 +332,13 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
 
     // Debounce both store update and compilation
     configDebounceTimeoutRef.current = setTimeout(() => {
-      // Update store
+      const { getEditedTimeline } = useTimelineEditsStore.getState();
       const configuration = {
         config: {
           fps: newConfig.fps,
           width: newConfig.width,
           height: newConfig.height,
           duration: newConfig.duration,
-          ...(newConfig.fitDurationTo && { fitDurationTo: newConfig.fitDurationTo }),
         },
         style: {
           backgroundColor: newConfig.backgroundColor,
@@ -320,7 +347,6 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
       updateTimeline(timeline.id, { configuration });
 
       // Get updated timeline from edits store
-      const { getEditedTimeline } = useTimelineEditsStore.getState();
       const editedTimeline = getEditedTimeline(timeline.id);
       const updatedTimeline = editedTimeline || timeline;
 
@@ -382,12 +408,12 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
       const migratedPresets =
         Object.keys(keyMapping).length > 0
           ? (displayTimeline.presets || []).map((preset) => ({
-              ...preset,
-              presetInputData: remapDataReferenceKeys(
-                preset.presetInputData || {},
-                keyMapping,
-              ),
-            }))
+            ...preset,
+            presetInputData: remapDataReferenceKeys(
+              preset.presetInputData || {},
+              keyMapping,
+            ),
+          }))
           : displayTimeline.presets;
 
       // Update store
@@ -592,7 +618,7 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                     className="h-8"
                   />
                 </div>
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="duration" className="text-xs">Duration (seconds)</Label>
                   <Input
                     id="duration"
@@ -602,8 +628,8 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                     onChange={(e) => handleConfigChange("duration", parseFloat(e.target.value) || 0)}
                     className="h-8"
                   />
-                </div>
-                <div className="space-y-2">
+                </div> */}
+                {/* <div className="space-y-2">
                   <Label htmlFor="width" className="text-xs">Width</Label>
                   <Input
                     id="width"
@@ -622,18 +648,7 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                     onChange={(e) => handleConfigChange("height", parseInt(e.target.value) || 1920)}
                     className="h-8"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fitDurationTo" className="text-xs">Fit Duration To</Label>
-                  <Input
-                    id="fitDurationTo"
-                    type="text"
-                    value={localConfig.fitDurationTo}
-                    onChange={(e) => handleConfigChange("fitDurationTo", e.target.value)}
-                    placeholder="e.g., BaseScene"
-                    className="h-8"
-                  />
-                </div>
+                </div> */}
                 <div className="space-y-2">
                   <Label htmlFor="backgroundColor" className="text-xs">Background Color</Label>
                   <Input
@@ -666,6 +681,9 @@ export function TimelineProps({ timeline }: TimelinePropsProps) {
                 onChange={handleInputDataChange}
                 availableReferences={(displayTimeline.defaultData?.references || []).map((ref: any) => ref.key)}
                 availableTrackNames={collectTrackNamesFromPresets(displayTimeline.presets)}
+                lockTargetNames={collectLockTargetNames(displayTimeline, firstPreset.id)}
+                sequenceDuration={sequenceDuration}
+                autoRange={autoRange}
                 baseData={createBaseDataFromReferences(displayTimeline.defaultData?.references || [])}
                 showTabs={true}
                 showReferencableAuto={true}

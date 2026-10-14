@@ -55,6 +55,8 @@ import { ColorInput } from "./inputs/color-input";
 import { SliderInput } from "./inputs/slider-input";
 import { ContainerInsetsInput } from "./inputs/container-insets-input";
 import { LinkTrackNameInput } from "./inputs/link-track-name-input";
+import { LockTargetInput, LockTargetNamesContext } from "./inputs/lock-target-input";
+import { TrackTimingFields, type AutoRangeEstimate } from "./inputs/track-timing-fields";
 import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue } from "./inputs/images-group-field";
 import { overlayMediaStatic, readMediaStatic, stripMediaStatic } from "../dataTypes/media";
 import { ShakeEffectsField } from "./inputs/shake-effects-field";
@@ -116,6 +118,12 @@ interface SchemaFormProps {
     availableReferences?: string[]; // Available reference keys for data-referrable fields
     /** Track names from other presets on the timeline (for linkTrackName dropdowns). */
     availableTrackNames?: string[];
+    /** Sibling and parent tracks for lock dropdowns. */
+    lockTargetNames?: string[];
+    /** Sum of child lengths for the sequence tab. The field is read-only. */
+    sequenceDuration?: number;
+    /** Calculated start and duration for the auto range tab. */
+    autoRange?: AutoRangeEstimate;
     baseData?: Record<string, any>; // Base data for flexible object fields
     onCreateReference?: (referenceType: string) => string | null;
     onSelectReferenceKey?: (referenceKey: string) => void;
@@ -345,6 +353,10 @@ function isRangeField(field: FormField): boolean {
 
 function isLinkTrackNameField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.linkTrackName] === true;
+}
+
+function isLockTargetField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.lockTarget] === true;
 }
 
 function isContainerObjectField(field: FormField): boolean {
@@ -2380,6 +2392,15 @@ function renderField(
             );
         }
 
+        if (isLockTargetField(field)) {
+            return (
+                <LockTargetInput
+                    value={typeof fieldValue === "string" ? fieldValue : ""}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                />
+            );
+        }
+
         switch (field.type) {
             case "string":
                 if (field.enum) {
@@ -3440,6 +3461,9 @@ export function SchemaForm({
     onRequestRangeEditor,
     onUpdateReferenceValue,
     availableTrackNames = [],
+    lockTargetNames = [],
+    sequenceDuration,
+    autoRange,
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
     const [activeTab, setActiveTab] = useState<"form" | "json" | "media">(initialTab);
@@ -3526,17 +3550,48 @@ export function SchemaForm({
     const renderSchemaFields = (list: FormField[]) => {
         const paint = (field: FormField) =>
             renderField(field, field.key, formData[field.key], handleFieldChange, 0, schema, availableReferences, baseData, showReferencesDropdown, showReferencableAuto, onCreateReference, onSelectReferenceKey, onRequestRangeEditor, metadata, formData, availableTrackNames, onUpdateReferenceValue);
-        return chunkByLayoutGroup(list).map((row) =>
-            row.length === 1 ? (
-                <div key={row[0].key}>{paint(row[0])}</div>
-            ) : (
-                <div key={row.map((field) => field.key).join("-")} className={layoutRowClass(row.length)}>
-                    {row.map((field) => (
-                        <div key={field.key}>{paint(field)}</div>
-                    ))}
-                </div>
-            ),
-        );
+        const keys = new Set(list.map((field) => field.key));
+        const groupTiming =
+            keys.has("trackType") &&
+            keys.has("start") &&
+            keys.has("duration") &&
+            keys.has("lock");
+        const sequenceLengthChoice = keys.has("perImageDuration");
+        const hiddenTiming = ["start", "duration", "lock"];
+        if (sequenceLengthChoice) hiddenTiming.push("perImageDuration");
+        const visible = groupTiming
+            ? list.filter((field) => !hiddenTiming.includes(field.key))
+            : list;
+        const rows = chunkByLayoutGroup(visible).flatMap((row) => {
+            if (row.length === 1 && row[0].key === "trackType" && groupTiming) {
+                return [(
+                    <TrackTimingFields
+                        key="track-timing"
+                        value={formData && typeof formData === "object" ? formData : {}}
+                        sequenceDuration={sequenceDuration}
+                        autoRange={autoRange}
+                        sequenceLengthChoice={sequenceLengthChoice}
+                        modes={Array.isArray(row[0].enum) ? row[0].enum : undefined}
+                        onChange={(next) => {
+                            setFormData(next);
+                            onChange(next);
+                        }}
+                    />
+                )];
+            }
+            return [
+                row.length === 1 ? (
+                    <div key={row[0].key}>{paint(row[0])}</div>
+                ) : (
+                    <div key={row.map((field) => field.key).join("-")} className={layoutRowClass(row.length)}>
+                        {row.map((field) => (
+                            <div key={field.key}>{paint(field)}</div>
+                        ))}
+                    </div>
+                ),
+            ];
+        });
+        return rows;
     };
 
     if (!jsonSchema || !jsonSchema.properties) {
@@ -3555,6 +3610,7 @@ export function SchemaForm({
     }
 
     return (
+        <LockTargetNamesContext.Provider value={lockTargetNames}>
         <div className={className} data-schema-form="">
             <div className="flex items-center justify-between mb-4">
                 <div className="min-w-0">
@@ -3694,5 +3750,6 @@ export function SchemaForm({
                 )}
             </div>
         </div>
+        </LockTargetNamesContext.Provider>
     );
 }

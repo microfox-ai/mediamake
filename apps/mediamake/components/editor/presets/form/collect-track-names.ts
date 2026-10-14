@@ -1,3 +1,18 @@
+import { loadInstanceTree, lockTargetNames } from '@/components/editor_main/timing/load-instance-tree';
+import type { Timeline } from '@/components/editor_main/stores/project-store';
+
+/**
+ * Track names a lock field may point at: siblings, parent scenes, and, for
+ * a scene, every child.
+ */
+export function collectLockTargetNames(
+  timeline: Pick<Timeline, 'presets' | 'nodes' | 'configuration'> | null | undefined,
+  currentPresetId: string,
+): string[] {
+  if (!timeline || !currentPresetId) return [];
+  return lockTargetNames(loadInstanceTree(timeline as Timeline), currentPresetId);
+}
+
 /**
  * Collect track-name strings from timeline preset input data.
  * Walks objects looking for `trackName` keys (fields annotated with

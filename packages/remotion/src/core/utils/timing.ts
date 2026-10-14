@@ -47,3 +47,20 @@ export const calculateTiming = (
   }
   return newTiming;
 };
+
+/**
+ * Where a scene child sits inside a Remotion Series.
+ * Series already appends each sequence after the previous one. The stored
+ * start is that packed position, so offset is only a gap or an overlap.
+ * A missing start packs the child with no extra gap.
+ */
+export const seriesPlacement = (options: {
+  hasStart: boolean;
+  startInFrames: number;
+  durationInFrames: number;
+  packedCursor: number;
+}): { offset: number; nextCursor: number } => {
+  const offset = options.hasStart ? options.startInFrames - options.packedCursor : 0;
+  const origin = options.hasStart ? options.startInFrames : options.packedCursor;
+  return { offset, nextCursor: origin + options.durationInFrames };
+};

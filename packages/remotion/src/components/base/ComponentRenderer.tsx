@@ -4,6 +4,7 @@ import { useComposition } from '../../core/context';
 import { getComponent, getComponentConfig } from '../../core/registry';
 import { BaseRenderableData, CalculatedBoundaries, CalculatedTiming, InternalRenderableContext, RenderableContext } from '../../core/types';
 import { calculateHierarchy, calculateTimingWithInheritance } from '../../core/utils/hierarchyUtils';
+import { seriesPlacement } from '../../core/utils/timing';
 import { EffectWrapper } from './EffectWrapper';
 
 // Create a context for passing down calculated values
@@ -82,38 +83,90 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
     const ComponentClass = getComponent(componentId);
 
     if (type === 'scene') {
+        // Series appends each child. The stored start is already that packed
+        // position, so it must not be passed through as another delay. The
+        // child is then rendered at 0 inside its own slot.
+        // The scene's own start delays the whole series. A negative
+        // startOffset pulls it earlier so this sequence clips the head.
+        const startOffsetFrames = Math.round(
+            Math.min(0, Number(context?.timing?.startOffset) || 0) * videoConfig.fps,
+        );
+        let packedCursor = 0;
+        let headTrim = startOffsetFrames;
+        const series = (
+            <Series>
+                {childrenData?.map((child) => {
+                    const childTiming = calculateTimingWithInheritance(child, root, videoConfig);
+                    // Series.Sequence requires a positive duration — a zero/unset
+                    // duration used to throw and take down the whole player.
+                    const childDuration = childTiming.durationInFrames ?? 0;
+                    if (!(childDuration > 0)) {
+                        console.warn(
+                            `Skipping "${child.componentId} - ${child.id}": timing resolved to ${childDuration} frames`
+                        );
+                        return null;
+                    }
+                    const authored = child.context?.timing;
+                    const hasStart =
+                        typeof authored?.startInFrames === 'number' ||
+                        typeof authored?.start === 'number';
+                    const placement = seriesPlacement({
+                        hasStart,
+                        startInFrames: childTiming.startInFrames ?? 0,
+                        durationInFrames: childDuration,
+                        packedCursor,
+                    });
+                    if (headTrim !== 0) {
+                        placement.offset += headTrim;
+                        placement.nextCursor += headTrim;
+                        headTrim = 0;
+                    }
+                    packedCursor = placement.nextCursor;
+                    const placedChild = {
+                        ...child,
+                        context: {
+                            ...(child.context ?? {}),
+                            timing: {
+                                ...(authored ?? {}),
+                                start: 0,
+                                startInFrames: 0,
+                            },
+                        },
+                    };
+                    return (
+                        <Series.Sequence
+                            key={child.id}
+                            name={child.componentId + " - " + child.id}
+                            offset={placement.offset}
+                            durationInFrames={childDuration}>
+                            {child.effects && child.effects.length > 0 ? (
+                                <EffectWrapper effects={child.effects} context={newContext}>
+                                    <ComponentRenderer key={child.id} {...placedChild} />
+                                </EffectWrapper>
+                            ) : (
+                                <ComponentRenderer key={child.id} {...placedChild} />
+                            )}
+                        </Series.Sequence>
+                    )
+                })}
+            </Series>
+        );
+
+        const sceneDuration = newTiming.durationInFrames ?? 0;
+        const sceneBody = sceneDuration > 0 ? (
+            <Sequence
+                layout="none"
+                name={componentId + " - " + id}
+                from={newTiming.startInFrames ?? 0}
+                durationInFrames={sceneDuration}
+            >
+                {series}
+            </Sequence>
+        ) : series;
+
         return (
             <RenderContext.Provider value={newContext}>
-                <Series>
-                    {childrenData?.map((child) => {
-                        // reverse should happen here, not based on toot layout actually
-                        const childTiming = calculateTimingWithInheritance(child, root, videoConfig);
-                        // Series.Sequence requires a positive duration — a zero/unset
-                        // duration used to throw and take down the whole player.
-                        const childDuration = childTiming.durationInFrames ?? 0;
-                        if (!(childDuration > 0)) {
-                            console.warn(
-                                `Skipping "${child.componentId} - ${child.id}": timing resolved to ${childDuration} frames`
-                            );
-                            return null;
-                        }
-                        return (
-                            <Series.Sequence
-                                key={child.id}
-                                name={child.componentId + " - " + child.id}
-                                offset={childTiming.startInFrames ?? 0}
-                                durationInFrames={childDuration}>
-                                {child.effects && child.effects.length > 0 ? (
-                                    <EffectWrapper effects={child.effects} context={newContext}>
-                                        <ComponentRenderer key={child.id} {...child} />
-                                    </EffectWrapper>
-                                ) : (
-                                    <ComponentRenderer key={child.id} {...child} />
-                                )}
-                            </Series.Sequence>
-                        )
-                    })}
-                </Series>
+                {sceneBody}
             </RenderContext.Provider>
         );
     }
@@ -129,6 +182,23 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
 
 
     if (type === 'layout') {
+        const startOffsetSec = Math.min(0, Number(context?.timing?.startOffset) || 0);
+        const shiftChild = (child: NonNullable<typeof childrenData>[number]) => {
+            if (!startOffsetSec) return child;
+            const timing = child.context?.timing ?? {};
+            const start = typeof timing.start === 'number' ? timing.start : 0;
+            return {
+                ...child,
+                context: {
+                    ...child.context,
+                    timing: {
+                        ...timing,
+                        start: start + startOffsetSec,
+                        startInFrames: undefined,
+                    },
+                },
+            };
+        };
 
         const config = getComponentConfig(componentId);
 
@@ -141,12 +211,12 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
                         {effects && effects.length > 0 ? (
                             <EffectWrapper effects={effects} context={newContext}>
                                 {childrenData?.map((child) => (
-                                    <ComponentRenderer key={child.id} {...child} />
+                                    <ComponentRenderer key={child.id} {...shiftChild(child)} />
                                 ))}
                             </EffectWrapper>
                         ) : (
                             childrenData?.map((child) => (
-                                <ComponentRenderer key={child.id} {...child} />
+                                <ComponentRenderer key={child.id} {...shiftChild(child)} />
                             ))
                         )}
                     </ComponentClass>
@@ -158,14 +228,14 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             <EffectWrapper effects={effects} context={newContext}>
                 <ComponentClass {...props}>
                     {childrenData?.map((child) => (
-                        <ComponentRenderer key={child.id} {...child} />
+                        <ComponentRenderer key={child.id} {...shiftChild(child)} />
                     ))}
                 </ComponentClass>
             </EffectWrapper>
         ) : (
             <ComponentClass {...props}>
                 {childrenData?.map((child) => (
-                    <ComponentRenderer key={child.id} {...child} />
+                    <ComponentRenderer key={child.id} {...shiftChild(child)} />
                 ))}
             </ComponentClass>
         );

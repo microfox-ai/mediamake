@@ -10,6 +10,7 @@ import { useEditorStore, type Preset, type SelectedItem } from './editor-store';
 import { useTimelineEditsStore } from './timeline-edits-store';
 import type { Timeline } from './project-store';
 import { useProjectStore } from './project-store';
+import { loadInstanceTree, parentOfNode } from '@/components/editor_main/timing/load-instance-tree';
 
 export type ItemClipboard =
   | { kind: 'preset'; preset: Preset; actions: TimelineAction[] }
@@ -511,17 +512,30 @@ export function deleteSelectedItem(): boolean {
   if (!timeline) return false;
 
   if (selected.type === 'preset') {
-    const index =
-      timeline.presets?.findIndex((p) => p.id === selected.item.id) ?? -1;
-    if (index === 0) {
+    const baseId = timeline.presets?.[0]?.id;
+    const chosen = useEditorStore.getState().selectedPresetIds;
+    const ids = (chosen.length > 0 ? chosen : [selected.item.id]).filter((id) => id !== baseId);
+    if (ids.length === 0) {
       toast.error('Cannot delete the base timeline preset');
       return false;
     }
-    const label = selected.item.label || 'block';
-    if (!confirm(`Are you sure you want to delete "${label}"?`)) return false;
-    useTimelineEditsStore
-      .getState()
-      .removePreset(selected.timeline.id, selected.item.id);
+    const label =
+      ids.length === 1
+        ? timeline.presets?.find((preset) => preset.id === ids[0])?.label || 'block'
+        : `${ids.length} blocks`;
+    const message =
+      ids.length === 1
+        ? `Are you sure you want to delete "${label}"?`
+        : `Are you sure you want to delete ${label}?`;
+    if (!confirm(message)) return false;
+    const drop = new Set(ids);
+    useTimelineEditsStore.getState().updateTimeline(selected.timeline.id, {
+      presets: (timeline.presets || []).filter((preset) => !drop.has(preset.id)),
+      actions: (timeline.actions || []).filter(
+        (action) =>
+          !(action.target?.type === 'preset' && drop.has(action.target.presetInstanceId)),
+      ),
+    });
     useEditorStore.getState().selectTimeline(timeline);
     return true;
   }
@@ -578,11 +592,20 @@ export function moveSelectedItem(direction: 'up' | 'down'): boolean {
   const delta = direction === 'up' ? -1 : 1;
 
   if (selected.type === 'preset') {
+    const tree = loadInstanceTree(timeline);
+    const parent = parentOfNode(tree, selected.item.id);
+    if (parent) {
+      const index = parent.children.findIndex((child) => child.id === selected.item.id);
+      const newIndex = index + delta;
+      if (index < 0 || newIndex < 0 || newIndex >= parent.children.length) return false;
+      return useTimelineEditsStore
+        .getState()
+        .moveInstanceNode(selected.timeline.id, selected.item.id, parent.id, newIndex);
+    }
     const presets = timeline.presets || [];
     const index = presets.findIndex((p) => p.id === selected.item.id);
     if (index < 0) return false;
     const newIndex = index + delta;
-    // Index 0 is the base timeline preset — never move into/out of it
     if (index === 0 || newIndex <= 0 || newIndex >= presets.length) return false;
     useTimelineEditsStore
       .getState()

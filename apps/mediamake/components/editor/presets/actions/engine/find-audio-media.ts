@@ -200,9 +200,109 @@ export function findAudioMediaClipsFromTimeline(
     );
   }
 
-  // Deduplicate by src+start+duration
+  return dedupeAudioClips(out);
+}
+
+type CompiledAudioNode = {
+  id?: string;
+  componentId?: string;
+  data?: { src?: unknown; name?: unknown; title?: unknown } | null;
+  context?: { timing?: { start?: number; duration?: number } | null } | null;
+  childrenData?: CompiledAudioNode[] | null;
+};
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Audio atoms from the compiled composition.
+ * Start is absolute: each node's start is added to its ancestors.
+ */
+export function audioClipsFromCompiled(nodes: unknown): TimelineAudioClip[] {
+  const out: TimelineAudioClip[] = [];
+  const walk = (
+    list: CompiledAudioNode[] | null | undefined,
+    ancestorStart: number,
+    parentId?: string,
+  ) => {
+    if (!list) return;
+    for (const node of list) {
+      const relative = finiteNumber(node.context?.timing?.start) ?? 0;
+      const absolute = ancestorStart + relative;
+      if (node.componentId === "AudioAtom") {
+        const src = typeof node.data?.src === "string" ? node.data.src.trim() : "";
+        if (src && isFetchableAudioUrl(src)) {
+          const named =
+            typeof node.data?.name === "string"
+              ? node.data.name
+              : typeof node.data?.title === "string"
+                ? node.data.title
+                : undefined;
+          out.push({
+            id: node.id || `${parentId ?? "audio"}-${out.length}`,
+            src,
+            name: named?.trim() || undefined,
+            start: absolute,
+            duration: finiteNumber(node.context?.timing?.duration),
+            trackName:
+              parentId && parentId !== "BaseScene" ? parentId : undefined,
+          });
+        }
+      }
+      walk(node.childrenData, absolute, node.id || parentId);
+    }
+  };
+  if (Array.isArray(nodes)) walk(nodes as CompiledAudioNode[], 0);
+  return dedupeAudioClips(out);
+}
+
+const LANE_GAP = 0.001;
+
+/**
+ * One lane per overlapping set. Clips that only touch at an edge share a lane,
+ * which is how a sequence of audio files should sit.
+ */
+export function packAudioClips(
+  clips: TimelineAudioClip[],
+): Array<{ key: string; label: string; items: TimelineAudioClip[] }> {
+  const sorted = [...clips].sort(
+    (a, b) => a.start - b.start || a.id.localeCompare(b.id),
+  );
+  const lanes: Array<{ end: number; items: TimelineAudioClip[] }> = [];
+  for (const clip of sorted) {
+    const duration =
+      typeof clip.duration === "number" && clip.duration > 0 ? clip.duration : undefined;
+    if (duration === undefined) {
+      lanes.push({ end: clip.start, items: [clip] });
+      continue;
+    }
+    const end = clip.start + duration;
+    const lane = lanes.find((candidate) => clip.start >= candidate.end - LANE_GAP);
+    if (lane) {
+      lane.items.push(clip);
+      lane.end = Math.max(lane.end, end);
+    } else {
+      lanes.push({ end, items: [clip] });
+    }
+  }
+  return lanes.map((lane, index) => {
+    const names = [
+      ...new Set(lane.items.map((item) => item.trackName).filter((name): name is string => Boolean(name))),
+    ];
+    const label =
+      names.length === 1
+        ? names[0]
+        : lane.items.length === 1
+          ? lane.items[0]?.name || lane.items[0]?.trackName || "Audio"
+          : "Audio";
+    return { key: `audio-lane-${index}`, label, items: lane.items };
+  });
+}
+
+function dedupeAudioClips(clips: TimelineAudioClip[]): TimelineAudioClip[] {
   const seen = new Set<string>();
-  return out.filter((clip) => {
+  return clips.filter((clip) => {
     // Final safety: never surface non-fetchable schemes to the waveform UI
     if (!isFetchableAudioUrl(clip.src)) return false;
     const key = `${clip.src}|${clip.start}|${clip.duration ?? ""}`;

@@ -9,6 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { AddBlockContextMenuItems } from "@/components/editor_main/panels/left/editor/AddBlockMenu";
 import { cn } from "@/lib/utils";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { useTimelineEditsStore } from "@/components/editor_main/stores/timeline-edits-store";
@@ -19,17 +25,40 @@ import {
   visibleRows,
 } from "@/components/editor_main/timing/load-instance-tree";
 import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
-import type { AppliedNode, NodeTiming } from "@/components/editor_main/timing/types";
-import { TRACK_COLORS } from "../timeline-layout";
+import {
+  collectIntrinsicDurations,
+  collectMediaItemDurations,
+} from "@/components/editor_main/timing/stamp-timing";
+import type {
+  AppliedNode,
+  NodeTiming,
+  ResolvedSpan,
+} from "@/components/editor_main/timing/types";
+import {
+  nextStartOffset,
+  placedOrigin,
+  readStartOffset,
+  presetUsesMediaAtoms,
+  presetUsesSceneBlocks,
+  sceneBlocksForPreset,
+  trackDisplayName,
+  visibleSpan,
+} from "../media-scene-blocks";
+import { useMediaAtomRows, type MediaAtomSource } from "../media-track-rows";
+import { ROW_HEIGHT, TRACK_COLORS, formatTimeLabel } from "../timeline-layout";
 import {
   useRegisterTimelineSection,
   type TimelineTrackRow,
 } from "../TimelineShell";
 import { useTimelineViewport } from "../timeline-viewport";
 
+const BLOCK_DRAG_TYPE = "application/x-mediamake-block";
+
 interface InstanceTimingSectionProps {
   timeline: Timeline;
   order: number;
+  /** When set, only this block and the blocks inside it are drawn. */
+  focusNodeId?: string;
 }
 
 type DragKind = "move" | "left" | "right";
@@ -42,6 +71,23 @@ function parentById(root: AppliedNode): Map<string, AppliedNode | null> {
   };
   walk(root, null);
   return map;
+}
+
+/** Sequence length is the sum of child spans. Zero means the children have no length yet. */
+function summedChildDuration(
+  node: AppliedNode,
+  spans: Map<string, ResolvedSpan>,
+): number | undefined {
+  let sum = 0;
+  let any = false;
+  for (const child of node.children) {
+    if (child.disabled || child.role === "modifier") continue;
+    const span = spans.get(child.id);
+    if (!span || !(span.duration > 0)) continue;
+    sum += span.duration;
+    any = true;
+  }
+  return any ? sum : undefined;
 }
 
 function scenesOf(root: AppliedNode): AppliedNode[] {
@@ -58,17 +104,32 @@ function scenesOf(root: AppliedNode): AppliedNode[] {
  * One row per scene and track. Locked spans cannot be dragged.
  * A drag writes parent-relative start and duration onto the instance.
  */
-export function InstanceTimingSection({ timeline, order }: InstanceTimingSectionProps) {
+export function InstanceTimingSection({ timeline, order, focusNodeId }: InstanceTimingSectionProps) {
   const { secToPx, pixelsPerSecond, totalWidth } = useTimelineViewport();
   const updateNodeTiming = useTimelineEditsStore((s) => s.updateNodeTiming);
+  const updatePresetInputData = useTimelineEditsStore((s) => s.updatePresetInputData);
   const reparentInstanceNode = useTimelineEditsStore((s) => s.reparentInstanceNode);
+  const addPresetToTimeline = useTimelineEditsStore((s) => s.addPresetToTimeline);
   const getEditedTimeline = useTimelineEditsStore((s) => s.getEditedTimeline);
   const generateOutput = useCompileStore((s) => s.generateOutput);
-  const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
+  const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
+  const fps = calculatedMetadata?.fps ?? 30;
+  const compiledChildren = calculatedMetadata?.props?.childrenData;
+  const intrinsicDurations = useMemo(
+    () => collectIntrinsicDurations(compiledChildren),
+    [compiledChildren],
+  );
 
   const tree = useMemo(() => loadInstanceTree(timeline), [timeline]);
-  const resolved = useMemo(() => resolveTiming(tree), [tree]);
-  const rows = useMemo(() => visibleRows(tree), [tree]);
+  const resolved = useMemo(
+    () => resolveTiming(tree, { intrinsicDurations }),
+    [tree, intrinsicDurations],
+  );
+  const rows = useMemo(() => {
+    if (!focusNodeId) return visibleRows(tree);
+    const focus = findNode(tree, focusNodeId);
+    return focus ? visibleRows(focus) : [];
+  }, [tree, focusNodeId]);
   const parents = useMemo(() => parentById(tree), [tree]);
   const scenes = useMemo(() => scenesOf(tree), [tree]);
 
@@ -83,9 +144,52 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
     duration: number;
     parentAbsolute: number;
     next: { start: number; duration: number } | null;
+    media?: {
+      authoredStart: number;
+      fullDuration: number;
+      startOffset: number;
+      input: unknown;
+    };
   } | null>(null);
 
   const minDuration = 1 / Math.max(fps, 1);
+
+  const atomSources = useMemo(() => {
+    const sources: MediaAtomSource[] = [];
+    for (const { node } of rows) {
+      if (!presetUsesMediaAtoms(node.presetId)) continue;
+      const probed = collectMediaItemDurations(compiledChildren, node.id);
+      const media = sceneBlocksForPreset(node.presetId, node.input, probed);
+      if (media.mode !== "sequence" && media.mode !== "aligned") continue;
+      const span = resolved.nodes.get(node.id);
+      const parent = parents.get(node.id) ?? null;
+      const parentAbsolute =
+        span?.parentAbsoluteStart ??
+        (parent ? resolved.nodes.get(parent.id)?.absoluteStart : 0) ??
+        0;
+      const authored =
+        span?.absoluteStart ??
+        parentAbsolute + ("start" in node.timing ? node.timing.start : 0);
+      const full = span && span.duration > 0 ? span.duration : media.duration;
+      if (!(full > 0)) continue;
+      const offset = readStartOffset(node.input);
+      const base = visibleSpan(authored, full, offset);
+      const shown = preview[node.id] ?? base;
+      sources.push({
+        key: node.id,
+        timelineId: timeline.id,
+        presetId: node.id,
+        input: node.input,
+        origin: placedOrigin(authored, full, offset, shown),
+        windowStart: shown.start,
+        windowEnd: shown.start + shown.duration,
+        sequence: media.sequence,
+        probedItemDurations: probed,
+      });
+    }
+    return sources;
+  }, [rows, compiledChildren, resolved, parents, preview, timeline.id]);
+  const atomRows = useMediaAtomRows(atomSources);
 
   const commit = (id: string, timing: NodeTiming) => {
     updateNodeTiming(timeline.id, id, timing);
@@ -100,6 +204,12 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
     start: number,
     duration: number,
     parentAbsolute: number,
+    media?: {
+      authoredStart: number;
+      fullDuration: number;
+      startOffset: number;
+      input: unknown;
+    },
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -112,6 +222,7 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
       duration,
       parentAbsolute,
       next: null,
+      media,
     };
   };
 
@@ -145,10 +256,48 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
       return copy;
     });
     if (!next) return;
+    if (drag.media) {
+      const leftDelta = next.start - drag.start;
+      if (drag.kind === "left") {
+        const startOffset = nextStartOffset(
+          drag.media.startOffset,
+          drag.media.fullDuration,
+          leftDelta,
+          minDuration,
+        );
+        const record =
+          drag.media.input && typeof drag.media.input === "object" && !Array.isArray(drag.media.input)
+            ? { ...(drag.media.input as Record<string, unknown>) }
+            : {};
+        if (startOffset < 0) record.startOffset = startOffset;
+        else delete record.startOffset;
+        updatePresetInputData(timeline.id, drag.id, record);
+        generateOutput(getEditedTimeline(timeline.id) || timeline);
+        return;
+      }
+      const node = findNode(tree, drag.id);
+      const parent = parents.get(drag.id);
+      const relative = Math.max(0, drag.media.authoredStart + (drag.kind === "move" ? leftDelta : 0) - drag.parentAbsolute);
+      if (drag.kind === "move" && node?.timing.kind === "hug") {
+        commit(drag.id, { kind: "hug", start: parent?.arrangement === "sequence" ? 0 : relative });
+        return;
+      }
+      const duration =
+        drag.kind === "right"
+          ? Math.max(minDuration - drag.media.startOffset, drag.media.fullDuration + (next.duration - drag.duration))
+          : drag.media.fullDuration;
+      commit(drag.id, {
+        kind: "explicit",
+        start: parent?.arrangement === "sequence" ? 0 : relative,
+        duration,
+      });
+      return;
+    }
     const node = findNode(tree, drag.id);
     if (!node) return;
     const parent = parents.get(drag.id);
     const relativeStart = Math.max(0, next.start - drag.parentAbsolute);
+    if (node.timing.kind === "autoRange") return;
     if (node.timing.kind === "hug") {
       commit(drag.id, { kind: "hug", start: relativeStart });
       return;
@@ -178,31 +327,117 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
     const locked =
       node.timing.kind === "lock" || node.timing.kind === "durationLock";
     const hug = node.timing.kind === "hug";
+    const autoRange = node.timing.kind === "autoRange";
     const sequenced = parent?.arrangement === "sequence";
+    const probedItems = presetUsesMediaAtoms(node.presetId)
+      ? collectMediaItemDurations(compiledChildren, node.id)
+      : undefined;
+    const mediaScenes = presetUsesSceneBlocks(node.presetId)
+      ? sceneBlocksForPreset(node.presetId, node.input, probedItems)
+      : null;
+    const windowMedia = Boolean(
+      mediaScenes && (mediaScenes.sequence || mediaScenes.mode === "aligned"),
+    );
+    const sceneWindow =
+      node.presetId === "scene" && !locked && !autoRange && (span?.duration ?? 0) > 0;
+    const useWindow = windowMedia || sceneWindow;
+    const mediaOffset = useWindow ? readStartOffset(node.input) : 0;
+    const authoredAbsolute =
+      span?.absoluteStart ??
+      parentAbsolute + ("start" in node.timing ? node.timing.start : 0);
+    const fullDuration =
+      span && span.duration > 0 ? span.duration : (mediaScenes?.duration ?? 0);
+    const visible =
+      useWindow && fullDuration > 0
+        ? visibleSpan(authoredAbsolute, fullDuration, mediaOffset)
+        : null;
+    const childDuration =
+      mediaScenes?.sequence && mediaScenes.duration > 0
+        ? mediaScenes.duration
+        : node.role === "scene" && node.arrangement === "sequence"
+          ? summedChildDuration(node, resolved.nodes)
+          : undefined;
     const shown =
       preview[node.id] ??
+      visible ??
       (span
         ? { start: span.absoluteStart, duration: span.duration }
-        : locked
-          ? null
-          : { start: parentAbsolute, duration: 2 });
+        : childDuration
+          ? {
+              start: authoredAbsolute,
+              duration: childDuration,
+            }
+          : null);
     const color = TRACK_COLORS[index % TRACK_COLORS.length];
     const note = resolved.diagnostics.find((item) => item.nodeId === node.id);
-    const canMove = !locked && !sequenced;
-    const canTrimStart = !locked && !hug && !sequenced;
-    const canTrimEnd = !locked && !hug;
+    const canMove = !locked && !sequenced && !autoRange;
+    const canTrimStart = !locked && !sequenced && !autoRange && (!hug || useWindow);
+    const canTrimEnd = !locked && !autoRange && (!hug || windowMedia);
+    const mediaDrag =
+      useWindow && fullDuration > 0
+        ? {
+            authoredStart: authoredAbsolute,
+            fullDuration,
+            startOffset: mediaOffset,
+            input: node.input,
+          }
+        : undefined;
+    const rowName = trackDisplayName(node.input, node.name);
+    const rowHeight = node.id !== tree.id && scenes.length > 1 ? 64 : ROW_HEIGHT;
+    const spanLabel = shown
+      ? `${formatTimeLabel(shown.start)}–${formatTimeLabel(shown.start + shown.duration)}${
+          mediaOffset < 0 ? ` · head ${formatTimeLabel(-mediaOffset)}` : ""
+        }`
+      : null;
 
-    return {
-      id: `instance:${node.id}`,
-      label: (
+    const placeChild = (childId: string) => {
+      if (!childId || childId === node.id || node.role !== "scene") return;
+      const moving = findNode(tree, childId);
+      if (moving && findNode(moving, node.id)) return;
+      reparentInstanceNode(timeline.id, childId, node.id);
+      const latest = getEditedTimeline(timeline.id) || timeline;
+      generateOutput(latest);
+    };
+    const labelBody = (
         <div
-          className="flex min-w-0 flex-col gap-1 pr-2"
-          style={{ paddingLeft: depth * 10 }}
+          className="flex min-w-0 flex-col justify-center gap-0.5 border-b border-border/40 bg-background pr-2"
+          style={{ height: rowHeight, paddingLeft: 8 + depth * 10 }}
+          draggable={node.id !== tree.id}
+          onDragStart={(event) => {
+            if ((event.target as HTMLElement).closest("button")) {
+              event.preventDefault();
+              return;
+            }
+            event.dataTransfer.setData(BLOCK_DRAG_TYPE, node.id);
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          onDragOver={
+            node.role === "scene"
+              ? (event) => {
+                  if (!event.dataTransfer.types.includes(BLOCK_DRAG_TYPE)) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  event.currentTarget.classList.add("bg-primary/10");
+                }
+              : undefined
+          }
+          onDragLeave={(event) => {
+            event.currentTarget.classList.remove("bg-primary/10");
+          }}
+          onDrop={
+            node.role === "scene"
+              ? (event) => {
+                  event.preventDefault();
+                  event.currentTarget.classList.remove("bg-primary/10");
+                  placeChild(event.dataTransfer.getData(BLOCK_DRAG_TYPE));
+                }
+              : undefined
+          }
         >
           <div className="flex min-w-0 items-center gap-1">
             {locked ? <Lock className="size-3 shrink-0 text-muted-foreground" /> : null}
-            <span className="truncate text-xs" title={note?.message}>
-              {node.name}
+            <span className="truncate text-xs cursor-grab" title={note?.message}>
+              {rowName}
             </span>
           </div>
           {node.id !== tree.id && scenes.length > 1 ? (
@@ -225,18 +460,37 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
                   )
                   .map((scene) => (
                     <SelectItem key={scene.id} value={scene.id}>
-                      {scene.name}
+                      {trackDisplayName(scene.input, scene.name)}
                     </SelectItem>
                   ))}
               </SelectContent>
             </Select>
           ) : null}
         </div>
-      ),
+    );
+    return {
+      id: `instance:${node.id}`,
+      label:
+        node.role === "scene" ? (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>{labelBody}</ContextMenuTrigger>
+            <ContextMenuContent className="w-56">
+              <AddBlockContextMenuItems
+                onAdd={(preset) => {
+                  addPresetToTimeline(timeline.id, preset, node.id);
+                  const latest = getEditedTimeline(timeline.id) || timeline;
+                  generateOutput(latest);
+                }}
+              />
+            </ContextMenuContent>
+          </ContextMenu>
+        ) : (
+          labelBody
+        ),
       track: (
         <div
-          className="relative h-full"
-          style={{ width: totalWidth }}
+          className="relative border-b border-border/40"
+          style={{ width: totalWidth, height: rowHeight }}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
@@ -266,6 +520,7 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
                         shown.start,
                         shown.duration,
                         parentAbsolute,
+                        mediaDrag,
                       )
                   : undefined
               }
@@ -281,12 +536,13 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
                       shown.start,
                       shown.duration,
                       parentAbsolute,
+                      mediaDrag,
                     )
                   }
                 />
               ) : null}
               <span className="truncate px-2">
-                {locked ? "Locked" : hug ? "Hug" : node.role === "scene" ? "Scene" : "Track"}
+                {spanLabel ?? rowName}
               </span>
               {canTrimEnd ? (
                 <span
@@ -299,6 +555,7 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
                       shown.start,
                       shown.duration,
                       parentAbsolute,
+                      mediaDrag,
                     )
                   }
                 />
@@ -317,10 +574,10 @@ export function InstanceTimingSection({ timeline, order }: InstanceTimingSection
   useRegisterTimelineSection({
     id: `instance-timing:${timeline.id}`,
     order,
-    header: {
-      label: <span className="text-xs font-medium">Scenes</span>,
-    },
-    rows: trackRows,
+    rows: trackRows.flatMap((row) => {
+      const id = row.id.slice("instance:".length);
+      return [row, ...(atomRows[id] ?? [])];
+    }),
   });
 
   return null;

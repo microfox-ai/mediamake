@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import type { Timeline } from './project-store';
 import type { NodeTiming } from '@/components/editor_main/timing/types';
 import {
+  applyTimingToPresetInput,
   loadInstanceTree,
   mapNodeTiming,
-  reparentNode,
+  moveNode,
 } from '@/components/editor_main/timing/load-instance-tree';
 import { DatabasePreset, Preset as PresetType } from '@/components/editor/presets/types';
 import {
@@ -88,9 +89,20 @@ interface TimelineEditsState {
   updatePresetDisabled: (timelineId: string, presetId: string, disabled: boolean) => void;
   updateNodeTiming: (timelineId: string, nodeId: string, timing: NodeTiming) => void;
   reparentInstanceNode: (timelineId: string, nodeId: string, parentId: string) => void;
+  /** Place `nodeId` under a scene. `index` is the position after the node is removed. */
+  moveInstanceNode: (
+    timelineId: string,
+    nodeId: string,
+    parentId: string,
+    index?: number,
+  ) => boolean;
   updateTimelineConfig: (timelineId: string, config: any) => void;
   updateTimelineDefaultData: (timelineId: string, defaultData: any) => void;
-  addPresetToTimeline: (timelineId: string, preset: PresetType | DatabasePreset) => void;
+  addPresetToTimeline: (
+    timelineId: string,
+    preset: PresetType | DatabasePreset,
+    parentId?: string,
+  ) => string | null;
   removePreset: (timelineId: string, presetId: string) => void;
   duplicatePreset: (timelineId: string, presetId: string) => void;
   reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => void;
@@ -446,6 +458,26 @@ let _tlPreviewBackup:
   | { timelineId: string; edited: Timeline | undefined; loaded: Timeline | null; isDirty: boolean }
   | null = null;
 
+function presetsWithParent(
+  presets: Timeline['presets'],
+  nodeId: string,
+  parentId: string,
+  rootId: string,
+): Timeline['presets'] {
+  return (presets ?? []).map((preset) => {
+    if (preset.id !== nodeId) return preset;
+    const input =
+      preset.presetInputData &&
+      typeof preset.presetInputData === 'object' &&
+      !Array.isArray(preset.presetInputData)
+        ? { ...(preset.presetInputData as Record<string, unknown>) }
+        : {};
+    if (parentId === rootId) delete input.parentId;
+    else input.parentId = parentId;
+    return { ...preset, presetInputData: input };
+  });
+}
+
 function resolveTimelineForEdit(timelineId: string): Timeline | undefined {
   const edited = useTimelineEditsStore.getState().editedTimelines.get(timelineId);
   if (edited) return edited;
@@ -668,14 +700,36 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const timeline = resolveTimelineForEdit(timelineId);
       if (!timeline) return;
       const nodes = mapNodeTiming(loadInstanceTree(timeline), nodeId, timing);
-      get().updateTimeline(timelineId, { nodes }, `timing:${nodeId}`);
+      const presets = timeline.presets?.map((preset) =>
+        preset.id === nodeId
+          ? {
+              ...preset,
+              presetInputData: applyTimingToPresetInput(preset.presetInputData, timing),
+            }
+          : preset,
+      );
+      get().updateTimeline(timelineId, { nodes, presets }, `timing:${nodeId}`);
+    },
+
+    moveInstanceNode: (timelineId, nodeId, parentId, index = Number.MAX_SAFE_INTEGER) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return false;
+      const current = loadInstanceTree(timeline);
+      const nodes = moveNode(current, nodeId, parentId, index);
+      if (nodes === current) return false;
+      get().updateTimeline(
+        timelineId,
+        {
+          nodes,
+          presets: presetsWithParent(timeline.presets, nodeId, parentId, current.id),
+        },
+        `reparent:${nodeId}`,
+      );
+      return true;
     },
 
     reparentInstanceNode: (timelineId, nodeId, parentId) => {
-      const timeline = resolveTimelineForEdit(timelineId);
-      if (!timeline) return;
-      const nodes = reparentNode(loadInstanceTree(timeline), nodeId, parentId);
-      get().updateTimeline(timelineId, { nodes }, `reparent:${nodeId}`);
+      get().moveInstanceNode(timelineId, nodeId, parentId);
     },
 
     updateTimelineConfig: (timelineId, config) => {
@@ -686,57 +740,42 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       get().updateTimeline(timelineId, { defaultData }, 'defaultData');
     },
 
-    addPresetToTimeline: (timelineId: string, preset: PresetType | DatabasePreset) => {
-      const state = get();
-      const timeline = state.editedTimelines.get(timelineId);
-      
-      // Both PresetType and DatabasePreset have metadata
+    addPresetToTimeline: (timelineId, preset, parentId) => {
+      const source = resolveTimelineForEdit(timelineId);
       const metadata = (preset as PresetType | DatabasePreset).metadata;
-      
-      if (!timeline) {
-        const { useProjectStore } = require('./project-store');
-        const projectState = useProjectStore.getState();
-        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
-          ? projectState.loadedTimeline 
-          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
-        
-        if (!originalTimeline) {
-          console.warn(`Timeline ${timelineId} not found`);
-          return;
-        }
-        
-        const existingPresets = originalTimeline.presets || [];
-        const count = existingPresets.filter((p: any) => p.presetId === metadata.id).length;
-        const newPreset = {
-          id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          label: count > 0 ? `${metadata.title} (${count + 1})` : metadata.title,
-          presetId: metadata.id,
-          presetType: metadata.presetType,
-          presetInfo: preset as PresetType | DatabasePreset,
-          presetInputData: metadata.defaultInputParams || {},
-          disabled: false,
-        };
-        
-        get().updateTimeline(timelineId, { 
-          presets: [...existingPresets, newPreset] 
-        });
-      } else {
-        const existingPresets = timeline.presets || [];
-        const count = existingPresets.filter((p: any) => p.presetId === metadata.id).length;
-        const newPreset = {
-          id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          label: count > 0 ? `${metadata.title} (${count + 1})` : metadata.title,
-          presetId: metadata.id,
-          presetType: metadata.presetType,
-          presetInfo: preset as PresetType | DatabasePreset,
-          presetInputData: metadata.defaultInputParams || {},
-          disabled: false,
-        };
-        
-        get().updateTimeline(timelineId, { 
-          presets: [...existingPresets, newPreset] 
-        });
+      if (!source) {
+        console.warn(`Timeline ${timelineId} not found`);
+        return null;
       }
+
+      const existingPresets = source.presets || [];
+      const count = existingPresets.filter((item) => item.presetId === metadata.id).length;
+      const newPreset = {
+        id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        label: count > 0 ? `${metadata.title} (${count + 1})` : metadata.title,
+        presetId: metadata.id,
+        presetType: metadata.presetType,
+        presetInfo: preset as PresetType | DatabasePreset,
+        presetInputData: { ...(metadata.defaultInputParams || {}) },
+        disabled: false,
+      };
+      const presets = [...existingPresets, newPreset];
+      if (!parentId) {
+        get().updateTimeline(timelineId, { presets });
+        return newPreset.id;
+      }
+
+      const tree = loadInstanceTree({ ...source, presets });
+      const nodes = moveNode(tree, newPreset.id, parentId, Number.MAX_SAFE_INTEGER);
+      if (nodes === tree) {
+        get().updateTimeline(timelineId, { presets });
+        return newPreset.id;
+      }
+      get().updateTimeline(timelineId, {
+        presets: presetsWithParent(presets, newPreset.id, parentId, tree.id),
+        nodes,
+      });
+      return newPreset.id;
     },
 
     removePreset: (timelineId: string, presetId: string) => {

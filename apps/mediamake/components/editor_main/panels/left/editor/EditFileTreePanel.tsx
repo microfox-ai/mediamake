@@ -16,18 +16,18 @@ export function EditFileTreeContent() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="border-b px-2 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="border-b px-1.5 py-1 flex items-center justify-between">
+                <div className="flex items-center gap-0.5">
                     <Button
                         variant={filePanelTab === 'timelines' ? "secondary" : "ghost"}
                         size={"sm"}
                         onClick={() => setFilePanelTab('timelines')}
                         className={cn(
-                            "text-xs",
+                            "h-7 px-2 text-sm",
                             filePanelTab === 'timelines' && "bg-accent text-accent-foreground"
                         )}
                     >
-                        <AlignStartVertical className="h-4 w-4" />
+                        <AlignStartVertical className="h-3 w-3" />
                         Timelines
                     </Button>
                     <Button
@@ -35,11 +35,11 @@ export function EditFileTreeContent() {
                         size={"sm"}
                         onClick={() => setFilePanelTab('layers')}
                         className={cn(
-                            "text-xs",
+                            "h-7 px-2 text-sm",
                             filePanelTab === 'layers' && "bg-accent text-accent-foreground"
                         )}
                     >
-                        <LayersIcon className="h-4 w-4" />
+                        <LayersIcon className="h-3 w-3" />
                         Layers
                     </Button>
                     <Button
@@ -47,19 +47,19 @@ export function EditFileTreeContent() {
                         size={"sm"}
                         onClick={() => setFilePanelTab('renders')}
                         className={cn(
-                            "text-xs",
+                            "h-7 px-2 text-sm",
                             filePanelTab === 'renders' && "bg-accent text-accent-foreground"
                         )}
                     >
-                        <Film className="h-4 w-4" />
+                        <Film className="h-3 w-3" />
                         Renders
                     </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Menubar className="rounded-none">
+                <div className="flex items-center gap-1">
+                    <Menubar className="rounded-none h-7">
                         <MenubarMenu>
-                            <MenubarTrigger className="text-xs">
-                                <ChevronDownIcon className="h-4 w-4" />
+                            <MenubarTrigger className="h-7 px-1.5 text-xs">
+                                <ChevronDownIcon className="h-3 w-3" />
                             </MenubarTrigger>
                             <MenubarContent align="end">
                                 <MenubarItem>

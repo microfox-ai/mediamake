@@ -2,6 +2,11 @@
 export type NodeTiming =
   | { kind: 'explicit'; start: number; duration: number }
   | { kind: 'hug'; start: number }
+  /**
+   * Start is the earliest child start. Duration runs from that start to the
+   * latest child end. Children keep their own starts and can overlap.
+   */
+  | { kind: 'autoRange' }
   | { kind: 'intrinsic'; start: number }
   | { kind: 'lock'; refId: string }
   /**
@@ -13,7 +18,7 @@ export type NodeTiming =
   /** No instance span yet. The compiler leaves this node on its previous path. */
   | { kind: 'unspecified'; start: number };
 
-export type SceneArrangement = 'sequence' | 'aligned';
+export type SceneArrangement = 'sequence' | 'aligned' | 'autoRange';
 
 export type PresetRole = 'scene' | 'track' | 'modifier';
 
@@ -23,7 +28,7 @@ export interface AppliedNode {
   name: string;
   disabled?: boolean;
   role: PresetRole;
-  /** Scene containers only. Sequence packs children; aligned overlaps them. */
+  /** Scene containers only. Sequence packs children. Aligned overlaps them. Auto range bounds them. */
   arrangement?: SceneArrangement;
   input: unknown;
   timing: NodeTiming;

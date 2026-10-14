@@ -3,14 +3,50 @@
  *
  * Displays a counter (1, 2, 3...) for each second within specified time ranges.
  * Supports imageloop-style rangeString with optional milliseconds (MM:SS.sss).
+ * Track timing locks the counter to another track, aligns the ranges, or sequences them.
  */
 
 import { TextAtomData } from '@microfox/remotion';
 import z from 'zod';
 import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import {
+  applyLegacyTrackTiming,
+  joinRangeList,
+} from './track-timing-legacy';
 
 const presetParams = z.object({
+  trackName: z
+    .string()
+    .meta({ [paramMetaTypes.trackName]: true })
+    .describe('Name of the track (used for the ID)'),
+  trackType: z
+    .enum(['lockedTo', 'sequence', 'aligned'])
+    .default('aligned')
+    .describe(
+      'Lock copies another track. Sequence plays ranges in order. Aligned keeps each range on its start.',
+    ),
+  start: z
+    .number()
+    .default(0)
+    .describe('Start of this track in its parent scene, in seconds'),
+  startOffset: z
+    .number()
+    .optional()
+    .describe(
+      'Negative trim from the head, in seconds. The end stays put.',
+    ),
+  duration: z
+    .number()
+    .optional()
+    .describe(
+      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
+    ),
+  lock: z
+    .string()
+    .optional()
+    .meta({ [paramMetaTypes.lockTarget]: true })
+    .describe('Lock start and duration to a sibling or parent track'),
   rangeString: z
     .string()
     .meta({ [paramMetaTypes.rangeField]: true })
@@ -130,6 +166,44 @@ const presetExecution = (
     (params as any).rangeString ?? (params as any).ranges,
   );
   const timeRanges = parseTimeRanges(rangeString);
+
+  const legacy = params as z.infer<typeof presetParams> & {
+    trackType?: string;
+    start?: number;
+    startOffset?: number;
+    duration?: number;
+    lock?: string;
+    trackFitDurationTo?: string;
+    trackStartOffset?: number;
+    trackDuration?: number;
+  };
+  const lockTarget =
+    (typeof legacy.lock === 'string' && legacy.lock) ||
+    (typeof legacy.trackFitDurationTo === 'string' &&
+      legacy.trackFitDurationTo) ||
+    '';
+  const trackType = legacy.trackType;
+  const locked =
+    trackType === 'lockedTo' ||
+    (lockTarget.trim().length > 0 &&
+      trackType !== 'sequence' &&
+      trackType !== 'aligned');
+  const sequence = !locked && trackType === 'sequence';
+  const trackStart =
+    (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
+      ? legacy.start
+      : undefined) ??
+    (typeof legacy.trackStartOffset === 'number' &&
+    Number.isFinite(legacy.trackStartOffset)
+      ? legacy.trackStartOffset
+      : 0);
+  const authoredDuration =
+    (typeof legacy.duration === 'number' && legacy.duration > 0
+      ? legacy.duration
+      : undefined) ??
+    (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
+      ? legacy.trackDuration
+      : undefined);
 
   if (!rangeString.trim() || timeRanges.length === 0) {
     throw new Error(
@@ -277,6 +351,7 @@ const presetExecution = (
   };
 
   const rangeContainers: any[] = [];
+  let packed = 0;
 
   for (const parsedRange of parsedRanges) {
     const {
@@ -333,19 +408,60 @@ const presetExecution = (
         },
       },
       context: {
-        timing: {
-          start: rangeStart,
-          duration: totalSeconds,
-        },
+        timing: sequence
+          ? { duration: totalSeconds }
+          : {
+              start: rangeStart,
+              duration: totalSeconds,
+            },
       },
       childrenData: counterComponents,
       effects: [],
     });
+    packed += totalSeconds;
   }
+
+  const maxEnd = parsedRanges.reduce(
+    (max, range) => Math.max(max, range.start + range.duration),
+    0,
+  );
+  const derivedDuration = sequence ? packed : maxEnd;
+  const trackTiming: {
+    start: number;
+    duration?: number;
+    startOffset?: number;
+  } = { start: trackStart };
+  if (!locked) {
+    const length =
+      authoredDuration ?? (derivedDuration > 0 ? derivedDuration : undefined);
+    if (typeof length === 'number' && length > 0) trackTiming.duration = length;
+  }
+  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
+    trackTiming.startOffset = legacy.startOffset;
+  }
+  const trackName =
+    typeof params.trackName === 'string' && params.trackName.trim()
+      ? params.trackName.trim()
+      : 'second-counter';
 
   return {
     output: {
-      childrenData: rangeContainers,
+      childrenData: [
+        {
+          id: trackName,
+          componentId: 'BaseLayout',
+          type: sequence ? ('scene' as const) : ('layout' as const),
+          data: {
+            containerProps: {
+              className: 'absolute inset-0',
+            },
+          },
+          context: {
+            timing: trackTiming,
+          },
+          childrenData: rangeContainers,
+        },
+      ],
     },
     options: {
       attachedToId: 'BaseScene',
@@ -360,8 +476,12 @@ const presetMetadata: PresetMetadata = {
     'Displays a counter (1, 2, 3...) for each second within specified time ranges. Supports multiple ranges, reverse counting, and customizable positioning, fonts, and styling.',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: ['counter', 'timer', 'overlay', 'text'],
   defaultInputParams: {
+    trackName: 'second-counter',
+    trackType: 'aligned',
+    start: 0,
     rangeString: '00:00-09:00',
     isReverse: false,
     font: 'Inter:600',
@@ -376,6 +496,31 @@ const presetMetadata: PresetMetadata = {
     },
   },
 };
+
+/** Bring saved second-counter input onto lock / sequence / aligned timing. */
+export function migrateSecondCounterInputData<T>(data: T): T {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+  const next: Record<string, unknown> = {
+    ...(data as Record<string, unknown>),
+  };
+  let changed = applyLegacyTrackTiming(next, 'aligned');
+  const joined = joinRangeList(next.ranges);
+  const current =
+    typeof next.rangeString === 'string' ? next.rangeString.trim() : '';
+  if (!current && joined) {
+    next.rangeString = joined;
+    changed = true;
+  }
+  if ('ranges' in next) {
+    delete next.ranges;
+    changed = true;
+  }
+  if (typeof next.trackName !== 'string' || !next.trackName.trim()) {
+    next.trackName = 'second-counter';
+    changed = true;
+  }
+  return changed ? (next as T) : data;
+}
 
 const presetFunction = presetExecution.toString();
 const presetParamsSchema = z.toJSONSchema(presetParams);

@@ -28,13 +28,16 @@ import { toast } from 'sonner';
 import type { Timeline } from './project-store';
 import { Preset, DatabasePreset } from '@/components/editor/presets/types';
 import {
+  BASE_SCENE_RENDER_ID,
   compileOrder,
   loadInstanceTree,
   VIRTUAL_ROOT_ID,
 } from '@/components/editor_main/timing/load-instance-tree';
 import { resolveTiming } from '@/components/editor_main/timing/resolve-timing';
+import type { AppliedNode } from '@/components/editor_main/timing/types';
 import {
   collectIntrinsicDurations,
+  fittedDuration,
   stampInstanceTiming,
 } from '@/components/editor_main/timing/stamp-timing';
 
@@ -367,6 +370,33 @@ function applyDurationPropagation(
   };
 }
 
+/**
+ * Composition length is the resolved base scene. Stored `fitDurationTo` is dropped.
+ */
+function applySceneDuration(
+  composition: InputCompositionProps,
+  tree: AppliedNode,
+  intrinsicDurations?: Record<string, number>,
+): InputCompositionProps {
+  const config = { ...(composition.config ?? {}) };
+  delete config.fitDurationTo;
+  const span = resolveTiming(tree, { intrinsicDurations }).nodes.get(tree.id);
+  const resolved =
+    span && span.duration > 0 ? span.absoluteStart + span.duration : undefined;
+  const authored =
+    typeof config.duration === 'number' && config.duration > 0
+      ? config.duration
+      : undefined;
+  const duration = resolved ?? authored;
+  return {
+    ...composition,
+    config: {
+      ...config,
+      ...(duration !== undefined ? { duration } : {}),
+    },
+  };
+}
+
 // Default composition props
 const defaultInputProps: InputCompositionProps = {
   childrenData: AudioScene.childrenData as RenderableComponentData[],
@@ -660,7 +690,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         if (node.presetId === 'scene') {
           baseComposition = insertSceneContainer(
             baseComposition,
-            { id: node.id, arrangement: node.arrangement },
+            { id: node.id, arrangement: node.arrangement, input: node.input },
             parentRenderId,
           );
           processedCount++;
@@ -761,6 +791,7 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         instanceTree,
         resolveTiming(instanceTree).nodes,
       );
+      baseComposition = applySceneDuration(baseComposition, instanceTree);
 
       set({
         generatedOutput: baseComposition,
@@ -795,8 +826,8 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           });
 
           // Apply duration propagation on the props produced by calculateCompositionLayoutMetadata
-          // so that fitDurationTo-based durations and parent/child propagation are reflected
-          // in the final calculatedMetadata used by the editor.
+          // so parent/child durations are reflected in the editor. The composition
+          // length is the resolved base scene, never fitDurationTo.
           if (metadata?.props) {
             const patchedProps = applyDurationPropagation(
               metadata.props as unknown as InputCompositionProps,
@@ -805,14 +836,31 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             const intrinsic = collectIntrinsicDurations(
               patchedProps.childrenData as never,
             );
+            const withSceneDuration = applySceneDuration(
+              patchedProps,
+              instanceTree,
+              intrinsic,
+            );
             stampInstanceTiming(
-              patchedProps.childrenData,
+              withSceneDuration.childrenData,
               instanceTree,
               resolveTiming(instanceTree, { intrinsicDurations: intrinsic }).nodes,
             );
+            // The stamped base scene includes clips whose length was probed
+            // after the first clock was taken. Prefer that span.
+            const duration =
+              fittedDuration(withSceneDuration.childrenData as never, BASE_SCENE_RENDER_ID) ??
+              withSceneDuration.config?.duration;
+            const fps = withSceneDuration.config?.fps ?? metadata.fps ?? 30;
             metadata = {
               ...metadata,
-              props: patchedProps as any,
+              ...(typeof duration === 'number' && duration > 0
+                ? {
+                    duration,
+                    durationInFrames: Math.round(duration * fps),
+                  }
+                : {}),
+              props: withSceneDuration as any,
             };
           }
 

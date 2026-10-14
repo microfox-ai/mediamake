@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Trash2, Play, Loader2, RefreshCw, GripVertic
 import { useState, useEffect } from "react";
 import { Preset, DatabasePreset, PresetInputData, AppliedPresetsState, AppliedPreset, DefaultPresetData } from "./types";
 import { SchemaForm } from "./form/schema-form";
-import { collectTrackNamesFromPresets } from "./form/collect-track-names";
+import { collectLockTargetNames, collectTrackNamesFromPresets } from "./form/collect-track-names";
 import { usePresetContext } from "./preset-provider";
 import { OutputCard } from "./output-card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -49,6 +49,7 @@ interface SortablePresetItemProps {
     onToggleDisabled: (id: string) => void;
     availableReferences?: string[];
     availableTrackNames?: string[];
+    lockTargetNames?: string[];
     defaultData?: any;
 }
 
@@ -62,6 +63,7 @@ function SortablePresetItem({
     onToggleDisabled,
     availableReferences = [],
     availableTrackNames = [],
+    lockTargetNames = [],
     defaultData
 }: SortablePresetItemProps) {
     const {
@@ -185,6 +187,7 @@ function SortablePresetItem({
                             className=""
                             availableReferences={availableReferences}
                             availableTrackNames={availableTrackNames}
+                            lockTargetNames={lockTargetNames}
                             baseData={createBaseDataFromReferences(defaultData.references)}
                         />
                     </CardContent>
@@ -707,7 +710,18 @@ export function PresetList({
                             items={appliedPresets.presets.map(preset => preset.id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {appliedPresets.presets.map((appliedPreset) => (
+                            {appliedPresets.presets.map((appliedPreset) => {
+                                const timelineLike = {
+                                    presets: appliedPresets.presets.map((preset) => ({
+                                        id: preset.id,
+                                        label: preset.preset.metadata.title,
+                                        presetId: preset.preset.metadata.id,
+                                        presetType: preset.preset.metadata.presetType,
+                                        presetInputData: preset.inputData,
+                                        disabled: preset.disabled,
+                                    })),
+                                };
+                                return (
                                 <SortablePresetItem
                                     key={appliedPreset.id}
                                     appliedPreset={appliedPreset}
@@ -723,9 +737,11 @@ export function PresetList({
                                             presetInputData: p.inputData,
                                         })),
                                     )}
+                                    lockTargetNames={collectLockTargetNames(timelineLike, appliedPreset.id)}
                                     defaultData={defaultData}
                                 />
-                            ))}
+                                );
+                            })}
                         </SortableContext>
                     </DndContext>
 

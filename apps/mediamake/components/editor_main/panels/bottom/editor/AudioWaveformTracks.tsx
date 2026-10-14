@@ -7,7 +7,10 @@ import {
   generateBrowserWaveform,
   type BrowserWaveformResult,
 } from "@/lib/browser-waveform";
-import type { TimelineAudioClip } from "@/components/editor/presets/actions/engine/find-audio-media";
+import {
+  packAudioClips,
+  type TimelineAudioClip,
+} from "@/components/editor/presets/actions/engine/find-audio-media";
 
 const DEFAULT_ROW_HEIGHT = 40;
 
@@ -171,24 +174,9 @@ function AudioWaveformClip({
   );
 }
 
-function groupClips(clips: TimelineAudioClip[]) {
-  const map = new Map<string, TimelineAudioClip[]>();
-  for (const clip of clips) {
-    const key = clip.src;
-    const list = map.get(key) ?? [];
-    list.push(clip);
-    map.set(key, list);
-  }
-  return Array.from(map.entries()).map(([key, items]) => ({
-    key,
-    label: items[0]?.trackName || items[0]?.name || "Audio",
-    items,
-  }));
-}
-
 /**
- * Renders one read-only waveform track row per unique audio src,
- * peaks decoded locally in the browser via Web Audio.
+ * Read-only waveform rows. Non-overlapping clips share one row.
+ * Peaks are decoded locally in the browser via Web Audio.
  */
 export function AudioWaveformTracks({
   clips,
@@ -203,7 +191,7 @@ export function AudioWaveformTracks({
   labelWidth?: number;
   renderLabels?: boolean;
 }) {
-  const grouped = useMemo(() => groupClips(clips), [clips]);
+  const grouped = useMemo(() => packAudioClips(clips), [clips]);
 
   if (grouped.length === 0) return null;
 
@@ -237,7 +225,7 @@ export function AudioWaveformTrackLabels({
   clips: TimelineAudioClip[];
   rowHeight?: number;
 }) {
-  const grouped = useMemo(() => groupClips(clips), [clips]);
+  const grouped = useMemo(() => packAudioClips(clips), [clips]);
 
   if (grouped.length === 0) return null;
 
