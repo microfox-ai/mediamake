@@ -1372,6 +1372,7 @@ const presetMetadata: PresetMetadata = {
     'Apply loop motion, per-image transitions, shake, and beat-synchronized effects to images',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: ['image', 'effects', 'visual', 'animation', 'beat', 'audio'],
   dependencies: {
     presets: ['beatZoomEffect', 'beatShakeEffect', 'beatExposureEffect'],

@@ -16,6 +16,12 @@ export interface PresetMetadata {
   description?: string;
   type: 'predefined' | 'database';
   presetType: 'children' | 'data' | 'context' | 'effects' | 'full';
+  /**
+   * scene — may contain nested presets.
+   * track — timed leaf (media, captions, waveform).
+   * modifier — effect/data/context, not a timeline span.
+   */
+  role?: 'scene' | 'track' | 'modifier';
   targetId?: string; // For inserting into specific component
   tags?: string[];
   createdAt?: Date;

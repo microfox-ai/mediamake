@@ -2716,6 +2716,7 @@ const presetMetadata: PresetMetadata = {
     'Kinetic Subtitle with configurable layout (horizontal or vertical) and smooth melodic animations including fade-blur, wave-breathing, color-flow, and gentle drift effects perfect for melodic content',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: [
     'captions',
     'subtitles',

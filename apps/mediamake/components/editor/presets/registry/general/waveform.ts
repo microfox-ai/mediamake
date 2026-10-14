@@ -616,6 +616,7 @@ const presetMetadata: PresetMetadata = {
     'Create animated or static waveform visualizations with customizable colors, styling, and effects',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: ['audio', 'waveform', 'visualization', 'animation', 'music'],
   defaultInputParams: {
     trackName: 'waveform-track',

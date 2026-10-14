@@ -12,6 +12,7 @@ import {
   collectTimelineTrackSources,
   timelineFromSelection,
 } from "./timeline-track-sources";
+import { InstanceTimingSection } from "./sections/InstanceTimingSection";
 import { PresetTracksSection } from "./sections/PresetTracksSection";
 import { CaptionsTracksSection } from "./sections/CaptionsTracksSection";
 import { ActionTracksSection } from "./sections/ActionTracksSection";
@@ -94,6 +95,7 @@ export function TimelineOverviewContent() {
       audioClips={audioClips}
       emptyMessage="This timeline has no ranges, words, or lines to show."
     >
+      <InstanceTimingSection timeline={effectiveTimeline} order={-1} />
       {sources.map((source, index) => {
         if (source.kind === "preset") {
           return (

@@ -9,6 +9,7 @@ import {
 import {
   runPreset,
   insertPresetToComposition,
+  insertSceneContainer,
 } from '@/components/editor/presets/engine/preset-helpers';
 import {
   buildPresetItemIdByNodeId,
@@ -26,6 +27,16 @@ import AudioScene from '@/components/remotion/test.json';
 import { toast } from 'sonner';
 import type { Timeline } from './project-store';
 import { Preset, DatabasePreset } from '@/components/editor/presets/types';
+import {
+  compileOrder,
+  loadInstanceTree,
+  VIRTUAL_ROOT_ID,
+} from '@/components/editor_main/timing/load-instance-tree';
+import { resolveTiming } from '@/components/editor_main/timing/resolve-timing';
+import {
+  collectIntrinsicDurations,
+  stampInstanceTiming,
+} from '@/components/editor_main/timing/stamp-timing';
 
 /**
  * Preset bodies are stored minified, so a throw from inside one surfaces as
@@ -632,15 +643,35 @@ export const useCompileStore = create<CompileState>((set, get) => ({
         }
       };
 
-      const totalPresets = effectiveTimeline.presets.filter(
-        p => !p.disabled,
-      ).length;
+      const instanceTree = loadInstanceTree(effectiveTimeline);
+      const presetById = new Map(
+        (effectiveTimeline.presets ?? []).map(preset => [preset.id, preset]),
+      );
+      const steps = compileOrder(instanceTree).filter(
+        step =>
+          !step.node.disabled && step.node.presetId !== VIRTUAL_ROOT_ID,
+      );
+      const totalPresets = steps.length;
       let processedCount = 0;
 
-      // Apply all presets in sequence (skip disabled presets)
-      for (const presetItem of effectiveTimeline.presets) {
-        // Skip disabled presets
-        if (presetItem.disabled) {
+      // Walk the instance tree so nested scenes compile under their parent.
+      for (const step of steps) {
+        const { node, parentRenderId } = step;
+        if (node.presetId === 'scene') {
+          baseComposition = insertSceneContainer(
+            baseComposition,
+            { id: node.id, arrangement: node.arrangement },
+            parentRenderId,
+          );
+          processedCount++;
+          set({
+            generationProgress: Math.round((processedCount / Math.max(totalPresets, 1)) * 50),
+          });
+          continue;
+        }
+
+        const presetItem = presetById.get(node.id);
+        if (!presetItem || presetItem.disabled) {
           continue;
         }
 
@@ -715,9 +746,21 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             presetType: actualPreset.metadata.presetType,
             presetItemId: presetItem.id,
             dataItemIds: resolvedInput.dataItemIds,
+            attachToId:
+              parentRenderId && parentRenderId !== 'BaseScene'
+                ? parentRenderId
+                : undefined,
           });
         }
       }
+
+      // Authored spans land on context.timing before media probing, so a
+      // looping VideoAtom keeps its iteration length in srcDuration.
+      stampInstanceTiming(
+        baseComposition.childrenData,
+        instanceTree,
+        resolveTiming(instanceTree).nodes,
+      );
 
       set({
         generatedOutput: baseComposition,
@@ -758,6 +801,14 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             const patchedProps = applyDurationPropagation(
               metadata.props as unknown as InputCompositionProps,
               explicitDurationIds,
+            );
+            const intrinsic = collectIntrinsicDurations(
+              patchedProps.childrenData as never,
+            );
+            stampInstanceTiming(
+              patchedProps.childrenData,
+              instanceTree,
+              resolveTiming(instanceTree, { intrinsicDurations: intrinsic }).nodes,
             );
             metadata = {
               ...metadata,

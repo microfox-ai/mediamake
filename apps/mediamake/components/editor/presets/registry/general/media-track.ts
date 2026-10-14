@@ -1017,16 +1017,16 @@ const presetExecution = (
             containerProps,
           },
           context: {
-            timing:
-              params.trackType === 'aligned' || params.trackType === 'random'
-                ? {
-                    start: params.trackStartOffset ?? 0,
-                    duration: params.trackDuration,
-                    fitDurationTo: params.trackFitDurationTo ?? 'this',
-                  }
-                : {
-                    start: params.trackStartOffset ?? 0,
-                  },
+            timing: {
+              start: params.trackStartOffset ?? 0,
+              ...(typeof params.trackDuration === 'number' &&
+              params.trackDuration > 0
+                ? { duration: params.trackDuration }
+                : {}),
+              ...(params.trackFitDurationTo
+                ? { fitDurationTo: params.trackFitDurationTo }
+                : {}),
+            },
           },
           childrenData: scenes ?? [],
         },
@@ -1046,6 +1046,7 @@ const _presetMetadata: PresetMetadata = {
     'Tracks multiple media items together in sequence with customizable aspect ratio',
   type: 'predefined',
   presetType: 'children',
+  role: 'track',
   tags: ['media', 'track', 'sequence', 'aspect-ratio'],
   defaultInputParams: {
     mediaItems: {

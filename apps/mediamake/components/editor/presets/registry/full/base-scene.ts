@@ -74,10 +74,15 @@ const presetExecution = (
     params.clip?.duration && params.clip?.duration > 0
       ? {}
       : { fitDurationTo: 'BaseScene' };
-  const fitDuarationToData =
-    params.clip?.duration && params.clip?.duration > 0
-      ? {}
-      : { fitDurationTo: fitDurationTo ?? 'this' };
+  const externalFit =
+    fitDurationTo &&
+    fitDurationTo !== 'this' &&
+    fitDurationTo !== 'fill' &&
+    fitDurationTo !== 'parent' &&
+    fitDurationTo !== 'BaseScene'
+      ? fitDurationTo
+      : undefined;
+  const fitDuarationToData = externalFit ? { fitDurationTo: externalFit } : {};
 
   const start = params.clip?.start ? -params.clip.start : 0;
   const durationData =
@@ -137,6 +142,7 @@ const presetMetadata: PresetMetadata = {
   description: 'A base scene with a background color',
   type: 'predefined',
   presetType: 'full',
+  role: 'scene',
   tags: ['base', 'scene'],
   defaultInputParams: {
     backgroundColor: 'black',

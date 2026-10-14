@@ -24,6 +24,8 @@ interface TimelineDocument {
   configuration?: any;
   defaultData?: any;
   presets?: TimelinePreset[];
+  /** Preset instance tree (scenes and tracks). */
+  nodes?: unknown;
   /** One-shot / manually re-runnable generators linked to presets or references. */
   actions?: any[];
   /** Monotonically incrementing counter — used for optimistic locking on publish. */
@@ -58,6 +60,7 @@ function mapTimeline(d: any) {
     configuration: d.configuration,
     defaultData: d.defaultData,
     presets: d.presets,
+    nodes: d.nodes,
     actions: d.actions ?? [],
     version: d.version ?? 0,
     lastClientId: d.lastClientId ?? 'unknown',
@@ -352,6 +355,7 @@ export async function POST(request: NextRequest) {
           configuration: sourceTimeline.configuration,
           defaultData: sourceTimeline.defaultData,
           presets: sourceTimeline.presets,
+          nodes: sourceTimeline.nodes,
           actions: sourceTimeline.actions ?? [],
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -514,6 +518,7 @@ export async function PUT(request: NextRequest) {
       if (updates.configuration !== undefined) updateData.configuration = updates.configuration;
       if (updates.defaultData !== undefined) updateData.defaultData = updates.defaultData;
       if (updates.presets !== undefined) updateData.presets = updates.presets;
+      if (updates.nodes !== undefined) updateData.nodes = updates.nodes;
       if (updates.actions !== undefined) updateData.actions = updates.actions;
       // Bump version + record publisher only when a version was supplied (i.e. a
       // managed publish). Legacy callers that omit `version` keep last-write-wins.

@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import type { Timeline } from './project-store';
+import type { NodeTiming } from '@/components/editor_main/timing/types';
+import {
+  loadInstanceTree,
+  mapNodeTiming,
+  reparentNode,
+} from '@/components/editor_main/timing/load-instance-tree';
 import { DatabasePreset, Preset as PresetType } from '@/components/editor/presets/types';
 import {
   getUnsyncedTimelineIds,
@@ -80,6 +86,8 @@ interface TimelineEditsState {
   updatePresetLabel: (timelineId: string, presetId: string, label: string) => void;
   updatePresetInputData: (timelineId: string, presetId: string, inputData: any) => void;
   updatePresetDisabled: (timelineId: string, presetId: string, disabled: boolean) => void;
+  updateNodeTiming: (timelineId: string, nodeId: string, timing: NodeTiming) => void;
+  reparentInstanceNode: (timelineId: string, nodeId: string, parentId: string) => void;
   updateTimelineConfig: (timelineId: string, config: any) => void;
   updateTimelineDefaultData: (timelineId: string, defaultData: any) => void;
   addPresetToTimeline: (timelineId: string, preset: PresetType | DatabasePreset) => void;
@@ -438,6 +446,15 @@ let _tlPreviewBackup:
   | { timelineId: string; edited: Timeline | undefined; loaded: Timeline | null; isDirty: boolean }
   | null = null;
 
+function resolveTimelineForEdit(timelineId: string): Timeline | undefined {
+  const edited = useTimelineEditsStore.getState().editedTimelines.get(timelineId);
+  if (edited) return edited;
+  const { useProjectStore } = require('./project-store');
+  const projectState = useProjectStore.getState();
+  if (projectState.loadedTimeline?.id === timelineId) return projectState.loadedTimeline;
+  return projectState.timelines.find((timeline: Timeline) => timeline.id === timelineId);
+}
+
 export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
   // Initialize from storage if available
   const stored = loadFromStorage(null);
@@ -645,6 +662,20 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       ) || [];
       
       get().updateTimeline(timelineId, { presets: updatedPresets });
+    },
+
+    updateNodeTiming: (timelineId, nodeId, timing) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return;
+      const nodes = mapNodeTiming(loadInstanceTree(timeline), nodeId, timing);
+      get().updateTimeline(timelineId, { nodes }, `timing:${nodeId}`);
+    },
+
+    reparentInstanceNode: (timelineId, nodeId, parentId) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return;
+      const nodes = reparentNode(loadInstanceTree(timeline), nodeId, parentId);
+      get().updateTimeline(timelineId, { nodes }, `reparent:${nodeId}`);
     },
 
     updateTimelineConfig: (timelineId, config) => {
@@ -1077,6 +1108,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           configuration: editedTimeline.configuration,
           defaultData: editedTimeline.defaultData,
           presets: editedTimeline.presets,
+          nodes: editedTimeline.nodes,
           actions: editedTimeline.actions ?? [],
         };
         

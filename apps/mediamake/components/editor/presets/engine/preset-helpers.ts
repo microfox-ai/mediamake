@@ -327,6 +327,8 @@ export const insertPresetToComposition = (
     /** Timeline preset item id; used to tag output nodes for "not in sync" indicator. */
     presetItemId?: string;
     dataItemIds?: string[];
+    /** When set, children presets attach here instead of their own attachedToId. */
+    attachToId?: string;
   },
 ) => {
   // Extract the output data from the new PresetOutput structure
@@ -385,7 +387,7 @@ export const insertPresetToComposition = (
     }
 
     // Find the target component to attach to based on options.attachedToId
-    const targetId = outputOptions?.attachedToId || 'BaseScene';
+    const targetId = options.attachToId || outputOptions?.attachedToId || 'BaseScene';
     let targetComponents = findMatchingComponents(data.childrenData, [
       targetId,
     ]);
@@ -531,3 +533,32 @@ export const insertPresetToComposition = (
   }
   return data;
 };
+
+/** Insert an empty scene container. Nested presets attach to `node.id`. */
+export function insertSceneContainer(
+  data: InputCompositionProps,
+  node: { id: string; arrangement?: 'sequence' | 'aligned' },
+  parentRenderId: string | null,
+): InputCompositionProps {
+  const container = {
+    id: node.id,
+    componentId: 'BaseLayout',
+    type: node.arrangement === 'sequence' ? 'scene' : 'layout',
+    data: {},
+    context: { timing: { start: 0 } },
+    childrenData: [],
+    _presetItemId: node.id,
+  } as RenderableComponentData;
+
+  if (!data.childrenData || data.childrenData.length === 0 || !parentRenderId) {
+    data.childrenData = [...(data.childrenData ?? []), container];
+    return data;
+  }
+
+  const matches = findMatchingComponents(data.childrenData, [parentRenderId]);
+  const parent = matches[0] ?? data.childrenData[0];
+  if (parent) {
+    parent.childrenData = [...(parent.childrenData ?? []), container];
+  }
+  return data;
+}

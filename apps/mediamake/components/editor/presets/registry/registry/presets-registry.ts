@@ -21,6 +21,7 @@ import { quotePresentPreset } from '../complex_untested/quote-present';
 import { thinkerVisualsPreset } from '../complex_untested/thinker-visuals';
 import { textbasePreset } from '../demo/textbase';
 import { baseScenePreset } from '../full/base-scene';
+import { scenePreset } from '../full/scene';
 import { videoStitchPreset } from '../full/video-stitch';
 import { waveformPreset } from '../full/waveform-full';
 import { beatstitchPreset } from '../general/beatstitch';
@@ -41,6 +42,7 @@ import { hipHopScratchWipePreset } from '../private2/hip-hop-scratch-wipe';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
+  scenePreset,
   customThemeBackgroundPreset,
   mediaTrackPreset,
   waveformPreset,

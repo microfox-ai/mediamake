@@ -288,6 +288,7 @@ export function mergeTimelines(
       displayName: local.displayName ?? remote.displayName,
       description: local.description ?? remote.description,
       presets: mergedPresets,
+      nodes: local.nodes ?? remote.nodes,
       actions: mergedActions,
       configuration: pickConfig(),
       defaultData: pickDefault(),
