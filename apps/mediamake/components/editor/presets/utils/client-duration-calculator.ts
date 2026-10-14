@@ -1,4 +1,8 @@
-import { InputCompositionProps, RenderableComponentData } from "@microfox/remotion";
+import {
+  InputCompositionProps,
+  RenderableComponentData,
+  resolveLoopSrcDuration,
+} from "@microfox/remotion";
 import { ALL_FORMATS, Input, UrlSource } from "mediabunny";
 
 // Cache for media duration calculations to avoid redundant work
@@ -263,9 +267,16 @@ export async function setDurationsInContextClient(
           updatedComponent.componentId === "VideoAtom" ||
           updatedComponent.componentId === "AudioAtom"
         ) {
+          // Same rule as setDurationsInContext: a timeline range stored as
+          // srcDuration is not a loop period. Probe the file and keep srcDuration
+          // only when it is a shorter slice of that file.
+          const loops = Boolean(updatedComponent.data?.loop);
+          const existingSrcDuration =
+            typeof updatedComponent.data?.srcDuration === "number"
+              ? updatedComponent.data.srcDuration
+              : undefined;
           const needsDurationCalculation =
-            !updatedComponent.context?.timing?.duration ||
-            (updatedComponent.data?.loop && !updatedComponent.data?.srcDuration);
+            !updatedComponent.context?.timing?.duration || loops;
 
           let mediaDuration: number | undefined;
           if (needsDurationCalculation) {
@@ -274,24 +285,40 @@ export async function setDurationsInContextClient(
             mediaDuration = updatedComponent.context?.timing?.duration;
           }
 
-          if (mediaDuration === undefined) {
+          const loopSrcDuration = loops
+            ? resolveLoopSrcDuration(
+                existingSrcDuration,
+                mediaDuration,
+                root.config?.fps ?? 30
+              )
+            : undefined;
+
+          if (mediaDuration === undefined && loopSrcDuration === undefined) {
             // Skip - backend will handle
           } else if (!updatedComponent.context?.timing?.fitDurationTo) {
             updatedComponent.context = {
               ...(updatedComponent.context || {}),
               timing: {
                 ...(updatedComponent.context?.timing || {}),
-                duration: updatedComponent.context?.timing?.duration ?? mediaDuration,
+                duration:
+                  updatedComponent.context?.timing?.duration ?? mediaDuration,
               },
             };
             const componentData = updatedComponent.data || {};
-            if (componentData.loop) {
-              updatedComponent.data = { ...componentData, srcDuration: mediaDuration };
+            if (loopSrcDuration !== undefined) {
+              updatedComponent.data = {
+                ...componentData,
+                srcDuration: loopSrcDuration,
+              };
             }
           } else if (updatedComponent.context?.timing?.fitDurationTo) {
             updatedComponent.data = {
               ...(updatedComponent.data || {}),
-              srcDuration: mediaDuration,
+              ...(loopSrcDuration !== undefined
+                ? { srcDuration: loopSrcDuration }
+                : mediaDuration !== undefined
+                  ? { srcDuration: mediaDuration }
+                  : {}),
             };
           }
         }

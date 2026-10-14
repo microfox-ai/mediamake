@@ -873,10 +873,8 @@ const presetExecution = (
           playbackRate: mediaItem.playbackRate ?? 1,
           style: visualStyle(mediaItem),
           startFrom: mediaItem.startCropVideo ?? 0,
-          ...(timeRange &&
-            !mediaItem.duration && {
-              srcDuration: timeRange.duration,
-            }),
+          // The range is how long the clip stays on the timeline. srcDuration
+          // is one loop of the source file, filled in when durations are resolved.
         } as VideoAtomDataProps,
         context: {
           timing: {

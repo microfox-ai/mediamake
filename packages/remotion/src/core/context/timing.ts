@@ -45,6 +45,29 @@ const durationCache = new Map<string, Promise<number | undefined>>();
  * Same src with same trim/playback settings should use the same cache entry
  * Uses explicit 'undefined' string to distinguish between 0 and undefined values
  */
+/**
+ * One loop iteration, in seconds.
+ * A srcDuration shorter than the file loops that slice.
+ * A srcDuration longer than the file is a timeline range copied onto the
+ * atom. Looping for that long holds the last frame in a cloud render, while
+ * preview hides it with the browser's native loop.
+ */
+export function resolveLoopSrcDuration(
+  existing: number | undefined,
+  measured: number | undefined,
+  fps = 30
+): number | undefined {
+  const measuredOk =
+    typeof measured === 'number' && Number.isFinite(measured) && measured > 0;
+  const existingOk =
+    typeof existing === 'number' && Number.isFinite(existing) && existing > 0;
+  if (!measuredOk) return existingOk ? existing : undefined;
+  if (!existingOk) return measured;
+  const frame = 1 / Math.max(fps, 1);
+  if (existing + frame < measured) return existing;
+  return measured;
+}
+
 const getDurationCacheKey = (
   src: string,
   startFrom?: number,
@@ -395,20 +418,46 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
           updatedComponent.componentId === 'VideoAtom' ||
           updatedComponent.componentId === 'AudioAtom'
         ) {
-          // Only calculate duration if:
-          // 1. We don't have a duration in context yet, OR
-          // 2. We need srcDuration for looping (even if duration exists)
+          // Timeline duration is how long the clip is visible. A loop iteration
+          // is the source length. Always probe when looping: a range previously
+          // stored as srcDuration is longer than the file and the cloud render
+          // holds the last frame until that range ends.
+          const loops = Boolean(updatedComponent.data?.loop);
+          const existingSrcDuration =
+            typeof updatedComponent.data?.srcDuration === 'number'
+              ? updatedComponent.data.srcDuration
+              : undefined;
           const needsDurationCalculation =
-            !updatedComponent.context?.timing?.duration ||
-            (updatedComponent.data?.loop && !updatedComponent.data?.srcDuration);
+            !updatedComponent.context?.timing?.duration || loops;
 
           let mediaDuration: number | undefined;
 
           if (needsDurationCalculation) {
-            mediaDuration = await calculateComponentDuration(updatedComponent);
+            try {
+              mediaDuration = await calculateComponentDuration(updatedComponent);
+            } catch (error) {
+              // A loop can still fall back to the stored srcDuration. A clip
+              // with no duration at all cannot.
+              if (
+                updatedComponent.context?.timing?.duration ||
+                existingSrcDuration !== undefined
+              ) {
+                mediaDuration = undefined;
+              } else {
+                throw error;
+              }
+            }
           } else {
             mediaDuration = updatedComponent.context?.timing?.duration;
           }
+
+          const loopSrcDuration = loops
+            ? resolveLoopSrcDuration(
+                existingSrcDuration,
+                mediaDuration,
+                root.config?.fps ?? 30
+              )
+            : undefined;
 
           if (!updatedComponent.context?.timing?.fitDurationTo) {
             updatedComponent.context = {
@@ -421,14 +470,19 @@ export const setDurationsInContext = async (root: InputCompositionProps) => {
             };
             updatedComponent.data = {
               ...updatedComponent.data,
-              ...(updatedComponent.data.loop && mediaDuration
-                ? { srcDuration: mediaDuration }
+              ...(loopSrcDuration !== undefined
+                ? { srcDuration: loopSrcDuration }
                 : {}),
             };
-          } else if (updatedComponent.context?.timing?.fitDurationTo && mediaDuration) {
+          } else if (
+            updatedComponent.context?.timing?.fitDurationTo &&
+            (loopSrcDuration !== undefined || mediaDuration)
+          ) {
             updatedComponent.data = {
               ...updatedComponent.data,
-              srcDuration: mediaDuration,
+              ...(loopSrcDuration !== undefined
+                ? { srcDuration: loopSrcDuration }
+                : { srcDuration: mediaDuration }),
             };
           }
         }

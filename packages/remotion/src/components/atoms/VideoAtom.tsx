@@ -5,7 +5,7 @@ import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { z } from 'zod';
 import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
-import { calculateComponentDuration } from '../../core';
+import { calculateComponentDuration, resolveLoopSrcDuration } from '../../core';
 
 // ============================================================================
 // TYPES & SCHEMAS
@@ -41,10 +41,10 @@ interface VideoAtomProps extends BaseRenderableProps {
 }
 
 /**
- * Measures the source so a loop iteration matches it: a loop longer than the
- * source leaves the element on its last frame until the next iteration seeks it
- * back. `srcDuration` stays authoritative — this only measures when it is
- * absent, and otherwise warns when the two disagree.
+ * Measures the source so a loop iteration matches it. A srcDuration longer
+ * than the file (a timeline range copied onto the atom) holds the last frame
+ * in a cloud render. Preview hides that with the browser's native loop.
+ * A shorter srcDuration still loops that slice of a longer file.
  */
 const useMeasuredSrcDuration = (
     data: VideoAtomDataProps,
@@ -53,13 +53,12 @@ const useMeasuredSrcDuration = (
     warnOnMismatch: boolean
 ): number | undefined => {
     const { loop, srcDuration, src, startFrom, endAt, playbackRate } = data;
-    const isNeeded = needsLoopPeriod && srcDuration === undefined;
     const [measured, setMeasured] = useState<number | undefined>(undefined);
 
     // Claimed during the first render, not in the effect, so a render can never
     // capture the frame before the measurement is in.
     const [handle] = useState<number | null>(() =>
-        isNeeded ? delayRender(`VideoAtom: measuring duration of ${src}`) : null
+        needsLoopPeriod ? delayRender(`VideoAtom: measuring duration of ${src}`) : null
     );
     const releasedRef = useRef(false);
     const release = useCallback(() => {
@@ -70,8 +69,11 @@ const useMeasuredSrcDuration = (
     }, [handle]);
 
     useEffect(() => {
+        const shouldMeasure =
+            Boolean(loop) &&
+            (needsLoopPeriod || (warnOnMismatch && srcDuration !== undefined));
         // Nothing to measure, and nothing to warn about.
-        if (!loop || (!isNeeded && (!warnOnMismatch || srcDuration === undefined))) {
+        if (!shouldMeasure) {
             release();
             return;
         }
@@ -82,30 +84,35 @@ const useMeasuredSrcDuration = (
             data: { src, startFrom, endAt, playbackRate },
         })
             .then(duration => {
-                if (cancelled || duration === undefined) return;
-                if (isNeeded) {
+                if (cancelled || duration === undefined) {
+                    if (!cancelled && needsLoopPeriod) release();
+                    return;
+                }
+                if (needsLoopPeriod) {
                     setMeasured(duration);
-                } else if (
+                    return;
+                }
+                if (
                     srcDuration !== undefined &&
                     Math.abs(duration - srcDuration) > 1 / fps
                 ) {
                     console.warn(
                         `VideoAtom: srcDuration is ${srcDuration}s but ${src} measures ` +
-                        `${duration.toFixed(3)}s. The loop will stall on the last frame ` +
-                        `for the difference.`
+                        `${duration.toFixed(3)}s.`
                     );
                 }
             })
             // Unreachable or unreadable source: keep the previous behaviour.
-            .catch(() => undefined)
-            .finally(release);
+            .catch(() => {
+                if (needsLoopPeriod) release();
+            });
 
         return () => {
             cancelled = true;
         };
     }, [
         loop,
-        isNeeded,
+        needsLoopPeriod,
         warnOnMismatch,
         src,
         startFrom,
@@ -115,6 +122,12 @@ const useMeasuredSrcDuration = (
         fps,
         release,
     ]);
+
+    // Release only after the measured length is committed, so the captured
+    // frame uses that loop period and not the timeline range.
+    useEffect(() => {
+        if (needsLoopPeriod && measured !== undefined) release();
+    }, [needsLoopPeriod, measured, release]);
 
     // Never leave a render waiting on an unmounted component.
     useEffect(() => release, [release]);
@@ -140,7 +153,7 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
     const environment = useRemotionEnvironment();
     // Outside of rendering the element loops itself: <Loop> restarts the sequence,
     // which seeks the element back every iteration and stalls the player.
-    // Rendering keeps <Loop>, so rendered output is unchanged.
+    // Rendering uses <Loop> with one iteration equal to the source length.
     const loopsNatively = Boolean(data.loop) && !environment.isRendering;
     const measuredSrcDuration = useMeasuredSrcDuration(
         data,
@@ -209,10 +222,14 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
     const videoWithStyles = videoComponent;
 
     if (data.loop && !loopsNatively) {
-        const loopDurationInFrames = data.srcDuration
-            ? data.srcDuration * fps
-            : measuredSrcDuration !== undefined
-                ? Math.max(1, Math.round(measuredSrcDuration * fps))
+        const loopSeconds = resolveLoopSrcDuration(
+            data.srcDuration,
+            measuredSrcDuration,
+            fps
+        );
+        const loopDurationInFrames =
+            loopSeconds !== undefined
+                ? Math.max(1, Math.round(loopSeconds * fps))
                 : context.timing?.durationInFrames;
 
         return (
