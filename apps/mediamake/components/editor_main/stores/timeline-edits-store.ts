@@ -3,10 +3,20 @@ import type { Timeline } from './project-store';
 import type { NodeTiming } from '@/components/editor_main/timing/types';
 import {
   applyTimingToPresetInput,
+  collectSubtreeIds,
   loadInstanceTree,
+  mapNodeDisabled,
   mapNodeTiming,
   moveNode,
 } from '@/components/editor_main/timing/load-instance-tree';
+import { groupSelectedPresets, type GroupSceneSeed } from '@/components/editor_main/timing/group-presets';
+import {
+  copyTrackName,
+  defaultTrackName,
+  presetTrackName,
+  uniqueTrackName,
+  withTrackName,
+} from '@/components/editor_main/timing/preset-track-name';
 import { DatabasePreset, Preset as PresetType } from '@/components/editor/presets/types';
 import {
   getUnsyncedTimelineIds,
@@ -84,7 +94,6 @@ interface TimelineEditsState {
    *   Omit for discrete actions (add/remove/reorder) that should never squash.
    */
   updateTimeline: (timelineId: string, updates: Partial<Timeline>, changeKey?: string) => void;
-  updatePresetLabel: (timelineId: string, presetId: string, label: string) => void;
   updatePresetInputData: (timelineId: string, presetId: string, inputData: any) => void;
   updatePresetDisabled: (timelineId: string, presetId: string, disabled: boolean) => void;
   updateNodeTiming: (timelineId: string, nodeId: string, timing: NodeTiming) => void;
@@ -96,6 +105,8 @@ interface TimelineEditsState {
     parentId: string,
     index?: number,
   ) => boolean;
+  /** Wrap same-parent presets in a new aligned scene. Returns the scene id, or null. */
+  groupPresets: (timelineId: string, ids: string[], seed: GroupSceneSeed) => string | null;
   updateTimelineConfig: (timelineId: string, config: any) => void;
   updateTimelineDefaultData: (timelineId: string, defaultData: any) => void;
   addPresetToTimeline: (
@@ -611,35 +622,6 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       useProjectStore.getState().updateTimeline(timelineId, updates);
     },
 
-    updatePresetLabel: (timelineId, presetId, label) => {
-      const state = get();
-      const timeline = state.editedTimelines.get(timelineId);
-      
-      if (!timeline) {
-        // Get from project store if not in edits
-        const { useProjectStore } = require('./project-store');
-        const projectState = useProjectStore.getState();
-        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
-          ? projectState.loadedTimeline 
-          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
-        
-        if (!originalTimeline) return;
-        
-        const updatedPresets = originalTimeline.presets?.map((p: any) =>
-          p.id === presetId ? { ...p, label } : p
-        ) || [];
-
-        get().updateTimeline(timelineId, { presets: updatedPresets }, `label:${presetId}`);
-        return;
-      }
-
-      const updatedPresets = timeline.presets?.map(p =>
-        p.id === presetId ? { ...p, label } : p
-      ) || [];
-
-      get().updateTimeline(timelineId, { presets: updatedPresets }, `label:${presetId}`);
-    },
-
     updatePresetInputData: (timelineId, presetId, inputData) => {
       const state = get();
       const timeline = state.editedTimelines.get(timelineId);
@@ -669,31 +651,16 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
     },
 
     updatePresetDisabled: (timelineId, presetId, disabled) => {
-      const state = get();
-      const timeline = state.editedTimelines.get(timelineId);
-      
-      if (!timeline) {
-        const { useProjectStore } = require('./project-store');
-        const projectState = useProjectStore.getState();
-        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
-          ? projectState.loadedTimeline 
-          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
-        
-        if (!originalTimeline) return;
-        
-        const updatedPresets = originalTimeline.presets?.map((p: any) =>
-          p.id === presetId ? { ...p, disabled } : p
-        ) || [];
-        
-        get().updateTimeline(timelineId, { presets: updatedPresets });
-        return;
-      }
-      
-      const updatedPresets = timeline.presets?.map(p =>
-        p.id === presetId ? { ...p, disabled } : p
-      ) || [];
-      
-      get().updateTimeline(timelineId, { presets: updatedPresets });
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return;
+      const ids = new Set(collectSubtreeIds(loadInstanceTree(timeline), presetId));
+      const presets = (timeline.presets ?? []).map((preset) =>
+        ids.has(preset.id) ? { ...preset, disabled } : preset,
+      );
+      const nodes = timeline.nodes
+        ? mapNodeDisabled(timeline.nodes, ids, disabled)
+        : undefined;
+      get().updateTimeline(timelineId, nodes ? { presets, nodes } : { presets });
     },
 
     updateNodeTiming: (timelineId, nodeId, timing) => {
@@ -732,6 +699,16 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       get().moveInstanceNode(timelineId, nodeId, parentId);
     },
 
+    groupPresets: (timelineId, ids, seed) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return null;
+      const sceneId = `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const result = groupSelectedPresets(timeline, ids, seed, sceneId);
+      if (!result) return null;
+      get().updateTimeline(timelineId, { presets: result.presets, nodes: result.nodes });
+      return result.sceneId;
+    },
+
     updateTimelineConfig: (timelineId, config) => {
       get().updateTimeline(timelineId, { configuration: config }, 'config');
     },
@@ -749,14 +726,18 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       }
 
       const existingPresets = source.presets || [];
-      const count = existingPresets.filter((item) => item.presetId === metadata.id).length;
+      const defaults = { ...(metadata.defaultInputParams || {}) };
+      const seeded =
+        typeof defaults.trackName === "string" && defaults.trackName.trim()
+          ? defaults.trackName.trim()
+          : defaultTrackName(metadata.title, metadata.id);
+      const trackName = uniqueTrackName(existingPresets, seeded);
       const newPreset = {
         id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        label: count > 0 ? `${metadata.title} (${count + 1})` : metadata.title,
         presetId: metadata.id,
         presetType: metadata.presetType,
         presetInfo: preset as PresetType | DatabasePreset,
-        presetInputData: { ...(metadata.defaultInputParams || {}) },
+        presetInputData: withTrackName(defaults, trackName),
         disabled: false,
       };
       const presets = [...existingPresets, newPreset];
@@ -847,15 +828,17 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       // Find the index of the source preset
       const sourceIndex = allPresets.findIndex((p: any) => p.id === presetId);
       if (sourceIndex === -1) return;
-      
-      // Count how many presets with the same presetId exist
-      const count = allPresets.filter((p: any) => p.presetId === sourcePreset.presetId).length;
-      
-      // Create duplicate preset
+
+      const trackName = copyTrackName(
+        allPresets,
+        presetTrackName(sourcePreset, sourcePreset.presetId),
+      );
+      const { label: _legacyLabel, ...sourceWithoutLabel } = sourcePreset;
+
       const duplicatedPreset = {
-        ...sourcePreset,
+        ...sourceWithoutLabel,
         id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        label: count > 0 ? `${sourcePreset.label} (Copy)` : `${sourcePreset.label} (Copy)`,
+        presetInputData: withTrackName(sourcePreset.presetInputData, trackName),
       };
       
       // Insert duplicate right after the source preset

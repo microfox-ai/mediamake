@@ -16,7 +16,8 @@ import {
   useBlockClipboardStore,
 } from "../stores/block-clipboard-store";
 import { isBottomTimelineSelectionActive } from "../stores/bottom-selection-gate";
-import { isEditorFocusScope } from "../stores/editor-focus-scope";
+import { getEditorFocusScope } from "../stores/editor-focus-scope";
+import { groupSelectedBlocks } from "../panels/left/editor/group-selection";
 
 /**
  * Keyboard shortcuts for selected blocks / references / actions.
@@ -29,13 +30,20 @@ import { isEditorFocusScope } from "../stores/editor-focus-scope";
  * - ⌘/Ctrl+V      paste
  * - ⌥/Alt+C       copy props
  * - ⌥/Alt+V       paste props
+ * - ⌘/Ctrl+G      group same-parent blocks into a scene
  * - Delete / ⌫    delete
  */
 export function useBlockShortcuts() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      // Only while the left panel is the focused scope
-      if (!isEditorFocusScope("left")) return;
+      const scope = getEditorFocusScope();
+      const mod = e.metaKey || e.ctrlKey;
+      const grouping =
+        mod &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (e.key.toLowerCase() === "g" || e.code === "KeyG");
+      if (scope !== "left" && !(grouping && scope === "bottom")) return;
 
       if (
         isEditableKeyboardTarget(e.target) ||
@@ -52,10 +60,23 @@ export function useBlockShortcuts() {
       const canPasteOnTimeline = selected?.type === "timeline";
       if (!isBlockLike && !canPasteOnTimeline) return;
 
-      const mod = e.metaKey || e.ctrlKey;
       const alt = e.altKey && !e.metaKey && !e.ctrlKey;
       const code = e.code;
       const key = e.key;
+
+      if (grouping) {
+        if (selected?.type !== "preset") return;
+        const ids =
+          useEditorStore.getState().selectedPresetIds.length > 0
+            ? useEditorStore.getState().selectedPresetIds
+            : [selected.item.id];
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        groupSelectedBlocks(selected.timeline, ids);
+        return;
+      }
+
+      if (scope !== "left") return;
 
       // Paste works on timeline selection too (insert into that timeline)
       if (mod && !e.shiftKey && (key.toLowerCase() === "v" || code === "KeyV")) {

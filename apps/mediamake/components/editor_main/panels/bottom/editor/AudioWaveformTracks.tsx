@@ -11,6 +11,7 @@ import {
   packAudioClips,
   type TimelineAudioClip,
 } from "@/components/editor/presets/actions/engine/find-audio-media";
+import { COMPACT_ROW_HEIGHT } from "./timeline-layout";
 
 const DEFAULT_ROW_HEIGHT = 40;
 
@@ -151,7 +152,10 @@ function AudioWaveformClip({
 
   return (
     <div
-      className="absolute top-1 bottom-1 rounded border border-violet-500/40 bg-violet-500/10 overflow-hidden"
+      className={cn(
+        "absolute top-1 bottom-1 border border-violet-500/40 bg-violet-500/10 overflow-hidden",
+        rowHeight <= COMPACT_ROW_HEIGHT ? "rounded-none" : "rounded",
+      )}
       style={{ left, width, height: innerH }}
       title={clip.name || clip.trackName || "Audio"}
     >
@@ -242,10 +246,12 @@ export function AudioWaveformTrackLabels({
             <p className="text-[10px] font-semibold truncate" title={group.label}>
               {group.label}
             </p>
-            <p className="text-[9px] text-muted-foreground/50 truncate">
-              waveform · {group.items.length} clip
-              {group.items.length !== 1 ? "s" : ""}
-            </p>
+            {rowHeight <= COMPACT_ROW_HEIGHT ? null : (
+              <p className="text-[9px] text-muted-foreground/50 truncate">
+                waveform · {group.items.length} clip
+                {group.items.length !== 1 ? "s" : ""}
+              </p>
+            )}
           </div>
         </div>
       ))}

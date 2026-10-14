@@ -21,12 +21,13 @@
 
 import {
   GenericEffectData,
-  InputCompositionProps,
   TextAtomData,
 } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
-import { paramMetaTypes } from '../../dataTypes';
+import {
+  definePreset,
+  type TrackShellParams,
+} from '../../define-preset';
 import {
   applyLegacyTrackTiming,
   clockRange,
@@ -40,37 +41,6 @@ interface ShakeEffectData extends GenericEffectData {
 }
 
 const presetParams = z.object({
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the track (used for the ID)'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned'])
-    .default('aligned')
-    .describe(
-      'Lock copies another track. Sequence plays this track in order. Aligned uses start and duration.',
-    ),
-  start: z
-    .number()
-    .default(0)
-    .describe('Start of this track in its parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe(
-      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
-    ),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe('Lock start and duration to a sibling or parent track'),
   // Text content
   text: z.string().describe('Text content to display'),
 
@@ -196,11 +166,11 @@ const presetParams = z.object({
 });
 
 const presetExecution = (
-  params: z.infer<typeof presetParams>,
+  params: z.infer<typeof presetParams> & TrackShellParams,
   props?: {
     helpers?: Record<string, Function>;
   },
-): PresetOutput => {
+) => {
   const {
     text,
     fontFamily,
@@ -239,10 +209,6 @@ const presetExecution = (
     };
   };
   const textAtomId = `text-atom-${generateId()}`;
-  const textContainerId =
-    typeof params.trackName === 'string' && params.trackName.trim()
-      ? params.trackName.trim()
-      : `text-container-${generateId()}`;
   // Calculate responsive font size if enabled
   const getResponsiveFontSize = () => fontSize;
 
@@ -609,126 +575,48 @@ const presetExecution = (
     ...(style?.otherProps ?? {}),
   };
 
+  const legacyRange = parseRange(legacyTransitions?.range);
+  const fallbackDuration =
+    legacyRange?.duration ??
+    (typeof legacyTransitions?.duration === 'number' &&
+    legacyTransitions.duration > 0
+      ? legacyTransitions.duration
+      : undefined);
+
   return {
-    output: {
-      childrenData: [
-        {
-          id: textContainerId,
-          componentId: 'BaseLayout',
-          data: {
-            containerProps: {
-              className: 'absolute inset-0',
-              style: containerStyle,
-            },
-          },
-          type: 'layout' as const,
-          context: {
-            timing: (() => {
-              const legacy = params as {
-                trackType?: string;
-                start?: number;
-                startOffset?: number;
-                duration?: number;
-                lock?: string;
-                trackFitDurationTo?: string;
-                trackStartOffset?: number;
-                trackDuration?: number;
-              };
-              const parsedRange = parseRange(legacyTransitions?.range);
-              const lockTarget =
-                (typeof legacy.lock === 'string' && legacy.lock) ||
-                (typeof legacy.trackFitDurationTo === 'string' &&
-                  legacy.trackFitDurationTo) ||
-                '';
-              const locked =
-                legacy.trackType === 'lockedTo' ||
-                (lockTarget.trim().length > 0 &&
-                  legacy.trackType !== 'sequence' &&
-                  legacy.trackType !== 'aligned');
-              const start =
-                (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
-                  ? legacy.start
-                  : undefined) ??
-                (typeof legacy.trackStartOffset === 'number' &&
-                Number.isFinite(legacy.trackStartOffset)
-                  ? legacy.trackStartOffset
-                  : undefined) ??
-                parsedRange?.startOffset ??
-                legacyTransitions?.startOffset ??
-                0;
-              const duration =
-                (typeof legacy.duration === 'number' && legacy.duration > 0
-                  ? legacy.duration
-                  : undefined) ??
-                (typeof legacy.trackDuration === 'number' &&
-                legacy.trackDuration > 0
-                  ? legacy.trackDuration
-                  : undefined) ??
-                parsedRange?.duration ??
-                (typeof legacyTransitions?.duration === 'number' &&
-                legacyTransitions.duration > 0
-                  ? legacyTransitions.duration
-                  : undefined);
-              const timing: {
-                start: number;
-                duration?: number;
-                startOffset?: number;
-                fitDurationTo?: string;
-              } = { start };
-              if (!locked && typeof duration === 'number') {
-                timing.duration = duration;
-              }
-              if (
-                typeof legacy.startOffset === 'number' &&
-                legacy.startOffset < 0
-              ) {
-                timing.startOffset = legacy.startOffset;
-              }
-              // Older overlays with no length filled the base scene.
-              if (!locked && timing.duration === undefined) {
-                timing.fitDurationTo = 'BaseScene';
-              }
-              return timing;
-            })(),
-          },
-          childrenData: [
-            {
-              id: textAtomId,
-              componentId: 'TextAtom',
-              type: 'atom' as const,
-              effects,
-              data: textAtomData,
-            },
-          ],
-        },
-      ],
+    children: [
+      {
+        id: textAtomId,
+        componentId: 'TextAtom',
+        type: 'atom' as const,
+        effects,
+        data: textAtomData,
+      },
+    ],
+    containerProps: {
+      className: 'absolute inset-0',
+      style: containerStyle,
     },
-    options: {
-      attachedToId: `BaseScene`,
-      attachedContainers: [
-        {
-          className: 'absolute inset-0',
-          style: containerStyle,
-        },
-      ],
-    },
+    start: legacyRange?.startOffset ?? legacyTransitions?.startOffset,
+    duration: fallbackDuration,
   };
 };
 
-const presetMetadata: PresetMetadata = {
+const presetMetadata = {
   id: 'text-overlay',
   title: 'Text Overlay',
   description:
     'A customizable text overlay with positioning, styling, and animation controls',
-  type: 'predefined',
-  presetType: 'children',
-  role: 'track',
+  type: 'predefined' as const,
+  presetType: 'children' as const,
+  role: 'track' as const,
   tags: ['text', 'overlay', 'typography', 'positioning', 'animation'],
   defaultInputParams: {
     trackName: 'text-overlay',
     trackType: 'aligned',
     start: 0,
     duration: 20,
+    attachedToId: 'BaseScene',
     text: 'Your Text Here',
     fontSize: 32,
     fontFamily: 'Inter:600',
@@ -809,13 +697,11 @@ export function migrateTextOverlayInputData<T>(data: T): T {
   return changed ? (next as T) : data;
 }
 
-const presetFunction = presetExecution.toString();
-const presetParamsSchema = z.toJSONSchema(presetParams);
-
-const textOverlayPreset = {
+const textOverlayPreset = definePreset({
+  placement: 'container',
   metadata: presetMetadata,
-  presetFunction: presetFunction,
-  presetParams: presetParamsSchema,
-};
+  params: presetParams,
+  build: presetExecution,
+});
 
 export { textOverlayPreset };

@@ -3,26 +3,23 @@
 import { useMemo, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { AddBlockContextMenuItems } from "@/components/editor_main/panels/left/editor/AddBlockMenu";
+import { hasTrackShell } from "@/components/editor/presets/form/apply-track-mode";
+import { BlockLockBadge } from "../block-lock-badge";
+import { PresetTrackModeControl } from "../track-mode-control";
 import { cn } from "@/lib/utils";
+import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
+import { useEditorStore } from "@/components/editor_main/stores/editor-store";
 import { useTimelineEditsStore } from "@/components/editor_main/stores/timeline-edits-store";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import {
   findNode,
   loadInstanceTree,
-  visibleRows,
 } from "@/components/editor_main/timing/load-instance-tree";
 import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
 import {
@@ -45,20 +42,33 @@ import {
   visibleSpan,
 } from "../media-scene-blocks";
 import { useMediaAtomRows, type MediaAtomSource } from "../media-track-rows";
+import {
+  collectRawRanges,
+  parseEditableSegments,
+} from "../preset-range-utils";
 import { ROW_HEIGHT, TRACK_COLORS, formatTimeLabel } from "../timeline-layout";
+import {
+  blockCornerClass,
+  rowHeightFor,
+  useTimelineDensity,
+} from "../timeline-density";
 import {
   useRegisterTimelineSection,
   type TimelineTrackRow,
 } from "../TimelineShell";
 import { useTimelineViewport } from "../timeline-viewport";
+import {
+  scopeInstanceRows,
+  type TimelineScope,
+} from "../timeline-scope";
 
 const BLOCK_DRAG_TYPE = "application/x-mediamake-block";
 
 interface InstanceTimingSectionProps {
   timeline: Timeline;
   order: number;
-  /** When set, only this block and the blocks inside it are drawn. */
-  focusNodeId?: string;
+  /** Which sequence rows to draw, and whether media clips expand under them. */
+  scope: TimelineScope;
 }
 
 type DragKind = "move" | "left" | "right";
@@ -90,22 +100,65 @@ function summedChildDuration(
   return any ? sum : undefined;
 }
 
-function scenesOf(root: AppliedNode): AppliedNode[] {
-  const scenes: AppliedNode[] = [];
-  const walk = (node: AppliedNode) => {
-    if (node.role === "scene") scenes.push(node);
-    for (const child of node.children) walk(child);
-  };
-  walk(root);
-  return scenes;
+function itemListCount(raw: unknown): number | null {
+  if (Array.isArray(raw)) return raw.length;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const items = (raw as { items?: unknown }).items;
+    if (Array.isArray(items)) return items.length;
+  }
+  return null;
+}
+
+function clipCount(input: unknown): number {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return 0;
+  const record = input as Record<string, unknown>;
+  const media = itemListCount(record.mediaItems);
+  if (media !== null) return media;
+  const images = itemListCount(record.images);
+  if (images !== null) return images;
+  return 0;
+}
+
+function rangeCount(input: unknown): number {
+  return collectRawRanges(input).reduce(
+    (sum, raw) => sum + parseEditableSegments(raw.range).length,
+    0,
+  );
+}
+
+function countLabel(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** Parent scene, then what this row contains. */
+function rowMembership(node: AppliedNode, parent: AppliedNode | null): string | null {
+  const parentName = parent ? trackDisplayName(parent.input, parent.name) : "";
+  const placement = getPredefinedPresetById(node.presetId)?.metadata.placement;
+  let detail = "";
+  if (node.role === "scene") {
+    const scenes = node.children.filter(
+      (child) => child.role === "scene" && !child.disabled,
+    ).length;
+    detail = countLabel(scenes, "scene", "scenes");
+  } else if (placement === "atom") {
+    detail = countLabel(rangeCount(node.input), "range", "ranges");
+  } else if (placement === "container") {
+    detail = `${countLabel(clipCount(node.input), "clip", "clips")}, ${countLabel(rangeCount(node.input), "range", "ranges")}`;
+  }
+  if (parentName && detail) return `(${parentName} | ${detail})`;
+  if (detail) return `(${detail})`;
+  if (parentName) return `(${parentName})`;
+  return null;
 }
 
 /**
  * One row per scene and track. Locked spans cannot be dragged.
  * A drag writes parent-relative start and duration onto the instance.
  */
-export function InstanceTimingSection({ timeline, order, focusNodeId }: InstanceTimingSectionProps) {
+export function InstanceTimingSection({ timeline, order, scope }: InstanceTimingSectionProps) {
   const { secToPx, pixelsPerSecond, totalWidth } = useTimelineViewport();
+  const { compact } = useTimelineDensity();
+  const selectPreset = useEditorStore((s) => s.selectPreset);
   const updateNodeTiming = useTimelineEditsStore((s) => s.updateNodeTiming);
   const updatePresetInputData = useTimelineEditsStore((s) => s.updatePresetInputData);
   const reparentInstanceNode = useTimelineEditsStore((s) => s.reparentInstanceNode);
@@ -125,13 +178,8 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
     () => resolveTiming(tree, { intrinsicDurations }),
     [tree, intrinsicDurations],
   );
-  const rows = useMemo(() => {
-    if (!focusNodeId) return visibleRows(tree);
-    const focus = findNode(tree, focusNodeId);
-    return focus ? visibleRows(focus) : [];
-  }, [tree, focusNodeId]);
+  const rows = useMemo(() => scopeInstanceRows(tree, scope), [tree, scope]);
   const parents = useMemo(() => parentById(tree), [tree]);
-  const scenes = useMemo(() => scenesOf(tree), [tree]);
 
   const [preview, setPreview] = useState<
     Record<string, { start: number; duration: number }>
@@ -154,8 +202,14 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
 
   const minDuration = 1 / Math.max(fps, 1);
 
+  const selectRow = (id: string) => {
+    const preset = timeline.presets?.find((item) => item.id === id);
+    if (preset) selectPreset(preset, timeline);
+  };
+
   const atomSources = useMemo(() => {
     const sources: MediaAtomSource[] = [];
+    if (scope.kind !== "preset" || !scope.expandClips) return sources;
     for (const { node } of rows) {
       if (!presetUsesMediaAtoms(node.presetId)) continue;
       const probed = collectMediaItemDurations(compiledChildren, node.id);
@@ -188,7 +242,7 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
       });
     }
     return sources;
-  }, [rows, compiledChildren, resolved, parents, preview, timeline.id]);
+  }, [scope, rows, compiledChildren, resolved, parents, preview, timeline.id]);
   const atomRows = useMediaAtomRows(atomSources);
 
   const commit = (id: string, timing: NodeTiming) => {
@@ -211,6 +265,12 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
       input: unknown;
     },
   ) => {
+    if (event.detail === 2) {
+      event.preventDefault();
+      event.stopPropagation();
+      selectRow(id);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
@@ -383,7 +443,13 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
           }
         : undefined;
     const rowName = trackDisplayName(node.input, node.name);
-    const rowHeight = node.id !== tree.id && scenes.length > 1 ? 64 : ROW_HEIGHT;
+    const isBaseSceneRow =
+      scope.kind === "scene-children" &&
+      scope.includeTimelineSources &&
+      node.id === scope.sceneId;
+    const membership = compact || isBaseSceneRow ? null : rowMembership(node, parent);
+    const rowHeight = compact || isBaseSceneRow ? rowHeightFor(true) : ROW_HEIGHT;
+    const narrow = rowHeight < ROW_HEIGHT;
     const spanLabel = shown
       ? `${formatTimeLabel(shown.start)}–${formatTimeLabel(shown.start + shown.duration)}${
           mediaOffset < 0 ? ` · head ${formatTimeLabel(-mediaOffset)}` : ""
@@ -400,9 +466,15 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
     };
     const labelBody = (
         <div
-          className="flex min-w-0 flex-col justify-center gap-0.5 border-b border-border/40 bg-background pr-2"
+          className="relative flex min-w-0 flex-col justify-center gap-0.5 border-b border-border/40 bg-background pr-2"
           style={{ height: rowHeight, paddingLeft: 8 + depth * 10 }}
           draggable={node.id !== tree.id}
+          onPointerDown={(event) => {
+            if (event.detail !== 2) return;
+            event.preventDefault();
+            event.stopPropagation();
+            selectRow(node.id);
+          }}
           onDragStart={(event) => {
             if ((event.target as HTMLElement).closest("button")) {
               event.preventDefault();
@@ -434,37 +506,29 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
               : undefined
           }
         >
-          <div className="flex min-w-0 items-center gap-1">
+          <div className={cn("flex min-w-0 items-center gap-1", hasTrackShell(node.input) || isBaseSceneRow ? (isBaseSceneRow ? "pr-[4.25rem]" : "pr-12") : undefined)}>
             {locked ? <Lock className="size-3 shrink-0 text-muted-foreground" /> : null}
             <span className="truncate text-xs cursor-grab" title={note?.message}>
               {rowName}
             </span>
           </div>
-          {node.id !== tree.id && scenes.length > 1 ? (
-            <Select
-              value={parent?.id ?? tree.id}
-              onValueChange={(parentId) => {
-                reparentInstanceNode(timeline.id, node.id, parentId);
-                const latest = getEditedTimeline(timeline.id) || timeline;
-                generateOutput(latest);
-              }}
+          {membership ? (
+            <span
+              className="truncate text-[10px] leading-none text-muted-foreground"
+              title={membership}
             >
-              <SelectTrigger className="h-6 px-1.5 text-[10px]">
-                <SelectValue placeholder="Scene" />
-              </SelectTrigger>
-              <SelectContent>
-                {scenes
-                  .filter(
-                    (scene) =>
-                      scene.id !== node.id && !findNode(node, scene.id),
-                  )
-                  .map((scene) => (
-                    <SelectItem key={scene.id} value={scene.id}>
-                      {trackDisplayName(scene.input, scene.name)}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+              {membership}
+            </span>
+          ) : null}
+          {hasTrackShell(node.input) || isBaseSceneRow ? (
+            <div className="absolute right-0.5 top-0.5 z-10">
+              <PresetTrackModeControl
+                timeline={timeline}
+                presetId={node.id}
+                input={node.input}
+                includeAuto={isBaseSceneRow}
+              />
+            </div>
           ) : null}
         </div>
     );
@@ -497,7 +561,8 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
           {shown ? (
             <div
               className={cn(
-                "absolute top-1.5 bottom-1.5 flex items-center overflow-hidden rounded-md border px-1 text-[10px]",
+                "absolute top-1.5 bottom-1.5 flex items-center overflow-hidden border px-1 text-[10px]",
+                blockCornerClass(narrow, "rounded-md"),
                 color,
                 locked ? "cursor-default opacity-80" : "cursor-grab",
               )}
@@ -510,20 +575,19 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
                   ? `Locked${node.timing.kind === "lock" || node.timing.kind === "durationLock" ? ` to ${node.timing.refId}` : ""}`
                   : note?.message
               }
-              onPointerDown={
-                canMove
-                  ? (event) =>
-                      onPointerDown(
-                        event,
-                        node.id,
-                        "move",
-                        shown.start,
-                        shown.duration,
-                        parentAbsolute,
-                        mediaDrag,
-                      )
-                  : undefined
-              }
+              onPointerDown={(event) => {
+                if (event.detail === 2 || canMove) {
+                  onPointerDown(
+                    event,
+                    node.id,
+                    "move",
+                    shown.start,
+                    shown.duration,
+                    parentAbsolute,
+                    mediaDrag,
+                  );
+                }
+              }}
             >
               {canTrimStart ? (
                 <span
@@ -541,7 +605,8 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
                   }
                 />
               ) : null}
-              <span className="truncate px-2">
+              {locked || sequenced ? <BlockLockBadge /> : null}
+              <span className={cn("truncate px-2", (locked || sequenced) && "pl-4")}>
                 {spanLabel ?? rowName}
               </span>
               {canTrimEnd ? (
@@ -562,7 +627,15 @@ export function InstanceTimingSection({ timeline, order, focusNodeId }: Instance
               ) : null}
             </div>
           ) : (
-            <div className="flex h-full items-center px-2 text-[10px] text-muted-foreground">
+            <div
+              className="flex h-full items-center px-2 text-[10px] text-muted-foreground"
+              onPointerDown={(event) => {
+                if (event.detail !== 2) return;
+                event.preventDefault();
+                event.stopPropagation();
+                selectRow(node.id);
+              }}
+            >
               {note?.message ?? "No duration"}
             </div>
           )}

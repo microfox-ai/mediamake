@@ -27,8 +27,11 @@ import {
   GenericEffectData,
 } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes, paramInputTypes } from '../../dataTypes';
+import {
+  definePreset,
+  type TrackShellParams,
+} from '../../define-preset';
 
 const transitionEffectSchema = z.object({
   id: z.string().optional().describe('Custom transition id'),
@@ -450,43 +453,12 @@ const beatEffectSchema = z.object({
 
 // Main preset parameters schema
 const presetParams = z.object({
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the track ( used for the ID )'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned'])
-    .default('lockedTo')
-    .describe(
-      'Lock copies another track. Sequence plays images in order. Aligned uses start and duration.',
-    ),
-  start: z
-    .number()
-    .default(0)
-    .describe('Start of this track in its parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe(
-      'Duration in seconds. Required for aligned tracks. For a sequence, provide this or perImageDuration.',
-    ),
   perImageDuration: z
     .number()
     .optional()
     .describe(
       'Length of each image in a sequence, in seconds. Required for sequence when duration is empty.',
     ),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe('Lock start and duration to a sibling or parent track'),
   containerObject: z
     .object({
       left: z
@@ -582,13 +554,13 @@ const presetParams = z.object({
 
 // Preset execution function
 const presetExecution = async (
-  params: z.infer<typeof presetParams>,
+  params: z.infer<typeof presetParams> & TrackShellParams,
   props: {
     config: InputCompositionProps['config'];
     presets?: any;
     helpers?: Record<string, Function>;
   },
-): Promise<Partial<PresetOutput>> => {
+) => {
   // After processDataReferences, images may already be a merged array.
   // Before processing (or if unprocessed), it is { mediaRef?, items }.
   const rawImages = (params as any).images;
@@ -1410,81 +1382,34 @@ const presetExecution = async (
     container.width !== undefined ||
     container.height !== undefined;
   const containerClassName = hasPositioning ? 'absolute' : 'absolute inset-0';
-
   const trackTimeRange = parseTimeRange(legacy.trackRange || '');
-  const start =
-    legacy.start ??
-    legacy.trackStartOffset ??
-    trackTimeRange?.start ??
-    0;
   const durationFromRange =
     trackTimeRange && trackTimeRange.end > trackTimeRange.start
       ? trackTimeRange.end - trackTimeRange.start
       : undefined;
-  const duration = authoredDuration ?? durationFromRange;
-  const trackTiming: {
-    start: number;
-    duration?: number;
-    startOffset?: number;
-  } = { start };
-  // A lock takes its length from the target. Sequence and aligned keep an
-  // authored duration when one was written.
-  if (!locked && typeof duration === 'number' && duration > 0) {
-    trackTiming.duration = duration;
-  }
-  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
-    trackTiming.startOffset = legacy.startOffset;
-  }
-
-  // Sequence stacks images in order. Aligned and lock place each image on
-  // its own start, so a range is not a gap after the previous image.
-  const trackLayout = sequence ? ('scene' as const) : ('layout' as const);
 
   return {
-    output: {
-      childrenData: [
-        {
-          id: `${params.trackName}`,
-          componentId: 'BaseLayout',
-          type: trackLayout,
-          data: {
-            containerProps: {
-              className: containerClassName,
-              ...(Object.keys(containerStyle).length > 0
-                ? { style: containerStyle }
-                : {}),
-            },
-          },
-          context: {
-            timing: trackTiming,
-          },
-          childrenData: imageComponents ?? [],
-        },
-      ],
+    children: imageComponents ?? [],
+    containerProps: {
+      className: containerClassName,
+      ...(Object.keys(containerStyle).length > 0
+        ? { style: containerStyle }
+        : {}),
     },
-    options: {
-      attachedToId: `BaseScene`,
-      attachedContainers: [
-        {
-          className: containerClassName,
-          ...(Object.keys(containerStyle).length > 0
-            ? { style: containerStyle }
-            : {}),
-        },
-      ],
-    },
+    start: trackTimeRange?.start,
+    duration: durationFromRange,
   };
 };
 
 // Preset metadata
-const presetMetadata: PresetMetadata = {
+const presetMetadata = {
   id: 'imageloop',
   title: 'imageloop',
   description:
     'Apply loop motion, per-image transitions, shake, and beat-synchronized effects to images',
-  type: 'predefined',
-  presetType: 'children',
-  role: 'track',
+  type: 'predefined' as const,
+  presetType: 'children' as const,
+  role: 'track' as const,
   tags: ['image', 'effects', 'visual', 'animation', 'beat', 'audio'],
   dependencies: {
     presets: ['beatZoomEffect', 'beatShakeEffect', 'beatExposureEffect'],
@@ -1493,6 +1418,7 @@ const presetMetadata: PresetMetadata = {
     trackName: 'imageloop-track',
     trackType: 'lockedTo',
     start: 0,
+    attachedToId: 'BaseScene',
     images: {
       items: [
         {
@@ -1608,13 +1534,12 @@ export function migrateImageLoopInputData<T>(data: T): T {
   return changed ? (next as T) : data;
 }
 
-const presetFunction = presetExecution.toString();
-const presetParamsSchema = z.toJSONSchema(presetParams);
-
-const imageLoopPreset = {
+const imageLoopPreset = definePreset({
+  placement: 'container',
+  trackTypeDefault: 'lockedTo',
   metadata: presetMetadata,
-  presetFunction: presetFunction,
-  presetParams: presetParamsSchema,
-};
+  params: presetParams,
+  build: presetExecution,
+});
 
 export { imageLoopPreset };

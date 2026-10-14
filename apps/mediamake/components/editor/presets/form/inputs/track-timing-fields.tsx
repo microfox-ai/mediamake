@@ -4,21 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sceneBlocksFromMediaInput } from "@/components/editor_main/panels/bottom/editor/media-scene-blocks";
+import { applyTrackMode, trackModeOf, type TrackTimingMode } from "../apply-track-mode";
 import { LockTargetInput } from "./lock-target-input";
 
-export type TrackTimingMode = "lockedTo" | "sequence" | "aligned" | "autoRange";
+export type { TrackTimingMode };
 
 export interface AutoRangeEstimate {
   start: number;
   duration: number;
-}
-
-function modeOf(value: Record<string, unknown>): TrackTimingMode {
-  if (value.trackType === "lockedTo") return "lockedTo";
-  if (typeof value.lock === "string" && value.lock.trim()) return "lockedTo";
-  if (value.trackType === "sequence") return "sequence";
-  if (value.trackType === "autoRange") return "autoRange";
-  return "aligned";
 }
 
 function formatEstimate(value: number | undefined): string {
@@ -41,6 +34,7 @@ function modesFrom(modes: string[] | undefined): TrackTimingMode[] {
  * Lock hides start and duration. Sequence shows a calculated length.
  * Image loop sequence asks for a total duration or a per-image duration.
  * Aligned shows an editable start and duration.
+ * Start offset is a negative head trim. The end stays put.
  */
 export function TrackTimingFields({
   value,
@@ -65,7 +59,7 @@ export function TrackTimingFields({
   sequenceLengthChoice?: boolean;
 }) {
   const available = modesFrom(modes);
-  const selected = modeOf(value);
+  const selected = trackModeOf(value);
   const mode = available.includes(selected) ? selected : available[0];
   const mediaRange =
     available.includes("autoRange") && value.mediaItems
@@ -79,14 +73,13 @@ export function TrackTimingFields({
   const start = typeof value.start === "number" && Number.isFinite(value.start) ? value.start : 0;
   const duration =
     typeof value.duration === "number" && Number.isFinite(value.duration) ? value.duration : "";
+  const startOffset =
+    typeof value.startOffset === "number" && Number.isFinite(value.startOffset)
+      ? value.startOffset
+      : "";
 
   const setMode = (next: TrackTimingMode) => {
-    const patch: Record<string, unknown> = { ...value, trackType: next };
-    if (next !== "lockedTo") delete patch.lock;
-    // Sequence length comes from children (or a new duration the user types).
-    // Drop the previous aligned length so it does not stay as the track duration.
-    if (next === "sequence") delete patch.duration;
-    onChange(patch);
+    onChange(applyTrackMode(value, next));
   };
 
   const setStart = (raw: string) => {
@@ -99,6 +92,14 @@ export function TrackTimingFields({
     const patch: Record<string, unknown> = { ...value };
     if (parsed === undefined || !Number.isFinite(parsed)) delete patch.duration;
     else patch.duration = parsed;
+    onChange(patch);
+  };
+
+  const setStartOffset = (raw: string) => {
+    const parsed = raw.trim() === "" ? undefined : Number(raw);
+    const patch: Record<string, unknown> = { ...value };
+    if (parsed === undefined || !Number.isFinite(parsed)) delete patch.startOffset;
+    else patch.startOffset = parsed;
     onChange(patch);
   };
 
@@ -232,6 +233,18 @@ export function TrackTimingFields({
           </div>
         </TabsContent> : null}
       </Tabs>
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">Start offset</Label>
+        <Input
+          type="number"
+          value={startOffset}
+          placeholder="0"
+          onChange={(event) => setStartOffset(event.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Negative values trim the head. The end stays put.
+        </p>
+      </div>
     </div>
   );
 }

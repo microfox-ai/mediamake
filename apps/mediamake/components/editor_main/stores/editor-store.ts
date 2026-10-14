@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import type { Timeline } from './project-store';
 import type { ReferenceItem } from '@/components/editor/presets/types';
 import type { TimelineAction } from '@/components/editor/presets/actions/types';
+import { clearTimelineDepth } from './timeline-block-focus';
 
 // Preset type from timeline
 export type Preset = {
   id: string;
-  label: string;
+  /** Legacy display name. Prefer `presetInputData.trackName`. */
+  label?: string;
   presetId: string;
   presetType: string;
   presetInfo?: any;
@@ -56,22 +58,29 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedItem: null,
   selectedPresetIds: [],
   presetAnchorId: null,
-  selectItem: (item) =>
+  selectItem: (item) => {
+    clearTimelineDepth();
     set({
       selectedItem: item,
       ...(item?.type === 'preset'
         ? { selectedPresetIds: [item.item.id], presetAnchorId: item.item.id }
         : noPresets),
-    }),
-  selectTimeline: (timeline) =>
-    set({ selectedItem: { type: 'timeline', item: timeline }, ...noPresets }),
-  selectPreset: (preset, timeline) =>
+    });
+  },
+  selectTimeline: (timeline) => {
+    clearTimelineDepth();
+    set({ selectedItem: { type: 'timeline', item: timeline }, ...noPresets });
+  },
+  selectPreset: (preset, timeline) => {
+    clearTimelineDepth();
     set({
       selectedItem: { type: 'preset', item: preset, timeline },
       selectedPresetIds: [preset.id],
       presetAnchorId: preset.id,
-    }),
-  focusPreset: (preset, timeline) =>
+    });
+  },
+  focusPreset: (preset, timeline) => {
+    clearTimelineDepth();
     set((state) => {
       const inGroup =
         state.selectedItem?.type === 'preset' &&
@@ -85,8 +94,10 @@ export const useEditorStore = create<EditorState>((set) => ({
         };
       }
       return { selectedItem: { type: 'preset', item: preset, timeline } };
-    }),
-  togglePresetSelection: (preset, timeline) =>
+    });
+  },
+  togglePresetSelection: (preset, timeline) => {
+    clearTimelineDepth();
     set((state) => {
       const sameTimeline =
         state.selectedItem?.type === 'preset' && state.selectedItem.timeline.id === timeline.id;
@@ -106,8 +117,10 @@ export const useEditorStore = create<EditorState>((set) => ({
         selectedPresetIds: next,
         presetAnchorId: primary.id,
       };
-    }),
-  selectPresetRange: (preset, timeline, orderedIds) =>
+    });
+  },
+  selectPresetRange: (preset, timeline, orderedIds) => {
+    clearTimelineDepth();
     set((state) => {
       const anchor =
         state.presetAnchorId && orderedIds.includes(state.presetAnchorId)
@@ -124,8 +137,10 @@ export const useEditorStore = create<EditorState>((set) => ({
         selectedPresetIds: ids,
         presetAnchorId: anchor,
       };
-    }),
-  selectReference: (reference, timeline, referenceIndex) =>
+    });
+  },
+  selectReference: (reference, timeline, referenceIndex) => {
+    clearTimelineDepth();
     set({
       selectedItem: {
         type: 'reference',
@@ -134,8 +149,14 @@ export const useEditorStore = create<EditorState>((set) => ({
         referenceIndex,
       },
       ...noPresets,
-    }),
-  selectAction: (action, timeline) =>
-    set({ selectedItem: { type: 'action', item: action, timeline }, ...noPresets }),
-  clearSelection: () => set({ selectedItem: null, ...noPresets }),
+    });
+  },
+  selectAction: (action, timeline) => {
+    clearTimelineDepth();
+    set({ selectedItem: { type: 'action', item: action, timeline }, ...noPresets });
+  },
+  clearSelection: () => {
+    clearTimelineDepth();
+    set({ selectedItem: null, ...noPresets });
+  },
 }));

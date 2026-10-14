@@ -3,6 +3,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Preset } from "../../../../stores/editor-store";
 import type { Timeline } from "../../../../stores/project-store";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 interface PresetPropsProps {
   preset: Preset;
@@ -18,8 +19,8 @@ export function PresetProps({ preset, timeline }: PresetPropsProps) {
             <h3 className="text-sm font-semibold mb-2">Preset Properties</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-xs text-muted-foreground">Name</p>
-                <p className="text-sm font-medium">{preset.label}</p>
+                <p className="text-xs text-muted-foreground">Track name</p>
+                <p className="text-sm font-medium">{presetTrackName(preset, preset.presetId)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Preset ID</p>

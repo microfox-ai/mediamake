@@ -8,6 +8,7 @@
  * user to resolve — so no one's work is silently lost.
  */
 import type { Timeline } from "@/components/editor_main/stores/project-store";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 type AnyPreset = NonNullable<Timeline["presets"]>[number];
 type AnyAction = NonNullable<Timeline["actions"]>[number];
@@ -37,7 +38,7 @@ function eq(a: unknown, b: unknown): boolean {
 }
 
 function presetLabel(p: AnyPreset | undefined, id: string): string {
-  return p?.label || p?.presetId || id;
+  return presetTrackName(p, p?.presetId || id);
 }
 
 function actionLabel(a: AnyAction | undefined, id: string): string {

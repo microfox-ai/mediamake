@@ -1,3 +1,4 @@
+import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { parseEditableSegments } from "./preset-range-utils";
 
 export interface MediaSceneBlock {
@@ -57,6 +58,21 @@ function mediaItems(input: Record<string, unknown>): Record<string, unknown>[] {
 const MEDIA_SCENE_PRESETS = new Set(["media-track", "imageloop"]);
 const RANGE_TRACK_PRESETS = new Set(["htmlBlockAtom", "second-counter"]);
 const WINDOW_TRACK_PRESETS = new Set(["waveform-audio", "text-overlay"]);
+/** Scenes draw their range through the instance rows, including nested presets. */
+const STRUCTURAL_PRESETS = new Set(["scene", "base-scene"]);
+
+function shellPlacement(presetId: string | undefined): "container" | "atom" | undefined {
+  if (!presetId || STRUCTURAL_PRESETS.has(presetId)) return undefined;
+  if (
+    MEDIA_SCENE_PRESETS.has(presetId) ||
+    RANGE_TRACK_PRESETS.has(presetId) ||
+    WINDOW_TRACK_PRESETS.has(presetId)
+  ) {
+    return undefined;
+  }
+  const placement = getPredefinedPresetById(presetId)?.metadata.placement;
+  return placement === "atom" || placement === "container" ? placement : undefined;
+}
 
 /** Tracks whose bottom timeline is a row of scene blocks, like an aligned media track. */
 export function presetUsesSceneBlocks(presetId: string | undefined): boolean {
@@ -64,7 +80,8 @@ export function presetUsesSceneBlocks(presetId: string | undefined): boolean {
     presetId &&
       (MEDIA_SCENE_PRESETS.has(presetId) ||
         RANGE_TRACK_PRESETS.has(presetId) ||
-        WINDOW_TRACK_PRESETS.has(presetId)),
+        WINDOW_TRACK_PRESETS.has(presetId) ||
+        shellPlacement(presetId)),
   );
 }
 
@@ -73,7 +90,7 @@ export function presetUsesMediaAtoms(presetId: string | undefined): boolean {
   return Boolean(presetId && MEDIA_SCENE_PRESETS.has(presetId));
 }
 
-/** Timeline label for a block: its track name, otherwise the preset label. */
+/** Timeline name for a block: its track name, otherwise the fallback. */
 export function trackDisplayName(input: unknown, fallback: string): string {
   if (isRecord(input)) {
     const name = input.trackName;
@@ -441,7 +458,7 @@ function sceneBlocksFromWindowTrack(input: unknown, label: string): MediaSceneLa
 /**
  * Scene blocks for a preset. Media and image tracks use their items.
  * HTML blocks and the second counter use the root range list.
- * Waveform and text overlay are a single window.
+ * Waveform, text overlay, and other atom or container presets are a single window.
  */
 export function sceneBlocksForPreset(
   presetId: string | undefined,
@@ -452,6 +469,14 @@ export function sceneBlocksForPreset(
   if (presetId === "second-counter") return sceneBlocksFromRangeTrack(input, "Count");
   if (presetId === "waveform-audio") return sceneBlocksFromWindowTrack(input, "Waveform");
   if (presetId === "text-overlay") return sceneBlocksFromWindowTrack(input, "Text");
+  if (shellPlacement(presetId)) {
+    const record = isRecord(input) ? input : {};
+    const name =
+      typeof record.trackName === "string" && record.trackName.trim()
+        ? record.trackName.trim()
+        : "Track";
+    return sceneBlocksFromWindowTrack(input, name);
+  }
   return sceneBlocksFromMediaInput(input, probedItemDurations);
 }
 

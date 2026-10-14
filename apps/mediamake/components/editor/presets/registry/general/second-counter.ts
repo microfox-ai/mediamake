@@ -8,45 +8,17 @@
 
 import { TextAtomData } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import {
+  definePreset,
+  type TrackShellParams,
+} from '../../define-preset';
 import {
   applyLegacyTrackTiming,
   joinRangeList,
 } from './track-timing-legacy';
 
 const presetParams = z.object({
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the track (used for the ID)'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned'])
-    .default('aligned')
-    .describe(
-      'Lock copies another track. Sequence plays ranges in order. Aligned keeps each range on its start.',
-    ),
-  start: z
-    .number()
-    .default(0)
-    .describe('Start of this track in its parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe(
-      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
-    ),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe('Lock start and duration to a sibling or parent track'),
   rangeString: z
     .string()
     .meta({ [paramMetaTypes.rangeField]: true })
@@ -135,11 +107,11 @@ const presetParams = z.object({
 });
 
 const presetExecution = (
-  params: z.infer<typeof presetParams>,
+  params: z.infer<typeof presetParams> & TrackShellParams,
   props: {
     helpers?: Record<string, Function>;
   },
-): PresetOutput => {
+) => {
   const { isReverse = false, font, position, style } = params;
   const { helpers } = props;
 
@@ -189,21 +161,6 @@ const presetExecution = (
       trackType !== 'sequence' &&
       trackType !== 'aligned');
   const sequence = !locked && trackType === 'sequence';
-  const trackStart =
-    (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
-      ? legacy.start
-      : undefined) ??
-    (typeof legacy.trackStartOffset === 'number' &&
-    Number.isFinite(legacy.trackStartOffset)
-      ? legacy.trackStartOffset
-      : 0);
-  const authoredDuration =
-    (typeof legacy.duration === 'number' && legacy.duration > 0
-      ? legacy.duration
-      : undefined) ??
-    (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
-      ? legacy.trackDuration
-      : undefined);
 
   if (!rangeString.trim() || timeRanges.length === 0) {
     throw new Error(
@@ -426,62 +383,30 @@ const presetExecution = (
     0,
   );
   const derivedDuration = sequence ? packed : maxEnd;
-  const trackTiming: {
-    start: number;
-    duration?: number;
-    startOffset?: number;
-  } = { start: trackStart };
-  if (!locked) {
-    const length =
-      authoredDuration ?? (derivedDuration > 0 ? derivedDuration : undefined);
-    if (typeof length === 'number' && length > 0) trackTiming.duration = length;
-  }
-  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
-    trackTiming.startOffset = legacy.startOffset;
-  }
-  const trackName =
-    typeof params.trackName === 'string' && params.trackName.trim()
-      ? params.trackName.trim()
-      : 'second-counter';
 
   return {
-    output: {
-      childrenData: [
-        {
-          id: trackName,
-          componentId: 'BaseLayout',
-          type: sequence ? ('scene' as const) : ('layout' as const),
-          data: {
-            containerProps: {
-              className: 'absolute inset-0',
-            },
-          },
-          context: {
-            timing: trackTiming,
-          },
-          childrenData: rangeContainers,
-        },
-      ],
+    children: rangeContainers,
+    containerProps: {
+      className: 'absolute inset-0',
     },
-    options: {
-      attachedToId: 'BaseScene',
-    },
+    duration: derivedDuration > 0 ? derivedDuration : undefined,
   };
 };
 
-const presetMetadata: PresetMetadata = {
+const presetMetadata = {
   id: 'second-counter',
   title: 'Second Counter',
   description:
     'Displays a counter (1, 2, 3...) for each second within specified time ranges. Supports multiple ranges, reverse counting, and customizable positioning, fonts, and styling.',
-  type: 'predefined',
-  presetType: 'children',
-  role: 'track',
+  type: 'predefined' as const,
+  presetType: 'children' as const,
+  role: 'track' as const,
   tags: ['counter', 'timer', 'overlay', 'text'],
   defaultInputParams: {
     trackName: 'second-counter',
     trackType: 'aligned',
     start: 0,
+    attachedToId: 'BaseScene',
     rangeString: '00:00-09:00',
     isReverse: false,
     font: 'Inter:600',
@@ -522,13 +447,11 @@ export function migrateSecondCounterInputData<T>(data: T): T {
   return changed ? (next as T) : data;
 }
 
-const presetFunction = presetExecution.toString();
-const presetParamsSchema = z.toJSONSchema(presetParams);
-
-const secondCounterPreset = {
+const secondCounterPreset = definePreset({
+  placement: 'container',
   metadata: presetMetadata,
-  presetFunction: presetFunction,
-  presetParams: presetParamsSchema,
-};
+  params: presetParams,
+  build: presetExecution,
+});
 
 export { secondCounterPreset };

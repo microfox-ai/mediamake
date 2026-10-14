@@ -2,9 +2,13 @@
 
 import { useMemo } from "react";
 import type { TimelineAction } from "@/components/editor/presets/actions/types";
-import { ROW_HEIGHT, MIN_SEG_PX, formatTimeLabel } from "../timeline-layout";
+import { MIN_SEG_PX, formatTimeLabel } from "../timeline-layout";
+import { blockCornerClass, rowHeightFor, useTimelineDensity } from "../timeline-density";
 import { useTimelineViewport } from "../timeline-viewport";
-import { collectActionTimelineSegments } from "../timeline-track-sources";
+import {
+  actionRangesVisible,
+  collectActionTimelineSegments,
+} from "../timeline-track-sources";
 import {
   useRegisterTimelineSection,
   type TimelineTrackSectionData,
@@ -36,6 +40,8 @@ export function ActionTracksSection({
   sourceTag,
 }: ActionTracksSectionProps) {
   const { secToPx } = useTimelineViewport();
+  const { compact } = useTimelineDensity();
+  const rowHeight = rowHeightFor(compact);
   const name = action.label || action.actionId || "Action";
   const trackTitle = sourceTag ? `Action - ${sourceTag}` : name;
   const segments = useMemo(
@@ -57,7 +63,7 @@ export function ActionTracksSection({
           label: (
             <div
               className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
-              style={{ height: ROW_HEIGHT }}
+              style={{ height: rowHeight }}
             >
               <div className="flex-1 min-w-0">
                 <p
@@ -66,16 +72,18 @@ export function ActionTracksSection({
                 >
                   {trackTitle}
                 </p>
-                <p className="text-[9px] text-muted-foreground/50 truncate">
-                  {segments.length} range{segments.length !== 1 ? "s" : ""}
-                </p>
+                {compact ? null : (
+                  <p className="text-[9px] text-muted-foreground/50 truncate">
+                    {segments.length} range{segments.length !== 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
             </div>
           ),
           track: (
             <div
               className="relative border-b border-border/40 bg-muted/5"
-              style={{ height: ROW_HEIGHT }}
+              style={{ height: rowHeight }}
             >
               {segments.map((seg, index) => {
                 const left = secToPx(seg.start);
@@ -90,7 +98,7 @@ export function ActionTracksSection({
                 return (
                   <div
                     key={`${seg.start}-${seg.end}-${index}`}
-                    className={`absolute top-1.5 bottom-1.5 rounded border flex items-center overflow-hidden pointer-events-none ${ACTION_COLOR}`}
+                    className={`absolute top-1.5 bottom-1.5 ${blockCornerClass(compact)} border flex items-center overflow-hidden pointer-events-none ${ACTION_COLOR}`}
                     style={{ left, width }}
                     title={label}
                   >
@@ -107,8 +115,38 @@ export function ActionTracksSection({
         },
       ],
     };
-  }, [sectionId, order, trackTitle, segments, secToPx]);
+  }, [sectionId, order, trackTitle, segments, secToPx, compact, rowHeight]);
 
   useRegisterTimelineSection(section);
   return null;
+}
+
+/**
+ * Range rows for actions tied to the current selection.
+ * Hidden when the timeline itself is selected.
+ */
+export function LinkedActionTracks({
+  actions,
+  selected,
+  orderBase = 20,
+}: {
+  actions: TimelineAction[] | undefined;
+  selected: {
+    type: string;
+    item?: { id?: string; key?: string };
+  } | null;
+  orderBase?: number;
+}) {
+  const visible = (actions ?? []).filter((action) =>
+    actionRangesVisible(action, selected),
+  );
+  return visible.map((action, index) => (
+    <ActionTracksSection
+      key={action.id}
+      sectionId={`action:${action.id}`}
+      order={orderBase + index}
+      action={action}
+      sourceTag={action.label || action.actionId || "Action"}
+    />
+  ));
 }

@@ -24,6 +24,7 @@ import { migratePresetTrackInput } from "@/components/editor/presets/registry/ge
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   getDefaultDataTypeForReferenceType,
   getDefaultValueForReferenceType,
@@ -31,7 +32,9 @@ import {
 import { useEditorStore } from "../../../../stores/editor-store";
 import { useEditorUIStore } from "../../../../stores/editor-ui-store";
 import { LinkedActionsSection } from "@/components/editor/presets/actions/form/ActionSection";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 interface GeneralPresetPropsProps {
   preset: Preset;
@@ -41,9 +44,11 @@ interface GeneralPresetPropsProps {
 export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps) {
   const { fetchPresetInfo, generateOutput, isGenerating, generationProgress, calculatedMetadata } = useCompileStore();
   const { isReady, isLoading, error } = usePresetReady(preset.presetId);
-  const { updatePresetLabel, updatePresetInputData, getEditedTimeline } = useTimelineEditsStore();
-  const [isEditingLabel, setIsEditingLabel] = useState(false);
-  const [editedLabel, setEditedLabel] = useState(preset.label);
+  const { updatePresetInputData, getEditedTimeline } = useTimelineEditsStore();
+  const [isEditingTrackName, setIsEditingTrackName] = useState(false);
+  const [editedTrackName, setEditedTrackName] = useState(() =>
+    presetTrackName(preset, preset.presetId),
+  );
   const isCompilingRef = useRef(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromStoreRef = useRef(false);
@@ -99,10 +104,12 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     updatePresetInputData,
   ]);
 
-  // Update editedLabel when preset changes
+  const trackName = presetTrackName(currentPreset, currentPreset.presetId);
+
+  // Update the draft when the saved track name changes
   useEffect(() => {
-    setEditedLabel(currentPreset.label);
-  }, [currentPreset.label]);
+    setEditedTrackName(trackName);
+  }, [trackName]);
 
   // Fetch preset info if not ready
   useEffect(() => {
@@ -114,19 +121,6 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   // Get preset info from cache
   const presetInfo = useCompileStore(state => state.presetInfoCache.get(preset.presetId));
   const actualPreset = presetInfo?.preset as PresetType | DatabasePreset | null;
-
-  // Handle label editing
-  const handleLabelSave = () => {
-    if (editedLabel.trim() !== currentPreset.label) {
-      updatePresetLabel(timeline.id, preset.id, editedLabel.trim());
-    }
-    setIsEditingLabel(false);
-  };
-
-  const handleLabelCancel = () => {
-    setEditedLabel(currentPreset.label);
-    setIsEditingLabel(false);
-  };
 
   const handleCopyInputProps = async () => {
     try {
@@ -205,6 +199,24 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
     // Call debounced function
     debouncedUpdateAndCompile(newInputData);
   }, [debouncedUpdateAndCompile]);
+
+  const handleTrackNameSave = () => {
+    const next = editedTrackName.trim();
+    if (!next) {
+      setEditedTrackName(trackName);
+      setIsEditingTrackName(false);
+      return;
+    }
+    if (next !== trackName) {
+      handleInputDataChange({ ...localInputData, trackName: next });
+    }
+    setIsEditingTrackName(false);
+  };
+
+  const handleTrackNameCancel = () => {
+    setEditedTrackName(trackName);
+    setIsEditingTrackName(false);
+  };
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -359,44 +371,50 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
         {/* Header */}
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            {isEditingLabel ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedLabel}
-                  onChange={(e) => setEditedLabel(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleLabelSave();
-                    if (e.key === 'Escape') handleLabelCancel();
-                  }}
-                  className="text-md font-semibold h-8"
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLabelSave}
-                  className="h-8 w-8 p-0"
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Label htmlFor={`preset-track-name-${preset.id}`} className="text-xs text-muted-foreground">
+                Track name
+              </Label>
+              {isEditingTrackName ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    id={`preset-track-name-${preset.id}`}
+                    value={editedTrackName}
+                    onChange={(e) => setEditedTrackName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleTrackNameSave();
+                      if (e.key === 'Escape') handleTrackNameCancel();
+                    }}
+                    className="text-md font-semibold h-8"
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleTrackNameSave}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleTrackNameCancel}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <h3
+                  className="text-md font-semibold cursor-pointer hover:bg-muted/50 px-2 py-1 rounded -ml-2"
+                  onClick={() => setIsEditingTrackName(true)}
+                  title="Click to edit track name"
                 >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLabelCancel}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <h3
-                className="text-md font-semibold cursor-pointer hover:bg-muted/50 px-2 py-1 rounded -ml-2"
-                onClick={() => setIsEditingLabel(true)}
-                title="Click to edit label"
-              >
-                {currentPreset.label}
-              </h3>
-            )}
+                  {trackName}
+                </h3>
+              )}
+            </div>
             <div className="flex items-center gap-1 shrink-0">
               {isGenerating && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mr-1">
@@ -455,6 +473,8 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
           />
         </div>
 
+        <Separator />
+
         {/* Schema Form */}
         <SchemaForm
           title={actualPreset.metadata.title}
@@ -474,6 +494,7 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
           onSelectReferenceKey={handleSelectReferenceKey}
           onRequestRangeEditor={handleRequestRangeEditor}
           onUpdateReferenceValue={handleUpdateReferenceValue}
+          trackSection="footer"
         />
       </div>
     </ScrollArea>

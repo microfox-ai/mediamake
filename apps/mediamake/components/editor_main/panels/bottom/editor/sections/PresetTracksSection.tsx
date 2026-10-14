@@ -26,11 +26,11 @@ import { setSegmentSelectionActive } from "../../../../stores/bottom-selection-g
 import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
 import { isEditorFocusScope } from "../../../../stores/editor-focus-scope";
 import {
-  ROW_HEIGHT,
   MIN_SEG_PX,
   TRACK_COLORS,
   formatTimeLabel,
 } from "../timeline-layout";
+import { blockCornerClass, rowHeightFor, useTimelineDensity } from "../timeline-density";
 import { useTimelineViewport } from "../timeline-viewport";
 import {
   useRegisterTimelineSection,
@@ -41,6 +41,8 @@ import {
   claimBlockSelection,
   releaseBlockSelection,
 } from "../timeline-block-selection";
+import { useTimelineBlockFocus } from "@/components/editor_main/stores/timeline-block-focus";
+import { useCaptionTrackSelection } from "@/components/editor_main/stores/caption-track-selection";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { migratePresetTrackInput } from "@/components/editor/presets/registry/general/migrate-preset-track-input";
 import { loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
@@ -85,6 +87,27 @@ import {
 
 const MIN_SPLIT_GAP = 0.05;
 
+function rangeFocusLabel(group: TrackGroup | undefined, segIdx: number): string {
+  if (!group) return "Range";
+  const short = group.label.includes(".")
+    ? (group.label.split(".").pop() ?? group.label)
+    : group.label;
+  const name = short.trim() || "Range";
+  const count = Math.max(group.concretePaths.length, group.currentRanges.length);
+  return count > 1 ? `${name} ${segIdx + 1}` : name;
+}
+
+function clearRangeFocus(timelineId: string, presetId: string) {
+  const focus = useTimelineBlockFocus.getState().focus;
+  if (
+    focus?.kind === "range" &&
+    focus.timelineId === timelineId &&
+    focus.presetId === presetId
+  ) {
+    useTimelineBlockFocus.getState().setFocus(null);
+  }
+}
+
 interface SegSelection {
   templatePath: string;
   segIdx: number;
@@ -125,6 +148,8 @@ export function PresetTracksSection({
   sourceTag,
 }: PresetTracksSectionProps) {
   const clubbed = !!sourceTag;
+  const { compact } = useTimelineDensity();
+  const rowHeight = rowHeightFor(compact);
   const { secToPx, totalDuration, pixelsPerSecond } = useTimelineViewport();
   const updatePresetInputData = useTimelineEditsStore(
     (s) => s.updatePresetInputData,
@@ -239,11 +264,28 @@ export function PresetTracksSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackGroupsKey]);
 
+  const trackGroupsRef = useRef(trackGroups);
+  trackGroupsRef.current = trackGroups;
+
   useEffect(() => {
     if (!selectedSeg) {
       releaseBlockSelection(sectionId);
+      clearRangeFocus(timelineId, presetId);
       return;
     }
+    const group = trackGroupsRef.current.find(
+      (item) => item.templatePath === selectedSeg.templatePath,
+    );
+    if (useCaptionTrackSelection.getState().selection) {
+      useCaptionTrackSelection.getState().setSelection(null);
+    }
+    useTimelineBlockFocus.getState().setFocus({
+      kind: "range",
+      timelineId,
+      presetId,
+      label: rangeFocusLabel(group, selectedSeg.segIdx),
+      blockKey: `${presetId}:${selectedSeg.templatePath}:${selectedSeg.segIdx}`,
+    });
     setSegmentSelectionActive(true);
     claimBlockSelection(sectionId, () => {
       setSelectedSeg(null);
@@ -252,8 +294,19 @@ export function PresetTracksSection({
     return () => {
       setSegmentSelectionActive(false);
       releaseBlockSelection(sectionId);
+      clearRangeFocus(timelineId, presetId);
     };
-  }, [selectedSeg, sectionId]);
+  }, [selectedSeg, sectionId, timelineId, presetId]);
+
+  const rangeFocus = useTimelineBlockFocus((s) => s.focus);
+  useEffect(() => {
+    if (!selectedSeg) return;
+    const key = `${presetId}:${selectedSeg.templatePath}:${selectedSeg.segIdx}`;
+    const current = useTimelineBlockFocus.getState().focus;
+    if (!current || current.kind !== "range" || current.blockKey !== key) {
+      setSelectedSeg(null);
+    }
+  }, [rangeFocus, selectedSeg, presetId]);
 
   const selectSeg = useCallback(
     (next: SegSelection) => {
@@ -1061,7 +1114,7 @@ export function PresetTracksSection({
         label: (
           <div
             className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
           >
             <div className="flex-1 min-w-0">
               <p
@@ -1070,18 +1123,20 @@ export function PresetTracksSection({
               >
                 {trackTitle}
               </p>
-              <p className="text-[9px] text-muted-foreground/50 truncate">
-                {isPlain
-                  ? `${group.key} · ${segs.length} item${segs.length !== 1 ? "s" : ""}`
-                  : `ref: ${group.key} · ${segs.length} seg${segs.length !== 1 ? "s" : ""}`}
-              </p>
+              {compact ? null : (
+                <p className="text-[9px] text-muted-foreground/50 truncate">
+                  {isPlain
+                    ? `${group.key} · ${segs.length} item${segs.length !== 1 ? "s" : ""}`
+                    : `ref: ${group.key} · ${segs.length} seg${segs.length !== 1 ? "s" : ""}`}
+                </p>
+              )}
             </div>
           </div>
         ),
         track: (
           <div
             className="relative border-b border-border/40 hover:bg-muted/5 transition-colors"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
             onPointerMove={(e) => handlePointerMove(e, group.templatePath)}
             onPointerUp={(e) => handlePointerUp(e, group.templatePath)}
             onPointerDown={(e) => {
@@ -1396,6 +1451,8 @@ export function PresetTracksSection({
     updatePresetInputData,
     getEditedTimeline,
     generateOutput,
+    compact,
+    rowHeight,
   ]);
 
   useRegisterTimelineSection(section);
@@ -1449,6 +1506,7 @@ function SegBlock({
   overlay?: React.ReactNode;
   onDoubleClick?: () => void;
 }) {
+  const { compact } = useTimelineDensity();
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -1472,7 +1530,8 @@ function SegBlock({
         >
           <div
             className={cn(
-              "absolute inset-0 rounded border cursor-grab active:cursor-grabbing flex items-center transition-colors",
+              "absolute inset-0 border cursor-grab active:cursor-grabbing flex items-center transition-colors",
+              blockCornerClass(compact),
               color,
               isSelected &&
                 "ring-2 ring-primary ring-offset-1 ring-offset-background z-[1]",

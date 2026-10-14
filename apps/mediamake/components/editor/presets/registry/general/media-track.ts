@@ -27,9 +27,13 @@ import {
   VideoAtomDataProps,
 } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { PresetMetadata } from '../../types';
 import { GenericEffectData } from '@microfox/remotion';
 import { paramInputTypes, paramMetaTypes } from '../../dataTypes';
+import {
+  definePreset,
+  type TrackShellParams,
+} from '../../define-preset';
 
 // Extended effect data type for shake effects
 interface ShakeEffectData extends GenericEffectData {
@@ -264,37 +268,6 @@ const presetParams = z.object({
       [paramMetaTypes.referrableDataType]: 'medias',
     })
     .describe('Media sources with optional linked medias ref for srcs'),
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the track ( used for the ID )'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned'])
-    .default('aligned')
-    .describe(
-      'Lock copies another track. Sequence plays items in order. Aligned uses start and duration.',
-    ),
-  start: z
-    .number()
-    .default(0)
-    .describe('Start of this track in its parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put. Remotion clips a sequence whose from is negative by this amount.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe(
-      'Duration in seconds. Required for aligned tracks. Omitted for sequence tracks.',
-    ),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe('Lock start and duration to a sibling or parent track'),
   containerObject: z
     .object({
       left: z
@@ -338,13 +311,13 @@ const presetParams = z.object({
 });
 
 const presetExecution = (
-  params: z.infer<typeof presetParams>,
+  params: z.infer<typeof presetParams> & TrackShellParams,
   props: {
     config: InputCompositionProps['config'];
     clip?: { start?: number; duration?: number };
     helpers?: Record<string, Function>;
   },
-): PresetOutput => {
+) => {
   // Get the base scene start offset from the clip information
   const baseSceneStartOffset = props.clip?.start ?? 0;
 
@@ -1012,54 +985,11 @@ const presetExecution = (
     ...(hasPositioning ? { style: containerStyle } : {}),
   };
 
-  const legacy = params as unknown as {
-    trackType?: string;
-    start?: number;
-    startOffset?: number;
-    duration?: number;
-    lock?: string;
-    trackStartOffset?: number;
-    trackDuration?: number;
-    trackFitDurationTo?: string;
-  };
-  const trackLayout = sequence ? ('scene' as const) : ('layout' as const);
-  const lock =
-    (typeof legacy.lock === 'string' && legacy.lock) ||
-    legacy.trackFitDurationTo ||
-    undefined;
-  const start = legacy.start ?? legacy.trackStartOffset ?? 0;
-  const duration = legacy.duration ?? legacy.trackDuration;
-  const trackTiming: { start: number; duration?: number; startOffset?: number } = { start };
-  if (!lock && typeof duration === 'number' && duration > 0) {
-    trackTiming.duration = duration;
-  }
-  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
-    trackTiming.startOffset = legacy.startOffset;
-  }
-
   return {
-    output: {
-      config: {
-        duration: 20,
-      },
-      childrenData: [
-        {
-          id: `${params.trackName}`,
-          componentId: 'BaseLayout',
-          type: trackLayout,
-          data: {
-            containerProps,
-          },
-          context: {
-            timing: trackTiming,
-          },
-          childrenData: scenes ?? [],
-        },
-      ],
-    },
-    options: {
-      attachedToId: `BaseScene`,
-      attachedContainers: [containerProps],
+    children: scenes ?? [],
+    containerProps,
+    config: {
+      duration: 20,
     },
   };
 };
@@ -1095,14 +1025,13 @@ const _presetMetadata: PresetMetadata = {
     trackName: 'media-track',
     trackType: 'sequence',
     start: 0,
+    attachedToId: 'BaseScene',
   },
 };
 
-const _presetExecution = presetExecution.toString();
-const _presetParams = z.toJSONSchema(presetParams);
-
-export const mediaTrackPreset = {
+export const mediaTrackPreset = definePreset({
+  placement: 'container',
   metadata: _presetMetadata,
-  presetFunction: _presetExecution,
-  presetParams: _presetParams,
-};
+  params: presetParams,
+  build: presetExecution,
+});

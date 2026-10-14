@@ -10,9 +10,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { ZoomIn, ZoomOut, Play, Pause } from "lucide-react";
+import { ZoomIn, ZoomOut, Play, Pause, AudioWaveform, FoldVertical, UnfoldVertical } from "lucide-react";
+import useLocalState from "@/components/studio/context/hooks/useLocalState";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   AudioWaveformTracks,
@@ -21,10 +23,10 @@ import {
 import type { TimelineAudioClip } from "@/components/editor/presets/actions/engine/find-audio-media";
 import {
   LABEL_WIDTH,
-  ROW_HEIGHT,
   RULER_HEIGHT,
   formatTimeLabel,
 } from "./timeline-layout";
+import { rowHeightFor } from "./timeline-density";
 import {
   TimelineViewportProvider,
   useTimelineViewport,
@@ -34,6 +36,11 @@ import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import { isEditableKeyboardTarget } from "../../../stores/block-clipboard-store";
 import { isEditorFocusScope } from "../../../stores/editor-focus-scope";
+import {
+  TimelineDensityProvider,
+  useTimelineDensity,
+} from "./timeline-density";
+import { TimelineBreadcrumbs } from "./timeline-breadcrumbs-bar";
 
 // ─── Row registry (external store — avoids render loops) ──────────────────────
 
@@ -124,14 +131,23 @@ function useRegisteredSections(): TimelineTrackSectionData[] {
 
 // ─── Shell chrome ─────────────────────────────────────────────────────────────
 
+function WaveformToggleIcon({ struck }: { struck: boolean }) {
+  return (
+    <span className="relative flex size-3.5 items-center justify-center">
+      <AudioWaveform className="size-3.5" />
+      {struck ? (
+        <span className="pointer-events-none absolute left-1/2 top-1/2 h-px w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+      ) : null}
+    </span>
+  );
+}
+
 function TimelineShellChrome({
-  title,
   subtitle,
   tools,
   audioClips,
   emptyMessage,
 }: {
-  title: string;
   subtitle?: string;
   tools?: ReactNode;
   audioClips: TimelineAudioClip[];
@@ -170,6 +186,9 @@ function TimelineShellChrome({
 
   const hasRows =
     orderedSections.some((s) => s.rows.length > 0) || audioClips.length > 0;
+  const { compact, showWaveforms, toggleCompact, toggleWaveforms } = useTimelineDensity();
+  const visibleClips = showWaveforms ? audioClips : [];
+  const waveformRowHeight = rowHeightFor(compact);
 
   const pixelsPerSecondRef = useRef(pixelsPerSecond);
   const currentTimeSecRef = useRef(currentTimeSec);
@@ -333,12 +352,9 @@ function TimelineShellChrome({
           {formatTimeLabel(totalDuration)}
         </span>
         <div className="h-4 w-px bg-border mx-1" />
-        <span
-          className="text-xs text-muted-foreground truncate max-w-[220px]"
-          title={title}
-        >
-          {title}
-        </span>
+        <div className="min-w-0 shrink overflow-hidden">
+          <TimelineBreadcrumbs />
+        </div>
         {subtitle ? (
           <span className="text-[10px] text-muted-foreground/50 truncate">
             {subtitle}
@@ -414,9 +430,49 @@ function TimelineShellChrome({
             style={{ width: LABEL_WIDTH }}
           >
             <div
-              className="shrink-0 border-b border-border/40 bg-muted/20"
+              className="shrink-0 border-b border-border/40 bg-muted/20 flex items-center gap-0.5 px-1"
               style={{ height: RULER_HEIGHT }}
-            />
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={showWaveforms ? "Hide waveforms" : "Show waveforms"}
+                    aria-pressed={showWaveforms}
+                    className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={toggleWaveforms}
+                  >
+                    <WaveformToggleIcon struck={!showWaveforms} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>{showWaveforms ? "Hide waveforms" : "Show waveforms"}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={compact ? "Expand tracks" : "Collapse tracks"}
+                    aria-pressed={compact}
+                    className={cn(
+                      "flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+                      compact && "bg-muted text-foreground",
+                    )}
+                    onClick={toggleCompact}
+                  >
+                    {compact ? (
+                      <UnfoldVertical className="size-3.5" />
+                    ) : (
+                      <FoldVertical className="size-3.5" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>{compact ? "Expand tracks" : "Collapse tracks"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="flex-1 overflow-y-hidden" ref={labelScrollRef}>
               {orderedSections.map((section) => (
                 <div key={section.id}>
@@ -436,8 +492,8 @@ function TimelineShellChrome({
                 </div>
               ))}
               <AudioWaveformTrackLabels
-                clips={audioClips}
-                rowHeight={ROW_HEIGHT}
+                clips={visibleClips}
+                rowHeight={waveformRowHeight}
               />
             </div>
           </div>
@@ -519,10 +575,10 @@ function TimelineShellChrome({
                 ))}
 
                 <AudioWaveformTracks
-                  clips={audioClips}
+                  clips={visibleClips}
                   secToPx={secToPx}
                   totalWidth={totalWidth}
-                  rowHeight={ROW_HEIGHT}
+                  rowHeight={waveformRowHeight}
                   renderLabels={false}
                 />
 
@@ -541,7 +597,6 @@ function TimelineShellChrome({
 
 export function TimelineShell({
   totalDuration,
-  title,
   subtitle,
   tools,
   audioClips = [],
@@ -549,7 +604,6 @@ export function TimelineShell({
   children,
 }: {
   totalDuration: number;
-  title: string;
   subtitle?: string;
   tools?: ReactNode;
   audioClips?: TimelineAudioClip[];
@@ -559,22 +613,32 @@ export function TimelineShell({
 }) {
   const storeRef = useRef<SectionStore | null>(null);
   if (!storeRef.current) storeRef.current = createSectionStore();
+  const [compact, setCompact] = useLocalState("timeline-compact-rows", false);
+  const [showWaveforms, setShowWaveforms] = useLocalState("timeline-show-waveforms", true);
 
   return (
-    <TimelineViewportProvider totalDuration={totalDuration}>
-      <SectionStoreContext.Provider value={storeRef.current}>
-        {/* Registrars — siblings of chrome so store updates don't remount them */}
-        <div className="hidden" aria-hidden>
-          {children}
-        </div>
-        <TimelineShellChrome
-          title={title}
-          subtitle={subtitle}
-          tools={tools}
-          audioClips={audioClips}
-          emptyMessage={emptyMessage}
-        />
-      </SectionStoreContext.Provider>
-    </TimelineViewportProvider>
+    <TimelineDensityProvider
+      value={{
+        compact,
+        showWaveforms,
+        toggleCompact: () => setCompact((value) => !value),
+        toggleWaveforms: () => setShowWaveforms((value) => !value),
+      }}
+    >
+      <TimelineViewportProvider totalDuration={totalDuration}>
+        <SectionStoreContext.Provider value={storeRef.current}>
+          {/* Registrars — siblings of chrome so store updates don't remount them */}
+          <div className="hidden" aria-hidden>
+            {children}
+          </div>
+          <TimelineShellChrome
+            subtitle={subtitle}
+            tools={tools}
+            audioClips={audioClips}
+            emptyMessage={emptyMessage}
+          />
+        </SectionStoreContext.Provider>
+      </TimelineViewportProvider>
+    </TimelineDensityProvider>
   );
 }

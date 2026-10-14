@@ -32,6 +32,7 @@ import { lottieShowcasePreset } from '../general/lottie-showcase';
 import { mediaTrackPreset } from '../general/media-track';
 import { secondCounterPreset } from '../general/second-counter';
 import { textOverlayPreset } from '../general/text-overlay';
+import { textAtomPreset } from '../general/text-atom';
 import { waveformPreset as waveformChildrenPreset } from '../general/waveform';
 import { beatExposureEffectPreset } from '../internalEffects/beat-exposure-effect';
 import { beatShakeEffectPreset } from '../internalEffects/beat-shake-effect';
@@ -55,6 +56,7 @@ export const predefinedPresets: Preset[] = [
   imageLoopSoundPreset,
   musicCardPreset,
   textOverlayPreset,
+  textAtomPreset,
   beatstitchPreset,
   subFastRapStaticPreset,
   subMediaStitchPreset,

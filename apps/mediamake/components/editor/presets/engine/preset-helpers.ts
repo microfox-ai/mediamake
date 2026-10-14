@@ -11,6 +11,7 @@ import {
   DatabasePreset,
 } from '../types';
 import { defaultInjectedHelpers, presetStdLib } from './preset-stdlib';
+import { applyTrackShell } from './apply-track-shell';
 import { getPredefinedPresetById } from '../registry/registry/presets-registry';
 
 const findMatchingComponents = (
@@ -285,6 +286,9 @@ export const runPreset = async <T>(
   const output = await presetJsFunction(presetInput, injectedProps);
   if (!output) {
     return null;
+  }
+  if (metadata?.placement === 'container' || metadata?.placement === 'atom') {
+    return applyTrackShell(presetInput, output, metadata.placement);
   }
   return output as PresetOutput;
 };

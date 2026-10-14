@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { hasTrackShell } from "@/components/editor/presets/form/apply-track-mode";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { useTimelineEditsStore } from "@/components/editor_main/stores/timeline-edits-store";
+import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { NodeTiming } from "@/components/editor_main/timing/types";
 import {
   clipToWindow,
@@ -19,15 +21,18 @@ import {
 } from "./media-scene-blocks";
 import {
   MIN_SEG_PX,
-  ROW_HEIGHT,
   TRACK_COLORS,
   formatTimeLabel,
 } from "./timeline-layout";
+import { blockCornerClass, rowHeightFor, useTimelineDensity } from "./timeline-density";
 import {
   useRegisterTimelineSection,
   type TimelineTrackRow,
 } from "./TimelineShell";
 import { useTimelineViewport } from "./timeline-viewport";
+import { BlockLockBadge } from "./block-lock-badge";
+import { PresetTrackModeControl } from "./track-mode-control";
+import { focusTimelineBlock, useTimelineBlockFocus } from "@/components/editor_main/stores/timeline-block-focus";
 
 type DragKind = "move" | "left" | "right";
 
@@ -59,18 +64,27 @@ function dragWindow(
   return { start, duration: Math.max(minDuration, duration + delta) };
 }
 
-function rowLabel(title: string, detail: string, indent: boolean) {
+function rowLabel(
+  title: string,
+  detail: string,
+  indent: boolean,
+  compact: boolean,
+  actions?: ReactNode,
+) {
   return (
     <div
-      className="flex items-center border-b border-border/40 bg-background pr-2"
-      style={{ height: ROW_HEIGHT, paddingLeft: indent ? 18 : 8 }}
+      className="relative flex items-center border-b border-border/40 bg-background pr-2"
+      style={{ height: rowHeightFor(compact), paddingLeft: indent ? 18 : 8 }}
     >
-      <div className="min-w-0">
+      <div className={cn("min-w-0 flex-1", actions && "pr-12")}>
         <p className="truncate text-[10px] font-semibold" title={title}>
           {title}
         </p>
-        <p className="truncate text-[9px] text-muted-foreground/50">{detail}</p>
+        {compact ? null : (
+          <p className="truncate text-[9px] text-muted-foreground/50">{detail}</p>
+        )}
       </div>
+      {actions ? <div className="absolute right-0.5 top-0.5 z-10">{actions}</div> : null}
     </div>
   );
 }
@@ -83,7 +97,10 @@ function ClipBox({
   editable,
   allowMove = editable,
   allowTrimStart = editable,
+  locked = false,
+  selected = false,
   secToPx,
+  onSelect,
   onDragStart,
 }: {
   start: number;
@@ -93,23 +110,34 @@ function ClipBox({
   editable: boolean;
   allowMove?: boolean;
   allowTrimStart?: boolean;
+  locked?: boolean;
+  selected?: boolean;
   secToPx: (sec: number) => number;
+  onSelect?: () => void;
   onDragStart?: (event: React.PointerEvent, kind: DragKind) => void;
 }) {
+  const { compact } = useTimelineDensity();
   const left = secToPx(start);
   const width = Math.max(MIN_SEG_PX, secToPx(duration));
   const span = `${formatTimeLabel(start)}–${formatTimeLabel(start + duration)}`;
   return (
     <div
       className={cn(
-        "absolute top-1.5 bottom-1.5 flex items-center overflow-hidden rounded border text-[10px]",
+        "absolute top-1.5 bottom-1.5 flex items-center overflow-hidden border text-[10px]",
+        blockCornerClass(compact),
         color,
         allowMove ? "cursor-grab" : "cursor-default",
+        selected && "ring-2 ring-primary ring-offset-1 ring-offset-background z-[1]",
       )}
       style={{ left, width }}
       title={`${label} · ${span}`}
       onPointerDown={
-        allowMove && onDragStart ? (event) => onDragStart(event, "move") : undefined
+        onSelect || (allowMove && onDragStart)
+          ? (event) => {
+              onSelect?.();
+              if (allowMove && onDragStart) onDragStart(event, "move");
+            }
+          : undefined
       }
     >
       {allowTrimStart ? (
@@ -121,8 +149,9 @@ function ClipBox({
           }}
         />
       ) : null}
+      {locked ? <BlockLockBadge /> : null}
       {width > 36 ? (
-        <span className="truncate px-2 select-none">
+        <span className={cn("truncate px-2 select-none", locked && "pl-4")}>
           {width > 96 ? `${label} ${span}` : span}
         </span>
       ) : null}
@@ -152,6 +181,9 @@ export function useMediaAtomRows(
   sources: MediaAtomSource[],
 ): Record<string, TimelineTrackRow[]> {
   const { secToPx, pixelsPerSecond, totalWidth } = useTimelineViewport();
+  const focus = useTimelineBlockFocus((s) => s.focus);
+  const { compact } = useTimelineDensity();
+  const rowHeight = rowHeightFor(compact);
   const updatePresetInputData = useTimelineEditsStore((s) => s.updatePresetInputData);
   const getEditedTimeline = useTimelineEditsStore((s) => s.getEditedTimeline);
   const generateOutput = useCompileStore((s) => s.generateOutput);
@@ -235,11 +267,11 @@ export function useMediaAtomRows(
       rows[source.key] = [
         {
           id: `${source.key}:sequence-atoms`,
-          label: rowLabel("Clips", "In sequence", true),
+          label: rowLabel("Clips", "In sequence", true, compact),
           track: (
             <div
               className="relative border-b border-border/40 bg-muted/5"
-              style={{ width: totalWidth, height: ROW_HEIGHT }}
+              style={{ width: totalWidth, height: rowHeight }}
             >
               {blocks.map((block) => {
                 const clipped = clipToWindow(
@@ -257,6 +289,7 @@ export function useMediaAtomRows(
                     label={block.label}
                     color={TRACK_COLORS[2] ?? ""}
                     editable={false}
+                    locked
                     secToPx={secToPx}
                   />
                 );
@@ -277,13 +310,24 @@ export function useMediaAtomRows(
       const color = TRACK_COLORS[(index + 1) % TRACK_COLORS.length] ?? "";
       return {
         id: `${source.key}:atom:${block.id}`,
-        label: rowLabel(block.label, editable ? "Aligned" : "Range", true),
+        label: rowLabel(block.label, editable ? "Aligned" : "Range", true, compact),
         track: (
           <div
             className="relative border-b border-border/40 bg-muted/5"
-            style={{ width: totalWidth, height: ROW_HEIGHT }}
+            style={{ width: totalWidth, height: rowHeight }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onPointerDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              const current = useTimelineBlockFocus.getState().focus;
+              if (
+                current?.kind === "clip" &&
+                current.timelineId === source.timelineId &&
+                current.presetId === source.presetId
+              ) {
+                useTimelineBlockFocus.getState().setFocus(null);
+              }
+            }}
           >
             <ClipBox
               start={source.origin + shown.start}
@@ -291,7 +335,21 @@ export function useMediaAtomRows(
               label={block.label}
               color={color}
               editable={editable}
+              selected={
+                focus?.kind === "clip" &&
+                focus.timelineId === source.timelineId &&
+                focus.blockKey === `${source.presetId}:${block.id}`
+              }
               secToPx={secToPx}
+              onSelect={() =>
+                focusTimelineBlock(`clip:${source.timelineId}:${source.presetId}:${block.id}`, {
+                  kind: "clip",
+                  timelineId: source.timelineId,
+                  presetId: source.presetId,
+                  label: block.label,
+                  blockKey: `${source.presetId}:${block.id}`,
+                })
+              }
               onDragStart={
                 editable
                   ? (event, kind) => onPointerDown(event, source.key, block, kind)
@@ -319,6 +377,8 @@ interface MediaTrackBlockSectionProps {
   timingKind?: NodeTiming["kind"];
   /** This track is packed inside a sequence scene, so its start stays put. */
   packedInSequence?: boolean;
+  /** Timeline that owns this preset. Used for the mode tabs and lock targets. */
+  timeline?: Timeline;
   probedItemDurations?: Record<number, number>;
   /** Registry preset id. Window tracks skip the per-item atom rows. */
   registryPresetId?: string;
@@ -341,10 +401,13 @@ export function MediaTrackBlockSection({
   parentAbsolute,
   timingKind,
   packedInSequence,
+  timeline,
   probedItemDurations,
   registryPresetId,
 }: MediaTrackBlockSectionProps) {
   const { secToPx, pixelsPerSecond, totalWidth } = useTimelineViewport();
+  const { compact } = useTimelineDensity();
+  const rowHeight = rowHeightFor(compact);
   const updateNodeTiming = useTimelineEditsStore((s) => s.updateNodeTiming);
   const updatePresetInputData = useTimelineEditsStore((s) => s.updatePresetInputData);
   const getEditedTimeline = useTimelineEditsStore((s) => s.getEditedTimeline);
@@ -454,9 +517,15 @@ export function MediaTrackBlockSection({
       : [],
   );
   const canMove = !packedInSequence;
+  const rowLocked =
+    Boolean(packedInSequence) || timingKind === "lock" || timingKind === "durationLock";
   const span = `${formatTimeLabel(shown.start)}–${formatTimeLabel(shown.start + shown.duration)}`;
   const trim = offset < 0 ? ` · head ${formatTimeLabel(-offset)}` : "";
   const detail = `${layout.sequence ? "Sequence" : "Aligned"} · ${span}${trim}`;
+  const modeControl =
+    timeline && hasTrackShell(input) ? (
+      <PresetTrackModeControl timeline={timeline} presetId={presetId} input={input} />
+    ) : null;
 
   useRegisterTimelineSection({
     id: sectionId,
@@ -464,11 +533,11 @@ export function MediaTrackBlockSection({
     rows: [
       {
         id: `${sectionId}:window`,
-        label: rowLabel(label, detail, false),
+        label: rowLabel(label, detail, false, compact, modeControl),
         track: (
           <div
             className="relative border-b border-border/40"
-            style={{ width: totalWidth, height: ROW_HEIGHT }}
+            style={{ width: totalWidth, height: rowHeight }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
           >
@@ -480,6 +549,7 @@ export function MediaTrackBlockSection({
               editable
               allowMove={canMove}
               allowTrimStart={canMove}
+              locked={rowLocked}
               secToPx={secToPx}
               onDragStart={(_event, kind) => onPointerDown(_event, kind)}
             />

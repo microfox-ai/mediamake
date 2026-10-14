@@ -20,45 +20,17 @@
 
 import { InputCompositionProps } from '@microfox/remotion';
 import z from 'zod';
-import { PresetMetadata, PresetOutput } from '../../types';
 import { paramMetaTypes } from '../../dataTypes';
+import {
+  definePreset,
+  type TrackShellParams,
+} from '../../define-preset';
 import {
   applyLegacyTrackTiming,
   joinRangeList,
 } from './track-timing-legacy';
 
 const presetParams = z.object({
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the track used as prefix for each atom'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned'])
-    .default('aligned')
-    .describe(
-      'Lock copies another track. Sequence plays blocks in order. Aligned keeps each range on its start.',
-    ),
-  start: z
-    .number()
-    .default(0)
-    .describe('Start of this track in its parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe(
-      'Duration in seconds. Used when the track is aligned. A lock takes its length from the target.',
-    ),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe('Lock start and duration to a sibling or parent track'),
   className: z
     .string()
     .optional()
@@ -83,13 +55,13 @@ const presetParams = z.object({
 });
 
 const presetExecution = async (
-  params: z.infer<typeof presetParams>,
+  params: z.infer<typeof presetParams> & TrackShellParams,
   props: {
     config: InputCompositionProps['config'];
     fetcher: (url: string, data: any) => Promise<any>;
     helpers?: Record<string, Function>;
   },
-): Promise<Partial<PresetOutput>> => {
+) => {
   const { className, style, trackName } = params;
   const { helpers } = props;
 
@@ -143,21 +115,6 @@ const presetExecution = async (
       trackType !== 'sequence' &&
       trackType !== 'aligned');
   const sequence = !locked && trackType === 'sequence';
-  const trackStart =
-    (typeof legacy.start === 'number' && Number.isFinite(legacy.start)
-      ? legacy.start
-      : undefined) ??
-    (typeof legacy.trackStartOffset === 'number' &&
-    Number.isFinite(legacy.trackStartOffset)
-      ? legacy.trackStartOffset
-      : 0);
-  const authoredDuration =
-    (typeof legacy.duration === 'number' && legacy.duration > 0
-      ? legacy.duration
-      : undefined) ??
-    (typeof legacy.trackDuration === 'number' && legacy.trackDuration > 0
-      ? legacy.trackDuration
-      : undefined);
 
   // Create div components for each range. No range means one block that
   // fills the parent layout: omit timing so duration is inherited.
@@ -203,59 +160,30 @@ const presetExecution = async (
       ? Math.max(...parsedRanges.map(tr => tr.end))
       : 0;
   const derivedDuration = sequence ? packed : maxEnd;
-  const trackTiming: {
-    start: number;
-    duration?: number;
-    startOffset?: number;
-  } = { start: trackStart };
-  if (!locked) {
-    const length = authoredDuration ?? (derivedDuration > 0 ? derivedDuration : undefined);
-    if (typeof length === 'number' && length > 0) trackTiming.duration = length;
-  }
-  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
-    trackTiming.startOffset = legacy.startOffset;
-  }
-  const trackLayout = sequence ? ('scene' as const) : ('layout' as const);
 
   return {
-    output: {
-      childrenData: [
-        {
-          id: `${trackName}-html-blocks-container`,
-          componentId: 'BaseLayout',
-          type: trackLayout,
-          data: {
-            containerProps: {
-              className: 'absolute inset-0',
-            },
-          },
-          context: {
-            timing: trackTiming,
-          },
-          childrenData: divComponents,
-          effects: [],
-        },
-      ],
+    children: divComponents,
+    containerProps: {
+      className: 'absolute inset-0',
     },
-    options: {
-      attachedToId: `BaseScene`,
-    },
+    duration: derivedDuration > 0 ? derivedDuration : undefined,
   };
 };
 
-const presetMetadata: PresetMetadata = {
+const presetMetadata = {
   id: 'htmlBlockAtom',
   title: 'HTML Block Atom',
   description:
     'Creates div blocks at specific time ranges. With no range, the block fills the parent layout.',
-  type: 'predefined',
-  presetType: 'children',
-  role: 'track',
+  type: 'predefined' as const,
+  presetType: 'children' as const,
+  role: 'track' as const,
   tags: ['html', 'div', 'blocks', 'timing', 'layout'],
   defaultInputParams: {
     trackName: 'html-blocks',
     trackType: 'aligned',
     start: 0,
+    attachedToId: 'BaseScene',
     className:
       'w-full h-full flex items-center justify-center bg-blue-500 text-white text-2xl font-bold',
     style: {
@@ -287,13 +215,11 @@ export function migrateHtmlBlockInputData<T>(data: T): T {
   return changed ? (next as T) : data;
 }
 
-const presetFunction = presetExecution.toString();
-const presetParamsSchema = z.toJSONSchema(presetParams);
-
-const htmlBlockAtomPreset = {
+const htmlBlockAtomPreset = definePreset({
+  placement: 'container',
   metadata: presetMetadata,
-  presetFunction: presetFunction,
-  presetParams: presetParamsSchema,
-};
+  params: presetParams,
+  build: presetExecution,
+});
 
 export { htmlBlockAtomPreset };

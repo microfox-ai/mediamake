@@ -3,6 +3,7 @@
  * incomplete/invalid so the player does not error mid-edit.
  */
 import { parseTimeRange, parseTimeToSeconds } from "./preset-stdlib";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 const RANGE_LIKE_NAMES = new Set([
   "range",
@@ -92,7 +93,7 @@ export function timelineHasInvalidRanges(timeline: {
   for (const preset of timeline.presets || []) {
     const paths = findInvalidRangePaths(preset.presetInputData || {});
     for (const p of paths) {
-      invalid.push(`${preset.label || "preset"}:${p}`);
+      invalid.push(`${presetTrackName(preset, "preset")}:${p}`);
     }
   }
   for (const ref of timeline.defaultData?.references || []) {

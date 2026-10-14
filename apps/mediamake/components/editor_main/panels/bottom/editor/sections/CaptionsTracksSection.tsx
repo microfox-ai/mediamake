@@ -10,9 +10,11 @@ import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { setCaptionSelectionActive } from "../../../../stores/bottom-selection-gate";
 import { useCaptionTrackSelection } from "../../../../stores/caption-track-selection";
+import { useTimelineBlockFocus } from "../../../../stores/timeline-block-focus";
 import { isEditableKeyboardTarget } from "../../../../stores/block-clipboard-store";
 import { isEditorFocusScope } from "../../../../stores/editor-focus-scope";
-import { ROW_HEIGHT, MIN_SEG_PX } from "../timeline-layout";
+import { MIN_SEG_PX } from "../timeline-layout";
+import { blockCornerClass, rowHeightFor, useTimelineDensity } from "../timeline-density";
 import { useTimelineViewport } from "../timeline-viewport";
 import {
   useRegisterTimelineSection,
@@ -77,6 +79,8 @@ export function CaptionsTracksSection({
   sourceTag,
 }: CaptionsTracksSectionProps) {
   const clubbed = !!sourceTag;
+  const { compact } = useTimelineDensity();
+  const rowHeight = rowHeightFor(compact);
   const { secToPx, totalDuration, pixelsPerSecond } = useTimelineViewport();
   const updateTimeline = useTimelineEditsStore((s) => s.updateTimeline);
   const editedTimeline = useTimelineEditsStore((s) =>
@@ -128,6 +132,9 @@ export function CaptionsTracksSection({
           setTrackSelection(null);
         }
         return;
+      }
+      if (useTimelineBlockFocus.getState().focus) {
+        useTimelineBlockFocus.getState().setFocus(null);
       }
       setTrackSelection({
         timelineId,
@@ -588,7 +595,7 @@ export function CaptionsTracksSection({
         label: (
           <div
             className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
           >
             <div className="flex-1 min-w-0">
               <p
@@ -597,9 +604,11 @@ export function CaptionsTracksSection({
               >
                 {linesTitle}
               </p>
-              <p className="text-[9px] text-muted-foreground/50 truncate">
-                {localCaptions.length} captions
-              </p>
+              {compact ? null : (
+                <p className="text-[9px] text-muted-foreground/50 truncate">
+                  {localCaptions.length} captions
+                </p>
+              )}
             </div>
           </div>
         ),
@@ -607,7 +616,7 @@ export function CaptionsTracksSection({
           <div
             key={captionsKey}
             className="relative border-b border-border/40 hover:bg-muted/5 transition-colors"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerDown={(e) => {
@@ -675,7 +684,7 @@ export function CaptionsTracksSection({
         label: (
           <div
             className="flex items-center gap-1 px-2 border-b border-border/40 bg-background"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
           >
             <div className="flex-1 min-w-0">
               <p
@@ -684,9 +693,11 @@ export function CaptionsTracksSection({
               >
                 {wordsTitle}
               </p>
-              <p className="text-[9px] text-muted-foreground/50 truncate">
-                {wordCount} words
-              </p>
+              {compact ? null : (
+                <p className="text-[9px] text-muted-foreground/50 truncate">
+                  {wordCount} words
+                </p>
+              )}
             </div>
           </div>
         ),
@@ -694,7 +705,7 @@ export function CaptionsTracksSection({
           <div
             key={`${captionsKey}:words`}
             className="relative border-b border-border/40 hover:bg-muted/5 transition-colors"
-            style={{ height: ROW_HEIGHT }}
+            style={{ height: rowHeight }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerDown={(e) => {
@@ -788,6 +799,8 @@ export function CaptionsTracksSection({
     tools,
     selectBlock,
     clearSelection,
+    compact,
+    rowHeight,
   ]);
 
   useRegisterTimelineSection(section);
@@ -819,6 +832,7 @@ function TimingBlock({
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
 }) {
+  const { compact } = useTimelineDensity();
   return (
     <div
       className="absolute top-1.5 bottom-1.5 group/seg"
@@ -830,7 +844,8 @@ function TimingBlock({
     >
       <div
         className={cn(
-          "absolute inset-0 rounded border cursor-grab active:cursor-grabbing flex items-center transition-colors",
+          "absolute inset-0 border cursor-grab active:cursor-grabbing flex items-center transition-colors",
+          blockCornerClass(compact),
           color,
           isSelected &&
             "ring-2 ring-primary ring-offset-1 ring-offset-background z-[1]",

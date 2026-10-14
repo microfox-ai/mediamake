@@ -20,6 +20,7 @@ import {
 import { SchemaForm } from "@/components/editor/presets/form/schema-form";
 import { AnchoredEditPopover } from "@/components/editor/presets/form/inputs/anchored-edit-popover";
 import { collectTrackNamesFromPresets } from "@/components/editor/presets/form/collect-track-names";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 import { createBaseDataFromReferences } from "@/components/editor/presets/engine/preset-data-mutation";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import type { TimelineAction, ActionTarget } from "../types";
@@ -368,8 +369,10 @@ export function ActionEditor({
     const target = current.target;
     if (target.type === "preset") {
       return (
-        presets?.find((p) => p.id === target.presetInstanceId)?.label ||
-        target.presetInstanceId
+        presetTrackName(
+          presets?.find((p) => p.id === target.presetInstanceId),
+          target.presetInstanceId,
+        )
       );
     }
     return target.referenceKey;

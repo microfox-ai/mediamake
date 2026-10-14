@@ -13,16 +13,20 @@ import {
   collectIntrinsicDurations,
   collectMediaItemDurations,
 } from "@/components/editor_main/timing/stamp-timing";
+import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { TimelineShell } from "./TimelineShell";
 import { InstanceTimingSection } from "./sections/InstanceTimingSection";
 import { PresetTracksSection } from "./sections/PresetTracksSection";
 import { MediaSceneBlocksSection } from "./sections/MediaSceneBlocksSection";
+import { LinkedActionTracks } from "./sections/ActionTracksSection";
+import { actionRangesVisible, actionTimelineEnd } from "./timeline-track-sources";
+import { resolveTimelineScope } from "./timeline-scope";
 import {
   atomContentEnd,
   presetUsesSceneBlocks,
   sceneBlocksForPreset,
-  trackDisplayName,
 } from "./media-scene-blocks";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 function parentOf(root: AppliedNode, id: string): AppliedNode | null {
   let found: AppliedNode | null = null;
@@ -35,7 +39,8 @@ function parentOf(root: AppliedNode, id: string): AppliedNode | null {
 }
 
 /**
- * Focused preset timeline — single source of truth via PresetTracksSection.
+ * Focused preset timeline. A scene shows the presets attached to it.
+ * A container or atom shows its own sequence, clips, and ranges.
  */
 export function PresetTimelineContent() {
   const { selectedItem } = useEditorStore();
@@ -53,6 +58,14 @@ export function PresetTimelineContent() {
     effectiveTimeline?.presets?.find((p) => p.id === selectedPreset?.id) ||
     selectedPreset;
 
+  const tree = useMemo(
+    () => (effectiveTimeline ? loadInstanceTree(effectiveTimeline) : null),
+    [effectiveTimeline],
+  );
+  const scope = useMemo(
+    () => (tree ? resolveTimelineScope(tree, isPresetSelected ? selectedItem : null) : null),
+    [tree, isPresetSelected, selectedItem],
+  );
   const audioClips = useCompiledAudioClips(effectiveTimeline);
 
   const fps = calculatedMetadata?.fps ?? 30;
@@ -104,7 +117,20 @@ export function PresetTimelineContent() {
       atomContentEnd(preset?.presetInputData, origin, probedItemDurations, preset?.presetId),
     );
   }, [effectiveTimeline, intrinsicDurations, preset?.presetInputData, probedItemDurations, sequenceDuration]);
-  const totalDuration = Math.max(1, compiledSec || configSec || 60, contentEnd);
+  const linkedActionEnd =
+    isPresetSelected && effectiveTimeline
+      ? actionTimelineEnd(
+          (effectiveTimeline.actions ?? []).filter((action) =>
+            actionRangesVisible(action, selectedItem),
+          ),
+        )
+      : 0;
+  const totalDuration = Math.max(
+    1,
+    compiledSec || configSec || 60,
+    contentEnd,
+    linkedActionEnd,
+  );
 
   const placement = useMemo(() => {
     if (!effectiveTimeline || !preset || !presetUsesSceneBlocks(preset.presetId)) return null;
@@ -153,24 +179,27 @@ export function PresetTimelineContent() {
     );
   }
 
-  const rowName = trackDisplayName(preset.presetInputData, preset.label || "Track");
-  const isScene = preset.presetId === "scene" || preset.presetId === "base-scene";
+  const rowName = presetTrackName(preset, "Track");
+  const shellPlacement = getPredefinedPresetById(preset.presetId)?.metadata.placement;
+  const drawsOwnSequence =
+    scope?.kind === "preset" &&
+    (shellPlacement === "atom" || shellPlacement === "container");
+  const showInstanceRows = scope?.kind === "scene-children" || drawsOwnSequence;
 
   return (
     <TimelineShell
       totalDuration={totalDuration}
-      title={rowName}
       audioClips={audioClips}
       emptyMessage="This preset has no timeline-linked ranges. Link a data reference in the right panel."
     >
-      {isScene ? (
+      {showInstanceRows && scope ? (
         <InstanceTimingSection
           timeline={effectiveTimeline}
           order={0}
-          focusNodeId={preset.id}
+          scope={scope}
         />
       ) : null}
-      {presetUsesSceneBlocks(preset.presetId) || lockSpan ? (
+      {!showInstanceRows && (presetUsesSceneBlocks(preset.presetId) || lockSpan) ? (
         <MediaSceneBlocksSection
           sectionId={`preset-scenes:${preset.id}`}
           order={0}
@@ -180,6 +209,7 @@ export function PresetTimelineContent() {
           sequenceDuration={sequenceDuration}
           timelineId={effectiveTimeline.id}
           presetId={preset.id}
+          timeline={effectiveTimeline}
           label={rowName}
           authoredStart={placement?.authoredStart}
           fullDuration={placement?.fullDuration}
@@ -189,13 +219,19 @@ export function PresetTimelineContent() {
           registryPresetId={preset.presetId}
         />
       ) : null}
-      <PresetTracksSection
-        sectionId={`preset:${preset.id}`}
-        order={1}
-        timelineId={effectiveTimeline.id}
-        presetId={preset.id}
-        label={preset.label || "Preset"}
-        fallbackTimeline={effectiveTimeline}
+      {scope?.kind === "preset" ? (
+        <PresetTracksSection
+          sectionId={`preset:${preset.id}`}
+          order={1}
+          timelineId={effectiveTimeline.id}
+          presetId={preset.id}
+          label={presetTrackName(preset, "Preset")}
+          fallbackTimeline={effectiveTimeline}
+        />
+      ) : null}
+      <LinkedActionTracks
+        actions={effectiveTimeline.actions}
+        selected={selectedItem}
       />
     </TimelineShell>
   );

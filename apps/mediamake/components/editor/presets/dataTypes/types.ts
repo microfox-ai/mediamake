@@ -57,6 +57,12 @@ export const paramMetaTypes = {
    */
   lockTarget: 'lockTarget',
   /**
+   * Marks the parent this preset inserts into.
+   * Renders a dropdown of track names, always including BaseScene.
+   * Value: true
+   */
+  attachTarget: 'attachTarget',
+  /**
    * Marks an object with optional left/right/top/bottom numeric insets.
    * Renders a Figma-style 4-block insets editor. Missing keys stay undefined
    * (distinct from 0). Value: true

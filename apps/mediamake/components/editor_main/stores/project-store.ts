@@ -15,7 +15,8 @@ export interface Timeline {
   defaultData?: any;
   presets?: Array<{
     id: string;
-    label: string;
+    /** Legacy display name. Prefer `presetInputData.trackName`. */
+    label?: string;
     presetId: string;
     presetType: string;
     presetInfo?: Preset | DatabasePreset;

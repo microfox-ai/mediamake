@@ -3,6 +3,7 @@
  * field changes for both layer overrides and timeline preset edits.
  */
 import type { Timeline } from "@/components/editor_main/stores/project-store";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 export interface LeafDiff {
   /** Dotted path to the changed leaf, e.g. "data.style.color" or "boundaries.left". */
@@ -106,7 +107,7 @@ type AnyPreset = NonNullable<Timeline["presets"]>[number];
 type AnyAction = NonNullable<Timeline["actions"]>[number];
 
 function presetLabel(p: AnyPreset): string {
-  return p.label || p.presetId || p.id;
+  return presetTrackName(p, p.presetId || p.id);
 }
 
 function actionLabel(a: AnyAction): string {
@@ -151,12 +152,14 @@ export function summarizeTimelineDiff(
       });
       continue;
     }
-    if ((bp.label || "") !== (ap.label || "")) {
+    const beforeName = presetTrackName(bp, bp.presetId || bp.id);
+    const afterName = presetTrackName(ap, ap.presetId || ap.id);
+    if (beforeName !== afterName) {
       details.push({
         type: "preset-renamed",
-        label: presetLabel(ap),
+        label: afterName,
         fieldDiffs: [],
-        summary: `Renamed "${bp.label || bp.presetId}" → "${ap.label || ap.presetId}"`,
+        summary: `Renamed "${beforeName}" → "${afterName}"`,
       });
     }
     if (!!bp.disabled !== !!ap.disabled) {
@@ -167,7 +170,9 @@ export function summarizeTimelineDiff(
         summary: `${ap.disabled ? "Disabled" : "Enabled"} "${presetLabel(ap)}"`,
       });
     }
-    const fieldDiffs = deepDiff(bp.presetInputData ?? {}, ap.presetInputData ?? {});
+    const fieldDiffs = deepDiff(bp.presetInputData ?? {}, ap.presetInputData ?? {}).filter(
+      (diff) => diff.path !== "trackName",
+    );
     if (fieldDiffs.length > 0) {
       details.push({
         type: "preset-modified",

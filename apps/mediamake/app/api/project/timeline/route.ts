@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { DatabasePreset, Preset } from '@/components/editor/presets/types';
+import { inputTrackName, uniqueTrackName } from '@/components/editor_main/timing/preset-track-name';
 
 interface TimelinePreset {
   id: string;
-  label: string;
+  /** Legacy display name. Prefer `presetInputData.trackName`. */
+  label?: string;
   presetId: string;
   presetType: string;
   presetInfo?: Preset | DatabasePreset;
@@ -283,19 +285,23 @@ export async function POST(request: NextRequest) {
           presetCounts[preset.presetId] = (presetCounts[preset.presetId] || 0) + 1;
         });
 
-        const convertedPresets = legacyData.presetData?.presets?.map((preset: any, index: number) => {
+        const convertedPresets: TimelinePreset[] = [];
+        legacyData.presetData?.presets?.forEach((preset: any, index: number) => {
           const count = presetCounts[preset.presetId];
           const occurrenceIndex = legacyData.presetData.presets
             .slice(0, index)
             .filter((p: any) => p.presetId === preset.presetId).length;
-          return {
+          const input = { ...(preset.presetInputData ?? {}) };
+          const seeded = inputTrackName(input) || formatPresetLabel(preset.presetId, count);
+          const trackName = uniqueTrackName(convertedPresets, seeded);
+          input.trackName = trackName;
+          convertedPresets.push({
             id: `${preset.presetId}-${occurrenceIndex}`,
-            label: formatPresetLabel(preset.presetId, count),
             presetId: preset.presetId,
             presetType: preset.presetType,
-            presetInputData: preset.presetInputData,
+            presetInputData: input,
             disabled: preset.disabled || false,
-          };
+          });
         });
 
         const timelineDocument: Omit<TimelineDocument, '_id'> = {
@@ -417,7 +423,6 @@ export async function POST(request: NextRequest) {
         presets: [
           {
             id: `preset-${Date.now()}`,
-            label: 'Base Scene',
             presetId: 'base-scene',
             presetType: 'full',
             presetInputData: {
@@ -428,6 +433,7 @@ export async function POST(request: NextRequest) {
               trackType: 'aligned',
               start: 0,
               duration: 20,
+              trackName: 'base-scene',
             },
             disabled: false,
           },

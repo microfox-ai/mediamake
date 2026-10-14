@@ -1,4 +1,5 @@
 import type { Timeline } from '@/components/editor_main/stores/project-store';
+import { presetTrackName } from '@/components/editor_main/timing/preset-track-name';
 import {
   presetUsesSceneBlocks,
   sceneBlocksForPreset,
@@ -101,7 +102,7 @@ function arrangementOf(
   return 'aligned';
 }
 
-/** Map a free-form ref (instance id, preset id, label, or track name) onto an instance id. */
+/** Map a free-form ref (instance id, preset id, track name, or legacy label) onto an instance id. */
 export function resolveInstanceRef(
   ref: string,
   presets: TimelinePresetLike[],
@@ -110,12 +111,12 @@ export function resolveInstanceRef(
   if (byId) return byId.id;
   const byPresetId = presets.find((preset) => preset.presetId === ref);
   if (byPresetId) return byPresetId.id;
-  const byLabel = presets.find((preset) => preset.label === ref);
-  if (byLabel) return byLabel.id;
   const byTrackName = presets.find(
     (preset) => asRecord(preset.presetInputData).trackName === ref,
   );
   if (byTrackName) return byTrackName.id;
+  const byLabel = presets.find((preset) => preset.label === ref);
+  if (byLabel) return byLabel.id;
   return ref;
 }
 
@@ -203,7 +204,7 @@ function nodeFromPreset(
   return {
     id: preset.id,
     presetId: preset.presetId,
-    name: preset.label || preset.presetId,
+    name: presetTrackName(preset, preset.presetId),
     disabled: preset.disabled,
     role,
     arrangement,
@@ -225,10 +226,9 @@ function deriveTree(timeline: {
 
   const rootSource: TimelinePresetLike = base ?? {
     id: VIRTUAL_ROOT_ID,
-    label: 'Scene',
     presetId: VIRTUAL_ROOT_ID,
     presetType: 'full',
-    presetInputData: {},
+    presetInputData: { trackName: 'Scene' },
   };
   const root = nodeFromPreset(rootSource, presets, 'scene');
   if (!base) {
@@ -367,6 +367,32 @@ export function findNode(root: AppliedNode, id: string): AppliedNode | undefined
     if (found) return found;
   }
   return undefined;
+}
+
+/** The node and every nested preset under it, at any depth. */
+export function collectSubtreeIds(root: AppliedNode, id: string): string[] {
+  const node = findNode(root, id);
+  if (!node) return [id];
+  const ids: string[] = [];
+  const walk = (current: AppliedNode) => {
+    ids.push(current.id);
+    for (const child of current.children) walk(child);
+  };
+  walk(node);
+  return ids;
+}
+
+/** Set `disabled` on a node and every preset nested under it. */
+export function mapNodeDisabled(
+  root: AppliedNode,
+  ids: Set<string>,
+  disabled: boolean,
+): AppliedNode {
+  return {
+    ...root,
+    disabled: ids.has(root.id) ? disabled : root.disabled,
+    children: root.children.map((child) => mapNodeDisabled(child, ids, disabled)),
+  };
 }
 
 function withoutNode(root: AppliedNode, id: string): AppliedNode {

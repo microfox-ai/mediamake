@@ -11,6 +11,7 @@ import { useTimelineEditsStore } from './timeline-edits-store';
 import type { Timeline } from './project-store';
 import { useProjectStore } from './project-store';
 import { loadInstanceTree, parentOfNode } from '@/components/editor_main/timing/load-instance-tree';
+import { copyTrackName, presetTrackName, withTrackName } from '@/components/editor_main/timing/preset-track-name';
 
 export type ItemClipboard =
   | { kind: 'preset'; preset: Preset; actions: TimelineAction[] }
@@ -192,10 +193,15 @@ export function pasteClipboardItem(): boolean {
     const insertAt =
       selectedPresetIndex >= 0 ? selectedPresetIndex + 1 : presets.length;
 
+    const sourceName = presetTrackName(clipboard.preset, clipboard.preset.presetId);
+    const { label: _legacyLabel, ...sourceWithoutLabel } = clipboard.preset;
     const newPreset: Preset = {
-      ...cloneJson(clipboard.preset),
+      ...sourceWithoutLabel,
       id: newId('preset'),
-      label: `${clipboard.preset.label} (Copy)`,
+      presetInputData: withTrackName(
+        clipboard.preset.presetInputData,
+        copyTrackName(presets, sourceName),
+      ),
     };
     presets.splice(insertAt, 0, newPreset);
 
@@ -521,7 +527,10 @@ export function deleteSelectedItem(): boolean {
     }
     const label =
       ids.length === 1
-        ? timeline.presets?.find((preset) => preset.id === ids[0])?.label || 'block'
+        ? presetTrackName(
+            timeline.presets?.find((preset) => preset.id === ids[0]),
+            'block',
+          )
         : `${ids.length} blocks`;
     const message =
       ids.length === 1

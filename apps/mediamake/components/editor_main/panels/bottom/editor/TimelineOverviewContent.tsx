@@ -7,6 +7,11 @@ import { useCompileStore } from "../../../stores/compile-store";
 import { useProjectStore } from "../../../stores/project-store";
 import { useCompiledAudioClips } from "./use-compiled-audio-clips";
 import { loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
+import {
+  resolveTimelineScope,
+  scopeInstanceRows,
+  scopeRangePresetIds,
+} from "./timeline-scope";
 import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
 import {
   collectIntrinsicDurations,
@@ -16,6 +21,8 @@ import type { AppliedNode } from "@/components/editor_main/timing/types";
 import { atomContentEnd, presetUsesSceneBlocks } from "./media-scene-blocks";
 import { TimelineShell } from "./TimelineShell";
 import {
+  actionRangesVisible,
+  actionTimelineEnd,
   collectActionTimelineSegments,
   collectTimelineTrackSources,
   timelineFromSelection,
@@ -23,11 +30,12 @@ import {
 import { InstanceTimingSection } from "./sections/InstanceTimingSection";
 import { PresetTracksSection } from "./sections/PresetTracksSection";
 import { CaptionsTracksSection } from "./sections/CaptionsTracksSection";
-import { ActionTracksSection } from "./sections/ActionTracksSection";
+import { LinkedActionTracks } from "./sections/ActionTracksSection";
 
 /**
- * Timeline-level bottom panel: renders ALL track sources
- * (presets + caption references + actions) inside one shared shell.
+ * Timeline-level bottom panel: sequence rows for presets attached to the
+ * base scene, plus caption references. Action ranges appear only for the
+ * selected action.
  */
 export function TimelineOverviewContent() {
   const { selectedItem } = useEditorStore();
@@ -47,6 +55,18 @@ export function TimelineOverviewContent() {
       effectiveTimeline ? collectTimelineTrackSources(effectiveTimeline) : [],
     [effectiveTimeline],
   );
+  const tree = useMemo(
+    () => (effectiveTimeline ? loadInstanceTree(effectiveTimeline) : null),
+    [effectiveTimeline],
+  );
+  const scope = useMemo(
+    () => (tree ? resolveTimelineScope(tree, selectedItem) : null),
+    [tree, selectedItem],
+  );
+  const rangePresetIds = useMemo(
+    () => (scope ? new Set(scopeRangePresetIds(scope)) : new Set<string>()),
+    [scope],
+  );
 
   const audioClips = useCompiledAudioClips(effectiveTimeline);
 
@@ -60,10 +80,17 @@ export function TimelineOverviewContent() {
   const configSec = Number(
     effectiveTimeline?.configuration?.config?.duration || 0,
   );
-  const contentEnd = useMemo(() => {
+  const actionEnd = useMemo(() => {
     if (!effectiveTimeline) return 0;
+    return actionTimelineEnd(
+      (effectiveTimeline.actions ?? []).filter((action) =>
+        actionRangesVisible(action, selectedItem),
+      ),
+    );
+  }, [effectiveTimeline, selectedItem]);
+  const contentEnd = useMemo(() => {
+    if (!tree) return 0;
     const intrinsicDurations = collectIntrinsicDurations(compiledChildren);
-    const tree = loadInstanceTree(effectiveTimeline);
     const resolved = resolveTiming(tree, { intrinsicDurations });
     let end = 0;
     for (const span of resolved.nodes.values()) {
@@ -87,8 +114,13 @@ export function TimelineOverviewContent() {
     };
     walk(tree);
     return end;
-  }, [effectiveTimeline, compiledChildren]);
-  const totalDuration = Math.max(1, compiledSec || configSec || 60, contentEnd);
+  }, [tree, compiledChildren]);
+  const totalDuration = Math.max(
+    1,
+    compiledSec || configSec || 60,
+    contentEnd,
+    actionEnd,
+  );
 
   if (!effectiveTimeline) {
     return (
@@ -100,12 +132,17 @@ export function TimelineOverviewContent() {
     );
   }
 
-  const presetCount = sources.filter((s) => s.kind === "preset").length;
-  const captionCount = sources.filter(
-    (s) => s.kind === "captions-reference",
-  ).length;
+  const presetCount = tree && scope ? scopeInstanceRows(tree, scope).length : 0;
+  const showTimelineSources =
+    scope?.kind === "scene-children" && scope.includeTimelineSources;
+  const captionCount = showTimelineSources
+    ? sources.filter((s) => s.kind === "captions-reference").length
+    : 0;
   const actionCount = sources.filter(
-    (s) => s.kind === "action" && collectActionTimelineSegments(s.action).length > 0,
+    (s) =>
+      s.kind === "action" &&
+      actionRangesVisible(s.action, selectedItem) &&
+      collectActionTimelineSegments(s.action).length > 0,
   ).length;
   const subtitleParts = [
     presetCount > 0
@@ -122,16 +159,18 @@ export function TimelineOverviewContent() {
   return (
     <TimelineShell
       totalDuration={totalDuration}
-      title={effectiveTimeline.displayName || "Timeline"}
       subtitle={
         subtitleParts.length > 0 ? `· ${subtitleParts.join(" · ")}` : undefined
       }
       audioClips={audioClips}
       emptyMessage="This timeline has no ranges, words, or lines to show."
     >
-      <InstanceTimingSection timeline={effectiveTimeline} order={-1} />
+      {scope ? (
+        <InstanceTimingSection timeline={effectiveTimeline} order={-1} scope={scope} />
+      ) : null}
       {sources.map((source, index) => {
         if (source.kind === "preset") {
+          if (!rangePresetIds.has(source.presetId)) return null;
           return (
             <PresetTracksSection
               key={source.id}
@@ -145,6 +184,7 @@ export function TimelineOverviewContent() {
             />
           );
         }
+        if (!showTimelineSources) return null;
         if (source.kind === "captions-reference") {
           return (
             <CaptionsTracksSection
@@ -158,19 +198,13 @@ export function TimelineOverviewContent() {
             />
           );
         }
-        if (source.kind === "action") {
-          return (
-            <ActionTracksSection
-              key={source.id}
-              sectionId={source.id}
-              order={index}
-              action={source.action}
-              sourceTag={source.label}
-            />
-          );
-        }
         return null;
       })}
+      <LinkedActionTracks
+        actions={effectiveTimeline.actions}
+        selected={selectedItem}
+        orderBase={sources.length}
+      />
     </TimelineShell>
   );
 }

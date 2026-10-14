@@ -22,6 +22,12 @@ export interface PresetMetadata {
    * modifier — effect/data/context, not a timeline span.
    */
   role?: 'scene' | 'track' | 'modifier';
+  /**
+   * container — runPreset wraps the build result in a BaseLayout.
+   * atom — runPreset inserts the build result directly under attachedToId.
+   * Unset presets return a full PresetOutput themselves.
+   */
+  placement?: 'container' | 'atom';
   targetId?: string; // For inserting into specific component
   tags?: string[];
   createdAt?: Date;

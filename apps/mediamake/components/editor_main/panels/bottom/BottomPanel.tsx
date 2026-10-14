@@ -9,13 +9,16 @@ import { useEditorUIStore } from "../../stores/editor-ui-store";
 import { useProjectStore } from "../../stores/project-store";
 import { useCompileStore } from "../../stores/compile-store";
 import { useLayerStateStore } from "../../stores/layer-state-store";
+import { useTimelineEditsStore } from "../../stores/timeline-edits-store";
 import { toast } from "sonner";
 import { EditorContent } from "./editor/EditorContent";
 import { flattenLayers } from "@/lib/editor/flatten-layers";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 export function BottomPanel() {
   const { currentPattern } = useViewPatternStore();
   const { selectedItem } = useEditorStore();
+  const editedTimelines = useTimelineEditsStore((state) => state.editedTimelines);
   const { filePanelTab } = useEditorUIStore();
   const { loadedTimeline, currentProjectId } = useProjectStore();
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
@@ -56,10 +59,20 @@ export function BottomPanel() {
       ? Math.max(startFrame, startFrame + Math.max(1, durationFrames) - 1)
       : null;
 
+  const presetTitle = (fallback: string) => {
+    if (selectedItem?.type !== "preset") return fallback;
+    const live =
+      editedTimelines
+        .get(selectedItem.timeline.id)
+        ?.presets?.find((preset) => preset.id === selectedItem.item.id) ??
+      selectedItem.item;
+    return presetTrackName(live, fallback);
+  };
+
   const getTitle = () => {
     if (filePanelTab === "timelines") {
       if (selectedItem?.type === "preset") {
-        return selectedItem.item.label || "Preset timeline";
+        return presetTitle("Preset timeline");
       }
       if (selectedItem?.type === "reference") {
         return selectedItem.item.key || "Reference timeline";
@@ -80,6 +93,9 @@ export function BottomPanel() {
     }
     if (selectedItem.type === "reference") {
       return selectedItem.item.key || "Reference";
+    }
+    if (selectedItem.type === "preset") {
+      return presetTitle("Preset");
     }
     return selectedItem.item.label || "Preset";
   };

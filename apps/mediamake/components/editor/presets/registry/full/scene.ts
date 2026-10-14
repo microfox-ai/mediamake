@@ -8,42 +8,15 @@
  * to a child trims this scene to that child. A negative startOffset trims the
  * head without moving the end.
  * The container can be positioned like a media track.
+ *
+ * Track name, timing, lock, and attachedToId come from the shared track shell.
  */
 
-import { InputCompositionProps } from '@microfox/remotion';
 import z from 'zod';
 import { paramMetaTypes } from '../../dataTypes';
-import { PresetMetadata, PresetOutput } from '../../types';
+import { definePreset, type TrackShellParams } from '../../define-preset';
 
 const presetParams = z.object({
-  trackName: z
-    .string()
-    .meta({ [paramMetaTypes.trackName]: true })
-    .describe('Name of the scene ( used for the ID )'),
-  trackType: z
-    .enum(['lockedTo', 'sequence', 'aligned', 'autoRange'])
-    .default('aligned')
-    .describe(
-      'Lock copies another track. Sequence plays children in order. Aligned uses start and duration. Auto range starts at the first child and ends at the last child.',
-    ),
-  start: z.number().optional().describe('Start in the parent scene, in seconds'),
-  startOffset: z
-    .number()
-    .optional()
-    .describe(
-      'Negative trim from the head, in seconds. The end stays put. Remotion clips a sequence whose from is negative by this amount.',
-    ),
-  duration: z
-    .number()
-    .optional()
-    .describe('Duration in seconds. Used when track type is aligned.'),
-  lock: z
-    .string()
-    .optional()
-    .meta({ [paramMetaTypes.lockTarget]: true })
-    .describe(
-      'Lock start and duration to a sibling, parent, or child. Locking to a child trims this scene to that child.',
-    ),
   backgroundColor: z.string().optional(),
   containerObject: z
     .object({
@@ -88,8 +61,8 @@ const presetParams = z.object({
 });
 
 const presetExecution = (
-  params: z.infer<typeof presetParams>,
-): PresetOutput => {
+  params: z.infer<typeof presetParams> & TrackShellParams,
+) => {
   const applyPositioning = (
     positioning: string | undefined,
   ): Record<string, string | number> => {
@@ -136,72 +109,34 @@ const presetExecution = (
     ...(Object.keys(containerStyle).length > 0 ? { style: containerStyle } : {}),
   };
 
-  const legacy = params as z.infer<typeof presetParams> & {
-    trackStartOffset?: number;
-    trackDuration?: number;
-    trackFitDurationTo?: string;
-  };
-  const sequence = params.trackType === 'sequence';
-  const autoRange = params.trackType === 'autoRange';
-  const lock =
-    (typeof legacy.lock === 'string' && legacy.lock) ||
-    legacy.trackFitDurationTo ||
-    undefined;
-  const start = legacy.start ?? legacy.trackStartOffset ?? 0;
-  const duration = legacy.duration ?? legacy.trackDuration;
-  const trackTiming: { start: number; duration?: number; startOffset?: number } = {
-    start,
-  };
-  if (!lock && !autoRange && typeof duration === 'number' && duration > 0) {
-    trackTiming.duration = duration;
-  }
-  if (typeof legacy.startOffset === 'number' && legacy.startOffset < 0) {
-    trackTiming.startOffset = legacy.startOffset;
-  }
-
   return {
-    output: {
-      childrenData: [
-        {
-          id: params.trackName || 'scene',
-          componentId: 'BaseLayout',
-          type: sequence ? 'scene' : 'layout',
-          data: {
-            containerProps,
-          },
-          context: { timing: trackTiming },
-          childrenData: [],
-        },
-      ],
-    } as Partial<InputCompositionProps>,
-    options: {
-      attachedToId: 'BaseScene',
-      attachedContainers: [containerProps],
-    },
+    children: [],
+    containerProps,
   };
 };
 
-const presetMetadata: PresetMetadata = {
-  id: 'scene',
-  title: 'Scene',
-  description:
-    'Groups other presets. Sequence hugs child durations. Aligned scenes use a start and duration. Auto range starts at the first child and ends at the last. Lock can follow a sibling, a parent, or a child, and locking to a child trims the scene to that child. Position the container the same way as a media track.',
-  type: 'predefined',
-  presetType: 'children',
-  role: 'scene',
-  tags: ['scene', 'group', 'nest'],
-  defaultInputParams: {
-    trackName: 'scene',
-    trackType: 'aligned',
-    start: 0,
-    duration: 10,
+const scenePreset = definePreset({
+  placement: 'container',
+  trackModes: ['lockedTo', 'sequence', 'aligned', 'autoRange'],
+  metadata: {
+    id: 'scene',
+    title: 'Scene',
+    description:
+      'Groups other presets. Sequence hugs child durations. Aligned scenes use a start and duration. Auto range starts at the first child and ends at the last. Lock can follow a sibling, a parent, or a child, and locking to a child trims the scene to that child. Position the container the same way as a media track.',
+    type: 'predefined',
+    presetType: 'children',
+    role: 'scene',
+    tags: ['scene', 'group', 'nest'],
+    defaultInputParams: {
+      trackName: 'scene',
+      trackType: 'aligned',
+      start: 0,
+      duration: 10,
+      attachedToId: 'BaseScene',
+    },
   },
-};
-
-const scenePreset = {
-  metadata: presetMetadata,
-  presetFunction: presetExecution.toString(),
-  presetParams: z.toJSONSchema(presetParams),
-};
+  params: presetParams,
+  build: presetExecution,
+});
 
 export { scenePreset };

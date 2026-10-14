@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, File, Eye, EyeOff, Play, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Play, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
@@ -33,7 +33,11 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AddBlockContextMenuItems } from "./AddBlockMenu";
+import { BlockIcon } from "./block-icon";
+import { groupSelectedBlocks } from "./group-selection";
+import { canGroupPresets } from "@/components/editor_main/timing/group-presets";
 import { DatabasePreset, Preset } from "@/components/editor/presets/types";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
 interface PresetItemProps {
     preset: NonNullable<Timeline['presets']>[number];
@@ -89,6 +93,14 @@ export function PresetItem({
         (selectedPresetIds.length > 0
             ? selectedPresetIds.includes(preset.id)
             : selectedItem.item.id === preset.id);
+
+    const groupIds = selectedPresetIds.includes(displayPreset.id) ? selectedPresetIds : [];
+    const canGroup = canGroupPresets(displayTimeline, groupIds);
+
+    const handleGroup = () => {
+        if (!canGroup) return;
+        groupSelectedBlocks(displayTimeline, groupIds);
+    };
 
     // Sortable functionality
     const {
@@ -271,11 +283,15 @@ export function PresetItem({
                     ) : (
                         <span className="w-2.5 shrink-0" />
                     )}
-                    <File className="h-3.5 w-3.5 shrink-0" />
+                    <BlockIcon
+                        presetId={displayPreset.presetId}
+                        input={displayPreset.presetInputData}
+                        className="h-3.5 w-3.5 shrink-0"
+                    />
                     <span className={cn("flex-1 min-w-0 truncate",
                         displayPreset.disabled ? "line-through" : "",
                         (!isSelected || displayPreset.disabled) ? "text-muted-foreground" : isSelected ? "text-black" : "text-foreground")}>
-                        {displayPreset.label}
+                        {presetTrackName(displayPreset, displayPreset.presetId)}
                     </span>
                     {hasOverridesForPresetItem(displayPreset.id) && (
                         <Tooltip>
@@ -322,7 +338,7 @@ export function PresetItem({
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Toggle preset layer</p>
+                                    <p>{displayPreset.disabled ? "Show this block and everything inside it" : "Hide this block and everything inside it"}</p>
                                 </TooltipContent>
                             </Tooltip>
 
@@ -363,6 +379,12 @@ export function PresetItem({
                     }}
                     onOpenLibrary={onOpenPresetLibrary}
                 />
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={handleGroup} disabled={!canGroup}>
+                    <Group className="h-4 w-4 mr-2" />
+                    Group
+                    <ContextMenuShortcut>{modShortcutLabel("G")}</ContextMenuShortcut>
+                </ContextMenuItem>
                 <ContextMenuSeparator />
                 {hasOverridesForPresetItem(displayPreset.id) && (
                     <ContextMenuItem onClick={handleRevertToPreset}>

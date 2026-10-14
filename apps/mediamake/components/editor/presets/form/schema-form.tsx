@@ -18,6 +18,8 @@ import { JsonEditor } from "../../player/json-editor";
 import { Eye, Code, HelpCircle, Plus, Trash2, GripVertical, ChevronUp, ChevronDown, RotateCcw, Image, FileAudio, FormInputIcon, ImageIcon, ArrowLeftRight, Clock3, X, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { PresetMetadata } from "../types";
 import { toJSONSchema } from "zod";
 import { MediaPicker } from "../../media/media-picker";
@@ -56,6 +58,7 @@ import { SliderInput } from "./inputs/slider-input";
 import { ContainerInsetsInput } from "./inputs/container-insets-input";
 import { LinkTrackNameInput } from "./inputs/link-track-name-input";
 import { LockTargetInput, LockTargetNamesContext } from "./inputs/lock-target-input";
+import { AttachTargetInput } from "./inputs/attach-target-input";
 import { TrackTimingFields, type AutoRangeEstimate } from "./inputs/track-timing-fields";
 import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue } from "./inputs/images-group-field";
 import { overlayMediaStatic, readMediaStatic, stripMediaStatic } from "../dataTypes/media";
@@ -130,6 +133,11 @@ interface SchemaFormProps {
     onRequestRangeEditor?: (referenceKey: string, fieldPath: string) => void;
     /** Update a timeline reference's value (used by imagesGroup mediaRef sync). */
     onUpdateReferenceValue?: (referenceKey: string, value: any) => void;
+    /**
+     * inline keeps track timing in the field list.
+     * footer moves it under a collapsed Track properties section.
+     */
+    trackSection?: "inline" | "footer";
 }
 
 interface FormField {
@@ -357,6 +365,10 @@ function isLinkTrackNameField(field: FormField): boolean {
 
 function isLockTargetField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.lockTarget] === true;
+}
+
+function isAttachTargetField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.attachTarget] === true;
 }
 
 function isContainerObjectField(field: FormField): boolean {
@@ -2401,6 +2413,16 @@ function renderField(
             );
         }
 
+        if (isAttachTargetField(field)) {
+            return (
+                <AttachTargetInput
+                    value={typeof fieldValue === "string" ? fieldValue : ""}
+                    names={availableTrackNames || []}
+                    onChange={(val) => handleChange(fieldKey, val)}
+                />
+            );
+        }
+
         switch (field.type) {
             case "string":
                 if (field.enum) {
@@ -3028,7 +3050,7 @@ function NestedForm({
         return Object.entries(schema.properties).map(([key, field]: [string, any]) => ({
             key,
             type: field.type || "string",
-            title: field.title,
+            title: field.title || (key === "trackName" ? "Track name" : undefined),
             description: field.description,
             enum: field.enum,
             default: field.default,
@@ -3437,6 +3459,28 @@ function getDefaultValues(schema: any): any {
     return defaults;
 }
 
+const TRACK_SHELL_KEYS = ["trackName", "trackType", "start", "duration", "lock", "startOffset"];
+
+function TrackPropertiesFooter({ children }: { children: ReactNode }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="space-y-3 pt-1">
+            <Separator />
+            <Collapsible open={open} onOpenChange={setOpen}>
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-full justify-between px-2">
+                        <span className="text-sm font-medium">Track properties</span>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
+                    </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-2">
+                    {children}
+                </CollapsibleContent>
+            </Collapsible>
+        </div>
+    );
+}
+
 export function SchemaForm({
     schema,
     value,
@@ -3464,6 +3508,7 @@ export function SchemaForm({
     lockTargetNames = [],
     sequenceDuration,
     autoRange,
+    trackSection = "inline",
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
     const [activeTab, setActiveTab] = useState<"form" | "json" | "media">(initialTab);
@@ -3532,7 +3577,7 @@ export function SchemaForm({
         return Object.entries(schema.properties).map(([key, field]: [string, any]) => ({
             key,
             type: field.type || "string",
-            title: field.title,
+            title: field.title || (key === "trackName" ? "Track name" : undefined),
             description: field.description,
             enum: field.enum,
             default: field.default,
@@ -3557,25 +3602,30 @@ export function SchemaForm({
             keys.has("duration") &&
             keys.has("lock");
         const sequenceLengthChoice = keys.has("perImageDuration");
-        const hiddenTiming = ["start", "duration", "lock"];
+        const footer = trackSection === "footer" && groupTiming;
+        const hiddenTiming = footer
+            ? [...TRACK_SHELL_KEYS]
+            : ["start", "duration", "lock", "startOffset"];
         if (sequenceLengthChoice) hiddenTiming.push("perImageDuration");
         const visible = groupTiming
             ? list.filter((field) => !hiddenTiming.includes(field.key))
             : list;
+        const timingValue = formData && typeof formData === "object" ? formData : {};
+        const writeTiming = (next: Record<string, unknown>) => {
+            setFormData(next);
+            onChange(next);
+        };
         const rows = chunkByLayoutGroup(visible).flatMap((row) => {
-            if (row.length === 1 && row[0].key === "trackType" && groupTiming) {
+            if (row.length === 1 && row[0].key === "trackType" && groupTiming && !footer) {
                 return [(
                     <TrackTimingFields
                         key="track-timing"
-                        value={formData && typeof formData === "object" ? formData : {}}
+                        value={timingValue}
                         sequenceDuration={sequenceDuration}
                         autoRange={autoRange}
                         sequenceLengthChoice={sequenceLengthChoice}
                         modes={Array.isArray(row[0].enum) ? row[0].enum : undefined}
-                        onChange={(next) => {
-                            setFormData(next);
-                            onChange(next);
-                        }}
+                        onChange={writeTiming}
                     />
                 )];
             }
@@ -3591,7 +3641,23 @@ export function SchemaForm({
                 ),
             ];
         });
-        return rows;
+        if (!footer) return rows;
+        const trackNameField = list.find((field) => field.key === "trackName");
+        const trackTypeField = list.find((field) => field.key === "trackType");
+        return [
+            ...rows,
+            <TrackPropertiesFooter key="track-properties">
+                {trackNameField ? <div>{paint(trackNameField)}</div> : null}
+                <TrackTimingFields
+                    value={timingValue}
+                    sequenceDuration={sequenceDuration}
+                    autoRange={autoRange}
+                    sequenceLengthChoice={sequenceLengthChoice}
+                    modes={Array.isArray(trackTypeField?.enum) ? trackTypeField.enum : undefined}
+                    onChange={writeTiming}
+                />
+            </TrackPropertiesFooter>,
+        ];
     };
 
     if (!jsonSchema || !jsonSchema.properties) {

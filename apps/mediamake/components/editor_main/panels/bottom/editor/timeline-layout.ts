@@ -2,6 +2,8 @@
 
 export const RULER_HEIGHT = 28;
 export const ROW_HEIGHT = 48;
+/** One title line, no membership subtitle. */
+export const COMPACT_ROW_HEIGHT = 28;
 export const LABEL_WIDTH = 160;
 export const MIN_SEG_PX = 4;
 export const MAX_PPS = 2000;
