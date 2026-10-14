@@ -267,6 +267,25 @@ export const WaveformSpectrumFillInput = z.object({
     20,
     'Thickness of the outline along the top edge, in px. 0 turns it off. Default: 0 (no outline).'
   ),
+  layerCount: slider(
+    1,
+    4,
+    'How many filled waves overlap. Layer 1 (fill color) is in front; each extra layer sits behind the previous one. Default: 1.'
+  ),
+  layer2Color: color('Color of the second layer, behind the front wave. Default: #E3121B.'),
+  layer3Color: color('Color of the third layer. Default: #8A0B12.'),
+  layer4Color: color('Color of the fourth (back) layer. Default: #4A0509.'),
+  layerMirror: z
+    .boolean()
+    .optional()
+    .describe(
+      'Flips every other layer left to right, so bass hills of one layer rise where the treble of the next sits and the waves interleave. Default: true.'
+    ),
+  layerFrameOffset: slider(
+    0,
+    30,
+    'Each layer trails the one in front of it by this many frames, so the back waves echo the front one. Default: 0 (all layers move together).'
+  ),
   restHeight: slider(
     0,
     200,

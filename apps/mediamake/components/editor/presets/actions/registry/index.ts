@@ -9,8 +9,10 @@ import { captionClean } from "./caption-clean";
 import { captionFillWordGaps } from "./caption-fill-word-gaps";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSplitHighlight } from "./caption-split-highlight";
+import { waveformSpectrumFillChoice } from "./waveform-spectrum-fill-choice";
 
 const ACTION_REGISTRY: ActionDefinition[] = [
+  waveformSpectrumFillChoice,
   captionSentenceStructure,
   captionSplitHighlight,
   captionFillWordGaps,
@@ -81,4 +83,5 @@ export {
   shakeEffectMinorBeats,
   shakeEffectRange,
   shakeEffectRangeBrowser,
+  waveformSpectrumFillChoice,
 };

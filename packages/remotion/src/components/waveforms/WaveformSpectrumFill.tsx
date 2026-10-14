@@ -20,6 +20,14 @@ export interface WaveformSpectrumFillDataProps {
     strokeColor?: string;
     strokeWidth?: number;
 
+    // Overlapping layers: layer 1 is the front (fillColor), later layers sit behind it
+    layerCount?: number; // 1-4
+    layer2Color?: string;
+    layer3Color?: string;
+    layer4Color?: string;
+    layerMirror?: boolean; // Flip every other layer left-right so hills interleave
+    layerFrameOffset?: number; // Each layer trails the one in front by this many frames
+
     // Layout
     restHeight?: number; // Thickness of the band when the spectrum is silent, in px
     baselineOffset?: number; // Distance of the fill's bottom edge from the container bottom, in px
@@ -66,6 +74,12 @@ const WaveformSpectrumFillContent: React.FC<
     opacity = 1,
     strokeColor,
     strokeWidth = 0,
+    layerCount = 1,
+    layer2Color = '#E3121B',
+    layer3Color = '#8A0B12',
+    layer4Color = '#4A0509',
+    layerMirror = true,
+    layerFrameOffset = 0,
     restHeight = 8,
     baselineOffset = 0,
     peakHeight = 1,
@@ -91,33 +105,51 @@ const WaveformSpectrumFillContent: React.FC<
     const crestBase = bottom - rest;
     const travel = crestBase * Math.min(1, Math.max(0, peakHeight));
 
-    const heights = useMemo(() => {
+    const layers = Math.min(4, Math.max(1, Math.round(layerCount)));
+    const frameOffset = Math.max(0, Math.round(layerFrameOffset));
+
+    const layerHeights = useMemo(() => {
         if (!audioData) return null;
-        const spectrum = computeSmoothedSpectrum({
-            channels: audioData.channelWaveforms,
-            sampleRate: audioData.sampleRate,
-            cacheKey: String(audioData.resultId),
-            frame: audioFrame,
-            fps,
-            fftSize,
-            smoothing: temporalSmoothing,
-            historyFrames: smoothingFrames,
+        const byFrame = new Map<number, number[]>();
+        const heightsAt = (frame: number) => {
+            let values = byFrame.get(frame);
+            if (!values) {
+                const spectrum = computeSmoothedSpectrum({
+                    channels: audioData.channelWaveforms,
+                    sampleRate: audioData.sampleRate,
+                    cacheKey: String(audioData.resultId),
+                    frame,
+                    fps,
+                    fftSize,
+                    smoothing: temporalSmoothing,
+                    historyFrames: smoothingFrames,
+                });
+                values = computeSpectrumLineHeights(spectrum, audioData.sampleRate, {
+                    pointCount,
+                    minFrequency,
+                    maxFrequency,
+                    frequencyScale,
+                    tilt,
+                    gain,
+                    noiseFloor,
+                    sharpness,
+                    spread,
+                });
+                byFrame.set(frame, values);
+            }
+            return values;
+        };
+        return Array.from({ length: layers }, (_, layer) => {
+            const values = heightsAt(Math.max(0, audioFrame - layer * frameOffset)).slice();
+            const flipped = (direction === 'high-to-low') !== (layerMirror && layer % 2 === 1);
+            return flipped ? values.reverse() : values;
         });
-        const values = computeSpectrumLineHeights(spectrum, audioData.sampleRate, {
-            pointCount,
-            minFrequency,
-            maxFrequency,
-            frequencyScale,
-            tilt,
-            gain,
-            noiseFloor,
-            sharpness,
-            spread,
-        });
-        return direction === 'high-to-low' ? values.reverse() : values;
     }, [
         audioData,
         audioFrame,
+        layers,
+        frameOffset,
+        layerMirror,
         fps,
         fftSize,
         temporalSmoothing,
@@ -134,22 +166,27 @@ const WaveformSpectrumFillContent: React.FC<
         direction,
     ]);
 
-    const { fillPath, crestPath } = useMemo(() => {
-        const values = heights ?? new Array(Math.max(2, pointCount)).fill(0);
-        const lastIndex = Math.max(1, values.length - 1);
-        const points = values.map((value, index) => ({
-            x: (index / lastIndex) * width,
-            y: Math.max(0, crestBase - value * travel),
-        }));
-        const crest = createSmoothSvgPath({ points });
-        return {
-            crestPath: crest,
-            fillPath: `${crest} L ${width},${bottom} L 0,${bottom} Z`,
-        };
-    }, [heights, pointCount, width, crestBase, travel, bottom]);
+    const paths = useMemo(() => {
+        const silent = new Array(Math.max(2, pointCount)).fill(0);
+        return Array.from({ length: layers }, (_, layer) => {
+            const values = layerHeights?.[layer] ?? silent;
+            const lastIndex = Math.max(1, values.length - 1);
+            const points = values.map((value, index) => ({
+                x: (index / lastIndex) * width,
+                y: Math.max(0, crestBase - value * travel),
+            }));
+            const crest = createSmoothSvgPath({ points });
+            return {
+                crestPath: crest,
+                fillPath: `${crest} L ${width},${bottom} L 0,${bottom} Z`,
+            };
+        });
+    }, [layerHeights, layers, pointCount, width, crestBase, travel, bottom]);
 
     const showGradient = Boolean(gradientEndColor);
-    const fill = showGradient ? `url(#${gradientId})` : fillColor;
+    const layerColors = [fillColor, layer2Color, layer3Color, layer4Color];
+    const layerFill = (layer: number) =>
+        layer === 0 && showGradient ? `url(#${gradientId})` : layerColors[layer];
 
     return (
         <svg
@@ -166,18 +203,24 @@ const WaveformSpectrumFillContent: React.FC<
                     </linearGradient>
                 </defs>
             )}
-            <path d={fillPath} fill={fill} stroke="none" opacity={opacity} />
-            {strokeWidth > 0 && (
-                <path
-                    d={crestPath}
-                    fill="none"
-                    stroke={strokeColor ?? fillColor}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={opacity}
-                />
-            )}
+            {paths
+                .map(({ fillPath, crestPath }, layer) => (
+                    <g key={layer}>
+                        <path d={fillPath} fill={layerFill(layer)} stroke="none" opacity={opacity} />
+                        {strokeWidth > 0 && (
+                            <path
+                                d={crestPath}
+                                fill="none"
+                                stroke={strokeColor ?? layerColors[layer]}
+                                strokeWidth={strokeWidth}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                opacity={opacity}
+                            />
+                        )}
+                    </g>
+                ))
+                .reverse()}
         </svg>
     );
 };
