@@ -1,6 +1,9 @@
 import React from 'react';
 import { Easing, interpolate, useCurrentFrame } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
+import { ShapeAtomInput } from './input-schemas';
+
+export { ShapeAtomInput } from './input-schemas';
 
 type Shape = 'circle' | 'rectangle' | 'star' | 'triangle';
 
@@ -55,4 +58,5 @@ export const config: ComponentConfig = {
     displayName: 'ShapeAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: ShapeAtomInput,
 };

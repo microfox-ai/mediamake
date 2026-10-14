@@ -40,6 +40,7 @@ import { beatZoomEffectPreset } from '../internalEffects/beat-zoom-effect';
 import { genericOpacityEffectPreset } from '../internalEffects/generic-opacity-effect';
 import { glowPulseTextEffectPreset } from '../internalEffects/glow-pulse-text-effect';
 import { hipHopScratchWipePreset } from '../private2/hip-hop-scratch-wipe';
+import { atomBlockPresets } from '../../define-atom-preset';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
@@ -83,7 +84,10 @@ export const predefinedPresets: Preset[] = [
   beatZoomPreset,
   beatShakePreset,
   beatExposurePreset,
+  ...atomBlockPresets,
 ];
+
+export { atomBlockPresets };
 
 export const getPredefinedPresetById = (id: string): Preset | undefined => {
   return predefinedPresets.find(preset => preset.metadata.id === id);

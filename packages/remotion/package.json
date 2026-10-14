@@ -23,6 +23,16 @@
     ".": {
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./param-meta": {
+      "types": "./dist/param-meta.d.ts",
+      "import": "./dist/param-meta.mjs",
+      "require": "./dist/param-meta.js"
+    },
+    "./editor-atom-catalog": {
+      "types": "./dist/editor-atom-catalog.d.ts",
+      "import": "./dist/editor-atom-catalog.mjs",
+      "require": "./dist/editor-atom-catalog.js"
     }
   },
   "dependencies": {

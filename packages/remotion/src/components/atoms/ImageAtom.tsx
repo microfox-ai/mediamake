@@ -4,6 +4,9 @@ import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
+import { ImageAtomInput } from './input-schemas';
+
+export { ImageAtomInput } from './input-schemas';
 
 interface ImageAtomProps extends BaseRenderableProps {
     data: {
@@ -131,4 +134,5 @@ export const config: ComponentConfig = {
     displayName: 'ImageAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: ImageAtomInput,
 }; 

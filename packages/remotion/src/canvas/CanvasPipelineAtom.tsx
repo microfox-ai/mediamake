@@ -83,4 +83,5 @@ export const config: ComponentConfig = {
     type: 'atom',
     isInnerSequence: false,
     props: CanvasPipelineDataSchema,
+    inputSchema: CanvasPipelineDataSchema,
 };

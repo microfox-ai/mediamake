@@ -1,6 +1,6 @@
 import React from 'react';
-import { Waveform, useWaveformContext } from '../Waveform';
-import { BaseRenderableData } from '../../..';
+import { Waveform, useWaveformContext } from '../../templates/waveform/Waveform';
+import { BaseRenderableData } from '../../core/types/renderable.types';
 
 // Histogram waveform specific props
 export interface WaveformHistogramDataProps {

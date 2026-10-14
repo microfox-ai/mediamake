@@ -1,9 +1,10 @@
 import React from 'react';
 import {
   ComponentRegistry,
-  RegistryEntry,
+  ComponentRegistryEntry,
   PackageRegistry,
   ComponentConfig,
+  RegistryComponentType,
 } from '../types';
 
 class ComponentRegistryManager {
@@ -13,11 +14,11 @@ class ComponentRegistryManager {
   registerComponent(
     name: string,
     component: React.ComponentType<any>,
-    type: 'frame' | 'layout' | 'atom',
+    type: RegistryComponentType,
     config: ComponentConfig = { displayName: '' },
     packageName?: string
   ): void {
-    this.registry[name] = { component, config };
+    this.registry[name] = { component, config, type };
 
     if (packageName) {
       if (!this.packageRegistry[packageName]) {
@@ -51,12 +52,23 @@ class ComponentRegistryManager {
     return this.registry[name]?.config;
   }
 
-  getComponentWithConfig(
-    name: string
-  ):
-    | { component: React.ComponentType<any>; config: ComponentConfig }
-    | undefined {
+  getComponentWithConfig(name: string): ComponentRegistryEntry | undefined {
     return this.registry[name];
+  }
+
+  /** Atoms that should appear as addable blocks. Hidden when editorBlock is false. */
+  listRegisteredAtoms(): RegisteredAtom[] {
+    return Object.entries(this.registry)
+      .filter(
+        ([, entry]) =>
+          entry.type === 'atom' && entry.config?.editorBlock !== false,
+      )
+      .map(([componentId, entry]) => ({
+        componentId,
+        displayName: entry.config?.displayName || componentId,
+        inputSchema: entry.config?.inputSchema,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
   registerPackage(
@@ -108,10 +120,16 @@ class ComponentRegistryManager {
 export const componentRegistry = new ComponentRegistryManager();
 
 // Convenience functions
+export interface RegisteredAtom {
+  componentId: string;
+  displayName: string;
+  inputSchema?: ComponentConfig['inputSchema'];
+}
+
 export const registerComponent = (
   name: string,
   component: React.ComponentType<any>,
-  type: 'frame' | 'layout' | 'atom',
+  type: RegistryComponentType,
   config: ComponentConfig = { displayName: '' },
   packageName?: string
 ) => {
@@ -154,3 +172,6 @@ export const getComponentWithConfig = (name: string) =>
 
 export const getRegisteredEffects = () =>
   componentRegistry.getRegisteredEffects();
+
+export const listRegisteredAtoms = () =>
+  componentRegistry.listRegisteredAtoms();

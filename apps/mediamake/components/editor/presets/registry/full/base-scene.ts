@@ -18,15 +18,6 @@
  * - Creating simple colored background scenes
  */
 
-import {
-  AudioAtomDataProps,
-  InputCompositionProps,
-  PanEffectData,
-  TextAtomData,
-  WaveformConfig,
-  WaveformHistogramRangedDataProps,
-  ZoomEffectData,
-} from '@microfox/remotion';
 import z from 'zod';
 import { paramMetaTypes } from '../../dataTypes';
 import { PresetMetadata, PresetOutput } from '../../types';

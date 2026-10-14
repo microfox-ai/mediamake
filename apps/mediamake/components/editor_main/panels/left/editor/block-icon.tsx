@@ -23,14 +23,23 @@ function functionIcon(presetId: string): LucideIcon {
   }
   if (
     presetId === "text-atom" ||
+    presetId === "atom:TextAtom" ||
     presetId === "text-overlay" ||
     presetId === "textbase"
   ) {
     return Type;
   }
-  if (presetId === "waveform-audio" || presetId.includes("waveform")) return AudioLines;
+  if (presetId === "atom:ImageAtom") return Images;
+  if (presetId === "atom:VideoAtom") return Film;
+  if (
+    presetId === "atom:AudioAtom" ||
+    presetId === "waveform-audio" ||
+    presetId.toLowerCase().includes("waveform")
+  ) {
+    return AudioLines;
+  }
   if (presetId === "second-counter") return Timer;
-  if (presetId === "htmlBlockAtom") return Code2;
+  if (presetId === "htmlBlockAtom" || presetId === "atom:HTMLBlockAtom") return Code2;
   if (
     presetId.startsWith("sub-") ||
     presetId.includes("caption") ||

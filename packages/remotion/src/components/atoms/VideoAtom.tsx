@@ -2,31 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { staticFile, useVideoConfig, OffthreadVideo, Video as Html5Video, Loop, continueRender, delayRender, useRemotionEnvironment } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
-import { z } from 'zod';
 import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { calculateComponentDuration, resolveLoopSrcDuration } from '../../core';
+import { VideoAtomDataProps } from './input-schemas';
 
-// ============================================================================
-// TYPES & SCHEMAS
-// ============================================================================
-
-
-export const VideoAtomDataProps = z.object({
-    src: z.string(),                    // Video source URL
-    srcDuration: z.number().optional(), // Video duration in seconds (or to say it more accurately, each iteration duration in a loop))
-    style: z.record(z.string(), z.any()).optional(), // CSS styles object
-    containerClassName: z.string().optional(),   // CSS class names
-    className: z.string().optional(),   // CSS class names
-    startFrom: z.number().optional(),   // Start playback from this time (seconds)
-    endAt: z.number().optional(),       // End playback at this time (seconds)
-    playbackRate: z.number().optional(), // Playback speed multiplier
-    volume: z.number().optional(),      // Volume level (0-1)
-    muted: z.boolean().optional(),      // Mute video audio
-    loop: z.boolean().optional(),       // Whether to loop the video
-    fit: z.enum(['contain', 'cover', 'fill', 'none', 'scale-down']).optional(), // Object fit style
-});
-export type VideoAtomDataProps = z.infer<typeof VideoAtomDataProps>;
+export { VideoAtomDataProps } from './input-schemas';
 
 // ============================================================================
 // PROPS & COMPONENT
@@ -338,4 +319,5 @@ export const config: ComponentConfig = {
     displayName: 'VideoAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: VideoAtomDataProps,
 };

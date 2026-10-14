@@ -2,36 +2,13 @@ import React, { useMemo } from 'react';
 import { Audio as Html5Audio, staticFile, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
-import { z } from 'zod';
+import { AudioAtomDataProps } from './input-schemas';
 
-// ============================================================================
-// TYPES & SCHEMAS
-// ============================================================================
-
-export const AudioAtomMutedRangeProps = z.object({
-    type: z.literal('range'),
-    values: z.array(z.object({
-        start: z.number(), // Start time in seconds
-        end: z.number(),   // End time in seconds
-    })),
-});
-export type AudioAtomMutedRangeProps = z.infer<typeof AudioAtomMutedRangeProps>;
-
-export const AudioAtomMutedFullProps = z.object({
-    type: z.literal('full'),
-    value: z.boolean(), // true = muted, false = unmuted
-});
-export type AudioAtomMutedFullProps = z.infer<typeof AudioAtomMutedFullProps>;
-
-export const AudioAtomDataProps = z.object({
-    src: z.string(),                    // Audio source URL
-    startFrom: z.number().optional(),   // Start playback from this time (seconds)
-    endAt: z.number().optional(),       // End playback at this time (seconds)
-    volume: z.number().optional(),      // Volume level (0-1)
-    playbackRate: z.number().optional(), // Playback speed multiplier
-    muted: z.union([AudioAtomMutedFullProps, AudioAtomMutedRangeProps]).optional(), // Mute configuration
-});
-export type AudioAtomDataProps = z.infer<typeof AudioAtomDataProps>;
+export {
+    AudioAtomMutedRangeProps,
+    AudioAtomMutedFullProps,
+    AudioAtomDataProps,
+} from './input-schemas';
 
 
 
@@ -175,4 +152,5 @@ export const config: ComponentConfig = {
     displayName: 'AudioAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: AudioAtomDataProps,
 }

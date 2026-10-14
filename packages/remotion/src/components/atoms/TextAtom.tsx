@@ -4,6 +4,9 @@ import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useFont } from '../../hooks/useFontLoader';
 import { useAnimatedStyles } from '../effects';
+import { TextAtomInput } from './input-schemas';
+
+export { TextAtomInput } from './input-schemas';
 
 // Simplified font loading approach - similar to Remotion Google Fonts:
 // const { fontFamily } = useFont('Inter', { weights: ['400', '700'] });
@@ -158,4 +161,5 @@ export const config: ComponentConfig = {
     displayName: 'TextAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: TextAtomInput,
 };

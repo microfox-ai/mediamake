@@ -2,23 +2,10 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Lottie, LottieAnimationData } from '@remotion/lottie';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
-import { z } from 'zod';
 import { useAnimatedStyles } from '../effects';
+import { LottieAtomDataProps } from './input-schemas';
 
-// ============================================================================
-// TYPES & SCHEMAS
-// ============================================================================
-
-export const LottieAtomDataProps = z.object({
-    src: z.string(),                    // Lottie JSON source URL or local path
-    style: z.record(z.string(), z.any()).optional(), // CSS styles object
-    className: z.string().optional(),   // CSS class names
-    loop: z.boolean().optional(),       // Whether to loop the animation (handled by Remotion timeline)
-    playbackRate: z.number().optional(), // Playback speed multiplier (default: 1)
-    direction: z.enum(['forward', 'reverse']).optional(), // Animation direction
-});
-
-export type LottieAtomDataProps = z.infer<typeof LottieAtomDataProps>;
+export { LottieAtomDataProps } from './input-schemas';
 
 // ============================================================================
 // HOOKS
@@ -203,6 +190,7 @@ export const config: ComponentConfig = {
     displayName: 'LottieAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: LottieAtomDataProps,
 };
 
 // ============================================================================

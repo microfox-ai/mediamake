@@ -20,7 +20,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
+import { atomBlockPresets, getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { DatabasePreset, Preset } from "@/components/editor/presets/types";
 import { usePresetsStore } from "../../../stores/presets-store";
 import { cn } from "@/lib/utils";
@@ -98,6 +98,9 @@ function useAddBlockCatalog() {
         basic: [...basicById.values()],
         tracks: presetsByIds(TRACK_BLOCK_IDS),
         captions: presetsByIds(CAPTION_BLOCK_IDS),
+        atoms: [...atomBlockPresets].sort((a, b) =>
+            presetLabel(a).localeCompare(presetLabel(b)),
+        ),
         isLoadingDatabase,
     };
 }
@@ -112,7 +115,7 @@ function AddBlockMenuItems({
     onOpenLibrary?: () => void;
 }) {
     const { Item, Sub, SubTrigger, SubContent, Separator } = parts;
-    const { scene, basic, tracks, captions, isLoadingDatabase } = useAddBlockCatalog();
+    const { scene, basic, tracks, captions, atoms, isLoadingDatabase } = useAddBlockCatalog();
 
     const renderGroup = (presets: BlockPreset[], emptyLabel: string) => {
         if (isLoadingDatabase && presets.length === 0) {
@@ -149,6 +152,20 @@ function AddBlockMenuItems({
                 <SubTrigger>Add Caption Blocks</SubTrigger>
                 <SubContent>
                     {renderGroup(captions, "No caption blocks found")}
+                </SubContent>
+            </Sub>
+            <Sub>
+                <SubTrigger>Add Atoms</SubTrigger>
+                <SubContent className="max-h-80 overflow-y-auto">
+                    {atoms.length === 0 ? (
+                        <Item disabled>No atoms found</Item>
+                    ) : (
+                        atoms.map((preset) => (
+                            <Item key={preset.metadata.id} onClick={() => onAdd(preset)}>
+                                {presetLabel(preset)}
+                            </Item>
+                        ))
+                    )}
                 </SubContent>
             </Sub>
             {onOpenLibrary && (

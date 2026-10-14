@@ -69,4 +69,5 @@ export const ringsConfig: ComponentConfig = {
     displayName: 'Rings',
     type: 'atom',
     isInnerSequence: false,
+    editorBlock: false,
 };

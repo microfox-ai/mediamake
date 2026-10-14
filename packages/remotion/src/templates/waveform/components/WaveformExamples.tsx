@@ -1,7 +1,7 @@
 import React from 'react';
 import { WaveformConfig } from '../Waveform';
 import { WaveformLine } from './WaveformLine';
-import { WaveformHistogram } from './WaveformHistogram';
+import { WaveformHistogram } from '../../../components/waveforms/WaveformHistogram';
 import { WaveformCircle } from './WaveformCircle';
 
 // Example configuration

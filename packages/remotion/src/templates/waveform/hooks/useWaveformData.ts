@@ -35,6 +35,8 @@ export interface UseWaveformDataReturn {
   frequencyData: number[] | null;
   amplitudes: number[] | null;
   audioData: any;
+  /** Frame position inside the audio after `startFrom`, `dataOffsetInSeconds` and `posterize`. */
+  audioFrame: number;
   isLoading: boolean;
   error: string | null;
   bass: number | null;
@@ -430,6 +432,7 @@ export const useWaveformData = (
     frequencyData,
     amplitudes,
     audioData,
+    audioFrame: adjustedFrame,
     isLoading,
     error,
     bass,

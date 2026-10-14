@@ -124,4 +124,5 @@ export const nextjsLogoConfig: ComponentConfig = {
     displayName: 'NextjsLogo',
     type: 'atom',
     isInnerSequence: false,
+    editorBlock: false,
 };

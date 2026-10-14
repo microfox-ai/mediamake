@@ -1,6 +1,9 @@
 import React from 'react';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { HTMLBlockAtomInput } from './input-schemas';
+
+export { HTMLBlockAtomInput } from './input-schemas';
 
 export interface HTMLBlockAtomData {
     html: string;
@@ -47,5 +50,6 @@ export const config: ComponentConfig = {
     displayName: 'HTMLBlockAtom',
     type: 'atom',
     isInnerSequence: false,
+    inputSchema: HTMLBlockAtomInput,
 };
 
