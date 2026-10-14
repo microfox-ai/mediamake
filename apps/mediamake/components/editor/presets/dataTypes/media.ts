@@ -68,6 +68,11 @@ export const mediaItemSchema = z
         [paramMetaTypes.groupEditable]: false,
       })
       .describe("Active range MM:SS-MM:SS"),
+    loop: z
+      .boolean()
+      .optional()
+      .meta({ [paramMetaTypes.groupEditable]: false })
+      .describe("Loop playback"),
     // Visual (image / video)
     fit: mediaFitEnum
       .optional()

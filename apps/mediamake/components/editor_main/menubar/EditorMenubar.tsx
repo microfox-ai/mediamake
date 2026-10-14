@@ -159,6 +159,11 @@ export function EditorMenubar() {
     cloudProject?.displayName?.trim() ||
     currentProject?.displayName?.trim() ||
     "";
+  const currentTimelineName = loadedTimeline
+    ? editedTimelines.get(loadedTimeline.id)?.displayName?.trim() ||
+      loadedTimeline.displayName?.trim() ||
+      ""
+    : "";
 
   // Heal persisted isDirty if history already has unpublished work from before the fix.
   useEffect(() => {
@@ -574,9 +579,17 @@ export function EditorMenubar() {
           </MenubarContent>
         </MenubarMenu>
 
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-medium tracking-wide text-muted-foreground">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-48">
+          <span
+            className="max-w-full truncate text-xs font-medium tracking-wide text-muted-foreground"
+            title={
+              currentTimelineName
+                ? `MediaMake - V${process.env.NEXT_PUBLIC_APP_VERSION ?? ""} / ${currentTimelineName}`
+                : undefined
+            }
+          >
             MediaMake - V{process.env.NEXT_PUBLIC_APP_VERSION}
+            {currentTimelineName ? ` / ${currentTimelineName}` : ""}
           </span>
         </div>
 

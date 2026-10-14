@@ -77,6 +77,58 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Remotion Lambda
+
+Rendering uses two AWS pieces. The **Lambda function** is the renderer. The **site** is the webpack bundle of `components/remotion`, stored in the Remotion S3 bucket. `deploy.mjs` deploys both, for every preset in `AWS_RENDER_CONFIGS` and every region in `AWS_REGIONS`.
+
+### When to redeploy
+
+Redeploy the **Lambda function** when:
+
+- You upgrade Remotion. The function name includes the package version, so a bump makes `speculateFunctionName` look for a function that does not exist yet.
+- You change memory, disk, or timeout on a preset in `config.mjs`. Each combination is its own function.
+- You add a region to `AWS_REGIONS`.
+
+Redeploy the **site** when:
+
+- You change compositions, components, fonts, or assets the render uses.
+- You change `components/remotion/webpack-override.mjs`.
+
+Concurrency, frames per Lambda, codec, and input props are render-time settings. They do not need a redeploy.
+
+Re-running deploy is safe. An existing function with the same Remotion version, memory, disk, and timeout is left in place. The site is uploaded again every time.
+
+### How
+
+From this directory, with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (or the `REMOTION_AWS_*` pair) in `.env`:
+
+```bash
+npm run deploy
+```
+
+That runs `node deploy.mjs`. For each region it:
+
+1. Calls `deployFunction` once per preset.
+2. Ensures the Remotion S3 bucket.
+3. Calls `deploySite`. The site name is `mediamake` in the default region (`ap-south-1`) and `mediamake-<region>` everywhere else.
+
+A function failure in one preset does not stop the site upload. The script prints which presets failed.
+
+To deploy a single spec by hand, the memory, disk, and timeout must match what the render route passes to `speculateFunctionName`:
+
+```bash
+npx remotion lambda functions deploy --memory=<MB> --timeout=<s> --disk=<MB> --region=ap-south-1
+```
+
+### Automatic deploy
+
+The site is deployed automatically, together with the Lambda functions. `.github/workflows/deploy-site.yml` runs `npm run deploy` on every push to `main` that changes `apps/mediamake/**`. It uses the `REMOTION_AWS_ACCESS_KEY_ID`, `REMOTION_AWS_SECRET_ACCESS_KEY`, and `REMOTION_AWS_REGION` GitHub secrets.
+
+That name maps to an S3 object:
+https://<remotion-bucket>.s3.<region>.amazonaws.com/sites/<site-name>/index.html
+
+There is no separate site-only job. A composition change on `main` ships the site. A Remotion upgrade or a `config.mjs` preset change on `main` ships the matching functions in the same run.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

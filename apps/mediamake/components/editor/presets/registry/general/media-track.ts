@@ -81,7 +81,7 @@ const mediaTrackItemSchema = z.object({
   loop: z
     .boolean()
     .optional()
-    .meta({ [paramMetaTypes.groupEditable]: true })
+    .meta({ [paramMetaTypes.groupEditable]: false })
     .describe('Loop media'),
   blendMode: z
     .enum([

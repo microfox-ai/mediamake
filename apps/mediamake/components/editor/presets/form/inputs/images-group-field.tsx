@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeftRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -152,8 +153,6 @@ const AUDIO_POPUP_KEYS = [
   "playbackRate",
   "startCropVideo",
   "startFrom",
-  "loop",
-  "rangeString",
 ];
 
 /** Normalize legacy array or { mediaRef, items } into a consistent shape. */
@@ -624,6 +623,51 @@ function GridColsIcon({ cols }: { cols: 3 | 4 | 5 }) {
   );
 }
 
+function RangeWithLoop({
+  rangeProp,
+  rangeValue,
+  showLoop,
+  loopValue,
+  onRangeChange,
+  onLoopChange,
+}: {
+  rangeProp?: ItemPropSchema;
+  rangeValue: unknown;
+  showLoop: boolean;
+  loopValue: boolean;
+  onRangeChange: (val: string | undefined) => void;
+  onLoopChange: (val: boolean) => void;
+}) {
+  if (!rangeProp && !showLoop) return null;
+  return (
+    <div className="flex items-end gap-2">
+      {rangeProp ? (
+        <div className="min-w-0 flex-1">
+          <PropEditor
+            prop={rangeProp}
+            value={rangeValue}
+            onChange={(val) => onRangeChange(val || undefined)}
+          />
+        </div>
+      ) : null}
+      {showLoop ? (
+        <div className="shrink-0 space-y-1">
+          <Label className="text-[10px] uppercase text-muted-foreground">
+            Loop
+          </Label>
+          <div className="flex h-8 items-center">
+            <Checkbox
+              checked={loopValue}
+              onCheckedChange={(checked) => onLoopChange(checked === true)}
+              aria-label="Loop"
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ItemPopupFields({
   img,
   popupProps,
@@ -642,7 +686,7 @@ function ItemPopupFields({
 
   if (isAudio) {
     const audioProps = AUDIO_POPUP_KEYS.map(find).filter(
-      (p): p is ItemPropSchema => Boolean(p),
+      (p): p is ItemPropSchema => Boolean(p) && !isRangeProp(p),
     );
     return (
       <div className="space-y-3">
@@ -661,6 +705,14 @@ function ItemPopupFields({
             />
           ))}
         </div>
+        <RangeWithLoop
+          rangeProp={find("rangeString")}
+          rangeValue={img.rangeString}
+          showLoop={Boolean(find("loop"))}
+          loopValue={img.loop === true}
+          onRangeChange={(val) => onChange({ rangeString: val })}
+          onLoopChange={(val) => onChange({ loop: val })}
+        />
       </div>
     );
   }
@@ -697,17 +749,14 @@ function ItemPopupFields({
           onChange={(val) => onChange({ colorTint: val || undefined })}
         />
       </div>
-      {(() => {
-        const prop = find("rangeString");
-        if (!prop) return null;
-        return (
-          <PropEditor
-            prop={prop}
-            value={img.rangeString}
-            onChange={(val) => onChange({ rangeString: val })}
-          />
-        );
-      })()}
+      <RangeWithLoop
+        rangeProp={find("rangeString")}
+        rangeValue={img.rangeString}
+        showLoop={Boolean(find("loop"))}
+        loopValue={img.loop === true}
+        onRangeChange={(val) => onChange({ rangeString: val })}
+        onLoopChange={(val) => onChange({ loop: val })}
+      />
       {(() => {
         const prop = popupProps.find(isTransitionEffectsProp);
         if (!prop) return null;

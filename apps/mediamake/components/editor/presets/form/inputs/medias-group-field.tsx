@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -132,15 +133,7 @@ function extractSrc(item: any): string {
 
 /** Props shown in the per-item popup for each media kind. */
 const KIND_POPUP_KEYS: Record<MediaKind, string[]> = {
-  image: [
-    "type",
-    "fit",
-    "filter",
-    "blendMode",
-    "opacity",
-    "colorTint",
-    "rangeString",
-  ],
+  image: ["type", "fit", "filter", "blendMode", "opacity", "colorTint"],
   video: [
     "type",
     "fit",
@@ -152,16 +145,8 @@ const KIND_POPUP_KEYS: Record<MediaKind, string[]> = {
     "muted",
     "playbackRate",
     "startFrom",
-    "rangeString",
   ],
-  audio: [
-    "type",
-    "volume",
-    "muted",
-    "playbackRate",
-    "startFrom",
-    "rangeString",
-  ],
+  audio: ["type", "volume", "muted", "playbackRate", "startFrom"],
 };
 
 const defaultItemJsonSchema = (() => {
@@ -473,6 +458,15 @@ export function MediasGroupField({
                         );
                       })}
                     </div>
+                    <RangeWithLoop
+                      rangeProp={props.find((p) => p.key === "rangeString")}
+                      rangeValue={item.rangeString}
+                      loopValue={item.loop === true}
+                      onRangeChange={(val) =>
+                        updateItem(index, { rangeString: val })
+                      }
+                      onLoopChange={(val) => updateItem(index, { loop: val })}
+                    />
                   </div>
                 </AnchoredEditPopover>
               );
@@ -534,6 +528,15 @@ export function MediasGroupField({
                       />
                     ))}
                 </div>
+                <RangeWithLoop
+                  rangeProp={props.find((p) => p.key === "rangeString")}
+                  rangeValue={item.rangeString}
+                  loopValue={item.loop === true}
+                  onRangeChange={(val) =>
+                    updateItem(index, { rangeString: val })
+                  }
+                  onLoopChange={(val) => updateItem(index, { loop: val })}
+                />
               </div>
             ))
           )}
@@ -605,6 +608,45 @@ function GridColsIcon({ cols }: { cols: 3 | 4 | 5 }) {
         />
       ))}
     </svg>
+  );
+}
+
+function RangeWithLoop({
+  rangeProp,
+  rangeValue,
+  loopValue,
+  onRangeChange,
+  onLoopChange,
+}: {
+  rangeProp?: ItemPropSchema;
+  rangeValue: unknown;
+  loopValue: boolean;
+  onRangeChange: (val: string | undefined) => void;
+  onLoopChange: (val: boolean) => void;
+}) {
+  if (!rangeProp) return null;
+  return (
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1">
+        <PropEditor
+          prop={rangeProp}
+          value={rangeValue}
+          onChange={(val) => onRangeChange(val || undefined)}
+        />
+      </div>
+      <div className="shrink-0 space-y-1">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          Loop
+        </Label>
+        <div className="flex h-8 items-center">
+          <Checkbox
+            checked={loopValue}
+            onCheckedChange={(checked) => onLoopChange(checked === true)}
+            aria-label="Loop"
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
