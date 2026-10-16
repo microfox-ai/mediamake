@@ -3,6 +3,7 @@ import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
 import { atomCategory } from '../../atom-category';
 import { HTMLBlockAtomInput } from './input-schemas';
+import { mergeSpecialEffects } from './special-effects-style';
 
 export { HTMLBlockAtomInput } from './input-schemas';
 
@@ -33,10 +34,10 @@ interface HTMLBlockAtomProps extends BaseRenderableProps {
 export const Atom: React.FC<HTMLBlockAtomProps> = ({ id, data }) => {
     const overrideStyles = useAnimatedStyles(id);
 
-    const combinedStyle: React.CSSProperties = {
+    const combinedStyle: React.CSSProperties = mergeSpecialEffects({
         ...data.style,
         ...overrideStyles,
-    };
+    });
 
     return (
         <div

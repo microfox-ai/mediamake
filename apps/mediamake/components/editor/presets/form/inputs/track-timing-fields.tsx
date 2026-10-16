@@ -43,6 +43,7 @@ export function TrackTimingFields({
   autoRange,
   modes,
   sequenceLengthChoice,
+  dropDuration = false,
 }: {
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
@@ -57,6 +58,8 @@ export function TrackTimingFields({
    * Both inputs are editable. Media tracks leave this off and show the estimate.
    */
   sequenceLengthChoice?: boolean;
+  /** Base scene lock and sequence drop an authored duration. */
+  dropDuration?: boolean;
 }) {
   const available = modesFrom(modes);
   const selected = trackModeOf(value);
@@ -79,7 +82,7 @@ export function TrackTimingFields({
       : "";
 
   const setMode = (next: TrackTimingMode) => {
-    onChange(applyTrackMode(value, next));
+    onChange(applyTrackMode(value, next, undefined, { dropDuration }));
   };
 
   const setStart = (raw: string) => {
@@ -141,7 +144,9 @@ export function TrackTimingFields({
           <Label className="text-xs text-muted-foreground">Lock to</Label>
           <LockTargetInput
             value={typeof value.lock === "string" ? value.lock : ""}
-            onChange={(lock) => onChange({ ...value, trackType: "lockedTo", lock })}
+            onChange={(lock) =>
+              onChange(applyTrackMode(value, "lockedTo", lock, { dropDuration }))
+            }
           />
         </TabsContent>
         <TabsContent value="sequence" className="space-y-3">

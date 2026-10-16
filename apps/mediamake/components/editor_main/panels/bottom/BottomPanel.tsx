@@ -80,6 +80,8 @@ export function BottomPanel() {
       if (selectedItem?.type === "action") {
         return selectedItem.item.label || "Action timeline";
       }
+      if (selectedItem?.type === "references") return "Reference tracks";
+      if (selectedItem?.type === "actions") return "Action tracks";
       return "Timeline tracks";
     }
     if (filePanelTab === "layers") {
@@ -97,6 +99,8 @@ export function BottomPanel() {
     if (selectedItem.type === "preset") {
       return presetTitle("Preset");
     }
+    if (selectedItem.type === "references") return "References";
+    if (selectedItem.type === "actions") return "Actions";
     return selectedItem.item.label || "Preset";
   };
 

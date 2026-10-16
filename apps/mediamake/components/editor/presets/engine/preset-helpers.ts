@@ -11,7 +11,7 @@ import {
   DatabasePreset,
 } from '../types';
 import { defaultInjectedHelpers, presetStdLib } from './preset-stdlib';
-import { applyTrackShell } from './apply-track-shell';
+import { applyInputContainerLayout, applyTrackShell } from './apply-track-shell';
 import { getPredefinedPresetById } from '../registry/registry/presets-registry';
 
 const findMatchingComponents = (
@@ -287,10 +287,11 @@ export const runPreset = async <T>(
   if (!output) {
     return null;
   }
-  if (metadata?.placement === 'container' || metadata?.placement === 'atom') {
-    return applyTrackShell(presetInput, output, metadata.placement);
-  }
-  return output as PresetOutput;
+  const placed =
+    metadata?.placement === 'container' || metadata?.placement === 'atom'
+      ? applyTrackShell(presetInput, output, metadata.placement)
+      : (output as PresetOutput);
+  return applyInputContainerLayout(presetInput, placed);
 };
 
 /** Recursively tag all nodes in the tree with _presetItemId for editor "out of sync" tracking. */

@@ -6,32 +6,52 @@
  */
 
 import z from 'zod';
-import { definePreset } from '../../define-preset';
+import { paramInputTypes, paramMetaTypes } from '../../dataTypes';
+import { ATOM_FILL_STYLE, definePreset } from '../../define-preset';
 
 const presetParams = z.object({
-  text: z.string().describe('Text content to display'),
-  color: z.string().optional().describe('Text color'),
-  fontSize: z.number().optional().describe('Font size in pixels'),
+  text: z
+    .string()
+    .meta({ [paramMetaTypes.inputType]: paramInputTypes.textarea })
+    .describe('Text content to display'),
+  style: z
+    .object({
+      color: z
+        .string()
+        .optional()
+        .meta({ [paramMetaTypes.inputType]: paramInputTypes.color })
+        .describe('Text color'),
+    })
+    .loose()
+    .optional()
+    .meta({
+      [paramMetaTypes.textStyle]: true,
+      [paramMetaTypes.blockStyle]: true,
+      [paramMetaTypes.positionStyle]: true,
+    })
+    .describe('Style'),
 });
 
 const presetExecution = (params: {
   text?: string;
+  style?: Record<string, unknown>;
   color?: string;
   fontSize?: number;
 }) => {
+  const style: Record<string, unknown> = {
+    color: params.color || '#FFFFFF',
+    fontSize: params.fontSize || 64,
+    fontFamily: 'Inter',
+    fontWeight: 600,
+    ...(params.style && typeof params.style === 'object' ? params.style : {}),
+  };
+
   return {
     componentId: 'TextAtom',
     type: 'atom' as const,
     data: {
       text: params.text || '',
-      style: {
-        color: params.color || '#FFFFFF',
-        fontSize: params.fontSize || 48,
-      },
-      font: {
-        family: 'Inter',
-        weights: ['600'],
-      },
+      style,
     },
   };
 };
@@ -53,9 +73,14 @@ const textAtomPreset = definePreset({
       start: 0,
       duration: 5,
       attachedToId: 'BaseScene',
+      containerProps: { style: { ...ATOM_FILL_STYLE } },
       text: 'Hello',
-      color: '#FFFFFF',
-      fontSize: 48,
+      style: {
+        color: '#FFFFFF',
+        fontSize: 64,
+        fontFamily: 'Inter',
+        fontWeight: 600,
+      },
     },
   },
   params: presetParams,

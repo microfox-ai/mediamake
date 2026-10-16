@@ -31,11 +31,14 @@ export function headerTrackMode(
 /**
  * Switch track type the same way the timing form does.
  * Sequence drops an authored duration. Anything except a lock clears `lock`.
+ * `dropDuration` also removes duration when locking. The base scene uses that,
+ * because lock and sequence have no authored length.
  */
 export function applyTrackMode(
   value: Record<string, unknown>,
   next: TrackTimingMode,
   lock?: string,
+  options?: { dropDuration?: boolean },
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = { ...value, trackType: next };
   if (next !== "lockedTo") {
@@ -44,6 +47,31 @@ export function applyTrackMode(
     if (lock.trim()) patch.lock = lock;
     else delete patch.lock;
   }
-  if (next === "sequence") delete patch.duration;
+  if (next === "sequence" || (options?.dropDuration && next === "lockedTo")) {
+    delete patch.duration;
+  }
   return patch;
+}
+
+/**
+ * A child added under a locked scene uses that scene's lock.
+ * Sequence and aligned parents leave the child's track type alone.
+ */
+export function inheritParentLock(
+  childInput: unknown,
+  parentInput: unknown,
+): Record<string, unknown> {
+  const child =
+    childInput && typeof childInput === "object" && !Array.isArray(childInput)
+      ? { ...(childInput as Record<string, unknown>) }
+      : {};
+  if (!parentInput || typeof parentInput !== "object" || Array.isArray(parentInput)) {
+    return child;
+  }
+  const parent = parentInput as Record<string, unknown>;
+  if (trackModeOf(parent) !== "lockedTo") return child;
+  const lock = typeof parent.lock === "string" ? parent.lock.trim() : "";
+  const next = applyTrackMode(child, "lockedTo", lock || undefined);
+  if (!lock) delete next.lock;
+  return next;
 }

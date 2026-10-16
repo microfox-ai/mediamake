@@ -1,14 +1,15 @@
 import { atomCategory, editorAtomCatalog } from '@microfox/remotion/editor-atom-catalog';
 import { z } from 'zod';
 import {
+  ATOM_FILL_STYLE,
   definePreset,
   type AtomBuild,
   type TrackShellParams,
 } from './define-preset';
 import type { Preset } from './types';
 
-/** Timeline fields the track shell owns. They must not land on atom `data`. */
-const SHELL_KEYS = [
+/** Fields the track shell owns. They must not land on atom `data`. */
+export const ATOM_PRESET_SHELL_KEYS = [
   'trackName',
   'trackType',
   'start',
@@ -20,6 +21,7 @@ const SHELL_KEYS = [
   'trackStartOffset',
   'trackDuration',
   'trackRange',
+  'containerProps',
 ] as const;
 
 const rawDataParams = z.object({
@@ -47,7 +49,7 @@ function buildSource(componentId: string, passthroughDataField: boolean): string
     }`;
   }
   return `function (params) {
-    const shell = ${JSON.stringify(SHELL_KEYS)};
+    const shell = ${JSON.stringify(ATOM_PRESET_SHELL_KEYS)};
     const data = { ...params };
     for (const key of shell) delete data[key];
     return { componentId: ${id}, type: 'atom', data };
@@ -97,6 +99,7 @@ export function defineAtomPreset(atom: {
         start: 0,
         duration: 5,
         attachedToId: 'BaseScene',
+        containerProps: { style: { ...ATOM_FILL_STYLE } },
       },
     },
     placement: 'atom',

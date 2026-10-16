@@ -38,8 +38,9 @@ import { toast } from 'sonner';
 import { useRender, ConfigMode, RenderMethod } from './render-provider';
 import { useBrowserRender } from './use-browser-render';
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/components/session-provider';
+import { useProjectStore } from '@/components/editor_main/stores/project-store';
 import { useQuotaExhaustedDialog, extractQuotaError } from '@/components/quota-exhausted-dialog';
 import { TagMultiSelect } from '@/components/ui/tag-multi-select';
 import {
@@ -220,6 +221,9 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   const [showJson, setShowJson] = useState(false);
   const [projects, setProjects] = useState<{ id: string; displayName: string }[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const currentProjectId = useProjectStore((s) => s.currentProjectId);
+  const currentProjectName = useProjectStore((s) => s.currentProject?.displayName);
+  const seededProjectRef = useRef<string | null>(null);
 
   // Quota-exhausted modal for 403/429 responses from /api/remotion/render
   const { setQuotaError, dialog: quotaDialog } = useQuotaExhaustedDialog();
@@ -269,6 +273,32 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     };
     void loadProjects();
   }, [session?.clientId]);
+
+  // The editor's loaded project is the default. Re-apply it each time the
+  // dialog opens so a later project switch is picked up, without overwriting
+  // a choice the user makes while the dialog stays open.
+  useEffect(() => {
+    if (!isOpen) {
+      seededProjectRef.current = null;
+      return;
+    }
+    if (!currentProjectId || seededProjectRef.current === currentProjectId) return;
+    seededProjectRef.current = currentProjectId;
+    updateSetting('projectId', currentProjectId);
+  }, [isOpen, currentProjectId, updateSetting]);
+
+  const projectOptions = useMemo(() => {
+    if (!currentProjectId || projects.some((p) => p.id === currentProjectId)) {
+      return projects;
+    }
+    return [
+      {
+        id: currentProjectId,
+        displayName: currentProjectName || 'Current project',
+      },
+      ...projects,
+    ];
+  }, [projects, currentProjectId, currentProjectName]);
 
   const selectedConfig = useMemo(() => {
     if (settings.configMode === 'custom') {
@@ -625,7 +655,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No project</SelectItem>
-                        {projects.map((p) => (
+                        {projectOptions.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.displayName}
                           </SelectItem>
@@ -1348,7 +1378,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No project</SelectItem>
-                        {projects.map((p) => (
+                        {projectOptions.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.displayName}
                           </SelectItem>

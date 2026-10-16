@@ -97,7 +97,28 @@ export interface ActionExecuteResult {
   }>;
 }
 
+/**
+ * Present on choice actions (see `defineChoiceAction`). The editor renders a
+ * choice picker for these and lets users save the target's current values as a
+ * new choice.
+ */
+export interface ChoiceActionInfo {
+  /**
+   * Target fields a coded choice writes. Saved choices capture only these,
+   * unless `openFields` is set.
+   */
+  fieldKeys: string[];
+  /**
+   * Saved choices keep whichever fields the user left in the save dialog.
+   * Used by the default Saved Styles action, which has no built-in looks.
+   */
+  openFields?: boolean;
+  builtInChoices: Array<{ id: string; label: string }>;
+  defaultImpact: number;
+}
+
 export interface ActionDefinition {
+  choice?: ChoiceActionInfo;
   metadata: {
     id: string;
     title: string;

@@ -4,6 +4,7 @@ import type {
   CalculatedTiming,
   RenderableContext,
 } from "@microfox/remotion";
+import { collectVisualMedia } from "./visual-media";
 
 /** Absolute timing for the editor (composition space). Used when passing parent timing into flattenLayers. */
 export interface ParentTimingOption {
@@ -30,6 +31,8 @@ export interface FlatLayer {
   previewSrc?: string;
   /** Optional still thumbnail URL for VideoAtom (preferred over decoding the video) */
   previewThumbnail?: string;
+  /** Seconds into the source file where this clip starts. */
+  previewSourceOffset?: number;
 }
 
 /**
@@ -371,16 +374,26 @@ export function flattenLayers(
         : node.componentId || node.id;
 
     const previewText = node.componentId === "TextAtom" ? (node.data?.text as string | undefined) : undefined;
+    const atomSrc = typeof node.data?.src === "string" ? node.data.src : undefined;
+    const visual = node.componentId === "AudioAtom" ? [] : collectVisualMedia(node.data);
     const previewSrc =
       node.componentId === "ImageAtom" ||
       node.componentId === "VideoAtom" ||
       node.componentId === "AudioAtom"
-        ? (node.data?.src as string | undefined)
-        : undefined;
+        ? atomSrc
+        : visual[0]?.src;
     const previewThumbnail =
       node.componentId === "VideoAtom"
-        ? ((node.data?.thumbnail || node.data?.poster || node.data?.thumbnailUrl) as string | undefined)
-        : undefined;
+        ? ((node.data?.thumbnail ||
+            node.data?.poster ||
+            node.data?.thumbnailUrl ||
+            visual[0]?.thumbnail) as string | undefined)
+        : node.componentId === "ImageAtom" || node.componentId === "AudioAtom"
+          ? undefined
+          : visual[0]?.thumbnail;
+    const sourceOffset = node.data?.startFrom;
+    const previewSourceOffset =
+      typeof sourceOffset === "number" && sourceOffset > 0 ? sourceOffset : undefined;
 
     result.push({
       id: node.id,
@@ -395,6 +408,7 @@ export function flattenLayers(
       ...(previewText != null && { previewText }),
       ...(previewSrc != null && { previewSrc }),
       ...(previewThumbnail != null && { previewThumbnail }),
+      ...(previewSourceOffset != null && { previewSourceOffset }),
     });
 
     const nextParentTiming: ParentTimingOption = {

@@ -280,6 +280,8 @@ export interface ColorInputProps {
     className?: string;
     /** Rendered compactly for dense panels (layer props rows). */
     compact?: boolean;
+    /** Render the picker body only, with no swatch trigger or text field. */
+    embedded?: boolean;
 }
 
 /**
@@ -296,6 +298,7 @@ export function ColorInput({
     disabled,
     className,
     compact,
+    embedded,
 }: ColorInputProps) {
     const [open, setOpen] = useState(false);
     const [text, setText] = useState(value ?? "");
@@ -328,8 +331,8 @@ export function ColorInput({
     }, [value]);
 
     useEffect(() => {
-        if (open) setRecent(readRecentColors());
-    }, [open]);
+        if (open || embedded) setRecent(readRecentColors());
+    }, [open, embedded]);
 
     const commit = useCallback(
         (next: Hsva) => {
@@ -398,31 +401,8 @@ export function ColorInput({
         [presets]
     );
 
-    return (
-        <div className={cn("flex gap-1 items-center", className)}>
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        disabled={disabled}
-                        aria-label="Open color picker"
-                        className={cn(
-                            "relative shrink-0 rounded-md border border-input overflow-hidden transition-shadow",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            "disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-sm",
-                            compact ? "h-8 w-8" : "h-9 w-9"
-                        )}
-                        style={CHECKERBOARD_STYLE}
-                    >
-                        <span className="absolute inset-0" style={{ background: swatchPreview }} />
-                        {!isParsable && value?.trim() && (
-                            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-muted-foreground bg-background/80">
-                                CSS
-                            </span>
-                        )}
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[268px] p-3 space-y-3" align="start">
+    const picker = (
+        <div className="space-y-3">
                     <SaturationArea hsva={hsva} onChange={patch} />
 
                     <div className="flex items-center gap-2">
@@ -610,6 +590,37 @@ export function ColorInput({
                             </div>
                         </div>
                     )}
+        </div>
+    );
+
+    if (embedded) return picker;
+
+    return (
+        <div className={cn("flex gap-1 items-center", className)}>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        disabled={disabled}
+                        aria-label="Open color picker"
+                        className={cn(
+                            "relative shrink-0 rounded-md border border-input overflow-hidden transition-shadow",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-sm",
+                            compact ? "h-8 w-8" : "h-9 w-9"
+                        )}
+                        style={CHECKERBOARD_STYLE}
+                    >
+                        <span className="absolute inset-0" style={{ background: swatchPreview }} />
+                        {!isParsable && value?.trim() && (
+                            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-muted-foreground bg-background/80">
+                                CSS
+                            </span>
+                        )}
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[268px] p-3" align="start">
+                    {picker}
                 </PopoverContent>
             </Popover>
 

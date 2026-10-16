@@ -46,6 +46,11 @@ export function EditorProps() {
     content = (
       <ActionProps action={selectedItem.item} timeline={selectedItem.timeline} />
     );
+  } else if (
+    filePanelTab === "timelines" &&
+    (selectedItem?.type === "references" || selectedItem?.type === "actions")
+  ) {
+    content = <TimelineProps timeline={selectedItem.timeline} />;
   } else if (filePanelTab === "layers" && selectedLayerIds.length > 0) {
     content = <LayerPropsPanel />;
   } else if (selectedItem?.type === "timeline") {
@@ -62,6 +67,8 @@ export function EditorProps() {
     content = (
       <ActionProps action={selectedItem.item} timeline={selectedItem.timeline} />
     );
+  } else if (selectedItem?.type === "references" || selectedItem?.type === "actions") {
+    content = <TimelineProps timeline={selectedItem.timeline} />;
   } else if (!selectedItem) {
     content = (
       <div className="flex-1 flex items-center justify-center p-4 text-sm text-muted-foreground">

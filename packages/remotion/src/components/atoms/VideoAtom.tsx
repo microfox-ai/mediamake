@@ -7,6 +7,8 @@ import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { calculateComponentDuration, resolveLoopSrcDuration } from '../../core';
 import { atomCategory } from '../../atom-category';
 import { VideoAtomDataProps } from './input-schemas';
+import { mergeSpecialEffects } from './special-effects-style';
+import { applyImageLook } from '../beatmade/image-style';
 
 export { VideoAtomDataProps } from './input-schemas';
 
@@ -163,17 +165,29 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
 
     // Animated filters/transforms merge with the base style so a preset filter
     // (including color tint) is kept when an effect adds another filter function.
-    const videoStyle = useMemo(
-        () =>
-            mergeCSSStyles(
-                {
-                    ...(data.style ?? {}),
-                    ...(data.fit ? { objectFit: data.fit } : {}),
-                },
-                data.containerClassName ? {} : (overrideStyles ?? {})
-            ),
-        [data.style, data.fit, data.containerClassName, overrideStyles]
-    );
+    const videoStyle = useMemo(() => {
+        const style = (data.style ?? {}) as Record<string, unknown>;
+        const markedFit = typeof style['--mm-image-fit'] === 'string';
+        const withFit = {
+            ...(data.style ?? {}),
+            ...(!markedFit && data.fit ? { objectFit: data.fit } : {}),
+        };
+        const looked = applyImageLook(withFit);
+        const hasExplicitFit =
+            markedFit || Boolean(data.fit) || typeof style.objectFit === 'string';
+        const lookPatch: React.CSSProperties = {};
+        if (hasExplicitFit && looked.objectFit) lookPatch.objectFit = looked.objectFit;
+        if (looked.mixBlendMode) lookPatch.mixBlendMode = looked.mixBlendMode;
+        if (typeof looked.opacity === 'number') lookPatch.opacity = looked.opacity;
+        if (looked.filter) lookPatch.filter = looked.filter;
+        return mergeCSSStyles(
+            mergeSpecialEffects({
+                ...withFit,
+                ...lookPatch,
+            }),
+            data.containerClassName ? {} : (overrideStyles ?? {})
+        );
+    }, [data.style, data.fit, data.containerClassName, overrideStyles]);
 
     // <OffthreadVideo> throws in @remotion/web-renderer; see core/clientMediaTags.
     const clientTags = getClientSideMediaTags();

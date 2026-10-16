@@ -10,6 +10,7 @@ describe('atomCategory', () => {
     expect(atomCategory('waveforms')).toBe('waveforms');
     expect(atomCategory('captions')).toBe('captions');
     expect(atomCategory('canvas')).toBe('canvas');
+    expect(atomCategory('beatmade')).toBe('beatmade');
     expect(atomCategory('waveform')).toBe('waveform');
   });
 

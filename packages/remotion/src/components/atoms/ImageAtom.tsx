@@ -6,6 +6,7 @@ import { useAnimatedStyles } from '../effects';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { ImageAtomInput } from './input-schemas';
+import { mergeSpecialEffects } from './special-effects-style';
 
 export { ImageAtomInput } from './input-schemas';
 
@@ -112,7 +113,7 @@ export const Atom: React.FC<ImageAtomProps> = ({ data, id }) => {
     }, [data.src, imageSource]);
 
     const enhancedStyle = useMemo(
-        () => mergeCSSStyles(data.style ?? {}, overrideStyles ?? {}),
+        () => mergeCSSStyles(mergeSpecialEffects(data.style), overrideStyles ?? {}),
         [data.style, overrideStyles, isLoading, hasError]
     );
 

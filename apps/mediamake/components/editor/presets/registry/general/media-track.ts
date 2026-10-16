@@ -136,10 +136,6 @@ const mediaTrackItemSchema = z.object({
     .optional()
     .meta({ [paramMetaTypes.groupEditable]: true })
     .describe('Volume 0–1'),
-  fitDurationTo: z
-    .string()
-    .optional()
-    .describe('Fit duration to another track id'),
   opacity: z
     .number()
     .min(0)
@@ -348,6 +344,14 @@ const presetExecution = (
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
+  };
+
+  const itemLockTarget = (mediaItem: MediaTrackItem): string => {
+    const lockTo =
+      typeof mediaItem.lockTo === 'string' ? mediaItem.lockTo.trim() : '';
+    if (lockTo) return lockTo;
+    const legacy = (mediaItem as { fitDurationTo?: unknown }).fitDurationTo;
+    return typeof legacy === 'string' ? legacy.trim() : '';
   };
 
   // After processDataReferences, mediaItems may already be a merged array.
@@ -812,8 +816,8 @@ const presetExecution = (
       // Prefer rangeString (comma-separated); fall back to legacy ranges[]
       const ranges = resolveItemRangeStrings(mediaItem);
 
-      // If no ranges provided, create a single scene with no time range
-      if (ranges.length === 0) {
+      // A lock copies the target's length, so the range is not used.
+      if (itemLockTarget(mediaItem) || ranges.length === 0) {
         return [createMediaScene(mediaItem, index, 0, null)];
       }
 
@@ -862,12 +866,28 @@ const presetExecution = (
     const allEffects = [...fadeInEffects, ...fadeOutEffects];
 
     const src = String(mediaItem.src || '');
+    const lockTarget = itemLockTarget(mediaItem);
     const alignedStart =
       typeof mediaItem.start === 'number' && Number.isFinite(mediaItem.start)
         ? mediaItem.start
         : 0;
     const placedStart =
       !timeRange && !sequence ? { start: alignedStart } : {};
+    const sceneTiming = {
+      ...placedStart,
+      ...(mediaItem.duration && !timeRange && !lockTarget
+        ? { duration: mediaItem.duration }
+        : {}),
+      ...(lockTarget ? { fitDurationTo: lockTarget } : {}),
+      ...(timeRange
+        ? sequence
+          ? { duration: timeRange.duration }
+          : {
+              start: timeRange.start,
+              duration: timeRange.duration,
+            }
+        : {}),
+    };
 
     if (mediaType === 'video') {
       const thumbnail =
@@ -897,23 +917,7 @@ const presetExecution = (
           // is one loop of the source file, filled in when durations are resolved.
         } as VideoAtomDataProps,
         context: {
-          timing: {
-            ...placedStart,
-            ...(mediaItem.duration && !timeRange
-              ? { duration: mediaItem.duration }
-              : {}),
-            ...(mediaItem.fitDurationTo
-              ? { fitDurationTo: mediaItem.fitDurationTo }
-              : {}),
-            ...(timeRange
-              ? sequence
-                ? { duration: timeRange.duration }
-                : {
-                    start: timeRange.start,
-                    duration: timeRange.duration,
-                  }
-              : {}),
-          },
+          timing: sceneTiming,
         },
         effects: allEffects.map((effect, effectIndex) => {
           // Use shake component for shake effects
@@ -939,20 +943,7 @@ const presetExecution = (
           startFrom: mediaItem.startCropVideo ?? 0,
         } as AudioAtomDataProps,
         context: {
-          timing: {
-            ...placedStart,
-            ...(timeRange
-              ? sequence
-                ? { duration: timeRange.duration }
-                : {
-                    start: timeRange.start,
-                    duration: timeRange.duration,
-                  }
-              : {}),
-            ...(mediaItem.duration && !timeRange
-              ? { duration: mediaItem.duration }
-              : {}),
-          },
+          timing: sceneTiming,
         },
         effects: allEffects.map((effect, effectIndex) => {
           // Use shake component for shake effects

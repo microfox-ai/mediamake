@@ -66,6 +66,33 @@ describe("presetBreadcrumbPath", () => {
     ]);
     assert.deepEqual(presetBreadcrumbPath(tree, "base"), []);
   });
+
+  it("omits the root scene when that scene is the base", () => {
+    const rooted = node({
+      id: "root-scene",
+      presetId: "scene",
+      role: "scene",
+      name: "Scene",
+      children: [
+        node({
+          id: "inner",
+          presetId: "scene",
+          role: "scene",
+          name: "Scene",
+        }),
+      ],
+    });
+    assert.deepEqual(presetBreadcrumbPath(rooted, "inner"), [
+      { id: "inner", name: "Scene" },
+    ]);
+    assert.deepEqual(
+      labels({
+        selection: "preset",
+        presetPath: presetBreadcrumbPath(rooted, "inner"),
+      }),
+      ["Base", "Scene"],
+    );
+  });
 });
 
 describe("buildTimelineBreadcrumbs", () => {

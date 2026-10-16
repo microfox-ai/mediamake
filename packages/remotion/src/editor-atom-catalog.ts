@@ -17,6 +17,7 @@ import {
   WaveformSpectrumLineInput,
 } from './components/waveforms/input-schemas';
 import { CaptionSmearInput } from './components/captions/input-schemas';
+import { ImageBeatInput } from './components/beatmade/input-schemas';
 
 /** Metadata for one addable atom block. No React components. */
 export interface EditorAtomCatalogEntry {
@@ -44,6 +45,7 @@ const editorAtomSources: AtomCatalogSource[] = [
   { componentId: 'CaptionSmear', displayName: 'CaptionSmear', folder: 'captions', inputSchema: CaptionSmearInput },
   { componentId: 'HTMLBlockAtom', displayName: 'HTMLBlockAtom', folder: 'atoms', inputSchema: HTMLBlockAtomInput },
   { componentId: 'ImageAtom', displayName: 'ImageAtom', folder: 'atoms', inputSchema: ImageAtomInput },
+  { componentId: 'ImageBeat', displayName: 'ImageBeat', folder: 'beatmade', inputSchema: ImageBeatInput },
   { componentId: 'LottieAtom', displayName: 'LottieAtom', folder: 'atoms', inputSchema: LottieAtomDataProps },
   { componentId: 'ShapeAtom', displayName: 'ShapeAtom', folder: 'atoms', inputSchema: ShapeAtomInput },
   { componentId: 'TextAtom', displayName: 'TextAtom', folder: 'atoms', inputSchema: TextAtomInput },

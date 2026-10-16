@@ -13,6 +13,8 @@ const PORTALED_MENU_SELECTOR = [
   "[data-slot='dropdown-menu-content']",
   "[data-slot='dropdown-menu-sub-content']",
   "[role='listbox']",
+  "[data-slot='dialog-content']",
+  "[data-slot='dialog-overlay']",
 ].join(",");
 
 function isPortaledMenuTarget(target: EventTarget | null) {

@@ -100,6 +100,9 @@ export const useWaveformData = (
   }, [numberOfSamples]);
 
   const { source, audioStartsFrom } = useMemo(() => {
+    if (!audioSrc) {
+      return { source: audioSrc, audioStartsFrom: undefined };
+    }
     if (audioSrc.startsWith('http')) {
       return { source: audioSrc, audioStartsFrom: undefined };
     }

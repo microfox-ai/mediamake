@@ -26,6 +26,15 @@ export interface ContainerProps {
   style?: object;
 }
 
+/** Fill an atom preset uses until the layout section changes it. */
+export const ATOM_FILL_STYLE = {
+  position: 'absolute' as const,
+  left: 0,
+  right: 0,
+  top: 0,
+  bottom: 0,
+};
+
 /**
  * What a container preset returns. The shell adds the BaseLayout, timing, and parent.
  * `duration` fills in when the shell params have no length (ranges, audio).

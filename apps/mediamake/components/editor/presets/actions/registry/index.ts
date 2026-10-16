@@ -9,10 +9,14 @@ import { captionClean } from "./caption-clean";
 import { captionFillWordGaps } from "./caption-fill-word-gaps";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSplitHighlight } from "./caption-split-highlight";
+import { imageBeatChoice } from "./image-beat-choice";
+import { savedStylesActions } from "./saved-styles-choice";
 import { waveformSpectrumFillChoice } from "./waveform-spectrum-fill-choice";
 
 const ACTION_REGISTRY: ActionDefinition[] = [
+  imageBeatChoice,
   waveformSpectrumFillChoice,
+  ...savedStylesActions,
   captionSentenceStructure,
   captionSplitHighlight,
   captionFillWordGaps,
@@ -84,4 +88,5 @@ export {
   shakeEffectRange,
   shakeEffectRangeBrowser,
   waveformSpectrumFillChoice,
+  imageBeatChoice,
 };

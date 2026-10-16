@@ -41,6 +41,7 @@ import {
   writeTargetData,
 } from "../engine/action-lifecycle";
 import { cn } from "@/lib/utils";
+import { ChoiceActionInputs } from "../choice/ChoiceActionInputs";
 
 /** Compact Actions row under preset/reference title. */
 export function LinkedActionsSection({
@@ -410,19 +411,39 @@ export function ActionEditor({
         </div>
       )}
 
-      <SchemaForm
-        title={definition.metadata.title}
-        showTitle={showFormTitle}
-        description={definition.metadata.description}
-        schema={definition.inputSchema}
-        value={localInputData}
-        onChange={handleInputChange}
-        availableTrackNames={availableTrackNames}
-        baseData={baseData}
-        showTabs={false}
-        showResetButton={false}
-        showReferencableAuto={false}
-      />
+      {definition.choice ? (
+        <div className="space-y-2">
+          {showFormTitle && (
+            <p className="text-sm font-medium">{definition.metadata.title}</p>
+          )}
+          {definition.metadata.description && (
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              {definition.metadata.description}
+            </p>
+          )}
+          <ChoiceActionInputs
+            timeline={timeline}
+            action={current}
+            choice={definition.choice}
+            value={localInputData}
+            onChange={handleInputChange}
+          />
+        </div>
+      ) : (
+        <SchemaForm
+          title={definition.metadata.title}
+          showTitle={showFormTitle}
+          description={definition.metadata.description}
+          schema={definition.inputSchema}
+          value={localInputData}
+          onChange={handleInputChange}
+          availableTrackNames={availableTrackNames}
+          baseData={baseData}
+          showTabs={false}
+          showResetButton={false}
+          showReferencableAuto={false}
+        />
+      )}
 
       <div className="flex items-center gap-2">
         <Button

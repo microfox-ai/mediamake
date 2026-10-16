@@ -19,7 +19,7 @@ export function EditorContent() {
     if (selectedItem?.type === "preset") {
       return <PresetTimelineContent />;
     }
-    // timeline | action | null → aggregate all track sources at timeline level
+    // timeline | references | actions | action | null → lane-specific overview
     return <TimelineOverviewContent />;
   }
 

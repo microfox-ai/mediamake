@@ -130,7 +130,15 @@ function itemDuration(item: Record<string, unknown>): number | undefined {
   return undefined;
 }
 
+function itemLockTarget(item: Record<string, unknown>): string {
+  const lockTo = typeof item.lockTo === "string" ? item.lockTo.trim() : "";
+  if (lockTo) return lockTo;
+  const legacy = item.fitDurationTo;
+  return typeof legacy === "string" ? legacy.trim() : "";
+}
+
 function itemRanges(item: Record<string, unknown>): Array<{ start: number; end: number }> {
+  if (itemLockTarget(item)) return [];
   const raw = item.rangeString ?? item.ranges;
   const text = Array.isArray(raw)
     ? raw.filter((value): value is string => typeof value === "string").join(",")
@@ -598,6 +606,7 @@ export function patchMediaAtom(
   const start = Math.max(0, edit.start);
   const duration = Math.max(0.05, edit.duration);
   return mapMediaItem(input, itemIndex, (item) => {
+    if (itemLockTarget(item)) return item;
     const ranges = itemRanges(item);
     if (ranges.length > 1) return item;
     if (ranges.length === 1) {

@@ -43,6 +43,8 @@ import {
   createVideoLayer,
   createLayoutNode,
 } from "@/lib/editor/layer-templates";
+import { collectVisualMedia, type VisualMediaRef } from "@/lib/editor/visual-media";
+import { MediaThumbIcon } from "./media-thumb-icon";
 const PREVIEW_TEXT_MAX = 28;
 
 function findNodeInTree(
@@ -89,14 +91,20 @@ function findParentAndSiblings(
   return null;
 }
 
-function layerThumbnailSrc(node: LayerTreeNode): string | undefined {
-  const thumb = node.previewThumbnail?.trim();
-  if (thumb) return thumb;
-  if (node.componentId === "ImageAtom") {
-    const src = node.previewSrc?.trim();
-    if (src) return src;
-  }
-  return undefined;
+function layerVisualMedia(node: LayerTreeNode): VisualMediaRef[] {
+  const src = node.previewSrc?.trim();
+  if (!src || node.componentId === "AudioAtom") return [];
+  const type =
+    node.componentId === "VideoAtom"
+      ? "video"
+      : node.componentId === "ImageAtom" || node.componentId === "ImageBeat"
+        ? "image"
+        : undefined;
+  return collectVisualMedia({
+    src,
+    ...(type ? { type } : {}),
+    ...(node.previewThumbnail ? { thumbnail: node.previewThumbnail } : {}),
+  });
 }
 
 function LayerTypeIcon({ node }: { node: LayerTreeNode }) {
@@ -123,16 +131,10 @@ function LayerTypeIcon({ node }: { node: LayerTreeNode }) {
 }
 
 function LayerMark({ node }: { node: LayerTreeNode }) {
-  const src = layerThumbnailSrc(node);
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  if (!src || failedSrc === src) return <LayerTypeIcon node={node} />;
   return (
-    <img
-      src={src}
-      alt=""
-      draggable={false}
-      onError={() => setFailedSrc(src)}
-      className="h-[22px] w-[22px] shrink-0 rounded-[4px] border border-border object-cover bg-muted"
+    <MediaThumbIcon
+      items={layerVisualMedia(node)}
+      fallback={<LayerTypeIcon node={node} />}
     />
   );
 }

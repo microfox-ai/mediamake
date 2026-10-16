@@ -73,6 +73,7 @@ describe('defineAtomPreset', () => {
       start: 1,
       duration: 4,
       trackName: 'meta',
+      containerProps: { style: { overflow: 'hidden' } },
     });
 
     assert.equal(built.componentId, 'MetaAtom');
@@ -81,6 +82,7 @@ describe('defineAtomPreset', () => {
     assert.equal('start' in built.data, false);
     assert.equal('duration' in built.data, false);
     assert.equal('trackName' in built.data, false);
+    assert.equal('containerProps' in built.data, false);
   });
 
   it('uses a single data object when the atom has no schema', () => {
@@ -113,12 +115,33 @@ describe('atom block registry', () => {
     assert.equal(text.metadata.title, 'TextAtom');
     assert.equal(text.metadata.category, 'BaseAtoms');
     assert.equal(getPredefinedPresetById('atom:WaveformHistogram')?.metadata.category, 'waveforms');
-    assert.equal(getPredefinedPresetById('atom:CaptionSmear')?.metadata.category, 'captions');
+    const smear = getPredefinedPresetById('atom:CaptionSmear');
+    assert.equal(smear?.metadata.category, 'captions');
+    const smearJson = JSON.stringify(smear?.presetParams);
+    assert.match(smearJson, /"textStyle":true/);
+    assert.match(smearJson, /"positionStyle":true/);
+    const beat = getPredefinedPresetById('atom:ImageBeat');
+    assert.equal(beat?.metadata.category, 'beatmade');
+    const beatJson = JSON.stringify(beat?.presetParams);
+    assert.match(beatJson, /"blockStyle":true/);
+    assert.match(beatJson, /"positionStyle":true/);
+    assert.match(beatJson, /"imageStyle":true/);
     assert.equal(getPredefinedPresetById('atom:CanvasPipeline')?.metadata.category, 'canvas');
     assert.equal(getPredefinedPresetById('atom:WaveformHistogramRanged')?.metadata.category, 'waveforms');
     const json = JSON.stringify(text.presetParams);
     assert.match(json, /"inputType":"color"/);
     assert.match(json, /"inputType":"textarea"/);
+    assert.match(json, /"textStyle":true/);
+    assert.match(json, /"blockStyle":true/);
+    assert.match(json, /"positionStyle":true/);
+    for (const id of ["VideoAtom", "ImageAtom", "HTMLBlockAtom", "ShapeAtom"]) {
+      const atomJson = JSON.stringify(getPredefinedPresetById(`atom:${id}`)?.presetParams);
+      assert.match(atomJson, /"blockStyle":true/);
+    }
+    assert.match(JSON.stringify(getPredefinedPresetById("atom:HTMLBlockAtom")?.presetParams), /"positionStyle":true/);
+    assert.match(JSON.stringify(getPredefinedPresetById("atom:ImageAtom")?.presetParams), /"positionStyle":true/);
+    assert.match(JSON.stringify(getPredefinedPresetById("atom:VideoAtom")?.presetParams), /"videoStyle":true/);
+    assert.match(JSON.stringify(getPredefinedPresetById("atom:AudioAtom")?.presetParams), /"audioStyle":true/);
 
     assert.equal(getPredefinedPresetById('atom:Rings'), undefined);
     assert.equal(getPredefinedPresetById('atom:NextjsLogo'), undefined);

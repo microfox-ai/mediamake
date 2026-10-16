@@ -324,21 +324,67 @@ function collectIds(node: AppliedNode, into: Set<string>) {
   for (const child of node.children) collectIds(child, into);
 }
 
+function cloneBranch(node: AppliedNode): AppliedNode {
+  return { ...node, children: node.children.map(cloneBranch) };
+}
+
+/**
+ * Insert presets that exist in `derived` but not in `saved`, under the same
+ * parent and beside the same siblings. Existing sibling order is left as saved.
+ */
+function graftMissing(saved: AppliedNode, derived: AppliedNode): AppliedNode {
+  const known = new Set<string>();
+  collectIds(saved, known);
+
+  const graftInto = (savedNode: AppliedNode): AppliedNode => {
+    const derivedNode = findNode(derived, savedNode.id);
+    let children = savedNode.children.map(graftInto);
+    if (!derivedNode) return { ...savedNode, children };
+
+    for (const child of derivedNode.children) {
+      if (known.has(child.id)) continue;
+      const index = derivedNode.children.findIndex((item) => item.id === child.id);
+      const preceding = derivedNode.children.slice(0, index);
+      let insertAt = -1;
+      for (let i = preceding.length - 1; i >= 0; i--) {
+        const at = children.findIndex((item) => item.id === preceding[i]?.id);
+        if (at >= 0) {
+          insertAt = at + 1;
+          break;
+        }
+      }
+      if (insertAt < 0) {
+        const following = new Set(
+          derivedNode.children.slice(index + 1).map((item) => item.id),
+        );
+        const later = children.findIndex((item) => following.has(item.id));
+        insertAt = later >= 0 ? later : children.length;
+      }
+      const branch = cloneBranch(child);
+      children = [
+        ...children.slice(0, insertAt),
+        branch,
+        ...children.slice(insertAt),
+      ];
+      collectIds(branch, known);
+    }
+    return { ...savedNode, children };
+  };
+
+  return graftInto(saved);
+}
+
 /**
  * Load the instance tree. A saved `nodes` tree wins for structure and timing.
  * Preset params are refreshed from the flat list so inspector edits still apply.
- * Presets added after the tree was saved are appended to the root scene.
+ * Presets added after the tree was saved are inserted under their parent scene,
+ * so a copy made inside a group stays inside that group.
  */
 export function loadInstanceTree(timeline: Timeline): AppliedNode {
   const derived = deriveTree(timeline);
   if (!timeline.nodes) return derived;
   const saved = refreshFromPresets(timeline.nodes, timeline.presets ?? []);
-  const known = new Set<string>();
-  collectIds(saved, known);
-  for (const child of derived.children) {
-    if (!known.has(child.id)) saved.children.push(child);
-  }
-  return saved;
+  return graftMissing(saved, derived);
 }
 
 export interface CompileStep {
@@ -380,6 +426,31 @@ export function collectSubtreeIds(root: AppliedNode, id: string): string[] {
   };
   walk(node);
   return ids;
+}
+
+/**
+ * Presets removed with a deletion: each selected id, plus every preset nested
+ * under it. The root scene is never included.
+ */
+export function idsRemovedWith(root: AppliedNode, ids: Iterable<string>): string[] {
+  const drop = new Set<string>();
+  for (const id of ids) {
+    if (id === root.id) continue;
+    for (const member of collectSubtreeIds(root, id)) {
+      if (member !== root.id) drop.add(member);
+    }
+  }
+  return [...drop];
+}
+
+/** Remove these nodes. Nested presets leave with a removed parent. */
+export function pruneNodes(root: AppliedNode, ids: Set<string>): AppliedNode {
+  return {
+    ...root,
+    children: root.children
+      .filter((child) => !ids.has(child.id))
+      .map((child) => pruneNodes(child, ids)),
+  };
 }
 
 /** Set `disabled` on a node and every preset nested under it. */
@@ -447,6 +518,84 @@ export function moveNode(
   return insert(stripped);
 }
 
+/** Insert a preset node under a scene. The preset is not already in `root`. */
+export function insertPresetNode(
+  root: AppliedNode,
+  preset: TimelinePresetLike,
+  presets: TimelinePresetLike[],
+  parentId: string,
+  index: number,
+): AppliedNode {
+  const node = nodeFromPreset(preset, presets);
+  const parent = findNode(root, parentId);
+  const target = parent?.role === 'scene' ? parent : root;
+  const at = Math.max(0, Math.min(index, target.children.length));
+  const insert = (current: AppliedNode): AppliedNode => {
+    if (current.id === target.id) {
+      const children = [...current.children];
+      children.splice(at, 0, node);
+      return { ...current, children };
+    }
+    return { ...current, children: current.children.map(insert) };
+  };
+  return insert(root);
+}
+
+/**
+ * Where a dragged block lands.
+ * Dropping on a group enters that group. Dropping on any of its children
+ * enters the same group, beside that child.
+ */
+export function blockDropTarget(
+  root: AppliedNode,
+  activeId: string,
+  overId: string,
+  placeAfter: boolean,
+): { parentId: string; index: number } | null {
+  if (!overId || overId === activeId) return null;
+  const overNode = findNode(root, overId);
+  const activeNode = findNode(root, activeId);
+  if (!overNode || !activeNode) return null;
+  if (findNode(activeNode, overId)) return null;
+
+  if (overNode.role === 'scene' && overNode.id !== root.id) {
+    return { parentId: overNode.id, index: Number.MAX_SAFE_INTEGER };
+  }
+
+  const parent = parentOfNode(root, overId) ?? root;
+  if (parent.role !== 'scene') return null;
+  const siblingIds = parent.children
+    .map((child) => child.id)
+    .filter((id) => id !== activeId);
+  const overIndex = siblingIds.indexOf(overId);
+  const index = overIndex < 0 ? siblingIds.length : overIndex + (placeAfter ? 1 : 0);
+  return { parentId: parent.id, index };
+}
+
+/**
+ * Where a duplicate or paste is inserted relative to `anchorId`.
+ * `beside` stays in the anchor's group. `into-or-beside` enters a selected group.
+ */
+export function presetAnchorPlacement(
+  root: AppliedNode,
+  anchorId: string | null,
+  placement: 'beside' | 'into-or-beside',
+): { parentId: string; index: number } {
+  const fallback = { parentId: root.id, index: root.children.length };
+  if (!anchorId) return fallback;
+  const anchor = findNode(root, anchorId);
+  if (!anchor) return fallback;
+  if (placement === 'into-or-beside' && anchor.role === 'scene' && anchor.id !== root.id) {
+    return { parentId: anchor.id, index: anchor.children.length };
+  }
+  const parent = parentOfNode(root, anchorId) ?? root;
+  const at = parent.children.findIndex((child) => child.id === anchorId);
+  return {
+    parentId: parent.id,
+    index: at < 0 ? parent.children.length : at + 1,
+  };
+}
+
 /** Move a node to the end of another scene. Refuses cycles and non-scene parents. */
 export function reparentNode(
   root: AppliedNode,
@@ -467,6 +616,30 @@ export function listBlockRows(root: AppliedNode): Array<{ id: string; depth: num
   };
   walk(root, 0);
   return rows;
+}
+
+/**
+ * Flat preset order that `deriveTree` will turn back into `root`.
+ * Sibling order inside a group is this array order when no `nodes` tree is stored.
+ * Returns the same array when it already matches.
+ */
+export function orderPresetsLikeTree<T extends { id: string }>(
+  presets: T[] | undefined,
+  root: AppliedNode,
+): T[] | undefined {
+  if (!presets || presets.length < 2) return presets;
+  const rank = new Map<string, number>([[root.id, 0]]);
+  listBlockRows(root).forEach((row, index) => rank.set(row.id, index + 1));
+  const indexed = presets.map((preset, index) => ({ preset, index }));
+  indexed.sort((a, b) => {
+    const ar = rank.get(a.preset.id) ?? Number.MAX_SAFE_INTEGER;
+    const br = rank.get(b.preset.id) ?? Number.MAX_SAFE_INTEGER;
+    if (ar !== br) return ar - br;
+    return a.index - b.index;
+  });
+  const next = indexed.map((item) => item.preset);
+  if (next.every((preset, index) => preset === presets[index])) return presets;
+  return next;
 }
 
 export function mapNodeTiming(

@@ -134,12 +134,39 @@ export interface BeatEnvelope {
   progress: number;
 }
 
+export interface BeatEnvelopeOptions {
+  /** Max smear length in seconds. Longer beats still snap after this. */
+  smearThreshold?: number;
+}
+
+export interface LetterSpacingSettleOptions {
+  enabled?: boolean;
+  /** 0 = no motion; 1 = default; higher = tighter start and more leftover at the cut. */
+  impact?: number;
+}
+
+export interface LetterSpacingSettle {
+  /** 0 = tightest start, 1 = fully expanded at rest (not reached while the beat is on). */
+  progress: number;
+  /** Em still left to open at progress 0. Subtracted from the target letter-spacing. */
+  extraEm: number;
+}
+
+export const DEFAULT_SMEAR_THRESHOLD = 0.5;
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-export function beatEnvelope(localTime: number, duration: number): BeatEnvelope {
+const easeOutQuad = (p: number) => 1 - (1 - p) * (1 - p);
+
+export function beatEnvelope(
+  localTime: number,
+  duration: number,
+  options: BeatEnvelopeOptions = {},
+): BeatEnvelope {
   const t = Math.max(0, localTime);
   const d = Math.max(0.05, duration);
-  const smearEnd = Math.min(0.3, Math.max(0.06, d * 0.4));
+  const cap = Math.max(0.04, options.smearThreshold ?? DEFAULT_SMEAR_THRESHOLD);
+  const smearEnd = Math.min(cap, Math.max(0.06, d * 0.4), d * 0.85);
   const snapEnd = Math.min(d, smearEnd + Math.min(0.08, d * 0.15));
   const dimLength = d > 0.6 ? Math.min(0.35, d * 0.3) : 0;
   const dimStart = d - dimLength;
@@ -154,4 +181,37 @@ export function beatEnvelope(localTime: number, duration: number): BeatEnvelope 
     dim: dimLength > 0 ? clamp01((t - dimStart) / dimLength) : 0,
     progress: clamp01(t / d),
   };
+}
+
+/**
+ * Ease-out letter-spacing settle that is designed to finish after the beat ends,
+ * so the next word cuts in while this one is still opening toward rest.
+ */
+export function letterSpacingSettle(
+  localTime: number,
+  duration: number,
+  options: LetterSpacingSettleOptions = {},
+): LetterSpacingSettle {
+  const impact = Math.max(0, options.impact ?? 1);
+  if (options.enabled === false || impact === 0) {
+    return { progress: 1, extraEm: 0 };
+  }
+
+  const d = Math.max(0.05, duration);
+  const overshoot = d * (0.28 + 0.22 * impact);
+  const p = clamp01(Math.max(0, localTime) / (d + overshoot));
+
+  return {
+    progress: easeOutQuad(p),
+    extraEm: 0.1 + 0.12 * impact,
+  };
+}
+
+/** Letter-spacing in px. Tight at progress 0, expanded to `targetPx` at progress 1. */
+export function applyLetterSpacingSettle(
+  targetPx: number,
+  fontSize: number,
+  settle: LetterSpacingSettle,
+): number {
+  return targetPx - settle.extraEm * fontSize * (1 - settle.progress);
 }

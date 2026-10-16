@@ -71,12 +71,15 @@ describe("groupSelectedPresets", () => {
     assert.equal(input.start, 0);
     assert.equal(input.trackName, "scene-2");
     assert.equal(input.duration, 14);
+    assert.equal(input.attachedToId, "BaseScene");
     assert.equal(scene?.presetInputData.parentId, undefined);
 
     const childA = result.presets.find((item) => item.id === "a");
     const childB = result.presets.find((item) => item.id === "b");
     assert.equal(childA?.presetInputData.parentId, "group-1");
     assert.equal(childB?.presetInputData.parentId, "group-1");
+    assert.equal(childA?.presetInputData.attachedToId, "group-1");
+    assert.equal(childB?.presetInputData.attachedToId, "group-1");
     assert.equal(childA?.presetInputData.start, 1);
     assert.equal(childB?.presetInputData.duration, 6);
 
@@ -91,6 +94,28 @@ describe("groupSelectedPresets", () => {
       ["a", "b"],
     );
     assert.equal(grouped?.arrangement, "aligned");
+  });
+
+  it("attaches a group to its parent scene id", () => {
+    const nested = [
+      ...base,
+      preset("e", "text-atom", {
+        trackName: "inside",
+        trackType: "aligned",
+        start: 1,
+        duration: 2,
+        parentId: "nested",
+        attachedToId: "BaseScene",
+      }),
+    ];
+    const result = groupSelectedPresets(timeline(nested), ["c", "e"], sceneSeed, "group-2");
+    assert.ok(result);
+    const scene = result.presets.find((item) => item.id === "group-2");
+    const input = scene?.presetInputData as Record<string, unknown>;
+    assert.equal(input.attachedToId, "nested");
+    assert.equal(input.parentId, "nested");
+    assert.equal(result.presets.find((item) => item.id === "c")?.presetInputData.attachedToId, "group-2");
+    assert.equal(result.presets.find((item) => item.id === "e")?.presetInputData.attachedToId, "group-2");
   });
 
   it("refuses presets from different parents", () => {

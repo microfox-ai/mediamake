@@ -13,7 +13,7 @@ import {
   sequenceLengthFromInput,
   visibleSpan,
 } from '../panels/bottom/editor/media-scene-blocks';
-import { applyTimingToPresetInput, loadInstanceTree, lockTargetNames, moveNode } from './load-instance-tree';
+import { applyTimingToPresetInput, blockDropTarget, loadInstanceTree, lockTargetNames, moveNode, orderPresetsLikeTree, presetAnchorPlacement } from './load-instance-tree';
 import { remapLocksOnPaste } from './paste-remap';
 import { latestSpanEnd, resolveTiming } from './resolve-timing';
 import { estimateSequenceDuration } from './sequence-estimate';
@@ -574,6 +574,209 @@ describe('loadInstanceTree', () => {
     assert.equal(tree.timing.kind, 'explicit');
   });
 
+  it('keeps arranged order inside a group when the flat list matches the tree', () => {
+    const shell = {
+      id: 'tl',
+      projectId: 'p',
+      displayName: 'Cut',
+      isOwned: true,
+    };
+    const presets = [
+      {
+        id: 'base',
+        label: 'Base',
+        presetId: 'base-scene',
+        presetType: 'full',
+        presetInputData: { duration: 10 },
+      },
+      {
+        id: 'group',
+        label: 'Group',
+        presetId: 'scene',
+        presetType: 'children',
+        presetInputData: { arrangement: 'sequence', duration: 10 },
+      },
+      {
+        id: 'b',
+        label: 'B',
+        presetId: 'text-atom',
+        presetType: 'children',
+        presetInputData: { parentId: 'group', trackName: 'b' },
+      },
+      {
+        id: 'a',
+        label: 'A',
+        presetId: 'text-atom',
+        presetType: 'children',
+        presetInputData: { parentId: 'group', trackName: 'a' },
+      },
+    ];
+    const leaf = (id: string, name: string) => ({
+      id,
+      presetId: 'text-atom',
+      name,
+      role: 'track' as const,
+      input: { parentId: 'group' },
+      timing: { kind: 'explicit' as const, start: 0, duration: 1 },
+      children: [],
+    });
+    const arranged = loadInstanceTree({
+      ...shell,
+      presets,
+      nodes: {
+        id: 'base',
+        presetId: 'base-scene',
+        name: 'Scene',
+        role: 'scene',
+        arrangement: 'aligned',
+        input: {},
+        timing: { kind: 'explicit', start: 0, duration: 10 },
+        children: [
+          {
+            id: 'group',
+            presetId: 'scene',
+            name: 'Group',
+            role: 'scene',
+            arrangement: 'sequence',
+            input: {},
+            timing: { kind: 'explicit', start: 0, duration: 10 },
+            children: [leaf('a', 'A'), leaf('b', 'B')],
+          },
+        ],
+      },
+    } as never);
+    assert.deepEqual(
+      arranged.children[0]?.children.map((child) => child.id),
+      ['a', 'b'],
+    );
+
+    const ordered = orderPresetsLikeTree(presets, arranged);
+    assert.deepEqual(ordered?.map((preset) => preset.id), ['base', 'group', 'a', 'b']);
+    const fromList = loadInstanceTree({ ...shell, presets: ordered } as never);
+    assert.deepEqual(
+      fromList.children[0]?.children.map((child) => child.id),
+      ['a', 'b'],
+    );
+  });
+
+  it('inserts a copied preset inside its group', () => {
+    const shell = {
+      id: 'tl',
+      projectId: 'p',
+      displayName: 'Cut',
+      isOwned: true,
+    };
+    const leaf = (id: string) => ({
+      id,
+      presetId: 'text-atom',
+      name: id,
+      role: 'track' as const,
+      input: { parentId: 'group' },
+      timing: { kind: 'explicit' as const, start: 0, duration: 1 },
+      children: [],
+    });
+    const tree = loadInstanceTree({
+      ...shell,
+      presets: [
+        {
+          id: 'base',
+          presetId: 'base-scene',
+          presetType: 'full',
+          presetInputData: { duration: 10 },
+        },
+        {
+          id: 'group',
+          presetId: 'scene',
+          presetType: 'children',
+          presetInputData: { duration: 10 },
+        },
+        {
+          id: 'a',
+          presetId: 'text-atom',
+          presetType: 'children',
+          presetInputData: { parentId: 'group', trackName: 'a' },
+        },
+        {
+          id: 'copy',
+          presetId: 'text-atom',
+          presetType: 'children',
+          presetInputData: { parentId: 'group', trackName: 'copy' },
+        },
+        {
+          id: 'b',
+          presetId: 'text-atom',
+          presetType: 'children',
+          presetInputData: { parentId: 'group', trackName: 'b' },
+        },
+      ],
+      nodes: {
+        id: 'base',
+        presetId: 'base-scene',
+        name: 'Scene',
+        role: 'scene',
+        arrangement: 'aligned',
+        input: {},
+        timing: { kind: 'explicit', start: 0, duration: 10 },
+        children: [
+          {
+            id: 'group',
+            presetId: 'scene',
+            name: 'Group',
+            role: 'scene',
+            arrangement: 'sequence',
+            input: {},
+            timing: { kind: 'explicit', start: 0, duration: 10 },
+            children: [leaf('a'), leaf('b')],
+          },
+        ],
+      },
+    } as never);
+    assert.deepEqual(
+      tree.children[0]?.children.map((child) => child.id),
+      ['a', 'copy', 'b'],
+    );
+    assert.equal(tree.children.some((child) => child.id === 'copy'), false);
+  });
+
+  it('drops an outside block into a group when the pointer is on a child', () => {
+    const root = node({
+      id: 'base',
+      role: 'scene',
+      presetId: 'base-scene',
+      timing: { kind: 'explicit', start: 0, duration: 10 },
+      children: [
+        node({
+          id: 'group',
+          role: 'scene',
+          presetId: 'scene',
+          timing: { kind: 'explicit', start: 0, duration: 10 },
+          children: [
+            node({ id: 'a', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+            node({ id: 'b', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+          ],
+        }),
+        node({ id: 'outside', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+      ],
+    });
+    assert.deepEqual(blockDropTarget(root, 'outside', 'a', false), {
+      parentId: 'group',
+      index: 0,
+    });
+    assert.deepEqual(blockDropTarget(root, 'outside', 'a', true), {
+      parentId: 'group',
+      index: 1,
+    });
+    assert.equal(blockDropTarget(root, 'outside', 'group', true)?.parentId, 'group');
+    assert.deepEqual(presetAnchorPlacement(root, 'a', 'beside'), {
+      parentId: 'group',
+      index: 1,
+    });
+    assert.deepEqual(presetAnchorPlacement(root, 'group', 'into-or-beside'), {
+      parentId: 'group',
+      index: 2,
+    });
+  });
+
   it('hugs a sequence root and locks a media track by id', () => {
     const tree = loadInstanceTree({
       id: 'tl',
@@ -897,6 +1100,35 @@ describe('media track window', () => {
       { start: 1, duration: 1 },
     ) as { mediaItems: { items: Array<{ rangeString: string }> } };
     assert.equal(many.mediaItems.items[0]?.rangeString, '0:10-0:20,0:30-0:35');
+
+    const locked = patchMediaAtom(
+      {
+        mediaItems: {
+          items: [{ rangeString: '0:10-0:20', lockTo: 'audio-track' }],
+        },
+      },
+      0,
+      { start: 12, duration: 5 },
+    ) as { mediaItems: { items: Array<{ rangeString: string; lockTo: string }> } };
+    assert.equal(locked.mediaItems.items[0]?.rangeString, '0:10-0:20');
+    assert.equal(locked.mediaItems.items[0]?.lockTo, 'audio-track');
+  });
+
+  it('ignores an item range when lockTo is set', () => {
+    const locked = sceneBlocksFromMediaInput({
+      trackType: 'aligned',
+      mediaItems: {
+        items: [
+          { type: 'video', lockTo: 'audio-track', rangeString: '0:10-0:20' },
+          { type: 'video', duration: 6 },
+        ],
+      },
+    });
+    assert.equal(locked.complete, false);
+    assert.deepEqual(
+      locked.blocks.map((block) => [block.start, block.duration]),
+      [[0, 6]],
+    );
   });
 
   it('places imageloop images like an aligned media track', () => {

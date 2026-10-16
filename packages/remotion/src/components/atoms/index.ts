@@ -28,6 +28,7 @@ export {
   config as HTMLBlockAtomConfig,
   type HTMLBlockAtomData,
 } from './HTMLBlockAtom';
+export { mergeSpecialEffects, specialEffectCss } from './special-effects-style';
 
 // Import registerComponent function
 import { registerComponent } from '../../core/registry';

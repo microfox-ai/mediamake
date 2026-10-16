@@ -12,9 +12,10 @@ import {
 } from "../timeline-layout";
 import { blockCornerClass, rowHeightFor, useTimelineDensity } from "../timeline-density";
 import { useTimelineViewport } from "../timeline-viewport";
+import { presetFilmstripSegments, TimelineFilmstrip } from "../timeline-filmstrip";
 import { sceneBlocksForPreset, trackDisplayName } from "../media-scene-blocks";
 import { MediaTrackBlockSection } from "../media-track-rows";
-import { BlockLockBadge } from "../block-lock-badge";
+import { BlockLockBadge, describeBlockLock } from "../block-lock-badge";
 import { PresetTrackModeControl } from "../track-mode-control";
 import {
   useRegisterTimelineSection,
@@ -113,7 +114,7 @@ function StaticMediaScenes({
   timelineId,
   presetId,
 }: MediaSceneBlocksSectionProps) {
-  const { secToPx } = useTimelineViewport();
+  const { secToPx, pixelsPerSecond } = useTimelineViewport();
   const { compact } = useTimelineDensity();
   const rowHeight = rowHeightFor(compact);
   const focus = useTimelineBlockFocus((s) => s.focus);
@@ -158,6 +159,12 @@ function StaticMediaScenes({
     const title = trackDisplayName(presetInputData, label?.trim() || sourceTag || "Track");
     const color = TRACK_COLORS[2];
     const showLock = layout.mode === "lockedTo" || layout.sequence;
+    const lockReason =
+      layout.mode === "lockedTo"
+        ? describeBlockLock({
+            lockedTo: blocks[0]?.label || lockSpan?.label || "another track",
+          })
+        : describeBlockLock({ sequenced: true });
     const sequenceLength =
       layout.duration > 0
         ? layout.duration
@@ -222,6 +229,12 @@ function StaticMediaScenes({
                 const left = secToPx(block.start);
                 const width = Math.max(MIN_SEG_PX, secToPx(block.duration));
                 const span = `${formatTimeLabel(block.start)}–${formatTimeLabel(block.start + block.duration)}`;
+                const segments = presetFilmstripSegments({
+                  input: presetInputData,
+                  references: timeline?.defaultData?.references,
+                  durationSec: block.duration,
+                  itemIndex: "itemIndex" in block ? block.itemIndex : undefined,
+                });
                 const selected =
                   Boolean(timelineId && presetId) &&
                   focus?.kind === "clip" &&
@@ -250,9 +263,15 @@ function StaticMediaScenes({
                       });
                     }}
                   >
-                    {showLock ? <BlockLockBadge /> : null}
+                    <TimelineFilmstrip segments={segments} pixelsPerSecond={pixelsPerSecond} />
+                    {showLock ? <BlockLockBadge reason={lockReason} /> : null}
                     {width > 36 && (
-                      <span className="px-1.5 text-[9px] font-medium truncate select-none">
+                      <span
+                        className={cn(
+                          "relative z-[1] px-1.5 text-[9px] font-medium truncate select-none",
+                          segments.length > 0 && "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]",
+                        )}
+                      >
                         {width > 96 ? `${block.label} ${span}` : span}
                       </span>
                     )}
@@ -264,7 +283,7 @@ function StaticMediaScenes({
         },
       ],
     };
-  }, [sectionId, order, layout, blocks, sourceTag, label, presetInputData, secToPx, timeline, timelineId, presetId, compact, rowHeight, focus]);
+  }, [sectionId, order, layout, blocks, sourceTag, label, presetInputData, secToPx, pixelsPerSecond, timeline, timelineId, presetId, compact, rowHeight, focus]);
 
   useRegisterTimelineSection(section);
   return null;

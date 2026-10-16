@@ -10,7 +10,12 @@ import { useEditorStore, type Preset, type SelectedItem } from './editor-store';
 import { useTimelineEditsStore } from './timeline-edits-store';
 import type { Timeline } from './project-store';
 import { useProjectStore } from './project-store';
-import { loadInstanceTree, parentOfNode } from '@/components/editor_main/timing/load-instance-tree';
+import {
+  idsRemovedWith,
+  loadInstanceTree,
+  parentOfNode,
+  pruneNodes,
+} from '@/components/editor_main/timing/load-instance-tree';
 import { copyTrackName, presetTrackName, withTrackName } from '@/components/editor_main/timing/preset-track-name';
 
 export type ItemClipboard =
@@ -185,14 +190,8 @@ export function pasteClipboardItem(): boolean {
     useEditorStore.getState();
 
   if (clipboard.kind === 'preset') {
-    const presets = [...(timeline.presets || [])];
-    const selectedPresetIndex =
-      selected.type === 'preset'
-        ? presets.findIndex((p) => p.id === selected.item.id)
-        : -1;
-    const insertAt =
-      selectedPresetIndex >= 0 ? selectedPresetIndex + 1 : presets.length;
-
+    const presets = timeline.presets || [];
+    const anchorId = selected.type === 'preset' ? selected.item.id : null;
     const sourceName = presetTrackName(clipboard.preset, clipboard.preset.presetId);
     const { label: _legacyLabel, ...sourceWithoutLabel } = clipboard.preset;
     const newPreset: Preset = {
@@ -203,22 +202,22 @@ export function pasteClipboardItem(): boolean {
         copyTrackName(presets, sourceName),
       ),
     };
-    presets.splice(insertAt, 0, newPreset);
-
     const duplicatedActions = clipboard.actions.map((a, i) => ({
       ...cloneJson(a),
       id: newId(`action-${i}`),
       target: { type: 'preset' as const, presetInstanceId: newPreset.id },
     }));
-
-    updateTimeline(timelineId, {
-      presets,
-      ...(duplicatedActions.length > 0
-        ? { actions: [...(timeline.actions || []), ...duplicatedActions] }
-        : {}),
-    });
+    const placedId = useTimelineEditsStore.getState().placePresetCopy(
+      timelineId,
+      newPreset,
+      anchorId,
+      'into-or-beside',
+      duplicatedActions,
+    );
+    if (!placedId) return false;
     const nextTimeline = resolveTimeline(timelineId) || timeline;
-    selectPreset(newPreset, nextTimeline);
+    const placed = nextTimeline.presets?.find((preset) => preset.id === placedId) ?? newPreset;
+    selectPreset(placed, nextTimeline);
     toast.success('Block pasted');
     return true;
   }
@@ -426,14 +425,12 @@ export function duplicateSelectedItem(): boolean {
       toast.error('Cannot duplicate the base timeline preset');
       return false;
     }
-    useTimelineEditsStore
+    const newId = useTimelineEditsStore
       .getState()
       .duplicatePreset(selected.timeline.id, selected.item.id);
+    if (!newId) return false;
     const next = resolveTimeline(selected.timeline.id);
-    const sourceIndex =
-      next?.presets?.findIndex((p) => p.id === selected.item.id) ?? -1;
-    const dup =
-      sourceIndex >= 0 ? next?.presets?.[sourceIndex + 1] : undefined;
+    const dup = next?.presets?.find((preset) => preset.id === newId);
     if (dup && next) {
       useEditorStore.getState().selectPreset(dup, next);
     }
@@ -525,6 +522,13 @@ export function deleteSelectedItem(): boolean {
       toast.error('Cannot delete the base timeline preset');
       return false;
     }
+    const tree = loadInstanceTree(timeline);
+    const drop = new Set(idsRemovedWith(tree, ids).filter((id) => id !== baseId));
+    if (drop.size === 0) {
+      toast.error('Cannot delete the base timeline preset');
+      return false;
+    }
+    const nested = [...drop].filter((id) => !ids.includes(id)).length;
     const label =
       ids.length === 1
         ? presetTrackName(
@@ -532,18 +536,21 @@ export function deleteSelectedItem(): boolean {
             'block',
           )
         : `${ids.length} blocks`;
+    const inside = nested > 0 ? ' and everything inside it' : '';
     const message =
       ids.length === 1
-        ? `Are you sure you want to delete "${label}"?`
-        : `Are you sure you want to delete ${label}?`;
+        ? `Are you sure you want to delete "${label}"${inside}?`
+        : nested > 0
+          ? `Are you sure you want to delete ${label} and everything inside them?`
+          : `Are you sure you want to delete ${label}?`;
     if (!confirm(message)) return false;
-    const drop = new Set(ids);
     useTimelineEditsStore.getState().updateTimeline(selected.timeline.id, {
       presets: (timeline.presets || []).filter((preset) => !drop.has(preset.id)),
       actions: (timeline.actions || []).filter(
         (action) =>
           !(action.target?.type === 'preset' && drop.has(action.target.presetInstanceId)),
       ),
+      ...(timeline.nodes ? { nodes: pruneNodes(tree, drop) } : {}),
     });
     useEditorStore.getState().selectTimeline(timeline);
     return true;
@@ -694,7 +701,7 @@ export function canMoveSelected(direction: 'up' | 'down'): boolean {
 
 export function isBlockLikeSelection(
   selected: SelectedItem | null,
-): selected is Exclude<SelectedItem, { type: 'timeline' }> {
+): selected is Extract<SelectedItem, { type: 'preset' | 'reference' | 'action' }> {
   return (
     !!selected &&
     (selected.type === 'preset' ||

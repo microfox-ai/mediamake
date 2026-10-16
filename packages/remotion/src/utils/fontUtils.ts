@@ -52,9 +52,44 @@ export interface FontConfig {
 export interface FontLoadingOptions {
   subsets?: string[];
   weights?: string[];
+  /** Falls back to `normal` when the font has no such style. */
+  style?: 'normal' | 'italic';
   display?: 'auto' | 'block' | 'swap' | 'fallback' | 'optional';
   preload?: boolean;
 }
+
+/**
+ * `loadFont` throws on a style or weight the font does not ship, so requests
+ * are narrowed to what `getInfo()` lists.
+ */
+const resolveFontVariant = (
+  fontPackage: any,
+  options: FontLoadingOptions
+): { style: string; weights: string[] } => {
+  const requested = options.weights?.length ? options.weights : ['400'];
+  const variants: Record<string, Record<string, unknown>> | undefined =
+    fontPackage.getInfo?.()?.fonts;
+  if (!variants) {
+    return { style: options.style || 'normal', weights: requested };
+  }
+
+  const styles = Object.keys(variants);
+  const style =
+    options.style && variants[options.style]
+      ? options.style
+      : variants.normal
+        ? 'normal'
+        : styles[0];
+  const available = Object.keys(variants[style] ?? {});
+  const weights = requested.filter((w) => available.includes(w));
+  if (weights.length > 0) return { style, weights };
+
+  const target = Number(requested[0]) || 400;
+  const nearest = available
+    .slice()
+    .sort((a, b) => Math.abs(Number(a) - target) - Math.abs(Number(b) - target))[0];
+  return { style, weights: nearest ? [nearest] : requested };
+};
 
 // Key map for loaded fonts - stores fontFamily CSS values directly
 const loadedFonts = new Map<string, string>();
@@ -88,10 +123,11 @@ export const loadGoogleFont = async (
 
     if (thisFont?.load) {
       const fontPackage = await thisFont.load();
+      const { style, weights } = resolveFontVariant(fontPackage, options);
 
-      const allFontStuff = fontPackage.loadFont('normal', {
+      const allFontStuff = fontPackage.loadFont(style, {
         subsets: options.subsets || ['latin'],
-        weights: options.weights || ['400'],
+        weights,
       });
 
       await allFontStuff.waitUntilDone();

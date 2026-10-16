@@ -14,7 +14,7 @@ export type TimelineScope =
   | {
       kind: "scene-children";
       sceneId: string;
-      /** Caption references stay on the unfocused base view. */
+      /** Unfocused base view. Its scene row stays compact. */
       includeTimelineSources: boolean;
     }
   | {
@@ -85,7 +85,15 @@ export function resolveTimelineScope(
   };
 }
 
-/** Sequence rows for this scope. Modifiers and disabled children stay hidden. */
+function visibleSceneChildren(scene: AppliedNode): AppliedNode[] {
+  return scene.children.filter((child) => child.role !== "modifier" && !child.disabled);
+}
+
+/**
+ * Sequence rows for this scope. Modifiers and disabled children stay hidden.
+ * The scene's own span is the first row. A sequence scene does not list each
+ * child here; the timeline draws those blocks on one track under the scene.
+ */
 export function scopeInstanceRows(
   tree: AppliedNode,
   scope: TimelineScope,
@@ -96,18 +104,28 @@ export function scopeInstanceRows(
     return [{ node, depth: 0 }];
   }
   const scene = findNode(tree, scope.sceneId) ?? baseSceneOf(tree);
-  const children = scene.children
-    .filter((child) => child.role !== "modifier" && !child.disabled)
-    .map((node) => ({ node, depth: 0 }));
-  // The unfocused timeline keeps the base scene itself on top so its span can be dragged.
-  if (
-    scope.includeTimelineSources &&
+  const showSelf =
     scene.role === "scene" &&
-    scene.presetId !== VIRTUAL_ROOT_ID
-  ) {
-    return [{ node: scene, depth: 0 }, ...children];
+    scene.presetId !== VIRTUAL_ROOT_ID &&
+    (scope.includeTimelineSources || scene.id === scope.sceneId);
+  const self = showSelf ? [{ node: scene, depth: 0 }] : [];
+  if (scene.arrangement === "sequence") {
+    if (self.length > 0) return self;
+    return visibleSceneChildren(scene).map((node) => ({ node, depth: 0 }));
   }
-  return children;
+  const children = visibleSceneChildren(scene).map((node) => ({ node, depth: 0 }));
+  return [...self, ...children];
+}
+
+/** Presets represented in this scope, including children packed onto one sequence track. */
+export function scopeShownPresetCount(tree: AppliedNode, scope: TimelineScope): number {
+  const rows = scopeInstanceRows(tree, scope);
+  if (scope.kind !== "scene-children") return rows.length;
+  const scene = findNode(tree, scope.sceneId) ?? baseSceneOf(tree);
+  if (scene.arrangement !== "sequence") return rows.length;
+  const packed = rows.length === 1 && rows[0]?.node.id === scene.id;
+  if (!packed) return rows.length;
+  return rows.length + visibleSceneChildren(scene).length;
 }
 
 /** Preset ids whose range tracks belong on this scope. */

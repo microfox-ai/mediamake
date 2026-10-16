@@ -1,10 +1,11 @@
 import type { PresetOutput } from '../types';
 import { clockRange } from '../registry/general/track-timing-legacy';
-import type {
-  AtomBuild,
-  ContainerBuild,
-  ContainerProps,
-  TrackShellParams,
+import {
+  ATOM_FILL_STYLE,
+  type AtomBuild,
+  type ContainerBuild,
+  type ContainerProps,
+  type TrackShellParams,
 } from '../define-preset';
 
 interface ShellTiming {
@@ -94,13 +95,7 @@ function containerData(props: ContainerProps | null | undefined) {
 }
 
 const ATOM_FILL: ContainerProps = {
-  style: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
+  style: ATOM_FILL_STYLE,
 };
 
 /** Direct atoms have no layout, so the fill lives on the atom itself. */
@@ -185,4 +180,95 @@ export function applyTrackShell(
     output,
     options: { attachedToId },
   };
+}
+
+const LAYOUT_BOX_KEYS = ['left', 'top', 'right', 'bottom', 'width', 'height'] as const;
+
+function inputLayoutStyle(params: unknown): Record<string, unknown> | undefined {
+  if (!params || typeof params !== 'object') return undefined;
+  const container = (params as { containerProps?: unknown }).containerProps;
+  if (!container || typeof container !== 'object') return undefined;
+  const style = (container as { style?: unknown }).style;
+  if (!style || typeof style !== 'object' || Array.isArray(style)) return undefined;
+  const record = style as Record<string, unknown>;
+  return Object.keys(record).length > 0 ? record : undefined;
+}
+
+const LAYOUT_POSITION_KEYS = ['position', 'transform', ...LAYOUT_BOX_KEYS] as const;
+
+/**
+ * Stamp the Layout section onto a container.
+ * Keys the section owns are replaced by the UI style. Colour and other
+ * preset keys stay. `inset-0` is removed so it cannot put the fill back,
+ * and a relative layout drops the `absolute` class.
+ */
+export function mergeLayoutOntoContainer(
+  existing: { className?: string; style?: Record<string, unknown> } | null | undefined,
+  layout: Record<string, unknown>,
+): { className?: string; style?: Record<string, unknown> } {
+  const base =
+    existing && typeof existing === 'object' ? existing : {};
+  const { style: previousStyle, className: previousClass, ...rest } = base;
+  const style: Record<string, unknown> =
+    previousStyle && typeof previousStyle === 'object' && !Array.isArray(previousStyle)
+      ? { ...previousStyle }
+      : {};
+  for (const key of LAYOUT_POSITION_KEYS) delete style[key];
+  for (const key of Object.keys(style)) {
+    if (key.startsWith('--mm-')) delete style[key];
+  }
+  for (const [key, value] of Object.entries(layout)) {
+    if (value === undefined || value === '') delete style[key];
+    else style[key] = value;
+  }
+
+  let className = typeof previousClass === 'string' ? previousClass : undefined;
+  const position = layout.position;
+  const touchesBox =
+    LAYOUT_BOX_KEYS.some((key) => layout[key] !== undefined && layout[key] !== '') ||
+    position === 'relative' ||
+    position === 'absolute';
+  if (className && touchesBox) {
+    className = className.replace(/\binset-0\b/g, ' ');
+    if (position === 'relative') {
+      className = className.replace(/\babsolute\b/g, ' ').replace(/\bfixed\b/g, ' ');
+    }
+    className = className.replace(/\s+/g, ' ').trim();
+  }
+
+  return {
+    ...rest,
+    ...(className ? { className } : {}),
+    ...(Object.keys(style).length > 0 ? { style } : {}),
+  };
+}
+
+/** Stamp `params.containerProps.style` onto the preset's root node. */
+export function applyInputContainerLayout<T>(params: unknown, result: T): T {
+  const layout = inputLayoutStyle(params);
+  if (!layout) return result;
+  const output = (result as { output?: { childrenData?: unknown[] } } | null)?.output;
+  const children = output?.childrenData;
+  if (!Array.isArray(children) || children.length === 0) return result;
+  const [first, ...rest] = children;
+  if (!first || typeof first !== 'object') return result;
+  const node = first as { data?: unknown };
+  const data =
+    node.data && typeof node.data === 'object' && !Array.isArray(node.data)
+      ? { ...(node.data as Record<string, unknown>) }
+      : {};
+  const existing = data.containerProps;
+  data.containerProps = mergeLayoutOntoContainer(
+    existing && typeof existing === 'object'
+      ? (existing as { className?: string; style?: Record<string, unknown> })
+      : undefined,
+    layout,
+  );
+  return {
+    ...(result as object),
+    output: {
+      ...output,
+      childrenData: [{ ...(first as object), data }, ...rest],
+    },
+  } as T;
 }

@@ -28,7 +28,7 @@ const presetParams = z.object({
   aspectRatio: z.string().optional(),
   trackType: z
     .enum(['lockedTo', 'sequence', 'aligned', 'autoRange'])
-    .default('aligned')
+    .default('autoRange')
     .describe(
       'Lock copies another track. Sequence plays children in order. Aligned uses start and duration. Auto range starts at the first child and ends at the last child.',
     ),
@@ -157,9 +157,8 @@ const presetMetadata: PresetMetadata = {
   tags: ['base', 'scene'],
   defaultInputParams: {
     backgroundColor: 'black',
-    trackType: 'aligned',
+    trackType: 'autoRange',
     start: 0,
-    duration: 20,
   },
 };
 

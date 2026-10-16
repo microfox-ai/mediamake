@@ -30,7 +30,12 @@ import {
   type TimelineTrackRow,
 } from "./TimelineShell";
 import { useTimelineViewport } from "./timeline-viewport";
-import { BlockLockBadge } from "./block-lock-badge";
+import {
+  presetFilmstripSegments,
+  TimelineFilmstrip,
+} from "./timeline-filmstrip";
+import type { MediaReferenceLike } from "@/lib/editor/visual-media";
+import { BlockLockBadge, describeBlockLock } from "./block-lock-badge";
 import { PresetTrackModeControl } from "./track-mode-control";
 import { focusTimelineBlock, useTimelineBlockFocus } from "@/components/editor_main/stores/timeline-block-focus";
 
@@ -98,8 +103,10 @@ function ClipBox({
   allowMove = editable,
   allowTrimStart = editable,
   locked = false,
+  lockReason,
   selected = false,
   secToPx,
+  filmstrip,
   onSelect,
   onDragStart,
 }: {
@@ -111,15 +118,34 @@ function ClipBox({
   allowMove?: boolean;
   allowTrimStart?: boolean;
   locked?: boolean;
+  lockReason?: string;
   selected?: boolean;
   secToPx: (sec: number) => number;
+  filmstrip?: {
+    input: unknown;
+    references?: MediaReferenceLike[] | null;
+    itemIndex?: number;
+    contentAtLeft?: number;
+    sourceLead?: number;
+  };
   onSelect?: () => void;
   onDragStart?: (event: React.PointerEvent, kind: DragKind) => void;
 }) {
   const { compact } = useTimelineDensity();
+  const { pixelsPerSecond } = useTimelineViewport();
   const left = secToPx(start);
   const width = Math.max(MIN_SEG_PX, secToPx(duration));
   const span = `${formatTimeLabel(start)}–${formatTimeLabel(start + duration)}`;
+  const segments = filmstrip
+    ? presetFilmstripSegments({
+        input: filmstrip.input,
+        references: filmstrip.references,
+        durationSec: duration,
+        contentAtLeft: filmstrip.contentAtLeft,
+        itemIndex: filmstrip.itemIndex,
+        sourceLead: filmstrip.sourceLead,
+      })
+    : [];
   return (
     <div
       className={cn(
@@ -140,6 +166,7 @@ function ClipBox({
           : undefined
       }
     >
+      <TimelineFilmstrip segments={segments} pixelsPerSecond={pixelsPerSecond} />
       {allowTrimStart ? (
         <span
           className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize"
@@ -149,9 +176,17 @@ function ClipBox({
           }}
         />
       ) : null}
-      {locked ? <BlockLockBadge /> : null}
+      {locked ? (
+        <BlockLockBadge reason={lockReason || describeBlockLock({ sequenced: true })} />
+      ) : null}
       {width > 36 ? (
-        <span className={cn("truncate px-2 select-none", locked && "pl-4")}>
+        <span
+          className={cn(
+            "relative z-[1] truncate px-2 select-none",
+            segments.length > 0 && "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]",
+            locked && "pl-4",
+          )}
+        >
           {width > 96 ? `${label} ${span}` : span}
         </span>
       ) : null}
@@ -274,13 +309,15 @@ export function useMediaAtomRows(
               style={{ width: totalWidth, height: rowHeight }}
             >
               {blocks.map((block) => {
+                const fullStart = source.origin + block.start;
                 const clipped = clipToWindow(
-                  source.origin + block.start,
+                  fullStart,
                   block.duration,
                   source.windowStart,
                   source.windowEnd,
                 );
                 if (!clipped) return null;
+                const timeline = getEditedTimeline(source.timelineId);
                 return (
                   <ClipBox
                     key={block.id}
@@ -291,6 +328,12 @@ export function useMediaAtomRows(
                     editable={false}
                     locked
                     secToPx={secToPx}
+                    filmstrip={{
+                      input: source.input,
+                      references: timeline?.defaultData?.references,
+                      itemIndex: block.itemIndex,
+                      sourceLead: clipped.start - fullStart,
+                    }}
                   />
                 );
               })}
@@ -335,6 +378,11 @@ export function useMediaAtomRows(
               label={block.label}
               color={color}
               editable={editable}
+              filmstrip={{
+                input: source.input,
+                references: getEditedTimeline(source.timelineId)?.defaultData?.references,
+                itemIndex: block.itemIndex,
+              }}
               selected={
                 focus?.kind === "clip" &&
                 focus.timelineId === source.timelineId &&
@@ -519,6 +567,15 @@ export function MediaTrackBlockSection({
   const canMove = !packedInSequence;
   const rowLocked =
     Boolean(packedInSequence) || timingKind === "lock" || timingKind === "durationLock";
+  const lockName =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? String((input as { lock?: unknown }).lock ?? "").trim()
+      : "";
+  const rowLockReason = describeBlockLock({
+    sequenced: Boolean(packedInSequence),
+    lockedTo: timingKind === "lock" ? lockName : undefined,
+    durationLockedTo: timingKind === "durationLock" ? lockName : undefined,
+  });
   const span = `${formatTimeLabel(shown.start)}–${formatTimeLabel(shown.start + shown.duration)}`;
   const trim = offset < 0 ? ` · head ${formatTimeLabel(-offset)}` : "";
   const detail = `${layout.sequence ? "Sequence" : "Aligned"} · ${span}${trim}`;
@@ -550,7 +607,13 @@ export function MediaTrackBlockSection({
               allowMove={canMove}
               allowTrimStart={canMove}
               locked={rowLocked}
+              lockReason={rowLockReason}
               secToPx={secToPx}
+              filmstrip={{
+                input,
+                references: timeline?.defaultData?.references,
+                contentAtLeft: shown.start - authoredStart,
+              }}
               onDragStart={(_event, kind) => onPointerDown(_event, kind)}
             />
           </div>

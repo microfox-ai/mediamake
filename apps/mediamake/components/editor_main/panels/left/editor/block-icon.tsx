@@ -64,13 +64,21 @@ export function BlockIcon({
   const Icon = mode ? TRACK_MODE_ICON[mode] : functionIcon(presetId);
   const icon = <Icon className={className} />;
   if (!mode) return icon;
+  const lockTarget =
+    mode === "lockedTo" && input && typeof input === "object" && !Array.isArray(input)
+      ? String((input as { lock?: unknown }).lock ?? "").trim()
+      : "";
+  const hint =
+    mode === "lockedTo" && lockTarget
+      ? `Locked to ${lockTarget}. Start and duration follow that track.`
+      : TRACK_MODE_HINT[mode];
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span className="inline-flex shrink-0">{icon}</span>
       </TooltipTrigger>
       <TooltipContent side="right">
-        <p>{TRACK_MODE_HINT[mode]}</p>
+        <p>{hint}</p>
       </TooltipContent>
     </Tooltip>
   );

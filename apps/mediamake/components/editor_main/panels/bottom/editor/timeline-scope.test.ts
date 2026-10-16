@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AppliedNode } from "@/components/editor_main/timing/types";
-import { VIRTUAL_ROOT_ID, collectSubtreeIds } from "@/components/editor_main/timing/load-instance-tree";
+import {
+  VIRTUAL_ROOT_ID,
+  collectSubtreeIds,
+  idsRemovedWith,
+  pruneNodes,
+} from "@/components/editor_main/timing/load-instance-tree";
 import {
   resolveTimelineScope,
   scopeInstanceRows,
   scopeRangePresetIds,
+  scopeShownPresetCount,
 } from "./timeline-scope";
 
 function node(
@@ -18,6 +24,7 @@ function node(
     input: partial.input ?? {},
     children: partial.children ?? [],
     disabled: partial.disabled,
+    arrangement: partial.arrangement,
     id: partial.id,
     timing: partial.timing ?? { kind: "explicit", start: 0, duration: 1 },
   };
@@ -78,10 +85,10 @@ describe("resolveTimelineScope", () => {
     }
   });
 
-  it("shows only presets attached to the selected scene", () => {
+  it("shows the selected scene, then the presets attached to it", () => {
     const result = ids(tree(), { type: "preset", item: { id: "intro" } });
     assert.equal(result.scope.kind, "scene-children");
-    assert.deepEqual(result.rows, ["title"]);
+    assert.deepEqual(result.rows, ["intro", "title"]);
     assert.deepEqual(result.ranges, []);
     if (result.scope.kind === "scene-children") {
       assert.equal(result.scope.includeTimelineSources, false);
@@ -140,6 +147,47 @@ describe("resolveTimelineScope", () => {
     ]);
   });
 
+  it("keeps a sequence scene's children off their own rows", () => {
+    const root = node({
+      id: "base",
+      presetId: "base-scene",
+      role: "scene",
+      arrangement: "sequence",
+      children: [
+        node({ id: "a", presetId: "text-atom", role: "track" }),
+        node({ id: "b", presetId: "text-atom", role: "track" }),
+      ],
+    });
+    assert.deepEqual(ids(root, null).rows, ["base"]);
+    assert.equal(scopeShownPresetCount(root, resolveTimelineScope(root, null)), 3);
+    const selected = ids(root, { type: "preset", item: { id: "base" } });
+    assert.deepEqual(selected.rows, ["base"]);
+  });
+
+  it("keeps aligned and locked scene children on their own rows", () => {
+    const aligned = node({
+      id: "group",
+      presetId: "scene",
+      role: "scene",
+      arrangement: "aligned",
+      children: [
+        node({ id: "a", presetId: "text-atom", role: "track" }),
+        node({ id: "b", presetId: "text-atom", role: "track" }),
+      ],
+    });
+    const root = node({
+      id: "base",
+      presetId: "base-scene",
+      role: "scene",
+      children: [aligned],
+    });
+    assert.deepEqual(ids(root, { type: "preset", item: { id: "group" } }).rows, [
+      "group",
+      "a",
+      "b",
+    ]);
+  });
+
   it("treats a virtual root as the base scene", () => {
     const root = node({
       id: VIRTUAL_ROOT_ID,
@@ -182,5 +230,16 @@ describe("resolveTimelineScope", () => {
       ],
     });
     assert.deepEqual(collectSubtreeIds(root, "group"), ["group", "title", "inner", "caption"]);
+    assert.deepEqual(
+      [...idsRemovedWith(root, ["group"])].sort(),
+      ["caption", "group", "inner", "title"],
+    );
+    assert.deepEqual(idsRemovedWith(root, ["title"]), ["title"]);
+    assert.deepEqual(idsRemovedWith(root, ["base"]), []);
+    const pruned = pruneNodes(root, new Set(idsRemovedWith(root, ["group"])));
+    assert.deepEqual(
+      pruned.children.map((child) => child.id),
+      ["other"],
+    );
   });
 });

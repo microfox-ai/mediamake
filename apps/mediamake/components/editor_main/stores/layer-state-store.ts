@@ -1270,26 +1270,6 @@ export function mergeOverridesIntoChildrenData(
         next.data = next.data || {};
         (next.data as Record<string, unknown>).boundaries = override.data.boundaries;
       }
-      const bounds = (next.data as { boundaries?: CalculatedBoundaries })?.boundaries;
-      if (
-        bounds &&
-        typeof bounds.left === "number" &&
-        typeof bounds.top === "number" &&
-        typeof bounds.width === "number" &&
-        typeof bounds.height === "number"
-      ) {
-        const dataRecord = next.data as Record<string, unknown>;
-        dataRecord.containerProps = dataRecord.containerProps ?? {};
-        const cp = dataRecord.containerProps as Record<string, unknown>;
-        cp.style = {
-          ...(cp.style as Record<string, unknown>),
-          position: "absolute",
-          left: `${bounds.left}px`,
-          top: `${bounds.top}px`,
-          width: `${bounds.width}px`,
-          height: `${bounds.height}px`,
-        };
-      }
     }
     if (override?.context) {
       next.context = { ...next.context, ...override.context } as RenderableContext;

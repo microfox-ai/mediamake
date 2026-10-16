@@ -26,7 +26,9 @@ export type SelectedItem =
       timeline: Timeline;
       referenceIndex: number;
     }
-  | { type: 'action'; item: TimelineAction; timeline: Timeline };
+  | { type: 'action'; item: TimelineAction; timeline: Timeline }
+  | { type: 'references'; timeline: Timeline }
+  | { type: 'actions'; timeline: Timeline };
 
 interface EditorState {
   selectedItem: SelectedItem | null;
@@ -49,6 +51,10 @@ interface EditorState {
     referenceIndex: number,
   ) => void;
   selectAction: (action: TimelineAction, timeline: Timeline) => void;
+  /** Bottom timeline shows every reference range, not the block rows. */
+  selectReferences: (timeline: Timeline) => void;
+  /** Bottom timeline shows every action range, not the block rows. */
+  selectActions: (timeline: Timeline) => void;
   clearSelection: () => void;
 }
 
@@ -154,6 +160,14 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectAction: (action, timeline) => {
     clearTimelineDepth();
     set({ selectedItem: { type: 'action', item: action, timeline }, ...noPresets });
+  },
+  selectReferences: (timeline) => {
+    clearTimelineDepth();
+    set({ selectedItem: { type: 'references', timeline }, ...noPresets });
+  },
+  selectActions: (timeline) => {
+    clearTimelineDepth();
+    set({ selectedItem: { type: 'actions', timeline }, ...noPresets });
   },
   clearSelection: () => {
     clearTimelineDepth();

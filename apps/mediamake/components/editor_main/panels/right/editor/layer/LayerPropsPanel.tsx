@@ -28,7 +28,96 @@ import { GenericEffectEditor } from "./GenericEffectEditor";
 import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 import { ColorInput } from "@/components/editor/presets/form/inputs/color-input";
 import { parseColor } from "@/components/editor/presets/form/inputs/color-utils";
+import { PositionStyleSection } from "@/components/editor/presets/form/inputs/position-style-section";
+import { POSITION_STYLE_KEYS } from "@/components/editor/presets/form/inputs/position-style";
+import { TypographySection, TYPOGRAPHY_STYLE_KEYS } from "@/components/editor/presets/form/inputs/typography-section";
+import { BlockStyleSection } from "@/components/editor/presets/form/inputs/block-style-section";
+import { ImageStyleSection } from "@/components/editor/presets/form/inputs/image-style-section";
+import { IMAGE_STYLE_KEYS } from "@/components/editor/presets/form/inputs/image-style";
+import { BLOCK_APPEARANCE_KEYS } from "@/components/editor/presets/form/inputs/block-style";
+import { SPECIAL_EFFECTS_STYLE_KEYS } from "@/components/editor/presets/form/inputs/special-effects";
+import { TextContentEditor } from "@/components/editor/presets/form/inputs/text-content-editor";
+import { cn } from "@/lib/utils";
 import { CanvasPipelineEditor } from "./CanvasPipelineEditor";
+
+const TEXT_ATOM_OWNED_STYLE_KEYS = new Set<string>([
+  ...TYPOGRAPHY_STYLE_KEYS,
+  ...POSITION_STYLE_KEYS,
+  ...BLOCK_APPEARANCE_KEYS,
+  ...SPECIAL_EFFECTS_STYLE_KEYS,
+  "color",
+]);
+
+const BLOCK_STYLE_COMPONENT_IDS = new Set([
+  "ImageAtom",
+  "VideoAtom",
+  "HTMLBlockAtom",
+  "ShapeAtom",
+  "ImageBeat",
+]);
+
+/** Atoms whose own style schema sets positionStyle. */
+const POSITION_STYLE_COMPONENT_IDS = new Set([
+  "TextAtom",
+  "ImageAtom",
+  "HTMLBlockAtom",
+  "ImageBeat",
+]);
+
+const BLOCK_OWNED_STYLE_KEYS = new Set<string>([
+  ...BLOCK_APPEARANCE_KEYS,
+  ...SPECIAL_EFFECTS_STYLE_KEYS,
+]);
+
+function styleForTypography(
+  style: Record<string, unknown>,
+  font?: { family?: string; weights?: string[] },
+): Record<string, unknown> {
+  const next = { ...style };
+  if (next.fontFamily == null && font?.family) next.fontFamily = font.family;
+  if (next.fontWeight == null && font?.weights?.[0]) next.fontWeight = font.weights[0];
+  return next;
+}
+
+function TextAtomStyleControls({
+  style,
+  font,
+  onChange,
+  disabled,
+}: {
+  style: Record<string, unknown>;
+  font?: { family?: string; weights?: string[] };
+  onChange: (next: Record<string, unknown> | undefined) => void;
+  disabled?: boolean;
+}) {
+  const value = styleForTypography(style, font);
+  return (
+    <fieldset disabled={disabled} className={cn("space-y-2 text-sm", disabled && "pointer-events-none opacity-60")}>
+      <PositionStyleSection value={style} onChange={onChange} />
+      <TypographySection
+        value={value}
+        onChange={(next) => onChange(next)}
+      />
+      <BlockStyleSection value={style} onChange={onChange} />
+    </fieldset>
+  );
+}
+
+function BlockStyleControls({
+  style,
+  onChange,
+  disabled,
+}: {
+  style: Record<string, unknown>;
+  onChange: (next: Record<string, unknown> | undefined) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <fieldset disabled={disabled} className={cn("space-y-2 text-sm", disabled && "pointer-events-none opacity-60")}>
+      <BlockStyleSection value={style} onChange={onChange} />
+    </fieldset>
+  );
+}
 
 const VideoPreviewThumbnail = ({ src, alt }: { src: string; alt?: string }) => {
   const { thumbnailSrc } = useVideoThumbnail(src, {
@@ -540,13 +629,14 @@ function MultiLayerProps({
 
       {allText && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Content (text)</h4>
-          <textarea
-            className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          <h4 className="text-sm font-medium text-muted-foreground">Content (text)</h4>
+          <TextContentEditor
+            key={selectedLayers.map((layer) => layer.id).join(",")}
             value={commonText !== undefined ? String(commonText) : ""}
             placeholder="—"
-            onChange={(e) => applyToAllData({ text: e.target.value })}
+            onChange={(next) => applyToAllData({ text: next })}
             disabled={disabled}
+            rows={4}
           />
         </div>
       )}
@@ -777,6 +867,19 @@ export function LayerPropsPanel() {
   const timing = rawNode?.context?.timing;
   const dataStyle = (rawNode?.data as { style?: Record<string, unknown> } | undefined)?.style ?? {};
   const dataFont = (rawNode?.data as { font?: { family?: string; weights?: string[] } })?.font ?? {};
+  const ownedStyleKeys = primary.componentId === "TextAtom"
+    ? TEXT_ATOM_OWNED_STYLE_KEYS
+    : primary.componentId === "VideoAtom"
+      ? new Set([...BLOCK_OWNED_STYLE_KEYS, ...IMAGE_STYLE_KEYS])
+      : BLOCK_STYLE_COMPONENT_IDS.has(primary.componentId)
+        ? new Set([
+            ...BLOCK_OWNED_STYLE_KEYS,
+            ...(POSITION_STYLE_COMPONENT_IDS.has(primary.componentId) ? POSITION_STYLE_KEYS : []),
+          ])
+        : null;
+  const customStyleKeys = ownedStyleKeys
+    ? Object.keys(dataStyle).filter((key) => !ownedStyleKeys.has(key))
+    : Object.keys(dataStyle);
   const isMediaAtom = primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom";
   const isCanvasPipeline = primary.componentId === "CanvasPipeline";
   // The atom's own data doubles as its pipeline config, so the editor patches
@@ -839,22 +942,33 @@ export function LayerPropsPanel() {
         )}
         {!isMulti && viewMode === "single" && (
           <div className="space-y-3">
-            {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+            {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
               <div className="space-y-2">
-                <h4 className="text-xs font-medium text-muted-foreground">Content</h4>
+                <h4 className="text-sm font-medium text-muted-foreground">Content</h4>
                 {primary.componentId === "TextAtom" && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Text</Label>
-                    <textarea
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    <Label className="text-sm">Text</Label>
+                    <TextContentEditor
+                      key={primary.id}
                       value={(rawNode?.data as { text?: string })?.text ?? ""}
-                      onChange={(e) => updateData({ text: e.target.value })}
+                      onChange={(next) => updateData({ text: next })}
                       disabled={isLocked}
                       placeholder="Enter text"
+                      rows={5}
                     />
                   </div>
                 )}
-                {(primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+                {(primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
+                  <ImageStyleSection
+                    kind={primary.componentId === "AudioAtom" ? "audio" : "video"}
+                    value={dataStyle}
+                    onChange={(next) => updateData({ style: next ?? {} })}
+                    src={primary.previewSrc}
+                    onSrcChange={(src) => updateData({ src })}
+                    disabled={isLocked}
+                  />
+                )}
+                {primary.componentId === "ImageAtom" && (
                   <div className="space-y-2">
                     <div className="space-y-1">
                       <Label className="text-xs">URL</Label>
@@ -901,41 +1015,25 @@ export function LayerPropsPanel() {
               </div>
             )}
             {!isMulti && primary.componentId === "TextAtom" && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-muted-foreground">Text style</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Font size</Label>
-                    <Input type="number" value={Number(dataStyle.fontSize) ?? 16} onChange={(e) => updateData({ style: { ...dataStyle, fontSize: Number(e.target.value) || 16 } })} className="h-8" disabled={isLocked} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Color</Label>
-                    <ColorInput
-                      value={String(dataStyle.color ?? "")}
-                      onChange={(next) => updateData({ style: { ...dataStyle, color: next } })}
-                      disabled={isLocked}
-                      compact
-                      placeholder="#000000"
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Letter spacing</Label>
-                    <Input type="text" value={String(dataStyle.letterSpacing ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, letterSpacing: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 5px" />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Text shadow</Label>
-                    <Input type="text" value={String(dataStyle.textShadow ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, textShadow: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 0 2px 4px rgba(0,0,0,0.5)" />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Font family</Label>
-                    <Input type="text" value={String(dataFont.family ?? "")} onChange={(e) => updateData({ font: { ...dataFont, family: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. Inter" />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Font weights (comma-separated)</Label>
-                    <Input type="text" value={Array.isArray(dataFont.weights) ? dataFont.weights.join(", ") : String(dataFont.weights ?? "")} onChange={(e) => updateData({ font: { ...dataFont, weights: e.target.value ? e.target.value.split(",").map((w) => w.trim()) : undefined } })} className="h-8" disabled={isLocked} placeholder="e.g. 400, 700" />
-                  </div>
-                </div>
-              </div>
+              <TextAtomStyleControls
+                style={dataStyle}
+                font={dataFont}
+                disabled={isLocked}
+                onChange={(next) => updateData({ style: next ?? {} })}
+              />
+            )}
+            {!isMulti && primary.componentId !== "TextAtom" && POSITION_STYLE_COMPONENT_IDS.has(primary.componentId) && (
+              <PositionStyleSection
+                value={dataStyle}
+                onChange={(next) => updateData({ style: next ?? {} })}
+              />
+            )}
+            {!isMulti && BLOCK_STYLE_COMPONENT_IDS.has(primary.componentId) && (
+              <BlockStyleControls
+                style={dataStyle}
+                disabled={isLocked}
+                onChange={(next) => updateData({ style: next ?? {} })}
+              />
             )}
 
             {isCanvasPipeline && (
@@ -1016,9 +1114,9 @@ export function LayerPropsPanel() {
             {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || isCanvasPipeline) && (
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-muted-foreground">Custom CSS (style)</h4>
-                {Object.keys(dataStyle).length > 0 && (
+                {customStyleKeys.length > 0 && (
                   <div className="space-y-1">
-                    {Object.keys(dataStyle).map((k) => (
+                    {customStyleKeys.map((k) => (
                       <StylePropertyRow
                         key={k}
                         propertyKey={k}
@@ -1302,22 +1400,33 @@ export function LayerPropsPanel() {
             <TabsContent value="content" className="mt-2 space-y-3">
               <ScrollArea className="h-[60vh] pr-2">
                 <div className="space-y-3 pb-4">
-                  {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+                  {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-medium text-muted-foreground">Content</h4>
+                      <h4 className="text-sm font-medium text-muted-foreground">Content</h4>
                       {primary.componentId === "TextAtom" && (
                         <div className="space-y-1">
-                          <Label className="text-xs">Text</Label>
-                          <textarea
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          <Label className="text-sm">Text</Label>
+                          <TextContentEditor
+                            key={primary.id}
                             value={(rawNode?.data as { text?: string })?.text ?? ""}
-                            onChange={(e) => updateData({ text: e.target.value })}
+                            onChange={(next) => updateData({ text: next })}
                             disabled={isLocked}
                             placeholder="Enter text"
+                            rows={5}
                           />
                         </div>
                       )}
-                      {(primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom") && (
+                      {(primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
+                        <ImageStyleSection
+                          kind={primary.componentId === "AudioAtom" ? "audio" : "video"}
+                          value={dataStyle}
+                          onChange={(next) => updateData({ style: next ?? {} })}
+                          src={primary.previewSrc}
+                          onSrcChange={(src) => updateData({ src })}
+                          disabled={isLocked}
+                        />
+                      )}
+                      {primary.componentId === "ImageAtom" && (
                         <div className="space-y-2">
                           <div className="space-y-1">
                             <Label className="text-xs">URL</Label>
@@ -1349,17 +1458,25 @@ export function LayerPropsPanel() {
                     </div>
                   )}
                   {primary.componentId === "TextAtom" && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-medium text-muted-foreground">Text style</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1"><Label className="text-xs">Font size</Label><Input type="number" value={Number(dataStyle.fontSize) ?? 16} onChange={(e) => updateData({ style: { ...dataStyle, fontSize: Number(e.target.value) || 16 } })} className="h-8" disabled={isLocked} /></div>
-                        <div className="space-y-1"><Label className="text-xs">Color</Label><ColorInput value={String(dataStyle.color ?? "")} onChange={(next) => updateData({ style: { ...dataStyle, color: next } })} disabled={isLocked} compact placeholder="#000000" /></div>
-                        <div className="space-y-1 col-span-2"><Label className="text-xs">Letter spacing</Label><Input type="text" value={String(dataStyle.letterSpacing ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, letterSpacing: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 5px" /></div>
-                        <div className="space-y-1 col-span-2"><Label className="text-xs">Text shadow</Label><Input type="text" value={String(dataStyle.textShadow ?? "")} onChange={(e) => updateData({ style: { ...dataStyle, textShadow: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. 0 2px 4px rgba(0,0,0,0.5)" /></div>
-                        <div className="space-y-1 col-span-2"><Label className="text-xs">Font family</Label><Input type="text" value={String(dataFont.family ?? "")} onChange={(e) => updateData({ font: { ...dataFont, family: e.target.value } })} className="h-8" disabled={isLocked} placeholder="e.g. Inter" /></div>
-                        <div className="space-y-1 col-span-2"><Label className="text-xs">Font weights (comma-separated)</Label><Input type="text" value={Array.isArray(dataFont.weights) ? dataFont.weights.join(", ") : String(dataFont.weights ?? "")} onChange={(e) => updateData({ font: { ...dataFont, weights: e.target.value ? e.target.value.split(",").map((w) => w.trim()) : undefined } })} className="h-8" disabled={isLocked} placeholder="e.g. 400, 700" /></div>
-                      </div>
-                    </div>
+                    <TextAtomStyleControls
+                      style={dataStyle}
+                      font={dataFont}
+                      disabled={isLocked}
+                      onChange={(next) => updateData({ style: next ?? {} })}
+                    />
+                  )}
+                  {primary.componentId !== "TextAtom" && POSITION_STYLE_COMPONENT_IDS.has(primary.componentId) && (
+                    <PositionStyleSection
+                      value={dataStyle}
+                      onChange={(next) => updateData({ style: next ?? {} })}
+                    />
+                  )}
+                  {BLOCK_STYLE_COMPONENT_IDS.has(primary.componentId) && (
+                    <BlockStyleControls
+                      style={dataStyle}
+                      disabled={isLocked}
+                      onChange={(next) => updateData({ style: next ?? {} })}
+                    />
                   )}
                   {isCanvasPipeline && (
                     <div className="space-y-2">
@@ -1450,9 +1567,9 @@ export function LayerPropsPanel() {
                   {(primary.componentId === "TextAtom" || primary.componentId === "ImageAtom" || primary.componentId === "VideoAtom" || isCanvasPipeline) && (
                     <div className="space-y-2">
                       <h4 className="text-xs font-medium text-muted-foreground">Custom CSS (style)</h4>
-                      {Object.keys(dataStyle).length > 0 && (
+                      {customStyleKeys.length > 0 && (
                         <div className="space-y-1">
-                          {Object.keys(dataStyle).map((k) => (
+                          {customStyleKeys.map((k) => (
                             <StylePropertyRow
                               key={k}
                               propertyKey={k}

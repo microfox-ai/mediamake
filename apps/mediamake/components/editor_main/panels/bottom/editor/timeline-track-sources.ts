@@ -71,32 +71,34 @@ export function actionTimelineEnd(actions: readonly TimelineAction[]): number {
 }
 
 /**
- * Action ranges show when that action is selected, or when the preset,
- * block, or reference it targets is selected. A selected timeline does not.
+ * Which rows the bottom timeline draws.
+ * Blocks is the timeline view. Reference and action ranges stay off it
+ * until that group, or one item in it, is selected.
+ */
+export type BottomTimelineLane = "blocks" | "references" | "actions";
+
+export function bottomTimelineLane(
+  selected: { type: string } | null,
+): BottomTimelineLane {
+  if (selected?.type === "references") return "references";
+  if (selected?.type === "actions" || selected?.type === "action") return "actions";
+  return "blocks";
+}
+
+/**
+ * Action ranges show for the Actions group, or for the one selected action.
+ * A selected timeline, block, or reference does not.
  */
 export function actionRangesVisible(
-  action: Pick<TimelineAction, "id" | "target">,
+  action: Pick<TimelineAction, "id">,
   selected: {
     type: string;
     item?: { id?: string; key?: string };
   } | null,
 ): boolean {
   if (!selected) return false;
+  if (selected.type === "actions") return true;
   if (selected.type === "action") return selected.item?.id === action.id;
-  if (selected.type === "preset") {
-    return (
-      action.target?.type === "preset" &&
-      !!selected.item?.id &&
-      selected.item.id === action.target.presetInstanceId
-    );
-  }
-  if (selected.type === "reference") {
-    return (
-      action.target?.type === "reference" &&
-      !!selected.item?.key &&
-      selected.item.key === action.target.referenceKey
-    );
-  }
   return false;
 }
 

@@ -25,20 +25,50 @@ export const CaptionSmearInput = z.object({
     .meta({ title: 'Color spectrum', [paramMetaTypes.colorRows]: true })
     .describe('Beats cycle through these; neighbours tint the smear'),
   textStyle: z
+    .object({})
+    .loose()
+    .optional()
+    .meta({
+      title: 'Text style',
+      [paramMetaTypes.textStyle]: true,
+      [paramMetaTypes.positionStyle]: true,
+    })
+    .describe('Typography and position'),
+  smearThreshold: z
+    .number()
+    .min(0.05)
+    .max(2)
+    .optional()
+    .default(0.5)
+    .meta({
+      title: 'Smear threshold',
+      [paramMetaTypes.inputType]: paramInputTypes.slider,
+      [paramMetaTypes.inputOptions]: { min: 0.05, max: 2, step: 0.05, unit: 's' },
+    })
+    .describe('Max smear length in seconds. Longer words still snap after this'),
+  letterSpacingSettle: z
     .object({
-      fontSize: z.number().min(8).max(600).optional().meta({ title: 'Size' }).describe('Size in pixels'),
-      textTransform: z
-        .enum(['none', 'uppercase', 'lowercase', 'capitalize'])
+      enabled: z
+        .boolean()
         .optional()
-        .meta({ title: 'Transform' }),
-      letterSpacing: z
-        .string()
+        .default(true)
+        .meta({ title: 'Enabled' })
+        .describe('Ease letter-spacing toward rest across the word'),
+      impact: z
+        .number()
+        .min(0)
+        .max(2)
         .optional()
-        .meta({ title: 'Spacing', [paramMetaTypes.inputType]: paramInputTypes.text })
-        .describe('e.g. 0.04em or 2px'),
+        .default(1)
+        .meta({
+          title: 'Impact',
+          [paramMetaTypes.inputType]: paramInputTypes.slider,
+          [paramMetaTypes.inputOptions]: { min: 0, max: 2, step: 0.05 },
+        })
+        .describe('Tighter start spacing, and more leftover settle after the word'),
     })
     .optional()
-    .meta({ title: 'Text style', [paramMetaTypes.flatObject]: true }),
+    .meta({ title: 'Letter-spacing settle', [paramMetaTypes.flatObject]: true }),
   minChars: z
     .number()
     .min(1)

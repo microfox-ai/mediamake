@@ -122,8 +122,7 @@ export function ActionTracksSection({
 }
 
 /**
- * Range rows for actions tied to the current selection.
- * Hidden when the timeline itself is selected.
+ * Range rows for the selected action, or every action when Actions is selected.
  */
 export function LinkedActionTracks({
   actions,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyTrackShell } from './apply-track-shell';
+import { applyInputContainerLayout, applyTrackShell } from './apply-track-shell';
+import { mediaTrackPreset } from '../registry/general/media-track';
 import { textAtomPreset } from '../registry/general/text-atom';
 
 describe('applyTrackShell', () => {
@@ -123,6 +124,51 @@ describe('applyTrackShell', () => {
   });
 });
 
+describe('media-track preset', () => {
+  it('locks an item with lockTo instead of fitDurationTo', () => {
+    const json = JSON.stringify(mediaTrackPreset.presetParams);
+    assert.match(json, /"lockTo"/);
+    assert.equal(json.includes('"fitDurationTo"'), false);
+
+    const run = new Function(
+      '__name',
+      'data',
+      'props',
+      `return (${mediaTrackPreset.presetFunction})(data, props);`,
+    ) as (
+      name: (fn: unknown) => unknown,
+      data: Record<string, unknown>,
+      props?: unknown,
+    ) => {
+      children: Array<{
+        context?: { timing?: { start?: number; duration?: number; fitDurationTo?: string } };
+      }>;
+    };
+    const built = run(
+      (fn) => fn,
+      {
+        trackName: 'clips',
+        trackType: 'aligned',
+        mediaItems: {
+          items: [
+            {
+              src: 'https://example.com/a.mp4',
+              type: 'video',
+              lockTo: 'audio-track',
+              rangeString: '0:10-0:20',
+            },
+          ],
+        },
+      },
+      { helpers: {} },
+    );
+    const timing = built.children[0]?.context?.timing;
+    assert.equal(timing?.fitDurationTo, 'audio-track');
+    assert.equal(timing?.duration, undefined);
+    assert.equal(timing?.start, 0);
+  });
+});
+
 describe('text-atom preset', () => {
   it('exposes the shared track fields without declaring them in the build', () => {
     const properties = textAtomPreset.presetParams.properties as Record<string, { enum?: string[] }>;
@@ -141,6 +187,9 @@ describe('text-atom preset', () => {
     assert.equal(textAtomPreset.metadata.placement, 'atom');
     assert.equal(textAtomPreset.presetFunction.includes('trackName: z'), false);
     assert.deepEqual(properties.trackType?.enum, ['lockedTo', 'sequence', 'aligned']);
+    const json = JSON.stringify(textAtomPreset.presetParams);
+    assert.match(json, /"textStyle":true/);
+    assert.match(json, /"positionStyle":true/);
 
     const run = new Function(
       'data',
@@ -178,5 +227,87 @@ describe('text-atom preset', () => {
       output.output.childrenData?.some((child) => child.componentId === 'BaseLayout'),
       false,
     );
+  });
+});
+
+function layoutNode(output: { output: { childrenData?: unknown[] } }) {
+  return output.output.childrenData?.[0] as unknown as {
+    data: { containerProps: { className?: string; style: Record<string, unknown> } };
+  };
+}
+
+describe('applyInputContainerLayout', () => {
+  it('replaces an atom fill when the layout sets an edge', () => {
+    const output = applyInputContainerLayout(
+      { containerProps: { style: { position: 'absolute', left: 12, '--mm-left': '12' } } },
+      applyTrackShell(
+        { trackName: 'hello', trackType: 'aligned', start: 0, duration: 1 },
+        { componentId: 'TextAtom', type: 'atom', data: { text: 'Hi' } },
+        'atom',
+      ),
+    );
+    const node = layoutNode(output);
+    assert.equal(node.data.containerProps.style.left, 12);
+    assert.equal(node.data.containerProps.style.right, undefined);
+    assert.equal(node.data.containerProps.style.top, undefined);
+    assert.equal(node.data.containerProps.style.bottom, undefined);
+    assert.equal(node.data.containerProps.style.position, 'absolute');
+    assert.equal(node.data.containerProps.className, undefined);
+  });
+
+  it('uses the layout style instead of the atom fill', () => {
+    const output = applyInputContainerLayout(
+      { containerProps: { style: { overflow: 'hidden', '--mm-clip': '1' } } },
+      applyTrackShell(
+        { trackName: 'hello', trackType: 'aligned', start: 0, duration: 1 },
+        { componentId: 'TextAtom', type: 'atom', data: { text: 'Hi' } },
+        'atom',
+      ),
+    );
+    const node = layoutNode(output);
+    assert.deepEqual(node.data.containerProps.style, {
+      overflow: 'hidden',
+      '--mm-clip': '1',
+    });
+    assert.equal(node.data.containerProps.className, undefined);
+  });
+
+  it('keeps a relative position and drops the absolute class', () => {
+    const output = applyInputContainerLayout(
+      { containerProps: { style: { position: 'relative', left: 8, '--mm-mode': 'relative', '--mm-left': '8' } } },
+      applyTrackShell(
+        { trackName: 'box' },
+        {
+          children: [],
+          containerProps: { className: 'absolute inset-0', style: { backgroundColor: 'red' } },
+        },
+        'container',
+      ),
+    );
+    const node = layoutNode(output);
+    assert.equal(node.data.containerProps.style.position, 'relative');
+    assert.equal(node.data.containerProps.style.left, 8);
+    assert.equal(node.data.containerProps.style.backgroundColor, 'red');
+    assert.equal(node.data.containerProps.style.top, undefined);
+    assert.equal(node.data.containerProps.className ?? '', '');
+  });
+
+  it('drops inset-0 on a container and keeps the preset background', () => {
+    const output = applyInputContainerLayout(
+      { containerProps: { style: { position: 'absolute', width: 200, '--mm-width': '200' } } },
+      applyTrackShell(
+        { trackName: 'box' },
+        {
+          children: [],
+          containerProps: { className: 'absolute inset-0', style: { backgroundColor: 'red' } },
+        },
+        'container',
+      ),
+    );
+    const node = layoutNode(output);
+    assert.equal(node.data.containerProps.className, 'absolute');
+    assert.equal(node.data.containerProps.style.width, 200);
+    assert.equal(node.data.containerProps.style.backgroundColor, 'red');
+    assert.equal(node.data.containerProps.style.left, undefined);
   });
 });

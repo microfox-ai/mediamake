@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { TimelineAction } from "@/components/editor/presets/actions/types";
-import { actionRangesVisible } from "./timeline-track-sources";
+import { actionRangesVisible, bottomTimelineLane } from "./timeline-track-sources";
 
 function action(
   partial: Pick<TimelineAction, "id" | "target">,
@@ -44,42 +44,37 @@ describe("actionRangesVisible", () => {
     );
   });
 
-  it("shows ranges when the linked preset or block is selected", () => {
+  it("hides ranges when a preset or reference is selected", () => {
     assert.equal(
       actionRangesVisible(presetAction, { type: "preset", item: { id: "loop" } }),
-      true,
-    );
-    assert.equal(
-      actionRangesVisible(presetAction, { type: "preset", item: { id: "other" } }),
       false,
     );
     assert.equal(
-      actionRangesVisible(referenceAction, { type: "preset", item: { id: "loop" } }),
+      actionRangesVisible(referenceAction, {
+        type: "reference",
+        item: { id: "captions" },
+      }),
       false,
     );
   });
 
-  it("shows ranges when the linked reference is selected", () => {
-    assert.equal(
-      actionRangesVisible(referenceAction, {
-        type: "reference",
-        item: { key: "captions" },
-      }),
-      true,
-    );
-    assert.equal(
-      actionRangesVisible(referenceAction, {
-        type: "reference",
-        item: { key: "other" },
-      }),
-      false,
-    );
-    assert.equal(
-      actionRangesVisible(presetAction, {
-        type: "reference",
-        item: { key: "captions" },
-      }),
-      false,
-    );
+  it("shows every action when the actions group is selected", () => {
+    assert.equal(actionRangesVisible(presetAction, { type: "actions" }), true);
+    assert.equal(actionRangesVisible(referenceAction, { type: "actions" }), true);
+  });
+});
+
+describe("bottomTimelineLane", () => {
+  it("keeps the timeline and blocks on block rows", () => {
+    assert.equal(bottomTimelineLane(null), "blocks");
+    assert.equal(bottomTimelineLane({ type: "timeline" }), "blocks");
+    assert.equal(bottomTimelineLane({ type: "preset" }), "blocks");
+  });
+
+  it("switches to references or actions only for those selections", () => {
+    assert.equal(bottomTimelineLane({ type: "references" }), "references");
+    assert.equal(bottomTimelineLane({ type: "reference" }), "blocks");
+    assert.equal(bottomTimelineLane({ type: "actions" }), "actions");
+    assert.equal(bottomTimelineLane({ type: "action" }), "actions");
   });
 });

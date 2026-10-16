@@ -6,6 +6,8 @@ import { useFont } from '../../hooks/useFontLoader';
 import { useAnimatedStyles } from '../effects';
 import { atomCategory } from '../../atom-category';
 import { TextAtomInput } from './input-schemas';
+import { applyTextFillStyle } from './text-fill-style';
+import { mergeSpecialEffects } from './special-effects-style';
 
 export { TextAtomInput } from './input-schemas';
 
@@ -46,6 +48,29 @@ interface TextAtomProps extends BaseRenderableProps {
     data: TextAtomData;
 }
 
+/** Set by the editor Typography section; CSS has no paragraph-spacing property. */
+const PARAGRAPH_SPACING_VAR = '--paragraph-spacing';
+
+/** Markup from the HTML text editor (`<b>`, `<span>`, `<br/>`, …). */
+function isHtmlText(text: string): boolean {
+    return /<\/?[a-z][\s\S]*>/i.test(text.trim());
+}
+
+/** Drop wrapping `<p>` so default paragraph margins don't add extra gaps. */
+function htmlForRender(text: string): string {
+    return text
+        .replace(/<\/p>\s*<p[^>]*>/gi, '<br/>')
+        .replace(/<\/?p[^>]*>/gi, '');
+}
+
+/** A single family name in `style.fontFamily` (not a CSS stack) is loaded as a Google Font. */
+function loadableStyleFamily(style?: React.CSSProperties): string | undefined {
+    const family = style?.fontFamily;
+    if (typeof family !== 'string' || family.includes(',')) return undefined;
+    const name = family.replace(/["']/g, '').trim();
+    return name || undefined;
+}
+
 /**
  * Enhanced TextAtom with comprehensive dynamic font loading capabilities
  * 
@@ -60,15 +85,19 @@ interface TextAtomProps extends BaseRenderableProps {
 export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
     const overrideStyles = useAnimatedStyles(id);
     const [isFontLoading, setIsFontLoading] = useState(false);
+    const familyToLoad = loadableStyleFamily(data.style) || data.font?.family || 'Inter';
     const [renderHandle] = useState(() =>
-        delayRender(`Loading font: ${data.font?.family}`)
+        delayRender(`Loading font: ${familyToLoad}`)
     );
 
     // Font loading logic with delayRender support
     const { isLoaded, error, isReady, fontFamily } = useFont(
-        data.font?.family || 'Inter',
+        familyToLoad,
         {
-            weights: data.font?.weights || ['400'],
+            weights: data.style?.fontWeight != null
+                ? [String(data.style.fontWeight)]
+                : data.font?.weights || ['400'],
+            style: data.style?.fontStyle === 'italic' ? 'italic' : undefined,
             subsets: data.font?.subsets || ['latin'],
             display: data.font?.display || 'swap',
             preload: data.font?.preload !== false,
@@ -87,36 +116,73 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
 
     // Update loading state when font status changes
     useEffect(() => {
-        if (data.font?.family) {
+        if (familyToLoad) {
             if (isReady || isLoaded) {
                 setIsFontLoading(false);
             } else if (!isReady && !isLoaded && !error) {
                 setIsFontLoading(true);
             }
         }
-    }, [data.font, isReady, isLoaded, error]);
+    }, [familyToLoad, isReady, isLoaded, error]);
+
+    const listStyleType = data.style?.listStyleType;
+    const isList = typeof listStyleType === 'string' && listStyleType !== 'none';
+    const hasParagraphSpacing =
+        (data.style as Record<string, unknown> | undefined)?.[PARAGRAPH_SPACING_VAR] !== undefined;
+    const html = isHtmlText(data.text);
+
+    const content = useMemo(() => {
+        if (html) return null;
+        if (!isList && !hasParagraphSpacing) return data.text;
+        return data.text.split('\n').map((paragraph, index) => (
+            <div
+                key={index}
+                style={{
+                    display: isList ? 'list-item' : undefined,
+                    marginTop: index > 0 ? `var(${PARAGRAPH_SPACING_VAR}, 0px)` : undefined,
+                    whiteSpace: 'pre-wrap',
+                }}
+            >
+                {paragraph || '\u00a0'}
+            </div>
+        ));
+    }, [data.text, html, isList, hasParagraphSpacing]);
 
     // Enhanced style with font loading support and gradient text
     const enhancedStyle: React.CSSProperties = useMemo(() => {
-        const baseStyle: React.CSSProperties = {
-            fontFamily,
+        const baseStyle: React.CSSProperties = mergeSpecialEffects({
             ...data.style,
-        };
+            fontFamily,
+            ...applyTextFillStyle(data.style),
+        });
+        const clipsText =
+            baseStyle.backgroundClip === 'text' ||
+            baseStyle.WebkitBackgroundClip === 'text';
+        const truncated =
+            baseStyle.textOverflow === 'ellipsis' ||
+            baseStyle.WebkitLineClamp != null;
+        const whiteSpace =
+            baseStyle.whiteSpace ?? (truncated ? undefined : 'pre-wrap');
 
-        // Apply gradient text effect if gradient is provided
-        if (data.gradient) {
+        // Legacy `data.gradient` still clips to the glyphs. A fill authored on
+        // `style` (background-clip: text) wins, so the editor Fill control is
+        // not overwritten.
+        if (data.gradient && !clipsText) {
             return {
                 ...baseStyle,
                 backgroundImage: data.gradient,
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
                 color: 'transparent',
+                whiteSpace,
                 ...overrideStyles,
             };
         }
 
         return {
             ...baseStyle,
+            whiteSpace,
             ...overrideStyles,
         };
     }, [fontFamily, data.style, data.gradient, overrideStyles]);
@@ -150,10 +216,11 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
             data-font-loading={isFontLoading}
             data-font-loaded={isReady || isLoaded}
             data-font-error={!!error}
-            data-font-family={data.font?.family || 'system'}
-        >
-            {data.text}
-        </div>
+            data-font-family={familyToLoad}
+            {...(html
+                ? { dangerouslySetInnerHTML: { __html: htmlForRender(data.text) } }
+                : { children: content })}
+        />
     );
 };
 

@@ -194,21 +194,23 @@ export const TimelinePlayer = forwardRef<PlayerRef, TimelinePlayerProps>(({
 
     return (
       <div className="relative w-full h-full bg-black/50 flex items-center justify-center overflow-hidden">
-        <RemotionPlayer
-          ref={playerRefCallback}
-          component={EditableCompositionLayout}
-          inputProps={mergedProps}
-          durationInFrames={durationInFrames}
-          fps={fps}
-          compositionHeight={height}
-          compositionWidth={width}
-          style={player}
-          className="w-fit h-full"
-          controls={showControls}
-          loop={loop}
-          acknowledgeRemotionLicense={true}
-          overflowVisible
-        />
+        <div data-editor-player className="h-full w-fit">
+          <RemotionPlayer
+            ref={playerRefCallback}
+            component={EditableCompositionLayout}
+            inputProps={mergedProps}
+            durationInFrames={durationInFrames}
+            fps={fps}
+            compositionHeight={height}
+            compositionWidth={width}
+            style={player}
+            className="w-fit h-full"
+            controls={showControls}
+            loop={loop}
+            acknowledgeRemotionLicense={true}
+            overflowVisible
+          />
+        </div>
         {hasInvalidRanges ? (
           <div className="absolute top-3 left-3 right-3 flex justify-center pointer-events-none z-10">
             <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/90 text-white px-2.5 py-1 text-xs shadow">

@@ -2,7 +2,7 @@ import type { DatabasePreset, Preset as PresetType } from "@/components/editor/p
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import { uniqueTrackName } from "./preset-track-name";
 import type { AppliedNode } from "./types";
-import { findNode, loadInstanceTree, parentOfNode } from "./load-instance-tree";
+import { findNode, loadInstanceTree, orderPresetsLikeTree, parentOfNode, sceneRenderId } from "./load-instance-tree";
 
 type PresetInstance = NonNullable<Timeline["presets"]>[number];
 
@@ -72,6 +72,15 @@ function withParent(input: unknown, parentId: string, rootId: string): Record<st
   return next;
 }
 
+function withParentScene(
+  input: unknown,
+  parentId: string,
+  rootId: string,
+  attachedToId: string,
+): Record<string, unknown> {
+  return { ...withParent(input, parentId, rootId), attachedToId };
+}
+
 interface GroupSelection {
   tree: AppliedNode;
   parent: AppliedNode;
@@ -133,15 +142,7 @@ export function groupSelectedPresets(
   const presets = timeline.presets ?? [];
   const metadata = seed.presetInfo.metadata;
   const trackName = uniqueTrackName(presets, "scene");
-  const parentInput = asRecord(parent.input);
-  const parentTrack =
-    typeof parentInput.trackName === "string" && parentInput.trackName.trim()
-      ? parentInput.trackName.trim()
-      : "";
-  const attachedToId =
-    parent.id === tree.id || parent.presetId === "base-scene"
-      ? "BaseScene"
-      : parentTrack || "BaseScene";
+  const attachedToId = sceneRenderId(parent) ?? "BaseScene";
   const duration = Math.max(10, ...ordered.map(spanEnd));
   const sceneInput: Record<string, unknown> = {
     ...(metadata.defaultInputParams ?? {}),
@@ -163,7 +164,7 @@ export function groupSelectedPresets(
     timing: { kind: "explicit", start: 0, duration },
     children: ordered.map((node) => {
       const clone = cloneNode(node);
-      clone.input = withParent(node.input, sceneId, tree.id);
+      clone.input = withParentScene(node.input, sceneId, tree.id, sceneId);
       return clone;
     }),
   };
@@ -188,11 +189,15 @@ export function groupSelectedPresets(
     if (!ordered.some((node) => node.id === preset.id)) return preset;
     return {
       ...preset,
-      presetInputData: withParent(preset.presetInputData, sceneId, tree.id),
+      presetInputData: withParentScene(preset.presetInputData, sceneId, tree.id, sceneId),
     };
   });
   const insertAt = nextPresets.findIndex((preset) => preset.id === ordered[0]?.id);
   nextPresets.splice(insertAt < 0 ? nextPresets.length : insertAt, 0, scenePreset);
 
-  return { presets: nextPresets, nodes, sceneId };
+  return {
+    presets: orderPresetsLikeTree(nextPresets, nodes) ?? nextPresets,
+    nodes,
+    sceneId,
+  };
 }

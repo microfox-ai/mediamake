@@ -26,7 +26,14 @@ export interface BreadcrumbPreset {
 }
 
 export interface BreadcrumbModel {
-  selection: "timeline" | "preset" | "reference" | "action" | "none";
+  selection:
+    | "timeline"
+    | "preset"
+    | "reference"
+    | "references"
+    | "action"
+    | "actions"
+    | "none";
   /** Child of Base through the focused preset. The base scene is omitted. */
   presetPath: BreadcrumbPreset[];
   reference?: { index: number; label: string } | null;
@@ -47,7 +54,8 @@ export function presetBreadcrumbPath(
   let current = findNode(tree, presetId);
   while (current && !seen.has(current.id)) {
     seen.add(current.id);
-    if (ROOT_PRESET_IDS.has(current.presetId)) break;
+    // The root scene is the Base crumb. A second "Scene" here is that same scene.
+    if (current.id === tree.id || ROOT_PRESET_IDS.has(current.presetId)) break;
     chain.unshift(current);
     const parent = parentOfNode(tree, current.id);
     current = parent ?? undefined;
@@ -113,6 +121,10 @@ export function buildTimelineBreadcrumbs(model: BreadcrumbModel): BreadcrumbStep
         label: blockLeaf.label.trim() || "Range",
       });
     }
+  } else if (model.selection === "references") {
+    steps.push({ key: "references", label: "References" });
+  } else if (model.selection === "actions") {
+    steps.push({ key: "actions", label: "Actions" });
   } else if (model.selection === "action" && model.actionLabel?.trim()) {
     steps.push({ key: "action", label: model.actionLabel.trim() });
   }

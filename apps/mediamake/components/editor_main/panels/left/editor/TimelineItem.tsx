@@ -20,6 +20,8 @@ import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useCompileStore } from "../../../stores/compile-store";
 import {
+    blockDropTarget,
+    collectSubtreeIds,
     findNode,
     listBlockRows,
     loadInstanceTree,
@@ -62,12 +64,14 @@ import {
 import {
     DndContext,
     closestCenter,
+    pointerWithin,
     KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
     DragEndEvent,
     DragOverEvent,
+    type CollisionDetection,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -79,11 +83,55 @@ interface TimelineItemProps {
     timeline: Timeline;
 }
 
-function pointerAfter(event: DragEndEvent): boolean {
-    const translated = event.active.rect.current.translated;
-    const over = event.over?.rect;
-    if (!translated || !over) return true;
-    return translated.top + translated.height / 2 > over.top + over.height / 2;
+type PointerDragEvent = {
+    activatorEvent: Event | null;
+    delta: { x: number; y: number };
+    over: { id: string | number; rect?: { top: number; height: number } } | null;
+};
+
+/** The row under the pointer wins, including a child row inside an expanded group. */
+const blockCollision: CollisionDetection = (args) => {
+    const hits = pointerWithin(args);
+    return hits.length > 0 ? hits : closestCenter(args);
+};
+
+function pointerClientY(event: PointerDragEvent): number | null {
+    const activator = event.activatorEvent;
+    if (activator && "clientY" in activator && typeof activator.clientY === "number") {
+        return activator.clientY + event.delta.y;
+    }
+    return null;
+}
+
+function blockIdAtPointer(container: HTMLElement | null, event: PointerDragEvent): string | null {
+    const y = pointerClientY(event);
+    const fallback = event.over ? String(event.over.id) : null;
+    if (!container || y == null) return fallback;
+    const rows = container.querySelectorAll<HTMLElement>("[data-block-id]");
+    let nearest: { id: string; distance: number } | null = null;
+    for (const row of rows) {
+        const id = row.dataset.blockId;
+        if (!id) continue;
+        const rect = row.getBoundingClientRect();
+        if (y >= rect.top && y <= rect.bottom) return id;
+        const distance = Math.min(Math.abs(y - rect.top), Math.abs(y - rect.bottom));
+        if (!nearest || distance < nearest.distance) nearest = { id, distance };
+    }
+    if (nearest && nearest.distance <= 8) return nearest.id;
+    return fallback;
+}
+
+function pointerAfterRow(container: HTMLElement | null, event: PointerDragEvent, overId: string): boolean {
+    const y = pointerClientY(event);
+    const row = container?.querySelector<HTMLElement>(`[data-block-id="${overId}"]`);
+    if (y == null || !row) {
+        const translatedTop = event.over?.rect?.top;
+        const height = event.over?.rect?.height;
+        if (translatedTop == null || height == null || y == null) return true;
+        return y > translatedTop + height / 2;
+    }
+    const rect = row.getBoundingClientRect();
+    return y > rect.top + rect.height / 2;
 }
 
 /** True when this timeline has unpublished local history entries at/before the cursor. */
@@ -113,10 +161,11 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const [renameValue, setRenameValue] = useState("");
     const renameInputRef = useRef<HTMLInputElement>(null);
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
-    const { selectTimeline, selectReference, selectAction, selectedItem } = useEditorStore();
+    const { selectTimeline, selectReference, selectReferences, selectAction, selectActions, selectedItem } = useEditorStore();
     const { getEditedTimeline, moveInstanceNode, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
     const generateOutput = useCompileStore((s) => s.generateOutput);
     const [nestTargetId, setNestTargetId] = useState<string | null>(null);
+    const blocksRef = useRef<HTMLDivElement>(null);
     const [collapsedBlockIds, setCollapsedBlockIds] = useState<Set<string>>(() => new Set());
     const itemClipboard = useBlockClipboardStore((s) => s.itemClipboard);
     const isUnsynced = useTimelineEditsStore((state) =>
@@ -132,6 +181,10 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
 
     const isLoaded = loadedTimeline?.id === timeline.id;
     const isSelected = selectedItem?.type === 'timeline' && selectedItem.item.id === timeline.id;
+    const referencesGroupSelected =
+        selectedItem?.type === "references" && selectedItem.timeline.id === timeline.id;
+    const actionsGroupSelected =
+        selectedItem?.type === "actions" && selectedItem.timeline.id === timeline.id;
     const presets = displayTimeline.presets || [];
     const blockRows = useMemo(() => {
         const tree = loadInstanceTree(displayTimeline);
@@ -164,6 +217,10 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         }
         return rows;
     }, [displayTimeline, presets]);
+    const nestIds = useMemo(() => {
+        if (!nestTargetId) return new Set<string>();
+        return new Set(collectSubtreeIds(loadInstanceTree(displayTimeline), nestTargetId));
+    }, [nestTargetId, displayTimeline]);
     const visibleBlockRows = useMemo(() => {
         let hiddenBelow: number | null = null;
         return blockRows.filter((row) => {
@@ -237,6 +294,24 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         if (selectedItem?.type !== 'timeline' || selectedItem.item.id !== fullTimeline.id) {
             selectTimeline(fullTimeline);
         }
+    };
+
+    const focusLane = async (lane: "blocks" | "references" | "actions") => {
+        if (!isOpen) setIsOpen(true);
+        if (lane === "references") setIsReferencesOpen(true);
+        if (lane === "actions") setIsActionsOpen(true);
+        if (lane === "blocks") setIsBlocksOpen(true);
+        const fullTimeline = await ensureTimelineLoaded();
+        if (!fullTimeline) return;
+        if (lane === "blocks") {
+            selectTimeline(fullTimeline);
+            return;
+        }
+        if (lane === "references") {
+            selectReferences(fullTimeline);
+            return;
+        }
+        selectActions(fullTimeline);
     };
 
     const closeTimeline = (e: React.MouseEvent) => {
@@ -404,41 +479,36 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     }
 
     function handleDragOver(event: DragOverEvent) {
-        const overId = event.over ? String(event.over.id) : "";
+        const overId = blockIdAtPointer(blocksRef.current, event) ?? "";
         const activeId = String(event.active.id);
         if (!overId || overId === activeId) {
             setNestTargetId(null);
             return;
         }
         const tree = loadInstanceTree(displayTimeline);
-        const overNode = findNode(tree, overId);
-        const activeNode = findNode(tree, activeId);
-        const cycle = Boolean(activeNode && findNode(activeNode, overId));
-        setNestTargetId(overNode?.role === "scene" && !cycle ? overId : null);
+        const target = blockDropTarget(tree, activeId, overId, false);
+        const activeParent = parentOfNode(tree, activeId);
+        const entering = Boolean(
+            target && target.parentId !== tree.id && target.parentId !== activeParent?.id,
+        );
+        setNestTargetId(entering ? target!.parentId : null);
     }
 
     function handleDragEnd(event: DragEndEvent) {
         setNestTargetId(null);
-        const overId = event.over ? String(event.over.id) : "";
+        const overId = blockIdAtPointer(blocksRef.current, event) ?? "";
         const activeId = String(event.active.id);
         if (!overId || overId === activeId) return;
         const tree = loadInstanceTree(displayTimeline);
-        const overNode = findNode(tree, overId);
-        const activeNode = findNode(tree, activeId);
-        if (!overNode || !activeNode) return;
-        const cycle = Boolean(findNode(activeNode, overId));
-        if (overNode.role === "scene" && !cycle) {
-            expandBlock(overId);
-            publishTreeMove(moveInstanceNode(timeline.id, activeId, overId));
-            return;
-        }
-        const parent = parentOfNode(tree, overId) ?? tree;
-        const siblingIds = parent.children
-            .map((child) => child.id)
-            .filter((id) => id !== activeId);
-        const overIndex = siblingIds.indexOf(overId);
-        const index = overIndex < 0 ? siblingIds.length : overIndex + (pointerAfter(event) ? 1 : 0);
-        publishTreeMove(moveInstanceNode(timeline.id, activeId, parent.id, index));
+        const target = blockDropTarget(
+            tree,
+            activeId,
+            overId,
+            pointerAfterRow(blocksRef.current, event, overId),
+        );
+        if (!target) return;
+        if (target.parentId !== tree.id) expandBlock(target.parentId);
+        publishTreeMove(moveInstanceNode(timeline.id, activeId, target.parentId, target.index));
     }
 
     const referenceTypeOptions = getReferenceTypeOptions();
@@ -543,13 +613,28 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 <ContextMenu>
                                     <ContextMenuTrigger asChild>
                                         <div
-                                            onClick={() => setIsReferencesOpen((prev) => !prev)}
-                                            className="flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none"
+                                            onClick={() => { void focusLane("references"); }}
+                                            className={cn(
+                                                "flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none",
+                                                referencesGroupSelected && "bg-blue-100 text-blue-950 hover:bg-blue-100",
+                                            )}
                                         >
                                             {isReferencesOpen ? (
-                                                <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+                                                <ChevronDown
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsReferencesOpen((prev) => !prev);
+                                                    }}
+                                                    className="h-2.5 w-2.5 text-muted-foreground"
+                                                />
                                             ) : (
-                                                <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+                                                <ChevronRight
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsReferencesOpen((prev) => !prev);
+                                                    }}
+                                                    className="h-2.5 w-2.5 text-muted-foreground"
+                                                />
                                             )}
                                             <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
                                             <span className="flex-1">References</span>
@@ -759,20 +844,36 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 open={isActionsOpen}
                                 onOpenChange={setIsActionsOpen}
                             >
-                                <CollapsibleTrigger asChild>
-                                    <div className="flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none">
-                                        {isActionsOpen ? (
-                                            <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-                                        ) : (
-                                            <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
-                                        )}
-                                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-                                        <span className="flex-1">Actions</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {actions.length}
-                                        </span>
-                                    </div>
-                                </CollapsibleTrigger>
+                                <div
+                                    onClick={() => { void focusLane("actions"); }}
+                                    className={cn(
+                                        "flex items-center gap-2 px-2 h-8 text-sm cursor-pointer hover:bg-accent transition-colors select-none",
+                                        actionsGroupSelected && "bg-blue-100 text-blue-950 hover:bg-blue-100",
+                                    )}
+                                >
+                                    {isActionsOpen ? (
+                                        <ChevronDown
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsActionsOpen((prev) => !prev);
+                                            }}
+                                            className="h-2.5 w-2.5 text-muted-foreground"
+                                        />
+                                    ) : (
+                                        <ChevronRight
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsActionsOpen((prev) => !prev);
+                                            }}
+                                            className="h-2.5 w-2.5 text-muted-foreground"
+                                        />
+                                    )}
+                                    <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="flex-1">Actions</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {actions.length}
+                                    </span>
+                                </div>
                                 <CollapsibleContent>
                                     <div className="ml-3.5 border-l py-0.5 space-y-1">
                                         {actions.length > 0 ? (
@@ -945,24 +1046,40 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 open={isBlocksOpen}
                                 onOpenChange={setIsBlocksOpen}
                             >
-                                <div className="group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none">
+                                <div className={cn(
+                                    "group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none",
+                                    isSelected && "bg-blue-100 hover:bg-blue-100",
+                                )}>
                                     <ContextMenu>
-                                        <CollapsibleTrigger asChild>
-                                            <ContextMenuTrigger asChild>
-                                                <div className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer">
-                                                    {isBlocksOpen ? (
-                                                        <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-                                                    ) : (
-                                                        <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
-                                                    )}
-                                                    <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    <span className="flex-1">Blocks</span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {Math.max(presets.length - 1, 0)}
-                                                    </span>
-                                                </div>
-                                            </ContextMenuTrigger>
-                                        </CollapsibleTrigger>
+                                        <ContextMenuTrigger asChild>
+                                            <div
+                                                onClick={() => { void focusLane("blocks"); }}
+                                                className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer"
+                                            >
+                                                {isBlocksOpen ? (
+                                                    <ChevronDown
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsBlocksOpen((prev) => !prev);
+                                                        }}
+                                                        className="h-2.5 w-2.5 text-muted-foreground"
+                                                    />
+                                                ) : (
+                                                    <ChevronRight
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsBlocksOpen((prev) => !prev);
+                                                        }}
+                                                        className="h-2.5 w-2.5 text-muted-foreground"
+                                                    />
+                                                )}
+                                                <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="flex-1">Blocks</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {Math.max(presets.length - 1, 0)}
+                                                </span>
+                                            </div>
+                                        </ContextMenuTrigger>
                                         <ContextMenuContent className="w-56">
                                             <AddBlockContextMenuItems
                                                 onAdd={handleAddPreset}
@@ -976,10 +1093,10 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                     />
                                 </div>
                                 <CollapsibleContent>
-                                    <div className="ml-3.5 border-l py-0.5 space-y-1">
+                                    <div ref={blocksRef} className="ml-3.5 border-l py-0.5 space-y-1">
                                         <DndContext
                                             sensors={sensors}
-                                            collisionDetection={closestCenter}
+                                            collisionDetection={blockCollision}
                                             onDragOver={handleDragOver}
                                             onDragEnd={handleDragEnd}
                                             onDragCancel={() => setNestTargetId(null)}
@@ -1002,7 +1119,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                         hasChildren={row.hasChildren}
                                                         expanded={!collapsedBlockIds.has(row.preset.id)}
                                                         onToggleExpand={() => toggleBlock(row.preset.id)}
-                                                        nestHighlight={nestTargetId === row.preset.id}
+                                                        nestHighlight={nestIds.has(row.preset.id)}
                                                         onOpenPresetLibrary={() => setShowPresetLibrary(true)}
                                                     />
                                                 ))}
@@ -1025,22 +1142,38 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                 open={isBlocksOpen}
                                 onOpenChange={setIsBlocksOpen}
                             >
-                                <div className="group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none">
+                                <div className={cn(
+                                    "group/blocks flex items-center gap-2 px-2 h-8 text-sm hover:bg-accent transition-colors select-none",
+                                    isSelected && "bg-blue-100 hover:bg-blue-100",
+                                )}>
                                     <ContextMenu>
-                                        <CollapsibleTrigger asChild>
-                                            <ContextMenuTrigger asChild>
-                                                <div className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer">
-                                                    {isBlocksOpen ? (
-                                                        <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-                                                    ) : (
-                                                        <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
-                                                    )}
-                                                    <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    <span className="flex-1">Blocks</span>
-                                                    <span className="text-xs text-muted-foreground">0</span>
-                                                </div>
-                                            </ContextMenuTrigger>
-                                        </CollapsibleTrigger>
+                                        <ContextMenuTrigger asChild>
+                                            <div
+                                                onClick={() => { void focusLane("blocks"); }}
+                                                className="flex flex-1 items-center gap-2 min-w-0 h-full cursor-pointer"
+                                            >
+                                                {isBlocksOpen ? (
+                                                    <ChevronDown
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsBlocksOpen((prev) => !prev);
+                                                        }}
+                                                        className="h-2.5 w-2.5 text-muted-foreground"
+                                                    />
+                                                ) : (
+                                                    <ChevronRight
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIsBlocksOpen((prev) => !prev);
+                                                        }}
+                                                        className="h-2.5 w-2.5 text-muted-foreground"
+                                                    />
+                                                )}
+                                                <FolderTree className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="flex-1">Blocks</span>
+                                                <span className="text-xs text-muted-foreground">0</span>
+                                            </div>
+                                        </ContextMenuTrigger>
                                         <ContextMenuContent className="w-56">
                                             <AddBlockContextMenuItems
                                                 onAdd={handleAddPreset}

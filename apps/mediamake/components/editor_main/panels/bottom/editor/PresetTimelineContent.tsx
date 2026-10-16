@@ -18,8 +18,6 @@ import { TimelineShell } from "./TimelineShell";
 import { InstanceTimingSection } from "./sections/InstanceTimingSection";
 import { PresetTracksSection } from "./sections/PresetTracksSection";
 import { MediaSceneBlocksSection } from "./sections/MediaSceneBlocksSection";
-import { LinkedActionTracks } from "./sections/ActionTracksSection";
-import { actionRangesVisible, actionTimelineEnd } from "./timeline-track-sources";
 import { resolveTimelineScope } from "./timeline-scope";
 import {
   atomContentEnd,
@@ -117,19 +115,10 @@ export function PresetTimelineContent() {
       atomContentEnd(preset?.presetInputData, origin, probedItemDurations, preset?.presetId),
     );
   }, [effectiveTimeline, intrinsicDurations, preset?.presetInputData, probedItemDurations, sequenceDuration]);
-  const linkedActionEnd =
-    isPresetSelected && effectiveTimeline
-      ? actionTimelineEnd(
-          (effectiveTimeline.actions ?? []).filter((action) =>
-            actionRangesVisible(action, selectedItem),
-          ),
-        )
-      : 0;
   const totalDuration = Math.max(
     1,
     compiledSec || configSec || 60,
     contentEnd,
-    linkedActionEnd,
   );
 
   const placement = useMemo(() => {
@@ -229,10 +218,6 @@ export function PresetTimelineContent() {
           fallbackTimeline={effectiveTimeline}
         />
       ) : null}
-      <LinkedActionTracks
-        actions={effectiveTimeline.actions}
-        selected={selectedItem}
-      />
     </TimelineShell>
   );
 }

@@ -72,6 +72,49 @@ export const paramMetaTypes = {
    */
   flatObject: 'flatObject',
   /**
+   * Marks a CSS `style` object that accepts typography properties.
+   * Renders a Typography section (font, weight, size, line height, letter
+   * spacing, alignment, decoration, case, lists, truncation, wrapping) that
+   * writes plain CSS properties into the object. Other declared keys still
+   * render below it. Also shows the Special Effects section. Value: true
+   *
+   * @example z.object({ color: z.string() }).loose().meta({ [paramMetaTypes.textStyle]: true })
+   */
+  textStyle: 'textStyle',
+  /**
+   * Marks a CSS `style` object that accepts positioning properties.
+   * Renders a Position section (absolute insets, or relative size and anchor,
+   * plus rotation, flips, and scale) that writes plain CSS into the object.
+   * Value: true
+   */
+  positionStyle: 'positionStyle',
+  /**
+   * Marks a CSS `style` object that accepts block / layout properties.
+   * Renders a Block section (placement plus child alignment and clip)
+   * that writes plain CSS into the object. Also shows the Special Effects
+   * section. Components that extend a schema with this flag keep it. Value: true
+   */
+  blockStyle: 'blockStyle',
+  /**
+   * Marks a CSS `style` object that accepts image look properties.
+   * Renders an Image section (thumbnail + popup for src, fit, filter,
+   * blend, opacity, tint) that writes those into the object / sibling src.
+   * Value: true
+   */
+  imageStyle: 'imageStyle',
+  /**
+   * Marks a CSS `style` object that accepts video look properties.
+   * Renders a Video section (thumbnail + the same media popup as Image:
+   * src, fit, filter, blend, opacity, tint). Value: true
+   */
+  videoStyle: 'videoStyle',
+  /**
+   * Marks a field that accepts audio media.
+   * Renders an Audio section (thumbnail + the same media popup as Image,
+   * choosing the source). Value: true
+   */
+  audioStyle: 'audioStyle',
+  /**
    * Sibling fields that share this id are rendered together on one row.
    * Value: group id string
    */

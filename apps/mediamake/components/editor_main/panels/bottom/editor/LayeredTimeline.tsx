@@ -19,7 +19,8 @@ import { usePlayerRefStore } from "../../../stores/player-ref-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
+import { collectVisualMedia } from "@/lib/editor/visual-media";
+import { TimelineFilmstrip } from "./timeline-filmstrip";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -78,37 +79,10 @@ function getClipStyle(componentId: string) {
   return CLIP_STYLE[componentId] ?? DEFAULT_CLIP_STYLE;
 }
 
-function TimelineVideoPreview({
-  src,
-  thumbnail,
-}: {
-  src: string;
-  thumbnail?: string;
-}) {
-  const { thumbnailSrc } = useVideoThumbnail(thumbnail ? null : src, {
-    timeInSeconds: 2,
-    width: 240,
-  });
-  const displaySrc = thumbnail || thumbnailSrc;
-  if (displaySrc) {
-    return (
-      <div
-        className="w-full h-full"
-        style={{
-          backgroundImage: `url(${displaySrc})`,
-          backgroundSize: "auto 100%",
-          backgroundRepeat: "repeat-x",
-        }}
-      />
-    );
-  }
-  return <div className="w-full h-full bg-black/40" />;
-}
-
-// ─── TimelineClipBlock ────────────────────────────────────────────────────────
-
 function TimelineClipBlock({
   layer,
+  durationSec,
+  pixelsPerSecond,
   isSelected,
   stateLocked,
   onPointerDown,
@@ -117,6 +91,8 @@ function TimelineClipBlock({
   onTrimRightPointerDown,
 }: {
   layer: FlatLayer;
+  durationSec: number;
+  pixelsPerSecond: number;
   isSelected: boolean;
   stateLocked: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
@@ -126,10 +102,34 @@ function TimelineClipBlock({
 }) {
   const style = getClipStyle(layer.componentId);
   const isText = layer.componentId === "TextAtom";
-  const isMedia = layer.componentId === "ImageAtom" || layer.componentId === "VideoAtom";
   const isAudio = layer.componentId === "AudioAtom";
   const previewText = layer.previewText;
   const previewSrc = layer.previewSrc;
+  const visual = previewSrc
+    ? collectVisualMedia({
+        src: previewSrc,
+        type:
+          layer.componentId === "VideoAtom"
+            ? "video"
+            : layer.componentId === "ImageAtom" || layer.componentId === "ImageBeat"
+              ? "image"
+              : undefined,
+        ...(layer.previewThumbnail ? { thumbnail: layer.previewThumbnail } : {}),
+      })
+    : [];
+  const filmstrip =
+    visual[0] && layer.componentId !== "AudioAtom"
+      ? [
+          {
+            start: 0,
+            duration: durationSec,
+            still: {
+              ...visual[0],
+              sourceOffset: layer.previewSourceOffset ?? 0,
+            },
+          },
+        ]
+      : [];
   const displayLabel = isText && previewText?.trim()
     ? String(previewText).trim().slice(0, 80)
     : (layer.label || layer.id);
@@ -148,20 +148,10 @@ function TimelineClipBlock({
         )}
         style={{ minWidth: 4 }}
       >
-        {isMedia && previewSrc ? (
+        {filmstrip.length > 0 ? (
           <div className="absolute inset-0">
-            {layer.componentId === "VideoAtom" ? (
-              <TimelineVideoPreview
-                src={previewSrc}
-                thumbnail={layer.previewThumbnail}
-              />
-            ) : (
-              <div
-                className="w-full h-full"
-                style={{ backgroundImage: `url(${previewSrc})`, backgroundSize: "auto 100%", backgroundRepeat: "repeat-x" }}
-              />
-            )}
-            <span className="absolute bottom-0 left-0 right-0 py-0.5 px-1 bg-black/60 text-white truncate text-[9px]">
+            <TimelineFilmstrip segments={filmstrip} pixelsPerSecond={pixelsPerSecond} />
+            <span className="absolute bottom-0 left-0 right-0 z-[1] py-0.5 px-1 bg-black/60 text-white truncate text-[9px]">
               {layer.label || layer.id}
             </span>
           </div>
@@ -747,6 +737,8 @@ export function LayeredTimeline() {
             >
               <TimelineClipBlock
                 layer={layer}
+                durationSec={dur / fps}
+                pixelsPerSecond={pixelsPerSecond}
                 isSelected={isSelected}
                 stateLocked={state.locked}
                 onPointerDown={(e) => handleBlockPointerDown(e, layer)}

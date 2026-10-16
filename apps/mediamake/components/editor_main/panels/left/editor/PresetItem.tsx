@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
@@ -34,6 +34,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AddBlockContextMenuItems, BlocksHeaderAddButton } from "./AddBlockMenu";
 import { BlockIcon } from "./block-icon";
+import { MediaThumbIcon } from "./media-thumb-icon";
+import { collectVisualMedia } from "@/lib/editor/visual-media";
 import { groupSelectedBlocks } from "./group-selection";
 import { canGroupPresets } from "@/components/editor_main/timing/group-presets";
 import { DatabasePreset, Preset } from "@/components/editor/presets/types";
@@ -242,6 +244,13 @@ export function PresetItem({
     const canMoveDown = place < places - 1;
     const canPasteItem = itemClipboard?.kind === "preset";
     const showActions = isHovered || isSelected || addMenuOpen;
+    const visualMedia = useMemo(
+        () => collectVisualMedia(
+            displayPreset.presetInputData,
+            displayTimeline.defaultData?.references,
+        ),
+        [displayPreset.presetInputData, displayTimeline.defaultData?.references],
+    );
 
     const stopDrag = (event: React.PointerEvent) => {
         event.stopPropagation();
@@ -252,6 +261,7 @@ export function PresetItem({
             <ContextMenuTrigger asChild>
                 <div
                     ref={setNodeRef}
+                    data-block-id={preset.id}
                     style={style}
                     {...attributes}
                     {...listeners}
@@ -285,10 +295,15 @@ export function PresetItem({
                     ) : (
                         <span className="w-2.5 shrink-0" />
                     )}
-                    <BlockIcon
-                        presetId={displayPreset.presetId}
-                        input={displayPreset.presetInputData}
-                        className="h-3.5 w-3.5 shrink-0"
+                    <MediaThumbIcon
+                        items={visualMedia}
+                        fallback={
+                            <BlockIcon
+                                presetId={displayPreset.presetId}
+                                input={displayPreset.presetInputData}
+                                className="h-3.5 w-3.5 shrink-0"
+                            />
+                        }
                     />
                     <span className={cn("flex-1 min-w-0 truncate",
                         displayPreset.disabled ? "line-through" : "",

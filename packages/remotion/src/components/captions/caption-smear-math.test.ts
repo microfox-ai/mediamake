@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { beatEnvelope, buildCaptionBeats, findActiveBeat } from './caption-smear-math';
+import { applyLetterSpacingSettle, beatEnvelope, buildCaptionBeats, findActiveBeat, letterSpacingSettle } from './caption-smear-math';
 
 const caption = (absoluteStart: number, words: [string, number, number][]) => ({
   absoluteStart,
@@ -99,5 +99,59 @@ describe('beatEnvelope', () => {
     const env = beatEnvelope(0.12, 0.15);
     assert.equal(env.crisp, 1);
     assert.equal(env.dim, 0);
+  });
+
+  it('caps smear at the threshold so long words do not keep stretching', () => {
+    const stillSmearing = beatEnvelope(0.4, 3, { smearThreshold: 0.5 });
+    assert.ok(stillSmearing.smear > 0);
+
+    const snapped = beatEnvelope(0.7, 3, { smearThreshold: 0.5 });
+    assert.equal(snapped.smear, 0);
+    assert.equal(snapped.crisp, 1);
+
+    const defaultCap = beatEnvelope(0.7, 3);
+    assert.equal(defaultCap.smear, 0);
+
+    const shortCap = beatEnvelope(0.3, 3, { smearThreshold: 0.15 });
+    assert.equal(shortCap.smear, 0);
+    assert.equal(shortCap.crisp, 1);
+  });
+});
+
+describe('letterSpacingSettle', () => {
+  it('starts tight and is not fully open when the word ends', () => {
+    const start = letterSpacingSettle(0, 1);
+    const end = letterSpacingSettle(1, 1);
+    assert.equal(start.progress, 0);
+    assert.ok(end.progress > 0.7);
+    assert.ok(end.progress < 1);
+    assert.ok(end.extraEm > 0);
+
+    const target = 8;
+    const fontSize = 100;
+    const atStart = applyLetterSpacingSettle(target, fontSize, start);
+    const atEnd = applyLetterSpacingSettle(target, fontSize, end);
+    assert.ok(atStart < target, `start ${atStart} should be tighter than rest`);
+    assert.ok(atEnd > atStart, `settle ${atEnd} should expand`);
+    assert.ok(atEnd < target, `end ${atEnd} should still be short of rest`);
+  });
+
+  it('is fully at rest when disabled or impact is 0', () => {
+    assert.deepEqual(letterSpacingSettle(0, 1, { enabled: false }), { progress: 1, extraEm: 0 });
+    assert.deepEqual(letterSpacingSettle(0, 1, { impact: 0 }), { progress: 1, extraEm: 0 });
+  });
+
+  it('eases out — more of the motion happens in the first half', () => {
+    const a = letterSpacingSettle(0.25, 1).progress;
+    const b = letterSpacingSettle(0.5, 1).progress;
+    const c = letterSpacingSettle(0.75, 1).progress;
+    assert.ok(b - a > c - b);
+  });
+
+  it('higher impact leaves more leftover settle at the word end', () => {
+    const low = letterSpacingSettle(1, 1, { impact: 0.5 });
+    const high = letterSpacingSettle(1, 1, { impact: 2 });
+    assert.ok(high.progress < low.progress);
+    assert.ok(high.extraEm > low.extraEm);
   });
 });

@@ -117,7 +117,7 @@ export function TrackModeControl({
               size="sm"
               value={lockValue}
               onChange={(lock) => {
-                onChange(applyTrackMode(value, "lockedTo", lock));
+                onChange(applyTrackMode(value, "lockedTo", lock, { dropDuration: includeAuto }));
                 if (lock.trim()) setOpen(false);
               }}
             />
@@ -130,7 +130,7 @@ export function TrackModeControl({
         pressed={mode === "sequence"}
         onClick={() => {
           setOpen(false);
-          onChange(applyTrackMode(value, "sequence"));
+          onChange(applyTrackMode(value, "sequence", undefined, { dropDuration: includeAuto }));
         }}
       >
         <SequenceIcon className="size-2.5" />

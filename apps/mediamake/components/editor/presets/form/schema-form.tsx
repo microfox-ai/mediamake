@@ -20,12 +20,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { ATOM_FILL_STYLE } from "../define-preset";
 import { PresetMetadata } from "../types";
 import { toJSONSchema } from "zod";
 import { MediaPicker } from "../../media/media-picker";
 import { MediaFile } from "@/app/types/media";
-import { getAvailableFonts } from "@remotion/google-fonts";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { FontPicker } from "./inputs/font-picker";
+import { LayoutStyleSection, PositionStyleSection } from "./inputs/position-style-section";
+import { POSITION_STYLE_KEYS } from "./inputs/position-style";
+import { TypographySection, TYPOGRAPHY_STYLE_KEYS } from "./inputs/typography-section";
+import { ImageStyleSection } from "./inputs/image-style-section";
+import { IMAGE_STYLE_KEYS } from "./inputs/image-style";
+import { SPECIAL_EFFECTS_STYLE_KEYS } from "./inputs/special-effects";
+import { BlockStyleSection } from "./inputs/block-style-section";
+import { BLOCK_APPEARANCE_KEYS } from "./inputs/block-style";
+import { TextContentEditor } from "./inputs/text-content-editor";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TranscriptionPicker } from "../../../transcriber/picker/transcription-picker";
@@ -73,8 +83,6 @@ import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { isValidRangeString } from "../engine/range-validation";
 import { fitRangeAtPlayhead, formatRangeClock, parseTimeToSeconds } from "../engine/preset-stdlib";
 import { CaptionHtmlTextEditor } from "@/components/editor/captions/caption-html-text-editor";
-
-const availableFonts = getAvailableFonts();
 
 // Standard JSON Schema keywords — everything else in a Zod-generated schema is
 // .meta() data that Zod inlines at the top level of the property object.
@@ -233,7 +241,7 @@ function isMediaSelectableField(fieldKey: string, field: FormField): boolean {
 
 // Helper function to detect if a field is font related
 function isFontField(fieldKey: string, field: FormField): boolean {
-    const fontKeywords = ['font', 'fontfamily', 'font-family', 'typeface', 'textstyle'];
+    const fontKeywords = ['font', 'fontfamily', 'font-family', 'typeface'];
     const keyLower = fieldKey.toLowerCase();
     const titleLower = (field.title || '').toLowerCase();
     const descLower = (field.description || '').toLowerCase();
@@ -384,6 +392,30 @@ function isColorRowsField(field: FormField): boolean {
 
 function isFlatObjectField(field: FormField): boolean {
     return field.meta?.[paramMetaTypes.flatObject] === true;
+}
+
+function isTextStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.textStyle] === true;
+}
+
+function isPositionStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.positionStyle] === true;
+}
+
+function isBlockStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.blockStyle] === true;
+}
+
+function isImageStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.imageStyle] === true;
+}
+
+function isVideoStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.videoStyle] === true;
+}
+
+function isAudioStyleField(field: FormField): boolean {
+    return field.meta?.[paramMetaTypes.audioStyle] === true;
 }
 
 function chunkByLayoutGroup(list: FormField[]): FormField[][] {
@@ -2052,220 +2084,6 @@ function RangeStringInput({
     );
 }
 
-const previewFontFamilies = new Map<string, string>();
-const previewFontLoads = new Map<string, Promise<string | null>>();
-
-function loadPreviewFontFamily(importName: string): Promise<string | null> {
-    const cached = previewFontFamilies.get(importName);
-    if (cached) return Promise.resolve(cached);
-
-    const inflight = previewFontLoads.get(importName);
-    if (inflight) return inflight;
-
-    const entry = availableFonts.find((font) => font.importName === importName);
-    if (!entry) return Promise.resolve(null);
-
-    const pending = entry
-        .load()
-        .then((mod) => {
-            const loaded = mod.loadFont("normal", {
-                subsets: ["latin"],
-                weights: ["400"],
-            });
-            return loaded.waitUntilDone().then(() => loaded.fontFamily);
-        })
-        .then((family) => {
-            previewFontFamilies.set(importName, family);
-            return family;
-        })
-        .catch(() => null);
-
-    previewFontLoads.set(importName, pending);
-    return pending;
-}
-
-function findFontByImportName(importName: string) {
-    const target = importName.toLowerCase();
-    return availableFonts.find((font) => font.importName.toLowerCase() === target);
-}
-
-// FontDropdown component for font selection with editable text.
-// Highlighting a row previews that typeface immediately; click commits it.
-function FontDropdown({
-    value,
-    onChange,
-    placeholder = "Select or type font name"
-}: {
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-}) {
-    const [inputValue, setInputValue] = useState(value || "");
-    const [isOpen, setIsOpen] = useState(false);
-    const [highlighted, setHighlighted] = useState(value || "");
-    const [previewCssFamily, setPreviewCssFamily] = useState<string | null>(null);
-    const openedValueRef = useRef(value || "");
-    const didCommitRef = useRef(false);
-    const previewArmedRef = useRef(false);
-    const highlightedRef = useRef(value || "");
-    const appliedFromHighlightRef = useRef(false);
-
-    const filteredFonts = availableFonts.filter(font =>
-        font.fontFamily.toLowerCase().includes(inputValue.toLowerCase()) ||
-        font.importName.toLowerCase().includes(inputValue.toLowerCase())
-    );
-
-    const highlightedFont = findFontByImportName(highlighted);
-
-    useEffect(() => {
-        const importName = highlightedFont?.importName;
-        if (!importName) {
-            setPreviewCssFamily(null);
-            return;
-        }
-
-        const cached = previewFontFamilies.get(importName);
-        if (cached) {
-            setPreviewCssFamily(cached);
-            return;
-        }
-
-        let cancelled = false;
-        setPreviewCssFamily(null);
-        void loadPreviewFontFamily(importName).then((family) => {
-            if (!cancelled) setPreviewCssFamily(family);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [highlightedFont?.importName]);
-
-    const handleInputChange = (newValue: string) => {
-        setInputValue(newValue);
-        previewArmedRef.current = true;
-        appliedFromHighlightRef.current = false;
-        onChange(newValue);
-    };
-
-    const handleHighlight = (nextValue: string) => {
-        const font = findFontByImportName(nextValue);
-        if (!font || font.importName === highlightedRef.current) return;
-        highlightedRef.current = font.importName;
-        setHighlighted(font.importName);
-        if (!previewArmedRef.current) return;
-        appliedFromHighlightRef.current = true;
-        onChange(font.importName);
-    };
-
-    const handleSelect = (selectedValue: string) => {
-        didCommitRef.current = true;
-        highlightedRef.current = selectedValue;
-        setHighlighted(selectedValue);
-        setInputValue(selectedValue);
-        onChange(selectedValue);
-        setIsOpen(false);
-    };
-
-    const handleOpenChange = (open: boolean) => {
-        if (open) {
-            openedValueRef.current = value || "";
-            highlightedRef.current = value || "";
-            didCommitRef.current = false;
-            previewArmedRef.current = false;
-            appliedFromHighlightRef.current = false;
-            setHighlighted(value || "");
-        } else if (!didCommitRef.current && appliedFromHighlightRef.current) {
-            const opened = openedValueRef.current;
-            appliedFromHighlightRef.current = false;
-            highlightedRef.current = opened;
-            setHighlighted(opened);
-            setInputValue(opened);
-            onChange(opened);
-        }
-        setIsOpen(open);
-    };
-
-    const armPreview = () => {
-        if (previewArmedRef.current) return;
-        previewArmedRef.current = true;
-        const font = findFontByImportName(highlightedRef.current);
-        if (!font || font.importName === openedValueRef.current) return;
-        appliedFromHighlightRef.current = true;
-        onChange(font.importName);
-    };
-
-    const previewStyle = previewCssFamily ? { fontFamily: previewCssFamily } : undefined;
-
-    return (
-        <Popover open={isOpen} onOpenChange={handleOpenChange}>
-            <PopoverTrigger asChild>
-                <Input
-                    value={inputValue}
-                    onChange={(e) => handleInputChange(e.target.value)}
-                    placeholder={placeholder}
-                    className="w-full"
-                    onFocus={() => setIsOpen(true)}
-                />
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command
-                    shouldFilter={false}
-                    value={highlighted}
-                    onValueChange={handleHighlight}
-                    onKeyDown={(event) => {
-                        if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
-                            armPreview();
-                        }
-                    }}
-                >
-                    <CommandInput
-                        placeholder="Search fonts..."
-                        value={inputValue}
-                        onValueChange={handleInputChange}
-                    />
-                    <div className="border-b px-3 py-2.5" aria-hidden>
-                        <p
-                            className="truncate text-base leading-snug text-foreground"
-                            style={previewStyle}
-                        >
-                            {highlightedFont?.fontFamily || highlighted || "Font preview"}
-                        </p>
-                        <p
-                            className="truncate text-sm leading-snug text-muted-foreground"
-                            style={previewStyle}
-                        >
-                            The quick brown fox jumps
-                        </p>
-                    </div>
-                    <CommandList onPointerMoveCapture={armPreview}>
-                        <CommandEmpty>No fonts found.</CommandEmpty>
-                        <CommandGroup>
-                            {filteredFonts.map((font) => (
-                                <CommandItem
-                                    key={font.importName}
-                                    value={font.importName}
-                                    onSelect={() => handleSelect(font.importName)}
-                                    className="cursor-pointer"
-                                >
-                                    <div className="flex flex-col">
-                                        <span
-                                            className="font-medium"
-                                            style={font.importName === highlightedFont?.importName ? previewStyle : undefined}
-                                        >
-                                            {font.fontFamily}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">{font.importName}</span>
-                                    </div>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
-    );
-}
-
 // Global renderField function that can be used by nested components
 function renderField(
     field: FormField,
@@ -2471,13 +2289,24 @@ function renderField(
                 }
 
                 if (explicitInput === paramInputTypes.textarea) {
+                    const isTextContent = fieldKey.toLowerCase() === "text";
+                    if (isTextContent) {
+                        return (
+                            <TextContentEditor
+                                value={typeof fieldValue === "string" ? fieldValue : ""}
+                                onChange={(val) => handleChange(fieldKey, val)}
+                                placeholder={field.description || `Enter ${field.title || fieldKey}`}
+                                rows={5}
+                            />
+                        );
+                    }
                     return (
                         <Textarea
                             value={typeof fieldValue === 'string' ? fieldValue : ""}
                             onChange={(e) => handleChange(fieldKey, e.target.value)}
                             placeholder={field.description || `Enter ${field.title || fieldKey}`}
                             rows={8}
-                            className="resize-none overflow-y-auto"
+                            className="resize-none overflow-y-auto whitespace-break-spaces text-sm"
                         />
                     );
                 }
@@ -2567,10 +2396,10 @@ function renderField(
 
                 if (isFont) {
                     return (
-                        <FontDropdown
-                            value={typeof fieldValue === 'string' ? fieldValue : ""}
+                        <FontPicker
+                            value={typeof fieldValue === "string" ? fieldValue : undefined}
                             onChange={(val) => handleChange(fieldKey, val)}
-                            placeholder={field.description || `Select or type font name`}
+                            placeholder={field.description || "Select font"}
                         />
                     );
                 }
@@ -2582,7 +2411,7 @@ function renderField(
                             onChange={(e) => handleChange(fieldKey, e.target.value)}
                             placeholder={field.description || `Enter ${field.title || fieldKey}`}
                             rows={8}
-                            className="resize-none overflow-y-auto"
+                            className="resize-none overflow-y-auto whitespace-break-spaces text-sm"
                         />
                     );
                 }
@@ -2620,7 +2449,10 @@ function renderField(
 
             case "boolean":
                 return (
-                    <Select value={fieldValue?.toString() || "false"} onValueChange={(val) => handleChange(fieldKey, val === "true")}>
+                    <Select
+                        value={fieldValue?.toString() || (field.default === true ? "true" : "false")}
+                        onValueChange={(val) => handleChange(fieldKey, val === "true")}
+                    >
                         <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
@@ -2647,7 +2479,9 @@ function renderField(
                     const rows = childFieldsOf(field);
                     return (
                         <div className="space-y-3">
-                            {rows.map((row) => (
+                            {rows.map((row) => {
+                                const color = fieldValue?.[row.key];
+                                return (
                                 <div key={row.key} className="space-y-1">
                                     <div className="flex items-center gap-1">
                                         <Label className="text-xs font-medium">
@@ -2656,7 +2490,7 @@ function renderField(
                                         <DescriptionHint description={row.description} />
                                     </div>
                                     <ColorInput
-                                        value={typeof fieldValue?.[row.key] === "string" ? fieldValue[row.key] : ""}
+                                        value={typeof color === "string" ? color : ""}
                                         onChange={(val) =>
                                             handleChange(fieldKey, {
                                                 ...(fieldValue && typeof fieldValue === "object" ? fieldValue : {}),
@@ -2666,12 +2500,27 @@ function renderField(
                                         placeholder={typeof row.default === "string" ? row.default : "#000000"}
                                     />
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     );
                 }
-                if (isFlatObjectField(field)) {
-                    const children = childFieldsOf(field);
+                const isTextStyle = isTextStyleField(field);
+                const isPositionStyle = isPositionStyleField(field);
+                const isBlockStyle = isBlockStyleField(field);
+                const isImageStyle = isImageStyleField(field);
+                const isVideoStyle = isVideoStyleField(field);
+                const isAudioStyle = isAudioStyleField(field);
+                const showSpecialEffects = isTextStyle || isBlockStyle;
+                if (isFlatObjectField(field) || isTextStyle || isPositionStyle || isBlockStyle || isImageStyle || isVideoStyle || isAudioStyle) {
+                    const children = childFieldsOf(field).filter(
+                        (child) =>
+                            !(isTextStyle && TYPOGRAPHY_STYLE_KEYS.has(child.key)) &&
+                            !(isPositionStyle && POSITION_STYLE_KEYS.has(child.key)) &&
+                            !((isImageStyle || isVideoStyle) && IMAGE_STYLE_KEYS.has(child.key)) &&
+                            !(showSpecialEffects && SPECIAL_EFFECTS_STYLE_KEYS.has(child.key)) &&
+                            !(isBlockStyle && BLOCK_APPEARANCE_KEYS.has(child.key)),
+                    );
                     const updateChild = (childKey: string, childValue: any) => {
                         handleChange(fieldKey, {
                             ...(fieldValue && typeof fieldValue === "object" ? fieldValue : {}),
@@ -2708,7 +2557,52 @@ function renderField(
                         </div>
                     );
                     return (
-                        <div className="space-y-3">
+                        <div className="space-y-3 text-sm">
+                            {isPositionStyle && (
+                                <PositionStyleSection
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                />
+                            )}
+                            {isImageStyle && (
+                                <ImageStyleSection
+                                    kind="image"
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                    src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
+                                    onSrcChange={(src) => handleChange("src", src)}
+                                />
+                            )}
+                            {isVideoStyle && (
+                                <ImageStyleSection
+                                    kind="video"
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                    src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
+                                    onSrcChange={(src) => handleChange("src", src)}
+                                />
+                            )}
+                            {isAudioStyle && (
+                                <ImageStyleSection
+                                    kind="audio"
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                    src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
+                                    onSrcChange={(src) => handleChange("src", src)}
+                                />
+                            )}
+                            {isTextStyle && (
+                                <TypographySection
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                />
+                            )}
+                            {isBlockStyle && (
+                                <BlockStyleSection
+                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    onChange={(next) => handleChange(fieldKey, next)}
+                                />
+                            )}
                             {chunkByLayoutGroup(children).map((row) =>
                                 row.length === 1 ? (
                                     renderChild(row[0])
@@ -2857,7 +2751,13 @@ function renderField(
             !isImagesGroupField(field) &&
             !isShakeEffectsGroupField(field) &&
             !isEffectsGroupField(field) &&
-            !isTransitionEffectsGroupField(field)) ||
+            !isTransitionEffectsGroupField(field) &&
+            !isTextStyleField(field) &&
+            !isPositionStyleField(field) &&
+            !isBlockStyleField(field) &&
+            !isImageStyleField(field) &&
+            !isVideoStyleField(field) &&
+            !isAudioStyleField(field)) ||
         (field.type === "array" &&
             Boolean(field.items) &&
             !isImagesGroupField(field) &&
@@ -2986,7 +2886,17 @@ function renderField(
     // Always show FieldLabel for structured fields (help / ref / media icons).
     // When linked, still render the linked-value editor under the same label.
     // shakeEffectsGroup and effectsGroup own their label row (Smart / Full tabs).
-    if (isShakeEffectsGroupField(field) || isEffectsGroupField(field) || isTransitionEffectsGroupField(field)) {
+    if (
+        isShakeEffectsGroupField(field) ||
+        isEffectsGroupField(field) ||
+        isTransitionEffectsGroupField(field) ||
+        isTextStyleField(field) ||
+        isPositionStyleField(field) ||
+        isBlockStyleField(field) ||
+        isImageStyleField(field) ||
+        isVideoStyleField(field) ||
+        isAudioStyleField(field)
+    ) {
         return (
             <div key={fieldKey} className="space-y-2">
                 {renderInput()}
@@ -3072,7 +2982,7 @@ function NestedForm({
         onChange(newData);
     };
 
-    const fields = getFieldsFromSchema(schema);
+    const fields = getFieldsFromSchema(schema).filter((field) => field.key !== "attachedToId");
     const hasFields = fields.length > 0;
 
     return (
@@ -3607,9 +3517,18 @@ export function SchemaForm({
             ? [...TRACK_SHELL_KEYS]
             : ["start", "duration", "lock", "startOffset"];
         if (sequenceLengthChoice) hiddenTiming.push("perImageDuration");
-        const visible = groupTiming
+        const hasImageStyle = list.some((field) => isImageStyleField(field));
+        const hasVideoStyle = list.some((field) => isVideoStyleField(field));
+        const hasAudioStyle = list.some((field) => isAudioStyleField(field));
+        const hasMediaStyle = hasImageStyle || hasVideoStyle || hasAudioStyle;
+        const visible = (groupTiming
             ? list.filter((field) => !hiddenTiming.includes(field.key))
-            : list;
+            : list
+        ).filter((field) =>
+            field.key !== "attachedToId" &&
+            !(hasMediaStyle && field.key === "src") &&
+            !(hasVideoStyle && field.key === "fit"),
+        );
         const timingValue = formData && typeof formData === "object" ? formData : {};
         const writeTiming = (next: Record<string, unknown>) => {
             setFormData(next);
@@ -3625,6 +3544,7 @@ export function SchemaForm({
                         autoRange={autoRange}
                         sequenceLengthChoice={sequenceLengthChoice}
                         modes={Array.isArray(row[0].enum) ? row[0].enum : undefined}
+                        dropDuration={metadata?.id === "base-scene"}
                         onChange={writeTiming}
                     />
                 )];
@@ -3641,10 +3561,42 @@ export function SchemaForm({
                 ),
             ];
         });
-        if (!footer) return rows;
+        const containerStyle =
+            formData?.containerProps &&
+                typeof formData.containerProps === "object" &&
+                formData.containerProps.style &&
+                typeof formData.containerProps.style === "object"
+                ? (formData.containerProps.style as Record<string, unknown>)
+                : undefined;
+        const writeContainerStyle = (style: Record<string, unknown> | undefined) => {
+            const next = { ...(formData || {}) };
+            const current =
+                next.containerProps && typeof next.containerProps === "object"
+                    ? { ...next.containerProps }
+                    : {};
+            if (!style || Object.keys(style).length === 0) {
+                delete current.style;
+                if (Object.keys(current).length === 0) delete next.containerProps;
+                else next.containerProps = current;
+            } else {
+                next.containerProps = { ...current, style };
+            }
+            setFormData(next);
+            onChange(next);
+        };
+        const layoutValue =
+            containerStyle ??
+            (metadata?.placement === "atom" ? { ...ATOM_FILL_STYLE } : undefined);
+        const layout = metadata?.presetType ? (
+            <div key="preset-layout" className="text-sm">
+                <LayoutStyleSection value={layoutValue} onChange={writeContainerStyle} />
+            </div>
+        ) : null;
+        if (!footer) return layout ? [layout, ...rows] : rows;
         const trackNameField = list.find((field) => field.key === "trackName");
         const trackTypeField = list.find((field) => field.key === "trackType");
         return [
+            ...(layout ? [layout] : []),
             ...rows,
             <TrackPropertiesFooter key="track-properties">
                 {trackNameField ? <div>{paint(trackNameField)}</div> : null}
@@ -3654,6 +3606,7 @@ export function SchemaForm({
                     autoRange={autoRange}
                     sequenceLengthChoice={sequenceLengthChoice}
                     modes={Array.isArray(trackTypeField?.enum) ? trackTypeField.enum : undefined}
+                    dropDuration={metadata?.id === "base-scene"}
                     onChange={writeTiming}
                 />
             </TrackPropertiesFooter>,
@@ -3677,102 +3630,132 @@ export function SchemaForm({
 
     return (
         <LockTargetNamesContext.Provider value={lockTargetNames}>
-        <div className={className} data-schema-form="">
-            <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                    {showTitle && title ? (
-                        <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>
-                    ) : null}
-                    {description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1 overflow-hidden text-ellipsis">{description}</p>
-                    )}
+            <div className={className} data-schema-form="">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="min-w-0">
+                        {showTitle && title ? (
+                            <h3 className="text-sm font-semibold mt-1 line-clamp-1 overflow-hidden text-ellipsis">{title}</h3>
+                        ) : null}
+                        {description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1 overflow-hidden text-ellipsis">{description}</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {customActions}
+                        {showTabs && (
+                            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
+                                <TabsList>
+                                    <TabsTrigger value="form" className="text-xs flex items-center gap-2">
+                                        <FormInputIcon className="h-3 w-3" />
+                                        Form
+                                    </TabsTrigger>
+                                    <TabsTrigger value="json" className="text-xs flex items-center gap-2">
+                                        <Code className="h-3 w-3" />
+                                        Json
+                                    </TabsTrigger>
+                                    <TabsTrigger value="media" className="text-xs flex items-center gap-2">
+                                        <ImageIcon className="h-3 w-3" />
+                                        Media
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        )}
+                        {showResetButton && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        onClick={handleReset}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs p-1"
+                                    >
+                                        <RotateCcw className="h-3 w-3" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{resetButtonText}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {customActions}
-                    {showTabs && (
+                <div>
+                    {showTabs ? (
                         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
-                            <TabsList>
-                                <TabsTrigger value="form" className="text-xs flex items-center gap-2">
-                                    <FormInputIcon className="h-3 w-3" />
-                                    Form
-                                </TabsTrigger>
-                                <TabsTrigger value="json" className="text-xs flex items-center gap-2">
-                                    <Code className="h-3 w-3" />
-                                    Json
-                                </TabsTrigger>
-                                <TabsTrigger value="media" className="text-xs flex items-center gap-2">
-                                    <ImageIcon className="h-3 w-3" />
-                                    Media
-                                </TabsTrigger>
-                            </TabsList>
+                            <TabsContent value="form" className="space-y-4">
+                                {expandedMedia && (
+                                    <Card className="mb-4 border-primary/20">
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center justify-between">
+                                                <CardTitle className="text-sm">
+                                                    Expanded Media Item
+                                                </CardTitle>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setExpandedMedia(null)}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Label className="text-xs font-medium">Array:</Label>
+                                                    <Badge variant="outline">{expandedMedia.arrayKey}</Badge>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Label className="text-xs font-medium">Index:</Label>
+                                                    <Badge variant="outline">{expandedMedia.index}</Badge>
+                                                </div>
+                                                <div className="mt-3">
+                                                    <JsonEditor
+                                                        value={expandedMedia.item}
+                                                        onChange={(newItem) => {
+                                                            const newData = { ...formData };
+                                                            newData[expandedMedia.arrayKey][expandedMedia.index] = newItem;
+                                                            handleMediaDataChange(newData);
+                                                            setExpandedMedia({ ...expandedMedia, item: newItem });
+                                                        }}
+                                                        height="200px"
+                                                        className="border rounded-md"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                                {fields.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {renderSchemaFields(fields)}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No input parameters defined for this preset
+                                    </p>
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="json">
+                                <JsonEditor
+                                    value={formData}
+                                    onChange={handleJsonChange}
+                                    height="400px"
+                                    className="border rounded-md"
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="media">
+                                <MediaTab
+                                    data={formData}
+                                    onChange={handleMediaDataChange}
+                                    onMediaClick={handleMediaClick}
+                                />
+                            </TabsContent>
                         </Tabs>
-                    )}
-                    {showResetButton && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    onClick={handleReset}
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs p-1"
-                                >
-                                    <RotateCcw className="h-3 w-3" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{resetButtonText}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-            </div>
-            <div>
-                {showTabs ? (
-                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "form" | "json" | "media")}>
-                        <TabsContent value="form" className="space-y-4">
-                            {expandedMedia && (
-                                <Card className="mb-4 border-primary/20">
-                                    <CardHeader className="pb-3">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-sm">
-                                                Expanded Media Item
-                                            </CardTitle>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setExpandedMedia(null)}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-xs font-medium">Array:</Label>
-                                                <Badge variant="outline">{expandedMedia.arrayKey}</Badge>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-xs font-medium">Index:</Label>
-                                                <Badge variant="outline">{expandedMedia.index}</Badge>
-                                            </div>
-                                            <div className="mt-3">
-                                                <JsonEditor
-                                                    value={expandedMedia.item}
-                                                    onChange={(newItem) => {
-                                                        const newData = { ...formData };
-                                                        newData[expandedMedia.arrayKey][expandedMedia.index] = newItem;
-                                                        handleMediaDataChange(newData);
-                                                        setExpandedMedia({ ...expandedMedia, item: newItem });
-                                                    }}
-                                                    height="200px"
-                                                    className="border rounded-md"
-                                                />
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
+                    ) : (
+                        <div className="space-y-4">
                             {fields.length > 0 ? (
                                 <div className="space-y-4">
                                     {renderSchemaFields(fields)}
@@ -3782,40 +3765,10 @@ export function SchemaForm({
                                     No input parameters defined for this preset
                                 </p>
                             )}
-                        </TabsContent>
-
-                        <TabsContent value="json">
-                            <JsonEditor
-                                value={formData}
-                                onChange={handleJsonChange}
-                                height="400px"
-                                className="border rounded-md"
-                            />
-                        </TabsContent>
-
-                        <TabsContent value="media">
-                            <MediaTab
-                                data={formData}
-                                onChange={handleMediaDataChange}
-                                onMediaClick={handleMediaClick}
-                            />
-                        </TabsContent>
-                    </Tabs>
-                ) : (
-                    <div className="space-y-4">
-                        {fields.length > 0 ? (
-                            <div className="space-y-4">
-                                {renderSchemaFields(fields)}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">
-                                No input parameters defined for this preset
-                            </p>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
         </LockTargetNamesContext.Provider>
     );
 }

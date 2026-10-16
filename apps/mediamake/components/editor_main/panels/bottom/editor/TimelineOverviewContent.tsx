@@ -9,8 +9,8 @@ import { useCompiledAudioClips } from "./use-compiled-audio-clips";
 import { loadInstanceTree } from "@/components/editor_main/timing/load-instance-tree";
 import {
   resolveTimelineScope,
-  scopeInstanceRows,
   scopeRangePresetIds,
+  scopeShownPresetCount,
 } from "./timeline-scope";
 import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
 import {
@@ -23,6 +23,7 @@ import { TimelineShell } from "./TimelineShell";
 import {
   actionRangesVisible,
   actionTimelineEnd,
+  bottomTimelineLane,
   collectActionTimelineSegments,
   collectTimelineTrackSources,
   timelineFromSelection,
@@ -33,9 +34,9 @@ import { CaptionsTracksSection } from "./sections/CaptionsTracksSection";
 import { LinkedActionTracks } from "./sections/ActionTracksSection";
 
 /**
- * Timeline-level bottom panel: sequence rows for presets attached to the
- * base scene, plus caption references. Action ranges appear only for the
- * selected action.
+ * Timeline-level bottom panel.
+ * The timeline and Blocks show preset rows. References and Actions show
+ * only their own ranges.
  */
 export function TimelineOverviewContent() {
   const { selectedItem } = useEditorStore();
@@ -67,6 +68,7 @@ export function TimelineOverviewContent() {
     () => (scope ? new Set(scopeRangePresetIds(scope)) : new Set<string>()),
     [scope],
   );
+  const lane = bottomTimelineLane(selectedItem);
 
   const audioClips = useCompiledAudioClips(effectiveTimeline);
 
@@ -132,18 +134,21 @@ export function TimelineOverviewContent() {
     );
   }
 
-  const presetCount = tree && scope ? scopeInstanceRows(tree, scope).length : 0;
-  const showTimelineSources =
-    scope?.kind === "scene-children" && scope.includeTimelineSources;
-  const captionCount = showTimelineSources
-    ? sources.filter((s) => s.kind === "captions-reference").length
-    : 0;
-  const actionCount = sources.filter(
-    (s) =>
-      s.kind === "action" &&
-      actionRangesVisible(s.action, selectedItem) &&
-      collectActionTimelineSegments(s.action).length > 0,
-  ).length;
+  const presetCount =
+    lane === "blocks" && tree && scope ? scopeShownPresetCount(tree, scope) : 0;
+  const captionCount =
+    lane === "references"
+      ? sources.filter((s) => s.kind === "captions-reference").length
+      : 0;
+  const actionCount =
+    lane === "actions"
+      ? sources.filter(
+          (s) =>
+            s.kind === "action" &&
+            actionRangesVisible(s.action, selectedItem) &&
+            collectActionTimelineSegments(s.action).length > 0,
+        ).length
+      : 0;
   const subtitleParts = [
     presetCount > 0
       ? `${presetCount} preset${presetCount !== 1 ? "s" : ""}`
@@ -163,48 +168,59 @@ export function TimelineOverviewContent() {
         subtitleParts.length > 0 ? `· ${subtitleParts.join(" · ")}` : undefined
       }
       audioClips={audioClips}
-      emptyMessage="This timeline has no ranges, words, or lines to show."
+      emptyMessage={
+        lane === "references"
+          ? "This timeline has no reference ranges."
+          : lane === "actions"
+            ? "This timeline has no action ranges."
+            : "This timeline has no blocks to show."
+      }
     >
-      {scope ? (
+      {lane === "blocks" && scope ? (
         <InstanceTimingSection timeline={effectiveTimeline} order={-1} scope={scope} />
       ) : null}
-      {sources.map((source, index) => {
-        if (source.kind === "preset") {
-          if (!rangePresetIds.has(source.presetId)) return null;
-          return (
-            <PresetTracksSection
-              key={source.id}
-              sectionId={source.id}
-              order={index}
-              timelineId={effectiveTimeline.id}
-              presetId={source.presetId}
-              label={source.label}
-              fallbackTimeline={effectiveTimeline}
-              sourceTag={source.label}
-            />
-          );
-        }
-        if (!showTimelineSources) return null;
-        if (source.kind === "captions-reference") {
-          return (
-            <CaptionsTracksSection
-              key={source.id}
-              sectionId={source.id}
-              order={index}
-              timelineId={effectiveTimeline.id}
-              referenceIndex={source.referenceIndex}
-              reference={source.reference}
-              sourceTag={source.key || "captions"}
-            />
-          );
-        }
-        return null;
-      })}
-      <LinkedActionTracks
-        actions={effectiveTimeline.actions}
-        selected={selectedItem}
-        orderBase={sources.length}
-      />
+      {lane === "blocks"
+        ? sources.map((source, index) => {
+            if (source.kind !== "preset" || !rangePresetIds.has(source.presetId)) {
+              return null;
+            }
+            return (
+              <PresetTracksSection
+                key={source.id}
+                sectionId={source.id}
+                order={index}
+                timelineId={effectiveTimeline.id}
+                presetId={source.presetId}
+                label={source.label}
+                fallbackTimeline={effectiveTimeline}
+                sourceTag={source.label}
+              />
+            );
+          })
+        : null}
+      {lane === "references"
+        ? sources.map((source, index) => {
+            if (source.kind !== "captions-reference") return null;
+            return (
+              <CaptionsTracksSection
+                key={source.id}
+                sectionId={source.id}
+                order={index}
+                timelineId={effectiveTimeline.id}
+                referenceIndex={source.referenceIndex}
+                reference={source.reference}
+                sourceTag={source.key || "captions"}
+              />
+            );
+          })
+        : null}
+      {lane === "actions" ? (
+        <LinkedActionTracks
+          actions={effectiveTimeline.actions}
+          selected={selectedItem}
+          orderBase={sources.length}
+        />
+      ) : null}
     </TimelineShell>
   );
 }

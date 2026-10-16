@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Lock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/context-menu";
 import { AddBlockContextMenuItems } from "@/components/editor_main/panels/left/editor/AddBlockMenu";
 import { hasTrackShell } from "@/components/editor/presets/form/apply-track-mode";
-import { BlockLockBadge } from "../block-lock-badge";
+import { BlockLockBadge, describeBlockLock } from "../block-lock-badge";
 import { PresetTrackModeControl } from "../track-mode-control";
 import { cn } from "@/lib/utils";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
@@ -57,6 +58,7 @@ import {
   type TimelineTrackRow,
 } from "../TimelineShell";
 import { useTimelineViewport } from "../timeline-viewport";
+import { presetFilmstripSegments, TimelineFilmstrip } from "../timeline-filmstrip";
 import {
   scopeInstanceRows,
   type TimelineScope,
@@ -377,7 +379,7 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
     });
   };
 
-  const trackRows: TimelineTrackRow[] = rows.map(({ node, depth }, index) => {
+  const trackRows: TimelineTrackRow[] = rows.flatMap(({ node, depth }, index) => {
     const span = resolved.nodes.get(node.id);
     const parent = parents.get(node.id) ?? null;
     const parentAbsolute =
@@ -443,6 +445,21 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
           }
         : undefined;
     const rowName = trackDisplayName(node.input, node.name);
+    const lockTargetName =
+      node.timing.kind === "lock" || node.timing.kind === "durationLock"
+        ? trackDisplayName(
+            findNode(tree, node.timing.refId)?.input,
+            findNode(tree, node.timing.refId)?.name || node.timing.refId,
+          )
+        : "";
+    const lockReason =
+      locked || sequenced
+        ? describeBlockLock({
+            sequenced,
+            lockedTo: node.timing.kind === "lock" ? lockTargetName : undefined,
+            durationLockedTo: node.timing.kind === "durationLock" ? lockTargetName : undefined,
+          })
+        : "";
     const isBaseSceneRow =
       scope.kind === "scene-children" &&
       scope.includeTimelineSources &&
@@ -455,6 +472,14 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
           mediaOffset < 0 ? ` · head ${formatTimeLabel(-mediaOffset)}` : ""
         }`
       : null;
+    const filmstripSegments = shown
+      ? presetFilmstripSegments({
+          input: node.input,
+          references: timeline.defaultData?.references,
+          durationSec: shown.duration,
+          contentAtLeft: useWindow ? shown.start - authoredAbsolute : 0,
+        })
+      : [];
 
     const placeChild = (childId: string) => {
       if (!childId || childId === node.id || node.role !== "scene") return;
@@ -507,7 +532,18 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
           }
         >
           <div className={cn("flex min-w-0 items-center gap-1", hasTrackShell(node.input) || isBaseSceneRow ? (isBaseSceneRow ? "pr-[4.25rem]" : "pr-12") : undefined)}>
-            {locked ? <Lock className="size-3 shrink-0 text-muted-foreground" /> : null}
+            {locked ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex shrink-0" onPointerDown={(event) => event.stopPropagation()}>
+                    <Lock className="size-3 text-muted-foreground" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>{lockReason}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
             <span className="truncate text-xs cursor-grab" title={note?.message}>
               {rowName}
             </span>
@@ -532,7 +568,7 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
           ) : null}
         </div>
     );
-    return {
+    const sceneRow: TimelineTrackRow = {
       id: `instance:${node.id}`,
       label:
         node.role === "scene" ? (
@@ -589,6 +625,10 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
                 }
               }}
             >
+              <TimelineFilmstrip
+                segments={filmstripSegments}
+                pixelsPerSecond={pixelsPerSecond}
+              />
               {canTrimStart ? (
                 <span
                   className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize"
@@ -605,8 +645,14 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
                   }
                 />
               ) : null}
-              {locked || sequenced ? <BlockLockBadge /> : null}
-              <span className={cn("truncate px-2", (locked || sequenced) && "pl-4")}>
+              {locked || sequenced ? <BlockLockBadge reason={lockReason} /> : null}
+              <span
+                className={cn(
+                  "relative z-[1] truncate px-2",
+                  filmstripSegments.length > 0 && "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]",
+                  (locked || sequenced) && "pl-4",
+                )}
+              >
                 {spanLabel ?? rowName}
               </span>
               {canTrimEnd ? (
@@ -642,6 +688,94 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
         </div>
       ),
     };
+    const packSequence =
+      scope.kind === "scene-children" &&
+      node.id === scope.sceneId &&
+      node.arrangement === "sequence";
+    if (!packSequence) return [sceneRow];
+    const sequenceChildren = node.children.filter(
+      (child) => child.role !== "modifier" && !child.disabled,
+    );
+    const sequenceHeight = rowHeightFor(compact);
+    const sequenceRow: TimelineTrackRow = {
+      id: `instance:${node.id}:sequence`,
+      label: (
+        <div
+          className="flex items-center border-b border-border/40 bg-background pr-2"
+          style={{ height: sequenceHeight, paddingLeft: 18 }}
+        >
+          <span className="truncate text-[10px] text-muted-foreground">
+            {sequenceChildren.length === 1
+              ? "1 block"
+              : `${sequenceChildren.length} blocks`}
+          </span>
+        </div>
+      ),
+      track: (
+        <div
+          className="relative border-b border-border/40 bg-muted/5"
+          style={{ width: totalWidth, height: sequenceHeight }}
+        >
+          {sequenceChildren.map((child, childIndex) => {
+            const childSpan = resolved.nodes.get(child.id);
+            if (!childSpan || !(childSpan.duration > 0)) return null;
+            const title = trackDisplayName(child.input, child.name);
+            const childTarget =
+              child.timing.kind === "lock" || child.timing.kind === "durationLock"
+                ? trackDisplayName(
+                    findNode(tree, child.timing.refId)?.input,
+                    findNode(tree, child.timing.refId)?.name || child.timing.refId,
+                  )
+                : "";
+            const reason = describeBlockLock({
+              sequenced: true,
+              lockedTo: child.timing.kind === "lock" ? childTarget : undefined,
+              durationLockedTo:
+                child.timing.kind === "durationLock" ? childTarget : undefined,
+            });
+            const childColor = TRACK_COLORS[childIndex % TRACK_COLORS.length];
+            const spanText = `${formatTimeLabel(childSpan.absoluteStart)}–${formatTimeLabel(childSpan.absoluteStart + childSpan.duration)}`;
+            const childSegments = presetFilmstripSegments({
+              input: child.input,
+              references: timeline.defaultData?.references,
+              durationSec: childSpan.duration,
+            });
+            return (
+              <div
+                key={child.id}
+                className={cn(
+                  "absolute top-1.5 bottom-1.5 flex items-center overflow-hidden border px-1 text-[10px]",
+                  blockCornerClass(compact, "rounded-md"),
+                  childColor,
+                  "cursor-pointer",
+                )}
+                style={{
+                  left: secToPx(childSpan.absoluteStart),
+                  width: Math.max(4, secToPx(childSpan.duration)),
+                }}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  selectRow(child.id);
+                }}
+              >
+                <TimelineFilmstrip segments={childSegments} pixelsPerSecond={pixelsPerSecond} />
+                <BlockLockBadge reason={reason} />
+                <span
+                  className={cn(
+                    "relative z-[1] truncate px-2 pl-4",
+                    childSegments.length > 0 && "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]",
+                  )}
+                  title={`${title} · ${spanText}`}
+                >
+                  {title}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ),
+    };
+    return [sceneRow, sequenceRow];
   });
 
   useRegisterTimelineSection({

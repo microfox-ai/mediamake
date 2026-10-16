@@ -3,6 +3,7 @@ import { Easing, interpolate, useCurrentFrame } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { atomCategory } from '../../atom-category';
 import { ShapeAtomInput } from './input-schemas';
+import { mergeSpecialEffects } from './special-effects-style';
 
 export { ShapeAtomInput } from './input-schemas';
 
@@ -41,7 +42,7 @@ export const Atom: React.FC<ShapeAtomProps> = ({ data }) => {
     const baseStyle: React.CSSProperties = {
         width: '100%',
         height: '100%',
-        ...style,
+        ...mergeSpecialEffects(style),
         ...rotationStyle,
     };
 

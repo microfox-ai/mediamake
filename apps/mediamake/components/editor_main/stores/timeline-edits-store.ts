@@ -4,11 +4,20 @@ import type { NodeTiming } from '@/components/editor_main/timing/types';
 import {
   applyTimingToPresetInput,
   collectSubtreeIds,
+  findNode,
+  idsRemovedWith,
+  insertPresetNode,
+  pruneNodes,
   loadInstanceTree,
   mapNodeDisabled,
   mapNodeTiming,
   moveNode,
+  orderPresetsLikeTree,
+  parentOfNode,
+  presetAnchorPlacement,
+  sceneRenderId,
 } from '@/components/editor_main/timing/load-instance-tree';
+import { inheritParentLock } from '@/components/editor/presets/form/apply-track-mode';
 import { groupSelectedPresets, type GroupSceneSeed } from '@/components/editor_main/timing/group-presets';
 import {
   copyTrackName,
@@ -115,7 +124,19 @@ interface TimelineEditsState {
     parentId?: string,
   ) => string | null;
   removePreset: (timelineId: string, presetId: string) => void;
-  duplicatePreset: (timelineId: string, presetId: string) => void;
+  duplicatePreset: (timelineId: string, presetId: string) => string | null;
+  /**
+   * Insert a preset copy next to `anchorId`.
+   * A copy of a block inside a group stays in that group.
+   * Returns the placed preset id.
+   */
+  placePresetCopy: (
+    timelineId: string,
+    preset: NonNullable<Timeline['presets']>[number],
+    anchorId: string | null,
+    placement?: 'beside' | 'into-or-beside',
+    actions?: NonNullable<Timeline['actions']>,
+  ) => string | null;
   reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => void;
   addActionToTimeline: (
     timelineId: string,
@@ -682,14 +703,27 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const timeline = resolveTimelineForEdit(timelineId);
       if (!timeline) return false;
       const current = loadInstanceTree(timeline);
+      const previousParent = parentOfNode(current, nodeId);
       const nodes = moveNode(current, nodeId, parentId, index);
       if (nodes === current) return false;
+      let presets = presetsWithParent(timeline.presets, nodeId, parentId, current.id);
+      if (previousParent?.id !== parentId) {
+        const parent = findNode(current, parentId);
+        if (parent?.role === "scene") {
+          presets = (presets ?? []).map((preset) => {
+            if (preset.id !== nodeId) return preset;
+            return {
+              ...preset,
+              presetInputData: inheritParentLock(preset.presetInputData, parent.input),
+            };
+          });
+        }
+      }
+      // Sibling order inside a group is the flat list order when `nodes` is absent.
+      presets = orderPresetsLikeTree(presets, nodes) ?? presets;
       get().updateTimeline(
         timelineId,
-        {
-          nodes,
-          presets: presetsWithParent(timeline.presets, nodeId, parentId, current.id),
-        },
+        { nodes, presets },
         `reparent:${nodeId}`,
       );
       return true;
@@ -732,12 +766,18 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           ? defaults.trackName.trim()
           : defaultTrackName(metadata.title, metadata.id);
       const trackName = uniqueTrackName(existingPresets, seeded);
+      const parentNode = parentId ? findNode(loadInstanceTree(source), parentId) : undefined;
+      const seededInput = withTrackName(defaults, trackName);
+      const presetInputData =
+        parentNode?.role === "scene"
+          ? inheritParentLock(seededInput, parentNode.input)
+          : seededInput;
       const newPreset = {
         id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         presetId: metadata.id,
         presetType: metadata.presetType,
         presetInfo: preset as PresetType | DatabasePreset,
-        presetInputData: withTrackName(defaults, trackName),
+        presetInputData,
         disabled: false,
       };
       const presets = [...existingPresets, newPreset];
@@ -760,108 +800,90 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
     },
 
     removePreset: (timelineId: string, presetId: string) => {
-      const state = get();
-      const timeline = state.editedTimelines.get(timelineId);
-      
-      if (!timeline) {
-        const { useProjectStore } = require('./project-store');
-        const projectState = useProjectStore.getState();
-        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
-          ? projectState.loadedTimeline 
-          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
-        
-        if (!originalTimeline || !originalTimeline.presets) return;
-        
-        const filteredPresets = originalTimeline.presets.filter((p: any) => p.id !== presetId);
-        const filteredActions = (originalTimeline.actions || []).filter(
-          (a: NonNullable<Timeline['actions']>[number]) =>
-            !(a.target?.type === 'preset' && a.target.presetInstanceId === presetId)
-        );
-        get().updateTimeline(timelineId, {
-          presets: filteredPresets,
-          actions: filteredActions,
-        });
-        return;
-      }
-      
-      if (!timeline.presets) return;
-      
-      const filteredPresets = timeline.presets.filter(p => p.id !== presetId);
-      const filteredActions = (timeline.actions || []).filter(
-        (a) => !(a.target?.type === 'preset' && a.target.presetInstanceId === presetId)
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline?.presets) return;
+      const tree = loadInstanceTree(timeline);
+      const baseId = timeline.presets[0]?.id;
+      const drop = new Set(
+        idsRemovedWith(tree, [presetId]).filter((id) => id !== baseId),
       );
+      if (drop.size === 0) return;
       get().updateTimeline(timelineId, {
-        presets: filteredPresets,
-        actions: filteredActions,
+        presets: timeline.presets.filter((preset) => !drop.has(preset.id)),
+        actions: (timeline.actions || []).filter(
+          (action) =>
+            !(
+              action.target?.type === 'preset' &&
+              drop.has(action.target.presetInstanceId)
+            ),
+        ),
+        ...(timeline.nodes ? { nodes: pruneNodes(tree, drop) } : {}),
       });
     },
 
-    duplicatePreset: (timelineId: string, presetId: string) => {
-      const state = get();
-      const timeline = state.editedTimelines.get(timelineId);
-      
-      let sourcePreset: any;
-      let allPresets: any[];
-      let sourceActions: NonNullable<Timeline['actions']> = [];
-      
-      if (!timeline) {
-        const { useProjectStore } = require('./project-store');
-        const projectState = useProjectStore.getState();
-        const originalTimeline = projectState.loadedTimeline?.id === timelineId 
-          ? projectState.loadedTimeline 
-          : projectState.timelines.find((t: Timeline) => t.id === timelineId);
-        
-        if (!originalTimeline || !originalTimeline.presets) return;
-        
-        sourcePreset = originalTimeline.presets.find((p: any) => p.id === presetId);
-        allPresets = originalTimeline.presets;
-        sourceActions = originalTimeline.actions || [];
-      } else {
-        if (!timeline.presets) return;
-        sourcePreset = timeline.presets.find(p => p.id === presetId);
-        allPresets = timeline.presets;
-        sourceActions = timeline.actions || [];
-      }
-      
-      if (!sourcePreset) return;
-      
-      // Find the index of the source preset
-      const sourceIndex = allPresets.findIndex((p: any) => p.id === presetId);
-      if (sourceIndex === -1) return;
+    placePresetCopy: (timelineId, preset, anchorId, placement = 'beside', actions) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline || !preset?.id) return null;
+      const tree = loadInstanceTree(timeline);
+      const { parentId, index } = presetAnchorPlacement(tree, anchorId, placement);
+      const parent = findNode(tree, parentId) ?? tree;
+      const attached = presetsWithParent([preset], preset.id, parentId, tree.id)?.[0] ?? preset;
+      const input = inheritParentLock(attached.presetInputData, parent.input);
+      const renderId = sceneRenderId(parent);
+      if (renderId) input.attachedToId = renderId;
+      else delete input.attachedToId;
+      const placed = { ...attached, presetInputData: input };
+      const presets = [...(timeline.presets ?? [])];
+      const anchorIndex = anchorId ? presets.findIndex((item) => item.id === anchorId) : -1;
+      if (anchorIndex >= 0) presets.splice(anchorIndex + 1, 0, placed);
+      else presets.push(placed);
+      const nodes = insertPresetNode(tree, placed, presets, parentId, index);
+      const ordered = orderPresetsLikeTree(presets, nodes) ?? presets;
+      get().updateTimeline(timelineId, {
+        presets: ordered,
+        nodes,
+        ...(actions && actions.length > 0
+          ? { actions: [...(timeline.actions ?? []), ...actions] }
+          : {}),
+      });
+      return placed.id;
+    },
+
+    duplicatePreset: (timelineId, presetId) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline?.presets) return null;
+      const sourcePreset = timeline.presets.find((preset) => preset.id === presetId);
+      if (!sourcePreset || sourcePreset.presetId === 'base-scene') return null;
 
       const trackName = copyTrackName(
-        allPresets,
+        timeline.presets,
         presetTrackName(sourcePreset, sourcePreset.presetId),
       );
       const { label: _legacyLabel, ...sourceWithoutLabel } = sourcePreset;
-
       const duplicatedPreset = {
         ...sourceWithoutLabel,
         id: `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         presetInputData: withTrackName(sourcePreset.presetInputData, trackName),
       };
-      
-      // Insert duplicate right after the source preset
-      const newPresets = [...allPresets];
-      newPresets.splice(sourceIndex + 1, 0, duplicatedPreset);
-
-      // Copy actions that targeted the source preset onto the duplicate
-      const duplicatedActions = sourceActions
+      const duplicatedActions = (timeline.actions || [])
         .filter(
-          (a) => a.target?.type === 'preset' && a.target.presetInstanceId === presetId
+          (action) =>
+            action.target?.type === 'preset' &&
+            action.target.presetInstanceId === presetId,
         )
-        .map((a, i) => ({
-          ...JSON.parse(JSON.stringify(a)),
-          id: `action-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
+        .map((action, index) => ({
+          ...JSON.parse(JSON.stringify(action)),
+          id: `action-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
           target: { type: 'preset' as const, presetInstanceId: duplicatedPreset.id },
         }));
-      
-      get().updateTimeline(timelineId, {
-        presets: newPresets,
-        ...(duplicatedActions.length > 0
-          ? { actions: [...sourceActions, ...duplicatedActions] }
-          : {}),
-      });
+
+      return get().placePresetCopy(
+        timelineId,
+        duplicatedPreset,
+        presetId,
+        'beside',
+        duplicatedActions,
+      );
     },
 
     reorderPresets: (timelineId: string, oldIndex: number, newIndex: number) => {
@@ -1493,6 +1515,10 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       resetTimelineSquash();
       set({ isPublishing: true });
       try {
+        // Sibling order, especially inside a group, lives on the instance tree.
+        // Publish that tree, and the flat list in the same order, so the reload
+        // does not fall back to an older arrangement.
+        const visible = loadInstanceTree(timeline);
         const res = await fetch('/api/project/timeline', {
           method: 'PUT',
           headers: {
@@ -1505,7 +1531,8 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             description: timeline.description,
             configuration: timeline.configuration,
             defaultData: timeline.defaultData,
-            presets: timeline.presets,
+            presets: orderPresetsLikeTree(timeline.presets, visible) ?? timeline.presets,
+            nodes: visible,
             actions: timeline.actions ?? [],
             version,
             clientId: state.clientId ?? undefined,
