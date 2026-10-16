@@ -25,6 +25,7 @@ import {
     findNode,
     listBlockRows,
     loadInstanceTree,
+    outermostIds,
     parentOfNode,
 } from "@/components/editor_main/timing/load-instance-tree";
 import {
@@ -71,6 +72,7 @@ import {
     useSensors,
     DragEndEvent,
     DragOverEvent,
+    DragStartEvent,
     type CollisionDetection,
 } from '@dnd-kit/core';
 import {
@@ -103,27 +105,41 @@ function pointerClientY(event: PointerDragEvent): number | null {
     return null;
 }
 
-function blockIdAtPointer(container: HTMLElement | null, event: PointerDragEvent): string | null {
+function blockRow(container: HTMLElement | null, id: string): HTMLElement | null {
+    if (!container) return null;
+    for (const row of container.querySelectorAll<HTMLElement>("[data-block-id]")) {
+        if (row.dataset.blockId === id) return row;
+    }
+    return null;
+}
+
+function blockIdAtPointer(
+    container: HTMLElement | null,
+    event: PointerDragEvent,
+    ignore: ReadonlySet<string>,
+): string | null {
     const y = pointerClientY(event);
-    const fallback = event.over ? String(event.over.id) : null;
+    const over = event.over ? String(event.over.id) : null;
+    const fallback = over && !ignore.has(over) ? over : null;
     if (!container || y == null) return fallback;
     const rows = container.querySelectorAll<HTMLElement>("[data-block-id]");
     let nearest: { id: string; distance: number } | null = null;
     for (const row of rows) {
         const id = row.dataset.blockId;
-        if (!id) continue;
+        // The dragged row follows the pointer, so it would hide the group underneath.
+        if (!id || ignore.has(id)) continue;
         const rect = row.getBoundingClientRect();
         if (y >= rect.top && y <= rect.bottom) return id;
-        const distance = Math.min(Math.abs(y - rect.top), Math.abs(y - rect.bottom));
+        const distance = y < rect.top ? rect.top - y : y - rect.bottom;
         if (!nearest || distance < nearest.distance) nearest = { id, distance };
     }
-    if (nearest && nearest.distance <= 8) return nearest.id;
+    if (nearest && nearest.distance <= 24) return nearest.id;
     return fallback;
 }
 
 function pointerAfterRow(container: HTMLElement | null, event: PointerDragEvent, overId: string): boolean {
     const y = pointerClientY(event);
-    const row = container?.querySelector<HTMLElement>(`[data-block-id="${overId}"]`);
+    const row = blockRow(container, overId);
     if (y == null || !row) {
         const translatedTop = event.over?.rect?.top;
         const height = event.over?.rect?.height;
@@ -162,9 +178,11 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
     const renameInputRef = useRef<HTMLInputElement>(null);
     const { loadedTimeline, loadProjectTimelines, currentProjectId, loadTimelineById } = useProjectStore();
     const { selectTimeline, selectReference, selectReferences, selectAction, selectActions, selectedItem } = useEditorStore();
-    const { getEditedTimeline, moveInstanceNode, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
+    const { getEditedTimeline, moveInstanceNodes, addPresetToTimeline, updateTimeline } = useTimelineEditsStore();
     const generateOutput = useCompileStore((s) => s.generateOutput);
     const [nestTargetId, setNestTargetId] = useState<string | null>(null);
+    const [draggingIds, setDraggingIds] = useState<string[]>([]);
+    const draggingIdsRef = useRef<string[]>([]);
     const blocksRef = useRef<HTMLDivElement>(null);
     const [collapsedBlockIds, setCollapsedBlockIds] = useState<Set<string>>(() => new Set());
     const itemClipboard = useBlockClipboardStore((s) => s.itemClipboard);
@@ -478,37 +496,66 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
         generateOutput(latest);
     }
 
+    function idsForDrag(activeId: string): string[] {
+        const selected = useEditorStore.getState().selectedPresetIds;
+        const selection =
+            selectedItem?.type === "preset" &&
+            selectedItem.timeline.id === timeline.id &&
+            selected.includes(activeId)
+                ? selected
+                : [activeId];
+        const tree = loadInstanceTree(displayTimeline);
+        const ids = outermostIds(tree, selection);
+        return ids.length > 0 ? ids : [activeId];
+    }
+
+    function handleDragStart(event: DragStartEvent) {
+        const ids = idsForDrag(String(event.active.id));
+        draggingIdsRef.current = ids;
+        setDraggingIds(ids);
+    }
+
+    function clearDrag() {
+        draggingIdsRef.current = [];
+        setDraggingIds([]);
+        setNestTargetId(null);
+    }
+
     function handleDragOver(event: DragOverEvent) {
-        const overId = blockIdAtPointer(blocksRef.current, event) ?? "";
         const activeId = String(event.active.id);
-        if (!overId || overId === activeId) {
+        const moving = draggingIdsRef.current.length > 0 ? draggingIdsRef.current : [activeId];
+        const overId = blockIdAtPointer(blocksRef.current, event, new Set(moving)) ?? "";
+        if (!overId || moving.includes(overId)) {
             setNestTargetId(null);
             return;
         }
         const tree = loadInstanceTree(displayTimeline);
-        const target = blockDropTarget(tree, activeId, overId, false);
-        const activeParent = parentOfNode(tree, activeId);
+        const target = blockDropTarget(tree, activeId, overId, false, moving);
         const entering = Boolean(
-            target && target.parentId !== tree.id && target.parentId !== activeParent?.id,
+            target &&
+            target.parentId !== tree.id &&
+            moving.some((id) => parentOfNode(tree, id)?.id !== target.parentId),
         );
         setNestTargetId(entering ? target!.parentId : null);
     }
 
     function handleDragEnd(event: DragEndEvent) {
-        setNestTargetId(null);
-        const overId = blockIdAtPointer(blocksRef.current, event) ?? "";
         const activeId = String(event.active.id);
-        if (!overId || overId === activeId) return;
+        const moving = draggingIdsRef.current.length > 0 ? draggingIdsRef.current : [activeId];
+        clearDrag();
+        const overId = blockIdAtPointer(blocksRef.current, event, new Set(moving)) ?? "";
+        if (!overId || moving.includes(overId)) return;
         const tree = loadInstanceTree(displayTimeline);
         const target = blockDropTarget(
             tree,
             activeId,
             overId,
             pointerAfterRow(blocksRef.current, event, overId),
+            moving,
         );
         if (!target) return;
         if (target.parentId !== tree.id) expandBlock(target.parentId);
-        publishTreeMove(moveInstanceNode(timeline.id, activeId, target.parentId, target.index));
+        publishTreeMove(moveInstanceNodes(timeline.id, moving, target.parentId, target.index));
     }
 
     const referenceTypeOptions = getReferenceTypeOptions();
@@ -1097,9 +1144,10 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                         <DndContext
                                             sensors={sensors}
                                             collisionDetection={blockCollision}
+                                            onDragStart={handleDragStart}
                                             onDragOver={handleDragOver}
                                             onDragEnd={handleDragEnd}
-                                            onDragCancel={() => setNestTargetId(null)}
+                                            onDragCancel={clearDrag}
                                         >
                                             <SortableContext
                                                 items={visibleBlockRows.map((row) => row.preset.id)}
@@ -1120,6 +1168,7 @@ export function TimelineItem({ timeline }: TimelineItemProps) {
                                                         expanded={!collapsedBlockIds.has(row.preset.id)}
                                                         onToggleExpand={() => toggleBlock(row.preset.id)}
                                                         nestHighlight={nestIds.has(row.preset.id)}
+                                                        dragCount={draggingIds.includes(row.preset.id) ? draggingIds.length : 0}
                                                         onOpenPresetLibrary={() => setShowPresetLibrary(true)}
                                                     />
                                                 ))}

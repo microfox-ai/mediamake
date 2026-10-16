@@ -848,10 +848,18 @@ export const useCompileStore = create<CompileState>((set, get) => ({
             );
             // The stamped base scene includes clips whose length was probed
             // after the first clock was taken. Prefer that span.
+            // A scene locked to its child has no window until that probe, so
+            // the earlier clock is the default 20s and omits the group.
             const duration =
               fittedDuration(withSceneDuration.childrenData as never, BASE_SCENE_RENDER_ID) ??
               withSceneDuration.config?.duration;
             const fps = withSceneDuration.config?.fps ?? metadata.fps ?? 30;
+            if (typeof duration === 'number' && duration > 0) {
+              withSceneDuration.config = {
+                ...(withSceneDuration.config ?? {}),
+                duration,
+              };
+            }
             metadata = {
               ...metadata,
               ...(typeof duration === 'number' && duration > 0
@@ -865,6 +873,11 @@ export const useCompileStore = create<CompileState>((set, get) => ({
           }
 
           set({
+            // Render reads this tree. It has to be the probed stamp, or a
+            // group locked to its child is still the unresolved 20s cut.
+            ...(metadata?.props
+              ? { generatedOutput: metadata.props as InputCompositionProps }
+              : {}),
             calculatedMetadata: metadata,
             generationProgress: 100,
           });

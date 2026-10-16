@@ -3,7 +3,12 @@ import { describe, it } from "node:test";
 import type { Preset } from "@/components/editor/presets/types";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
 import { findNode } from "./load-instance-tree";
-import { canGroupPresets, groupSelectedPresets } from "./group-presets";
+import {
+  canGroupPresets,
+  canUngroupPreset,
+  groupSelectedPresets,
+  ungroupSelectedPresets,
+} from "./group-presets";
 
 const sceneSeed = {
   presetInfo: {
@@ -123,5 +128,98 @@ describe("groupSelectedPresets", () => {
     assert.equal(groupSelectedPresets(timeline(base), ["a", "c"], sceneSeed, "nope"), null);
     assert.equal(canGroupPresets(timeline(base), ["nested", "c"]), false);
     assert.equal(canGroupPresets(timeline(base), ["a"]), false);
+  });
+});
+
+describe("ungroupSelectedPresets", () => {
+  const base = [
+    preset("base", "base-scene", { trackType: "aligned", start: 0, duration: 20 }),
+    preset("a", "text-atom", { trackName: "a", trackType: "aligned", start: 1, duration: 4 }),
+    preset("d", "text-atom", { trackName: "d", trackType: "aligned", start: 0, duration: 2 }),
+    preset("b", "text-atom", { trackName: "b", trackType: "aligned", start: 8, duration: 6 }),
+    preset("nested", "scene", {
+      trackName: "scene",
+      trackType: "aligned",
+      start: 0,
+      duration: 8,
+    }),
+    preset("c", "text-atom", {
+      trackName: "c",
+      trackType: "aligned",
+      start: 0,
+      duration: 2,
+      parentId: "nested",
+      attachedToId: "nested",
+    }),
+  ];
+
+  it("lifts a group's children back to their parent in place", () => {
+    const grouped = groupSelectedPresets(timeline(base), ["b", "a"], sceneSeed, "group-1");
+    assert.ok(grouped);
+    const result = ungroupSelectedPresets(
+      { presets: grouped.presets, nodes: grouped.nodes },
+      ["group-1"],
+    );
+    assert.ok(result);
+    assert.deepEqual(result.removedIds, ["group-1"]);
+    assert.deepEqual(result.childIds, ["a", "b"]);
+    assert.equal(result.presets.some((item) => item.id === "group-1"), false);
+    assert.equal(result.presets.find((item) => item.id === "a")?.presetInputData.parentId, undefined);
+    assert.equal(result.presets.find((item) => item.id === "b")?.presetInputData.parentId, undefined);
+    assert.equal(result.presets.find((item) => item.id === "a")?.presetInputData.attachedToId, "BaseScene");
+    assert.equal(result.presets.find((item) => item.id === "a")?.presetInputData.start, 1);
+    assert.deepEqual(
+      result.nodes.children.map((child) => child.id),
+      ["a", "b", "d", "nested"],
+    );
+    assert.equal(findNode(result.nodes, "nested")?.children.map((child) => child.id).join(), "c");
+  });
+
+  it("returns a nested group to its parent scene", () => {
+    const nested = [
+      ...base,
+      preset("e", "text-atom", {
+        trackName: "inside",
+        trackType: "aligned",
+        start: 1,
+        duration: 2,
+        parentId: "nested",
+        attachedToId: "nested",
+      }),
+    ];
+    const grouped = groupSelectedPresets(timeline(nested), ["c", "e"], sceneSeed, "group-2");
+    assert.ok(grouped);
+    const result = ungroupSelectedPresets(
+      { presets: grouped.presets, nodes: grouped.nodes },
+      ["group-2"],
+    );
+    assert.ok(result);
+    const childC = result.presets.find((item) => item.id === "c");
+    const childE = result.presets.find((item) => item.id === "e");
+    assert.equal(childC?.presetInputData.parentId, "nested");
+    assert.equal(childE?.presetInputData.parentId, "nested");
+    assert.equal(childC?.presetInputData.attachedToId, "nested");
+    assert.equal(childE?.presetInputData.attachedToId, "nested");
+    assert.deepEqual(
+      findNode(result.nodes, "nested")?.children.map((child) => child.id),
+      ["c", "e"],
+    );
+  });
+
+  it("refuses the base scene and blocks that are not scenes", () => {
+    assert.equal(canUngroupPreset(timeline(base), "base"), false);
+    assert.equal(canUngroupPreset(timeline(base), "a"), false);
+    assert.equal(canUngroupPreset(timeline(base), "nested"), true);
+    assert.equal(ungroupSelectedPresets(timeline(base), ["a", "base"]), null);
+  });
+
+  it("dissolves a scene and keeps the blocks that were inside it", () => {
+    const result = ungroupSelectedPresets(timeline(base), ["nested"]);
+    assert.ok(result);
+    assert.deepEqual(result.childIds, ["c"]);
+    assert.equal(result.presets.find((item) => item.id === "c")?.presetInputData.parentId, undefined);
+    assert.equal(result.presets.find((item) => item.id === "c")?.presetInputData.attachedToId, "BaseScene");
+    assert.equal(result.nodes.children.some((child) => child.id === "nested"), false);
+    assert.equal(result.nodes.children.some((child) => child.id === "c"), true);
   });
 });

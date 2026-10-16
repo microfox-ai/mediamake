@@ -485,6 +485,67 @@ export function parentOfNode(root: AppliedNode, id: string): AppliedNode | null 
   return found;
 }
 
+/** Same child order, including nested groups. */
+function sameChildOrder(a: AppliedNode, b: AppliedNode): boolean {
+  if (a.id !== b.id || a.children.length !== b.children.length) return false;
+  return a.children.every((child, index) => sameChildOrder(child, b.children[index]!));
+}
+
+/**
+ * Selected ids in tree order. A selected child of a selected block is omitted,
+ * because it moves with that block.
+ */
+export function outermostIds(root: AppliedNode, ids: Iterable<string>): string[] {
+  const wanted = new Set(ids);
+  const ordered: string[] = [];
+  const walk = (node: AppliedNode) => {
+    if (node.id !== root.id && wanted.has(node.id)) {
+      ordered.push(node.id);
+      return;
+    }
+    for (const child of node.children) walk(child);
+  };
+  walk(root);
+  return ordered;
+}
+
+/**
+ * Move nodes under a scene at `index` among that scene's remaining children.
+ * Ids are placed in tree order. A selected child of a selected block stays inside it.
+ * Refuses cycles and non-scene parents. Returns the same root when nothing moves.
+ */
+export function moveNodes(
+  root: AppliedNode,
+  nodeIds: readonly string[],
+  parentId: string,
+  index: number,
+): AppliedNode {
+  const parent = findNode(root, parentId);
+  if (!parent || parent.role !== 'scene') return root;
+  const ordered = outermostIds(root, nodeIds).flatMap((id) => {
+    if (id === parentId) return [];
+    const node = findNode(root, id);
+    if (!node || findNode(node, parentId)) return [];
+    return [node];
+  });
+  if (ordered.length === 0) return root;
+  let stripped = root;
+  for (const node of ordered) stripped = withoutNode(stripped, node.id);
+  const strippedParent = findNode(stripped, parentId);
+  if (!strippedParent) return root;
+  const at = Math.max(0, Math.min(index, strippedParent.children.length));
+  const insert = (current: AppliedNode): AppliedNode => {
+    if (current.id === parentId) {
+      const children = [...current.children];
+      children.splice(at, 0, ...ordered);
+      return { ...current, children };
+    }
+    return { ...current, children: current.children.map(insert) };
+  };
+  const next = insert(stripped);
+  return sameChildOrder(root, next) ? root : next;
+}
+
 /**
  * Move a node under a scene at `index` among that scene's remaining children.
  * Refuses cycles and non-scene parents. Returns the same root when nothing moves.
@@ -495,27 +556,7 @@ export function moveNode(
   parentId: string,
   index: number,
 ): AppliedNode {
-  if (nodeId === root.id || nodeId === parentId) return root;
-  const moving = findNode(root, nodeId);
-  const parent = findNode(root, parentId);
-  if (!moving || !parent || parent.role !== 'scene') return root;
-  if (findNode(moving, parentId)) return root;
-  const currentParent = parentOfNode(root, nodeId);
-  const oldIndex = currentParent?.children.findIndex((child) => child.id === nodeId) ?? -1;
-  const stripped = withoutNode(root, nodeId);
-  const strippedParent = findNode(stripped, parentId);
-  if (!strippedParent) return root;
-  const at = Math.max(0, Math.min(index, strippedParent.children.length));
-  if (currentParent?.id === parentId && oldIndex === at) return root;
-  const insert = (current: AppliedNode): AppliedNode => {
-    if (current.id === parentId) {
-      const children = [...current.children];
-      children.splice(at, 0, moving);
-      return { ...current, children };
-    }
-    return { ...current, children: current.children.map(insert) };
-  };
-  return insert(stripped);
+  return moveNodes(root, [nodeId], parentId, index);
 }
 
 /** Insert a preset node under a scene. The preset is not already in `root`. */
@@ -551,22 +592,29 @@ export function blockDropTarget(
   activeId: string,
   overId: string,
   placeAfter: boolean,
+  movingIds?: readonly string[],
 ): { parentId: string; index: number } | null {
-  if (!overId || overId === activeId) return null;
+  const moving = new Set(
+    outermostIds(root, movingIds && movingIds.length > 0 ? movingIds : [activeId]),
+  );
+  if (findNode(root, activeId)) moving.add(activeId);
+  if (!overId || moving.has(overId)) return null;
   const overNode = findNode(root, overId);
-  const activeNode = findNode(root, activeId);
-  if (!overNode || !activeNode) return null;
-  if (findNode(activeNode, overId)) return null;
+  if (!overNode || !findNode(root, activeId)) return null;
+  for (const id of moving) {
+    const node = findNode(root, id);
+    if (node && findNode(node, overId)) return null;
+  }
 
   if (overNode.role === 'scene' && overNode.id !== root.id) {
     return { parentId: overNode.id, index: Number.MAX_SAFE_INTEGER };
   }
 
   const parent = parentOfNode(root, overId) ?? root;
-  if (parent.role !== 'scene') return null;
+  if (parent.role !== 'scene' || moving.has(parent.id)) return null;
   const siblingIds = parent.children
     .map((child) => child.id)
-    .filter((id) => id !== activeId);
+    .filter((id) => !moving.has(id));
   const overIndex = siblingIds.indexOf(overId);
   const index = overIndex < 0 ? siblingIds.length : overIndex + (placeAfter ? 1 : 0);
   return { parentId: parent.id, index };

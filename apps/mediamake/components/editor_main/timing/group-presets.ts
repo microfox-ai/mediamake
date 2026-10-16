@@ -201,3 +201,172 @@ export function groupSelectedPresets(
     sceneId,
   };
 }
+
+export interface UngroupPresetsResult {
+  presets: PresetInstance[];
+  nodes: AppliedNode;
+  /** Scenes removed by this ungroup. */
+  removedIds: string[];
+  /** Blocks that left those scenes, in tree order. Nested scenes that were also removed are omitted. */
+  childIds: string[];
+}
+
+function sceneDepth(tree: AppliedNode, id: string): number {
+  let depth = 0;
+  let parent = parentOfNode(tree, id);
+  while (parent) {
+    depth += 1;
+    parent = parentOfNode(tree, parent.id);
+  }
+  return depth;
+}
+
+/**
+ * A scene block can be dissolved. The base scene is the root and stays put.
+ */
+export function canUngroupPreset(
+  timeline: Pick<Timeline, "presets" | "nodes" | "configuration">,
+  id: string,
+): boolean {
+  const presets = timeline.presets ?? [];
+  const preset = presets.find((item) => item.id === id);
+  if (!preset || preset.presetId !== "scene") return false;
+  const tree = loadInstanceTree(timeline as Timeline);
+  if (id === tree.id) return false;
+  const node = findNode(tree, id);
+  if (!node || node.role !== "scene" || node.presetId !== "scene") return false;
+  return parentOfNode(tree, id) !== null;
+}
+
+function retargetAwayFromScene(
+  input: unknown,
+  sceneId: string,
+  parentId: string,
+  rootId: string,
+  attachedToId: string,
+  direct: boolean,
+): Record<string, unknown> {
+  const current = asRecord(input);
+  const attachPoints = current.attachedToId === sceneId;
+  if (!direct && !attachPoints) return current;
+  const next = { ...current };
+  if (direct) {
+    if (parentId === rootId) delete next.parentId;
+    else next.parentId = parentId;
+  }
+  if (direct || attachPoints) next.attachedToId = attachedToId;
+  return next;
+}
+
+function retargetNode(
+  node: AppliedNode,
+  sceneId: string,
+  parentId: string,
+  rootId: string,
+  attachedToId: string,
+  direct: boolean,
+): AppliedNode {
+  return {
+    ...node,
+    input: retargetAwayFromScene(node.input, sceneId, parentId, rootId, attachedToId, direct),
+    children: node.children.map((child) =>
+      retargetNode(child, sceneId, parentId, rootId, attachedToId, false),
+    ),
+  };
+}
+
+/** Replace one scene with its children, in that scene's place under its parent. */
+function ungroupOneScene(
+  timeline: Pick<Timeline, "presets" | "nodes" | "configuration">,
+  sceneId: string,
+): { presets: PresetInstance[]; nodes: AppliedNode; childIds: string[] } | null {
+  if (!canUngroupPreset(timeline, sceneId)) return null;
+  const tree = loadInstanceTree(timeline as Timeline);
+  const scene = findNode(tree, sceneId);
+  const parent = parentOfNode(tree, sceneId);
+  if (!scene || !parent) return null;
+  const childIds = scene.children.map((child) => child.id);
+  const attachedToId = sceneRenderId(parent) ?? "BaseScene";
+  const direct = new Set(childIds);
+
+  const lift = (node: AppliedNode): AppliedNode => {
+    const index = node.children.findIndex((child) => child.id === sceneId);
+    if (index >= 0) {
+      const lifted = node.children[index]!.children.map((child) =>
+        retargetNode(child, sceneId, parent.id, tree.id, attachedToId, true),
+      );
+      return {
+        ...node,
+        children: [
+          ...node.children.slice(0, index),
+          ...lifted,
+          ...node.children.slice(index + 1),
+        ],
+      };
+    }
+    return { ...node, children: node.children.map(lift) };
+  };
+
+  const nodes = lift(tree);
+  const nextPresets = (timeline.presets ?? [])
+    .filter((preset) => preset.id !== sceneId)
+    .map((preset) => {
+      const input = asRecord(preset.presetInputData);
+      if (!direct.has(preset.id) && input.attachedToId !== sceneId) {
+        return preset;
+      }
+      return {
+        ...preset,
+        presetInputData: retargetAwayFromScene(
+          preset.presetInputData,
+          sceneId,
+          parent.id,
+          tree.id,
+          attachedToId,
+          direct.has(preset.id),
+        ),
+      };
+    });
+
+  return {
+    presets: orderPresetsLikeTree(nextPresets, nodes) ?? nextPresets,
+    nodes,
+    childIds,
+  };
+}
+
+/**
+ * Dissolve scene blocks. Their children take the scene's place under the parent.
+ * The base scene is left alone. Nested scenes are dissolved from the inside out.
+ */
+export function ungroupSelectedPresets(
+  timeline: Pick<Timeline, "presets" | "nodes" | "configuration">,
+  ids: string[],
+): UngroupPresetsResult | null {
+  const tree = loadInstanceTree(timeline as Timeline);
+  const scenes = [...new Set(ids)]
+    .filter((id) => canUngroupPreset(timeline, id))
+    .sort((a, b) => sceneDepth(tree, b) - sceneDepth(tree, a));
+  if (scenes.length === 0) return null;
+
+  let current = timeline;
+  const removedIds: string[] = [];
+  const lifted = new Set<string>();
+  for (const sceneId of scenes) {
+    const step = ungroupOneScene(current, sceneId);
+    if (!step) continue;
+    current = { ...current, presets: step.presets, nodes: step.nodes };
+    removedIds.push(sceneId);
+    for (const childId of step.childIds) lifted.add(childId);
+  }
+  if (removedIds.length === 0 || !current.presets || !current.nodes) return null;
+  for (const id of removedIds) lifted.delete(id);
+
+  const ordered = orderPresetsLikeTree(current.presets, current.nodes) ?? current.presets;
+  return {
+    presets: ordered,
+    nodes: current.nodes,
+    removedIds,
+    childIds: ordered.map((preset) => preset.id).filter((id) => lifted.has(id)),
+  };
+}

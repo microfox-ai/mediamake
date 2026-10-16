@@ -18,3 +18,26 @@ export function groupSelectedBlocks(timeline: Timeline, ids: string[]): string |
   useCompileStore.getState().generateOutput(latest);
   return sceneId;
 }
+
+/** Dissolve the scenes, select the blocks that were inside them, and refresh the preview. */
+export function ungroupSelectedBlocks(timeline: Timeline, ids: string[]): string[] | null {
+  const childIds = useTimelineEditsStore.getState().ungroupPresets(timeline.id, ids);
+  if (!childIds) return null;
+  const latest = useTimelineEditsStore.getState().getEditedTimeline(timeline.id) || timeline;
+  const children = childIds
+    .map((id) => latest.presets?.find((preset) => preset.id === id))
+    .filter((preset): preset is NonNullable<typeof preset> => !!preset);
+  if (children[0]) {
+    useEditorStore.getState().selectPreset(children[0], latest);
+    if (children.length > 1) {
+      useEditorStore.setState({
+        selectedPresetIds: children.map((preset) => preset.id),
+        presetAnchorId: children[0].id,
+      });
+    }
+  } else {
+    useEditorStore.getState().selectTimeline(latest);
+  }
+  useCompileStore.getState().generateOutput(latest);
+  return childIds;
+}

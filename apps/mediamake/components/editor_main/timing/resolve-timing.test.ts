@@ -13,7 +13,7 @@ import {
   sequenceLengthFromInput,
   visibleSpan,
 } from '../panels/bottom/editor/media-scene-blocks';
-import { applyTimingToPresetInput, blockDropTarget, loadInstanceTree, lockTargetNames, moveNode, orderPresetsLikeTree, presetAnchorPlacement } from './load-instance-tree';
+import { applyTimingToPresetInput, blockDropTarget, loadInstanceTree, lockTargetNames, moveNode, moveNodes, orderPresetsLikeTree, presetAnchorPlacement } from './load-instance-tree';
 import { remapLocksOnPaste } from './paste-remap';
 import { latestSpanEnd, resolveTiming } from './resolve-timing';
 import { estimateSequenceDuration } from './sequence-estimate';
@@ -775,6 +775,62 @@ describe('loadInstanceTree', () => {
       parentId: 'group',
       index: 2,
     });
+  });
+
+  it('moves several blocks into a group and keeps their order', () => {
+    const root = node({
+      id: 'base',
+      role: 'scene',
+      presetId: 'base-scene',
+      timing: { kind: 'explicit', start: 0, duration: 10 },
+      children: [
+        node({ id: 'title', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+        node({
+          id: 'group',
+          role: 'scene',
+          presetId: 'scene',
+          timing: { kind: 'explicit', start: 0, duration: 10 },
+          children: [
+            node({ id: 'a', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+          ],
+        }),
+        node({ id: 'caption', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+        node({
+          id: 'nested',
+          role: 'scene',
+          presetId: 'scene',
+          timing: { kind: 'explicit', start: 0, duration: 10 },
+          children: [
+            node({ id: 'inner', timing: { kind: 'explicit', start: 0, duration: 1 } }),
+          ],
+        }),
+      ],
+    });
+    const target = blockDropTarget(root, 'caption', 'group', true, ['title', 'caption', 'inner']);
+    assert.equal(target?.parentId, 'group');
+    const moved = moveNodes(root, ['title', 'caption', 'inner'], 'group', target?.index ?? 0);
+    assert.deepEqual(
+      moved.children.map((child) => child.id),
+      ['group', 'nested'],
+    );
+    const group = moved.children.find((child) => child.id === 'group');
+    assert.deepEqual(
+      group?.children.map((child) => child.id),
+      ['a', 'title', 'caption', 'inner'],
+    );
+    const nested = moved.children.find((child) => child.id === 'nested');
+    assert.deepEqual(nested?.children.map((child) => child.id), []);
+    const kept = moveNodes(root, ['title', 'nested'], 'group', Number.MAX_SAFE_INTEGER);
+    const keptGroup = kept.children.find((child) => child.id === 'group');
+    assert.deepEqual(
+      keptGroup?.children.map((child) => child.id),
+      ['a', 'title', 'nested'],
+    );
+    assert.deepEqual(
+      keptGroup?.children.find((child) => child.id === 'nested')?.children.map((child) => child.id),
+      ['inner'],
+    );
+    assert.equal(moveNodes(root, ['title'], 'missing', 0), root);
   });
 
   it('hugs a sequence root and locks a media track by id', () => {

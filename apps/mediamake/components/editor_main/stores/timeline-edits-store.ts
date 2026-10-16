@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Timeline } from './project-store';
-import type { NodeTiming } from '@/components/editor_main/timing/types';
+import type { AppliedNode, NodeTiming } from '@/components/editor_main/timing/types';
 import {
   applyTimingToPresetInput,
   collectSubtreeIds,
@@ -12,13 +12,19 @@ import {
   mapNodeDisabled,
   mapNodeTiming,
   moveNode,
+  moveNodes,
   orderPresetsLikeTree,
+  outermostIds,
   parentOfNode,
   presetAnchorPlacement,
   sceneRenderId,
 } from '@/components/editor_main/timing/load-instance-tree';
 import { inheritParentLock } from '@/components/editor/presets/form/apply-track-mode';
-import { groupSelectedPresets, type GroupSceneSeed } from '@/components/editor_main/timing/group-presets';
+import {
+  groupSelectedPresets,
+  ungroupSelectedPresets,
+  type GroupSceneSeed,
+} from '@/components/editor_main/timing/group-presets';
 import {
   copyTrackName,
   defaultTrackName,
@@ -114,8 +120,23 @@ interface TimelineEditsState {
     parentId: string,
     index?: number,
   ) => boolean;
+  /**
+   * Place these blocks under a scene, in tree order, at `index` after they are removed.
+   * A selected child of a selected block stays inside that block.
+   */
+  moveInstanceNodes: (
+    timelineId: string,
+    nodeIds: readonly string[],
+    parentId: string,
+    index?: number,
+  ) => boolean;
   /** Wrap same-parent presets in a new aligned scene. Returns the scene id, or null. */
   groupPresets: (timelineId: string, ids: string[], seed: GroupSceneSeed) => string | null;
+  /**
+   * Dissolve scene blocks. Children take the scene's place.
+   * Returns the lifted block ids, or null when nothing was ungrouped.
+   */
+  ungroupPresets: (timelineId: string, ids: string[]) => string[] | null;
   updateTimelineConfig: (timelineId: string, config: any) => void;
   updateTimelineDefaultData: (timelineId: string, defaultData: any) => void;
   addPresetToTimeline: (
@@ -251,43 +272,84 @@ const TEAM_HISTORY_KEY = 'timeline-edit-history';
 
 // Persistence helpers
 const STORAGE_KEY = 'timeline-edits-storage';
+/** localStorage value used when the snapshot itself is stored in IndexedDB. */
+const IDB_POINTER = 'indexeddb';
+const IDB_NAME = 'mediamake-timeline-edits';
+const IDB_STORE = 'snapshots';
 
-const loadFromStorage = (projectId: string | null): {
+const editsStorageKey = (projectId: string | null) =>
+  `${STORAGE_KEY}-${projectId || 'default'}`;
+
+/** Bumped on every persist so a late IndexedDB read cannot overwrite a newer edit. */
+let _editsWriteGeneration = 0;
+let _warnedQuotaRecovery = false;
+
+function warnQuotaRecovery(message: string) {
+  if (_warnedQuotaRecovery) return;
+  _warnedQuotaRecovery = true;
+  console.warn(message);
+}
+
+type StoredEdits = {
   editedTimelines?: Map<string, Timeline>;
   isDirty?: boolean;
   cloudUpdatedAtByTimelineId?: UpdatedAtMap;
   localEditUpdatedAtByTimelineId?: UpdatedAtMap;
   currentProjectId?: string | null;
-} | null => {
+  /** localStorage only holds a pointer; the snapshot is in IndexedDB. */
+  deferred?: boolean;
+};
+
+function normalizeStoredEdits(parsed: unknown): StoredEdits | null {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const record = parsed as {
+    storage?: string;
+    editedTimelines?: Map<string, Timeline> | [string, Timeline][];
+    isDirty?: boolean;
+    cloudUpdatedAtByTimelineId?: [string, string][] | UpdatedAtMap | null;
+    localEditUpdatedAtByTimelineId?: [string, string][] | UpdatedAtMap | null;
+    currentProjectId?: string | null;
+  };
+  if (record.storage === IDB_POINTER) return { deferred: true };
+  const editedTimelines =
+    record.editedTimelines instanceof Map
+      ? record.editedTimelines
+      : new Map(record.editedTimelines ?? []);
+  let localEditUpdatedAtByTimelineId = mapFromEntries(
+    record.localEditUpdatedAtByTimelineId instanceof Map
+      ? Array.from(record.localEditUpdatedAtByTimelineId.entries())
+      : record.localEditUpdatedAtByTimelineId,
+  );
+  const cloudUpdatedAtByTimelineId = mapFromEntries(
+    record.cloudUpdatedAtByTimelineId instanceof Map
+      ? Array.from(record.cloudUpdatedAtByTimelineId.entries())
+      : record.cloudUpdatedAtByTimelineId,
+  );
+
+  // Legacy migration: global isDirty with edited timelines but no per-timeline timestamps
+  if (record.isDirty && localEditUpdatedAtByTimelineId.size === 0 && editedTimelines.size > 0) {
+    const migratedAt = new Date().toISOString();
+    localEditUpdatedAtByTimelineId = new Map(localEditUpdatedAtByTimelineId);
+    editedTimelines.forEach((_timeline, timelineId) => {
+      localEditUpdatedAtByTimelineId.set(timelineId, migratedAt);
+    });
+  }
+
+  return {
+    editedTimelines,
+    isDirty: record.isDirty,
+    cloudUpdatedAtByTimelineId,
+    localEditUpdatedAtByTimelineId,
+    currentProjectId: record.currentProjectId,
+  };
+}
+
+const loadFromStorage = (projectId: string | null): StoredEdits | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = localStorage.getItem(`${STORAGE_KEY}-${projectId || 'default'}`);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.editedTimelines) {
-        parsed.editedTimelines = new Map(parsed.editedTimelines);
-      }
-      parsed.cloudUpdatedAtByTimelineId = mapFromEntries(parsed.cloudUpdatedAtByTimelineId);
-      parsed.localEditUpdatedAtByTimelineId = mapFromEntries(
-        parsed.localEditUpdatedAtByTimelineId
-      );
-
-      // Legacy migration: global isDirty with edited timelines but no per-timeline timestamps
-      if (
-        parsed.isDirty &&
-        parsed.localEditUpdatedAtByTimelineId.size === 0 &&
-        parsed.editedTimelines?.size > 0
-      ) {
-        const migratedLocal = new Map<string, string>(parsed.localEditUpdatedAtByTimelineId);
-        const migratedAt = new Date().toISOString();
-        parsed.editedTimelines.forEach((_timeline: Timeline, timelineId: string) => {
-          migratedLocal.set(timelineId, migratedAt);
-        });
-        parsed.localEditUpdatedAtByTimelineId = migratedLocal;
-      }
-
-      return parsed;
-    }
+    const stored = localStorage.getItem(editsStorageKey(projectId));
+    if (!stored) return null;
+    return normalizeStoredEdits(JSON.parse(stored));
   } catch (error) {
     console.error('Error loading from storage:', error);
   }
@@ -345,21 +407,139 @@ const stripActionOutputsFromTimeline = (timeline: Timeline): Timeline => {
   };
 };
 
-const stripActionOutputsFromEditedEntries = (
-  entries: [string, Timeline][],
-): [string, Timeline][] =>
-  entries.map(([id, timeline]) => [id, stripActionOutputsFromTimeline(timeline)]);
+/** Drop preset definitions and duplicated node inputs. Both are restored on load. */
+function slimNode(node: AppliedNode, presetIds: Set<string>): AppliedNode {
+  return {
+    ...node,
+    input: presetIds.has(node.id) ? {} : node.input,
+    children: node.children.map((child) => slimNode(child, presetIds)),
+  };
+}
+
+function compactTimelineForStorage(timeline: Timeline): Timeline {
+  const withoutOutputs = stripActionOutputsFromTimeline(timeline);
+  const presets = withoutOutputs.presets?.map((preset) => {
+    if (!preset.presetInfo) return preset;
+    const { presetInfo: _presetInfo, ...rest } = preset;
+    return rest;
+  });
+  const nodes = withoutOutputs.nodes
+    ? slimNode(withoutOutputs.nodes, new Set((presets ?? []).map((preset) => preset.id)))
+    : withoutOutputs.nodes;
+  if (presets === withoutOutputs.presets && nodes === withoutOutputs.nodes) return withoutOutputs;
+  return { ...withoutOutputs, presets, nodes };
+}
+
+function isQuotaError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? String((error as { name: unknown }).name) : '';
+  const code = 'code' in error ? (error as { code: unknown }).code : undefined;
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22;
+}
+
+/** Returns false when the write was rejected for quota. Other failures propagate. */
+function writeLocalStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    if (isQuotaError(error)) return false;
+    throw error;
+  }
+}
+
+/** Undo snapshots are the usual thing filling the 5MB origin quota. */
+function freeTimelineHistoryStorage() {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(`${TIMELINE_HISTORY_KEY}-`) || key === TEAM_HISTORY_KEY) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch {
+    // Storage can throw if it is disabled. The edit save still tries IndexedDB.
+  }
+}
+
+let editsDbPromise: Promise<IDBDatabase> | null = null;
+
+function openEditsDb(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable'));
+  if (!editsDbPromise) {
+    editsDbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(IDB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        editsDbPromise = null;
+        reject(request.error);
+      };
+    });
+  }
+  return editsDbPromise;
+}
+
+function idbPut(key: string, value: unknown): Promise<void> {
+  return openEditsDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      }),
+  );
+}
+
+let idbWriteQueue: Promise<void> = Promise.resolve();
+
+/** Keep only the newest oversized snapshot. Older writes are skipped once a newer edit exists. */
+function enqueueOversizedEdits(key: string, value: unknown, generation: number) {
+  idbWriteQueue = idbWriteQueue
+    .catch(() => undefined)
+    .then(async () => {
+      if (generation !== _editsWriteGeneration) return;
+      try {
+        await idbPut(key, value);
+        if (generation !== _editsWriteGeneration) return;
+        localStorage.setItem(key, JSON.stringify({ storage: IDB_POINTER, savedAt: Date.now() }));
+      } catch (error) {
+        if (isQuotaError(error)) return;
+        console.error('Error saving timeline edits:', error);
+      }
+    });
+}
+
+function idbGet(key: string): Promise<unknown> {
+  return openEditsDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const request = tx.objectStore(IDB_STORE).get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      }),
+  );
+}
 
 const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsState>) => {
   if (typeof window === 'undefined') return;
+  _editsWriteGeneration += 1;
+  const generation = _editsWriteGeneration;
   try {
     // Merge with existing storage so partial updates (undo/redo) don't wipe
     // isDirty / timestamp maps when those fields are omitted from `state`.
     const existing = loadFromStorage(projectId);
+    const edited = state.editedTimelines ?? existing?.editedTimelines ?? new Map();
     const toStore = {
-      editedTimelines: Array.from(
-        (state.editedTimelines ?? existing?.editedTimelines ?? new Map()).entries()
-      ),
+      editedTimelines: Array.from(edited.entries()).map(([id, timeline]) => [
+        id,
+        compactTimelineForStorage(timeline),
+      ]),
       cloudUpdatedAtByTimelineId: mapToEntries(
         state.cloudUpdatedAtByTimelineId ?? existing?.cloudUpdatedAtByTimelineId ?? new Map()
       ),
@@ -371,23 +551,29 @@ const saveToStorage = (projectId: string | null, state: Partial<TimelineEditsSta
       currentProjectId: state.currentProjectId ?? existing?.currentProjectId ?? projectId,
       isDirty: state.isDirty ?? existing?.isDirty ?? false,
     };
-    try {
-      localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(toStore));
-    } catch (quotaError) {
-      // Action outputs (beat shakes, etc.) often blow the ~5MB localStorage quota.
-      // Retry without them — applied effects already live on preset/reference data.
-      const stripped = {
-        ...toStore,
-        editedTimelines: stripActionOutputsFromEditedEntries(
-          toStore.editedTimelines as [string, Timeline][],
-        ),
-      };
-      localStorage.setItem(`${STORAGE_KEY}-${projectId || 'default'}`, JSON.stringify(stripped));
-      console.warn(
-        'Timeline localStorage quota exceeded; persisted edits without action outputs.',
-        quotaError,
-      );
+    const key = editsStorageKey(projectId);
+    const json = JSON.stringify(toStore);
+    if (writeLocalStorage(key, json)) return;
+
+    // The previous value stays allocated until it is removed, so a smaller
+    // replacement can still throw. Drop undo history, then the old snapshot.
+    freeTimelineHistoryStorage();
+    if (writeLocalStorage(key, json)) {
+      warnQuotaRecovery('Timeline storage was full. Cleared local undo history so the latest edits could be saved.');
+      return;
     }
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+    if (writeLocalStorage(key, json)) {
+      warnQuotaRecovery('Timeline storage was full. Replaced the previous local copy with a smaller one.');
+      return;
+    }
+
+    warnQuotaRecovery('Timeline storage was full. Saved the latest edits in IndexedDB instead.');
+    enqueueOversizedEdits(key, toStore, generation);
   } catch (error) {
     console.error('Error saving to storage:', error);
   }
@@ -423,31 +609,33 @@ const timelineHistoryKey = (projectId: string | null) =>
 
 const persistTimelineHistory = (projectId: string | null, history: HistoryEntry[], historyIndex: number) => {
   if (typeof window === 'undefined') return;
-  const key = timelineHistoryKey(projectId);
   try {
-    localStorage.setItem(key, JSON.stringify({ history, historyIndex }));
+  const key = timelineHistoryKey(projectId);
+  const compactHistory = history.map((entry) => ({
+    ...entry,
+    timeline: compactTimelineForStorage(entry.timeline),
+  }));
+  const payload = JSON.stringify({ history: compactHistory, historyIndex });
+  if (writeLocalStorage(key, payload)) return;
+  // Remove the previous snapshot first. Browsers keep it allocated during setItem.
+  try {
+    localStorage.removeItem(key);
   } catch {
-    // Quota — retry with action outputs stripped from history snapshots.
+    // ignore
+  }
+  if (writeLocalStorage(key, payload)) return;
+  const keepFrom = Math.max(0, Math.floor(compactHistory.length / 2));
+  const trimmed = compactHistory.slice(keepFrom);
+  const nextIndex = Math.max(-1, historyIndex - keepFrom);
+  if (!writeLocalStorage(key, JSON.stringify({ history: trimmed, historyIndex: nextIndex }))) {
     try {
-      const stripped = history.map((entry) => ({
-        ...entry,
-        timeline: stripActionOutputsFromTimeline(entry.timeline),
-      }));
-      localStorage.setItem(key, JSON.stringify({ history: stripped, historyIndex }));
+      localStorage.removeItem(key);
     } catch {
-      // Still over quota — drop oldest half of history and try once more.
-      try {
-        const keepFrom = Math.max(0, Math.floor(history.length / 2));
-        const trimmed = history.slice(keepFrom).map((entry) => ({
-          ...entry,
-          timeline: stripActionOutputsFromTimeline(entry.timeline),
-        }));
-        const nextIndex = Math.max(-1, historyIndex - keepFrom);
-        localStorage.setItem(key, JSON.stringify({ history: trimmed, historyIndex: nextIndex }));
-      } catch {
-        // best-effort — in-memory history still works for this session
-      }
+      // In-memory undo still works for this session.
     }
+  }
+  } catch {
+    // In-memory undo still works for this session.
   }
 };
 
@@ -700,16 +888,27 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
     },
 
     moveInstanceNode: (timelineId, nodeId, parentId, index = Number.MAX_SAFE_INTEGER) => {
+      return get().moveInstanceNodes(timelineId, [nodeId], parentId, index);
+    },
+
+    moveInstanceNodes: (timelineId, nodeIds, parentId, index = Number.MAX_SAFE_INTEGER) => {
       const timeline = resolveTimelineForEdit(timelineId);
       if (!timeline) return false;
       const current = loadInstanceTree(timeline);
-      const previousParent = parentOfNode(current, nodeId);
-      const nodes = moveNode(current, nodeId, parentId, index);
+      const moving = outermostIds(current, nodeIds).filter((id) => {
+        if (id === current.id || id === parentId) return false;
+        const node = findNode(current, id);
+        return Boolean(node && !findNode(node, parentId));
+      });
+      if (moving.length === 0) return false;
+      const nodes = moveNodes(current, moving, parentId, index);
       if (nodes === current) return false;
-      let presets = presetsWithParent(timeline.presets, nodeId, parentId, current.id);
-      if (previousParent?.id !== parentId) {
-        const parent = findNode(current, parentId);
-        if (parent?.role === "scene") {
+      const parent = findNode(current, parentId);
+      let presets = timeline.presets;
+      for (const nodeId of moving) {
+        const previousParent = parentOfNode(current, nodeId);
+        presets = presetsWithParent(presets, nodeId, parentId, current.id);
+        if (previousParent?.id !== parentId && parent?.role === "scene") {
           presets = (presets ?? []).map((preset) => {
             if (preset.id !== nodeId) return preset;
             return {
@@ -724,7 +923,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       get().updateTimeline(
         timelineId,
         { nodes, presets },
-        `reparent:${nodeId}`,
+        `reparent:${moving.join(",")}`,
       );
       return true;
     },
@@ -741,6 +940,24 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       if (!result) return null;
       get().updateTimeline(timelineId, { presets: result.presets, nodes: result.nodes });
       return result.sceneId;
+    },
+
+    ungroupPresets: (timelineId, ids) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline) return null;
+      const result = ungroupSelectedPresets(timeline, ids);
+      if (!result) return null;
+      const removed = new Set(result.removedIds);
+      const actions = (timeline.actions || []).filter(
+        (action) =>
+          !(action.target?.type === 'preset' && removed.has(action.target.presetInstanceId)),
+      );
+      get().updateTimeline(timelineId, {
+        presets: result.presets,
+        nodes: result.nodes,
+        ...(actions.length !== (timeline.actions || []).length ? { actions } : {}),
+      });
+      return result.childIds;
     },
 
     updateTimelineConfig: (timelineId, config) => {
@@ -1242,32 +1459,47 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       // Recover dirty state from history when storage was wiped by a partial save
       // (edits recorded history but never flipped isDirty).
       const dirtyFromHistory = hasUnpublishedAtCursor(restoredHistory, restoredIndex);
-      if (stored) {
-        const editedTimelines = stored.editedTimelines || new Map();
+      const applyStored = (loaded: StoredEdits) => {
+        const editedTimelines = loaded.editedTimelines || new Map();
         set({
           editedTimelines,
-          cloudUpdatedAtByTimelineId: stored.cloudUpdatedAtByTimelineId || new Map(),
-          localEditUpdatedAtByTimelineId: stored.localEditUpdatedAtByTimelineId || new Map(),
+          cloudUpdatedAtByTimelineId: loaded.cloudUpdatedAtByTimelineId || new Map(),
+          localEditUpdatedAtByTimelineId: loaded.localEditUpdatedAtByTimelineId || new Map(),
           currentProjectId: projectId,
           // Prefer explicit dirty flag; fall back to unpublished history recovery.
           // Do NOT recalculate from editedTimelines.size — the map now keeps entries
           // even for clean (already-saved) timelines to avoid UI state resets.
-          isDirty: (stored.isDirty ?? false) || dirtyFromHistory,
+          isDirty: (loaded.isDirty ?? false) || dirtyFromHistory,
           ...(storedHistory
             ? { history: restoredHistory, historyIndex: restoredIndex }
             : {}),
         });
-        
-        // Sync edited timelines back to project store
+
         if (editedTimelines.size > 0) {
           const { useProjectStore } = require('./project-store');
           const projectStore = useProjectStore.getState();
-          
-          // Update each edited timeline in the project store
           editedTimelines.forEach((editedTimeline) => {
             projectStore.updateTimeline(editedTimeline.id, editedTimeline);
           });
         }
+      };
+
+      if (stored && !stored.deferred) {
+        applyStored(stored);
+        return;
+      }
+
+      if (stored?.deferred) {
+        set({
+          editedTimelines: new Map(),
+          currentProjectId: projectId,
+          isDirty: true,
+          ...(storedHistory
+            ? { history: restoredHistory, historyIndex: restoredIndex }
+            : { history: [], historyIndex: -1 }),
+          cloudUpdatedAtByTimelineId: new Map(),
+          localEditUpdatedAtByTimelineId: new Map(),
+        });
       } else {
         set({
           currentProjectId: projectId,
@@ -1279,6 +1511,21 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           localEditUpdatedAtByTimelineId: new Map(),
         });
       }
+
+      // localStorage was over quota, so the snapshot is in IndexedDB (or the
+      // pointer write failed and only IndexedDB has it).
+      if (typeof indexedDB === 'undefined') return;
+      const generation = _editsWriteGeneration;
+      void idbGet(editsStorageKey(projectId))
+        .then((raw) => {
+          if (generation !== _editsWriteGeneration) return;
+          const loaded = normalizeStoredEdits(raw);
+          if (!loaded || loaded.deferred || !loaded.editedTimelines?.size) return;
+          applyStored(loaded);
+        })
+        .catch((error) => {
+          console.error('Error loading timeline edits from IndexedDB:', error);
+        });
     },
 
     registerCloudTimelines: (timelines) => {

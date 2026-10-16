@@ -188,14 +188,34 @@ export function TimelineControlBar({
   }, [loop, onLoopChange]);
 
   const handleRenderClick = useCallback(() => {
-    if (generatedOutput) {
-      // Sync render settings with current composition
-      updateSetting('inputProps', JSON.stringify(generatedOutput, null, 2));
+    // The player draws calculatedMetadata. generatedOutput before that pass
+    // still has the default 20s clock, and a group locked to its child is
+    // missing because the child's length was not probed yet.
+    const preview = calculatedMetadata?.props as InputCompositionProps | undefined;
+    const source = preview ?? generatedOutput;
+    if (source) {
+      const frames = calculatedMetadata?.durationInFrames;
+      const rate = calculatedMetadata?.fps ?? source.config?.fps ?? 30;
+      const duration =
+        typeof frames === 'number' && frames > 0 && rate > 0
+          ? frames / rate
+          : source.config?.duration;
+      const renderProps: InputCompositionProps = {
+        ...source,
+        config: {
+          ...source.config,
+          ...(typeof duration === 'number' && duration > 0 ? { duration } : {}),
+          ...(calculatedMetadata?.fps ? { fps: calculatedMetadata.fps } : {}),
+          ...(calculatedMetadata?.width ? { width: calculatedMetadata.width } : {}),
+          ...(calculatedMetadata?.height ? { height: calculatedMetadata.height } : {}),
+        },
+      };
+      updateSetting('inputProps', JSON.stringify(renderProps, null, 2));
       updateSetting('composition', 'DataMotion');
     }
     updateSetting('frame', currentFrame);
     openModal();
-  }, [generatedOutput, updateSetting, openModal, currentFrame]);
+  }, [calculatedMetadata, generatedOutput, updateSetting, openModal, currentFrame]);
 
   const handleRecompile = useCallback(() => {
     if (!currentTimeline) return;
@@ -501,7 +521,7 @@ export function TimelineControlBar({
           variant="outline"
           size="icon"
           onClick={handleRenderClick}
-          disabled={!generatedOutput}
+          disabled={!calculatedMetadata?.props}
           title="Render Video"
         >
           <Rocket className="h-4 w-4" />

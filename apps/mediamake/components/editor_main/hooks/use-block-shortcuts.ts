@@ -17,7 +17,9 @@ import {
 } from "../stores/block-clipboard-store";
 import { isBottomTimelineSelectionActive } from "../stores/bottom-selection-gate";
 import { getEditorFocusScope } from "../stores/editor-focus-scope";
-import { groupSelectedBlocks } from "../panels/left/editor/group-selection";
+import { groupSelectedBlocks, ungroupSelectedBlocks } from "../panels/left/editor/group-selection";
+import { canUngroupPreset } from "../timing/group-presets";
+import { useTimelineEditsStore } from "../stores/timeline-edits-store";
 
 /**
  * Keyboard shortcuts for selected blocks / references / actions.
@@ -31,6 +33,7 @@ import { groupSelectedBlocks } from "../panels/left/editor/group-selection";
  * - ⌥/Alt+C       copy props
  * - ⌥/Alt+V       paste props
  * - ⌘/Ctrl+G      group same-parent blocks into a scene
+ * - ⇧⌘/Ctrl+G    ungroup a scene
  * - Delete / ⌫    delete
  */
 export function useBlockShortcuts() {
@@ -43,7 +46,12 @@ export function useBlockShortcuts() {
         !e.shiftKey &&
         !e.altKey &&
         (e.key.toLowerCase() === "g" || e.code === "KeyG");
-      if (scope !== "left" && !(grouping && scope === "bottom")) return;
+      const ungrouping =
+        mod &&
+        e.shiftKey &&
+        !e.altKey &&
+        (e.key.toLowerCase() === "g" || e.code === "KeyG");
+      if (scope !== "left" && !((grouping || ungrouping) && scope === "bottom")) return;
 
       if (
         isEditableKeyboardTarget(e.target) ||
@@ -73,6 +81,24 @@ export function useBlockShortcuts() {
         e.preventDefault();
         e.stopImmediatePropagation();
         groupSelectedBlocks(selected.timeline, ids);
+        return;
+      }
+
+      if (ungrouping) {
+        if (selected?.type !== "preset") return;
+        const selectedIds = useEditorStore.getState().selectedPresetIds;
+        const ids =
+          selectedIds.includes(selected.item.id) && selectedIds.length > 0
+            ? selectedIds
+            : [selected.item.id];
+        const latest =
+          useTimelineEditsStore.getState().getEditedTimeline(selected.timeline.id) ||
+          selected.timeline;
+        const targets = ids.filter((id) => canUngroupPreset(latest, id));
+        if (targets.length === 0) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ungroupSelectedBlocks(latest, targets);
         return;
       }
 

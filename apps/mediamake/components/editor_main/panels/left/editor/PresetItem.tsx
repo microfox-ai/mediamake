@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Copy, Trash2, ArrowUp, ArrowDown, RotateCcw, ClipboardCopy, ClipboardPaste, Group, Ungroup } from "lucide-react";
 import { useEditorStore } from "../../../stores/editor-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
@@ -36,8 +36,8 @@ import { AddBlockContextMenuItems, BlocksHeaderAddButton } from "./AddBlockMenu"
 import { BlockIcon } from "./block-icon";
 import { MediaThumbIcon } from "./media-thumb-icon";
 import { collectVisualMedia } from "@/lib/editor/visual-media";
-import { groupSelectedBlocks } from "./group-selection";
-import { canGroupPresets } from "@/components/editor_main/timing/group-presets";
+import { groupSelectedBlocks, ungroupSelectedBlocks } from "./group-selection";
+import { canGroupPresets, canUngroupPreset } from "@/components/editor_main/timing/group-presets";
 import { DatabasePreset, Preset } from "@/components/editor/presets/types";
 import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 
@@ -57,6 +57,8 @@ interface PresetItemProps {
     expanded?: boolean;
     onToggleExpand?: () => void;
     nestHighlight?: boolean;
+    /** How many selected blocks travel with this drag. 0 when this row is not in the drag. */
+    dragCount?: number;
     onOpenPresetLibrary?: () => void;
 }
 
@@ -73,6 +75,7 @@ export function PresetItem({
     expanded = true,
     onToggleExpand,
     nestHighlight = false,
+    dragCount = 0,
     onOpenPresetLibrary,
 }: PresetItemProps) {
     const [isHovered, setIsHovered] = useState(false);
@@ -99,10 +102,17 @@ export function PresetItem({
 
     const groupIds = selectedPresetIds.includes(displayPreset.id) ? selectedPresetIds : [];
     const canGroup = canGroupPresets(displayTimeline, groupIds);
+    const canUngroup = canUngroupPreset(displayTimeline, displayPreset.id);
 
     const handleGroup = () => {
         if (!canGroup) return;
         groupSelectedBlocks(displayTimeline, groupIds);
+    };
+
+    const handleUngroup = () => {
+        if (!canUngroup) return;
+        const ids = groupIds.filter((id) => canUngroupPreset(displayTimeline, id));
+        ungroupSelectedBlocks(displayTimeline, ids.length > 0 ? ids : [displayPreset.id]);
     };
 
     // Sortable functionality
@@ -111,14 +121,15 @@ export function PresetItem({
         listeners,
         setNodeRef,
         transform,
-        transition,
         isDragging,
     } = useSortable({ id: preset.id });
 
+    const travelsWithDrag = dragCount > 1 && !isDragging;
     const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
+        // Other rows stay put so the pointer can hit the group underneath the dragged block.
+        transform: isDragging ? CSS.Transform.toString(transform) : undefined,
+        opacity: isDragging || travelsWithDrag ? 0.5 : 1,
+        zIndex: isDragging ? 30 : undefined,
         paddingLeft: depth > 0 ? 8 + depth * 14 : undefined,
     };
 
@@ -271,9 +282,15 @@ export function PresetItem({
                     className={cn(
                         "relative group flex items-center gap-2 px-2 py-0 h-8 text-sm cursor-grab active:cursor-grabbing hover:bg-accent transition-colors select-none",
                         isSelected && "bg-blue-100 hover:bg-blue-100",
-                        nestHighlight && "bg-primary/10 ring-1 ring-inset ring-primary"
+                        nestHighlight && "bg-primary/10 ring-1 ring-inset ring-primary",
+                        isDragging && "shadow-md"
                     )}
                 >
+                    {isDragging && dragCount > 1 && (
+                        <span className="absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                            {dragCount}
+                        </span>
+                    )}
                     {hasChildren ? (
                         <button
                             type="button"
@@ -385,6 +402,11 @@ export function PresetItem({
                     <Group className="h-4 w-4 mr-2" />
                     Group
                     <ContextMenuShortcut>{modShortcutLabel("G")}</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleUngroup} disabled={!canUngroup}>
+                    <Ungroup className="h-4 w-4 mr-2" />
+                    Ungroup
+                    <ContextMenuShortcut>⇧{modShortcutLabel("G")}</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 {hasOverridesForPresetItem(displayPreset.id) && (
