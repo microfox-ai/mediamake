@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { applyInputContainerLayout, applyTrackShell } from './apply-track-shell';
+import { parseTimeRange } from './preset-stdlib';
 import { mediaTrackPreset } from '../registry/general/media-track';
 import { textAtomPreset } from '../registry/general/text-atom';
 
@@ -166,6 +167,57 @@ describe('media-track preset', () => {
     assert.equal(timing?.fitDurationTo, 'audio-track');
     assert.equal(timing?.duration, undefined);
     assert.equal(timing?.start, 0);
+  });
+
+  it('keeps a range when the item only has a leftover fitDurationTo', () => {
+    const run = new Function(
+      '__name',
+      'data',
+      'props',
+      `return (${mediaTrackPreset.presetFunction})(data, props);`,
+    ) as (
+      name: (fn: unknown) => unknown,
+      data: Record<string, unknown>,
+      props?: unknown,
+    ) => {
+      children: Array<{
+        context?: { timing?: { start?: number; duration?: number; fitDurationTo?: string } };
+      }>;
+    };
+    const built = run(
+      (fn) => fn,
+      {
+        trackName: 'clips',
+        trackType: 'aligned',
+        mediaItems: {
+          items: [
+            {
+              src: 'https://example.com/a.mp4',
+              type: 'video',
+              fitDurationTo: 'audio-track',
+              rangeString: '0:10-0:20,0:30-0:35',
+            },
+            {
+              src: 'https://example.com/b.mp4',
+              type: 'video',
+              fitDurationTo: 'audio-track',
+              duration: 8,
+            },
+            {
+              src: 'https://example.com/c.mp4',
+              type: 'video',
+              fitDurationTo: 'audio-track',
+            },
+          ],
+        },
+      },
+      { helpers: { parseTimeRange } },
+    );
+    const timings = built.children.map((child) => child.context?.timing);
+    assert.deepEqual(timings[0], { start: 10, duration: 10 });
+    assert.deepEqual(timings[1], { start: 30, duration: 5 });
+    assert.deepEqual(timings[2], { start: 0, duration: 8 });
+    assert.deepEqual(timings[3], { start: 0, fitDurationTo: 'audio-track' });
   });
 });
 

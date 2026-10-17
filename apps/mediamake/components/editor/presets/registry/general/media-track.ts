@@ -346,10 +346,15 @@ const presetExecution = (
       .filter(Boolean);
   };
 
-  const itemLockTarget = (mediaItem: MediaTrackItem): string => {
+  const explicitLockTo = (mediaItem: MediaTrackItem): string => {
     const lockTo =
       typeof mediaItem.lockTo === 'string' ? mediaItem.lockTo.trim() : '';
-    if (lockTo) return lockTo;
+    return lockTo;
+  };
+
+  // Older items stored the lock as fitDurationTo. It only fills length when
+  // the item has no range and no duration — a range still places the clip.
+  const legacyFitTarget = (mediaItem: MediaTrackItem): string => {
     const legacy = (mediaItem as { fitDurationTo?: unknown }).fitDurationTo;
     return typeof legacy === 'string' ? legacy.trim() : '';
   };
@@ -816,8 +821,9 @@ const presetExecution = (
       // Prefer rangeString (comma-separated); fall back to legacy ranges[]
       const ranges = resolveItemRangeStrings(mediaItem);
 
-      // A lock copies the target's length, so the range is not used.
-      if (itemLockTarget(mediaItem) || ranges.length === 0) {
+      // lockTo copies the target's length, so the range is not used.
+      // A leftover fitDurationTo does not: the range still places the clip.
+      if (explicitLockTo(mediaItem) || ranges.length === 0) {
         return [createMediaScene(mediaItem, index, 0, null)];
       }
 
@@ -866,7 +872,20 @@ const presetExecution = (
     const allEffects = [...fadeInEffects, ...fadeOutEffects];
 
     const src = String(mediaItem.src || '');
-    const lockTarget = itemLockTarget(mediaItem);
+    const explicitLock = explicitLockTo(mediaItem);
+    const authoredDuration =
+      typeof mediaItem.duration === 'number' &&
+      Number.isFinite(mediaItem.duration) &&
+      mediaItem.duration > 0
+        ? mediaItem.duration
+        : undefined;
+    // A range or an authored duration already places the clip. fitDurationTo
+    // only fills the length when neither is set. lockTo still replaces both.
+    const lockTarget = explicitLock
+      ? explicitLock
+      : timeRange || authoredDuration
+        ? ''
+        : legacyFitTarget(mediaItem);
     const alignedStart =
       typeof mediaItem.start === 'number' && Number.isFinite(mediaItem.start)
         ? mediaItem.start
@@ -875,8 +894,8 @@ const presetExecution = (
       !timeRange && !sequence ? { start: alignedStart } : {};
     const sceneTiming = {
       ...placedStart,
-      ...(mediaItem.duration && !timeRange && !lockTarget
-        ? { duration: mediaItem.duration }
+      ...(authoredDuration && !timeRange && !explicitLock
+        ? { duration: authoredDuration }
         : {}),
       ...(lockTarget ? { fitDurationTo: lockTarget } : {}),
       ...(timeRange

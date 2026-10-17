@@ -1187,6 +1187,28 @@ describe('media track window', () => {
     );
   });
 
+  it('keeps an item range when only fitDurationTo is set', () => {
+    const ranged = sceneBlocksFromMediaInput({
+      trackType: 'aligned',
+      mediaItems: {
+        items: [
+          {
+            type: 'video',
+            fitDurationTo: 'audio-track',
+            rangeString: '0:10-0:20,0:30-0:35',
+          },
+        ],
+      },
+    });
+    assert.deepEqual(
+      ranged.blocks.map((block) => [block.start, block.duration]),
+      [
+        [10, 10],
+        [30, 5],
+      ],
+    );
+  });
+
   it('places imageloop images like an aligned media track', () => {
     const aligned = sceneBlocksFromMediaInput({
       trackType: 'aligned',
