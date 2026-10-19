@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { InputCompositionProps } from "@microfox/remotion";
+import { useBrowserRender, type BrowserRenderController } from "./use-browser-render";
+import { BrowserRenderDock } from "./browser-render-dock";
 
 // Configuration mode types
 export type ConfigMode = 'preset' | 'custom';
@@ -66,6 +68,8 @@ export interface RenderSettings {
     // Browser (client-side) render settings
     browserContainer: 'mp4' | 'webm';
     browserImageFormat: 'png' | 'jpeg';
+    /** Upload to cloud storage (render history) or save on this device. */
+    browserDestination: 'cloud' | 'device';
 }
 
 export type RenderMethod = 'aws' | 'local' | 'browser';
@@ -96,6 +100,12 @@ interface RenderContextType {
     // Custom config helpers
     updateCustomConfig: <K extends keyof CustomLambdaConfig>(key: K, value: CustomLambdaConfig[K]) => void;
     resetCustomConfig: () => void;
+
+    /**
+     * The in-browser render. Lives here (not in the modal) so the floating
+     * dock can show progress and pause/resume after the modal is closed.
+     */
+    browserRender: BrowserRenderController;
 }
 
 const defaultCustomConfig: CustomLambdaConfig = {
@@ -152,6 +162,7 @@ const defaultSettings: RenderSettings = {
   // Browser render
   browserContainer: 'mp4',
   browserImageFormat: 'png',
+  browserDestination: 'cloud',
 
   // Region (initialized elsewhere from config default if available)
   region: undefined,
@@ -180,6 +191,7 @@ export function RenderProvider({
     const [renderMethod, setRenderMethod] = useState<RenderMethod>(initialRenderMethod);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const browserRender = useBrowserRender();
 
     const setSettings = (newSettings: Partial<RenderSettings>) => {
         setSettingsState(prev => ({
@@ -242,12 +254,18 @@ export function RenderProvider({
         closeModal,
         resetSettings,
         updateCustomConfig,
-        resetCustomConfig
+        resetCustomConfig,
+        browserRender,
     };
 
     return (
         <RenderContext.Provider value={contextValue}>
             {children}
+            <BrowserRenderDock
+                controller={browserRender}
+                modalOpen={isModalOpen}
+                onExpand={() => setIsModalOpen(true)}
+            />
         </RenderContext.Provider>
     );
 }
