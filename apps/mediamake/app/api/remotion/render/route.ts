@@ -17,6 +17,7 @@ import { renderRequestDB } from '@/lib/render-mongodb';
 import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
 import { userQuotaDB } from '@/lib/quota-mongodb';
 import { isAdmin } from '@/lib/admin-utils';
+import { containsLocalMedia } from '@/lib/local-media/urls';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -53,6 +54,19 @@ export const POST = async (req: NextRequest) => {
       frame,
       frameTime,
     } = await req.json();
+
+    // Files on the user's computer are served by their browser's service
+    // worker; Lambda can never fetch them.
+    if (containsLocalMedia(inputProps)) {
+      return NextResponse.json(
+        {
+          type: 'error',
+          message:
+            'This timeline uses media from your computer, which AWS Lambda cannot reach. Render it in the browser, or upload those files to the cloud first.',
+        },
+        { status: 400 },
+      );
+    }
 
     if (
       !process.env.AWS_ACCESS_KEY_ID &&
