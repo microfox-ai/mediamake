@@ -28,12 +28,27 @@ import {
     Check,
     X as XIcon,
     Loader2,
-    GlobeIcon
+    GlobeIcon,
+    HardDrive,
+    Cloud,
+    ArrowRight,
+    AlertTriangle,
+    Lock,
 } from "lucide-react";
 import { MediaFile, Tag } from "@/app/types/media";
 import { UploadTrigger } from "@/components/ui/upload-trigger";
 import { UrlIndexingTrigger } from "@/components/ui/url-indexing-trigger";
-import { WebRecorderTrigger } from "@/components/ui/web-recorder-trigger";
+import { LocalImportDropzone } from "@/components/local-media/local-import-dropzone";
+import { useLocalMedia } from "@/components/local-media/local-media-provider";
+import {
+    LocalMediaBadge,
+    LocalMediaBanner,
+    StorageFilter,
+    asLocalFile,
+    type StorageFilterValue,
+} from "@/components/local-media/local-media-ui";
+import { localIdFromMediaFileId } from "@/lib/local-media/media-file";
+import { cn } from "@/lib/utils";
 import { MediaGrid, MediaOptionsDropdown } from "./media-ui";
 import useSWR from "swr";
 import { MediaSidebar } from "./media-sidebar";
@@ -198,6 +213,12 @@ interface MediaPickerProps {
     showSidebar?: boolean;
     /** Optional handler to clear the selected tag filter from parent (dashboard media page) */
     onClearSelectedTag?: () => void;
+    /**
+     * Show files from this computer (local media). Turn off where the picked
+     * URL is sent to a server or cloud service (transcription, splitting…),
+     * which can't reach files on the user's disk.
+     */
+    allowLocal?: boolean;
 }
 
 // Content source options for filtering
@@ -209,8 +230,13 @@ const CONTENT_SOURCES = {
     web: "Web",
     instagram: "Instagram",
     tiktok: "TikTok",
-    webrecorder: "Web Recorder"
 } as const;
+
+/** Local items shown above the cloud grid in the "All" view. */
+const LOCAL_SECTION_LIMIT = 12;
+
+/** Shared sizing for the add-media cards so the row lines up. */
+const DROPZONE_CARD_CLASS = "h-full min-h-[200px] flex flex-col items-center justify-center";
 
 // Fetcher function for SWR
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -230,6 +256,7 @@ export function MediaPicker({
     onHashtagFiltersChange: propOnHashtagFiltersChange,
     showSidebar = true,
     onClearSelectedTag,
+    allowLocal = true,
 }: MediaPickerProps) {
     const {
         selectedTag: contextSelectedTag,
@@ -275,10 +302,15 @@ export function MediaPicker({
     const [isUpdating, setIsUpdating] = useState(false);
     const [isPicking, setIsPicking] = useState(false);
     const [includeChildMedia, setIncludeChildMedia] = useState(true);
+    const [storageFilter, setStorageFilter] = useState<StorageFilterValue>("all");
+
+    const localMedia = useLocalMedia();
+    const localEnabled = allowLocal && localMedia.support.supported;
+    const localOnly = localEnabled && storageFilter === "local";
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag, selectedProjectId, includeChildMedia]);
+    }, [searchQuery, contentTypeFilter, sortOrder, hashtagFilters, contentSourceFilter, selectedTag, selectedProjectId, includeChildMedia, storageFilter]);
 
     useEffect(() => {
         const headers: Record<string, string> = {};
@@ -377,7 +409,7 @@ export function MediaPicker({
     };
 
     const isTagMode = Boolean(selectedTag);
-    const filesKey = searchResults.length > 0 ? null : buildApiUrl();
+    const filesKey = searchResults.length > 0 || localOnly ? null : buildApiUrl();
     const filesFetcher = fetcher;
 
     const { data: filesData, error: filesError, mutate: mutateFiles } = useSWR(
@@ -396,6 +428,45 @@ export function MediaPicker({
     const hasMore = searchResults.length > 0 ? false : (filesData?.hasMore || false);
     const tags = tagsData || [];
     const isLoading = searchResults.length > 0 ? isSearching : (!filesData && !filesError);
+
+    // Local items are filtered here with the same meaning the API gives the
+    // cloud filters (any-tag match, "default" project = no project). Search is
+    // a live file-name match, since local files aren't in the search index.
+    const localMatches = useMemo(() => {
+        if (!localEnabled || storageFilter === "cloud") return [] as MediaFile[];
+        const query = searchQuery.trim().toLowerCase();
+        const tagFilter = hashtagFilters.length > 0 ? hashtagFilters : selectedTag ? [selectedTag] : [];
+        const list = localMedia.files.filter((file) => {
+            if (contentTypeFilter !== "all" && file.contentType !== contentTypeFilter) return false;
+            if (contentSourceFilter !== "all") return false;
+            if (tagFilter.length > 0 && !tagFilter.some((t) => file.tags.includes(t))) return false;
+            if (selectedProjectId) {
+                if (selectedProjectId === "default" || selectedProjectId === "stocksearch") {
+                    if (file.projectId) return false;
+                } else if (file.projectId !== selectedProjectId) {
+                    return false;
+                }
+            }
+            if (
+                query &&
+                !(file.fileName ?? "").toLowerCase().includes(query) &&
+                !(file.localRelativePath ?? "").toLowerCase().includes(query)
+            ) {
+                return false;
+            }
+            return true;
+        });
+        const ordered = sortOrder === "oldest" ? [...list].reverse() : list;
+        return ordered as unknown as MediaFile[];
+    }, [localEnabled, storageFilter, localMedia.files, searchQuery, hashtagFilters, selectedTag, contentTypeFilter, contentSourceFilter, selectedProjectId, sortOrder]);
+
+    const showLocalSection = localEnabled && storageFilter === "all" && currentPage === 1 && localMatches.length > 0;
+    const localSectionFiles = showLocalSection ? localMatches.slice(0, LOCAL_SECTION_LIMIT) : [];
+    const displayFiles: MediaFile[] = localOnly
+        ? localMatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+        : files;
+    const displayTotal = localOnly ? localMatches.length : totalCount;
+    const displayLoading = localOnly ? !localMedia.loaded : isLoading;
 
 
     const getTagDisplayName = (tagId: string) => {
@@ -495,7 +566,7 @@ export function MediaPicker({
 
     // Bulk operations
     const handleBulkSelectAll = () => {
-        const allFileIds = files.map((file: MediaFile) => file._id?.toString()).filter(Boolean) as string[];
+        const allFileIds = [...localSectionFiles, ...displayFiles].map((file: MediaFile) => file._id?.toString()).filter(Boolean) as string[];
         setBulkSelectedFiles(new Set(allFileIds));
     };
 
@@ -513,9 +584,25 @@ export function MediaPicker({
         setBulkSelectedFiles(newSelection);
     };
 
-    const handleBulkUpdate = async (fileIds: string[], operation: 'add' | 'remove' | 'replace', tags: string[]) => {
+    const handleBulkUpdate = async (allFileIds: string[], operation: 'add' | 'remove' | 'replace', tags: string[]) => {
+        const localIds = allFileIds.map(localIdFromMediaFileId).filter((id): id is string => Boolean(id));
+        const fileIds = allFileIds.filter((id) => !localIdFromMediaFileId(id));
         try {
             setIsUpdating(true);
+            for (const id of localIds) {
+                const current = localMedia.getRecord(id)?.tags ?? [];
+                const next =
+                    operation === 'add'
+                        ? Array.from(new Set([...current, ...tags]))
+                        : operation === 'remove'
+                            ? current.filter((t) => !tags.includes(t))
+                            : tags;
+                await localMedia.update([id], { tags: next });
+            }
+            if (fileIds.length === 0) {
+                toast.success(`Updated ${localIds.length} file${localIds.length > 1 ? 's' : ''}`);
+                return;
+            }
             const response = await fetch('/api/media-files/bulk', {
                 method: 'PATCH',
                 headers: {
@@ -534,7 +621,7 @@ export function MediaPicker({
 
             // Refresh the files data
             await mutateFiles();
-            toast.success(`Updated ${fileIds.length} file${fileIds.length > 1 ? 's' : ''}`);
+            toast.success(`Updated ${allFileIds.length} file${allFileIds.length > 1 ? 's' : ''}`);
         } catch (error) {
             console.error('Error in bulk update:', error);
             toast.error('Failed to update files');
@@ -545,6 +632,11 @@ export function MediaPicker({
     };
 
     const handleSaveFile = async (fileId: string, updates: { tags: string[]; fileName?: string }) => {
+        const localId = localIdFromMediaFileId(fileId);
+        if (localId) {
+            await localMedia.update([localId], { tags: updates.tags, name: updates.fileName });
+            return;
+        }
         try {
             setIsUpdating(true);
             const response = await fetch(`/api/media-files/${fileId}`, {
@@ -571,6 +663,14 @@ export function MediaPicker({
     };
 
     const handleDeleteMedia = async (file: MediaFile) => {
+        const localId = localIdFromMediaFileId(file._id);
+        if (localId) {
+            if (confirm(`Remove “${file.fileName}” from your library?\n\nThe file on your computer is not touched.`)) {
+                await localMedia.remove([localId]);
+                toast.success('Removed from library');
+            }
+            return;
+        }
         if (confirm('Are you sure you want to delete this media file?')) {
             try {
                 const response = await fetch(`/api/media-files/${file._id}`, {
@@ -618,16 +718,27 @@ export function MediaPicker({
 
         try {
             setIsPicking(true);
-            // Fetch all selected files by their IDs
+            // Fetch all selected files by their IDs. Local items never reach
+            // the API — they are resolved from this browser's library.
             const selectedFileIds = Array.from(selectedFiles);
-            const response = await fetch(`/api/media-files?ids=${selectedFileIds.join(',')}`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch selected files');
+            const cloudIds = selectedFileIds.filter((id) => !localIdFromMediaFileId(id));
+            const byId = new Map<string, MediaFile>();
+            if (cloudIds.length > 0) {
+                const response = await fetch(`/api/media-files?ids=${cloudIds.join(',')}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch selected files');
+                }
+                const data = await response.json();
+                for (const file of (data.files || []) as MediaFile[]) {
+                    byId.set(String(file._id), file);
+                }
             }
-
-            const data = await response.json();
-            const selectedFilesArray = data.files || [];
+            for (const file of localMedia.files) {
+                if (selectedFiles.has(file._id)) byId.set(file._id, file as unknown as MediaFile);
+            }
+            const selectedFilesArray = selectedFileIds
+                .map((id) => byId.get(id))
+                .filter((file): file is MediaFile => Boolean(file));
 
             onSelect?.(selectedFilesArray);
             onClose?.();
@@ -644,10 +755,14 @@ export function MediaPicker({
     };
 
     const visibleFileIds = useMemo(() =>
-        files
+        [...localSectionFiles, ...displayFiles]
+            .filter((file) => {
+                const local = asLocalFile(file);
+                return !local || local.localStatus === 'ready' || local.localStatus === 'checking';
+            })
             .map((file: MediaFile) => file._id?.toString())
             .filter((id: string | undefined): id is string => !!id),
-        [files]
+        [localSectionFiles, displayFiles]
     );
 
     const allVisibleSelected = useMemo(() =>
@@ -668,6 +783,115 @@ export function MediaPicker({
         }
         setContextSelectedFiles(newSelectedFiles);
     };
+
+    const renderFiles = (list: MediaFile[]) =>
+        viewMode === "grid" ? (
+            <MediaGrid
+                mediaFiles={list}
+                onEditDetails={handleEditDetails}
+                onCopyUrl={handleCopyUrl}
+                onCopyId={handleCopyId}
+                onDeleteMedia={handleDeleteMedia}
+                pickerMode={pickerMode}
+                selectedFiles={selectedFiles}
+                onFileSelect={handleFileSelection}
+                editMode={editMode}
+                onBulkSelect={handleBulkSelectAll}
+                onBulkSelectAll={handleBulkSelectAll}
+                onBulkDeselectAll={handleBulkDeselectAll}
+                bulkSelectedFiles={bulkSelectedFiles}
+                onBulkFileSelect={handleBulkFileSelect}
+                onCloudChanged={() => mutateFiles()}
+            />
+        ) : (
+            <div className="space-y-2">
+                {list.map((file: MediaFile) => {
+                    const fileId = file._id?.toString();
+                    const isSelected = pickerMode ? selectedFiles.has(fileId || '') : selectedFile?._id === file._id;
+                    const isPickerSelected = pickerMode && selectedFiles.has(fileId || '');
+                    const local = asLocalFile(file);
+                    const unavailable = local && (local.localStatus === 'missing' || local.localStatus === 'needs-permission');
+
+                    return (
+                        <Card
+                            key={file._id?.toString()}
+                            className={`cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-primary' : ''
+                                } ${isPickerSelected ? 'bg-primary/10' : ''} ${unavailable ? 'opacity-70' : ''}`}
+                            onClick={() => {
+                                if (unavailable && pickerMode) {
+                                    toast.info(
+                                        local?.localStatus === 'missing'
+                                            ? 'This file was moved or deleted — relink it from its menu first.'
+                                            : 'This file needs access again — click Reconnect above.',
+                                    );
+                                    return;
+                                }
+                                handleFileSelection(file);
+                            }}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        {pickerMode && (
+                                            <div className="flex items-center justify-center w-6 h-6">
+                                                {isPickerSelected && (
+                                                    <Check className="h-5 w-5 text-primary" />
+                                                )}
+                                            </div>
+                                        )}
+                                        {getContentTypeIcon(file.contentType)}
+                                        <div className="flex-1">
+                                            <h3 className="font-medium flex items-center gap-2">
+                                                {file.fileName || 'Untitled'}
+                                                <LocalMediaBadge file={file} />
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                                                {file.contentType} • {new Date(file.createdAt).toLocaleDateString()}
+                                                {local?.localStatus === 'missing' && (
+                                                    <span className="inline-flex items-center gap-1 text-amber-600">
+                                                        • <AlertTriangle className="h-3 w-3" /> Missing on disk
+                                                    </span>
+                                                )}
+                                                {local?.localStatus === 'needs-permission' && (
+                                                    <span className="inline-flex items-center gap-1 text-sky-600">
+                                                        • <Lock className="h-3 w-3" /> Needs access
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {file.tags.map((tagId: string) => (
+                                                    <span
+                                                        key={tagId}
+                                                        className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            console.log('Filter by tag:', tagId);
+                                                        }}
+                                                    >
+                                                        #{getTagDisplayName(tagId)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {!pickerMode && (
+                                        <MediaOptionsDropdown
+                                            mediaFile={file}
+                                            onEditDetails={handleEditDetails}
+                                            onCopyUrl={handleCopyUrl}
+                                            onCopyId={handleCopyId}
+                                            onDeleteMedia={handleDeleteMedia}
+                                            onCloudChanged={() => mutateFiles()}
+                                            className="h-8 w-8 p-0"
+                                        />
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+        );
 
     const containerClasses = pickerMode
         ? "fixed inset-0 z-50 pointer-events-auto bg-background/80 backdrop-blur-sm"
@@ -805,11 +1029,20 @@ export function MediaPicker({
 
                             {/* Right Side - Other Filters */}
                             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-start md:justify-end">
+                                {/* Storage: cloud vs files on this computer */}
+                                {localEnabled && (
+                                    <StorageFilter
+                                        value={storageFilter}
+                                        onChange={setStorageFilter}
+                                        localCount={localMedia.files.length}
+                                    />
+                                )}
+
                                 {/* Search */}
                                 <div className="relative flex items-center">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Search files... (Press Enter)"
+                                        placeholder={localOnly ? "Filter by file name..." : "Search files... (Press Enter)"}
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onKeyPress={handleSearchKeyPress}
@@ -998,40 +1231,46 @@ export function MediaPicker({
                         <div className="flex-1 overflow-hidden">
                             <div className="p-4 h-full overflow-auto">
 
-                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                    <div className="col-span-1">
+                                {localEnabled && <LocalMediaBanner className="mb-4" />}
+
+                                {/* Equal-height cards: each cell stretches to the row, and
+                                    every card fills its cell with centred content. */}
+                                <div className={cn("grid grid-cols-1 gap-4 mb-4", allowLocal ? "md:grid-cols-3" : "md:grid-cols-2")}>
+                                    <div className="min-w-0 [&>div]:h-full">
                                         <UrlIndexingTrigger
                                             uiType="dropzone"
                                             onIndexingComplete={() => {
                                                 mutateFiles();
                                             }}
-                                            dropzoneClassName="min-h-[200px]"
+                                            dropzoneClassName={DROPZONE_CARD_CLASS}
                                             preselectedTags={hashtagFilters}
                                         />
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="min-w-0 [&>div]:h-full">
                                         <UploadTrigger
                                             autoUpload={true}
                                             uiType="dropzone"
                                             onUploadComplete={() => {
                                                 mutateFiles();
                                             }}
-                                            dropzoneClassName="min-h-[200px]"
+                                            dropzoneClassName={DROPZONE_CARD_CLASS}
                                             preselectedTags={hashtagFilters}
                                             pickerMode={pickerMode}
                                             selectedProjectId={selectedProjectId}
                                         />
                                     </div>
-                                    <div className="col-span-1">
-                                        <WebRecorderTrigger
-                                            uiType="dropzone"
-                                            onRecordingComplete={() => {
-                                                mutateFiles();
-                                            }}
-                                            dropzoneClassName="min-h-[200px]"
-                                            preselectedTags={hashtagFilters}
-                                        />
-                                    </div>
+                                    {allowLocal && (
+                                        <div className="min-w-0">
+                                            <LocalImportDropzone
+                                                defaultTags={hashtagFilters}
+                                                projects={searchProjects}
+                                                defaultProjectId={selectedProjectId}
+                                                onImported={() => {
+                                                    if (storageFilter === "cloud") setStorageFilter("all");
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 {/* Search Indicator */}
                                 {searchResults.length > 0 && (
@@ -1067,11 +1306,56 @@ export function MediaPicker({
                                     />
                                 )}
 
-                                {isLoading ? (
+                                {/* "All": files on this computer first, then the cloud library */}
+                                {showLocalSection && (
+                                    <section className="mb-6" aria-label="Files on this computer">
+                                        <div className="mb-3 flex items-center gap-2">
+                                            <HardDrive className="h-4 w-4 text-sky-500" />
+                                            <h3 className="text-sm font-semibold">On this computer</h3>
+                                            <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">
+                                                {localMatches.length}
+                                            </span>
+                                            <span className="hidden text-xs text-muted-foreground sm:inline">
+                                                · preview & browser render only
+                                            </span>
+                                            <span className="flex-1" />
+                                            {localMatches.length > LOCAL_SECTION_LIMIT && (
+                                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setStorageFilter("local")}>
+                                                    View all {localMatches.length}
+                                                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        {renderFiles(localSectionFiles)}
+                                        {!localOnly && (displayFiles.length > 0 || displayLoading) && (
+                                            <div className="mt-6 flex items-center gap-2 border-t pt-4">
+                                                <Cloud className="h-4 w-4 text-muted-foreground" />
+                                                <h3 className="text-sm font-semibold">Cloud library</h3>
+                                            </div>
+                                        )}
+                                    </section>
+                                )}
+
+                                {displayLoading ? (
                                     <div className="text-center text-muted-foreground py-8">
                                         Loading files...
                                     </div>
-                                ) : files.length === 0 ? (
+                                ) : displayFiles.length === 0 ? (
+                                    showLocalSection ? null : localOnly ? (
+                                        <div className="flex flex-col items-center gap-2 py-12 text-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-500/10 text-sky-500">
+                                                <HardDrive className="h-6 w-6" />
+                                            </div>
+                                            <p className="font-medium">
+                                                {localMedia.files.length === 0 ? "No local files yet" : "No local files match these filters"}
+                                            </p>
+                                            <p className="max-w-sm text-sm text-muted-foreground">
+                                                {localMedia.files.length === 0
+                                                    ? "Choose a folder or files above. They’re used straight from your disk — nothing is uploaded."
+                                                    : "Try another type, tag or project, or clear the search."}
+                                            </p>
+                                        </div>
+                                    ) : (
                                     <div className="text-center text-muted-foreground py-8">
                                         {searchQuery ? (
                                             <div className="flex flex-col items-center gap-4">
@@ -1091,94 +1375,15 @@ export function MediaPicker({
                                             </div>
                                         )}
                                     </div>
+                                    )
                                 ) : (
-                                    <div>
-                                        {viewMode === "grid" ? (
-                                            <MediaGrid
-                                                mediaFiles={files}
-                                                onEditDetails={handleEditDetails}
-                                                onCopyUrl={handleCopyUrl}
-                                                onCopyId={handleCopyId}
-                                                onDeleteMedia={handleDeleteMedia}
-                                                pickerMode={pickerMode}
-                                                selectedFiles={selectedFiles}
-                                                onFileSelect={handleFileSelection}
-                                                editMode={editMode}
-                                                onBulkSelect={handleBulkSelectAll}
-                                                onBulkSelectAll={handleBulkSelectAll}
-                                                onBulkDeselectAll={handleBulkDeselectAll}
-                                                bulkSelectedFiles={bulkSelectedFiles}
-                                                onBulkFileSelect={handleBulkFileSelect}
-                                            />
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {files.map((file: MediaFile) => {
-                                                    const fileId = file._id?.toString();
-                                                    const isSelected = pickerMode ? selectedFiles.has(fileId || '') : selectedFile?._id === file._id;
-                                                    const isPickerSelected = pickerMode && selectedFiles.has(fileId || '');
-
-                                                    return (
-                                                        <Card
-                                                            key={file._id?.toString()}
-                                                            className={`cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-primary' : ''
-                                                                } ${isPickerSelected ? 'bg-primary/10' : ''}`}
-                                                            onClick={() => handleFileSelection(file)}
-                                                        >
-                                                            <CardContent className="p-4">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center gap-4">
-                                                                        {pickerMode && (
-                                                                            <div className="flex items-center justify-center w-6 h-6">
-                                                                                {isPickerSelected && (
-                                                                                    <Check className="h-5 w-5 text-primary" />
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                        {getContentTypeIcon(file.contentType)}
-                                                                        <div className="flex-1">
-                                                                            <h3 className="font-medium">{file.fileName || 'Untitled'}</h3>
-                                                                            <p className="text-sm text-muted-foreground">
-                                                                                {file.contentType} • {new Date(file.createdAt).toLocaleDateString()}
-                                                                            </p>
-                                                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                                                {file.tags.map((tagId: string) => (
-                                                                                    <span
-                                                                                        key={tagId}
-                                                                                        className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            console.log('Filter by tag:', tagId);
-                                                                                        }}
-                                                                                    >
-                                                                                        #{getTagDisplayName(tagId)}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    {!pickerMode && (
-                                                                        <MediaOptionsDropdown
-                                                                            mediaFile={file}
-                                                                            onEditDetails={handleEditDetails}
-                                                                            onCopyUrl={handleCopyUrl}
-                                                                            onCopyId={handleCopyId}
-                                                                            onDeleteMedia={handleDeleteMedia}
-                                                                        />
-                                                                    )}
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                                    <div>{renderFiles(displayFiles)}</div>
                                 )}
 
-                                {totalCount > 0 && (
+                                {displayTotal > 0 && (
                                     <Pagination
                                         currentPage={currentPage}
-                                        totalItems={totalCount}
+                                        totalItems={displayTotal}
                                         itemsPerPage={itemsPerPage}
                                         onPageChange={setCurrentPage}
                                     />
