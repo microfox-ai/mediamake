@@ -108,6 +108,8 @@ function MediaPickerButton({ onSelect }: { onSelect: (files: MediaFile | MediaFi
                 <MediaPicker
                     pickerMode={true}
                     singular={true}
+                    // Transcription runs on a server, which can't read local files.
+                    allowLocal={false}
                     onSelect={handleSelect}
                     onClose={() => setShowPicker(false)}
                 />

@@ -278,6 +278,8 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
         <MediaPicker
           pickerMode
           singular
+          // Transcription runs on a server, which can't read local files.
+          allowLocal={false}
           onSelect={(files: MediaFile | MediaFile[]) => {
             const file = Array.isArray(files) ? files[0] : files;
             if (file?.filePath) setAudioUrl(file.filePath);
