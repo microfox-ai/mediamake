@@ -5,10 +5,51 @@ import { getComponent, getComponentConfig } from '../../core/registry';
 import { BaseRenderableData, CalculatedBoundaries, CalculatedTiming, InternalRenderableContext, RenderableContext } from '../../core/types';
 import { calculateHierarchy, calculateTimingWithInheritance } from '../../core/utils/hierarchyUtils';
 import { seriesPlacement } from '../../core/utils/timing';
+import { useAnimatedStyles } from '../effects';
+import { joinCssTransform } from '../effects/mergeCSSStyles';
+import { LayoutTransformProvider, splitTransformStyle } from '../effects/layout-transform';
 import { EffectWrapper } from './EffectWrapper';
 
 // Create a context for passing down calculated values
 const RenderContext = createContext<RenderableContext | null>(null);
+
+/**
+ * Sequence tracks are scenes, so they never mount BaseLayout. The shell still
+ * has to honor containerProps, with transform lifted off the box so child
+ * blend modes are not isolated.
+ */
+function SceneContainer({
+    id,
+    data,
+    children,
+}: {
+    id: string;
+    data?: {
+        containerProps?: { className?: string; style?: React.CSSProperties };
+    };
+    children: React.ReactNode;
+}) {
+    const containerProps = data?.containerProps;
+    const overrideStyles = useAnimatedStyles(id);
+    const container = splitTransformStyle(containerProps?.style);
+    const effects = splitTransformStyle(overrideStyles);
+    const transform = joinCssTransform(container.transform, effects.transform);
+    const style = { ...container.style, ...effects.style };
+    const className = containerProps?.className;
+    if (!transform && !className && Object.keys(style).length === 0) {
+        return <>{children}</>;
+    }
+    return (
+        <LayoutTransformProvider
+            transform={transform}
+            transformOrigin={effects.transformOrigin ?? container.transformOrigin}
+        >
+            <div id={id} className={className} style={style}>
+                {children}
+            </div>
+        </LayoutTransformProvider>
+    );
+}
 
 export const useRenderContext = () => {
     const context = useContext(RenderContext);
@@ -153,6 +194,11 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
         );
 
         const sceneDuration = newTiming.durationInFrames ?? 0;
+        const sceneTree = (
+            <SceneContainer id={id} data={data}>
+                {series}
+            </SceneContainer>
+        );
         const sceneBody = sceneDuration > 0 ? (
             <Sequence
                 layout="none"
@@ -160,9 +206,9 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
                 from={newTiming.startInFrames ?? 0}
                 durationInFrames={sceneDuration}
             >
-                {series}
+                {sceneTree}
             </Sequence>
-        ) : series;
+        ) : sceneTree;
 
         return (
             <RenderContext.Provider value={newContext}>
@@ -283,6 +329,8 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             }
             : containerProps?.style;
         const wrapperClassName = containerProps?.className;
+        const positioned = splitTransformStyle(wrapperStyle);
+        const hasPositionStyle = Object.keys(positioned.style).length > 0;
 
         const renderAtom = (atomProps: typeof props) => {
             const node = effects && effects.length > 0 ? (
@@ -292,9 +340,18 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             ) : (
                 <ComponentClass {...atomProps} />
             );
-            return wrapperStyle || wrapperClassName ? (
-                <div className={wrapperClassName} style={wrapperStyle}>{node}</div>
+            const framed = hasPositionStyle || wrapperClassName ? (
+                <div className={wrapperClassName} style={positioned.style}>{node}</div>
             ) : node;
+            if (!positioned.transform) return framed;
+            return (
+                <LayoutTransformProvider
+                    transform={positioned.transform}
+                    transformOrigin={positioned.transformOrigin}
+                >
+                    {framed}
+                </LayoutTransformProvider>
+            );
         };
 
         if (newTiming.durationInFrames && newTiming.durationInFrames > 0) {

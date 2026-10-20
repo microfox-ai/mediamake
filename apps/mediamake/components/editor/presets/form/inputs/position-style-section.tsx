@@ -189,31 +189,31 @@ function MotionRow({
     const linkLabel = draft.scaleLinked ? "Unlock scale X and Y" : "Lock scale X and Y";
 
     return (
-        <div className="grid grid-cols-3 items-center gap-1">
-            <DraftInput
-                className="min-w-0"
-                value={draft.rotate ? String(draft.rotate) : ""}
-                placeholder="0"
-                adornment={<RotateCw className="h-3 w-3" />}
-                suffix="°"
-                title="Rotation in degrees"
-                onCommit={(raw) => {
-                    const text = raw.trim();
-                    if (!text) {
-                        onRotate(0);
-                        return;
-                    }
-                    const n = Number(text.replace(/°$/, ""));
-                    if (Number.isFinite(n)) onRotate(n);
-                }}
-            />
-            <div className="flex items-center justify-center gap-0.5">
+        <div className="grid grid-cols-2 items-center gap-1">
+            <div className="flex min-w-0 items-center gap-0.5">
+                <DraftInput
+                    className="min-w-0 flex-1"
+                    value={draft.rotate ? String(draft.rotate) : ""}
+                    placeholder="0"
+                    adornment={<RotateCw className="h-3 w-3" />}
+                    suffix="°"
+                    title="Rotation in degrees"
+                    onCommit={(raw) => {
+                        const text = raw.trim();
+                        if (!text) {
+                            onRotate(0);
+                            return;
+                        }
+                        const n = Number(text.replace(/°$/, ""));
+                        if (Number.isFinite(n)) onRotate(n);
+                    }}
+                />
                 <IconTip label="Rotate 90°">
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 shrink-0 p-0"
                         aria-label="Rotate 90°"
                         onClick={() => onRotate(rotateBy90(draft.rotate))}
                     >
@@ -225,7 +225,7 @@ function MotionRow({
                         type="button"
                         variant={draft.flipX ? "secondary" : "outline"}
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 shrink-0 p-0"
                         aria-label="Flip horizontal"
                         aria-pressed={draft.flipX}
                         onClick={() => onFlip("flipX")}
@@ -238,7 +238,7 @@ function MotionRow({
                         type="button"
                         variant={draft.flipY ? "secondary" : "outline"}
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 shrink-0 p-0"
                         aria-label="Flip vertical"
                         aria-pressed={draft.flipY}
                         onClick={() => onFlip("flipY")}

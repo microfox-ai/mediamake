@@ -196,6 +196,19 @@ function inputLayoutStyle(params: unknown): Record<string, unknown> | undefined 
 
 const LAYOUT_POSITION_KEYS = ['position', 'transform', ...LAYOUT_BOX_KEYS] as const;
 
+function joinCssTransform(base: unknown, extra: unknown): string | undefined {
+  const clean = (value: unknown) => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === 'none') return undefined;
+    return trimmed;
+  };
+  const parent = clean(base);
+  const child = clean(extra);
+  if (parent && child) return `${parent} ${child}`;
+  return parent ?? child;
+}
+
 /**
  * Stamp the Layout section onto a container.
  * Keys the section owns are replaced by the UI style. Colour and other
@@ -213,6 +226,7 @@ export function mergeLayoutOntoContainer(
     previousStyle && typeof previousStyle === 'object' && !Array.isArray(previousStyle)
       ? { ...previousStyle }
       : {};
+  const presetTransform = style.transform;
   for (const key of LAYOUT_POSITION_KEYS) delete style[key];
   for (const key of Object.keys(style)) {
     if (key.startsWith('--mm-')) delete style[key];
@@ -221,6 +235,9 @@ export function mergeLayoutOntoContainer(
     if (value === undefined || value === '') delete style[key];
     else style[key] = value;
   }
+  const combinedTransform = joinCssTransform(presetTransform, style.transform);
+  if (combinedTransform) style.transform = combinedTransform;
+  else delete style.transform;
 
   let className = typeof previousClass === 'string' ? previousClass : undefined;
   const position = layout.position;

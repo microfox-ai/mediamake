@@ -82,6 +82,22 @@ interface MergeOptions {
   preferParentOnOverlap?: boolean;
 }
 
+/** Keep both transform lists, parent first. CSS applies the list right to left. */
+export function joinCssTransform(
+  base: string | undefined,
+  extra: string | undefined,
+): string | undefined {
+  const clean = (value: string | undefined) => {
+    const trimmed = value?.trim();
+    if (!trimmed || trimmed === 'none') return undefined;
+    return trimmed;
+  };
+  const parent = clean(base);
+  const child = clean(extra);
+  if (parent && child) return `${parent} ${child}`;
+  return parent ?? child;
+}
+
 // Merge CSS functions (like transform/filter) preserving parent order and resolving overlaps
 const mergeFunctionStrings = (
   parentValue: string | undefined,
@@ -131,9 +147,23 @@ export const mergeCSSStyles = (
       }
 
       switch (key as MergeableProperties) {
-        case 'transform':
+        case 'transform': {
+          // Same function names must both run. Replacing translateX drops the
+          // positioning transform as soon as an effect adds another translateX.
+          result.transform = preferParentOnOverlap
+            ? mergeFunctionStrings(
+                pValue as string | undefined,
+                cValue as string | undefined,
+                true,
+              )
+            : joinCssTransform(
+                pValue as string | undefined,
+                cValue as string | undefined,
+              );
+          break;
+        }
         case 'filter': {
-          result[key] = mergeFunctionStrings(
+          result.filter = mergeFunctionStrings(
             pValue as string | undefined,
             cValue as string | undefined,
             preferParentOnOverlap

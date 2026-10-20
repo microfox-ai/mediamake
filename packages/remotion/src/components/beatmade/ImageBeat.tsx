@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { continueRender, delayRender, Img, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { BaseRenderableData } from '../../core/types/renderable.types';
 import { useAnimatedStyles } from '../effects';
-import { mergeCSSStyles } from '../effects/mergeCSSStyles';
+import { AncestorTransform, useLayoutTransform } from '../effects/layout-transform';
+import { joinCssTransform, mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { useWaveformData } from '../waveforms/hooks/useWaveformData';
 import { WaveformAudioSource } from '../waveforms/audio-source';
 import { atomCategory } from '../../atom-category';
@@ -167,33 +168,48 @@ export const ImageBeat: React.FC<ImageBeatProps> = ({ data, id }) => {
     [block, overrideStyles],
   );
 
-  const imgStyle = useMemo(
-    (): React.CSSProperties => ({
+  const imgStyle = useMemo((): React.CSSProperties => {
+    const zoomTransform = `translate(${zoom.tx}%, ${zoom.ty}%) scale(${zoom.scale})`;
+    const authored = typeof image.transform === 'string' ? image.transform : undefined;
+    return {
       width: '100%',
       height: '100%',
       display: 'block',
       ...image,
       ...imageLook,
-      transform: `translate(${zoom.tx}%, ${zoom.ty}%) scale(${zoom.scale})`,
+      transform: joinCssTransform(authored, zoomTransform),
       transformOrigin: 'center center',
-    }),
-    [image, imageLook, zoom.scale, zoom.tx, zoom.ty],
-  );
+    };
+  }, [image, imageLook, zoom.scale, zoom.tx, zoom.ty]);
 
+  const layout = useLayoutTransform();
   if (!src) return null;
 
+  const blend = imageLook.mixBlendMode;
+  const liftBlend = Boolean(layout?.transform && blend);
+  const hostStyle: React.CSSProperties = liftBlend
+    ? { ...blockStyle, mixBlendMode: blend }
+    : blockStyle;
+  const painted: React.CSSProperties = liftBlend
+    ? { ...imgStyle, mixBlendMode: undefined }
+    : imgStyle;
+
   return (
-    <div className={className} style={blockStyle}>
-      <Img
-        src={source}
-        style={imgStyle}
-        crossOrigin={src.startsWith('http') ? 'anonymous' : undefined}
-        maxRetries={4}
-        onError={() => {
-          console.warn(`Failed to load image: ${src}`);
-        }}
-      />
-    </div>
+    <AncestorTransform style={hostStyle}>
+      {(style) => (
+        <div className={className} style={style}>
+          <Img
+            src={source}
+            style={painted}
+            crossOrigin={src.startsWith('http') ? 'anonymous' : undefined}
+            maxRetries={4}
+            onError={() => {
+              console.warn(`Failed to load image: ${src}`);
+            }}
+          />
+        </div>
+      )}
+    </AncestorTransform>
   );
 };
 

@@ -3,6 +3,7 @@ import { continueRender, delayRender, Img, staticFile } from 'remotion';
 import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { AncestorTransform } from '../effects/layout-transform';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { ImageAtomInput } from './input-schemas';
@@ -118,16 +119,20 @@ export const Atom: React.FC<ImageAtomProps> = ({ data, id }) => {
     );
 
     return (
-        <Img
-            className={data.className}
-            src={source}
-            style={enhancedStyle}
-            crossOrigin={data.src.startsWith('http') ? "anonymous" : undefined}
-            maxRetries={4}
-            onError={() => {
-                console.warn(`Failed to load image: ${data.src}`);
-            }}
-        />
+        <AncestorTransform style={enhancedStyle}>
+            {(style) => (
+                <Img
+                    className={data.className}
+                    src={source}
+                    style={style}
+                    crossOrigin={data.src.startsWith('http') ? "anonymous" : undefined}
+                    maxRetries={4}
+                    onError={() => {
+                        console.warn(`Failed to load image: ${data.src}`);
+                    }}
+                />
+            )}
+        </AncestorTransform>
     );
 };
 

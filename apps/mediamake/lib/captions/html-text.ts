@@ -33,8 +33,12 @@ function decodeEntities(text: string): string {
   );
 }
 
+// Keep letters, vowel signs, and numbers in any script so <br/> lines stay aligned.
 function cleanToken(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return text
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}]/gu, '');
 }
 
 type HtmlToken =
@@ -742,18 +746,15 @@ export function resolveCaptionHighlightMeta(
   const highlightedWordIndices: number[] = [];
   if (metadata.keyword && String(metadata.keyword).length > 0) {
     const cleanKeywords = String(metadata.keyword)
-      .toLowerCase()
       .split(/\s+/)
-      .map((k: string) => k.replace(/[^a-z0-9]/g, ''))
+      .map((k: string) => cleanToken(k))
       .filter(Boolean);
 
     // Sequential match: walk keywords in order against words once
     let keywordIdx = 0;
     words.forEach((word, index) => {
       if (keywordIdx >= cleanKeywords.length) return;
-      const cleanWord = (word.text ?? '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
+      const cleanWord = cleanToken(word.text ?? '');
       if (!cleanWord) return;
       const target = cleanKeywords[keywordIdx];
       if (

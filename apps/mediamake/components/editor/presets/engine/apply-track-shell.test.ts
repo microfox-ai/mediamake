@@ -344,6 +344,29 @@ describe('applyInputContainerLayout', () => {
     assert.equal(node.data.containerProps.className ?? '', '');
   });
 
+  it('appends a layout transform after the preset transform', () => {
+    const output = applyInputContainerLayout(
+      { containerProps: { style: { transform: 'rotate(15deg) scale(1.2)' } } },
+      applyTrackShell(
+        { trackName: 'box' },
+        {
+          children: [],
+          containerProps: {
+            className: 'absolute inset-0',
+            style: { transform: 'translate(-50%, -50%)', backgroundColor: 'red' },
+          },
+        },
+        'container',
+      ),
+    );
+    const node = layoutNode(output);
+    assert.equal(
+      node.data.containerProps.style.transform,
+      'translate(-50%, -50%) rotate(15deg) scale(1.2)',
+    );
+    assert.equal(node.data.containerProps.style.backgroundColor, 'red');
+  });
+
   it('drops inset-0 on a container and keeps the preset background', () => {
     const output = applyInputContainerLayout(
       { containerProps: { style: { position: 'absolute', width: 200, '--mm-width': '200' } } },

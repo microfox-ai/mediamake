@@ -2,6 +2,8 @@ import React, { Children, ComponentType, ReactNode, useMemo } from 'react';
 import { AbsoluteFill } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { joinCssTransform } from '../effects/mergeCSSStyles';
+import { LayoutTransformProvider, splitTransformStyle } from '../effects/layout-transform';
 
 interface BaseLayoutProps extends BaseRenderableProps {
     children?: ReactNode;
@@ -18,43 +20,47 @@ export const Layout: ComponentType<BaseLayoutProps> = ({ id, children, data, con
     const overrideStyles = useAnimatedStyles(id);
     const childrenArray = Children.toArray(children);
 
-    const enhancedStyle = useMemo(() => ({
-        ...(!context?.boundaries?.reset ? context?.boundaries : {}),
-        ...containerProps.style,
-        ...overrideStyles
-    }), [
-        !context?.boundaries?.reset ? context?.boundaries : {},
-        containerProps.style,
-        overrideStyles]
-    );
+    const { enhancedStyle, transform, transformOrigin } = useMemo(() => {
+        const boundaries = !context?.boundaries?.reset ? (context?.boundaries ?? {}) : {};
+        const container = splitTransformStyle(containerProps.style as React.CSSProperties | undefined);
+        const effects = splitTransformStyle(overrideStyles);
+        return {
+            transform: joinCssTransform(container.transform, effects.transform),
+            transformOrigin: effects.transformOrigin ?? container.transformOrigin,
+            enhancedStyle: {
+                ...boundaries,
+                ...container.style,
+                ...effects.style,
+            },
+        };
+    }, [context?.boundaries, containerProps.style, overrideStyles]);
 
     // console.log('data in ', id, repeatChildrenProps, childrenProps);
+    let body: ReactNode;
     if (Object.keys(repeatChildrenProps).length <= 0 && childrenProps.length <= 0) {
 
         if (data.isAbsoluteFill) {
-            return (
+            body = (
                 <AbsoluteFill
                     {...containerProps} style={enhancedStyle}>
                     {childrenArray}
                 </AbsoluteFill>
             );
+        } else {
+            body = (
+                <div
+                    id={id}
+                    {...containerProps} style={enhancedStyle}>
+                    {childrenArray.map((child, index) => (
+                        <React.Fragment key={index}>
+                            {child}
+                        </React.Fragment>
+                    ))}
+                </div>
+            );
         }
-
-        return (
-            <div
-                id={id}
-                {...containerProps} style={enhancedStyle}>
-                {childrenArray.map((child, index) => (
-                    <React.Fragment key={index}>
-                        {child}
-                    </React.Fragment>
-                ))}
-            </div>
-        );
-    }
-
-    if (data.isAbsoluteFill) {
-        return (
+    } else if (data.isAbsoluteFill) {
+        body = (
             <AbsoluteFill
                 id={id}
                 {...containerProps} style={enhancedStyle}>
@@ -68,21 +74,27 @@ export const Layout: ComponentType<BaseLayoutProps> = ({ id, children, data, con
                 ))}
             </AbsoluteFill>
         );
+    } else {
+        body = (
+            <div
+                id={id}
+                {...containerProps} style={enhancedStyle}>
+                {childrenArray.map((child, index) => (
+                    <div
+                        key={index}
+                        {...((childrenProps.length > 0 && index < childrenProps.length) ? childrenProps[index] : repeatChildrenProps ? repeatChildrenProps : {})}
+                    >
+                        {child}
+                    </div>
+                ))}
+            </div>
+        );
     }
 
     return (
-        <div
-            id={id}
-            {...containerProps} style={enhancedStyle}>
-            {childrenArray.map((child, index) => (
-                <div
-                    key={index}
-                    {...((childrenProps.length > 0 && index < childrenProps.length) ? childrenProps[index] : repeatChildrenProps ? repeatChildrenProps : {})}
-                >
-                    {child}
-                </div>
-            ))}
-        </div>
+        <LayoutTransformProvider transform={transform} transformOrigin={transformOrigin}>
+            {body}
+        </LayoutTransformProvider>
     );
 };
 

@@ -163,7 +163,6 @@ export const CaptionSmear: React.FC<CaptionSmearProps> = ({ data }) => {
         () => ({
             weights: [String(fontWeight)],
             style: fontStyle === 'italic' ? ('italic' as const) : undefined,
-            subsets: ['latin'],
         }),
         [fontWeight, fontStyle]
     );
