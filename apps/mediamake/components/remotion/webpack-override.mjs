@@ -1,8 +1,7 @@
 import { enableTailwind } from '@remotion/tailwind-v4';
 
-/**
- *  @param {import('webpack').Configuration} currentConfig
- */
+// Leave this untyped. `import('webpack')` resolves the app's Webpack, which is
+// a different type from the copy bundled inside `@remotion/bundler`.
 export const webpackOverride = currentConfig => {
   const config = enableTailwind(currentConfig);
   // Suppress all warnings

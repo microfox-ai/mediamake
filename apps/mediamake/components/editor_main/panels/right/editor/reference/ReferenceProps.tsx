@@ -61,6 +61,7 @@ import { TranscriptionPicker } from "@/components/transcriber/picker/transcripti
 import { CaptionPicker } from "@/components/editor/captions/caption-picker";
 import { ParagraphCaptionsDialog } from "@/components/editor/captions/paragraph-captions-dialog";
 import { AudioToTextDialog } from "@/components/editor/captions/audio-to-text-dialog";
+import { UserGivenTextPanel } from "@/components/editor/captions/user-given-text-panel";
 import type { Caption, CaptionsDocument, Transcription } from "@/app/types/transcription";
 import {
   captionTitleFromSource,
@@ -74,6 +75,8 @@ import { clearLinkedActionOutputs } from "@/lib/captions/linked-action-outputs";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type ReferenceTab = "smart" | "info" | "full" | "user" | "json";
 
 interface ReferencePropsPanelProps {
   reference: ReferenceItem;
@@ -417,7 +420,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const calculatedMetadata = useCompileStore((s) => s.calculatedMetadata);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
   const seekToFrame = useLayerStateStore((s) => s.seekToFrame);
-  const [activeTab, setActiveTab] = useState<"smart" | "info" | "full" | "json">("smart");
+  const [activeTab, setActiveTab] = useState<ReferenceTab>("smart");
   const [filterActive, setFilterActive] = useState(true);
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [editedKey, setEditedKey] = useState(reference.key || "");
@@ -1121,6 +1124,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
 
   const title = selectedReference?.key || `reference_${referenceIndex + 1}`;
   const referenceType = selectedReference?.type || "object";
+  const visibleTab: ReferenceTab =
+    activeTab === "user" && referenceType !== "captions" ? "smart" : activeTab;
   const selectedDefaultData: DefaultPresetData = {
     references: selectedReference ? [selectedReference] : [],
   };
@@ -1348,12 +1353,17 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           ) : (
           <div className="space-y-3">
             <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as "smart" | "info" | "full" | "json")}
+              value={visibleTab}
+              onValueChange={(v) => setActiveTab(v as ReferenceTab)}
               className="w-full"
             >
               <div className="flex items-center gap-2">
-                <TabsList className="grid grid-cols-4 flex-1">
+                <TabsList
+                  className={cn(
+                    "grid flex-1",
+                    referenceType === "captions" ? "grid-cols-5" : "grid-cols-4",
+                  )}
+                >
                   <TabsTrigger
                     value="smart"
                     className={cn(
@@ -1367,11 +1377,16 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   </TabsTrigger>
                   <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
                   <TabsTrigger value="full" className="text-xs">Full</TabsTrigger>
+                  {referenceType === "captions" && (
+                    <TabsTrigger value="user" className="text-xs px-1" title="User Given">
+                      User Given
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
                 </TabsList>
 
                 {/* Active filter toggle — only in Selected tab for array / media types */}
-                {isSmartFilterType && activeTab === "smart" && (
+                {isSmartFilterType && visibleTab === "smart" && (
                   selectedCaptionIndex != null ? (
                     <Button
                       variant="default"
@@ -1569,6 +1584,16 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                   </div>
                 )}
               </TabsContent>
+
+              {referenceType === "captions" && (
+                <TabsContent value="user" className="mt-3">
+                  <UserGivenTextPanel
+                    transcriptionId={
+                      captionsDocumentId(selectedReference?.value?.sourceTranscriptionId) || null
+                    }
+                  />
+                </TabsContent>
+              )}
 
               <TabsContent value="json" className="mt-3">
                 <JsonEditor

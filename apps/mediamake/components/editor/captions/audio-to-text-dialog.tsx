@@ -26,6 +26,7 @@ import { MediaPicker } from '@/components/editor/media/media-picker';
 import { LANGUAGES } from '@/components/transcriber/new/new-transcription-ui';
 import type { MediaFile } from '@/app/types/media';
 import type { Transcription } from '@/app/types/transcription';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 
 interface AudioToTextDialogProps {
   open: boolean;
@@ -43,13 +44,19 @@ function isValidUrl(url: string) {
 }
 
 export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialogProps) {
-  const [audioUrl, setAudioUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [language, setLanguage] = useState('en');
-  const [provider, setProvider] = useState<'assembly' | 'gemini' | 'elevenlabs'>('elevenlabs');
+  const [audioUrl, setAudioUrl] = useLocalStorage('audioToText.audioUrl', '');
+  const [title, setTitle] = useLocalStorage('audioToText.title', '');
+  const [language, setLanguage] = useLocalStorage('audioToText.language', 'en');
+  const [provider, setProvider] = useLocalStorage<'assembly' | 'gemini' | 'elevenlabs'>(
+    'audioToText.provider',
+    'elevenlabs',
+  );
   const [autofix, setAutofix] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
-  const [userTranscription, setUserTranscription] = useState('');
+  const [tags, setTags] = useLocalStorage<string[]>('audioToText.tags', []);
+  const [userTranscription, setUserTranscription] = useLocalStorage(
+    'audioToText.userTranscription',
+    '',
+  );
   const [showPicker, setShowPicker] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);

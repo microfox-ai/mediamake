@@ -38,7 +38,8 @@ export function attachProvidedTranscription<T extends WithLyrics>(
   };
 }
 
-function providedTranscriptionSet(provided: string) {
+/** Mongo `$set` fields for the user's text. An empty string clears it. */
+export function providedTranscriptionSet(provided: string) {
   return {
     sunoLyrics: provided,
     "processingData.step1.sunoLyrics": provided,
