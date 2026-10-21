@@ -70,6 +70,7 @@ import {
   getCaptionsDocument,
   updateCaptionsDocument,
 } from "@/lib/captions/captions-client";
+import { clearLinkedActionOutputs } from "@/lib/captions/linked-action-outputs";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -556,6 +557,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       const oldKey = currentReferences[referenceIndex]?.key;
       const previous = currentReferences[referenceIndex];
       let mergedReference = { ...previous, ...updatedReference };
+      let prevCaptionsId = "";
+      let nextCaptionsId = "";
       if (
         previous?.type === "captions" &&
         mergedReference.value &&
@@ -566,6 +569,8 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         const nextValue = mergedReference.value;
         const prevId = captionsDocumentId(prevValue._id);
         const nextId = captionsDocumentId(nextValue._id);
+        prevCaptionsId = prevId;
+        nextCaptionsId = prevId && !nextId ? prevId : nextId;
         const sourceId =
           captionsDocumentId(nextValue.sourceTranscriptionId) ||
           captionsDocumentId(prevValue.sourceTranscriptionId);
@@ -581,6 +586,10 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       nextReferences[referenceIndex] = mergedReference;
       const newKey = nextReferences[referenceIndex]?.key;
       const keyMapping = oldKey && newKey && oldKey !== newKey ? { [oldKey]: newKey } : {};
+      const captionsDocumentReplaced =
+        previous?.type === "captions" &&
+        !!nextCaptionsId &&
+        prevCaptionsId !== nextCaptionsId;
 
       const migratedPresets =
         Object.keys(keyMapping).length > 0
@@ -590,7 +599,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
           }))
           : latestTimeline.presets;
 
-      const migratedActions =
+      const remappedActions =
         Object.keys(keyMapping).length > 0
           ? (latestTimeline.actions || []).map((action) => {
             if (
@@ -607,6 +616,11 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
             return action;
           })
           : latestTimeline.actions;
+
+      const migratedActions =
+        captionsDocumentReplaced && newKey && remappedActions
+          ? clearLinkedActionOutputs(remappedActions, newKey)
+          : remappedActions;
 
       updateTimeline(timeline.id, {
         defaultData: { ...(latestTimeline.defaultData || {}), references: nextReferences },

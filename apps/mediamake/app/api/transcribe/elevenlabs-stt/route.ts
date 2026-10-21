@@ -6,6 +6,11 @@ import {
 } from '@/components/editor/presets/types';
 import { getDatabase } from '@/lib/mongodb';
 import { Transcription } from '@/app/types/transcription';
+import {
+  attachProvidedTranscription,
+  persistProvidedTranscription,
+  readProvidedTranscription,
+} from '../provided-transcription';
 
 // Increase route execution time for longer audio files
 export const maxDuration = 300; // 5 minutes
@@ -16,6 +21,8 @@ const TranscriptionRequestSchema = z.object({
   language: z.string().optional(),
   tags: z.array(z.string()).optional(),
   title: z.string().optional(),
+  userWrittenTranscription: z.string().optional(),
+  sunoLyrics: z.string().optional(),
 });
 
 // --- Types ---
@@ -221,6 +228,7 @@ export const POST = async (req: NextRequest) => {
 
     const { audioUrl, language, tags, title } = validatedRequest;
     const trimmedTitle = title?.trim() || undefined;
+    const providedTranscription = readProvidedTranscription(validatedRequest);
 
     // Perform transcription
     const { captions, id, language_code, transcript } = await transcribeAudio(
@@ -241,36 +249,44 @@ export const POST = async (req: NextRequest) => {
         );
         existing.title = trimmedTitle;
       }
+      const withLyrics = await persistProvidedTranscription(
+        collection,
+        existing,
+        providedTranscription,
+      );
       return NextResponse.json(
         {
           success: true,
-          transcription: existing,
+          transcription: withLyrics,
         },
         { status: 200 },
       );
     }
 
     const now = new Date();
-    const transcription: Omit<Transcription, '_id'> = {
-      clientId,
-      assemblyId: id,
-      audioUrl,
-      language: language_code,
-      status: 'completed',
-      tags: tags || [],
-      ...(trimmedTitle ? { title: trimmedTitle } : {}),
-      captions: captions || [],
-      processingData: {
-        step1: {
-          rawText: captions?.map(caption => caption.text).join(' '),
-          processedCaptions: captions,
-          transcript: transcript,
-          source: 'elevenlabs-stt',
+    const transcription: Omit<Transcription, '_id'> = attachProvidedTranscription(
+      {
+        clientId,
+        assemblyId: id,
+        audioUrl,
+        language: language_code,
+        status: 'completed',
+        tags: tags || [],
+        ...(trimmedTitle ? { title: trimmedTitle } : {}),
+        captions: captions || [],
+        processingData: {
+          step1: {
+            rawText: captions?.map(caption => caption.text).join(' '),
+            processedCaptions: captions,
+            transcript: transcript,
+            source: 'elevenlabs-stt',
+          },
         },
+        createdAt: now,
+        updatedAt: now,
       },
-      createdAt: now,
-      updatedAt: now,
-    };
+      providedTranscription,
+    );
 
     const result = await collection.insertOne(transcription);
     const createdTranscription = await collection.findOne({

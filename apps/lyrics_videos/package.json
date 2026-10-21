@@ -1,0 +1,33 @@
+{
+  "name": "lyrics_videos",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Lyric videos in Remotion. Each project needs a song and its timed transcription (lyrics.json). Preview in Studio, render on demand.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "prepare-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/prepare.ts",
+    "stills": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/stills.ts",
+    "render-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@microfox/remotion": "*",
+    "@remotion/bundler": "4.0.496",
+    "@remotion/cli": "4.0.496",
+    "@remotion/google-fonts": "4.0.496",
+    "@remotion/media": "4.0.496",
+    "@remotion/media-utils": "4.0.496",
+    "@remotion/renderer": "4.0.496",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.496",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

@@ -7,6 +7,7 @@ import {
 } from '@/components/editor/presets/types';
 import { getDatabase } from '@/lib/mongodb';
 import { Transcription } from '@/app/types/transcription';
+import { attachProvidedTranscription } from '../provided-transcription';
 
 // Increase route execution time for TTS generation (especially v3 model)
 export const maxDuration = 180; // 180 seconds = 3 minutes
@@ -276,27 +277,30 @@ export const POST = async (req: NextRequest) => {
     }
 
     const now = new Date();
-    const transcription: Omit<Transcription, '_id'> = {
-      clientId,
-      assemblyId,
-      audioUrl: audioBase64, // Temporary - will be replaced with S3 URL
-      language: language || 'en',
-      status: 'completed',
-      tags: tags || [],
-      captions: captions || [],
-      processingData: {
-        step1: {
-          rawText: text,
-          processedCaptions: captions,
-          source: 'elevenlabs-tts',
-          voiceId,
-          modelId,
-          generatedAt: now.toISOString(),
+    const transcription: Omit<Transcription, '_id'> = attachProvidedTranscription(
+      {
+        clientId,
+        assemblyId,
+        audioUrl: audioBase64, // Temporary - will be replaced with S3 URL
+        language: language || 'en',
+        status: 'completed',
+        tags: tags || [],
+        captions: captions || [],
+        processingData: {
+          step1: {
+            rawText: text,
+            processedCaptions: captions,
+            source: 'elevenlabs-tts',
+            voiceId,
+            modelId,
+            generatedAt: now.toISOString(),
+          },
         },
+        createdAt: now,
+        updatedAt: now,
       },
-      createdAt: now,
-      updatedAt: now,
-    };
+      text.trim() || undefined,
+    );
 
     const result = await collection.insertOne(transcription);
     const createdTranscription = await collection.findOne({

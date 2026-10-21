@@ -2,6 +2,7 @@ import { AiRouter } from '@microfox/ai-router';
 import { z } from 'zod/v4';
 import { loadTranscription } from './middlewares/loadTranscription';
 import spellingFixerAgent from './fixers/spellingFixer';
+import captionSpellingFixerAgent from './fixers/captionSpellingFixer';
 import wordBoundaryFixerAgent from './fixers/wordBoundaryFixer';
 import sentenceStructureFixerAgent from './fixers/sentenceStructureFixer';
 import punctuationFixerAgent from './fixers/punctuationFixer';
@@ -50,6 +51,7 @@ export const autofixOrchestrator = aiRouter
   })
   .before('/', loadTranscription)
   .agent('/spelling', spellingFixerAgent)
+  .agent('/caption-spelling', captionSpellingFixerAgent)
   .agent('/word-boundary', wordBoundaryFixerAgent)
   .agent('/sentence-structure', sentenceStructureFixerAgent)
   .agent('/punctuation', punctuationFixerAgent)

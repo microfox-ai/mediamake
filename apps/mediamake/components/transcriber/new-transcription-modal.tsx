@@ -165,6 +165,7 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
                     audioUrl: audioUrl.trim(),
                     language: language?.trim() || undefined,
                     tags: selectedTags,
+                    userWrittenTranscription: userWrittenTranscription.trim() || undefined,
                 }),
             });
 
@@ -423,6 +424,21 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
                                 </p>
                             </div>
 
+                            <div className="space-y-2">
+                                <Label htmlFor="userWrittenTranscription" className="text-sm">Your transcription (optional)</Label>
+                                <Textarea
+                                    id="userWrittenTranscription"
+                                    value={userWrittenTranscription}
+                                    onChange={(e) => setUserWrittenTranscription(e.target.value)}
+                                    placeholder="Paste the lyrics or script. Saved on the transcription after it finishes."
+                                    className="min-h-[100px] resize-y text-sm overflow-y-auto"
+                                    disabled={isTranscribing}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    The spoken transcription is kept as recorded. This text is stored beside it for later spelling correction.
+                                </p>
+                            </div>
+
                             {/* AI Autofix Section */}
                             <div className="space-y-3">
                                 <Separator />
@@ -455,17 +471,6 @@ export function NewTranscriptionModal({ isOpen, onClose, onTranscriptionComplete
                                                     onChange={(e) => setUserRequest(e.target.value)}
                                                     placeholder="e.g., Fix spelling errors and improve sentence flow..."
                                                     className="h-[60px] resize-none text-sm overflow-y-auto"
-                                                    disabled={isTranscribing}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="userWrittenTranscription" className="text-sm">Your Written Version (Optional)</Label>
-                                                <Textarea
-                                                    id="userWrittenTranscription"
-                                                    value={userWrittenTranscription}
-                                                    onChange={(e) => setUserWrittenTranscription(e.target.value)}
-                                                    placeholder="Paste your corrected version here for reference..."
-                                                    className="h-[80px] resize-none text-sm overflow-y-auto"
                                                     disabled={isTranscribing}
                                                 />
                                             </div>

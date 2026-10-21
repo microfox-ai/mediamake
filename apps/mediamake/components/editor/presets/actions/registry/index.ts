@@ -7,7 +7,9 @@ import { shakeEffectRange } from "./shake-effect-actions/shake-effect-range";
 import { shakeEffectRangeBrowser } from "./shake-effect-actions/shake-effect-range-browser";
 import { captionClean } from "./caption-clean";
 import { captionFillWordGaps } from "./caption-fill-word-gaps";
+import { captionReset } from "./caption-reset";
 import { captionSentenceStructure } from "./caption-sentence-structure";
+import { captionSpellingCorrect } from "./caption-spelling-correct";
 import { captionSplitHighlight } from "./caption-split-highlight";
 import { imageBeatChoice } from "./image-beat-choice";
 import { savedStylesActions } from "./saved-styles-choice";
@@ -17,10 +19,12 @@ const ACTION_REGISTRY: ActionDefinition[] = [
   imageBeatChoice,
   waveformSpectrumFillChoice,
   ...savedStylesActions,
+  captionSpellingCorrect,
   captionSentenceStructure,
   captionSplitHighlight,
   captionFillWordGaps,
   captionClean,
+  captionReset,
   shakeEffectMinorBeats,
   shakeEffectRange,
   shakeEffectRangeBrowser,
@@ -81,7 +85,9 @@ export function getSupportedActionsForTarget(
 export {
   captionClean,
   captionFillWordGaps,
+  captionReset,
   captionSentenceStructure,
+  captionSpellingCorrect,
   captionSplitHighlight,
   shakeEffectRangeGenerator,
   shakeEffectMinorBeats,

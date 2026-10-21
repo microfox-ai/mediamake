@@ -1,0 +1,11 @@
+[
+  { "text": "City lights are humming low", "start": 3.0, "end": 5.4 },
+  { "text": "Every street a radio", "start": 5.6, "end": 7.8 },
+  { "text": "Turn it up and let it go", "start": 8.0, "end": 10.0 },
+  { "text": "We're the pulse", "start": 13.0, "end": 14.4 },
+  { "text": "We're the glow", "start": 14.6, "end": 16.4 },
+  { "text": "Hearts on fire, stereo", "start": 16.6, "end": 19.0 },
+  { "text": "We're the pulse", "start": 22.0, "end": 23.4 },
+  { "text": "We're the glow", "start": 23.6, "end": 25.4 },
+  { "text": "Hearts on fire, stereo", "start": 25.6, "end": 28.0 }
+]

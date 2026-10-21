@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TagMultiSelect } from '@/components/ui/tag-multi-select';
+import { Textarea } from '@/components/ui/textarea';
 import { MediaPicker } from '@/components/editor/media/media-picker';
 import { LANGUAGES } from '@/components/transcriber/new/new-transcription-ui';
 import type { MediaFile } from '@/app/types/media';
@@ -48,6 +49,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
   const [provider, setProvider] = useState<'assembly' | 'gemini' | 'elevenlabs'>('elevenlabs');
   const [autofix, setAutofix] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [userTranscription, setUserTranscription] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +95,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
           language: language === 'auto' ? undefined : language,
           tags,
           title: title.trim() || undefined,
+          userWrittenTranscription: userTranscription.trim() || undefined,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -128,6 +131,7 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
       onCreated(transcription);
       setAudioUrl('');
       setTitle('');
+      setUserTranscription('');
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transcription failed');
@@ -262,6 +266,18 @@ export function AudioToTextDialog({ open, onClose, onCreated }: AudioToTextDialo
               label="Tags"
               showCreateNew={false}
             />
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Your transcription
+              </Label>
+              <Textarea
+                value={userTranscription}
+                onChange={e => setUserTranscription(e.target.value)}
+                placeholder="Paste lyrics or a script. Saved on the transcription after it finishes."
+                className="min-h-24 resize-y text-xs"
+                disabled={isRunning}
+              />
+            </div>
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>
           <DialogFooter>

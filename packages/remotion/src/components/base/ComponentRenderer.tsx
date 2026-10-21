@@ -7,7 +7,6 @@ import { calculateHierarchy, calculateTimingWithInheritance } from '../../core/u
 import { seriesPlacement } from '../../core/utils/timing';
 import { useAnimatedStyles } from '../effects';
 import { joinCssTransform } from '../effects/mergeCSSStyles';
-import { LayoutTransformProvider, splitTransformStyle } from '../effects/layout-transform';
 import { EffectWrapper } from './EffectWrapper';
 
 // Create a context for passing down calculated values
@@ -15,8 +14,7 @@ const RenderContext = createContext<RenderableContext | null>(null);
 
 /**
  * Sequence tracks are scenes, so they never mount BaseLayout. The shell still
- * has to honor containerProps, with transform lifted off the box so child
- * blend modes are not isolated.
+ * paints containerProps, including rotation, on this box.
  */
 function SceneContainer({
     id,
@@ -31,23 +29,25 @@ function SceneContainer({
 }) {
     const containerProps = data?.containerProps;
     const overrideStyles = useAnimatedStyles(id);
-    const container = splitTransformStyle(containerProps?.style);
-    const effects = splitTransformStyle(overrideStyles);
-    const transform = joinCssTransform(container.transform, effects.transform);
-    const style = { ...container.style, ...effects.style };
+    const containerStyle = containerProps?.style ?? {};
+    const effects = overrideStyles ?? {};
+    const transform = joinCssTransform(
+        typeof containerStyle.transform === 'string' ? containerStyle.transform : undefined,
+        typeof effects.transform === 'string' ? effects.transform : undefined,
+    );
+    const style: React.CSSProperties = { ...containerStyle, ...effects };
+    if (transform) style.transform = transform;
+    if (!effects.transformOrigin && containerStyle.transformOrigin) {
+        style.transformOrigin = containerStyle.transformOrigin;
+    }
     const className = containerProps?.className;
-    if (!transform && !className && Object.keys(style).length === 0) {
+    if (!className && Object.keys(style).length === 0) {
         return <>{children}</>;
     }
     return (
-        <LayoutTransformProvider
-            transform={transform}
-            transformOrigin={effects.transformOrigin ?? container.transformOrigin}
-        >
-            <div id={id} className={className} style={style}>
-                {children}
-            </div>
-        </LayoutTransformProvider>
+        <div id={id} className={className} style={style}>
+            {children}
+        </div>
     );
 }
 
@@ -329,8 +329,6 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             }
             : containerProps?.style;
         const wrapperClassName = containerProps?.className;
-        const positioned = splitTransformStyle(wrapperStyle);
-        const hasPositionStyle = Object.keys(positioned.style).length > 0;
 
         const renderAtom = (atomProps: typeof props) => {
             const node = effects && effects.length > 0 ? (
@@ -340,18 +338,9 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
             ) : (
                 <ComponentClass {...atomProps} />
             );
-            const framed = hasPositionStyle || wrapperClassName ? (
-                <div className={wrapperClassName} style={positioned.style}>{node}</div>
+            return wrapperStyle || wrapperClassName ? (
+                <div className={wrapperClassName} style={wrapperStyle}>{node}</div>
             ) : node;
-            if (!positioned.transform) return framed;
-            return (
-                <LayoutTransformProvider
-                    transform={positioned.transform}
-                    transformOrigin={positioned.transformOrigin}
-                >
-                    {framed}
-                </LayoutTransformProvider>
-            );
         };
 
         if (newTiming.durationInFrames && newTiming.durationInFrames > 0) {
