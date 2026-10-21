@@ -94,6 +94,33 @@ export function captionTitleFromSource(sourceTitle?: string | null) {
   return `${base}-${suffix}`;
 }
 
+/**
+ * Build a transcription-shaped document in memory.
+ * Caption lines always come from the captions document.
+ * Every other field on the captions document is copied onto the transcription.
+ * The transcription id and any fields that exist only on the transcription stay.
+ * Nothing here is written back to the database.
+ */
+export function mergeCaptionsOntoTranscription(
+  transcription: Record<string, unknown>,
+  captionsDoc: CaptionsDocument,
+): Record<string, unknown> {
+  const captionFields = captionsDoc as unknown as Record<string, unknown>;
+  const extras: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(captionFields)) {
+    if (key === 'captions' || key === '_id' || value === undefined) continue;
+    extras[key] = value;
+  }
+
+  return {
+    ...transcription,
+    ...extras,
+    _id: transcription._id,
+    captions: Array.isArray(captionsDoc.captions) ? captionsDoc.captions : [],
+  };
+}
+
 export function captionsReferenceValue(
   doc: CaptionsDocument,
   fallbackCaptions?: Caption[],

@@ -134,6 +134,8 @@ export interface UpdateTranscriptionRequest {
   tags?: string[];
   title?: string;
   sunoLyrics?: string;
+  /** User-given lyrics or script. Written to every field the lyrics readers check. */
+  userWrittenTranscription?: string;
   description?: string;
   keywords?: string[];
   captions?: Caption[];

@@ -3,6 +3,7 @@ import { staticFile, useVideoConfig, OffthreadVideo, Video as Html5Video, Loop, 
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { useAnimatedStyles } from '../effects';
+import { AncestorTransform } from '../effects/layout-transform';
 import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { calculateComponentDuration, resolveLoopSrcDuration } from '../../core';
 import { atomCategory } from '../../atom-category';
@@ -200,53 +201,45 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
                 ? Html5Video
                 : OffthreadVideo;
 
-    // Create the video component with proper styles
-    const videoComponent = (
-        <VideoTag
-            className={data.className}
-            src={source}
-            style={videoStyle}
-            trimBefore={trimBefore}
-            trimAfter={trimAfter}
-            playbackRate={data.playbackRate}
-            volume={data.volume}
-            muted={data.muted}
-            loop={loopsNatively || undefined}
-        />
-    );
+    const loopSeconds = data.loop && !loopsNatively
+        ? resolveLoopSrcDuration(data.srcDuration, measuredSrcDuration, fps)
+        : undefined;
+    const loopDurationInFrames =
+        loopSeconds !== undefined
+            ? Math.max(1, Math.round(loopSeconds * fps))
+            : context?.timing?.durationInFrames;
 
-    const videoWithStyles = videoComponent;
-
-    if (data.loop && !loopsNatively) {
-        const loopSeconds = resolveLoopSrcDuration(
-            data.srcDuration,
-            measuredSrcDuration,
-            fps
-        );
-        const loopDurationInFrames =
-            loopSeconds !== undefined
-                ? Math.max(1, Math.round(loopSeconds * fps))
-                : context.timing?.durationInFrames;
-
-        return (
-            <Loop times={Infinity} durationInFrames={loopDurationInFrames} layout="none">
-                {data.containerClassName ? (
+    return (
+        <AncestorTransform style={videoStyle}>
+            {(style) => {
+                const videoComponent = (
+                    <VideoTag
+                        className={data.className}
+                        src={source}
+                        style={style}
+                        trimBefore={trimBefore}
+                        trimAfter={trimAfter}
+                        playbackRate={data.playbackRate}
+                        volume={data.volume}
+                        muted={data.muted}
+                        loop={loopsNatively || undefined}
+                    />
+                );
+                const framed = data.containerClassName ? (
                     <div className={data.containerClassName} style={overrideStyles}>
                         {videoComponent}
                     </div>
-                ) : (
-                    videoWithStyles
-                )}
-            </Loop>
-        );
-    }
-
-    return data.containerClassName ? (
-        <div className={data.containerClassName} style={overrideStyles}>
-            {videoComponent}
-        </div>
-    ) : (
-        videoWithStyles
+                ) : videoComponent;
+                if (data.loop && !loopsNatively) {
+                    return (
+                        <Loop times={Infinity} durationInFrames={loopDurationInFrames} layout="none">
+                            {framed}
+                        </Loop>
+                    );
+                }
+                return framed;
+            }}
+        </AncestorTransform>
     );
 };
 

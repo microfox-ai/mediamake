@@ -236,6 +236,7 @@ export function NewTranscriptionUI() {
                     audioUrl: audioUrl.trim(),
                     language: languageCode,
                     tags: selectedTags,
+                    userWrittenTranscription: userWrittenTranscription.trim() || undefined,
                 }),
             });
 
@@ -487,6 +488,22 @@ export function NewTranscriptionUI() {
                                         </div>
                                     </div>
 
+                                    {/* Written lyrics stay on the transcription. Autofix is separate. */}
+                                    <div className="p-4 border rounded-lg space-y-2">
+                                        <Label htmlFor="userWrittenTranscription" className="text-sm">Your transcription (optional)</Label>
+                                        <Textarea
+                                            id="userWrittenTranscription"
+                                            value={userWrittenTranscription}
+                                            onChange={(e) => setUserWrittenTranscription(e.target.value)}
+                                            placeholder="Paste the lyrics or script. Saved on the transcription after it finishes."
+                                            className="min-h-[160px] resize-y text-sm overflow-y-auto"
+                                            disabled={isTranscribing}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            The spoken transcription is kept as recorded. This text is stored beside it for later spelling correction.
+                                        </p>
+                                    </div>
+
                                     {/* AI Autofix Section */}
                                     <div className="p-4 border rounded-lg">
                                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -517,17 +534,6 @@ export function NewTranscriptionUI() {
                                                             onChange={(e) => setUserRequest(e.target.value)}
                                                             placeholder="e.g., Fix spelling errors and improve sentence flow..."
                                                             className="min-h-[100px] resize-none text-sm overflow-y-auto"
-                                                            disabled={isTranscribing}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="userWrittenTranscription" className="text-sm">Your Written Version (Optional)</Label>
-                                                        <Textarea
-                                                            id="userWrittenTranscription"
-                                                            value={userWrittenTranscription}
-                                                            onChange={(e) => setUserWrittenTranscription(e.target.value)}
-                                                            placeholder="Paste your corrected version here for reference..."
-                                                            className="min-h-[400px] resize-none text-sm overflow-y-auto"
                                                             disabled={isTranscribing}
                                                         />
                                                     </div>

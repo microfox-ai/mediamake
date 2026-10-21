@@ -59,9 +59,36 @@ export interface FontLoadingOptions {
 }
 
 /**
- * `loadFont` throws on a style or weight the font does not ship, so requests
- * are narrowed to what `getInfo()` lists.
+ * Google font files are split by subset, and each file only covers that
+ * script's unicode range. A Latin-only load leaves Telugu, Devanagari, Arabic,
+ * CJK, and other glyphs unloaded.
+ *
+ * No request, or the historical `['latin']` default, loads every subset the
+ * font ships. An explicit list such as `['telugu']` is kept when the font has it.
  */
+export const resolveFontSubsets = (
+  availableSubsets: readonly string[] | undefined,
+  requested?: readonly string[]
+): string[] => {
+  const available = (availableSubsets ?? []).filter(
+    (subset) => subset && !/^\[\d+\]$/.test(subset)
+  );
+  const asked = (requested ?? []).filter((subset): subset is string => Boolean(subset));
+  const latinOnlyDefault =
+    asked.length === 0 || (asked.length === 1 && asked[0] === 'latin');
+
+  if (!latinOnlyDefault) {
+    const explicit = asked.filter(
+      (subset) => available.length === 0 || available.includes(subset)
+    );
+    if (explicit.length > 0) return explicit;
+  }
+
+  if (available.length > 0) return [...available];
+  return asked.length > 0 ? [...asked] : ['latin'];
+};
+
+/** `loadFont` throws on a style or weight the font does not ship. */
 const resolveFontVariant = (
   fontPackage: any,
   options: FontLoadingOptions
@@ -124,10 +151,15 @@ export const loadGoogleFont = async (
     if (thisFont?.load) {
       const fontPackage = await thisFont.load();
       const { style, weights } = resolveFontVariant(fontPackage, options);
+      const subsets = resolveFontSubsets(
+        fontPackage.getInfo?.()?.subsets,
+        options.subsets
+      );
 
       const allFontStuff = fontPackage.loadFont(style, {
-        subsets: options.subsets || ['latin'],
+        subsets,
         weights,
+        ignoreTooManyRequestsWarning: true,
       });
 
       await allFontStuff.waitUntilDone();

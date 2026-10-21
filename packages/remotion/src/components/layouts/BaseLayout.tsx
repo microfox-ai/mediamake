@@ -2,6 +2,7 @@ import React, { Children, ComponentType, ReactNode, useMemo } from 'react';
 import { AbsoluteFill } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { joinCssTransform } from '../effects/mergeCSSStyles';
 
 interface BaseLayoutProps extends BaseRenderableProps {
     children?: ReactNode;
@@ -18,15 +19,27 @@ export const Layout: ComponentType<BaseLayoutProps> = ({ id, children, data, con
     const overrideStyles = useAnimatedStyles(id);
     const childrenArray = Children.toArray(children);
 
-    const enhancedStyle = useMemo(() => ({
-        ...(!context?.boundaries?.reset ? context?.boundaries : {}),
-        ...containerProps.style,
-        ...overrideStyles
-    }), [
-        !context?.boundaries?.reset ? context?.boundaries : {},
-        containerProps.style,
-        overrideStyles]
-    );
+    const enhancedStyle = useMemo(() => {
+        const boundaries = !context?.boundaries?.reset ? (context?.boundaries ?? {}) : {};
+        const containerStyle = (containerProps.style ?? {}) as React.CSSProperties;
+        const effects = overrideStyles ?? {};
+        // Keep the container transform on this box. Waveform vertical rotation
+        // is authored here; moving it onto children drops the 90° turn.
+        const transform = joinCssTransform(
+            typeof containerStyle.transform === 'string' ? containerStyle.transform : undefined,
+            typeof effects.transform === 'string' ? effects.transform : undefined,
+        );
+        const style: React.CSSProperties = {
+            ...boundaries,
+            ...containerStyle,
+            ...effects,
+        };
+        if (transform) style.transform = transform;
+        if (!effects.transformOrigin && containerStyle.transformOrigin) {
+            style.transformOrigin = containerStyle.transformOrigin;
+        }
+        return style;
+    }, [context?.boundaries, containerProps.style, overrideStyles]);
 
     // console.log('data in ', id, repeatChildrenProps, childrenProps);
     if (Object.keys(repeatChildrenProps).length <= 0 && childrenProps.length <= 0) {

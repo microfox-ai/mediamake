@@ -85,6 +85,7 @@
     "@remotion/renderer": "4.0.496",
     "@remotion/shapes": "4.0.496",
     "@remotion/tailwind-v4": "4.0.496",
+    "@remotion/three": "4.0.496",
     "@remotion/web-renderer": "4.0.496",
     "@tabler/icons-react": "^3.34.1",
     "@tanstack/react-table": "^8.21.3",

@@ -3,6 +3,8 @@ import { continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfi
 import { Lottie, LottieAnimationData } from '@remotion/lottie';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { AncestorTransform } from '../effects/layout-transform';
+import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { LottieAtomDataProps } from './input-schemas';
 
@@ -123,16 +125,15 @@ export const Atom: React.FC<LottieAtomProps> = ({ data, id }) => {
     }, [frame, data.playbackRate, data.direction]);
 
     // Combine data styles with animated override styles
-    const enhancedStyle = useMemo(() => ({
-        ...data.style,
-        ...overrideStyles,
-    }), [data.style, overrideStyles]);
+    const enhancedStyle = useMemo(
+        () => mergeCSSStyles(data.style, overrideStyles),
+        [data.style, overrideStyles],
+    );
 
     // Handle loading state
     if (isLoading) {
         return (
-            <div 
-                className={data.className}
+            <AncestorTransform
                 style={{
                     ...enhancedStyle,
                     display: 'flex',
@@ -141,8 +142,12 @@ export const Atom: React.FC<LottieAtomProps> = ({ data, id }) => {
                     opacity: 0.5,
                 }}
             >
-                {/* Loading state - keep invisible to avoid flicker */}
-            </div>
+                {(style) => (
+                    <div className={data.className} style={style}>
+                        {/* Loading state - keep invisible to avoid flicker */}
+                    </div>
+                )}
+            </AncestorTransform>
         );
     }
 
@@ -150,8 +155,7 @@ export const Atom: React.FC<LottieAtomProps> = ({ data, id }) => {
     if (hasError || !animationData) {
         console.warn(`LottieAtom: Failed to render animation from ${data.src}`);
         return (
-            <div 
-                className={data.className}
+            <AncestorTransform
                 style={{
                     ...enhancedStyle,
                     display: 'flex',
@@ -165,17 +169,25 @@ export const Atom: React.FC<LottieAtomProps> = ({ data, id }) => {
                     padding: 10,
                 }}
             >
-                ⚠️ Lottie Error
-            </div>
+                {(style) => (
+                    <div className={data.className} style={style}>
+                        ⚠️ Lottie Error
+                    </div>
+                )}
+            </AncestorTransform>
         );
     }
 
     return (
-        <Lottie
-            animationData={animationData}
-            style={enhancedStyle}
-            className={data.className}
-        />
+        <AncestorTransform style={enhancedStyle}>
+            {(style) => (
+                <Lottie
+                    animationData={animationData}
+                    style={style}
+                    className={data.className}
+                />
+            )}
+        </AncestorTransform>
     );
 };
 

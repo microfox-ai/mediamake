@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { getRemotionEnvironment, useCurrentScale } from 'remotion';
 import { BaseRenderableProps, ComponentConfig } from '../core/types';
 import { useAnimatedStyles } from '../components/effects';
+import { AncestorTransform } from '../components/effects/layout-transform';
+import { mergeCSSStyles } from '../components/effects/mergeCSSStyles';
 import { atomCategory } from '../atom-category';
 import { CanvasPipelineData, CanvasPipelineDataSchema } from './types';
 import { useCanvasPipeline } from './useCanvasPipeline';
@@ -65,17 +67,21 @@ export const Atom: React.FC<CanvasPipelineAtomProps> = ({ data, id, context }) =
     });
 
     return (
-        <canvas
-            ref={canvasRef}
-            id={id}
-            className={data.className}
-            style={{
-                width: '100%',
-                height: '100%',
-                ...data.style,
-                ...overrideStyles,
-            }}
-        />
+        <AncestorTransform
+            style={mergeCSSStyles(
+                { width: '100%', height: '100%', ...data.style },
+                overrideStyles,
+            )}
+        >
+            {(style) => (
+                <canvas
+                    ref={canvasRef}
+                    id={id}
+                    className={data.className}
+                    style={style}
+                />
+            )}
+        </AncestorTransform>
     );
 };
 

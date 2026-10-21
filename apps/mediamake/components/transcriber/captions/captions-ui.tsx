@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Captions, ChevronDown, Folder, Loader2, Search } from 'lucide-react';
+import { Captions, ChevronDown, Download, Folder, Loader2, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,12 @@ import {
 import { DefaultCard } from '@/components/editor/presets/form/default-card';
 import type { DefaultPresetData } from '@/components/editor/presets/types';
 import type { CaptionsDocument } from '@/app/types/transcription';
-import { captionsReferenceValue, updateCaptionsDocument } from '@/lib/captions/captions-client';
+import {
+  captionsDocumentId,
+  captionsReferenceValue,
+  mergeCaptionsOntoTranscription,
+  updateCaptionsDocument,
+} from '@/lib/captions/captions-client';
 import { useSession } from '@/components/session-provider';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -122,6 +128,33 @@ function CaptionInfo({
   );
 }
 
+function downloadJson(filename: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function mergedFileName(transcription: Record<string, unknown>, doc: CaptionsDocument) {
+  const title =
+    (typeof transcription.title === 'string' && transcription.title.trim()) ||
+    doc.title ||
+    'transcription';
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `${slug || 'transcription'}-merged.json`;
+}
+
 function CaptionCard({
   doc,
   folder,
@@ -132,8 +165,42 @@ function CaptionCard({
   onChange: (next: CaptionsDocument) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const id = doc._id?.toString() ?? '';
+  const [downloading, setDownloading] = useState(false);
   const count = doc.captions?.length ?? 0;
+  const sourceId = captionsDocumentId(doc.sourceTranscriptionId);
+
+  const downloadMerged = async () => {
+    if (!sourceId) {
+      toast.error('This caption version is not linked to a transcription');
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const response = await fetch(`/api/transcriptions/${sourceId}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load the source transcription');
+      }
+      const transcription = data.transcription;
+      if (!transcription || typeof transcription !== 'object') {
+        throw new Error('Source transcription was empty');
+      }
+
+      const merged = mergeCaptionsOntoTranscription(
+        transcription as Record<string, unknown>,
+        doc,
+      );
+      downloadJson(mergedFileName(transcription as Record<string, unknown>, doc), merged);
+      toast.success('Merged transcription downloaded');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to download merged transcription',
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <Collapsible
@@ -141,40 +208,62 @@ function CaptionCard({
       onOpenChange={setOpen}
       className={cn('border rounded-lg', open && 'col-span-full')}
     >
-      <CollapsibleTrigger className="flex w-full items-start gap-2 p-3 text-left">
-        <Captions className="h-4 w-4 mt-0.5 shrink-0" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start gap-2">
-            <h3 className="font-medium text-sm line-clamp-2 flex-1">
-              {doc.title || 'Untitled Captions'}
-            </h3>
-            <Badge variant="outline" className="text-xs shrink-0">
-              {count}
-            </Badge>
+      <div className="flex items-start gap-1 p-3">
+        <CollapsibleTrigger className="flex min-w-0 flex-1 items-start gap-2 text-left">
+          <Captions className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start gap-2">
+              <h3 className="font-medium text-sm line-clamp-2 flex-1">
+                {doc.title || 'Untitled Captions'}
+              </h3>
+              <Badge variant="outline" className="text-xs shrink-0">
+                {count}
+              </Badge>
+            </div>
+            {doc.description ? (
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                {doc.description}
+              </p>
+            ) : null}
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              {folder ? (
+                <span className="inline-flex items-center gap-1">
+                  <Folder className="h-3 w-3" />
+                  {folder}
+                </span>
+              ) : (
+                <span>No project folder</span>
+              )}
+            </div>
           </div>
-          {doc.description ? (
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {doc.description}
-            </p>
-          ) : null}
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            {folder ? (
-              <span className="inline-flex items-center gap-1">
-                <Folder className="h-3 w-3" />
-                {folder}
-              </span>
-            ) : (
-              <span>No project folder</span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+              open && 'rotate-180',
             )}
-          </div>
-        </div>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-            open && 'rotate-180',
+          />
+        </CollapsibleTrigger>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 shrink-0 px-0"
+          title={
+            sourceId
+              ? 'Download transcription with these captions'
+              : 'No source transcription to merge'
+          }
+          aria-label="Download merged transcription JSON"
+          disabled={!sourceId || downloading}
+          onClick={() => void downloadMerged()}
+        >
+          {downloading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
           )}
-        />
-      </CollapsibleTrigger>
+        </Button>
+      </div>
       <CollapsibleContent className="px-3 pb-3">
         {open ? <CaptionInfo doc={doc} onChange={onChange} /> : null}
       </CollapsibleContent>

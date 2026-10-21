@@ -4,6 +4,8 @@ import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useFont } from '../../hooks/useFontLoader';
 import { useAnimatedStyles } from '../effects';
+import { AncestorTransform } from '../effects/layout-transform';
+import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { TextAtomInput } from './input-schemas';
 import { applyTextFillStyle } from './text-fill-style';
@@ -98,7 +100,7 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
                 ? [String(data.style.fontWeight)]
                 : data.font?.weights || ['400'],
             style: data.style?.fontStyle === 'italic' ? 'italic' : undefined,
-            subsets: data.font?.subsets || ['latin'],
+            subsets: data.font?.subsets,
             display: data.font?.display || 'swap',
             preload: data.font?.preload !== false,
             onLoad: (family, cssValue) => {
@@ -167,8 +169,8 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
         // Legacy `data.gradient` still clips to the glyphs. A fill authored on
         // `style` (background-clip: text) wins, so the editor Fill control is
         // not overwritten.
-        if (data.gradient && !clipsText) {
-            return {
+        const painted: React.CSSProperties = data.gradient && !clipsText
+            ? {
                 ...baseStyle,
                 backgroundImage: data.gradient,
                 backgroundClip: 'text',
@@ -176,51 +178,64 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
                 WebkitTextFillColor: 'transparent',
                 color: 'transparent',
                 whiteSpace,
-                ...overrideStyles,
+            }
+            : {
+                ...baseStyle,
+                whiteSpace,
             };
-        }
-
-        return {
-            ...baseStyle,
-            whiteSpace,
-            ...overrideStyles,
-        };
+        const { transform, ...effectRest } = overrideStyles ?? {};
+        const withEffects = { ...painted, ...effectRest };
+        return transform
+            ? mergeCSSStyles(withEffects, { transform })
+            : withEffects;
     }, [fontFamily, data.style, data.gradient, overrideStyles]);
 
     // Loading state
     if (isFontLoading && data.loadingState?.showLoadingIndicator) {
         return (
-            <div style={enhancedStyle} className={data.className}>
-                <span style={data.loadingState.loadingStyle}>
-                    {data.loadingState.loadingText || 'Loading...'}
-                </span>
-            </div>
+            <AncestorTransform style={enhancedStyle}>
+                {(style) => (
+                    <div style={style} className={data.className}>
+                        <span style={data.loadingState?.loadingStyle}>
+                            {data.loadingState?.loadingText || 'Loading...'}
+                        </span>
+                    </div>
+                )}
+            </AncestorTransform>
         );
     }
 
     // Error state
     if (error && data.errorState?.showErrorIndicator) {
         return (
-            <div style={enhancedStyle} className={data.className}>
-                <span style={data.errorState.errorStyle}>
-                    {data.errorState.errorText || data.text}
-                </span>
-            </div>
+            <AncestorTransform style={enhancedStyle}>
+                {(style) => (
+                    <div style={style} className={data.className}>
+                        <span style={data.errorState?.errorStyle}>
+                            {data.errorState?.errorText || data.text}
+                        </span>
+                    </div>
+                )}
+            </AncestorTransform>
         );
     }
 
     return (
-        <div
-            style={enhancedStyle}
-            className={data.className}
-            data-font-loading={isFontLoading}
-            data-font-loaded={isReady || isLoaded}
-            data-font-error={!!error}
-            data-font-family={familyToLoad}
-            {...(html
-                ? { dangerouslySetInnerHTML: { __html: htmlForRender(data.text) } }
-                : { children: content })}
-        />
+        <AncestorTransform style={enhancedStyle}>
+            {(style) => (
+                <div
+                    style={style}
+                    className={data.className}
+                    data-font-loading={isFontLoading}
+                    data-font-loaded={isReady || isLoaded}
+                    data-font-error={!!error}
+                    data-font-family={familyToLoad}
+                    {...(html
+                        ? { dangerouslySetInnerHTML: { __html: htmlForRender(data.text) } }
+                        : { children: content })}
+                />
+            )}
+        </AncestorTransform>
     );
 };
 

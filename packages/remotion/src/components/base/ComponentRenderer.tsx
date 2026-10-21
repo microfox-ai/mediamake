@@ -5,10 +5,51 @@ import { getComponent, getComponentConfig } from '../../core/registry';
 import { BaseRenderableData, CalculatedBoundaries, CalculatedTiming, InternalRenderableContext, RenderableContext } from '../../core/types';
 import { calculateHierarchy, calculateTimingWithInheritance } from '../../core/utils/hierarchyUtils';
 import { seriesPlacement } from '../../core/utils/timing';
+import { useAnimatedStyles } from '../effects';
+import { joinCssTransform } from '../effects/mergeCSSStyles';
 import { EffectWrapper } from './EffectWrapper';
 
 // Create a context for passing down calculated values
 const RenderContext = createContext<RenderableContext | null>(null);
+
+/**
+ * Sequence tracks are scenes, so they never mount BaseLayout. The shell still
+ * paints containerProps, including rotation, on this box.
+ */
+function SceneContainer({
+    id,
+    data,
+    children,
+}: {
+    id: string;
+    data?: {
+        containerProps?: { className?: string; style?: React.CSSProperties };
+    };
+    children: React.ReactNode;
+}) {
+    const containerProps = data?.containerProps;
+    const overrideStyles = useAnimatedStyles(id);
+    const containerStyle = containerProps?.style ?? {};
+    const effects = overrideStyles ?? {};
+    const transform = joinCssTransform(
+        typeof containerStyle.transform === 'string' ? containerStyle.transform : undefined,
+        typeof effects.transform === 'string' ? effects.transform : undefined,
+    );
+    const style: React.CSSProperties = { ...containerStyle, ...effects };
+    if (transform) style.transform = transform;
+    if (!effects.transformOrigin && containerStyle.transformOrigin) {
+        style.transformOrigin = containerStyle.transformOrigin;
+    }
+    const className = containerProps?.className;
+    if (!className && Object.keys(style).length === 0) {
+        return <>{children}</>;
+    }
+    return (
+        <div id={id} className={className} style={style}>
+            {children}
+        </div>
+    );
+}
 
 export const useRenderContext = () => {
     const context = useContext(RenderContext);
@@ -153,6 +194,11 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
         );
 
         const sceneDuration = newTiming.durationInFrames ?? 0;
+        const sceneTree = (
+            <SceneContainer id={id} data={data}>
+                {series}
+            </SceneContainer>
+        );
         const sceneBody = sceneDuration > 0 ? (
             <Sequence
                 layout="none"
@@ -160,9 +206,9 @@ export const ComponentRenderer: React.FC<BaseRenderableData> = ({
                 from={newTiming.startInFrames ?? 0}
                 durationInFrames={sceneDuration}
             >
-                {series}
+                {sceneTree}
             </Sequence>
-        ) : series;
+        ) : sceneTree;
 
         return (
             <RenderContext.Provider value={newContext}>

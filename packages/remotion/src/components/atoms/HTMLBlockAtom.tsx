@@ -1,6 +1,8 @@
 import React from 'react';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
+import { AncestorTransform } from '../effects/layout-transform';
+import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { HTMLBlockAtomInput } from './input-schemas';
 import { mergeSpecialEffects } from './special-effects-style';
@@ -34,17 +36,20 @@ interface HTMLBlockAtomProps extends BaseRenderableProps {
 export const Atom: React.FC<HTMLBlockAtomProps> = ({ id, data }) => {
     const overrideStyles = useAnimatedStyles(id);
 
-    const combinedStyle: React.CSSProperties = mergeSpecialEffects({
-        ...data.style,
-        ...overrideStyles,
-    });
+    const combinedStyle: React.CSSProperties = mergeSpecialEffects(
+        mergeCSSStyles(data.style, overrideStyles),
+    );
 
     return (
-        <div
-            className={data.className}
-            style={combinedStyle}
-            dangerouslySetInnerHTML={{ __html: data.html }}
-        />
+        <AncestorTransform style={combinedStyle}>
+            {(style) => (
+                <div
+                    className={data.className}
+                    style={style}
+                    dangerouslySetInnerHTML={{ __html: data.html }}
+                />
+            )}
+        </AncestorTransform>
     );
 };
 

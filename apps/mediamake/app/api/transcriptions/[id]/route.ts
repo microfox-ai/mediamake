@@ -5,6 +5,7 @@ import {
   Transcription,
   UpdateTranscriptionRequest,
 } from '@/app/types/transcription';
+import { providedTranscriptionSet } from '@/app/api/transcribe/provided-transcription';
 
 // GET /api/transcriptions/[id] - Get a specific transcription
 export async function GET(
@@ -80,6 +81,19 @@ export async function PUT(
     if (body.videos !== undefined) updateData.videos = body.videos;
     if (body.error !== undefined) updateData.error = body.error;
     if (body.audioUrl !== undefined) updateData.audioUrl = body.audioUrl;
+    if (typeof body.userWrittenTranscription === 'string') {
+      if (body.processingData !== undefined) {
+        // Mongo rejects `processingData` and `processingData.step1.*` in one $set.
+        return NextResponse.json(
+          { error: 'Send userWrittenTranscription without processingData' },
+          { status: 400 },
+        );
+      }
+      Object.assign(
+        updateData,
+        providedTranscriptionSet(body.userWrittenTranscription.trim()),
+      );
+    }
 
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(id) },
