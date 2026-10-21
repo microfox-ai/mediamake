@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getReferenceLyricsText } from '@/app/ai/agents/autofix/lib/lyricsReference';
 import type { Transcription } from '@/app/types/transcription';
+import { cn } from '@/lib/utils';
 
 interface UserGivenTextPanelProps {
   /** Transcription the captions were created from. The text is stored there. */
   transcriptionId: string | null;
+  textareaClassName?: string;
 }
 
 async function readError(response: Response, fallback: string) {
@@ -19,7 +21,10 @@ async function readError(response: Response, fallback: string) {
   return (data as { error?: string }).error || fallback;
 }
 
-export function UserGivenTextPanel({ transcriptionId }: UserGivenTextPanelProps) {
+export function UserGivenTextPanel({
+  transcriptionId,
+  textareaClassName,
+}: UserGivenTextPanelProps) {
   const [text, setText] = useState('');
   const [savedText, setSavedText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -140,12 +145,15 @@ export function UserGivenTextPanel({ transcriptionId }: UserGivenTextPanelProps)
           }
         }}
         placeholder="Paste or write the lyrics or script exactly as written."
-        className="min-h-[320px] resize-y font-mono text-xs leading-relaxed"
+        className={cn(
+          'min-h-[320px] resize-y font-mono text-xs leading-relaxed',
+          textareaClassName,
+        )}
         disabled={isLoading || isSaving}
       />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       <p className="text-[10px] text-muted-foreground">
-        Stored on the linked transcription. Spelling Correct uses this text as the reference.
+        Stored on the transcription. Spelling Correct uses this text as the reference.
       </p>
     </div>
   );

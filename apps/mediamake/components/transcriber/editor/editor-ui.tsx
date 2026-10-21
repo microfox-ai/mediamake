@@ -25,6 +25,8 @@ import { AudioPlayerProvider, useAudioPlayer } from "../audio-player-context";
 import { AudioPlayer } from "../audio-player";
 import { TiptapCaptionEditor } from "../tiptap/tiptap-caption-editor";
 import { Transcription } from "@/app/types/transcription";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserGivenTextPanel } from "@/components/editor/captions/user-given-text-panel";
 import { toast } from "sonner";
 
 // Internal component that uses the audio player context
@@ -47,6 +49,7 @@ function EditorUIInner() {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState("");
     const [isSavingTitle, setIsSavingTitle] = useState(false);
+    const [activeTab, setActiveTab] = useState<"captions" | "user">("captions");
 
     // Set audio URL when transcription data changes
     useEffect(() => {
@@ -372,21 +375,46 @@ function EditorUIInner() {
             )}
 
             {/* Main Editor Content */}
-            <div className="flex-1 flex min-h-0">
-                {/* Caption Editor with integrated timeline */}
-                <div className="flex-1 flex flex-col">
-                    <div className="flex-1 px-2 py-0">
-                        <TiptapCaptionEditor
-                            key={transcriptionData?._id + '-' + (transcriptionData?.updatedAt || '')}
-                            transcriptionData={transcriptionData}
-                            onTranscriptionDataUpdate={handleTranscriptionDataUpdate}
-                            onStepChange={() => { }}
-                            onRefreshTranscription={refreshTranscription}
-                            defaultTimelineVisibility={true}
+            <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as "captions" | "user")}
+                className="flex-1 min-h-0 gap-0"
+            >
+                <div className="px-4 pt-2">
+                    <TabsList>
+                        <TabsTrigger value="captions" className="text-xs">Captions</TabsTrigger>
+                        <TabsTrigger value="user" className="text-xs">User Given</TabsTrigger>
+                    </TabsList>
+                </div>
+                {/* Kept mounted so switching tabs keeps unsaved caption edits. */}
+                <TabsContent
+                    value="captions"
+                    forceMount
+                    className="flex min-h-0 data-[state=inactive]:hidden"
+                >
+                    {/* Caption Editor with integrated timeline */}
+                    <div className="flex-1 flex flex-col">
+                        <div className="flex-1 px-2 py-0">
+                            <TiptapCaptionEditor
+                                key={transcriptionData?._id + '-' + (transcriptionData?.updatedAt || '')}
+                                transcriptionData={transcriptionData}
+                                onTranscriptionDataUpdate={handleTranscriptionDataUpdate}
+                                onStepChange={() => { }}
+                                onRefreshTranscription={refreshTranscription}
+                                defaultTimelineVisibility={true}
+                            />
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="user" className="min-h-0 overflow-y-auto p-4">
+                    <div className="max-w-4xl">
+                        <UserGivenTextPanel
+                            transcriptionId={transcriptionData._id?.toString() ?? null}
+                            textareaClassName="min-h-[480px] text-sm"
                         />
                     </div>
-                </div>
-            </div>
+                </TabsContent>
+            </Tabs>
 
         </div>
     );
