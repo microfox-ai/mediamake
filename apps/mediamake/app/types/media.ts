@@ -151,6 +151,14 @@ export interface MediaFile {
   fileName?: string;
   fileSize?: number;
   filePath?: string; // Path to the actual file
+  /**
+   * Client-only. 'local' marks a file on this computer (see lib/local-media):
+   * never stored in Mongo, `_id` is "local:<id>" and `filePath` is a
+   * /__local-media/ URL served by the local-media service worker.
+   */
+  storage?: 'local';
+  /** Client-only, local items: whether the file can be read right now. */
+  localStatus?: 'checking' | 'ready' | 'needs-permission' | 'missing';
 }
 
 export interface CreateTagRequest {

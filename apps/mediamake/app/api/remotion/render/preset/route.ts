@@ -31,6 +31,7 @@ import {
 } from '@/components/editor/presets/types';
 import { InputCompositionProps } from '@microfox/remotion';
 import { ObjectId } from 'mongodb';
+import { containsLocalMedia } from '@/lib/local-media/urls';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -95,6 +96,16 @@ export const POST = async (req: NextRequest) => {
     if (!presets || !Array.isArray(presets) || presets.length === 0) {
       return NextResponse.json(
         { error: 'Presets array is required and must not be empty' },
+        { status: 400 },
+      );
+    }
+
+    if (containsLocalMedia({ presets, baseData })) {
+      return NextResponse.json(
+        {
+          error:
+            'These presets use media from your computer, which AWS Lambda cannot reach. Upload those files to the cloud first.',
+        },
         { status: 400 },
       );
     }
