@@ -80,14 +80,19 @@ function DraftInput({
 }) {
     const [draft, setDraft] = useState(value);
     const [focused, setFocused] = useState(false);
+    const skipBlurCommitRef = useRef(false);
 
     useEffect(() => {
         if (!focused) setDraft(value);
     }, [value, focused]);
 
+    const publish = (raw: string) => {
+        if (raw !== value) onCommit(raw);
+    };
+
     const clear = () => {
         setDraft("");
-        if (value !== "") onCommit("");
+        publish("");
     };
 
     return (
@@ -102,15 +107,24 @@ function DraftInput({
                 title={title}
                 placeholder={placeholder}
                 className={cn("h-7 text-sm pr-6", (prefix || adornment) && "pl-6")}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => {
+                    const next = event.target.value;
+                    setDraft(next);
+                    publish(next);
+                }}
                 onFocus={() => setFocused(true)}
-                onBlur={() => {
+                onBlur={(event) => {
                     setFocused(false);
-                    if (draft !== value) onCommit(draft);
+                    if (skipBlurCommitRef.current) {
+                        skipBlurCommitRef.current = false;
+                        return;
+                    }
+                    publish(event.currentTarget.value);
                 }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") event.currentTarget.blur();
                     if (event.key === "Escape") {
+                        skipBlurCommitRef.current = true;
                         setDraft(value);
                         event.currentTarget.blur();
                     }

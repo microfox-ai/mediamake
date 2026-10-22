@@ -25,7 +25,7 @@ import type { CaptionsDocument } from '@/app/types/transcription';
 import {
   captionsDocumentId,
   captionsReferenceValue,
-  mergeCaptionsOntoTranscription,
+  downloadMergedTranscription,
   updateCaptionsDocument,
 } from '@/lib/captions/captions-client';
 import { useSession } from '@/components/session-provider';
@@ -128,33 +128,6 @@ function CaptionInfo({
   );
 }
 
-function downloadJson(filename: string, value: unknown) {
-  const blob = new Blob([JSON.stringify(value, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-function mergedFileName(transcription: Record<string, unknown>, doc: CaptionsDocument) {
-  const title =
-    (typeof transcription.title === 'string' && transcription.title.trim()) ||
-    doc.title ||
-    'transcription';
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-  return `${slug || 'transcription'}-merged.json`;
-}
-
 function CaptionCard({
   doc,
   folder,
@@ -177,21 +150,7 @@ function CaptionCard({
 
     setDownloading(true);
     try {
-      const response = await fetch(`/api/transcriptions/${sourceId}`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load the source transcription');
-      }
-      const transcription = data.transcription;
-      if (!transcription || typeof transcription !== 'object') {
-        throw new Error('Source transcription was empty');
-      }
-
-      const merged = mergeCaptionsOntoTranscription(
-        transcription as Record<string, unknown>,
-        doc,
-      );
-      downloadJson(mergedFileName(transcription as Record<string, unknown>, doc), merged);
+      await downloadMergedTranscription(doc);
       toast.success('Merged transcription downloaded');
     } catch (error) {
       toast.error(

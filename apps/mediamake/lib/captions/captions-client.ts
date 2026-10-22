@@ -121,6 +121,63 @@ export function mergeCaptionsOntoTranscription(
   };
 }
 
+function downloadJsonFile(filename: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export function mergedTranscriptionFileName(
+  transcription: Record<string, unknown>,
+  doc: Pick<CaptionsDocument, 'title'>,
+) {
+  const title =
+    (typeof transcription.title === 'string' && transcription.title.trim()) ||
+    doc.title ||
+    'transcription';
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `${slug || 'transcription'}-merged.json`;
+}
+
+/**
+ * Download the source transcription with this caption version's lines merged in.
+ * The file is built in memory. Nothing is written back to the database.
+ */
+export async function downloadMergedTranscription(doc: CaptionsDocument) {
+  const sourceId = captionsDocumentId(doc.sourceTranscriptionId);
+  if (!sourceId) {
+    throw new Error('This caption version is not linked to a transcription');
+  }
+
+  const response = await fetch(`/api/transcriptions/${sourceId}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to load the source transcription');
+  }
+  const transcription = data.transcription;
+  if (!transcription || typeof transcription !== 'object') {
+    throw new Error('Source transcription was empty');
+  }
+
+  const record = transcription as Record<string, unknown>;
+  downloadJsonFile(
+    mergedTranscriptionFileName(record, doc),
+    mergeCaptionsOntoTranscription(record, doc),
+  );
+}
+
 export function captionsReferenceValue(
   doc: CaptionsDocument,
   fallbackCaptions?: Caption[],

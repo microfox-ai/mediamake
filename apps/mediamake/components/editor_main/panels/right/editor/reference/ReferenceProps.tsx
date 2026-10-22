@@ -14,7 +14,7 @@ import { useEditorStore } from "../../../../stores/editor-store";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers, filterEditableLayers, filterLeafLayers } from "@/lib/editor/flatten-layers";
-import { Clock, Plus, X, Check, Save, Loader2, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Clock, Plus, X, Check, Save, Loader2, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -68,10 +68,15 @@ import {
   captionsDocumentId,
   captionsReferenceValue,
   createCaptionsDocument,
+  downloadMergedTranscription,
   getCaptionsDocument,
   updateCaptionsDocument,
 } from "@/lib/captions/captions-client";
 import { clearLinkedActionOutputs } from "@/lib/captions/linked-action-outputs";
+import {
+  captionValueKey as captionsValueKey,
+  localCaptionMatches,
+} from "@/lib/captions/caption-local-history";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -134,20 +139,6 @@ function createBlankHelloCaptions(): Caption[] {
       metadata: {},
     },
   ];
-}
-
-function captionsValueKey(value: {
-  _id?: unknown;
-  title?: string;
-  description?: string;
-  captions?: unknown;
-} | null) {
-  return JSON.stringify({
-    id: captionsDocumentId(value?._id),
-    title: value?.title ?? "",
-    description: value?.description ?? "",
-    captions: value?.captions ?? [],
-  });
 }
 
 // ─── Active items panel ────────────────────────────────────────────────────────
@@ -430,6 +421,7 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
   const [showAudioToText, setShowAudioToText] = useState(false);
   const [isSavingCaptions, setIsSavingCaptions] = useState(false);
   const [isRefreshingCaptions, setIsRefreshingCaptions] = useState(false);
+  const [isDownloadingCaptions, setIsDownloadingCaptions] = useState(false);
   const [captionsSyncFailed, setCaptionsSyncFailed] = useState(false);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -680,6 +672,10 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
     selectedReference?.type === "captions"
       ? captionsDocumentId(selectedReference?.value?._id) || null
       : null;
+  const sourceTranscriptionId =
+    selectedReference?.type === "captions"
+      ? captionsDocumentId(selectedReference?.value?.sourceTranscriptionId) || null
+      : null;
 
   const captionsSyncKey = useMemo(() => {
     const id =
@@ -785,6 +781,34 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
       if (gen === captionsSaveGenRef.current) setIsSavingCaptions(false);
     }
   }, [readLatestCaptionsValue, bindCaptionsDocument]);
+
+  const handleDownloadCaptions = useCallback(async () => {
+    const value = readLatestCaptionsValue();
+    const sourceId = captionsDocumentId(value?.sourceTranscriptionId);
+    if (!sourceId) {
+      toast.error("This caption version is not linked to a transcription");
+      return;
+    }
+    setIsDownloadingCaptions(true);
+    try {
+      await downloadMergedTranscription({
+        ...value,
+        title: value.title ?? "",
+        description: value.description ?? "",
+        captions: Array.isArray(value.captions) ? value.captions : [],
+        sourceTranscriptionId: sourceId,
+        createdAt: value.createdAt ?? new Date(0),
+        updatedAt: value.updatedAt ?? new Date(0),
+      });
+      toast.success("Merged transcription downloaded");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to download merged transcription",
+      );
+    } finally {
+      setIsDownloadingCaptions(false);
+    }
+  }, [readLatestCaptionsValue]);
 
   const handleRefreshCaptions = useCallback(async () => {
     const value = readLatestCaptionsValue();
@@ -943,6 +967,13 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         const dbKey = captionsValueKey(captionsReferenceValue(doc));
         if (dbKey === currentKey) {
           lastSavedCaptionsKeyRef.current = dbKey;
+          return;
+        }
+        if (localCaptionMatches(linkedCaptionsId, currentKey)) {
+          // This session already edited or undid these lines. Keep them and
+          // write them back, instead of replacing them with the stored document.
+          lastSavedCaptionsKeyRef.current = currentKey;
+          void saveCaptionsRef.current(false);
           return;
         }
         bindCaptionsDocumentRef.current(doc);
@@ -1268,6 +1299,26 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Save className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 p-0"
+                    onClick={() => void handleDownloadCaptions()}
+                    disabled={!sourceTranscriptionId || isDownloadingCaptions}
+                    title={
+                      sourceTranscriptionId
+                        ? "Download transcription with these captions"
+                        : "No source transcription to merge"
+                    }
+                    aria-label="Download merged transcription JSON"
+                  >
+                    {isDownloadingCaptions ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
                     )}
                   </Button>
                   <Button
