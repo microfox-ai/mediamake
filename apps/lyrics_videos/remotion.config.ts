@@ -7,3 +7,5 @@ import { Config } from '@remotion/cli/config';
 Config.setPublicDir('./projects');
 Config.setVideoImageFormat('jpeg');
 Config.setDelayRenderTimeoutInMilliseconds(100000);
+// ANGLE gives headless Chrome a GPU path; three.js scenes (WebGL) need it.
+Config.setChromiumOpenGlRenderer('angle');

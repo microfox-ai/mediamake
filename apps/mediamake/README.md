@@ -5,6 +5,14 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 Create a `.env.local` file in the root directory with the following variables:
 
 ```env
+# Development browser login. DEV_CLIENT_KEY (or the existing DEV_API_KEY) must be
+# an API key stored in Redis. When it is set, /api/dev-session signs the local
+# browser in automatically so Cursor and Claude can open the app. This route
+# refuses to run outside development. The session uses the key's clientId.
+# DEV_CLIENT_ID is optional and, when set, must match that clientId.
+DEV_CLIENT_KEY=
+DEV_CLIENT_ID=
+
 # HeyGen API Key for video generation
 HEYGEN_API_KEY=your_heygen_api_key_here
 
@@ -63,6 +71,10 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+With `DEV_CLIENT_KEY` or `DEV_API_KEY` set, the app signs the browser in on its own. Open a URL with `?manual=1` when you need the login form for a different account. To preview a video from JSON without opening a project, go to [http://localhost:3000/dev/preview](http://localhost:3000/dev/preview), paste a timeline input or a compiled composition, and press Apply.
+
+API routes stay compiled for the dev session (`onDemandEntries` in `next.config.ts`). Restart `npm run dev` after pulling that change so the new buffer is picked up. `next dev --turbopack` is faster still, but this app's `webpack` hook (Remotion, mongodb, sharp) is not applied under Turbopack, so keep the default webpack dev server until those externals are mirrored.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

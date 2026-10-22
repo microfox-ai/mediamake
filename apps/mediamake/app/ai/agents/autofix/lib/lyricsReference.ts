@@ -12,8 +12,8 @@ import { normalizeToken } from './wordCorrections';
 
 /** Section markers Suno writes into lyrics, e.g. `[Verse 1]`, `[Chorus]`. */
 const SECTION_TAG = /\[([^\]\n]{1,60})\]/g;
-/** Production notes Suno sometimes appends, e.g. `(x2)`, `(2x)`. */
-const REPEAT_NOTE = /\((?:x\s?\d+|\d+\s?x)\)/gi;
+/** Production notes Suno sometimes appends, e.g. `(x2)`, `(2x)`, `(×2)`. */
+const REPEAT_NOTE = /[(（](?:[x×]\s?\d+|\d+\s?[x×])[)）]/gi;
 
 export interface ReferenceLyrics {
   /** Original text as stored. */
@@ -24,7 +24,38 @@ export interface ReferenceLyrics {
   sections: string[];
   /** Normalised token set used to validate proposed corrections. */
   vocabulary: Set<string>;
+  /** Normalised text with every separator removed, for unspaced scripts. */
+  compact: string;
   wordCount: number;
+}
+
+type WordSegmenter = {
+  segment(text: string): Iterable<{ segment: string; isWordLike?: boolean }>;
+};
+
+let segmenter: WordSegmenter | null | undefined;
+
+/**
+ * Dictionary word segmentation from ICU, which is what splits Chinese, Japanese
+ * and Thai lyrics that have no spaces between words.
+ */
+function getWordSegmenter(): WordSegmenter | null {
+  if (segmenter !== undefined) return segmenter;
+  const Ctor = (Intl as unknown as {
+    Segmenter?: new (locale?: string, options?: { granularity: 'word' }) => WordSegmenter;
+  }).Segmenter;
+  segmenter = Ctor ? new Ctor(undefined, { granularity: 'word' }) : null;
+  return segmenter;
+}
+
+function segmentWords(text: string): string[] {
+  const seg = getWordSegmenter();
+  if (!seg) return [];
+  const words: string[] = [];
+  for (const part of seg.segment(text)) {
+    if (part.isWordLike) words.push(part.segment);
+  }
+  return words;
 }
 
 /**
@@ -65,13 +96,21 @@ export function parseReferenceLyrics(raw: string): ReferenceLyrics {
     .join('\n');
 
   const tokens = text.split(/\s+/).filter(Boolean);
+  const segmented = segmentWords(text);
   const vocabulary = new Set<string>();
-  for (const token of tokens) {
+  for (const token of [...tokens, ...segmented]) {
     const normalized = normalizeToken(token);
     if (normalized) vocabulary.add(normalized);
   }
 
-  return { raw, text, sections, vocabulary, wordCount: tokens.length };
+  return {
+    raw,
+    text,
+    sections,
+    vocabulary,
+    compact: normalizeToken(text),
+    wordCount: Math.max(tokens.length, segmented.length),
+  };
 }
 
 export function getReferenceLyrics(

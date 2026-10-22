@@ -5,6 +5,7 @@
 import { createContext, useContext } from 'react';
 import { staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { Beat, LyricLine, Manifest, Section, Word } from './manifest';
+import { barAt, beatAt, envelopeAt, hitAt, timeOfBar } from './timing';
 
 export const ManifestContext = createContext<Manifest | null>(null);
 export const SectionContext = createContext<Section | null>(null);
@@ -140,3 +141,42 @@ export const useEnergy = (): number => {
   const b = energy.values[Math.min(i + 1, energy.values.length - 1)] ?? a;
   return a + (b - a) * (x - i);
 };
+
+export type BarState = {
+  /** Bar index (bar k starts at manifest.beats.downbeats[k]). */
+  index: number;
+  /** 0..1 through the current bar. */
+  progress: number;
+  /** Beat within the bar, 0-based (0 = the downbeat). */
+  beatInBar: number;
+  /** 0..1 through the current beat. */
+  beatProgress: number;
+  /** 1 on the downbeat, decaying. */
+  downbeatPulse: number;
+};
+
+/** Where we are in the bar. Needs the analysis grid (falls back to beats / 4 without it). */
+export const useBar = (decay = 4): BarState => {
+  const m = useManifest();
+  const t = useSongTime();
+  const bar = barAt(m, t);
+  const beat = beatAt(m, t);
+  const index = Math.floor(bar);
+  const sinceDownbeat = t - timeOfBar(m, index);
+  return {
+    index,
+    progress: bar - index,
+    beatInBar: Math.floor(beat - beatAt(m, timeOfBar(m, index)) + 1e-6),
+    beatProgress: beat - Math.floor(beat),
+    downbeatPulse: sinceDownbeat >= 0 ? Math.exp(-sinceDownbeat * decay) : 0,
+  };
+};
+
+/**
+ * An analysis envelope at the current time, 0..1: 'rms' | 'low' | 'mid' | 'high' (mix
+ * bands) or 'vocal' | 'drums' | 'bass' | 'other' (stems). 'rms' works without analysis.
+ */
+export const useEnvelope = (name: string): number => envelopeAt(useManifest(), name, useSongTime());
+
+/** Decaying pulse (strength x e^(-since*decay)) from the last 'kick' | 'snare' | 'hat' | 'vocal' onset. */
+export const useHit = (kind: string, decay = 8): number => hitAt(useManifest(), kind, useSongTime(), decay);

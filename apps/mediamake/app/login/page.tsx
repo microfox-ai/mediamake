@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 // import Link from 'next/link';
 
 function LoginFormInner() {
@@ -20,6 +20,38 @@ function LoginFormInner() {
   const [clientId, setClientId] = useState('');
   const [clientKey, setClientKey] = useState('');
   const [error, setError] = useState('');
+  const [devSigningIn, setDevSigningIn] = useState(
+    process.env.NODE_ENV === 'development',
+  );
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    if (searchParams.get('manual') === '1') {
+      setDevSigningIn(false);
+      return;
+    }
+    let cancelled = false;
+    const signInWithDevEnv = async () => {
+      try {
+        const devLogin = await fetch('/api/dev-session', { method: 'POST' });
+        if (!devLogin.ok || cancelled) {
+          if (!cancelled) setDevSigningIn(false);
+          return;
+        }
+        const redirectTo = searchParams.get('redirectTo');
+        const isRelative =
+          !!redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
+        router.push(isRelative ? redirectTo : '/projects');
+        router.refresh();
+      } catch {
+        if (!cancelled) setDevSigningIn(false);
+      }
+    };
+    void signInWithDevEnv();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +121,11 @@ function LoginFormInner() {
                 onChange={e => setClientKey(e.target.value)}
               />
             </div>
+            {devSigningIn && (
+              <p className="text-sm text-muted-foreground">
+                Signing in with the development credentials from the server environment.
+              </p>
+            )}
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full">
               Login

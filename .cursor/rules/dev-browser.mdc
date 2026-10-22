@@ -1,0 +1,10 @@
+---
+description: How to sign in and preview videos while developing MediaMake locally
+alwaysApply: true
+---
+
+# Local browser testing
+
+In development, a session is created automatically when `DEV_CLIENT_KEY` or `DEV_API_KEY` is set in `apps/mediamake/.env.local` to a real API key. Optional `DEV_CLIENT_ID` must match that key. Do not type credentials into the login form, and do not invent keys.
+
+To preview a video without the full editor, open `/dev/preview`. Paste timeline compiler input (`presets`, `nodes`, `configuration`, `defaultData`, `actions`) or a compiled composition (`childrenData` + `config`) into `#timeline-input`, then click `#preview-apply`. Read `[data-testid=preview-status]` (`ready` or `error: …`) and look at `[data-testid=preview-player]`.

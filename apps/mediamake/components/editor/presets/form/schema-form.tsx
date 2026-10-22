@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2447,21 +2448,17 @@ function renderField(
                     />
                 );
 
-            case "boolean":
+            case "boolean": {
+                const checked =
+                    typeof fieldValue === "boolean" ? fieldValue : field.default === true;
                 return (
-                    <Select
-                        value={fieldValue?.toString() || (field.default === true ? "true" : "false")}
-                        onValueChange={(val) => handleChange(fieldKey, val === "true")}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="true">True</SelectItem>
-                            <SelectItem value="false">False</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Checkbox
+                        checked={checked}
+                        onCheckedChange={(val) => handleChange(fieldKey, val === true)}
+                        aria-label={field.title || fieldKey}
+                    />
                 );
+            }
 
             case "object":
                 if (isContainerObjectField(field)) {

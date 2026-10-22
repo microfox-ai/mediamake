@@ -210,6 +210,17 @@ const presetParams = z.object({
         .describe(
           'When on, pick a highlight word if htmlText has no bold word. When off, only words marked bold in htmlText are highlighted.',
         ),
+      ignoreBolds: z
+        .boolean()
+        .default(false)
+        .optional()
+        .meta({
+          title: 'Ignore bolds',
+          [paramMetaTypes.layoutGroup]: 'sync-flags',
+        })
+        .describe(
+          'When on, no word is highlighted. Bold marks in htmlText and auto highlight are ignored.',
+        ),
       maxLines: z
         .number()
         .optional()
@@ -2345,6 +2356,7 @@ const presetExecution = (
     animationStyle?: string,
     layout?: string,
     globalImpact?: number,
+    ignoreBolds?: boolean,
   ) => {
     // Pre-process captions to split combined words
     const preprocessedCaptions = preprocessCaptions(inputCaptions);
@@ -2394,17 +2406,21 @@ const presetExecution = (
           highlightMeta.splitParts ?? caption.metadata?.splitParts,
         );
 
-        // Determine which part to highlight
-        const highlightedWordIndices: number[] = [
-          ...(highlightMeta.highlightedWordIndices || []),
-        ];
+        // ignoreBolds: draw every word in the body style.
+        const highlightedWordIndices: number[] = ignoreBolds
+          ? []
+          : [...(highlightMeta.highlightedWordIndices || [])];
 
         let highlightedPartIndex = -1;
         let highlightedWordIndex = -1;
 
         // autoHighlight off: htmlText is the only highlight source. No bold
         // word means nothing is highlighted.
-        if (autoHighlight !== false && highlightedWordIndices.length === 0) {
+        if (
+          !ignoreBolds &&
+          autoHighlight !== false &&
+          highlightedWordIndices.length === 0
+        ) {
           // Only apply fallback logic if no keyword was found in metadata
           if (highlightedPartIndex === -1 && highlightedWordIndex === -1) {
             // Always select a single word to highlight, never entire parts
@@ -2437,6 +2453,7 @@ const presetExecution = (
 
         // Ensure at least one word is highlighted when auto highlight is on
         if (
+          !ignoreBolds &&
           autoHighlight !== false &&
           highlightedWordIndices.length === 0 &&
           highlightedPartIndex === -1 &&
@@ -2643,6 +2660,7 @@ const presetExecution = (
     subtitleSync?.animationStyle,
     subtitleSync?.layout,
     subtitleSync?.impact,
+    subtitleSync?.ignoreBolds,
   );
   captionsChildrenData.forEach((captionNode, index) => {
     const built = props?.buildDataItemIds?.({
@@ -2747,6 +2765,7 @@ const presetMetadata: PresetMetadata = {
       floatThreshold: 15,
       disableMetadata: false,
       autoHighlight: true,
+      ignoreBolds: false,
       noGaps: {
         enabled: false,
         maxLength: 3,

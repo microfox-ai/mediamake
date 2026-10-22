@@ -65,7 +65,9 @@ const splitAndHighlightAgent = aiRouter
         userRequest,
         frameChoice,
         maxLines = 0,
+        minLines = 0,
         fontScaling = 2,
+        highlight = true,
         staticFrameChoice = true,
       } = ctx.request.params as {
         captionId?: string;
@@ -73,7 +75,9 @@ const splitAndHighlightAgent = aiRouter
         userRequest?: string;
         frameChoice: (typeof CAPTION_LAYOUTS)[number];
         maxLines?: number | string | null;
+        minLines?: number | string | null;
         fontScaling?: number;
+        highlight?: boolean;
         staticFrameChoice?: boolean;
       };
 
@@ -89,7 +93,9 @@ const splitAndHighlightAgent = aiRouter
       const result = await runSplitAndHighlight(captions, {
         frameChoice,
         maxLines,
+        minLines,
         fontScaling,
+        highlight,
         staticFrameChoice,
         userRequest,
         preserveCards: true,
@@ -133,6 +139,8 @@ const splitAndHighlightAgent = aiRouter
         confidence: result.confidence,
         frameChoice,
         fontScaling,
+        highlight,
+        minLines,
         staticFrameChoice: result.staticFrameChoice,
         captionId,
         transcriptionId: transcriptionId ?? null,
@@ -147,7 +155,7 @@ const splitAndHighlightAgent = aiRouter
     id: 'splitAndHighlightAgent',
     name: 'Split and Highlight',
     description:
-      'Split lines and choose highlights inside each existing caption. Cards stay as sentence structure left them. <br/> splits lines inside a caption and <b> marks words scaled by fontScaling. Does not update the transcription.',
+      'Split lines and choose highlights inside each existing caption. Cards stay as sentence structure left them. <br/> splits lines inside a caption. <b> marks words scaled by fontScaling when highlight is on. minLines is optional and otherwise the model chooses how few lines a card needs. Does not update the transcription.',
     inputSchema: SplitAndHighlightParamsSchema.extend({
       captionId: z
         .string()

@@ -38,6 +38,8 @@ export type ProjectDefinition = {
   fps: number;
   width: number;
   height: number;
+  /** Seconds of video after the song ends (end credits, outros). Place layers there with `{ from, to }`. */
+  tail?: number;
   layers: Layer[];
 };
 
