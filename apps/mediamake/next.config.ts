@@ -7,6 +7,16 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
   },
+  // Dev compiles each route on demand, then drops it. The defaults keep only
+  // ~2 routes for ~60s, so the next hit on an unchanged API route compiles it
+  // again. Hold the compiled routes in memory for the dev session instead.
+  onDemandEntries: {
+    maxInactiveAge: 60 * 60 * 1000,
+    pagesBufferLength: 100,
+  },
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@tabler/icons-react'],
+  },
   // Prevent Next.js from bundling packages that use dynamic require() patterns
   // (e.g. clone-deep → lazy-cache uses require(name, alias) which webpack can't parse).
   serverExternalPackages: ['clone-deep', 'lazy-cache', 'shallow-clone', 'kind-of', 'for-own', 'is-plain-object'],
@@ -109,13 +119,24 @@ const nextConfig: NextConfig = {
       /Serializing big s  trings/,
     ];
 
-    // Suppress specific webpack cache warnings
-    if (config.cache) {
-      config.cache = {
-        ...config.cache,
-        compression: 'gzip' as const,
-      };
-    }
+    // Asset dumps and worker output change often and are not source. Watching
+    // them invalidates the compile of every route that happens to be loaded.
+    // Next's default `ignored` is a RegExp. This Webpack accepts that RegExp
+    // or an array of non-empty glob strings, not a mix of the two.
+    const extraIgnored = ['**/public/assets/**', '**/.serverless-workers/**'];
+    const previousIgnored = config.watchOptions?.ignored;
+    const previousGlobs = Array.isArray(previousIgnored)
+      ? previousIgnored.filter(
+          (pattern): pattern is string =>
+            typeof pattern === 'string' && pattern.length > 0,
+        )
+      : typeof previousIgnored === 'string' && previousIgnored.length > 0
+        ? [previousIgnored]
+        : ['**/.git/**', '**/node_modules/**', '**/.next/**'];
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [...previousGlobs, ...extraIgnored],
+    };
 
     return config;
   },

@@ -71,6 +71,7 @@ const captionSpellingFixerAgent = aiRouter
         useReference: true,
         allowWordRemoval: false,
         userRequest,
+        language: transcription.language,
       });
 
       for (const usage of result.usage) {

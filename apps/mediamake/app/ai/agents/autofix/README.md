@@ -46,6 +46,16 @@ words that look wrong but were sung that way (e.g. "infallible calculate").
 Both come back as `reviewNotes` (`{start, end, time, heard, note}`) and are
 appended to the summary for the user to confirm.
 
+**Any language.** Token matching uses Unicode letters, marks and digits, so
+every script is compared (optional accents, Hebrew niqqud and Arabic harakat
+are ignored for matching; Devanagari matras, Thai vowels and kana are not). The
+lyrics vocabulary adds ICU word segmentation (`Intl.Segmenter`) for Chinese,
+Japanese and Thai, and a replacement in a script written without spaces must
+appear verbatim in the written lyrics — edit distance means nothing for one
+character. Casing uses the transcription's `language` (Turkish `i` → `İ`). When
+the written lyrics use another script or romanisation (Hinglish vs Devanagari),
+the written form wins.
+
 Punctuation and capitalisation of the original token are re-applied
 automatically, so `Runnin',` → `Running,`.
 

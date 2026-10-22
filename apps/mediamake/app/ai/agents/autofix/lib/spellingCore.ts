@@ -96,6 +96,8 @@ export interface SpellingFixOptions {
   userRequest?: string;
   /** Reject corrections below this confidence. */
   minConfidence?: number;
+  /** Language the transcription service detected or was given (e.g. "en", "hin", "ja"). */
+  language?: string;
 }
 
 export interface SpellingFixResult {
@@ -143,6 +145,7 @@ function formatWordsForSpelling(words: FlatWord[], range: Group): string {
 function buildSystemPrompt(
   reference: ReferenceLyrics | undefined,
   allowWordRemoval: boolean,
+  language?: string,
 ): string {
   const referenceIntro = reference
     ? dedent`
@@ -195,14 +198,46 @@ function buildSystemPrompt(
       `
     : '';
 
+  const languages = dedent`
+    LANGUAGES — the song can be in any language, or mix several (Hinglish,
+    Spanglish, Taglish, K-pop or J-pop with English hooks, Arabic with French…):
+    - Work in the language of each line. NEVER translate a word into another language.
+    - Keep each language's own slang, dialect and informal spellings. Do not
+      normalise them into the standard form of that language.
+    - Accents, tone marks and vowel signs are spelling: restore them exactly as the
+      written lyrics have them (é, ñ, ü, ç, Vietnamese tones, Devanagari matras,
+      Arabic hamza, Hebrew/Arabic letters in their right form).
+    ${
+      reference
+        ? dedent`
+            - Script: if the written lyrics use a different script or romanisation
+              from the transcription (romanised Hindi "tera" vs Devanagari "तेरा",
+              kanji vs hiragana, Cyrillic vs Latin), the written lyrics win — replace
+              each heard word with the written lyrics' form of that same word, word
+              for word, keeping the heard word boundaries wherever you can.
+          `
+        : '- Keep the script the transcription is already in.'
+    }
+    - Languages written without spaces (Chinese, Japanese, Thai, Lao, Khmer,
+      Burmese): a heard "word" may be one character or a short chunk. Keep the
+      transcription's granularity and replace token for token. Copy replacement
+      characters from the written lyrics exactly; in \`to\`, a space only separates
+      the new tokens and is never shown.
+    - Right-to-left text (Arabic, Hebrew, Urdu, Persian): words are given and
+      returned in reading order; copy them as written.
+  `;
+
   return dedent`
     You are correcting an automatic speech-to-text transcription of a song.
     The audio was transcribed by ElevenLabs Scribe, which mishears slang, coined
     words, names and ad-libs, and sometimes hears one word as two or two as one.
+    ${language ? `The transcription service reported the language as "${language}"; other languages may still appear.` : ''}
 
     ${referenceIntro}
 
     ${method}
+
+    ${languages}
 
     CORRECTION SHAPE — timing is protected in code, so stay inside these rules:
     - A correction replaces a run of heard words, \`start\`..\`end\` (inclusive), with
@@ -222,20 +257,22 @@ function buildSystemPrompt(
     ${removalRule}
 
     WHAT TO FIX
-    1. Mishearings: the transcription has a word that sounds like the lyric but is
-       not it ("sinner" → "centre", "raw" → "war"). Replace with the lyric word.
+    1. Mishearings, in any language: the transcription has a word that sounds like
+       the lyric but is not it ("sinner" → "centre", "raw" → "war"). Replace with
+       the lyric word.
     2. Word boundaries that disagree with the written lyrics (split or merged words).
     3. Spelling of slang and coined words: match the written lyrics exactly. If the
-       lyrics write "tryna", "gon'", "'bout", "finna", "ridin'", keep that spelling —
-       do NOT normalise slang into standard English.
+       lyrics write "tryna", "gon'", "'bout", "pa'", "q", "nahi", keep that spelling —
+       do NOT normalise slang into the standard language.
     4. Proper nouns, brand names, place names, artist names, anime/game terms: take
        the written spelling.
     5. Homophones chosen wrongly ("their/there", "your/you're", "to/too").
     6. Numbers and units written inconsistently with the written lyrics.
 
     WHAT TO LEAVE ALONE
-    - Ad-libs and vocal noises ("yeah", "uh", "woo", "skrrt") that are absent from
-      the written lyrics — singers improvise, that is not an error.
+    - Ad-libs and vocal noises in any language ("yeah", "uh", "woo", "skrrt",
+      "ay", "oye", "arre", "ねえ", "얍") that are absent from the written lyrics —
+      singers improvise, that is not an error.
     - Repeated words and repeated lines that are genuinely sung more than once.
     - Words that already match the written lyrics, even if they look ungrammatical.
     - Punctuation and capitalisation. They are handled elsewhere and are restored
@@ -248,8 +285,9 @@ function buildSystemPrompt(
     unwritten lines (echoes, backing vocals, extra repeats) and written-lyric words
     that look like mistakes but match what was sung. Cite the word indices of the
     passage and write one plain sentence each, e.g. "Not in the written lyrics, but
-    clearly sung as an echo, so I kept it." Do not list ordinary ad-libs like
-    "yeah" or "uh". Return an empty array if nothing needs confirming.
+    clearly sung as an echo, so I kept it." Write notes in English. Do not list
+    ordinary ad-libs like "yeah" or "uh". Return an empty array if nothing needs
+    confirming.
 
     INPUT FORMAT
     Each transcription line is one caption, starting with its start time like
@@ -282,7 +320,7 @@ async function correctChunk(
   const result = await generateObject({
     model: google(reference ? SPELLING_MODEL : SPELLING_MODEL_NO_REFERENCE),
     schema: CorrectionsSchema,
-    system: buildSystemPrompt(reference, opts.allowWordRemoval === true),
+    system: buildSystemPrompt(reference, opts.allowWordRemoval === true, opts.language),
     prompt,
     maxRetries: 2,
   });
@@ -402,6 +440,8 @@ export async function runSpellingFix(
   const applied = applyWordCorrections(captions, filtered, {
     allowRemovals: opts.allowWordRemoval === true,
     referenceVocabulary: reference?.vocabulary,
+    referenceCompact: reference?.compact,
+    locale: opts.language,
     maxSpanWords: MAX_SPAN_WORDS,
     maxReplacementWords: MAX_REPLACEMENT_WORDS,
     changeType: 'spelling_fix',

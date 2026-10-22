@@ -57,6 +57,7 @@ const spellingFixerAgent = aiRouter
         allowWordRemoval,
         minConfidence,
         userRequest,
+        language: transcription.language,
       });
 
       for (const usage of result.usage) {

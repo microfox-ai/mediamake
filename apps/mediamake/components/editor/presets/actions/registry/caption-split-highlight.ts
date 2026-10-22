@@ -39,6 +39,26 @@ const inputSchema = z.object({
     .positive()
     .default(2)
     .describe("How many times larger bold words are drawn than normal words"),
+  highlight: z
+    .boolean()
+    .default(true)
+    .meta({ title: "Highlight" })
+    .describe(
+      "On by default. Bold the word that carries each phrase. Turn off to leave every word plain.",
+    ),
+  minLines: z
+    .preprocess((value) => {
+      if (value == null) return 0;
+      if (typeof value === "string" && value.trim() === "") return 0;
+      const parsed = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+      return Math.floor(parsed);
+    }, z.number().int().min(0))
+    .default(0)
+    .meta({ title: "Min lines" })
+    .describe(
+      "Minimum lines on one card. 0 and empty leave the count to the model. When this is higher than the maximum, every card uses this many lines.",
+    ),
   staticFrameChoice: z
     .boolean()
     .default(true)
@@ -189,6 +209,7 @@ export const captionSplitHighlight: ActionDefinition = {
     frameChoice: "vertical_box",
     maxLines: 0,
     fontScaling: 2,
+    highlight: true,
     staticFrameChoice: true,
     userRequest: "",
   },
@@ -209,7 +230,9 @@ export const captionSplitHighlight: ActionDefinition = {
         ...(selectedIndices ? { selectedIndices } : {}),
         frameChoice: parsed.frameChoice,
         maxLines: parsed.maxLines,
+        minLines: parsed.minLines,
         fontScaling: parsed.fontScaling,
+        highlight: parsed.highlight,
         staticFrameChoice: parsed.staticFrameChoice,
         ...(parsed.userRequest?.trim()
           ? { userRequest: parsed.userRequest.trim() }

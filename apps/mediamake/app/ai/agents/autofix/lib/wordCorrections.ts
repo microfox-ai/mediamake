@@ -55,6 +55,14 @@ export interface ApplyOptions {
    * lyrics into something that was never sung.
    */
   referenceVocabulary?: Set<string>;
+  /**
+   * The reference lyrics normalised with all separators removed. Words in
+   * scripts written without spaces (Chinese, Japanese, Thai…) are accepted when
+   * they occur anywhere in it, since no tokenizer splits those reliably.
+   */
+  referenceCompact?: string;
+  /** BCP 47 language tag of the song, for locale-aware casing. */
+  locale?: string;
   /** Max edit distance still treated as a spelling fix when not in the reference. */
   maxEditDistance?: number;
   /** Longest heard span one correction may replace. */
@@ -68,22 +76,48 @@ export interface ApplyOptions {
 // Text helpers
 // ---------------------------------------------------------------------------
 
-/** Punctuation we are willing to move around. Apostrophes are NOT in here — */
-/** "'bout" and "gon'" are real word shapes in slang lyrics. */
-const LEADING_PUNCT = /^[¿¡("“«\[]+/;
-const TRAILING_PUNCT = /[,.!?;:…)"”»\]]+$/;
+/**
+ * Punctuation we are willing to move around, in any script (¿ « 「 。 、 ، ؟ । …).
+ * Apostrophes and hyphens are NOT in here — "'bout", "gon'" and "re-up" are
+ * real word shapes in lyrics.
+ */
+const LEADING_PUNCT = new RegExp("^(?:(?![-'‘’ʼ])\\p{P})+", 'u');
+const TRAILING_PUNCT = new RegExp("(?:(?![-'‘’ʼ])\\p{P})+$", 'u');
+
+/**
+ * Optional marks that writers commonly leave out: Latin/Greek/Cyrillic accents,
+ * Hebrew niqqud, Arabic harakat and tatweel. Marks that change the word itself
+ * (Devanagari matras, Thai vowels, kana dakuten) are kept.
+ */
+const OPTIONAL_MARKS = /[\u0300-\u036f\u0591-\u05c7\u0610-\u061a\u0640\u064b-\u065f\u0670\u06d6-\u06ed]/g;
+const NON_WORD = new RegExp('[^\\p{L}\\p{M}\\p{N}]', 'gu');
+
+/** Scripts written without spaces between words. */
+const UNSPACED_SCRIPT = new RegExp(
+  '[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Thai}\\p{Script=Lao}\\p{Script=Khmer}\\p{Script=Myanmar}\\p{Script=Tibetan}]',
+  'u',
+);
 
 export function normalizeToken(text: string): string {
   return text
-    .toLowerCase()
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9']/g, '')
-    .replace(/'/g, '');
+    .replace(OPTIONAL_MARKS, '')
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(NON_WORD, '');
 }
 
-export function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
+export function isUnspacedScript(text: string): boolean {
+  return UNSPACED_SCRIPT.test(text);
+}
+
+/** Length in characters, not UTF-16 units. */
+export const charLength = (text: string) => Array.from(text).length;
+
+export function levenshtein(left: string, right: string): number {
+  if (left === right) return 0;
+  const a = Array.from(left);
+  const b = Array.from(right);
   if (!a.length) return b.length;
   if (!b.length) return a.length;
 
@@ -106,7 +140,12 @@ export function levenshtein(a: string, b: string): number {
  * Keeps the original word's punctuation and capitalisation when the model
  * returns a bare lowercase replacement.
  */
-export function transferSurface(original: string, replacement: string): string {
+export function transferSurface(
+  original: string,
+  replacement: string,
+  locale?: string,
+): string {
+  const upper = (s: string) => toLocaleUpper(s, locale);
   const lead = original.match(LEADING_PUNCT)?.[0] ?? '';
   const trail = original.match(TRAILING_PUNCT)?.[0] ?? '';
   const originalCore = original.slice(lead.length, original.length - trail.length);
@@ -122,19 +161,33 @@ export function transferSurface(original: string, replacement: string): string {
   const bareCore = core.slice(replLead.length, core.length - replTrail.length);
 
   let cased = bareCore;
-  if (originalCore.length > 1 && originalCore === originalCore.toUpperCase()) {
-    cased = bareCore.toUpperCase();
+  if (
+    originalCore.length > 1 &&
+    originalCore === upper(originalCore) &&
+    originalCore !== originalCore.toLowerCase()
+  ) {
+    cased = upper(bareCore);
   } else if (
     originalCore.length > 0 &&
-    originalCore[0] === originalCore[0].toUpperCase() &&
+    originalCore[0] === upper(originalCore[0]) &&
     originalCore[0] !== originalCore[0].toLowerCase() &&
     bareCore.length > 0 &&
     bareCore[0] === bareCore[0].toLowerCase()
   ) {
-    cased = bareCore[0].toUpperCase() + bareCore.slice(1);
+    cased = upper(bareCore[0]) + bareCore.slice(1);
   }
 
   return `${keepLead}${replLead}${cased}${replTrail}${keepTrail}`;
+}
+
+/** Locale-aware upper case (Turkish "i" → "İ"); falls back for unknown tags. */
+function toLocaleUpper(text: string, locale?: string): string {
+  if (!locale) return text.toUpperCase();
+  try {
+    return text.toLocaleUpperCase(locale);
+  } catch {
+    return text.toUpperCase();
+  }
 }
 
 /**
@@ -142,9 +195,13 @@ export function transferSurface(original: string, replacement: string): string {
  * position; otherwise the span's leading punctuation and casing go on the first
  * new word and its trailing punctuation on the last.
  */
-export function transferSurfaceSpan(originals: string[], replacements: string[]): string[] {
+export function transferSurfaceSpan(
+  originals: string[],
+  replacements: string[],
+  locale?: string,
+): string[] {
   if (originals.length === replacements.length) {
-    return replacements.map((r, i) => transferSurface(originals[i], r));
+    return replacements.map((r, i) => transferSurface(originals[i], r, locale));
   }
 
   const first = originals[0] ?? '';
@@ -158,7 +215,7 @@ export function transferSurfaceSpan(originals: string[], replacements: string[])
     const isFirst = i === 0;
     const isLast = i === replacements.length - 1;
     const core = isFirst ? firstCore : allCaps ? 'XX' : 'x';
-    return transferSurface(`${isFirst ? lead : ''}${core}${isLast ? trail : ''}`, r);
+    return transferSurface(`${isFirst ? lead : ''}${core}${isLast ? trail : ''}`, r, locale);
   });
 }
 
@@ -178,7 +235,7 @@ function retimeSpan(span: FlatWord[], texts: string[]): FlatWord[] {
   const spanStart = span[0].absoluteStart;
   const spanEnd = span[span.length - 1].absoluteEnd;
   const total = Math.max(0, spanEnd - spanStart);
-  const weights = texts.map(t => Math.max(1, normalizeToken(t).length));
+  const weights = texts.map(t => Math.max(1, charLength(normalizeToken(t))));
   const weightSum = weights.reduce((a, b) => a + b, 0);
   const confidence = Math.min(...span.map(w => w.confidence));
 
@@ -280,6 +337,8 @@ export function applyWordCorrections(
   const {
     allowRemovals = false,
     referenceVocabulary,
+    referenceCompact = '',
+    locale,
     maxEditDistance = 2,
     maxSpanWords = 4,
     maxReplacementWords = 6,
@@ -343,8 +402,13 @@ export function applyWordCorrections(
     const heard = span.map(w => w.text);
     const heardText = heard.join(' ');
 
-    // The model must prove it is looking at the right words.
-    if (joinedTokens(from) !== joinedTokens(heardText)) {
+    // The model must prove it is looking at the right words. Tokens that are
+    // pure punctuation normalise to nothing, so those are compared verbatim.
+    const heardKey = joinedTokens(heardText);
+    const matches = heardKey
+      ? joinedTokens(from) === heardKey
+      : from.replace(/\s+/g, '') === heardText.replace(/\s+/g, '');
+    if (!matches) {
       reject(correction, `"from" does not match the words in range (actual: "${heardText}")`);
       continue;
     }
@@ -389,16 +453,22 @@ export function applyWordCorrections(
       continue;
     }
 
-    const nextTexts = transferSurfaceSpan(heard, toTokens);
+    const nextTexts = transferSurfaceSpan(heard, toTokens, locale);
     if (nextTexts.join(' ') === heardText) {
       reject(correction, 'no-op');
       continue;
     }
 
     if (referenceVocabulary && referenceVocabulary.size > 0) {
-      const inReference = normTokens.every(t => referenceVocabulary.has(t));
+      const inReference = normTokens.every(
+        t =>
+          referenceVocabulary.has(t) ||
+          (isUnspacedScript(t) && referenceCompact.includes(t)),
+      );
+      const replacementKey = normTokens.join('');
       const nearMiss =
-        levenshtein(joinedTokens(heardText), normTokens.join('')) <= maxEditDistance;
+        !isUnspacedScript(replacementKey) &&
+        levenshtein(heardKey, replacementKey) <= maxEditDistance;
       if (!inReference && !nearMiss) {
         reject(
           correction,

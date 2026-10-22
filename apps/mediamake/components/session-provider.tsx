@@ -20,27 +20,40 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   const router = useRouter();
 
   useEffect(() => {
+    const redirectToLogin = () => {
+      setSession({ isAuthenticated: false });
+      const params = new URLSearchParams(window.location.search);
+      const manual = params.get('manual') === '1';
+      const currentPath = window.location.pathname + window.location.search;
+      const loginParams = new URLSearchParams();
+      if (currentPath !== '/login') {
+        loginParams.set('redirectTo', currentPath);
+      }
+      if (manual) loginParams.set('manual', '1');
+      const query = loginParams.toString();
+      router.push(query ? `/login?${query}` : '/login');
+    };
+
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/session');
+        let response = await fetch('/api/session');
+        // Local browsers (Cursor, Claude) have no saved password. In development,
+        // mint a session from DEV_CLIENT_KEY / DEV_API_KEY before showing login.
+        const skipDevLogin = new URLSearchParams(window.location.search).get('manual') === '1';
+        if (!response.ok && process.env.NODE_ENV === 'development' && !skipDevLogin) {
+          const devLogin = await fetch('/api/dev-session', { method: 'POST' });
+          if (devLogin.ok) {
+            response = await fetch('/api/session');
+          }
+        }
         if (response.ok) {
           const data = await response.json();
           setSession(data);
         } else {
-          setSession({ isAuthenticated: false });
-          const currentPath = window.location.pathname + window.location.search;
-          const loginUrl = currentPath !== '/login'
-            ? `/login?redirectTo=${encodeURIComponent(currentPath)}`
-            : '/login';
-          router.push(loginUrl);
+          redirectToLogin();
         }
-      } catch (error) {
-        setSession({ isAuthenticated: false });
-        const currentPath = window.location.pathname + window.location.search;
-        const loginUrl = currentPath !== '/login'
-          ? `/login?redirectTo=${encodeURIComponent(currentPath)}`
-          : '/login';
-        router.push(loginUrl);
+      } catch {
+        redirectToLogin();
       } finally {
         setLoading(false);
       }

@@ -205,6 +205,7 @@ interface AutofixPipelineOptions {
   sunoLyrics?: string;
   applySpellingFix?: boolean;
   allowWordRemoval?: boolean;
+  language?: string;
 }
 
 /**
@@ -242,6 +243,7 @@ async function runAutofixPipeline(
     const spelling = await runSpellingFix(working, {
       referenceLyrics: reference,
       allowWordRemoval: options.allowWordRemoval === true,
+      language: options.language,
     });
 
     console.log('[transcriber.worker] Spelling result', {
@@ -377,6 +379,7 @@ export default createWorker<typeof InputSchema, Output>({
             sunoLyrics: sunoLyrics?.trim() || existing.sunoLyrics,
             applySpellingFix,
             allowWordRemoval,
+            language: existing.language || language_code,
           },
         );
         await saveTranscriptionFix(
@@ -429,6 +432,7 @@ export default createWorker<typeof InputSchema, Output>({
         sunoLyrics: sunoLyrics?.trim(),
         applySpellingFix,
         allowWordRemoval,
+        language: language_code,
       });
 
       await saveTranscriptionFix(
