@@ -24,6 +24,7 @@ import {
   TextAtomData,
 } from '@microfox/remotion';
 import z from 'zod';
+import { paramInputTypes, paramMetaTypes } from '../../dataTypes';
 import {
   definePreset,
   type TrackShellParams,
@@ -41,19 +42,10 @@ interface ShakeEffectData extends GenericEffectData {
 }
 
 const presetParams = z.object({
-  // Text content
-  text: z.string().describe('Text content to display'),
-
-  // Font configuration
-  fontFamily: z
+  text: z
     .string()
-    .optional()
-    .describe(
-      'Font family with weight and style (e.g., "Roboto:600:italic", "Inter")',
-    ),
-  fontSize: z.number().optional().describe('Font size in pixels'),
-  // Text styling
-  letterSpacing: z.number().optional().describe('Letter spacing in pixels'),
+    .meta({ [paramMetaTypes.inputType]: paramInputTypes.textarea })
+    .describe('Text content to display'),
 
   // Positioning
   position: z.object({
@@ -88,47 +80,21 @@ const presetParams = z.object({
       .optional()
       .describe('Alignment'),
   }),
-  style: z.object({
-    opacity: z.number().min(0).max(1).optional().describe('Opacity (0-1)'),
-    color: z
-      .string()
-      .optional()
-      .describe('Text color (hex, rgb, or named color)'),
-    textDecoration: z
-      .string()
-      .optional()
-      .describe('Text decoration (underline, line-through, etc.)'),
-    textTransform: z
-      .enum(['none', 'uppercase', 'lowercase', 'capitalize'])
-      .optional()
-      .describe('Text transformation'),
-    padding: z
-      .union([z.number(), z.string()])
-      .optional()
-      .describe('Padding (px)'),
-    otherProps: z.object({}).loose().optional(),
-    boxShadow: z
-      .string()
-      .optional()
-      .describe('Box shadow (e.g., "0 2px 10px rgba(0,0,0,0.3)")'),
-    textShadow: z
-      .string()
-      .optional()
-      .describe('Text shadow (e.g., "0 2px 4px rgba(0,0,0,0.5)")'),
-    border: z
-      .string()
-      .optional()
-      .describe('Border style (e.g., "1px solid #000")'),
-    borderRadius: z.string().optional().describe('Border radius in pixels'),
-    backgroundColor: z.string().optional().describe('Background color'),
-    textColor: z.string().optional().describe('Text color'),
-    filter: z.string().optional().describe('Filter (e.g., "blur(10px)")'),
-    backdropFilter: z
-      .string()
-      .optional()
-      .describe('Backdrop filter (e.g., "blur(10px)")'),
-  }),
-  // Border and shadow
+  style: z
+    .object({
+      opacity: z.number().min(0).max(1).optional().describe('Opacity (0-1)'),
+      padding: z
+        .union([z.number(), z.string()])
+        .optional()
+        .describe('Padding (px)'),
+    })
+    .loose()
+    .optional()
+    .meta({
+      [paramMetaTypes.textStyle]: true,
+      [paramMetaTypes.blockStyle]: true,
+    })
+    .describe('Style'),
 
   // In and out animation. When the overlay appears is the track start and duration.
   transitions: z.object({
@@ -173,13 +139,17 @@ const presetExecution = (
 ) => {
   const {
     text,
-    fontFamily,
-    fontSize = 24,
-    letterSpacing,
     position,
     style,
     transitions,
   } = params;
+  const legacyParams = params as {
+    fontFamily?: string;
+    fontSize?: number;
+    letterSpacing?: number;
+    color?: string;
+    opacity?: number;
+  };
   const legacyTransitions = (
     params as { transitions?: { range?: string | null; startOffset?: number; duration?: number } }
   ).transitions;
@@ -209,8 +179,6 @@ const presetExecution = (
     };
   };
   const textAtomId = `text-atom-${generateId()}`;
-  // Calculate responsive font size if enabled
-  const getResponsiveFontSize = () => fontSize;
 
   // Map alignment keywords to flexbox alignments
   const mapAlignmentToFlex = (
@@ -258,45 +226,82 @@ const presetExecution = (
     }
   };
 
-  // Parse font family and extract weight/style if provided
-  let parsedFontFamily = fontFamily || 'Inter';
-  let fontStyle: any = {};
+  // Typography and block controls write CSS onto `style`. Older overlays
+  // stored the same values as fontFamily / fontSize / letterSpacing / textColor.
+  const styleRecord: Record<string, any> =
+    style && typeof style === 'object' ? { ...style } : {};
+  const otherProps =
+    styleRecord.otherProps && typeof styleRecord.otherProps === 'object'
+      ? (styleRecord.otherProps as Record<string, any>)
+      : undefined;
+  const containerFilter =
+    typeof styleRecord.filter === 'string' ? styleRecord.filter : undefined;
+  const legacyTextColor = styleRecord.textColor;
+  delete styleRecord.otherProps;
+  delete styleRecord.filter;
+  delete styleRecord.textColor;
 
-  if (fontFamily && fontFamily.includes(':')) {
-    const fontParts = fontFamily.split(':');
-    parsedFontFamily = fontParts[0];
-
-    if (fontParts.length > 1) {
-      fontStyle.fontWeight = parseInt(fontParts[1]);
-    }
-    if (fontParts.length > 2) {
-      fontStyle.fontStyle = fontParts[2];
+  let parsedFontFamily =
+    typeof styleRecord.fontFamily === 'string' && styleRecord.fontFamily.trim()
+      ? styleRecord.fontFamily
+      : 'Inter';
+  let parsedWeight = styleRecord.fontWeight;
+  let parsedFontStyle = styleRecord.fontStyle;
+  const legacyFont =
+    styleRecord.fontFamily == null || styleRecord.fontFamily === ''
+      ? legacyParams.fontFamily
+      : undefined;
+  if (typeof legacyFont === 'string' && legacyFont.trim()) {
+    if (legacyFont.includes(':')) {
+      const fontParts = legacyFont.split(':');
+      parsedFontFamily = fontParts[0] || 'Inter';
+      if (parsedWeight == null && fontParts.length > 1) {
+        const weight = parseInt(fontParts[1], 10);
+        if (!Number.isNaN(weight)) parsedWeight = weight;
+      }
+      if (!parsedFontStyle && fontParts.length > 2 && fontParts[2]) {
+        parsedFontStyle =
+          fontParts[2].toLowerCase() === 'italic' ? 'italic' : fontParts[2];
+      }
+    } else {
+      parsedFontFamily = legacyFont;
     }
   }
 
-  // Build style object
+  const letterSpacing =
+    styleRecord.letterSpacing != null
+      ? styleRecord.letterSpacing
+      : typeof legacyParams.letterSpacing === 'number'
+        ? `${legacyParams.letterSpacing}px`
+        : undefined;
+  const padding = styleRecord.padding;
+  const borderRadius = styleRecord.borderRadius;
+
   const textStyle: React.CSSProperties = {
-    fontSize: getResponsiveFontSize(),
-    color: style?.textColor ?? '#FFFFFF',
-    textDecoration: style?.textDecoration,
-    textTransform: style?.textTransform,
-    letterSpacing: letterSpacing ? `${letterSpacing}px` : undefined,
-    boxShadow: style?.boxShadow,
-    textShadow: style?.textShadow,
-    backdropFilter: style?.backdropFilter,
-    backgroundColor: style?.backgroundColor,
-    opacity: style?.opacity,
-    padding:
-      typeof style?.padding === 'number'
-        ? `${style?.padding}px`
-        : style?.padding,
-    ...fontStyle,
-    border: style?.border,
+    ...(otherProps ?? {}),
+    ...styleRecord,
+    fontFamily: parsedFontFamily,
+    fontSize:
+      styleRecord.fontSize ??
+      (typeof legacyParams.fontSize === 'number' ? legacyParams.fontSize : 24),
+    color:
+      legacyTextColor ??
+      styleRecord.color ??
+      (typeof legacyParams.color === 'string' ? legacyParams.color : '#FFFFFF'),
+    ...(letterSpacing != null ? { letterSpacing } : {}),
+    ...(parsedWeight != null ? { fontWeight: parsedWeight } : {}),
+    ...(parsedFontStyle ? { fontStyle: parsedFontStyle } : {}),
+    opacity:
+      styleRecord.opacity ??
+      (typeof legacyParams.opacity === 'number'
+        ? legacyParams.opacity
+        : undefined),
+    padding: typeof padding === 'number' ? `${padding}px` : padding,
     borderRadius:
-      typeof style?.borderRadius === 'number'
-        ? `${style?.borderRadius}px`
-        : style?.borderRadius,
+      typeof borderRadius === 'number' ? `${borderRadius}px` : borderRadius,
   };
+  const restingOpacity =
+    typeof textStyle.opacity === 'number' ? textStyle.opacity : 1;
 
   // Build transition effects similar to video-overlay-effects
   const createTransitionEffects = (
@@ -352,12 +357,12 @@ const presetExecution = (
         ranges: [
           {
             key: 'opacity',
-            val: isFadeIn ? 0 : (style?.opacity ?? 1),
+            val: isFadeIn ? 0 : (restingOpacity),
             prog: 0,
           },
           {
             key: 'opacity',
-            val: isFadeIn ? (style?.opacity ?? 1) : 0,
+            val: isFadeIn ? (restingOpacity) : 0,
             prog: 1,
           },
         ],
@@ -495,12 +500,12 @@ const presetExecution = (
         ranges: [
           {
             key: 'opacity',
-            val: isFadeIn ? 0 : (style?.opacity ?? 1),
+            val: isFadeIn ? 0 : (restingOpacity),
             prog: 0,
           },
           {
             key: 'opacity',
-            val: isFadeIn ? (style?.opacity ?? 1) : 0,
+            val: isFadeIn ? (restingOpacity) : 0,
             prog: 1,
           },
         ],
@@ -542,10 +547,10 @@ const presetExecution = (
     text,
     style: textStyle,
     font: {
-      family: parsedFontFamily,
-      ...(fontStyle.fontWeight
-        ? { weights: [fontStyle.fontWeight?.toString()] }
-        : {}),
+      family:
+        String(parsedFontFamily).split(',')[0]?.replace(/["']/g, '').trim() ||
+        'Inter',
+      ...(parsedWeight != null ? { weights: [String(parsedWeight)] } : {}),
     },
   };
 
@@ -568,11 +573,11 @@ const presetExecution = (
       typeof position?.left === 'number'
         ? `${position?.left}px`
         : (position?.left ?? '0px'),
-    filter: style?.filter,
+    filter: containerFilter,
     display: 'flex',
     flexDirection: 'row',
     ...mapAlignmentToFlex(position?.alignment),
-    ...(style?.otherProps ?? {}),
+    ...(otherProps ?? {}),
   };
 
   const legacyRange = parseRange(legacyTransitions?.range);
@@ -618,13 +623,14 @@ const presetMetadata = {
     duration: 20,
     attachedToId: 'BaseScene',
     text: 'Your Text Here',
-    fontSize: 32,
-    fontFamily: 'Inter:600',
     position: {
       alignment: 'center-center',
     },
     style: {
-      textColor: '#FFFFFF',
+      fontFamily: 'Inter',
+      fontWeight: 600,
+      fontSize: 32,
+      color: '#FFFFFF',
       textShadow: '0 2px 4px rgba(0,0,0,0.5)',
       opacity: 1,
     },
@@ -687,6 +693,100 @@ export function migrateTextOverlayInputData<T>(data: T): T {
       next.transitions = transitions;
       changed = true;
     }
+  }
+
+  const rawStyle = next.style;
+  const style: Record<string, unknown> =
+    rawStyle && typeof rawStyle === 'object' && !Array.isArray(rawStyle)
+      ? { ...(rawStyle as Record<string, unknown>) }
+      : {};
+  let styleChanged = false;
+
+  if (typeof next.fontFamily === 'string' && next.fontFamily.trim()) {
+    const parts = next.fontFamily.split(':');
+    const family = parts[0]?.trim();
+    if (family && style.fontFamily == null) {
+      style.fontFamily = family;
+      styleChanged = true;
+    }
+    if (parts.length > 1 && style.fontWeight == null) {
+      const weight = parseInt(parts[1] ?? '', 10);
+      if (!Number.isNaN(weight)) {
+        style.fontWeight = weight;
+        styleChanged = true;
+      }
+    }
+    if (parts.length > 2 && style.fontStyle == null && parts[2]?.trim()) {
+      const token = parts[2].trim();
+      style.fontStyle = token.toLowerCase() === 'italic' ? 'italic' : token;
+      styleChanged = true;
+    }
+  }
+  if ('fontFamily' in next) {
+    delete next.fontFamily;
+    changed = true;
+  }
+
+  if (typeof next.fontSize === 'number' && style.fontSize == null) {
+    style.fontSize = next.fontSize;
+    styleChanged = true;
+  }
+  if ('fontSize' in next) {
+    delete next.fontSize;
+    changed = true;
+  }
+
+  if (style.letterSpacing == null && next.letterSpacing != null && next.letterSpacing !== '') {
+    style.letterSpacing =
+      typeof next.letterSpacing === 'number'
+        ? `${next.letterSpacing}px`
+        : next.letterSpacing;
+    styleChanged = true;
+  }
+  if ('letterSpacing' in next) {
+    delete next.letterSpacing;
+    changed = true;
+  }
+
+  if (typeof style.textColor === 'string' && style.textColor.trim()) {
+    style.color = style.textColor;
+    delete style.textColor;
+    styleChanged = true;
+  } else if ('textColor' in style) {
+    delete style.textColor;
+    styleChanged = true;
+  }
+
+  if (typeof next.color === 'string' && next.color.trim() && style.color == null) {
+    style.color = next.color;
+    styleChanged = true;
+  }
+  if ('color' in next) {
+    delete next.color;
+    changed = true;
+  }
+
+  if (typeof next.opacity === 'number' && style.opacity == null) {
+    style.opacity = next.opacity;
+    styleChanged = true;
+  }
+  if ('opacity' in next) {
+    delete next.opacity;
+    changed = true;
+  }
+
+  const otherProps = style.otherProps;
+  if (otherProps && typeof otherProps === 'object' && !Array.isArray(otherProps)) {
+    for (const [key, value] of Object.entries(otherProps as Record<string, unknown>)) {
+      if (style[key] == null) style[key] = value;
+    }
+    delete style.otherProps;
+    styleChanged = true;
+  }
+
+  if (styleChanged) {
+    next.style = style;
+    changed = true;
   }
 
   if (typeof next.trackName !== 'string' || !next.trackName.trim()) {
