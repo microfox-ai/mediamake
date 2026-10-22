@@ -42,6 +42,8 @@ const ImageSpec = z.object({
   maxWidth: z.number().default(2560),
   /** png keeps alpha (cutouts). */
   format: z.enum(['jpg', 'png']).default('jpg'),
+  /** For a video source: the frame to take, in seconds (exact seek). */
+  at: z.number().optional(),
 });
 const ClipSpec = z.object({
   src: z.string(),
@@ -127,7 +129,9 @@ const main = () => {
     const { cw, ch, x, y } = cropBox(p.width, p.height, ratio(s.aspect, p.width, p.height), s.focus);
     const w = Math.min(cw, s.maxWidth);
     execFileSync(FFMPEG, [
-      '-v', 'error', '-y', '-i', src,
+      '-v', 'error', '-y',
+      ...(s.at !== undefined ? ['-ss', String(s.at)] : []),
+      '-i', src,
       '-vf', `crop=${cw}:${ch}:${x}:${y},scale=${w}:-2:flags=lanczos`,
       ...(s.format === 'jpg' ? ['-q:v', '2'] : []),
       '-frames:v', '1', out,
