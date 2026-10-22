@@ -72,6 +72,10 @@ import {
   updateCaptionsDocument,
 } from "@/lib/captions/captions-client";
 import { clearLinkedActionOutputs } from "@/lib/captions/linked-action-outputs";
+import {
+  captionValueKey as captionsValueKey,
+  localCaptionMatches,
+} from "@/lib/captions/caption-local-history";
 import { generateId } from "@microfox/datamotion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -134,20 +138,6 @@ function createBlankHelloCaptions(): Caption[] {
       metadata: {},
     },
   ];
-}
-
-function captionsValueKey(value: {
-  _id?: unknown;
-  title?: string;
-  description?: string;
-  captions?: unknown;
-} | null) {
-  return JSON.stringify({
-    id: captionsDocumentId(value?._id),
-    title: value?.title ?? "",
-    description: value?.description ?? "",
-    captions: value?.captions ?? [],
-  });
 }
 
 // ─── Active items panel ────────────────────────────────────────────────────────
@@ -943,6 +933,13 @@ export function ReferenceProps({ reference, timeline, referenceIndex }: Referenc
         const dbKey = captionsValueKey(captionsReferenceValue(doc));
         if (dbKey === currentKey) {
           lastSavedCaptionsKeyRef.current = dbKey;
+          return;
+        }
+        if (localCaptionMatches(linkedCaptionsId, currentKey)) {
+          // This session already edited or undid these lines. Keep them and
+          // write them back, instead of replacing them with the stored document.
+          lastSavedCaptionsKeyRef.current = currentKey;
+          void saveCaptionsRef.current(false);
           return;
         }
         bindCaptionsDocumentRef.current(doc);

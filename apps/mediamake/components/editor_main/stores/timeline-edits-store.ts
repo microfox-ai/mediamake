@@ -42,6 +42,17 @@ import {
 } from './timeline-sync';
 import { summarizeTimelineDiff } from '@/lib/editor/diff-utils';
 import { mergeTimelines, type TimelineConflict, type MergeSide } from '@/lib/editor/timeline-merge';
+import {
+  applyCaptionSnapshots,
+  captionIdsChanged,
+  captionSnapshotsFromTimeline,
+  clearLocalCaptionOwnership,
+  rememberLocalCaptions,
+  scheduleCaptionWriteBack,
+  seedCaptionOwnershipFromHistory,
+  timelineWithoutCaptionBodies,
+  type LocalCaptionSnapshot,
+} from '@/lib/captions/caption-local-history';
 
 export type { TimelineConflict, MergeSide };
 
@@ -63,6 +74,13 @@ interface HistoryEntry {
   id?: string;
   /** True once this entry's state has been published to the team. */
   published?: boolean;
+  /**
+   * Caption documents at this step. Lines are stored separately from the timeline,
+   * so local undo keeps them here and restores them with the step.
+   */
+  captions?: LocalCaptionSnapshot[];
+  /** Caption document ids whose lines changed in this step. */
+  captionEditIds?: string[];
 }
 
 /** Lightweight team audit entry for timeline publishes (mirrors layer team history). */
@@ -594,13 +612,95 @@ const getProjectTimelines = (): Timeline[] => {
 };
 
 // Helper to create a history entry
-const createHistoryEntry = (timeline: Timeline): HistoryEntry => ({
-  timelineId: timeline.id,
-  timeline: JSON.parse(JSON.stringify(timeline)), // Deep clone
-  timestamp: Date.now(),
-  id: `th_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-  published: false,
-});
+const createHistoryEntry = (
+  timeline: Timeline,
+  previous?: Timeline | null,
+  inheritCaptionEditIds?: string[],
+): HistoryEntry => {
+  const clone = JSON.parse(JSON.stringify(timeline)) as Timeline;
+  const captions = captionSnapshotsFromTimeline(clone);
+  const captionEditIds = new Set(captionIdsChanged(previous, clone));
+  for (const id of inheritCaptionEditIds ?? []) captionEditIds.add(id);
+  return {
+    timelineId: timeline.id,
+    timeline: clone,
+    captions,
+    captionEditIds: [...captionEditIds],
+    timestamp: Date.now(),
+    id: `th_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    published: false,
+  };
+};
+
+let recompileUnsubscribe: (() => void) | null = null;
+let recompileTimelineId: string | null = null;
+
+/** Compile the restored timeline so caption-only undo shows up in the player. */
+const recompileTimeline = (timelineId: string) => {
+  recompileTimelineId = timelineId;
+  const run = () => {
+    try {
+      const { useCompileStore } = require('./compile-store');
+      const compile = useCompileStore.getState();
+      if (compile.isGenerating) {
+        if (!recompileUnsubscribe) {
+          recompileUnsubscribe = useCompileStore.subscribe(
+            (state: { isGenerating: boolean }) => {
+              if (state.isGenerating) return;
+              recompileUnsubscribe?.();
+              recompileUnsubscribe = null;
+              run();
+            },
+          );
+        }
+        return;
+      }
+      const id = recompileTimelineId;
+      if (!id) return;
+      const latest = useTimelineEditsStore.getState().getEditedTimeline(id);
+      if (!latest) {
+        recompileTimelineId = null;
+        return;
+      }
+      void compile.generateOutput(latest);
+      const stillQueued = recompileTimelineId !== id;
+      const started = useCompileStore.getState().isGenerating;
+      if (!started) {
+        if (recompileTimelineId === id) recompileTimelineId = null;
+        return;
+      }
+      if (!stillQueued) {
+        recompileTimelineId = null;
+        return;
+      }
+      if (!recompileUnsubscribe) {
+        recompileUnsubscribe = useCompileStore.subscribe(
+          (state: { isGenerating: boolean }) => {
+            if (state.isGenerating) return;
+            recompileUnsubscribe?.();
+            recompileUnsubscribe = null;
+            run();
+          },
+        );
+      }
+    } catch {
+      recompileTimelineId = null;
+    }
+  };
+  run();
+};
+
+const syncRestoredCaptions = (
+  previous: Timeline | null | undefined,
+  next: Timeline,
+) => {
+  const changed = captionIdsChanged(previous, next);
+  if (changed.length === 0) return;
+  const ids = new Set(changed);
+  rememberLocalCaptions(next, ids);
+  scheduleCaptionWriteBack(next, ids);
+  recompileTimeline(next.id);
+};
 
 // ── Local history persistence (survives reloads), keyed per project ──────────
 const TIMELINE_HISTORY_KEY = 'timeline-history';
@@ -611,10 +711,16 @@ const persistTimelineHistory = (projectId: string | null, history: HistoryEntry[
   if (typeof window === 'undefined') return;
   try {
   const key = timelineHistoryKey(projectId);
-  const compactHistory = history.map((entry) => ({
-    ...entry,
-    timeline: compactTimelineForStorage(entry.timeline),
-  }));
+  const compactHistory = history.map((entry) => {
+    const captions = entry.captions?.length
+      ? entry.captions
+      : captionSnapshotsFromTimeline(entry.timeline);
+    return {
+      ...entry,
+      captions,
+      timeline: compactTimelineForStorage(timelineWithoutCaptionBodies(entry.timeline, captions)),
+    };
+  });
   const payload = JSON.stringify({ history: compactHistory, historyIndex });
   if (writeLocalStorage(key, payload)) return;
   // Remove the previous snapshot first. Browsers keep it allocated during setItem.
@@ -647,7 +753,10 @@ const loadTimelineHistory = (projectId: string | null): { history: HistoryEntry[
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.history)) return null;
     return {
-      history: parsed.history,
+      history: parsed.history.map((entry: HistoryEntry) => ({
+        ...entry,
+        timeline: applyCaptionSnapshots(entry.timeline, entry.captions),
+      })),
       historyIndex: typeof parsed.historyIndex === 'number' ? parsed.historyIndex : parsed.history.length - 1,
     };
   } catch {
@@ -738,6 +847,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
     updateTimeline: (timelineId, updates, changeKey) => {
       const state = get();
       const currentTimeline = state.editedTimelines.get(timelineId);
+      let previousTimeline: Timeline | null = currentTimeline ?? null;
 
       if (!currentTimeline) {
         // If timeline not in edits, we need to get it from project store
@@ -752,6 +862,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           return;
         }
 
+        previousTimeline = originalTimeline;
         // Initialize with original timeline
         const newTimeline = { ...originalTimeline, ...updates };
         state.editedTimelines.set(timelineId, newTimeline);
@@ -763,6 +874,12 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
       // Add to history (squashing consecutive same-key edits into the last entry)
       const newTimeline = state.editedTimelines.get(timelineId)!;
+      const changedCaptionIds = captionIdsChanged(previousTimeline, newTimeline);
+      if (changedCaptionIds.length > 0) {
+        const captionIds = new Set(changedCaptionIds);
+        rememberLocalCaptions(newTimeline, captionIds);
+        scheduleCaptionWriteBack(newTimeline, captionIds);
+      }
       const now = Date.now();
       const canSquash =
         changeKey != null &&
@@ -775,21 +892,26 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         let newHistory: HistoryEntry[];
         let newIndex: number;
 
-        if (
+        const squashing =
           canSquash &&
           atTip &&
           last &&
           last.timelineId === timelineId &&
           // Never squash into an already-published entry — that would re-dirty it.
-          !last.published
-        ) {
+          !last.published;
+        const entry = createHistoryEntry(
+          newTimeline,
+          squashing && last ? last.timeline : previousTimeline,
+          squashing && last ? last.captionEditIds : undefined,
+        );
+        if (squashing) {
           // Replace the last entry's snapshot in-place — one entry for the gesture.
           newHistory = [...state.history];
-          newHistory[state.historyIndex] = createHistoryEntry(newTimeline);
+          newHistory[state.historyIndex] = entry;
           newIndex = state.historyIndex;
         } else {
           newHistory = state.history.slice(0, state.historyIndex + 1);
-          newHistory.push(createHistoryEntry(newTimeline));
+          newHistory.push(entry);
           if (newHistory.length > state.maxHistorySize) {
             newHistory.shift();
           }
@@ -1238,6 +1360,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         if (!firstEntry) return false;
         const baseline = state.loadBaselineById.get(firstEntry.timelineId);
         if (!baseline) return false;
+        const previous = state.editedTimelines.get(firstEntry.timelineId);
 
         set((s) => {
           const ne = new Map(s.editedTimelines);
@@ -1254,18 +1377,21 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
 
         const { useProjectStore } = require('./project-store');
         useProjectStore.getState().updateTimeline(firstEntry.timelineId, baseline);
+        syncRestoredCaptions(previous, baseline);
         return true;
       }
 
       const historyEntry = state.history[newIndex];
       if (!historyEntry) return false;
+      const restored = applyCaptionSnapshots(historyEntry.timeline, historyEntry.captions);
+      const previous = state.editedTimelines.get(historyEntry.timelineId);
 
       set(state => {
         const newState = {
           historyIndex: newIndex,
           editedTimelines: new Map(state.editedTimelines).set(
             historyEntry.timelineId,
-            historyEntry.timeline
+            restored
           ),
           isDirty: hasUnpublishedAtCursor(state.history, newIndex),
           cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
@@ -1286,8 +1412,9 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(
         historyEntry.timelineId,
-        historyEntry.timeline
+        restored
       );
+      syncRestoredCaptions(previous, restored);
 
       return true;
     },
@@ -1301,13 +1428,15 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const historyEntry = state.history[newIndex];
 
       if (!historyEntry) return false;
+      const restored = applyCaptionSnapshots(historyEntry.timeline, historyEntry.captions);
+      const previous = state.editedTimelines.get(historyEntry.timelineId);
 
       set(state => {
         const newState = {
           historyIndex: newIndex,
           editedTimelines: new Map(state.editedTimelines).set(
             historyEntry.timelineId,
-            historyEntry.timeline
+            restored
           ),
           isDirty: hasUnpublishedAtCursor(state.history, newIndex),
           cloudUpdatedAtByTimelineId: new Map(state.cloudUpdatedAtByTimelineId),
@@ -1328,8 +1457,9 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(
         historyEntry.timelineId,
-        historyEntry.timeline
+        restored
       );
+      syncRestoredCaptions(previous, restored);
       
       return true;
     },
@@ -1450,6 +1580,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
     },
 
     loadFromPersistence: (projectId) => {
+      clearLocalCaptionOwnership();
       const stored = loadFromStorage(projectId);
       // Restore the local undo/redo history for this project (survives reloads).
       const storedHistory = loadTimelineHistory(projectId);
@@ -1482,6 +1613,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
             projectStore.updateTimeline(editedTimeline.id, editedTimeline);
           });
         }
+        seedCaptionOwnershipFromHistory(restoredHistory, restoredIndex, editedTimelines);
       };
 
       if (stored && !stored.deferred) {
@@ -1511,6 +1643,8 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
           localEditUpdatedAtByTimelineId: new Map(),
         });
       }
+
+      seedCaptionOwnershipFromHistory(restoredHistory, restoredIndex, new Map());
 
       // localStorage was over quota, so the snapshot is in IndexedDB (or the
       // pointer write failed and only IndexedDB has it).
@@ -1584,17 +1718,19 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
               });
               return next;
             })(),
-            history: [],
-            historyIndex: -1,
-          };
-          
+          history: [],
+          historyIndex: -1,
+        };
+          clearLocalCaptionOwnership();
+
           // Persist to storage
           saveToStorage(projectId, newState);
-          
+
           return newState;
         });
       } else {
         // Clear all edits
+        clearLocalCaptionOwnership();
         set({
           editedTimelines: new Map(),
           cloudUpdatedAtByTimelineId: new Map(),
@@ -2082,12 +2218,13 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       // Restore the real state first if a preview is active.
       get().endTimelinePreview();
       resetTimelineSquash();
+      const previous = get().editedTimelines.get(timeline.id);
       const t: Timeline = JSON.parse(JSON.stringify(timeline));
       set((s) => {
         const ne = new Map(s.editedTimelines);
         ne.set(t.id, t);
         // Append a new history entry at the END — keep everything after (non-destructive).
-        const entry = createHistoryEntry(t);
+        const entry = createHistoryEntry(t, previous);
         const newHistory = [...s.history, entry];
         if (newHistory.length > s.maxHistorySize) newHistory.shift();
         const ns = {
@@ -2101,6 +2238,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       });
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(t.id, t);
+      syncRestoredCaptions(previous, t);
       void label;
     },
 
@@ -2108,6 +2246,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       if (!timeline?.id) return;
       get().endTimelinePreview();
       resetTimelineSquash();
+      const previous = get().editedTimelines.get(timeline.id);
       const t: Timeline = JSON.parse(JSON.stringify(timeline));
       set((s) => {
         const targetIdx = s.history.findIndex((e) => e.id === entryId);
@@ -2132,6 +2271,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       });
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(t.id, t);
+      syncRestoredCaptions(previous, t);
     },
 
     discardAllLocalTimelineChanges: (timelineId) => {
@@ -2143,6 +2283,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       const lastPublished = lastPublishedForTl[lastPublishedForTl.length - 1];
       const baseline = lastPublished?.timeline ?? state.loadBaselineById.get(timelineId);
       if (!baseline) return;
+      const previous = state.editedTimelines.get(timelineId);
       const ne = new Map(state.editedTimelines);
       ne.set(timelineId, baseline);
       const ns = {
@@ -2156,6 +2297,7 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
       persistTimelineHistory(state.currentProjectId, ns.history, ns.historyIndex);
       const { useProjectStore } = require('./project-store');
       useProjectStore.getState().updateTimeline(timelineId, baseline);
+      syncRestoredCaptions(previous, baseline);
     },
 
     clearPublishedHistory: () => {
