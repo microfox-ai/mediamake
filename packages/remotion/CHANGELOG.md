@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.3
+
+### Patch Changes
+
+- 68e0b15: Triggered by issue #409: release @microfox/remotion patch
+
 ## 2.0.2
 
 ### Patch Changes
