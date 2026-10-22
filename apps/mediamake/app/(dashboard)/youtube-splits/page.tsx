@@ -520,6 +520,8 @@ export default function YoutubeSplitsPage() {
           <MediaPicker
             pickerMode
             singular
+            // Splitting runs on a server, which can't read local files.
+            allowLocal={false}
             onSelect={handleMediaSelect}
             onClose={() => setShowMediaPicker(false)}
           />

@@ -26,6 +26,13 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
+import { isLocalMediaUrl } from "@/lib/local-media/urls";
+import {
+    asLocalFile,
+    LocalMediaBadge,
+    LocalMediaMenuItems,
+    LocalStatusOverlay,
+} from "@/components/local-media/local-media-ui";
 
 const VideoThumbnail = ({
     src,
@@ -183,6 +190,8 @@ const AudioPlayer = ({ audio }: { audio: { src: string; title?: string; creator?
     useEffect(() => {
         const loadTechnicalData = async () => {
             if (!audio.src || technicalData || isLoadingTechnical) return;
+            // Server-side analysis can't fetch a file that only exists on this computer.
+            if (isLocalMediaUrl(audio.src)) return;
 
             setIsLoadingTechnical(true);
             try {
@@ -451,14 +460,21 @@ export const MediaOptionsDropdown = ({
     onEditDetails,
     onCopyUrl,
     onCopyId,
-    onDeleteMedia
+    onDeleteMedia,
+    onCloudChanged,
+    className,
 }: {
     mediaFile: MediaFile;
     onEditDetails: (file: MediaFile) => void;
     onCopyUrl: (file: MediaFile) => void;
     onCopyId: (file: MediaFile) => void;
     onDeleteMedia: (file: MediaFile) => void;
+    /** Local items: called after one is uploaded to the cloud. */
+    onCloudChanged?: () => void;
+    /** Overrides the trigger's default (hover-revealed, top-right) placement. */
+    className?: string;
 }) => {
+    const localFile = asLocalFile(mediaFile);
     const handleCopyUrl = (e: React.MouseEvent) => {
         e.stopPropagation();
         onCopyUrl(mediaFile);
@@ -486,7 +502,7 @@ export const MediaOptionsDropdown = ({
                     size="sm"
                     variant="ghost"
                     onClick={(e) => e.stopPropagation()}
-                    className="opacity-0 group-hover/media:opacity-100 transition-opacity p-1 m-0 absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white border-none"
+                    className={className ?? "opacity-0 group-hover/media:opacity-100 transition-opacity p-1 m-0 absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white border-none"}
                 >
                     <MoreVertical className="h-4 w-4 text-white" />
                 </Button>
@@ -498,19 +514,23 @@ export const MediaOptionsDropdown = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleCopyUrl}>
                     <Link className="h-4 w-4 mr-2" />
-                    Copy Media URL
+                    {localFile ? 'Copy local URL' : 'Copy Media URL'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleCopyId}>
                     <Copy className="h-4 w-4 mr-2" />
                     Copy ID
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                    onClick={handleDeleteMedia}
-                    className="text-red-600"
-                >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Media
-                </DropdownMenuItem>
+                {localFile ? (
+                    <LocalMediaMenuItems file={localFile} onCloudChanged={onCloudChanged} />
+                ) : (
+                    <DropdownMenuItem
+                        onClick={handleDeleteMedia}
+                        className="text-red-600"
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Media
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -1322,7 +1342,8 @@ export const MediaGrid = ({
     onBulkSelectAll,
     onBulkDeselectAll,
     bulkSelectedFiles = new Set(),
-    onBulkFileSelect
+    onBulkFileSelect,
+    onCloudChanged,
 }: {
     mediaFiles: MediaFile[];
     onEditDetails: (file: MediaFile) => void;
@@ -1339,6 +1360,8 @@ export const MediaGrid = ({
     onBulkDeselectAll?: () => void;
     bulkSelectedFiles?: Set<string>;
     onBulkFileSelect?: (fileId: string, selected: boolean) => void;
+    /** Local items: called after one is uploaded to the cloud. */
+    onCloudChanged?: () => void;
 }) => {
     const [selectedMedia, setSelectedMedia] = useState<MediaDialogItem | null>(null);
     const [numColumns, setNumColumns] = useState(1);
@@ -1443,6 +1466,7 @@ export const MediaGrid = ({
                             const fileId = mediaFile._id?.toString();
                             const isSelected = pickerMode ? selectedFiles.has(fileId || '') : false;
                             const isBulkSelected = editMode ? bulkSelectedFiles.has(fileId || '') : false;
+                            const localFile = asLocalFile(mediaFile);
 
                             return (
                                 <div
@@ -1468,7 +1492,12 @@ export const MediaGrid = ({
                                     )}
                                     {dialogItem.type === 'image' && (
                                         <img
-                                            src={dialogItem.image.src ?? ""}
+                                            src={
+                                                // Local: the stored thumbnail shows even before
+                                                // file access is restored after a restart.
+                                                (localFile && (mediaFile.metadata as { thumbnail?: string } | undefined)?.thumbnail) ||
+                                                (dialogItem.image.src ?? "")
+                                            }
                                             alt={dialogItem.image.title ?? ""}
                                             className="w-full h-auto transition-transform duration-300 group-hover/media:scale-110"
                                         />
@@ -1520,6 +1549,13 @@ export const MediaGrid = ({
                                         </div>
                                     )}
 
+                                    {localFile && (
+                                        <div className="absolute bottom-2 left-2 z-10">
+                                            <LocalMediaBadge file={mediaFile} />
+                                        </div>
+                                    )}
+                                    {localFile && <LocalStatusOverlay file={mediaFile} />}
+
                                     {/* Selection indicators */}
                                     {pickerMode && isSelected && (
                                         <div className="absolute top-2 left-2 z-10">
@@ -1556,6 +1592,7 @@ export const MediaGrid = ({
                                                 onCopyUrl={onCopyUrl}
                                                 onCopyId={onCopyId}
                                                 onDeleteMedia={onDeleteMedia}
+                                                onCloudChanged={onCloudChanged}
                                             />
                                         )}
 

@@ -36,8 +36,18 @@ import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useRender, ConfigMode, RenderMethod } from './render-provider';
-import { useBrowserRender } from './use-browser-render';
-import { Progress } from '@/components/ui/progress';
+import {
+  isBrowserRenderActive,
+  mimeTypeForBrowserRender,
+  requestDeviceSaveHandle,
+} from './use-browser-render';
+import { BrowserRenderProgressPanel } from './browser-render-progress';
+import {
+  LocalMediaRenderNotice,
+  useLocalRefProblems,
+} from './local-media-render-notice';
+import { findLocalMediaRefs } from '@/lib/local-media/urls';
+import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/components/session-provider';
 import { useProjectStore } from '@/components/editor_main/stores/project-store';
@@ -76,6 +86,10 @@ import {
   Layers,
   Info,
   Globe,
+  Lock,
+  Cloud,
+  Download,
+  Play,
 } from 'lucide-react';
 import {
   calculateCompositionLayoutMetadata,
@@ -92,6 +106,15 @@ interface RenderModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+/**
+ * Local Render runs @remotion/renderer (bundler + headless Chrome) inside the
+ * Next server, which only works when the app runs on your own machine.
+ * Hidden in production builds unless explicitly enabled.
+ */
+const SHOW_LOCAL_RENDER =
+  process.env.NODE_ENV !== 'production' ||
+  process.env.NEXT_PUBLIC_ENABLE_LOCAL_RENDER === 'true';
 
 /** Still renders send either a frame index or a time in seconds, never both. */
 function stillPositionPayload(settings: {
@@ -209,13 +232,26 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     setRenderMethod,
     isLoading,
     setIsLoading,
+    browserRender: browserRenderController,
   } = useRender();
 
-  const {
-    state: browserRender,
-    startBrowserRender,
-    cancel: cancelBrowserRender,
-  } = useBrowserRender();
+  const { state: browserRender, startBrowserRender, reset: resetBrowserRender } =
+    browserRenderController;
+  const browserActive = isBrowserRenderActive(browserRender.phase);
+
+  // Files on this computer are only reachable from this browser: AWS is off
+  // while the props reference any of them.
+  const localRefs = useMemo(
+    () => findLocalMediaRefs(settings.inputProps),
+    [settings.inputProps],
+  );
+  const localProblems = useLocalRefProblems(localRefs);
+  const awsBlocked = localRefs.length > 0;
+
+  useEffect(() => {
+    if (awsBlocked && renderMethod === 'aws') setRenderMethod('browser');
+    else if (!SHOW_LOCAL_RENDER && renderMethod === 'local') setRenderMethod('browser');
+  }, [awsBlocked, renderMethod, setRenderMethod]);
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
@@ -379,33 +415,44 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   ]);
 
   const handleRender = async () => {
+    // Browser renders report progress through the shared controller (modal
+    // panel + floating dock), so they don't hold the modal's loading state.
+    if (renderMethod === 'browser') {
+      await handleBrowserRender();
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       if (renderMethod === 'aws') {
         await handleAWSRender();
-      } else if (renderMethod === 'browser') {
-        await handleBrowserRender();
       } else {
         await handleLocalRender();
       }
     } catch (error) {
       console.error('Render error:', error);
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        toast.info('Browser render cancelled');
-      } else {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to start render',
-        );
-      }
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to start render',
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleBrowserRender = async () => {
-    if (!session?.clientId) {
-      toast.error('You must be signed in to render in the browser');
+    if (browserActive) return;
+    const toDevice = settings.browserDestination === 'device';
+    if (!toDevice && !session?.clientId) {
+      toast.error('Sign in to upload renders — or choose "This computer" to save it locally.');
+      return;
+    }
+    if (localProblems.missing + localProblems.unknown > 0) {
+      toast.error('Some local files in this timeline can’t be found. Relink them in the Media library first.');
+      return;
+    }
+    if (localProblems.needsAccess > 0) {
+      toast.error('Some local files need access again — click “Reconnect access” above.');
       return;
     }
 
@@ -427,32 +474,60 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
         ? ensureSingleMp4(settings.fileName).replace(/\.mp4$/i, '.webm')
         : ensureSingleMp4(settings.fileName);
 
-    const result = await startBrowserRender({
-      inputProps: parsedInputProps,
-      compositionId: settings.composition || 'DataMotion',
-      renderType: isStill ? 'still' : 'video',
-      container: settings.browserContainer,
-      imageFormat: settings.browserImageFormat,
-      fileName,
-      ...stillPositionPayload(settings),
-      projectId: settings.projectId,
-      tags: settings.tags,
-      clientId: session.clientId,
-    });
-
-    toast.success(
-      isStill
-        ? 'Image rendered in browser and saved!'
-        : 'Video rendered in browser and saved!',
-    );
-    if (result?.url) {
-      toast.info(
-        isStill
-          ? 'Find it in Image Render History.'
-          : 'Find it in Video Render History.',
-      );
+    // The save picker needs the click's user activation, so ask for the
+    // destination now — before the render, not after it.
+    let saveHandle: FileSystemFileHandle | null = null;
+    if (toDevice) {
+      try {
+        saveHandle = await requestDeviceSaveHandle(
+          fileName,
+          mimeTypeForBrowserRender(
+            isStill ? 'still' : 'video',
+            settings.browserContainer,
+            settings.browserImageFormat,
+          ),
+        );
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        saveHandle = null; // fall back to a download
+      }
     }
-    onClose();
+
+    try {
+      const result = await startBrowserRender({
+        inputProps: parsedInputProps,
+        compositionId: settings.composition || 'DataMotion',
+        renderType: isStill ? 'still' : 'video',
+        container: settings.browserContainer,
+        imageFormat: settings.browserImageFormat,
+        fileName,
+        ...stillPositionPayload(settings),
+        projectId: settings.projectId,
+        tags: settings.tags,
+        clientId: session?.clientId ?? '',
+        destination: toDevice ? 'device' : 'cloud',
+        saveHandle,
+      });
+
+      const what = isStill ? 'Image' : 'Video';
+      if (result.savedToDevice) {
+        toast.success(`${what} saved to your computer`, { description: fileName });
+      } else {
+        toast.success(`${what} rendered and uploaded`, {
+          description: `Find it in ${isStill ? 'Image' : 'Video'} Render History.`,
+          action: result.url
+            ? { label: 'Open', onClick: () => window.open(result.url!, '_blank', 'noopener') }
+            : undefined,
+        });
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        toast.info('Browser render cancelled');
+      } else {
+        console.error('Browser render error:', error);
+        toast.error(error instanceof Error ? error.message : 'Browser render failed');
+      }
+    }
   };
 
   const handleAWSRender = async () => {
@@ -585,19 +660,51 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto space-y-3">
+          {localRefs.length > 0 && (
+            <LocalMediaRenderNotice
+              refs={localRefs}
+              inputProps={settings.inputProps}
+              onUseCloudCopies={(next) => {
+                updateSetting('inputProps', next);
+                setRenderMethod('aws');
+              }}
+            />
+          )}
           <Tabs
             value={renderMethod}
             onValueChange={value => setRenderMethod(value as RenderMethod)}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="aws">AWS Lambda</TabsTrigger>
+            <TabsList
+              className={cn(
+                'grid w-full',
+                SHOW_LOCAL_RENDER ? 'grid-cols-3' : 'grid-cols-2',
+              )}
+            >
+              <TabsTrigger
+                value="aws"
+                disabled={awsBlocked}
+                className="flex items-center gap-1"
+                title={
+                  awsBlocked
+                    ? 'Unavailable: this timeline uses files from your computer'
+                    : undefined
+                }
+              >
+                {awsBlocked && <Lock className="h-3.5 w-3.5" />}
+                AWS Lambda
+              </TabsTrigger>
               <TabsTrigger value="browser" className="flex items-center gap-1">
                 <Globe className="h-4 w-4" />
                 Browser
+                {browserActive && (
+                  <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                )}
               </TabsTrigger>
-              <TabsTrigger value="local">Local Render</TabsTrigger>
+              {SHOW_LOCAL_RENDER && (
+                <TabsTrigger value="local">Local Render</TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="aws" className="space-y-4">
@@ -1322,16 +1429,30 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
             </TabsContent>
 
             <TabsContent value="browser" className="space-y-4">
-              <div className="flex flex-col gap-4 py-4">
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Renders on this device</AlertTitle>
-                  <AlertDescription>
-                    The video is rendered with WebCodecs in this browser tab and
-                    then uploaded to storage — no Lambda cost. Keep this tab
-                    open until it finishes. Requires a Chromium-based browser.
-                  </AlertDescription>
-                </Alert>
+              {browserRender.phase !== 'idle' && (
+                <div className="pt-4">
+                  <BrowserRenderProgressPanel
+                    controller={browserRenderController}
+                    onDismiss={resetBrowserRender}
+                  />
+                </div>
+              )}
+              <fieldset
+                disabled={browserActive}
+                className="flex flex-col gap-4 py-4 transition-opacity disabled:opacity-60"
+              >
+                {browserRender.phase === 'idle' && (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Renders on this device</AlertTitle>
+                    <AlertDescription>
+                      Rendered with WebCodecs in this tab — no Lambda cost. You can
+                      pause it, close this dialog and keep editing; progress stays in
+                      the corner. Keep the tab open until it finishes. Requires a
+                      Chromium-based browser.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {/* Render target (video vs image) */}
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -1364,7 +1485,68 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   </div>
                 </div>
 
-                {/* Project + tags metadata */}
+                {/* Destination */}
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Save to</Label>
+                  <div className="col-span-3">
+                    <div
+                      role="radiogroup"
+                      aria-label="Save to"
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      {([
+                        {
+                          value: 'cloud',
+                          icon: Cloud,
+                          title: 'Cloud storage',
+                          hint: 'Shareable link + render history',
+                        },
+                        {
+                          value: 'device',
+                          icon: Download,
+                          title: 'This computer',
+                          hint: 'Saved as a file, nothing uploaded',
+                        },
+                      ] as const).map((option) => {
+                        const selected = settings.browserDestination === option.value;
+                        const Icon = option.icon;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => updateSetting('browserDestination', option.value)}
+                            className={cn(
+                              'flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-colors',
+                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                              selected
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'hover:bg-muted/50',
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                'mt-0.5 h-4 w-4 shrink-0',
+                                selected ? 'text-primary' : 'text-muted-foreground',
+                              )}
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium">{option.title}</span>
+                              <span className="block text-xs text-muted-foreground">
+                                {option.hint}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Project + tags metadata (cloud renders only) */}
+                {settings.browserDestination === 'cloud' && (
+                <>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Project</Label>
                   <div className="col-span-3">
@@ -1399,6 +1581,8 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                     />
                   </div>
                 </div>
+                </>
+                )}
 
                 {settings.renderType !== 'still' ? (
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -1487,36 +1671,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                   </div>
                 </div>
 
-                {browserRender.phase !== 'idle' && browserRender.phase !== 'done' && (
-                  <div className="space-y-2 rounded-md border p-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">
-                        {browserRender.phase === 'preparing' && 'Preparing composition...'}
-                        {browserRender.phase === 'rendering' &&
-                          `Rendering... ${Math.round(browserRender.progress * 100)}%`}
-                        {browserRender.phase === 'uploading' && 'Uploading to storage...'}
-                        {browserRender.phase === 'error' && 'Render failed'}
-                      </span>
-                      {(browserRender.phase === 'rendering' ||
-                        browserRender.phase === 'preparing') && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={cancelBrowserRender}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                    {browserRender.phase !== 'error' && (
-                      <Progress value={browserRender.progress * 100} />
-                    )}
-                    {browserRender.error && (
-                      <p className="text-sm text-destructive">{browserRender.error}</p>
-                    )}
-                  </div>
-                )}
-              </div>
+              </fieldset>
             </TabsContent>
 
             <TabsContent value="local" className="space-y-4">
@@ -1677,17 +1832,45 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
           </Tabs>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button onClick={handleRender} disabled={isLoading}>
-            {isLoading
-              ? renderMethod === 'browser'
-                ? 'Rendering in browser...'
-                : 'Starting Render...'
-              : 'Start Render'}
-          </Button>
+        <DialogFooter className="items-center">
+          {renderMethod === 'browser' && browserActive ? (
+            <>
+              <p className="mr-auto hidden text-xs text-muted-foreground sm:block">
+                You can close this — the render keeps going in the corner.
+              </p>
+              <Button variant="outline" onClick={onClose}>
+                Run in background
+              </Button>
+              <Button disabled>
+                {browserRender.paused ? 'Paused' : 'Rendering…'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                {renderMethod === 'browser' && browserRender.phase === 'done' ? 'Close' : 'Cancel'}
+              </Button>
+              <Button
+                onClick={handleRender}
+                disabled={isLoading || (renderMethod === 'aws' && awsBlocked)}
+              >
+                {isLoading ? (
+                  'Starting Render...'
+                ) : renderMethod === 'browser' ? (
+                  <>
+                    <Play className="mr-1.5 h-4 w-4" />
+                    {browserRender.phase === 'done' ||
+                    browserRender.phase === 'error' ||
+                    browserRender.phase === 'cancelled'
+                      ? 'Render again'
+                      : 'Start Render'}
+                  </>
+                ) : (
+                  'Start Render'
+                )}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
