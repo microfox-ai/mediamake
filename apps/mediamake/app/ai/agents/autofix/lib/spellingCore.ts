@@ -1,11 +1,12 @@
 /**
  * Shared spelling engine.
  *
- * Design constraint from the transcriber: timestamps must survive untouched.
- * So the model is never allowed to re-emit the transcript — it only proposes
- * single-word edits keyed by word index, and `applyWordCorrections` applies
- * them in code. A line is never re-split, merged or re-timed here; that is the
- * sentence structure fixer's job.
+ * Design constraint from the transcriber: timing comes from the audio. So the
+ * model is never allowed to re-emit the transcript — it only proposes span
+ * edits keyed by word index, and `applyWordCorrections` applies them in code.
+ * Word-for-word fixes keep every timestamp; a heard word written as two words
+ * (or two written as one) shares the heard words' own time. Caption lines are
+ * never re-split or merged here; that is the sentence structure fixer's job.
  */
 
 import { generateObject } from 'ai';
@@ -31,25 +32,59 @@ import { parseReferenceLyrics, type ReferenceLyrics } from './lyricsReference';
 const SPELLING_MODEL = 'gemini-2.5-pro';
 const SPELLING_MODEL_NO_REFERENCE = 'gemini-2.5-flash';
 
+const MAX_SPAN_WORDS = 4;
+const MAX_REPLACEMENT_WORDS = 6;
+
 const CorrectionsSchema = z.object({
   corrections: z
     .array(
       z.object({
-        index: z.number().int().describe('Index of the word being corrected'),
+        start: z.number().int().describe('Index of the first heard word being replaced'),
+        end: z
+          .number()
+          .int()
+          .describe('Index of the last heard word being replaced. Equal to start for one word.'),
         from: z
           .string()
-          .describe('The word exactly as it appears at that index (proof of alignment)'),
+          .describe(
+            'The heard words at start..end copied exactly, space-separated (proof of alignment)',
+          ),
         to: z
           .string()
           .describe(
-            'The corrected single word. Empty string means delete a hallucinated word.',
+            'The written words that replace them, space-separated. Usually one word. Empty string means delete hallucinated words.',
           ),
-        reason: z.string().describe('Short reason, citing the reference lyrics if used'),
+        reason: z.string().describe('Short reason, quoting the written lyric line if used'),
         confidence: z.number().min(0).max(1),
       }),
     )
     .describe('Only genuine corrections. Return an empty array if nothing is wrong.'),
+  keptAsHeard: z
+    .array(
+      z.object({
+        start: z.number().int().describe('Index of the first word of the passage'),
+        end: z.number().int().describe('Index of the last word of the passage'),
+        note: z
+          .string()
+          .describe(
+            'One plain sentence for the user saying why it was left as heard, e.g. "Not in the written lyrics, but clearly sung as an echo."',
+          ),
+      }),
+    )
+    .describe(
+      'Passages deliberately left unchanged that the user should confirm. Empty array if none.',
+    ),
 });
+
+export interface SpellingReviewNote {
+  start: number;
+  end: number;
+  /** Start of the passage, in seconds. */
+  time: number;
+  /** The passage as it stands in the captions. */
+  heard: string;
+  note: string;
+}
 
 export interface SpellingFixOptions {
   /** Suno lyrics (raw). When present, they are the authority on wording. */
@@ -67,6 +102,8 @@ export interface SpellingFixResult {
   fixedCaptions: Caption[];
   changes: AppliedWordChange[];
   rejected: RejectedWordCorrection[];
+  /** Passages left as heard that the user should confirm. */
+  reviewNotes: SpellingReviewNote[];
   proposedCount: number;
   removedCount: number;
   usedReference: boolean;
@@ -78,8 +115,9 @@ export interface SpellingFixResult {
 const SHORT_WORD_SECONDS = 0.12;
 
 /**
- * One line per caption with `#index word` tokens, so the model can see line
- * context (which matters for homophones) without being able to restructure it.
+ * One line per caption, prefixed with its start time, with `#index word`
+ * tokens, so the model can see line context (which matters for homophones and
+ * for spotting echoes) without being able to restructure it.
  */
 function formatWordsForSpelling(words: FlatWord[], range: Group): string {
   const [s, e] = range;
@@ -91,7 +129,7 @@ function formatWordsForSpelling(words: FlatWord[], range: Group): string {
     const w = words[i];
     if (w.sourceCaptionIndex !== currentCaption) {
       if (current.length) lines.push(current.join(' '));
-      current = [];
+      current = [`[${w.absoluteStart.toFixed(1)}s]`];
       currentCaption = w.sourceCaptionIndex;
     }
     const short = w.duration < SHORT_WORD_SECONDS ? '!' : '';
@@ -106,70 +144,117 @@ function buildSystemPrompt(
   reference: ReferenceLyrics | undefined,
   allowWordRemoval: boolean,
 ): string {
+  const referenceIntro = reference
+    ? dedent`
+        You are given the WRITTEN LYRICS the user wrote for this song. They are the
+        AUTHORITY on which words were sung and how they are spelled. The
+        transcription is the authority on timing and on what was actually sung.
+        Your job is to make the transcription's WORDS agree with the written
+        lyrics wherever the two describe the same sung passage — nothing else.
+      `
+    : dedent`
+        No written lyrics are available, so correct only unambiguous spelling
+        errors and obvious mishearings you can justify from the surrounding line.
+      `;
+
+  const removalRule = allowWordRemoval
+    ? dedent`
+        - You MAY delete words by returning an empty string for \`to\`, but ONLY for a
+          clear hallucination: a word absent from the written lyrics that also
+          duplicates its neighbour or is a nonsense token. Words marked with "!" are
+          suspiciously short (<${SHORT_WORD_SECONDS}s) and are the usual suspects.
+          Never delete a whole sung line.
+      `
+    : '- You may NOT delete words. Never return an empty `to`.';
+
+  const method = reference
+    ? dedent`
+        METHOD — work line by line:
+        1. Align. For each transcription line, find the written lyric line it is
+           singing. Match on the words and on local context, never on position:
+           choruses repeat, sections get skipped or sung twice, and the written
+           lyrics may be in a different order from the audio.
+        2. Matched line → make the heard words read exactly like the written words
+           for that line (see WHAT TO FIX).
+        3. Unwritten line → a line with no counterpart in the written lyrics. This
+           is NORMAL in songs: echoes and repeats of the previous line, backing
+           vocals, call-and-response, ad-lib phrases, spoken intros/outros, an extra
+           repetition of the hook. It was really sung, so it stays:
+           - Do NOT rewrite it into some other written line, and do NOT delete it.
+           - If it echoes or repeats a nearby written line, you may correct its
+             misheard words to that line's spelling (e.g. a coined word or a name).
+           - Otherwise only fix a word if it is clearly a misspelling of a word that
+             appears in the written lyrics.
+           - Add it to \`keptAsHeard\` so the user can confirm it.
+        4. Written lyric that looks wrong → if the written lyrics have an odd word,
+           typo-looking spelling or broken grammar ("infallible calculate" instead of
+           "calculated") and the transcription already has that same word, KEEP IT.
+           The user wrote it that way on purpose. Never "improve" a word that
+           already matches the written lyrics. Add it to \`keptAsHeard\` only if it
+           looks like it might be a mistake in the written lyrics.
+      `
+    : '';
+
   return dedent`
     You are correcting an automatic speech-to-text transcription of a song.
     The audio was transcribed by ElevenLabs Scribe, which mishears slang, coined
-    words, names and ad-libs.
+    words, names and ad-libs, and sometimes hears one word as two or two as one.
 
-    ${
-      reference
-        ? dedent`
-          You are given the WRITTEN LYRICS the song was generated from. Those lyrics
-          are the AUTHORITY on which word was sung and how it is spelled. The
-          transcription is the authority on timing. Your job is to make the
-          transcription's WORDS agree with the written lyrics — nothing else.
-        `
-        : dedent`
-          No reference lyrics are available, so correct only unambiguous spelling
-          errors and obvious mishearings you can justify from the surrounding line.
-        `
-    }
+    ${referenceIntro}
 
-    ABSOLUTE CONSTRAINTS — these protect word-level timestamps:
-    - You may only replace ONE word with ONE word. Never return a replacement
-      containing a space.
-    - You may NOT merge words, split words, reorder words, or add new words.
-    - You may NOT change how words are grouped into lines. Line breaks are not
-      your concern, even if they look wrong.
-    - Every correction must reference the word index you were given, and \`from\`
-      must be that word copied exactly.
-    ${
-      allowWordRemoval
-        ? `- You MAY delete a word by returning an empty string for \`to\`, but ONLY for a
-      clear hallucination: a word absent from the reference lyrics that also
-      duplicates its neighbour or is a nonsense token. Words marked with "!" are
-      suspiciously short (<${SHORT_WORD_SECONDS}s) and are the usual suspects.`
-        : '- You may NOT delete words. Never return an empty `to`.'
-    }
+    ${method}
+
+    CORRECTION SHAPE — timing is protected in code, so stay inside these rules:
+    - A correction replaces a run of heard words, \`start\`..\`end\` (inclusive), with
+      written words in \`to\`. \`from\` must be those heard words copied exactly.
+    - Most corrections are one word for one word (\`start\` = \`end\`, \`to\` is one word).
+    - One heard word that is two written words: replace that one word with both
+      ("alright" → "all right", "outta" → "out of" when the lyrics say so).
+    - Two heard words that are one written word: replace both with one word
+      ("gen jutsu" → "genjutsu", "Sharin gan" → "Sharingan").
+    - A short misheard phrase may be replaced by the written phrase it sounds like
+      ("the sinners" → "this in us"), at most ${MAX_SPAN_WORDS} heard words →
+      ${MAX_REPLACEMENT_WORDS} written words.
+    - The heard words' own time is shared among the new words, so never use a
+      correction to ADD words that were not sung or to move words between lines.
+    - A correction must stay inside one transcription line.
+    - Do not reorder words. Do not change how words are grouped into lines.
+    ${removalRule}
 
     WHAT TO FIX
     1. Mishearings: the transcription has a word that sounds like the lyric but is
        not it ("sinner" → "centre", "raw" → "war"). Replace with the lyric word.
-    2. Spelling of slang and coined words: match the reference exactly. If the
+    2. Word boundaries that disagree with the written lyrics (split or merged words).
+    3. Spelling of slang and coined words: match the written lyrics exactly. If the
        lyrics write "tryna", "gon'", "'bout", "finna", "ridin'", keep that spelling —
        do NOT normalise slang into standard English.
-    3. Proper nouns, brand names, place names, artist names: take the reference spelling.
-    4. Homophones chosen wrongly ("their/there", "your/you're", "to/too").
-    5. Numbers and units written inconsistently with the reference.
+    4. Proper nouns, brand names, place names, artist names, anime/game terms: take
+       the written spelling.
+    5. Homophones chosen wrongly ("their/there", "your/you're", "to/too").
+    6. Numbers and units written inconsistently with the written lyrics.
 
     WHAT TO LEAVE ALONE
     - Ad-libs and vocal noises ("yeah", "uh", "woo", "skrrt") that are absent from
       the written lyrics — singers improvise, that is not an error.
-    - Repeated words that are genuinely sung twice.
+    - Repeated words and repeated lines that are genuinely sung more than once.
+    - Words that already match the written lyrics, even if they look ungrammatical.
     - Punctuation and capitalisation. They are handled elsewhere and are restored
       automatically.
     - Anything you are not confident about. A missed correction is cheap; a wrong
       one corrupts the transcript.
 
-    ALIGNMENT NOTE
-    The reference lyrics and the transcription may drift apart (repeated choruses,
-    skipped sections, extra ad-libs). Match on local context, not on position.
-    If you cannot confidently align a passage, return no corrections for it.
+    KEPT AS HEARD (\`keptAsHeard\`)
+    List passages you deliberately left alone that the user should confirm: whole
+    unwritten lines (echoes, backing vocals, extra repeats) and written-lyric words
+    that look like mistakes but match what was sung. Cite the word indices of the
+    passage and write one plain sentence each, e.g. "Not in the written lyrics, but
+    clearly sung as an echo, so I kept it." Do not list ordinary ad-libs like
+    "yeah" or "uh". Return an empty array if nothing needs confirming.
 
     INPUT FORMAT
-    Each transcription line is one caption. Tokens look like \`#12:word\`, where 12
-    is the word index you must cite. A \`!\` after the index (\`#12!:word\`) marks an
-    unusually short word.
+    Each transcription line is one caption, starting with its start time like
+    \`[127.8s]\`. Tokens look like \`#12:word\`, where 12 is the word index you must
+    cite. A \`!\` after the index (\`#12!:word\`) marks an unusually short word.
 
     Return an empty \`corrections\` array if nothing needs fixing.
   `;
@@ -180,7 +265,7 @@ async function correctChunk(
   chunk: Group,
   reference: ReferenceLyrics | undefined,
   opts: SpellingFixOptions,
-): Promise<{ corrections: WordCorrection[]; usage: ModelUsage | null }> {
+): Promise<ChunkResult> {
   const prompt = dedent`
     ${
       reference
@@ -191,7 +276,7 @@ async function correctChunk(
     ${formatWordsForSpelling(words, chunk)}
     ${opts.userRequest ? `\nUSER REQUEST: ${opts.userRequest}` : ''}
 
-    List the single-word corrections for word indices ${chunk[0]}–${chunk[1]}.
+    List the corrections, and the passages kept as heard, for word indices ${chunk[0]}–${chunk[1]}.
   `;
 
   const result = await generateObject({
@@ -204,8 +289,59 @@ async function correctChunk(
 
   return {
     corrections: (result.object.corrections ?? []) as WordCorrection[],
+    keptAsHeard: result.object.keptAsHeard ?? [],
     usage: result.usage as unknown as ModelUsage,
   };
+}
+
+interface ChunkResult {
+  corrections: WordCorrection[];
+  keptAsHeard: Array<{ start: number; end: number; note: string }>;
+  usage: ModelUsage | null;
+}
+
+/**
+ * Resolves the model's "kept as heard" passages against the original words, so
+ * the quoted text and time always come from the captions, not from the model.
+ */
+function resolveReviewNotes(
+  words: FlatWord[],
+  kept: ChunkResult['keptAsHeard'],
+): SpellingReviewNote[] {
+  const notes: SpellingReviewNote[] = [];
+  const seenStarts = new Set<number>();
+  for (const item of kept) {
+    const start = Math.trunc(Number(item.start));
+    const end = Math.trunc(Number(item.end ?? item.start));
+    const note = typeof item.note === 'string' ? item.note.trim() : '';
+    if (!note || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+    if (start < 0 || end < start || end >= words.length || seenStarts.has(start)) continue;
+    seenStarts.add(start);
+    notes.push({
+      start,
+      end,
+      time: words[start].absoluteStart,
+      heard: words
+        .slice(start, end + 1)
+        .map(w => w.text)
+        .join(' '),
+      note,
+    });
+  }
+  return notes.sort((a, b) => a.start - b.start);
+}
+
+const MAX_NOTES_IN_SUMMARY = 6;
+
+function describeReviewNotes(notes: SpellingReviewNote[]): string {
+  if (notes.length === 0) return '';
+  const lines = notes
+    .slice(0, MAX_NOTES_IN_SUMMARY)
+    .map(n => `“${n.heard}” at ${n.time.toFixed(1)}s: ${n.note}`);
+  if (notes.length > MAX_NOTES_IN_SUMMARY) {
+    lines.push(`+${notes.length - MAX_NOTES_IN_SUMMARY} more`);
+  }
+  return `\nLeft as heard, please confirm:\n${lines.join('\n')}`;
 }
 
 export async function runSpellingFix(
@@ -226,6 +362,7 @@ export async function runSpellingFix(
       fixedCaptions: captions as Caption[],
       changes: [],
       rejected: [],
+      reviewNotes: [],
       proposedCount: 0,
       removedCount: 0,
       usedReference: false,
@@ -238,14 +375,15 @@ export async function runSpellingFix(
   const chunks = chunkWords(words, 300);
   const usage: ModelUsage[] = [];
   const proposed: WordCorrection[] = [];
+  const kept: ChunkResult['keptAsHeard'] = [];
 
   const results = await Promise.all(
-    chunks.map(async chunk => {
+    chunks.map(async (chunk): Promise<ChunkResult> => {
       try {
         return await correctChunk(words, chunk, reference, opts);
       } catch (error) {
         console.warn('[spellingFix] chunk failed, skipping window', chunk, error);
-        return { corrections: [] as WordCorrection[], usage: null };
+        return { corrections: [], keptAsHeard: [], usage: null };
       }
     }),
   );
@@ -253,6 +391,7 @@ export async function runSpellingFix(
   for (const result of results) {
     if (result.usage) usage.push(result.usage);
     proposed.push(...result.corrections);
+    kept.push(...result.keptAsHeard);
   }
 
   const minConfidence = opts.minConfidence ?? 0;
@@ -263,6 +402,8 @@ export async function runSpellingFix(
   const applied = applyWordCorrections(captions, filtered, {
     allowRemovals: opts.allowWordRemoval === true,
     referenceVocabulary: reference?.vocabulary,
+    maxSpanWords: MAX_SPAN_WORDS,
+    maxReplacementWords: MAX_REPLACEMENT_WORDS,
     changeType: 'spelling_fix',
   });
 
@@ -274,27 +415,35 @@ export async function runSpellingFix(
     );
   }
 
-  const replaced = applied.changes.length - applied.removedCount;
+  const corrected = applied.changes.filter(c => c.fixed !== '(removed)');
+  const retimed = corrected.filter(
+    c => c.endIndex - c.index + 1 !== c.fixed.split(' ').length,
+  ).length;
+  const reviewNotes = resolveReviewNotes(words, kept);
 
   return {
     fixedCaptions: applied.captions,
     changes: applied.changes,
     rejected: applied.rejected,
+    reviewNotes,
     proposedCount: proposed.length,
     removedCount: applied.removedCount,
     usedReference: Boolean(reference),
     confidence: reference ? 0.95 : 0.85,
     usage,
     summary: [
-      `Fixed ${replaced} word${replaced !== 1 ? 's' : ''}`,
+      `Fixed ${corrected.length} word${corrected.length !== 1 ? 's' : ''}`,
       applied.removedCount > 0
         ? `, removed ${applied.removedCount} hallucinated word${applied.removedCount !== 1 ? 's' : ''}`
         : '',
-      reference ? ' using the Suno lyrics as reference' : '',
+      reference ? ' against the written lyrics' : '',
       applied.rejected.length > 0
         ? ` (${applied.rejected.length} unsafe suggestion${applied.rejected.length !== 1 ? 's' : ''} rejected)`
         : '',
-      '. Timestamps unchanged.',
+      retimed > 0
+        ? `. Timings kept; ${retimed} split or merged word${retimed !== 1 ? 's' : ''} share their original time.`
+        : '. Timings unchanged.',
+      describeReviewNotes(reviewNotes),
     ].join(''),
   };
 }

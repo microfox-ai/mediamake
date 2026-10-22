@@ -11,6 +11,8 @@ export const WordSchema = z.object({
   text: z.string(),
   start: z.number(),
   end: z.number(),
+  /** Alignment confidence 0..1 (present when timings come from analysis/lyrics.aligned.json). */
+  conf: z.number().optional(),
 });
 
 export const LyricLineSchema = z.object({
@@ -48,13 +50,36 @@ export const ManifestSchema = z.object({
   sections: z.array(SectionSchema),
   beats: z.object({
     bpm: z.number().nullable(),
+    /** With analysis: every beat of the grid (strength = onset energy at the beat). Without: detected onsets. */
     list: z.array(BeatSchema),
+    /** Downbeat times (first beat of each bar). Only with analysis. */
+    downbeats: z.array(z.number()).optional(),
+    beatsPerBar: z.number().optional(),
+    /** 'constant' grid, or 'tracked' when the song's tempo wanders. */
+    mode: z.enum(['constant', 'tracked', 'onsets']).optional(),
   }),
   /** Loudness envelope, 0..1, sampled at `energy.rate` values per second. */
   energy: z.object({
     rate: z.number(),
     values: z.array(z.number()),
   }),
+  /**
+   * Analysis envelopes (analysis/audio.json), 0..1 at `fps` values per second: mix rms /
+   * low (<150 Hz) / mid / high (>4 kHz) and the Demucs stems vocal / drums / bass / other.
+   */
+  envelopes: z
+    .object({ fps: z.number(), series: z.record(z.string(), z.array(z.number())) })
+    .optional(),
+  /** Onsets [time, strength 0..1]: kick / snare / hat from the drums stem, vocal note onsets. */
+  onsets: z.record(z.string(), z.array(z.tuple([z.number(), z.number()]))).optional(),
+  /** Where the timing data came from, for the record. */
+  analysis: z
+    .object({
+      lyrics: z.enum(['input', 'aligned']),
+      grid: z.string(),
+      notes: z.string().optional(),
+    })
+    .optional(),
   /** Every other file in input/, by filename → static path (or URL after publishing). */
   assets: z.record(z.string(), z.string()),
   brief: z.string().optional(),

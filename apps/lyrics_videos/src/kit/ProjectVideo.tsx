@@ -87,7 +87,7 @@ export const makeCalculateMetadata =
     return {
       durationInFrames: Math.max(
         1,
-        Math.ceil(manifest.audio.duration * project.fps),
+        Math.ceil((manifest.audio.duration + (project.tail ?? 0)) * project.fps),
       ),
       props: { ...props, manifest },
     };

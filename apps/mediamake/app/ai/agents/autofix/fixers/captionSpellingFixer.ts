@@ -12,7 +12,7 @@ import type { Caption } from "@/app/types/transcription";
  * Correct wording on a captions document.
  *
  * The linked transcription's lyrics are the authority for what was said.
- * Timestamps and line boundaries stay. The transcription document is never written.
+ * Line boundaries stay; timing comes from the audio. The transcription document is never written.
  */
 
 const aiRouter = new AiRouter();
@@ -100,6 +100,7 @@ const captionSpellingFixerAgent = aiRouter
         transcriptionId,
         captions: savedDocument,
         changes: result.changes,
+        reviewNotes: result.reviewNotes,
         usedReferenceLyrics: true,
         confidence: result.confidence,
         summary: result.summary,
@@ -138,6 +139,7 @@ const captionSpellingFixerAgent = aiRouter
       appliedToDatabase: z.boolean(),
       captionId: z.string(),
       changes: z.array(z.any()),
+      reviewNotes: z.array(z.any()),
       usedReferenceLyrics: z.boolean(),
       confidence: z.number().min(0).max(1),
       summary: z.string(),

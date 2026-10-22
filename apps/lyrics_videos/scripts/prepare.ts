@@ -1,5 +1,5 @@
 /**
- * prepare: projects/<slug>/input/  →  projects/<slug>/manifest.json
+ * prepare: projects/<slug>/input/ (+ analysis/)  →  projects/<slug>/manifest.json
  *
  * Requires input/<song>.(mp3|wav|...) and input/lyrics.json (timed transcription).
  *
@@ -8,6 +8,13 @@
  *   - beats, bpm and a loudness envelope (ffmpeg decode + onset detection)
  *   - lyrics normalized to absolute-second lines with word timings
  *   - sections from input/project.json, or derived from gaps and repeats in the lyrics
+ *
+ * When the analysis pipeline has run (npm run analyze -w lyrics_videos -- <slug>, see
+ * analysis/README.md), its results replace the quick estimates above:
+ *   - analysis/audio.json: the beat grid, downbeats, envelopes (mix bands + stems), onsets
+ *   - analysis/lyrics.aligned.json: CTC-aligned word timings (same text as input/lyrics.json)
+ *   - section boundaries are snapped to the grid: on the downbeat (else beat) at or before
+ *     the first word of the section's first line, never cutting the previous line's tail
  *
  * Usage: npm run prepare-project -w lyrics_videos -- <slug>
  */
@@ -47,6 +54,7 @@ const RawWordSchema = z.object({
   end: z.number().optional(),
   absoluteStart: z.number().optional(),
   absoluteEnd: z.number().optional(),
+  conf: z.number().optional(),
 });
 const RawLineSchema = z.object({
   id: z.string().optional(),
@@ -97,6 +105,7 @@ const normalizeLyrics = (
         text: w.text,
         start: round(w.absoluteStart ?? w.start ?? start),
         end: round(w.absoluteEnd ?? w.end ?? end),
+        ...(w.conf !== undefined ? { conf: w.conf } : {}),
       }));
     } else {
       // No word timings: spread the line across its words, weighted by length.
@@ -331,6 +340,104 @@ const analyzeAudio = (samples: Float32Array) => {
   return { beats: { bpm: bpm ? round(bpm, 1) : null, list: beats }, energy };
 };
 
+// ---------- analysis (optional, from analysis/*.json) ----------
+
+const AudioAnalysisSchema = z.object({
+  duration: z.number(),
+  bpm: z.number(),
+  beats_per_bar: z.number(),
+  tempo_mode: z.enum(['constant', 'tracked']).optional(),
+  beats: z.array(z.number()),
+  beat_strength: z.array(z.number()),
+  downbeats: z.array(z.number()),
+  fps: z.number(),
+  envelopes: z.record(z.string(), z.array(z.number())),
+  onsets: z.record(z.string(), z.array(z.tuple([z.number(), z.number()]))),
+  notes: z.string().optional(),
+});
+type AudioAnalysis = z.infer<typeof AudioAnalysisSchema>;
+
+const ENVELOPE_FPS = 50; // manifest envelope rate (analysis runs at 100 fps)
+
+/** Average-downsample each envelope to ENVELOPE_FPS, 2 decimals. */
+const downsampleEnvelopes = (a: AudioAnalysis): NonNullable<Manifest['envelopes']> => {
+  const step = Math.max(1, Math.round(a.fps / ENVELOPE_FPS));
+  const series: Record<string, number[]> = {};
+  for (const [name, values] of Object.entries(a.envelopes)) {
+    const v: number[] = [];
+    for (let i = 0; i < values.length; i += step) {
+      const slice = values.slice(i, i + step);
+      v.push(round(slice.reduce((x, y) => x + y, 0) / slice.length, 2));
+    }
+    series[name] = v;
+  }
+  return { fps: a.fps / step, series };
+};
+
+/**
+ * Snap section boundaries to the grid (the rule mexicat/pdoom-video uses for its cuts):
+ * a section starts on the last downbeat at/before the first word of its first line when
+ * that downbeat is within 2 beats of the word, else on the last beat at/before it (never
+ * after the word). The previous line's last word may still be ringing after the cut, so
+ * lyric layers should span section boundaries. Sections without a line near their start
+ * snap to the nearest downbeat (or beat) within a bar.
+ */
+const snapSections = (
+  sections: Section[],
+  lyrics: LyricLine[],
+  beats: number[],
+  downbeats: number[],
+  notes: string[],
+): Section[] => {
+  const beat = beats.length > 1 ? (beats[beats.length - 1] - beats[0]) / (beats.length - 1) : 0.5;
+  const latest = (list: number[], lo: number, hi: number) =>
+    list.filter(t => t >= lo && t <= hi).pop();
+  const nearest = (list: number[], t: number, within: number) => {
+    let best: number | undefined;
+    for (const x of list) if (Math.abs(x - t) <= within && (best === undefined || Math.abs(x - t) < Math.abs(best - t))) best = x;
+    return best;
+  };
+  const bounds = sections.map(s => s.from);
+  for (let i = 1; i < sections.length; i++) {
+    const from = sections[i].from;
+    const first = lyrics.find(l => l.start >= from - 0.35 && l.start < sections[i].to);
+    const prev = [...lyrics].reverse().find(l => l.start < (first?.start ?? from) - 0.01);
+    // never cut before the previous line's last word has started
+    const floor = prev ? (prev.words[prev.words.length - 1]?.start ?? prev.start) : 0;
+    let t: number | undefined;
+    if (first && first.start - from < 4 * beat) {
+      const anchor = first.words[0]?.start ?? first.start;
+      t =
+        latest(downbeats, Math.max(floor, anchor - 2 * beat), anchor + 0.02) ??
+        latest(beats, floor, anchor + 0.02);
+    } else {
+      t = nearest(downbeats, from, 2 * beat) ?? nearest(beats, from, beat / 2);
+      if (t !== undefined && t < floor) t = undefined;
+    }
+    if (t !== undefined && t > bounds[i - 1] + 0.5) bounds[i] = round(t);
+    else notes.push(`section "${sections[i].label}" kept at ${from}s (no grid point fits)`);
+  }
+  return sections.map((s, i) => ({
+    ...s,
+    from: bounds[i],
+    to: i + 1 < sections.length ? bounds[i + 1] : s.to,
+  }));
+};
+
+const readAnalysis = (projectDir: string) => {
+  const dir = path.join(projectDir, 'analysis');
+  const read = (name: string) =>
+    fs.existsSync(path.join(dir, name))
+      ? JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'))
+      : undefined;
+  const audio = read('audio.json');
+  const aligned = read('lyrics.aligned.json');
+  return {
+    audio: audio ? AudioAnalysisSchema.parse(audio) : undefined,
+    aligned: aligned as { lines: unknown[] } | undefined,
+  };
+};
+
 // ---------- main ----------
 
 const listFiles = (dir: string, base = dir): string[] =>
@@ -386,12 +493,40 @@ const main = () => {
   const audioPath = path.join(inputDir, audioFile);
 
   const duration = probeDuration(audioPath);
-  const { beats, energy } = analyzeAudio(decodeMono(audioPath));
+  const quick = analyzeAudio(decodeMono(audioPath));
+  let beats: Manifest['beats'] = quick.beats;
+  let energy: Manifest['energy'] = quick.energy;
 
-  const lyrics = normalizeLyrics(rawLyrics, duration, warn);
+  const analysis = readAnalysis(projectDir);
+  const lyrics = normalizeLyrics(analysis.aligned ?? rawLyrics, duration, warn);
   if (!lyrics.length) throw new Error('input/lyrics.json has no lines.');
+  if (analysis.aligned) {
+    const given = RawLyricsSchema.parse(rawLyrics).map(l => l.text.trim());
+    if (given.join('\n') !== lyrics.map(l => l.text).join('\n'))
+      warn('analysis/lyrics.aligned.json text differs from input/lyrics.json: re-run the analysis');
+  }
 
-  const sections = projectInput.sections ?? deriveSections(lyrics, duration);
+  let sections = projectInput.sections ?? deriveSections(lyrics, duration);
+  const unsnapped = sections;
+  const snapNotes: string[] = [];
+  let envelopes: Manifest['envelopes'];
+  let onsets: Manifest['onsets'];
+  if (analysis.audio) {
+    const a = analysis.audio;
+    if (Math.abs(a.duration - duration) > 0.1)
+      warn(`analysis/audio.json is for a ${a.duration}s file but the song is ${duration.toFixed(2)}s: re-run the analysis`);
+    beats = {
+      bpm: round(a.bpm, 2),
+      list: a.beats.map((t, i) => ({ t, strength: a.beat_strength[i] ?? 0.5 })),
+      downbeats: a.downbeats,
+      beatsPerBar: a.beats_per_bar,
+      mode: a.tempo_mode ?? 'constant',
+    };
+    envelopes = downsampleEnvelopes(a);
+    energy = { rate: envelopes.fps, values: envelopes.series.rms ?? quick.energy.values };
+    onsets = a.onsets;
+    sections = snapSections(sections, lyrics, a.beats, a.downbeats, snapNotes);
+  }
   sections.forEach((s, i) => {
     if (s.to <= s.from) warn(`section "${s.label}" has no length`);
     if (i > 0 && Math.abs(s.from - sections[i - 1].to) > 0.05)
@@ -418,6 +553,17 @@ const main = () => {
     sections,
     beats,
     energy,
+    envelopes,
+    onsets,
+    analysis: analysis.audio || analysis.aligned
+      ? {
+          lyrics: analysis.aligned ? 'aligned' : 'input',
+          grid: analysis.audio
+            ? `${analysis.audio.tempo_mode ?? 'constant'} ${analysis.audio.bpm.toFixed(2)} bpm, ${analysis.audio.beats_per_bar}/4`
+            : 'onsets',
+          notes: analysis.audio?.notes,
+        }
+      : undefined,
     assets,
     brief: fs.existsSync(briefPath)
       ? fs.readFileSync(briefPath, 'utf8').trim()
@@ -432,17 +578,26 @@ const main = () => {
   console.log(`✔ ${slug}/manifest.json`);
   console.log(`  audio     ${audioFile}  ${duration.toFixed(2)}s`);
   console.log(
-    `  beats     ${beats.list.length}${beats.bpm ? `  ~${beats.bpm} bpm` : ''}`,
+    `  beats     ${beats.list.length}${beats.bpm ? `  ~${beats.bpm} bpm` : ''}` +
+      (analysis.audio
+        ? `  (analysis: ${beats.mode} grid, ${beats.downbeats?.length} bars, envelopes at ${envelopes?.fps} fps)`
+        : '  (quick onset estimate; run the analysis for a beat grid)'),
   );
-  console.log(`  lyrics    ${lyrics.length} lines`);
+  console.log(
+    `  lyrics    ${lyrics.length} lines  (${analysis.aligned ? 'CTC-aligned word timings' : 'input timings'})`,
+  );
   console.log(`  assets    ${Object.keys(assets).length}`);
   console.log(
-    `  sections  ${projectInput.sections ? '(from project.json)' : '(derived)'}`,
+    `  sections  ${projectInput.sections ? '(from project.json)' : '(derived)'}${analysis.audio ? ' snapped to the grid' : ''}`,
   );
-  for (const s of sections)
+  for (const [i, s] of sections.entries()) {
+    const moved = Math.abs(s.from - unsnapped[i].from) > 0.001;
     console.log(
-      `            ${s.label.padEnd(12)} ${s.from.toFixed(2)} → ${s.to.toFixed(2)}`,
+      `            ${s.label.padEnd(12)} ${s.from.toFixed(2)} → ${s.to.toFixed(2)}` +
+        (moved ? `   (was ${unsnapped[i].from.toFixed(2)})` : ''),
     );
+  }
+  for (const n of snapNotes) console.log(`  · ${n}`);
   for (const w of warnings) console.warn(`  ⚠ ${w}`);
 };
 

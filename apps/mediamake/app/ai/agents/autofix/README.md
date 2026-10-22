@@ -18,24 +18,33 @@ The autofix system follows a **micro-agents** pattern, where each agent speciali
 - **Path**: `/autofix/spelling`
 - **Model**: Gemini 2.5 Pro with reference lyrics, Flash without
 - **Purpose**: Fix mistranscribed words using the track's **Suno lyrics** as the authority
-- **Preserves**: Every timestamp, the word count, and the caption line boundaries
+- **Preserves**: The caption line boundaries, and every timestamp outside a split or merged word
 - **Use case**: ElevenLabs misheard slang, coined words, names or ad-libs
 
-The lyrics a Suno track was generated from are the ground truth for *what* was
-sung; ElevenLabs is the ground truth for *when*. The fixer reads
-`transcription.sunoLyrics` (falling back to `processingData.step1.sunoLyrics`)
-and reconciles the two.
+The written lyrics (user-given transcription or Suno lyrics) are the ground
+truth for *what* was sung; ElevenLabs is the ground truth for *when*. The fixer
+reads `transcription.sunoLyrics` (falling back to `processingData.step1`) and
+reconciles the two line by line.
 
-The model never re-emits the transcript. It returns indexed single-word edits
-(`{index, from, to, reason, confidence}`) which are applied in code by
-`lib/wordCorrections.ts`. Every edit must pass:
+The model never re-emits the transcript. It returns indexed span edits
+(`{start, end, from, to, reason, confidence}`) which are applied in code by
+`lib/wordCorrections.ts`. Word-for-word edits keep every timestamp. When the
+word count changes — one heard word written as two, or two heard words written
+as one — the new words share the heard span's time by spoken length, so the
+span starts and ends exactly where it did. Every edit must pass:
 
 | Guard | Effect |
 | --- | --- |
-| `from` must match the word at `index` | Misaligned edits are rejected, not applied blindly |
-| replacement may not contain whitespace | Word count — and therefore timing — cannot change |
-| replacement must be in the reference vocabulary **or** within edit distance 2 | Stops the model rewriting lyrics that were never sung |
+| `from` must match the words at `start..end` | Misaligned edits are rejected, not applied blindly |
+| span ≤ 4 heard words, replacement ≤ 6 words, inside one caption line | Timing changes stay local; lines never move |
+| replacement words must be in the reference vocabulary **or** within edit distance 2 | Stops the model rewriting lyrics that were never sung |
 | removals are opt-in (`allowWordRemoval`) and may not empty a line | Hallucination cleanup stays deliberate |
+
+Songs routinely contain lines the written lyrics do not: echoes, backing
+vocals, extra hook repeats. The fixer keeps those as heard, and keeps written
+words that look wrong but were sung that way (e.g. "infallible calculate").
+Both come back as `reviewNotes` (`{start, end, time, heard, note}`) and are
+appended to the summary for the user to confirm.
 
 Punctuation and capitalisation of the original token are re-applied
 automatically, so `Runnin',` → `Running,`.

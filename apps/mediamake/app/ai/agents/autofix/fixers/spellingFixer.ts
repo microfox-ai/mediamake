@@ -97,6 +97,7 @@ const spellingFixerAgent = aiRouter
         },
         changes: result.changes,
         rejected: result.rejected,
+        reviewNotes: result.reviewNotes,
         usedReferenceLyrics: result.usedReference,
         confidence: result.confidence,
         usage: result.usage,
@@ -111,7 +112,7 @@ const spellingFixerAgent = aiRouter
     id: 'spellingFixer',
     name: 'Spelling Fixer',
     description:
-      "Fix mistranscribed words using the transcription's Suno lyrics as the authority on wording and slang spelling. Only single words are replaced — timestamps, word count and line boundaries are preserved exactly.",
+      "Fix mistranscribed words using the transcription's written lyrics as the authority on wording and slang spelling. Line boundaries are preserved; split or merged words share the heard word's original time. Sung lines missing from the written lyrics are kept and reported for confirmation.",
     inputSchema: z.object({
       transcriptionId: z.string().describe('Transcription ID to fix'),
       userRequest: z
@@ -150,6 +151,7 @@ const spellingFixerAgent = aiRouter
       appliedToDatabase: z.boolean(),
       transcription: z.any(),
       changes: z.array(z.any()),
+      reviewNotes: z.array(z.any()).optional(),
       usedReferenceLyrics: z.boolean().optional(),
       confidence: z.number().min(0).max(1),
       summary: z.string(),

@@ -2,7 +2,9 @@
  * stills: render one frame per section (plus any extra seconds) for a quick visual check.
  * Bundles once, so it is much faster than calling `remotion still` repeatedly.
  *
- * Usage: npm run stills -w lyrics_videos -- <slug> [seconds,seconds,...]
+ * Usage: npm run stills -w lyrics_videos -- <slug> [seconds,seconds,...] [--only] [--scale=0.5]
+ *   --only      render just the given seconds, not one frame per section
+ *   --scale=1   full resolution (default 0.5)
  * Output: out/<slug>/stills/<nn>-<label>-<seconds>s.jpg
  */
 import fs from 'node:fs';
@@ -15,7 +17,11 @@ import { ManifestSchema } from '../src/kit/manifest.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const main = async () => {
-  const [slug, extra] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const flags = args.filter(a => a.startsWith('--'));
+  const [slug, extra] = args.filter(a => !a.startsWith('--'));
+  const only = flags.includes('--only');
+  const scale = Number(flags.find(f => f.startsWith('--scale='))?.split('=')[1] ?? 0.5);
   if (!slug) {
     console.error(
       'Usage: npm run stills -w lyrics_videos -- <slug> [seconds,seconds,...]',
@@ -31,10 +37,12 @@ const main = async () => {
     JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
   );
 
-  const points = manifest.sections.map(s => ({
-    label: s.label,
-    t: (s.from + s.to) / 2,
-  }));
+  const points = only
+    ? []
+    : manifest.sections.map(s => ({
+        label: s.label,
+        t: (s.from + s.to) / 2,
+      }));
   for (const t of (extra ?? '').split(',').filter(Boolean))
     points.push({ label: 'at', t: Number(t) });
 
@@ -43,10 +51,13 @@ const main = async () => {
     publicDir: path.join(ROOT, 'projects'),
   });
   const inputProps = { manifest };
+  // ANGLE gives headless Chrome a real GPU path (three.js / WebGL scenes need it)
+  const chromiumOptions = { gl: 'angle' as const };
   const composition = await selectComposition({
     serveUrl,
     id: slug,
     inputProps,
+    chromiumOptions,
   });
 
   const outDir = path.join(ROOT, 'out', slug, 'stills');
@@ -69,7 +80,9 @@ const main = async () => {
       output,
       inputProps,
       imageFormat: 'jpeg',
-      scale: 0.5,
+      scale,
+      chromiumOptions,
+      timeoutInMilliseconds: 120000,
     });
     console.log(`✔ ${path.relative(ROOT, output)}`);
   }
