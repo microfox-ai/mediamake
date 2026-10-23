@@ -47,7 +47,8 @@ npm run derive-media -w lyrics_videos -- <slug>     # video/media.json → deriv
 npm run studio -w lyrics_videos                     # preview every project
 npm run stills -w lyrics_videos -- <slug>           # one JPEG per section, for a quick check
 npm run stills -w lyrics_videos -- <slug> 12.5,40 --only   # just these seconds
-npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/<slug>.mp4
+npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/<slug>.mp4 (+ <slug>.map.json)
+npm run map -w lyrics_videos -- <slug> --video=<mp4>  # shot map for any other render
 npm run type-check -w lyrics_videos
 ```
 
@@ -56,6 +57,11 @@ npm run type-check -w lyrics_videos
 `render-project` needs a manifest (`prepare-project` first). The composition id is the slug.
 Anything after the slug is passed through to `remotion render`. Output is
 `apps/lyrics_videos/out/<slug>/<slug>.mp4`. A full render takes minutes.
+
+Each render also writes `<slug>.map.json` beside the MP4: every shot from
+`projects/<slug>/video/shots.json` with its ID and time range (one shot per lyric line when the
+project has no shot list). mediamake's Revisions screen (`/revisions`) reads it to tag review
+comments with shot IDs, and saves the comments in `<slug>.revisions/` next to the video.
 
 ```bash
 # whole song
