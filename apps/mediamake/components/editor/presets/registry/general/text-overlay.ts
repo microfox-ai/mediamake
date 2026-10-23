@@ -1,5 +1,7 @@
 /**
- * Text Overlay Preset
+ * Text Overlay Preset — DEPRECATED. Use `atom:TextAtom`.
+ * Saved overlays still render; the editor offers to convert them with
+ * `textOverlayToTextAtom`, and the preset is hidden from add menus.
  *
  * This preset creates a customizable text overlay with advanced positioning, styling, and animation
  * capabilities. It provides fine-grained control over text appearance and behavior in video compositions.
@@ -609,9 +611,10 @@ const presetExecution = (
 
 const presetMetadata = {
   id: 'text-overlay',
-  title: 'Text Overlay',
+  title: 'Text Overlay (deprecated)',
   description:
-    'A customizable text overlay with positioning, styling, and animation controls',
+    'Deprecated. Use TextAtom. A customizable text overlay with positioning, styling, and animation controls',
+  deprecated: true,
   type: 'predefined' as const,
   presetType: 'children' as const,
   role: 'track' as const,

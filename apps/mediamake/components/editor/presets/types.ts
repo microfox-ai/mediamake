@@ -34,6 +34,8 @@ export interface PresetMetadata {
    */
   category?: string;
   tags?: string[];
+  /** Still renders saved blocks, but is hidden from add menus and libraries. */
+  deprecated?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
   defaultInputParams?: any;

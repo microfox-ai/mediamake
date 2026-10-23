@@ -171,7 +171,7 @@ The `presetType` determines how the preset is applied:
 
 2. **`'children'`** - Inserts into a specific component's children
    - Use for adding elements to existing compositions
-   - Example: `text-overlay.ts`
+   - Example: `text-overlay.ts` (deprecated; kept so saved overlays render)
 
 3. **`'data'`** - Updates specific component's data
 4. **`'context'`** - Updates specific component's context
@@ -1559,7 +1559,7 @@ Check these existing presets for reference:
 
 1. **Simple**: `base-scene.ts` - Basic scene with background
 2. **Complex**: `waveform-full.tsx` - Full audio visualization
-3. **Overlay**: `text-overlay.ts` - Text overlay with animations
+3. **Overlay**: `text-overlay.ts` - Text overlay with animations (deprecated; new text uses `atom:TextAtom`)
 4. **Media**: `video-stitch.ts` - Video composition
 
 All examples are in: `apps/mediamake/components/editor/presets/registry/`

@@ -29,7 +29,7 @@ type BlockPreset = Preset | DatabasePreset;
 
 const BASIC_BLOCK_IDS = [
     "htmlBlockAtom",
-    "text-overlay",
+    "atom:TextAtom",
     "second-counter",
     "custom-theme-background",
 ] as const;
@@ -122,6 +122,7 @@ function useAddBlockCatalog() {
         basicById.set(preset.metadata.id, preset);
     }
     for (const preset of basicBlocksPresets) {
+        if (preset.metadata.deprecated) continue;
         basicById.set(preset.metadata.id, preset);
     }
 

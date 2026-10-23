@@ -6,6 +6,10 @@ import dedent from 'dedent';
 import { getDatabase } from '@/lib/mongodb';
 import { MediaFile } from '@/app/types/media';
 import { preset } from 'swr/_internal';
+import {
+  TEXT_ATOM_PRESET_ID,
+  textOverlayToTextAtom,
+} from '@/components/editor/presets/registry/general/text-overlay-to-text-atom';
 
 const aiRouter = new AiRouter();
 
@@ -274,10 +278,11 @@ export const musicStitchAgent = aiRouter
         // Add watermark preset if watermark text is provided
         if (watermark && watermark.trim() !== '') {
           presetSet.push({
-            presetId: 'text-overlay',
+            presetId: TEXT_ATOM_PRESET_ID,
             presetType: 'children',
-            presetInputData: {
+            presetInputData: textOverlayToTextAtom({
               text: watermark.trim(),
+              trackName: 'watermark',
               fontSize: 20,
               letterSpacing: 10,
               color: '#FFFFFF',
@@ -299,7 +304,7 @@ export const musicStitchAgent = aiRouter
                 duration: shortsDuration,
               },
               fontFamily: 'Inter:500',
-            } as any,
+            }) as any,
             disabled: false,
           });
         }
@@ -329,10 +334,11 @@ export const musicStitchAgent = aiRouter
             ];
 
           presetSet.push({
-            presetId: 'text-overlay',
+            presetId: TEXT_ATOM_PRESET_ID,
             presetType: 'children',
-            presetInputData: {
+            presetInputData: textOverlayToTextAtom({
               text: quoteText.trim(),
+              trackName: 'quote',
               fontSize: 200,
               color: '#FFFFFF',
               position: {
@@ -353,7 +359,7 @@ export const musicStitchAgent = aiRouter
                 startOffset: 5,
                 fadeInTransition: randomFadeIn,
               },
-            } as any,
+            }) as any,
             disabled: false,
           });
         }
