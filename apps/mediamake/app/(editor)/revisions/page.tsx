@@ -1,5 +1,5 @@
-import { RevisionsWorkspace } from "@/components/revisions/RevisionsWorkspace";
+import { RevisionsWorkspace } from '@/components/revisions/RevisionsWorkspace';
 
 export default function RevisionsPage() {
-    return <RevisionsWorkspace />;
+  return <RevisionsWorkspace />;
 }

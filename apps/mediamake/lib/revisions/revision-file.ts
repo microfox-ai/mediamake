@@ -20,16 +20,26 @@ export function revisionIdFromFile(name: string): string | null {
 }
 
 export function nextRevisionId(existing: string[]): string {
-  const max = existing.reduce((m, id) => Math.max(m, Number(id.replace(/\D/g, '')) || 0), 0);
+  const max = existing.reduce(
+    (m, id) => Math.max(m, Number(id.replace(/\D/g, '')) || 0),
+    0,
+  );
   return `rev-${String(max + 1).padStart(3, '0')}`;
 }
 
 export function nextCommentId(comments: RevisionComment[]): string {
-  const max = comments.reduce((m, c) => Math.max(m, Number(c.id.replace(/\D/g, '')) || 0), 0);
+  const max = comments.reduce(
+    (m, c) => Math.max(m, Number(c.id.replace(/\D/g, '')) || 0),
+    0,
+  );
   return `c${String(max + 1).padStart(2, '0')}`;
 }
 
-export function createRevision(id: string, video: RevisionVideoInfo, map: string | null): Revision {
+export function createRevision(
+  id: string,
+  video: RevisionVideoInfo,
+  map: string | null,
+): Revision {
   const now = new Date().toISOString();
   return {
     schema: REVISION_SCHEMA,
@@ -52,28 +62,54 @@ export function normalizeRevision(raw: unknown, id: string): Revision {
     schema: REVISION_SCHEMA,
     id,
     title: typeof r.title === 'string' && r.title.trim() ? r.title : id,
-    status: r.status === 'ready' || r.status === 'resolved' ? r.status : 'draft',
-    video: (r.video ?? { file: '', size: 0, lastModified: 0, duration: 0, fps: 30 }) as RevisionVideoInfo,
+    status:
+      r.status === 'ready' || r.status === 'resolved' ? r.status : 'draft',
+    video: (r.video ?? {
+      file: '',
+      size: 0,
+      lastModified: 0,
+      duration: 0,
+      fps: 30,
+    }) as RevisionVideoInfo,
     map: typeof r.map === 'string' ? r.map : null,
     createdAt: r.createdAt ?? now,
     updatedAt: r.updatedAt ?? now,
     comments: Array.isArray(r.comments)
       ? r.comments
-          .filter((c): c is RevisionComment => !!c && typeof c === 'object' && typeof c.id === 'string')
-          .map((c) => ({ ...c, status: c.status === 'done' ? 'done' : 'open' }) as RevisionComment)
+          .filter(
+            (c): c is RevisionComment =>
+              !!c && typeof c === 'object' && typeof c.id === 'string',
+          )
+          .map(
+            c =>
+              ({
+                ...c,
+                status: c.status === 'done' ? 'done' : 'open',
+              }) as RevisionComment,
+          )
       : [],
   };
 }
 
-export function snapshotFileName(commentId: string, shotId: string | undefined, frame: number): string {
+export function snapshotFileName(
+  commentId: string,
+  shotId: string | undefined,
+  frame: number,
+): string {
   const shot = (shotId ?? 'noshot').replace(/[^\w.-]+/g, '-');
   return `${commentId}_${shot}_f${padFrame(frame)}.jpg`;
 }
 
 /** True when the video on disk is not the render this revision was written against. */
-export function isStaleRevision(revision: Revision, current: { size: number; lastModified: number }): boolean {
+export function isStaleRevision(
+  revision: Revision,
+  current: { size: number; lastModified: number },
+): boolean {
   if (!revision.video.size || revision.comments.length === 0) return false;
-  return revision.video.size !== current.size || revision.video.lastModified !== current.lastModified;
+  return (
+    revision.video.size !== current.size ||
+    revision.video.lastModified !== current.lastModified
+  );
 }
 
 export function commentSortKey(c: RevisionComment): number {
@@ -83,14 +119,16 @@ export function commentSortKey(c: RevisionComment): number {
 function shotsLabel(c: RevisionComment): string {
   if (c.kind === 'point') return c.shot?.id ?? 'no shot';
   if (c.shots.length === 0) return 'no shot';
-  return c.shots.length === 1 ? c.shots[0] : `${c.shots[0]} → ${c.shots[c.shots.length - 1]}`;
+  return c.shots.length === 1
+    ? c.shots[0]
+    : `${c.shots[0]} → ${c.shots[c.shots.length - 1]}`;
 }
 
 function quote(text: string): string {
   return text
     .trim()
     .split('\n')
-    .map((line) => `> ${line}`)
+    .map(line => `> ${line}`)
     .join('\n');
 }
 
@@ -103,10 +141,14 @@ export function revisionToMarkdown(
   opts: { revisionsDir: string; sourcePath?: string },
 ): string {
   const { video } = revision;
-  const comments = [...revision.comments].sort((a, b) => commentSortKey(a) - commentSortKey(b));
-  const open = comments.filter((c) => c.status === 'open').length;
+  const comments = [...revision.comments].sort(
+    (a, b) => commentSortKey(a) - commentSortKey(b),
+  );
+  const open = comments.filter(c => c.status === 'open').length;
   const lines: string[] = [];
-  lines.push(`# ${revision.title} (${revision.id}) — ${STATUS_LABEL[revision.status]}`);
+  lines.push(
+    `# ${revision.title} (${revision.id}) — ${STATUS_LABEL[revision.status]}`,
+  );
   lines.push('');
   lines.push(
     `Video: \`${video.file}\` · ${video.fps} fps · ${formatTime(video.duration)}` +
@@ -131,7 +173,9 @@ export function revisionToMarkdown(
   for (const c of comments) {
     lines.push('');
     if (c.kind === 'point') {
-      lines.push(`## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`);
+      lines.push(
+        `## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`,
+      );
       lines.push('');
       lines.push(quote(c.text));
       lines.push('');
@@ -141,7 +185,8 @@ export function revisionToMarkdown(
         );
       }
       lines.push(`- Time: ${c.time.toFixed(3)} s, frame ${c.frame}`);
-      if (c.snapshot) lines.push(`- Still: \`${opts.revisionsDir}/${c.snapshot}\``);
+      if (c.snapshot)
+        lines.push(`- Still: \`${opts.revisionsDir}/${c.snapshot}\``);
     } else {
       lines.push(
         `## ${c.id} · ${shotsLabel(c)} · f${c.fromFrame}–f${c.toFrame} (${formatTime(c.from)}–${formatTime(c.to)}) — ${c.status}`,
@@ -149,8 +194,11 @@ export function revisionToMarkdown(
       lines.push('');
       lines.push(quote(c.text));
       lines.push('');
-      if (c.shots.length) lines.push(`- Shots: ${c.shots.map((s) => `\`${s}\``).join(', ')}`);
-      lines.push(`- Range: ${c.from.toFixed(3)}–${c.to.toFixed(3)} s, frames ${c.fromFrame}–${c.toFrame} (inclusive)`);
+      if (c.shots.length)
+        lines.push(`- Shots: ${c.shots.map(s => `\`${s}\``).join(', ')}`);
+      lines.push(
+        `- Range: ${c.from.toFixed(3)}–${c.to.toFixed(3)} s, frames ${c.fromFrame}–${c.toFrame} (inclusive)`,
+      );
       const duration = Math.max(c.to - c.from, 1 / (video.fps || 30));
       const rate = Math.min(8, Math.max(1, Math.round(8 / duration)));
       lines.push(

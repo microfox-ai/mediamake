@@ -34,7 +34,10 @@ export function frameBoundary(time: number, fps: number): number {
 }
 
 /** First and last frame (inclusive) of a range whose ends sit on frame boundaries. */
-export function rangeFrames(range: { from: number; to: number }, fps: number): { first: number; last: number } {
+export function rangeFrames(
+  range: { from: number; to: number },
+  fps: number,
+): { first: number; last: number } {
   const first = Math.round(range.from * fps);
   return { first, last: Math.max(first, Math.round(range.to * fps) - 1) };
 }
@@ -58,7 +61,7 @@ export function formatTimecode(seconds: number, fps: number): string {
   const hh = Math.floor(total / 3600);
   const mm = Math.floor((total % 3600) / 60);
   const ss = total % 60;
-  return [hh, mm, ss, ff].map((n) => String(n).padStart(2, '0')).join(':');
+  return [hh, mm, ss, ff].map(n => String(n).padStart(2, '0')).join(':');
 }
 
 export function padFrame(frame: number): string {

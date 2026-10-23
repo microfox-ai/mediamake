@@ -1,4 +1,7 @@
-import { detectLocalContentType, isNotFoundError } from '@/lib/local-media/file-access';
+import {
+  detectLocalContentType,
+  isNotFoundError,
+} from '@/lib/local-media/file-access';
 
 /*
  * Folder access for the revisions screen. Unlike the media library (read-only
@@ -32,21 +35,32 @@ const PICKER_ID = 'mediamake-revisions';
 
 export const REVISIONS_DIR_SUFFIX = '.revisions';
 
-export type FolderSupport = { supported: true } | { supported: false; reason: 'insecure' | 'browser' };
+export type FolderSupport =
+  | { supported: true }
+  | { supported: false; reason: 'insecure' | 'browser' };
 
 export function getFolderSupport(): FolderSupport {
   if (!window.isSecureContext) return { supported: false, reason: 'insecure' };
   const w = window as PickerWindow;
-  if (typeof w.showDirectoryPicker !== 'function' || typeof w.showOpenFilePicker !== 'function') {
+  if (
+    typeof w.showDirectoryPicker !== 'function' ||
+    typeof w.showOpenFilePicker !== 'function'
+  ) {
     return { supported: false, reason: 'browser' };
   }
   return { supported: true };
 }
 
 /** Throws AbortError if the user closes the picker. */
-export function pickFolder(startIn?: FileSystemHandle): Promise<FileSystemDirectoryHandle> {
+export function pickFolder(
+  startIn?: FileSystemHandle,
+): Promise<FileSystemDirectoryHandle> {
   const w = window as PickerWindow;
-  return w.showDirectoryPicker!({ id: PICKER_ID, mode: 'readwrite', ...(startIn ? { startIn } : {}) });
+  return w.showDirectoryPicker!({
+    id: PICKER_ID,
+    mode: 'readwrite',
+    ...(startIn ? { startIn } : {}),
+  });
 }
 
 export async function pickVideoFile(): Promise<FileSystemFileHandle> {
@@ -64,7 +78,9 @@ export async function pickVideoFile(): Promise<FileSystemFileHandle> {
   return handle;
 }
 
-export async function queryReadWrite(handle: FileSystemHandle): Promise<PermissionState> {
+export async function queryReadWrite(
+  handle: FileSystemHandle,
+): Promise<PermissionState> {
   const h = handle as PermissionedHandle;
   if (typeof h.queryPermission !== 'function') return 'granted';
   try {
@@ -75,7 +91,9 @@ export async function queryReadWrite(handle: FileSystemHandle): Promise<Permissi
 }
 
 /** Needs a user gesture unless already granted. */
-export async function requestReadWrite(handle: FileSystemHandle): Promise<PermissionState> {
+export async function requestReadWrite(
+  handle: FileSystemHandle,
+): Promise<PermissionState> {
   const h = handle as PermissionedHandle;
   if ((await queryReadWrite(handle)) === 'granted') return 'granted';
   if (typeof h.requestPermission !== 'function') return 'granted';
@@ -114,14 +132,17 @@ export interface FolderListing {
   revisionDirs: string[];
 }
 
-export async function listFolder(dir: FileSystemDirectoryHandle): Promise<FolderListing> {
+export async function listFolder(
+  dir: FileSystemDirectoryHandle,
+): Promise<FolderListing> {
   const videos: FolderVideo[] = [];
   const jsonFiles: string[] = [];
   const revisionDirs: string[] = [];
   for await (const entry of (dir as IterableDirectoryHandle).values()) {
     if (entry.name.startsWith('.')) continue;
     if (entry.kind === 'directory') {
-      if (entry.name.endsWith(REVISIONS_DIR_SUFFIX)) revisionDirs.push(entry.name);
+      if (entry.name.endsWith(REVISIONS_DIR_SUFFIX))
+        revisionDirs.push(entry.name);
       continue;
     }
     if (entry.name.toLowerCase().endsWith('.json')) {
@@ -141,7 +162,8 @@ export async function listFolder(dir: FileSystemDirectoryHandle): Promise<Folder
       // Locked or vanished mid-scan — skip it.
     }
   }
-  const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+  const byName = (a: string, b: string) =>
+    a.localeCompare(b, undefined, { numeric: true });
   videos.sort((a, b) => byName(a.name, b.name));
   jsonFiles.sort(byName);
   revisionDirs.sort(byName);
@@ -171,7 +193,11 @@ export async function getSubdir(
   try {
     return await dir.getDirectoryHandle(name, { create });
   } catch (err) {
-    if (isNotFoundError(err) || (err instanceof DOMException && err.name === 'TypeMismatchError')) return null;
+    if (
+      isNotFoundError(err) ||
+      (err instanceof DOMException && err.name === 'TypeMismatchError')
+    )
+      return null;
     throw err;
   }
 }
@@ -183,7 +209,11 @@ export async function readFileIn(
   try {
     return await (await dir.getFileHandle(name)).getFile();
   } catch (err) {
-    if (isNotFoundError(err) || (err instanceof DOMException && err.name === 'TypeMismatchError')) return null;
+    if (
+      isNotFoundError(err) ||
+      (err instanceof DOMException && err.name === 'TypeMismatchError')
+    )
+      return null;
     throw err;
   }
 }
@@ -194,7 +224,10 @@ export async function readJsonIn<T = unknown>(
 ): Promise<{ data: T; lastModified: number } | null> {
   const file = await readFileIn(dir, name);
   if (!file) return null;
-  return { data: JSON.parse(await file.text()) as T, lastModified: file.lastModified };
+  return {
+    data: JSON.parse(await file.text()) as T,
+    lastModified: file.lastModified,
+  };
 }
 
 /**
@@ -216,7 +249,10 @@ export async function writeFileIn(
   return (await handle.getFile()).lastModified;
 }
 
-export async function removeFileIn(dir: FileSystemDirectoryHandle, name: string): Promise<void> {
+export async function removeFileIn(
+  dir: FileSystemDirectoryHandle,
+  name: string,
+): Promise<void> {
   try {
     await dir.removeEntry(name);
   } catch (err) {
@@ -224,10 +260,79 @@ export async function removeFileIn(dir: FileSystemDirectoryHandle, name: string)
   }
 }
 
-export async function listFileNames(dir: FileSystemDirectoryHandle): Promise<string[]> {
+export async function listFileNames(
+  dir: FileSystemDirectoryHandle,
+): Promise<string[]> {
   const names: string[] = [];
   for await (const entry of (dir as IterableDirectoryHandle).values()) {
-    if (entry.kind === 'file' && !entry.name.startsWith('.')) names.push(entry.name);
+    if (entry.kind === 'file' && !entry.name.startsWith('.'))
+      names.push(entry.name);
   }
   return names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+export interface SourceFolder {
+  /** Path inside the source, e.g. "my-song/v5" ("" for the source itself). */
+  path: string;
+  handle: FileSystemDirectoryHandle;
+  videos: Omit<FolderVideo, 'handle'>[];
+}
+
+const SKIP_DIRS = new Set(['node_modules']);
+
+/**
+ * Every folder under `root` (a few levels deep) that holds videos. Revision
+ * folders, hidden folders and node_modules are skipped.
+ */
+export async function scanSource(
+  root: FileSystemDirectoryHandle,
+  { maxDepth = 3, limit = 500 }: { maxDepth?: number; limit?: number } = {},
+): Promise<SourceFolder[]> {
+  const found: SourceFolder[] = [];
+  let videoCount = 0;
+  const walk = async (
+    dir: FileSystemDirectoryHandle,
+    path: string,
+    depth: number,
+  ) => {
+    const videos: SourceFolder['videos'] = [];
+    const subdirs: FileSystemDirectoryHandle[] = [];
+    for await (const entry of (dir as IterableDirectoryHandle).values()) {
+      if (entry.name.startsWith('.') || videoCount >= limit) continue;
+      if (entry.kind === 'directory') {
+        if (
+          !entry.name.endsWith(REVISIONS_DIR_SUFFIX) &&
+          !SKIP_DIRS.has(entry.name)
+        ) {
+          subdirs.push(entry as FileSystemDirectoryHandle);
+        }
+        continue;
+      }
+      if (detectLocalContentType(entry.name) !== 'video') continue;
+      try {
+        const file = await (entry as FileSystemFileHandle).getFile();
+        videos.push({
+          name: entry.name,
+          size: file.size,
+          lastModified: file.lastModified,
+        });
+        videoCount++;
+      } catch {
+        // Locked or vanished mid-scan — skip it.
+      }
+    }
+    if (videos.length) {
+      videos.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
+      found.push({ path, handle: dir, videos });
+    }
+    if (depth >= maxDepth) return;
+    for (const sub of subdirs)
+      await walk(sub, path ? `${path}/${sub.name}` : sub.name, depth + 1);
+  };
+  await walk(root, '', 0);
+  return found.sort((a, b) =>
+    a.path.localeCompare(b.path, undefined, { numeric: true }),
+  );
 }

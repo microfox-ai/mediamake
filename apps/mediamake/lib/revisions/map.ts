@@ -1,4 +1,10 @@
-import { MAP_SCHEMA, type MapMarker, type MapSection, type MapShot, type VideoMap } from './types';
+import {
+  MAP_SCHEMA,
+  type MapMarker,
+  type MapSection,
+  type MapShot,
+  type VideoMap,
+} from './types';
 
 /*
  * Reads a shot map in either form: the full object (see types.ts) or a bare
@@ -11,7 +17,11 @@ type Loose = Record<string, unknown>;
 const num = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 const str = (v: unknown): string | undefined =>
-  typeof v === 'string' && v.trim() ? v : typeof v === 'number' ? String(v) : undefined;
+  typeof v === 'string' && v.trim()
+    ? v
+    : typeof v === 'number'
+      ? String(v)
+      : undefined;
 
 function readShot(raw: unknown, index: number): MapShot | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -57,35 +67,49 @@ function sectionsFromShots(shots: MapShot[]): MapSection[] {
       existing.from = Math.min(existing.from, shot.from);
       existing.to = Math.max(existing.to, shot.to);
     } else {
-      byId.set(shot.section, { id: shot.section, label: shot.section, from: shot.from, to: shot.to });
+      byId.set(shot.section, {
+        id: shot.section,
+        label: shot.section,
+        from: shot.from,
+        to: shot.to,
+      });
     }
   }
   return [...byId.values()];
 }
 
-const compact = <T,>(items: (T | null)[]): T[] => items.filter((x): x is T => x !== null);
+const compact = <T>(items: (T | null)[]): T[] =>
+  items.filter((x): x is T => x !== null);
 
 export function parseVideoMap(json: unknown): VideoMap {
   const root = (Array.isArray(json) ? { shots: json } : json) as Loose | null;
-  if (!root || typeof root !== 'object') throw new Error('Map is not a JSON object or array');
-  const shots = compact((Array.isArray(root.shots) ? root.shots : []).map(readShot)).sort(
-    (a, b) => a.from - b.from,
+  if (!root || typeof root !== 'object')
+    throw new Error('Map is not a JSON object or array');
+  const shots = compact(
+    (Array.isArray(root.shots) ? root.shots : []).map(readShot),
+  ).sort((a, b) => a.from - b.from);
+  const listedSections = compact(
+    (Array.isArray(root.sections) ? root.sections : []).map(readSection),
   );
-  const listedSections = compact((Array.isArray(root.sections) ? root.sections : []).map(readSection));
-  const sections = (listedSections.length ? listedSections : sectionsFromShots(shots)).sort(
-    (a, b) => a.from - b.from,
-  );
-  const markers = compact((Array.isArray(root.markers) ? root.markers : []).map(readMarker)).sort(
-    (a, b) => a.time - b.time,
-  );
+  const sections = (
+    listedSections.length ? listedSections : sectionsFromShots(shots)
+  ).sort((a, b) => a.from - b.from);
+  const markers = compact(
+    (Array.isArray(root.markers) ? root.markers : []).map(readMarker),
+  ).sort((a, b) => a.time - b.time);
   if (shots.length === 0 && sections.length === 0 && markers.length === 0) {
     throw new Error('Map has no shots, sections or markers');
   }
-  const source = root.source && typeof root.source === 'object' ? (root.source as Loose) : undefined;
+  const source =
+    root.source && typeof root.source === 'object'
+      ? (root.source as Loose)
+      : undefined;
   return {
     schema: str(root.schema) ?? MAP_SCHEMA,
     video: str(root.video),
-    source: source ? { path: str(source.path), project: str(source.project) } : undefined,
+    source: source
+      ? { path: str(source.path), project: str(source.project) }
+      : undefined,
     fps: num(root.fps),
     duration: num(root.duration),
     width: num(root.width),
@@ -107,7 +131,10 @@ export function shotAt(map: VideoMap | null, time: number): MapShot | null {
   return hit;
 }
 
-export function sectionAt(map: VideoMap | null, time: number): MapSection | null {
+export function sectionAt(
+  map: VideoMap | null,
+  time: number,
+): MapSection | null {
   if (!map) return null;
   let hit: MapSection | null = null;
   for (const section of map.sections) {
@@ -121,21 +148,31 @@ export function sectionAt(map: VideoMap | null, time: number): MapSection | null
  * Shots with at least one frame in [from, to). With `fps`, shot edges are
  * compared as the frames they cut on, not as raw seconds.
  */
-export function shotsInRange(map: VideoMap | null, from: number, to: number, fps?: number): MapShot[] {
+export function shotsInRange(
+  map: VideoMap | null,
+  from: number,
+  to: number,
+  fps?: number,
+): MapShot[] {
   if (!map) return [];
   const cut = (t: number) => (fps ? Math.ceil(t * fps - 1e-6) / fps : t);
-  return map.shots.filter((shot) => cut(shot.from) < to - 1e-6 && cut(shot.to) > from + 1e-6);
+  return map.shots.filter(
+    shot => cut(shot.from) < to - 1e-6 && cut(shot.to) > from + 1e-6,
+  );
 }
 
 /** Sorted, de-duplicated jump points: shot starts and markers. */
 export function shotTargets(map: VideoMap | null): number[] {
   if (!map) return [];
-  return dedupe([...map.shots.map((s) => s.from), ...map.markers.map((m) => m.time)]);
+  return dedupe([
+    ...map.shots.map(s => s.from),
+    ...map.markers.map(m => m.time),
+  ]);
 }
 
 export function sectionTargets(map: VideoMap | null): number[] {
   if (!map) return [];
-  return dedupe(map.sections.map((s) => s.from));
+  return dedupe(map.sections.map(s => s.from));
 }
 
 export function dedupe(times: number[]): number[] {
@@ -153,7 +190,7 @@ export function stepTarget(
   direction: 1 | -1,
   backTolerance: number,
 ): number | null {
-  if (direction === 1) return targets.find((t) => t > time + 1e-3) ?? null;
+  if (direction === 1) return targets.find(t => t > time + 1e-3) ?? null;
   for (let i = targets.length - 1; i >= 0; i--) {
     if (targets[i] < time - backTolerance) return targets[i];
   }

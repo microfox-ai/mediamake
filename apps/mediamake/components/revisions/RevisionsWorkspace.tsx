@@ -1,27 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
 import { handlesFromDrop } from '@/lib/local-media/file-access';
 import { useRevisionsStore } from './store';
+import { isTextField } from './keyboard';
 import { RevisionsHeader } from './RevisionsHeader';
 import { FilesPanel } from './FilesPanel';
 import { VideoStage } from './VideoStage';
 import { RevisionTimeline } from './RevisionTimeline';
 import { RevisionPanel } from './RevisionPanel';
 
-function isTextField(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  if (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return true;
-  if (target.tagName !== 'INPUT') return false;
-  const type = (target as HTMLInputElement).type;
-  return !['button', 'checkbox', 'radio', 'range', 'submit', 'reset'].includes(type);
-}
-
 /**
- * Window-wide shortcuts. ⌘/Ctrl + arrows jump between shots from anywhere,
- * text boxes included (that also stops Chrome's ⌘← "Back").
+ * Window-wide shortcuts. ⌘/Ctrl + arrows jump between shots and ⌥/Ctrl/⌘ +
+ * Space plays from anywhere, text boxes included (plain Space types there).
+ * Blocking ⌘← also stops Chrome's "Back".
  */
 function useShortcuts() {
   useEffect(() => {
@@ -30,15 +27,33 @@ function useShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const inText = isTextField(e.target);
 
-      if (mod && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey) {
+      if (
+        mod &&
+        (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+        !e.altKey
+      ) {
         if (!store.video) return;
         e.preventDefault();
-        store.jump(e.key === 'ArrowRight' ? 1 : -1, e.shiftKey ? 'section' : 'shot');
+        store.jump(
+          e.key === 'ArrowRight' ? 1 : -1,
+          e.shiftKey ? 'section' : 'shot',
+        );
+        return;
+      }
+      // ⌘Space is Spotlight on macOS, so ⌥Space and ⌃Space are accepted too.
+      if ((mod || e.altKey) && e.code === 'Space') {
+        if (!store.video) return;
+        e.preventDefault();
+        store.togglePlay();
         return;
       }
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
         void store.flushSaves();
+        return;
+      }
+      if (!inText && !mod && e.key === '?') {
+        store.setShortcutsOpen(!store.shortcutsOpen);
         return;
       }
       if (inText || mod || e.altKey || !store.video) {
@@ -47,8 +62,11 @@ function useShortcuts() {
       }
       // Open menus and selects keep their own arrow/Enter handling.
       const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.closest('[role="menu"],[role="listbox"],[role="dialog"]')) return;
-      const onControl = !!target?.closest('button,a,[role="button"],[role="tab"]');
+      if (target?.closest('[role="menu"],[role="listbox"],[role="dialog"]'))
+        return;
+      const onControl = !!target?.closest(
+        'button,a,[role="button"],[role="tab"]',
+      );
       if (onControl && e.key === 'Enter') return;
 
       switch (e.key) {
@@ -57,6 +75,10 @@ function useShortcuts() {
         case 'K':
           e.preventDefault();
           store.togglePlay();
+          break;
+        case ',':
+        case '.':
+          store.stepFrames(e.key === '.' ? 1 : -1);
           break;
         case 'ArrowLeft':
         case 'ArrowRight': {
@@ -82,6 +104,14 @@ function useShortcuts() {
         case 'L':
           store.toggleLoop();
           break;
+        case 'm':
+        case 'M':
+          store.toggleMute();
+          break;
+        case 'n':
+        case 'N':
+          void store.newRevision();
+          break;
         case 'Escape':
           store.setSelection(null);
           break;
@@ -99,10 +129,11 @@ function useShortcuts() {
 }
 
 export function RevisionsWorkspace() {
-  const init = useRevisionsStore((s) => s.init);
-  const refreshFromDisk = useRevisionsStore((s) => s.refreshFromDisk);
-  const flushSaves = useRevisionsStore((s) => s.flushSaves);
-  const openDropped = useRevisionsStore((s) => s.openDropped);
+  const init = useRevisionsStore(s => s.init);
+  const refreshFromDisk = useRevisionsStore(s => s.refreshFromDisk);
+  const rescanSources = useRevisionsStore(s => s.rescanSources);
+  const flushSaves = useRevisionsStore(s => s.flushSaves);
+  const openDropped = useRevisionsStore(s => s.openDropped);
   const [dragging, setDragging] = useState(false);
 
   useShortcuts();
@@ -111,16 +142,21 @@ export function RevisionsWorkspace() {
     void init();
   }, [init]);
 
-  // Claude (or another tab) may have edited revision files while we were away.
+  // Claude (or another tab) may have edited revision files or rendered new
+  // videos while we were away. Sources are rescanned on focus only: a scan
+  // touches every video in them.
   useEffect(() => {
-    const onFocus = () => void refreshFromDisk();
+    const onFocus = () => {
+      void refreshFromDisk();
+      void rescanSources();
+    };
     const onVisible = () => {
       if (document.visibilityState === 'visible') onFocus();
       else void flushSaves();
     };
     // Also poll while visible, for edits made while this window keeps focus (second screen).
     const poll = setInterval(() => {
-      if (document.visibilityState === 'visible') onFocus();
+      if (document.visibilityState === 'visible') void refreshFromDisk();
     }, 5000);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisible);
@@ -129,7 +165,7 @@ export function RevisionsWorkspace() {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [refreshFromDisk, flushSaves]);
+  }, [refreshFromDisk, rescanSources, flushSaves]);
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -146,16 +182,16 @@ export function RevisionsWorkspace() {
   return (
     <div
       className="relative flex h-screen flex-col overflow-hidden bg-background"
-      onDragOver={(e) => {
+      onDragOver={e => {
         if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
         setDragging(true);
       }}
-      onDragLeave={(e) => {
+      onDragLeave={e => {
         if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
         setDragging(false);
       }}
-      onDrop={(e) => {
+      onDrop={e => {
         e.preventDefault();
         setDragging(false);
         // Handles must be taken synchronously, before the event returns.
@@ -163,9 +199,16 @@ export function RevisionsWorkspace() {
       }}
     >
       <RevisionsHeader />
-      <ResizablePanelGroup direction="vertical" autoSaveId="revisions-vertical" className="min-h-0 flex-1">
+      <ResizablePanelGroup
+        direction="vertical"
+        autoSaveId="revisions-vertical"
+        className="min-h-0 flex-1"
+      >
         <ResizablePanel defaultSize={72} minSize={35}>
-          <ResizablePanelGroup direction="horizontal" autoSaveId="revisions-horizontal">
+          <ResizablePanelGroup
+            direction="horizontal"
+            autoSaveId="revisions-horizontal"
+          >
             <ResizablePanel defaultSize={18} minSize={12} maxSize={35}>
               <FilesPanel />
             </ResizablePanel>
