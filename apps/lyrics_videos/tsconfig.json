@@ -14,6 +14,6 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["src", "projects", "scripts", "logoGraphics"],
+  "include": ["src", "projects", "scripts", "logoGraphics", "brands/*/graphics"],
   "exclude": ["node_modules", "out"]
 }

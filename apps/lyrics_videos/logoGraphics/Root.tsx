@@ -1,24 +1,24 @@
 import React from 'react';
 import { AbsoluteFill, Composition, Folder } from 'remotion';
-import type { LogoCompositionProps, LogoGraphic, LogoScene } from './kit';
+import type { LogoCompositionProps, LogoGraphic, LogoScene, SceneProps } from './kit';
 
-// Every logoGraphics/<slug>/index.tsx becomes a Studio folder of compositions. "_" folders are skipped.
-const logoContext = require.context('.', true, /^\.\/[^_./][^/]*\/index\.tsx$/);
+// Every brands/<brand>/graphics/index.tsx becomes a Studio folder of compositions (brands/ is
+// gitignored: each brand's source lives with its kit). "_" folders are skipped.
+const brandContext = require.context('../brands', true, /^\.\/[^_./][^/]*\/graphics\/index\.tsx$/);
 
-const logos = logoContext.keys().map(key => {
-  const slug = key.split('/')[1];
-  const logo = logoContext<{ default: LogoGraphic }>(key).default;
-  if (!logo || logo.id !== slug) {
-    throw new Error(`logoGraphics/${slug}/index.tsx must default-export defineLogo({ id: '${slug}', ... })`);
-  }
-  return logo;
+const logos = brandContext.keys().map(key => {
+  const brand = key.split('/')[1];
+  const logo = brandContext<{ default: LogoGraphic }>(key).default;
+  if (!logo?.id) throw new Error(`brands/${brand}/graphics/index.tsx must default-export defineLogo({ id, ... })`);
+  return { ...logo, brand };
 });
+type Brand = (typeof logos)[number];
 
 /** The scene over an optional backdrop (transparent unless a preview asks for one). */
-const withBackdrop = (Scene: React.FC): React.FC<LogoCompositionProps> => {
-  const Wrapped: React.FC<LogoCompositionProps> = ({ background }) => (
+const withBackdrop = (Scene: React.FC<SceneProps>): React.FC<LogoCompositionProps> => {
+  const Wrapped: React.FC<LogoCompositionProps> = ({ background, guides }) => (
     <AbsoluteFill style={{ background: background ?? 'transparent' }}>
-      <Scene />
+      <Scene guides={guides} />
     </AbsoluteFill>
   );
   return Wrapped;
@@ -30,15 +30,17 @@ const componentFor = (scene: LogoScene) => {
   return components.get(scene)!;
 };
 
-const SceneComposition: React.FC<{ logo: LogoGraphic; scene: LogoScene }> = ({ logo, scene }) => (
+const SceneComposition: React.FC<{ logo: Brand; scene: LogoScene }> = ({ logo, scene }) => (
   <Composition
     id={`${logo.id}-${scene.id}`}
     component={componentFor(scene)}
     fps={logo.fps}
-    width={logo.width}
-    height={logo.height}
+    width={scene.width ?? logo.width}
+    height={scene.height ?? logo.height}
     durationInFrames={Math.round(scene.seconds * logo.fps)}
-    defaultProps={{ transparent: scene.transparent ?? false } satisfies LogoCompositionProps}
+    defaultProps={
+      { transparent: scene.transparent ?? false, guides: false, preview: logo.preview, brand: logo.brand, scene: scene.id } satisfies LogoCompositionProps
+    }
   />
 );
 
