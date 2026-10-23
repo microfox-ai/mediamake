@@ -13,6 +13,8 @@ export * from './hooks';
 // Utility exports
 export * from './utils';
 
+export * from './transitions/clip-transition';
+
 // Template exports
 export * from './templates';
 

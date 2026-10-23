@@ -156,3 +156,23 @@ export function MediaItemThumb({
     </div>
   );
 }
+
+/** Popup preview: the whole frame, sized to the image, capped so it stays inside the panel. */
+export function PopupMediaPreview({ item }: { item?: any }) {
+  const kind = detectMediaKind(item ?? {});
+  if (kind === "audio") {
+    return (
+      <div className="mx-auto h-24 w-24 overflow-hidden rounded-md border bg-muted">
+        <MediaItemThumb item={item} className="h-full w-full" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-w-0 justify-center overflow-hidden">
+      <MediaItemThumb
+        item={item}
+        className="h-auto max-h-40 w-auto min-w-0 max-w-full rounded-md border bg-muted object-contain"
+      />
+    </div>
+  );
+}

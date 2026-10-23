@@ -11,7 +11,7 @@ import {
   DatabasePreset,
 } from '../types';
 import { defaultInjectedHelpers, presetStdLib } from './preset-stdlib';
-import { applyInputContainerLayout, applyTrackShell } from './apply-track-shell';
+import { applyInputContainerLayout, applyTrackShell, mergeLayoutOntoContainer } from './apply-track-shell';
 import { getPredefinedPresetById } from '../registry/registry/presets-registry';
 
 const findMatchingComponents = (
@@ -566,10 +566,13 @@ function anchorStyle(
   }
 }
 
-/** Same container placement a media track writes from `containerObject`. */
+/** Container placement for a scene.
+ * Older scenes store insets on `containerObject`. The Layout section writes
+ * CSS, including the debug bounding box, onto `containerProps.style`.
+ */
 export function sceneContainerProps(input: unknown): {
-  className: string;
-  style?: Record<string, string | number>;
+  className?: string;
+  style?: Record<string, unknown>;
 } {
   const record =
     input && typeof input === 'object' && !Array.isArray(input)
@@ -592,10 +595,19 @@ export function sceneContainerProps(input: unknown): {
   if (typeof record.backgroundColor === 'string' && record.backgroundColor) {
     style.backgroundColor = record.backgroundColor;
   }
-  return {
+  const legacy = {
     className: positioned ? 'absolute' : 'absolute inset-0',
     ...(Object.keys(style).length > 0 ? { style } : {}),
   };
+  const rawContainer = record.containerProps;
+  const layout =
+    rawContainer && typeof rawContainer === 'object' && !Array.isArray(rawContainer)
+      ? (rawContainer as { style?: unknown }).style
+      : undefined;
+  if (!layout || typeof layout !== 'object' || Array.isArray(layout)) return legacy;
+  const layoutStyle = layout as Record<string, unknown>;
+  if (Object.keys(layoutStyle).length === 0) return legacy;
+  return mergeLayoutOntoContainer(legacy, layoutStyle);
 }
 
 /** Insert a scene container. Nested presets attach to `node.id`. */

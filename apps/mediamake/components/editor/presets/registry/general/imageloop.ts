@@ -20,7 +20,7 @@
  * - Creating visual effects for presentations
  */
 
-import {
+import type {
   InputCompositionProps,
   PanEffectData,
   ZoomEffectData,
@@ -33,42 +33,20 @@ import {
   type TrackShellParams,
 } from '../../define-preset';
 
-const transitionEffectSchema = z.object({
-  id: z.string().optional().describe('Custom transition id'),
-  timing: z
-    .enum(['in', 'out', 'in&out'])
-    .default('in&out')
-    .describe('Which edge of the image plays this transition'),
-  animation: z
-    .enum([
-      'blur',
-      'fade',
-      'slide-left',
-      'slide-right',
-      'slide-up',
-      'slide-down',
-      'scale-in',
-    ])
-    .default('fade')
-    .describe('Transition animation'),
-  impact: z
-    .number()
-    .default(1)
-    .describe('Strength of the transition (default 1)'),
-  animationType: z
+const clipTransitionSchema = z.object({
+  id: z.string().describe('Transition id'),
+  type: z.string().describe('Catalog id, such as fade or slide-left'),
+  edge: z.enum(['in', 'out']).describe('Start or end of this image'),
+  duration: z.number().min(0).default(0.5).describe('Length in seconds'),
+  easing: z
     .enum(['linear', 'spring', 'bezier'])
     .default('linear')
-    .describe('linear, spring + clamp, or bezier + clamp'),
-  inRange: z
-    .number()
-    .min(0)
-    .default(0.5)
-    .describe('Transition in length in seconds (default 0.5)'),
-  outRange: z
-    .number()
-    .min(0)
-    .default(0.5)
-    .describe('Transition out length in seconds (default 0.5)'),
+    .describe('linear, spring, or bezier'),
+  amount: z.number().default(1).describe('Strength of the transition'),
+  linkId: z
+    .string()
+    .optional()
+    .describe('Shared by the in and out records of one both-ends transition'),
 });
 
 // Define the schema for image sources
@@ -179,8 +157,13 @@ const imageSourceSchema = z.object({
       [paramMetaTypes.groupEditable]: true,
     })
     .describe('Optional color tint overlay'),
-  transitionEffects: z
-    .array(transitionEffectSchema)
+  style: z
+    .record(z.string(), z.any())
+    .optional()
+    .meta({ [paramMetaTypes.imageStyle]: true })
+    .describe('Image look: fit, blend, tint, opacity, and filters'),
+  transitions: z
+    .array(clipTransitionSchema)
     .optional()
     .default([])
     .meta({
@@ -615,6 +598,18 @@ const presetExecution = async (
   ];
   const { config, presets, helpers } = props;
 
+  const styleHasLookMarkers = (style: unknown): style is Record<string, unknown> => {
+    if (!style || typeof style !== 'object') return false;
+    const record = style as Record<string, unknown>;
+    return [
+      '--mm-image-fit',
+      '--mm-image-filter',
+      '--mm-image-blend',
+      '--mm-image-tint',
+      '--mm-image-opacity',
+    ].some((key) => record[key] !== undefined && record[key] !== '');
+  };
+
   const parseTimeRange = helpers!.parseTimeRange as (
     range: string,
   ) => { start: number; end: number } | null;
@@ -828,6 +823,16 @@ const presetExecution = async (
   };
 
   // Helper function to map fit prop to object-* class
+  const authoredTransitions = (image: {
+    transitions?: unknown;
+    transitionEffects?: unknown;
+  }): unknown[] => {
+    if (Array.isArray(image.transitions) && image.transitions.length > 0) {
+      return image.transitions;
+    }
+    return Array.isArray(image.transitionEffects) ? image.transitionEffects : [];
+  };
+
   const getObjectFitClass = (fit: string | undefined): string => {
     switch (fit) {
       case 'cover':
@@ -847,123 +852,6 @@ const presetExecution = async (
 
   const isVertical =
     config?.width && config?.height && config?.width < config?.height;
-
-  const buildImageTransitions = (
-    image: any,
-    imageIndex: number,
-    imageRange: { start: number; duration: number } | null,
-  ) => {
-    const list = Array.isArray(image?.transitionEffects)
-      ? image.transitionEffects
-      : [];
-    const targetId = `${params.trackName ?? 'imageloop'}-image-${imageIndex}`;
-    // The image atom is mounted in a Sequence, so effect time starts at 0
-    // when the image appears — not at the composition clock.
-    const imageDuration = imageRange?.duration ?? 0;
-    const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-    const animType = (value: unknown) =>
-      value === 'spring' || value === 'bezier' ? value : 'linear';
-
-    const rangesFor = (
-      animation: string,
-      impact: number,
-      direction: 'in' | 'out',
-    ) => {
-      const amount = Number.isFinite(impact) ? impact : 1;
-      const fade = clamp01(amount);
-      const slide = `${amount * 100}%`;
-      const slideNeg = `-${amount * 100}%`;
-      const blurPx = Math.max(0, amount * 20);
-      const scaleFrom = Math.max(0, 1 - amount);
-      const isIn = direction === 'in';
-      switch (animation) {
-        case 'blur':
-          return [
-            { key: 'blur', val: isIn ? blurPx : 0, prog: 0 },
-            { key: 'blur', val: isIn ? 0 : blurPx, prog: 1 },
-          ];
-        case 'slide-left':
-          return [
-            { key: 'translateX', val: isIn ? slide : '0%', prog: 0 },
-            { key: 'translateX', val: isIn ? '0%' : slideNeg, prog: 1 },
-          ];
-        case 'slide-right':
-          return [
-            { key: 'translateX', val: isIn ? slideNeg : '0%', prog: 0 },
-            { key: 'translateX', val: isIn ? '0%' : slide, prog: 1 },
-          ];
-        case 'slide-up':
-          return [
-            { key: 'translateY', val: isIn ? slide : '0%', prog: 0 },
-            { key: 'translateY', val: isIn ? '0%' : slideNeg, prog: 1 },
-          ];
-        case 'slide-down':
-          return [
-            { key: 'translateY', val: isIn ? slideNeg : '0%', prog: 0 },
-            { key: 'translateY', val: isIn ? '0%' : slide, prog: 1 },
-          ];
-        case 'scale-in':
-          return [
-            { key: 'scale', val: isIn ? scaleFrom : 1, prog: 0 },
-            { key: 'scale', val: isIn ? 1 : scaleFrom, prog: 1 },
-          ];
-        case 'fade':
-        default:
-          return [
-            { key: 'opacity', val: isIn ? 1 - fade : 1, prog: 0 },
-            { key: 'opacity', val: isIn ? 1 : 1 - fade, prog: 1 },
-          ];
-      }
-    };
-
-    const built: any[] = [];
-    list.forEach((tr: any, effectIndex: number) => {
-      const timing = tr?.timing || 'in&out';
-      const animation = tr?.animation || 'fade';
-      const impact = typeof tr?.impact === 'number' ? tr.impact : 1;
-      const inDur = typeof tr?.inRange === 'number' ? tr.inRange : 0.5;
-      const outDur = typeof tr?.outRange === 'number' ? tr.outRange : 0.5;
-      const wantsIn = timing === 'in' || timing === 'in&out';
-      const wantsOut = timing === 'out' || timing === 'in&out';
-      const idBase =
-        tr?.id ||
-        `${params.trackName ?? 'imageloop'}-transition-${imageIndex}-${effectIndex}`;
-
-      const push = (
-        direction: 'in' | 'out',
-        startSec: number,
-        durSec: number,
-      ) => {
-        if (!(durSec > 0)) return;
-        built.push({
-          id: `${idBase}-${direction}`,
-          componentId: 'generic',
-          data: {
-            mode: 'provider',
-            targetIds: [targetId],
-            type: animType(tr?.animationType),
-            ranges: rangesFor(animation, impact, direction),
-            duration: durSec,
-            start: startSec,
-            // In releases back to the resting image. Out holds the end state
-            // so the image stays hidden after the exit.
-            inactiveBehavior: direction === 'out' ? 'hold-end' : 'none',
-          } as GenericEffectData,
-        });
-      };
-
-      if (wantsIn) {
-        const cappedIn =
-          imageDuration > 0 ? Math.min(inDur, imageDuration) : inDur;
-        push('in', 0, cappedIn);
-      }
-      if (wantsOut && imageDuration > 0) {
-        const capped = Math.min(outDur, imageDuration);
-        push('out', Math.max(0, imageDuration - capped), capped);
-      }
-    });
-    return built;
-  };
 
   // Create image components with effects
   const imageComponents = await Promise.all(
@@ -1259,23 +1147,42 @@ const presetExecution = async (
         effect => effect.componentId === 'pan',
       )?.data as PanEffectData;
 
-      const imageFit = image.fit || 'cover';
-      const objectFitClass = getObjectFitClass(imageFit);
-      const filterCss = buildMediaFilter(image.filter, image.colorTint);
+      const lookStyle = styleHasLookMarkers(image.style) ? image.style : undefined;
+      const imageFit =
+        (typeof lookStyle?.['--mm-image-fit'] === 'string'
+          ? lookStyle['--mm-image-fit']
+          : image.fit) || 'cover';
+      const objectFitClass = lookStyle ? '' : getObjectFitClass(imageFit);
+      const filterCss = lookStyle
+        ? undefined
+        : buildMediaFilter(image.filter, image.colorTint);
 
       return {
         id: `${params.trackName ?? 'imageloop'}-image-${imageIndex}`,
         componentId: 'ImageAtom',
         type: 'atom' as const,
+        transitions: authoredTransitions(image),
         data: {
           src: image.src,
-          className: isPanEffect
-            ? isVertical
-              ? `w-full h-auto ${objectFitClass}`
-              : `w-full ${objectFitClass}`
-            : `w-full h-full ${objectFitClass}`,
+          className: [
+            isPanEffect
+              ? isVertical
+                ? 'w-full h-auto'
+                : 'w-full'
+              : 'w-full h-full',
+            objectFitClass,
+          ]
+            .filter(Boolean)
+            .join(' '),
           fit: imageFit,
           style: {
+            ...(lookStyle ?? {
+              ...(filterCss ? { filter: filterCss } : {}),
+              ...(image.blendMode && image.blendMode !== 'normal'
+                ? { mixBlendMode: image.blendMode }
+                : {}),
+              ...(image.opacity !== undefined ? { opacity: image.opacity } : {}),
+            }),
             ...(isPanEffect
               ? {
                   height:
@@ -1283,11 +1190,6 @@ const presetExecution = async (
                     ((_panEffectData?.panDistance as number) ?? 0),
                 }
               : {}),
-            ...(filterCss ? { filter: filterCss } : {}),
-            ...(image.blendMode && image.blendMode !== 'normal'
-              ? { mixBlendMode: image.blendMode }
-              : {}),
-            ...(image.opacity !== undefined ? { opacity: image.opacity } : {}),
           },
         },
         context: {
@@ -1296,10 +1198,7 @@ const presetExecution = async (
             duration: imageDuration,
           },
         },
-        effects: [
-          ...imageEffects,
-          ...buildImageTransitions(image, imageIndex, effectWindow),
-        ],
+        effects: imageEffects,
       };
     }),
   );
@@ -1361,13 +1260,13 @@ const presetExecution = async (
     containerStyle.height = container.height;
   }
 
-  const hasSlideTransition = images.some(
-    (image) =>
-      Array.isArray(image?.transitionEffects) &&
-      image.transitionEffects.some(
-        (tr: any) =>
-          typeof tr?.animation === 'string' && tr.animation.startsWith('slide'),
-      ),
+  const hasSlideTransition = images.some((image) =>
+    authoredTransitions(image).some((transition) => {
+      if (!transition || typeof transition !== 'object') return false;
+      const record = transition as { type?: unknown; animation?: unknown };
+      const type = typeof record.type === 'string' ? record.type : record.animation;
+      return typeof type === 'string' && type.startsWith('slide');
+    }),
   );
   if (hasSlideTransition) {
     containerStyle.overflow = 'hidden';

@@ -20,6 +20,7 @@ export function NavMain({
     title: string
     url: string
     icon?: any
+    badge?: string
   }[]
 }) {
   return (
@@ -48,9 +49,14 @@ export function NavMain({
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <Link href={item.url}>
-                <SidebarMenuButton tooltip={item.title}>
+                <SidebarMenuButton tooltip={item.badge ? `${item.title} (${item.badge})` : item.title}>
                   {item.icon}
-                  <span>{item.title}</span>
+                  <span className="truncate">{item.title}</span>
+                  {item.badge ? (
+                    <span className="ml-auto text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden">
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

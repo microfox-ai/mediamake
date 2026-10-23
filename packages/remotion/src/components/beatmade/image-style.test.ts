@@ -52,6 +52,29 @@ describe('splitImageBeatStyle', () => {
   });
 });
 
+describe('custom filter adjustments', () => {
+  it('uses adjustment variables once and still appends a tint', () => {
+    const css = applyImageLook({
+      ['--mm-image-filter']: 'custom',
+      ['--mm-adj-brightness']: 0.8,
+      ['--mm-adj-contrast']: 1.4,
+      ['--mm-image-tint']: '#ff6600',
+      filter: 'brightness(0.8) contrast(1.4)',
+    });
+    assert.ok(css.filter?.startsWith('brightness(0.8) contrast(1.4) '));
+    assert.equal(css.filter?.includes('brightness(0.8) contrast(1.4) brightness'), false);
+    assert.ok(css.filter?.includes('sepia'));
+  });
+
+  it('keeps a named preset on the historical css string', () => {
+    const css = applyImageLook({
+      ['--mm-image-filter']: 'vintage',
+      ['--mm-adj-sepia']: 0.5,
+    });
+    assert.equal(css.filter, 'sepia(50%) contrast(1.2) brightness(0.9) saturate(1.1)');
+  });
+});
+
 describe('readImageLook', () => {
   it('defaults to cover / none / normal / 1', () => {
     const look = readImageLook(undefined);

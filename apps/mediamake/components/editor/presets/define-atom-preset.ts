@@ -22,7 +22,19 @@ export const ATOM_PRESET_SHELL_KEYS = [
   'trackDuration',
   'trackRange',
   'containerProps',
+  'transitions',
 ] as const;
+
+/** Seeded the first time a TextAtom is added, so font loading has a family and a size. */
+const TEXT_ATOM_DEFAULTS = {
+  text: 'Hello',
+  style: {
+    color: '#FFFFFF',
+    fontSize: 64,
+    fontFamily: 'Inter',
+    fontWeight: 600,
+  },
+};
 
 const rawDataParams = z.object({
   data: z
@@ -100,6 +112,7 @@ export function defineAtomPreset(atom: {
         duration: 5,
         attachedToId: 'BaseScene',
         containerProps: { style: { ...ATOM_FILL_STYLE } },
+        ...(atom.componentId === 'TextAtom' ? TEXT_ATOM_DEFAULTS : {}),
       },
     },
     placement: 'atom',

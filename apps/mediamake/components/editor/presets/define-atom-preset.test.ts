@@ -73,6 +73,7 @@ describe('defineAtomPreset', () => {
       start: 1,
       duration: 4,
       trackName: 'meta',
+      transitions: [{ id: 'a', type: 'fade', edge: 'in', duration: 0.2 }],
       containerProps: { style: { overflow: 'hidden' } },
     });
 
@@ -83,6 +84,7 @@ describe('defineAtomPreset', () => {
     assert.equal('duration' in built.data, false);
     assert.equal('trackName' in built.data, false);
     assert.equal('containerProps' in built.data, false);
+    assert.equal('transitions' in built.data, false);
   });
 
   it('uses a single data object when the atom has no schema', () => {
@@ -128,6 +130,19 @@ describe('atom block registry', () => {
     assert.match(beatJson, /"imageStyle":true/);
     assert.equal(getPredefinedPresetById('atom:CanvasPipeline')?.metadata.category, 'canvas');
     assert.equal(getPredefinedPresetById('atom:WaveformHistogramRanged')?.metadata.category, 'waveforms');
+    const defaults = text.metadata.defaultInputParams as {
+      text?: string;
+      style?: { fontFamily?: string; fontSize?: number };
+    };
+    assert.equal(defaults.text, 'Hello');
+    assert.equal(defaults.style?.fontFamily, 'Inter');
+    assert.equal(defaults.style?.fontSize, 64);
+    const built = runBuild(text.presetFunction, defaults as Record<string, unknown>);
+    const builtStyle = built.data.style as { fontFamily?: string; fontSize?: number };
+    assert.equal(built.data.text, 'Hello');
+    assert.equal(builtStyle.fontFamily, 'Inter');
+    assert.equal(builtStyle.fontSize, 64);
+
     const json = JSON.stringify(text.presetParams);
     assert.match(json, /"inputType":"color"/);
     assert.match(json, /"inputType":"textarea"/);
@@ -140,6 +155,7 @@ describe('atom block registry', () => {
     }
     assert.match(JSON.stringify(getPredefinedPresetById("atom:HTMLBlockAtom")?.presetParams), /"positionStyle":true/);
     assert.match(JSON.stringify(getPredefinedPresetById("atom:ImageAtom")?.presetParams), /"positionStyle":true/);
+    assert.match(JSON.stringify(getPredefinedPresetById("atom:ImageAtom")?.presetParams), /"imageStyle":true/);
     assert.match(JSON.stringify(getPredefinedPresetById("atom:VideoAtom")?.presetParams), /"videoStyle":true/);
     assert.match(JSON.stringify(getPredefinedPresetById("atom:AudioAtom")?.presetParams), /"audioStyle":true/);
 

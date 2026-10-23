@@ -24,7 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaPicker } from "@/components/editor/media/media-picker";
 import { AnchoredEditPopover, OpenSourceButton } from "./anchored-edit-popover";
-import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
+import { MediaItemThumb, PopupMediaPreview } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import {
@@ -440,10 +440,7 @@ export function MediasGroupField({
                     <p className="text-[11px] font-medium capitalize text-foreground">
                       {kind}
                     </p>
-                    <MediaItemThumb
-                      item={item}
-                      className="h-28 w-full rounded-md object-cover border"
-                    />
+                    <PopupMediaPreview item={item} />
                     <div className="grid grid-cols-2 gap-2">
                       {KIND_POPUP_KEYS[kind].map((key) => {
                         const prop = props.find((p) => p.key === key);

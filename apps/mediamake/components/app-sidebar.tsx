@@ -110,6 +110,7 @@ const data = {
       title: "Presets",
       url: "/presets",
       icon: <MagnetIcon />,
+      badge: "Deprecated",
     },
     {
       title: "Media",

@@ -26,6 +26,7 @@ export function EffectPopover({
     clearLabel,
     onClear,
     children,
+    compact = false,
 }: {
     swatch: ReactNode;
     title: string;
@@ -34,25 +35,34 @@ export function EffectPopover({
     clearLabel: string;
     onClear: () => void;
     children: ReactNode;
+    /** Swatch plus a short label, so three of these fit on one row. */
+    compact?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     return (
         <Popover open={open} onOpenChange={setOpen}>
-            <div className="flex items-center gap-1">
+            <div className={cn("flex items-center gap-1", compact && "relative min-w-0")}>
                 <PopoverTrigger asChild>
                     <button
                         type="button"
+                        title={detail}
                         className={cn(
-                            "flex min-w-0 flex-1 items-center gap-2 rounded-md border bg-muted/30 px-2 py-1 text-left text-sm",
-                            "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            compact
+                                ? "flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md border bg-muted/30 px-1.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>span:first-child]:h-5 [&>span:first-child]:w-5"
+                                : "flex min-w-0 flex-1 items-center gap-2 rounded-md border bg-muted/30 px-2 py-1 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            compact && active && "pr-6",
                             open && "ring-2 ring-ring",
                         )}
                     >
                         {swatch}
-                        <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{title}</span>
-                            <span className="block truncate text-[10px] text-muted-foreground">{detail}</span>
-                        </span>
+                        {compact ? (
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium">{title}</span>
+                        ) : (
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">{title}</span>
+                                <span className="block truncate text-[10px] text-muted-foreground">{detail}</span>
+                            </span>
+                        )}
                     </button>
                 </PopoverTrigger>
                 {active && (
@@ -60,11 +70,11 @@ export function EffectPopover({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 shrink-0"
+                        className={cn(compact ? "absolute right-0.5 top-1/2 h-5 w-5 -translate-y-1/2" : "h-7 w-7 shrink-0")}
                         title={clearLabel}
                         onClick={onClear}
                     >
-                        <Minus className="h-3.5 w-3.5" />
+                        <Minus className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
                     </Button>
                 )}
             </div>

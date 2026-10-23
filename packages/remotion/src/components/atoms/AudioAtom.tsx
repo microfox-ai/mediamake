@@ -4,6 +4,10 @@ import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { atomCategory } from '../../atom-category';
 import { AudioAtomDataProps } from './input-schemas';
+import {
+    volumeGainAt,
+    type VolumeEnvelope,
+} from '../../transitions/clip-transition';
 
 export {
     AudioAtomMutedRangeProps,
@@ -37,9 +41,17 @@ interface AudioAtomProps extends BaseRenderableProps {
  * @returns Remotion Audio component with applied configurations
  */
 export const Atom: React.FC<AudioAtomProps> = ({ data }) => {
-    const { fps } = useVideoConfig();
+    const { fps, durationInFrames } = useVideoConfig();
     const { muted } = data;
     const frame = useCurrentFrame();
+    const envelope = (data as AudioAtomDataProps & { volumeEnvelope?: VolumeEnvelope })
+        .volumeEnvelope;
+    const baseVolume = typeof data.volume === 'number' ? data.volume : 1;
+    const volume = envelope
+        ? (localFrame: number) =>
+            baseVolume *
+            volumeGainAt(localFrame / fps, durationInFrames / fps, envelope.fades)
+        : data.volume;
 
     // Calculate if audio should be muted based on current frame and mute configuration
     const isMuted = useMemo(() => {
@@ -73,7 +85,7 @@ export const Atom: React.FC<AudioAtomProps> = ({ data }) => {
             src={source}
             trimBefore={data.startFrom ? data.startFrom * fps : undefined}
             trimAfter={data.endAt ? data.endAt * fps : undefined}
-            volume={data.volume}
+            volume={volume}
             playbackRate={data.playbackRate}
             muted={isMuted}
         />

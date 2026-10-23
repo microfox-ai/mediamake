@@ -29,10 +29,12 @@ import { MediaFile } from "@/app/types/media";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { FontPicker } from "./inputs/font-picker";
 import { LayoutStyleSection, PositionStyleSection } from "./inputs/position-style-section";
-import { POSITION_STYLE_KEYS } from "./inputs/position-style";
+import { alignmentColumns, POSITION_STYLE_KEYS } from "./inputs/position-style";
 import { TypographySection, TYPOGRAPHY_STYLE_KEYS } from "./inputs/typography-section";
-import { ImageStyleSection } from "./inputs/image-style-section";
 import { IMAGE_STYLE_KEYS } from "./inputs/image-style";
+import { VideoStyleSection } from "./inputs/video-style-section";
+import { MediaLookFields } from "./inputs/media-look-fields";
+import { AUDIO_ATOM_FIELD_KEYS, PRESET_LOOK_FLAT_KEYS, VIDEO_ATOM_FIELD_KEYS, VIDEO_LOOK_KEYS } from "./inputs/video-style";
 import { SPECIAL_EFFECTS_STYLE_KEYS } from "./inputs/special-effects";
 import { BlockStyleSection } from "./inputs/block-style-section";
 import { BLOCK_APPEARANCE_KEYS } from "./inputs/block-style";
@@ -75,7 +77,6 @@ import { ImagesGroupField, parseImagesGroupValue, serializeImagesGroupValue } fr
 import { overlayMediaStatic, readMediaStatic, stripMediaStatic } from "../dataTypes/media";
 import { ShakeEffectsField } from "./inputs/shake-effects-field";
 import { EffectsField } from "./inputs/effects-field";
-import { TransitionEffectsField } from "./inputs/transition-effects-field";
 import { collectTrackNamesFromSchemaFields } from "./collect-track-names";
 import { parseColor } from "./inputs/color-utils";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
@@ -2188,14 +2189,7 @@ function renderField(
         }
 
         if (isTransitionEffectsGroupField(field)) {
-            return (
-                <TransitionEffectsField
-                    value={fieldValue}
-                    onChange={(val) => handleChange(fieldKey, val)}
-                    title={field.title || fieldKey}
-                    description={field.description}
-                />
-            );
+            return null;
         }
 
         if (isEffectsGroupField(field)) {
@@ -2509,12 +2503,14 @@ function renderField(
                 const isVideoStyle = isVideoStyleField(field);
                 const isAudioStyle = isAudioStyleField(field);
                 const showSpecialEffects = isTextStyle || isBlockStyle;
+                const atomMediaChrome = isAudioStyle || ((isImageStyle || isVideoStyle) && isBlockStyle);
                 if (isFlatObjectField(field) || isTextStyle || isPositionStyle || isBlockStyle || isImageStyle || isVideoStyle || isAudioStyle) {
                     const children = childFieldsOf(field).filter(
                         (child) =>
                             !(isTextStyle && TYPOGRAPHY_STYLE_KEYS.has(child.key)) &&
                             !(isPositionStyle && POSITION_STYLE_KEYS.has(child.key)) &&
                             !((isImageStyle || isVideoStyle) && IMAGE_STYLE_KEYS.has(child.key)) &&
+                            !((isImageStyle || isVideoStyle) && VIDEO_LOOK_KEYS.has(child.key)) &&
                             !(showSpecialEffects && SPECIAL_EFFECTS_STYLE_KEYS.has(child.key)) &&
                             !(isBlockStyle && BLOCK_APPEARANCE_KEYS.has(child.key)),
                     );
@@ -2561,31 +2557,28 @@ function renderField(
                                     onChange={(next) => handleChange(fieldKey, next)}
                                 />
                             )}
-                            {isImageStyle && (
-                                <ImageStyleSection
-                                    kind="image"
-                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
-                                    onChange={(next) => handleChange(fieldKey, next)}
+                            {atomMediaChrome && (
+                                <VideoStyleSection
+                                    kind={isAudioStyle ? "audio" : isImageStyle ? "image" : "video"}
+                                    atom={allFieldValues}
                                     src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
-                                    onSrcChange={(src) => handleChange("src", src)}
+                                    onPatch={(patch) => {
+                                        for (const [key, value] of Object.entries(patch)) {
+                                            handleChange(key, value === null ? undefined : value);
+                                        }
+                                    }}
                                 />
                             )}
-                            {isVideoStyle && (
-                                <ImageStyleSection
-                                    kind="video"
-                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
-                                    onChange={(next) => handleChange(fieldKey, next)}
-                                    src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
-                                    onSrcChange={(src) => handleChange("src", src)}
-                                />
-                            )}
-                            {isAudioStyle && (
-                                <ImageStyleSection
-                                    kind="audio"
-                                    value={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
-                                    onChange={(next) => handleChange(fieldKey, next)}
-                                    src={typeof allFieldValues?.src === "string" ? allFieldValues.src : undefined}
-                                    onSrcChange={(src) => handleChange("src", src)}
+                            {(isImageStyle || isVideoStyle) && !isBlockStyle && (
+                                <MediaLookFields
+                                    style={fieldValue && typeof fieldValue === "object" ? fieldValue : undefined}
+                                    legacy={allFieldValues}
+                                    onStyle={(next) => {
+                                        handleChange(fieldKey, next);
+                                        for (const key of PRESET_LOOK_FLAT_KEYS) {
+                                            handleChange(key, undefined);
+                                        }
+                                    }}
                                 />
                             )}
                             {isTextStyle && (
@@ -2724,6 +2717,10 @@ function renderField(
                 );
         }
     };
+
+    if (isTransitionEffectsGroupField(field)) {
+        return null;
+    }
 
     // For nested fields (depth > 0), just return the input without label wrapper
     if (depth > 0) {
@@ -2974,12 +2971,24 @@ function NestedForm({
         }));
     };
 
+    const valueRef = useRef(value);
+    valueRef.current = value;
+
     const handleFieldChange = (key: string, fieldValue: any) => {
-        const newData = { ...value, [key]: fieldValue };
+        const newData = { ...(valueRef.current || {}) };
+        if (fieldValue === undefined) delete newData[key];
+        else newData[key] = fieldValue;
+        valueRef.current = newData;
         onChange(newData);
     };
 
-    const fields = getFieldsFromSchema(schema).filter((field) => field.key !== "attachedToId");
+    const schemaFields = getFieldsFromSchema(schema);
+    const ownsLook = schemaFields.some((field) => isImageStyleField(field) || isVideoStyleField(field));
+    const fields = schemaFields.filter(
+        (field) =>
+            field.key !== "attachedToId" &&
+            !(ownsLook && (PRESET_LOOK_FLAT_KEYS as readonly string[]).includes(field.key)),
+    );
     const hasFields = fields.length > 0;
 
     return (
@@ -3418,6 +3427,8 @@ export function SchemaForm({
     trackSection = "inline",
 }: SchemaFormProps) {
     const [formData, setFormData] = useState(value || {});
+    const formDataRef = useRef(formData);
+    formDataRef.current = formData;
     const [activeTab, setActiveTab] = useState<"form" | "json" | "media">(initialTab);
     const [expandedMedia, setExpandedMedia] = useState<{
         item: any;
@@ -3443,27 +3454,30 @@ export function SchemaForm({
         }
     }, [value]);
 
+    const commitFormData = (next: any) => {
+        formDataRef.current = next || {};
+        setFormData(next);
+        onChange(next);
+    };
+
     const handleFieldChange = (key: string, fieldValue: any) => {
-        const newData = { ...formData, [key]: fieldValue };
-        setFormData(newData);
-        onChange(newData);
+        const newData = { ...formDataRef.current };
+        if (fieldValue === undefined) delete newData[key];
+        else newData[key] = fieldValue;
+        commitFormData(newData);
     };
 
     const handleJsonChange = (newData: any) => {
-        setFormData(newData);
-        onChange(newData);
+        commitFormData(newData);
     };
 
     const handleReset = () => {
         if (onReset) {
             onReset();
         } else if (metadata?.defaultInputParams) {
-            setFormData(metadata.defaultInputParams);
-            onChange(metadata.defaultInputParams);
+            commitFormData(metadata.defaultInputParams);
         } else {
-            const defaultValues = getDefaultValues(jsonSchema);
-            setFormData(defaultValues);
-            onChange(defaultValues);
+            commitFormData(getDefaultValues(jsonSchema));
         }
     };
 
@@ -3473,8 +3487,7 @@ export function SchemaForm({
     };
 
     const handleMediaDataChange = (newData: any) => {
-        setFormData(newData);
-        onChange(newData);
+        commitFormData(newData);
     };
 
 
@@ -3524,12 +3537,13 @@ export function SchemaForm({
         ).filter((field) =>
             field.key !== "attachedToId" &&
             !(hasMediaStyle && field.key === "src") &&
-            !(hasVideoStyle && field.key === "fit"),
+            !(hasVideoStyle && (VIDEO_ATOM_FIELD_KEYS as readonly string[]).includes(field.key)) &&
+            !(hasAudioStyle && (AUDIO_ATOM_FIELD_KEYS as readonly string[]).includes(field.key)) &&
+            !((hasImageStyle || hasVideoStyle) && (PRESET_LOOK_FLAT_KEYS as readonly string[]).includes(field.key)),
         );
         const timingValue = formData && typeof formData === "object" ? formData : {};
         const writeTiming = (next: Record<string, unknown>) => {
-            setFormData(next);
-            onChange(next);
+            commitFormData(next);
         };
         const rows = chunkByLayoutGroup(visible).flatMap((row) => {
             if (row.length === 1 && row[0].key === "trackType" && groupTiming && !footer) {
@@ -3578,15 +3592,25 @@ export function SchemaForm({
             } else {
                 next.containerProps = { ...current, style };
             }
-            setFormData(next);
-            onChange(next);
+            commitFormData(next);
         };
         const layoutValue =
             containerStyle ??
             (metadata?.placement === "atom" ? { ...ATOM_FILL_STYLE } : undefined);
+        const columns = alignmentColumns(metadata);
         const layout = metadata?.presetType ? (
             <div key="preset-layout" className="text-sm">
-                <LayoutStyleSection value={layoutValue} onChange={writeContainerStyle} />
+                <LayoutStyleSection
+                    value={layoutValue}
+                    onChange={writeContainerStyle}
+                    items={columns.items}
+                    self={columns.self}
+                    itemsDisabledReason={
+                        metadata?.placement === "atom"
+                            ? "Atoms attach directly, so children alignment is off"
+                            : "This preset has no container, so children alignment is off"
+                    }
+                />
             </div>
         ) : null;
         if (!footer) return layout ? [layout, ...rows] : rows;

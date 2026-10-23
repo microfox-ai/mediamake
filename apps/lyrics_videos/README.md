@@ -47,9 +47,33 @@ npm run derive-media -w lyrics_videos -- <slug>     # video/media.json → deriv
 npm run studio -w lyrics_videos                     # preview every project
 npm run stills -w lyrics_videos -- <slug>           # one JPEG per section, for a quick check
 npm run stills -w lyrics_videos -- <slug> 12.5,40 --only   # just these seconds
-npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/
+npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/<slug>.mp4
 npm run type-check -w lyrics_videos
 ```
+
+## Render
+
+`render-project` needs a manifest (`prepare-project` first). The composition id is the slug.
+Anything after the slug is passed through to `remotion render`. Output is
+`apps/lyrics_videos/out/<slug>/<slug>.mp4`. A full render takes minutes.
+
+```bash
+# whole song
+npm run render-project -w lyrics_videos -- <slug>
+
+# a slice, to check motion. --frames is frame numbers at the project's fps
+# (0-299 is the first 10s at 30fps). --scale=0.5 renders at half resolution.
+npm run render-project -w lyrics_videos -- <slug> --frames=0-299 --scale=0.5
+
+# higher quality (lower CRF; Remotion's default is 18)
+npm run render-project -w lyrics_videos -- <slug> --crf=16
+```
+
+Other flags pass through too (`--concurrency`, `--image-format=png`).
+The full list is at https://www.remotion.dev/docs/cli/render.
+
+To render through mediamake's render API or Lambda, pass `inputProps = { manifest }`
+with asset paths rewritten to public URLs.
 
 ## How a project is put together
 
@@ -74,8 +98,7 @@ absolute song time: `useSongTime`, `useSection`, `useLyrics`, `useBeat`, `useBar
 (`findLine`) and move on the grid (`beatAt`, `timeOfBar`, `cutBefore`, ...).
 
 The composition loads `projects/<slug>/manifest.json` through `calculateMetadata`, and the duration
-comes from the audio. To render somewhere else (mediamake's render API, Lambda), pass
-`inputProps = { manifest }` with asset paths rewritten to public URLs.
+comes from the audio.
 
 ## lyrics.json
 

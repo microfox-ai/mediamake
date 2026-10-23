@@ -49,6 +49,18 @@ export const IMAGE_LOOK_VARS = {
   opacity: '--mm-image-opacity',
 } as const;
 
+/** Per-function filter amounts. Present when the video section stores a look. */
+export const FILTER_ADJUST_VARS = {
+  blur: '--mm-adj-blur',
+  brightness: '--mm-adj-brightness',
+  contrast: '--mm-adj-contrast',
+  saturate: '--mm-adj-saturate',
+  grayscale: '--mm-adj-grayscale',
+  sepia: '--mm-adj-sepia',
+  hueRotate: '--mm-adj-hue',
+  invert: '--mm-adj-invert',
+} as const;
+
 /** CSS / editor keys the Image section owns. */
 export const IMAGE_LOOK_KEYS = new Set<string>([
   'objectFit',
@@ -57,6 +69,7 @@ export const IMAGE_LOOK_KEYS = new Set<string>([
   'mixBlendMode',
   'opacity',
   ...Object.values(IMAGE_LOOK_VARS),
+  ...Object.values(FILTER_ADJUST_VARS),
 ]);
 
 export const BLOCK_STYLE_KEYS = new Set<string>([
@@ -243,6 +256,78 @@ export function readImageLook(style: Record<string, unknown> | undefined): {
   };
 }
 
+type FilterAdjust = {
+  blur: number;
+  brightness: number;
+  contrast: number;
+  saturate: number;
+  grayscale: number;
+  sepia: number;
+  hueRotate: number;
+  invert: number;
+};
+
+const ADJUST_DEFAULT: FilterAdjust = {
+  blur: 0,
+  brightness: 1,
+  contrast: 1,
+  saturate: 1,
+  grayscale: 0,
+  sepia: 0,
+  hueRotate: 0,
+  invert: 0,
+};
+
+function adjustNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function formatAdjustNumber(value: number): string {
+  return String(Math.round(value * 1000) / 1000);
+}
+
+/** CSS `filter` for manually tuned ranges. Preset names keep `filterCss`. */
+export function adjustmentsToCss(adjust: FilterAdjust): string | undefined {
+  const parts: string[] = [];
+  if (Math.abs(adjust.blur) > 0.001) parts.push(`blur(${formatAdjustNumber(adjust.blur)}px)`);
+  if (Math.abs(adjust.brightness - 1) > 0.001) {
+    parts.push(`brightness(${formatAdjustNumber(adjust.brightness)})`);
+  }
+  if (Math.abs(adjust.contrast - 1) > 0.001) {
+    parts.push(`contrast(${formatAdjustNumber(adjust.contrast)})`);
+  }
+  if (Math.abs(adjust.saturate - 1) > 0.001) {
+    parts.push(`saturate(${formatAdjustNumber(adjust.saturate)})`);
+  }
+  if (Math.abs(adjust.grayscale) > 0.001) {
+    parts.push(`grayscale(${Math.round(adjust.grayscale * 100)}%)`);
+  }
+  if (Math.abs(adjust.sepia) > 0.001) parts.push(`sepia(${Math.round(adjust.sepia * 100)}%)`);
+  if (Math.abs(adjust.hueRotate) > 0.001) {
+    parts.push(`hue-rotate(${formatAdjustNumber(adjust.hueRotate)}deg)`);
+  }
+  if (Math.abs(adjust.invert) > 0.001) parts.push(`invert(${Math.round(adjust.invert * 100)}%)`);
+  return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
+export function readFilterAdjust(style: Record<string, unknown> | undefined): FilterAdjust | undefined {
+  const source = style ?? {};
+  const present = (Object.values(FILTER_ADJUST_VARS) as string[]).some(
+    (key) => typeof source[key] === 'number',
+  );
+  if (!present) return undefined;
+  return {
+    blur: adjustNumber(source[FILTER_ADJUST_VARS.blur], ADJUST_DEFAULT.blur),
+    brightness: adjustNumber(source[FILTER_ADJUST_VARS.brightness], ADJUST_DEFAULT.brightness),
+    contrast: adjustNumber(source[FILTER_ADJUST_VARS.contrast], ADJUST_DEFAULT.contrast),
+    saturate: adjustNumber(source[FILTER_ADJUST_VARS.saturate], ADJUST_DEFAULT.saturate),
+    grayscale: adjustNumber(source[FILTER_ADJUST_VARS.grayscale], ADJUST_DEFAULT.grayscale),
+    sepia: adjustNumber(source[FILTER_ADJUST_VARS.sepia], ADJUST_DEFAULT.sepia),
+    hueRotate: adjustNumber(source[FILTER_ADJUST_VARS.hueRotate], ADJUST_DEFAULT.hueRotate),
+    invert: adjustNumber(source[FILTER_ADJUST_VARS.invert], ADJUST_DEFAULT.invert),
+  };
+}
+
 /**
  * Turns Image-section keys on `style` into CSS for the <img>.
  * Position / block keys are left on the wrapper.
@@ -250,14 +335,24 @@ export function readImageLook(style: Record<string, unknown> | undefined): {
 export function applyImageLook(
   style: React.CSSProperties | undefined,
 ): React.CSSProperties {
-  const look = readImageLook(style as Record<string, unknown> | undefined);
+  const source = (style ?? {}) as Record<string, unknown>;
+  const look = readImageLook(source);
   const parts: string[] = [];
-  const preset = filterCss(look.filter);
-  if (preset) parts.push(preset);
+  let skipExisting = false;
+  if (source[IMAGE_LOOK_VARS.filter] === 'custom') {
+    const custom = adjustmentsToCss(readFilterAdjust(source) ?? ADJUST_DEFAULT);
+    if (custom) {
+      parts.push(custom);
+      skipExisting = true;
+    }
+  } else {
+    const preset = filterCss(look.filter);
+    if (preset) parts.push(preset);
+  }
   const tint = colorTintFilter(look.colorTint);
   if (tint) parts.push(tint);
   const existing =
-    style && typeof style.filter === 'string' && style.filter !== 'none'
+    !skipExisting && style && typeof style.filter === 'string' && style.filter !== 'none'
       ? style.filter
       : '';
   const out: React.CSSProperties = {

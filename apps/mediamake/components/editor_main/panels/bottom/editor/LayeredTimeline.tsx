@@ -15,7 +15,16 @@ import {
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore, type LayerOverride } from "../../../stores/layer-state-store";
 import type { RenderableComponentData } from "@microfox/remotion";
+import {
+  hostTargetForComponent,
+  transitionsAfterSplit,
+  transitionsFromHost,
+  type ClipTransition,
+} from "@microfox/remotion";
+import { ClipTransitionWedges } from "./clip-transition-wedge";
 import { usePlayerRefStore } from "../../../stores/player-ref-store";
+import { isEditableKeyboardTarget } from "../../../stores/block-clipboard-store";
+import { isEditorFocusScope } from "../../../stores/editor-focus-scope";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -89,6 +98,10 @@ function TimelineClipBlock({
   onClick,
   onTrimLeftPointerDown,
   onTrimRightPointerDown,
+  transitionSelectedId,
+  onTransitionSelect,
+  onTransitionDuration,
+  onTransitionAdd,
 }: {
   layer: FlatLayer;
   durationSec: number;
@@ -99,6 +112,10 @@ function TimelineClipBlock({
   onClick: () => void;
   onTrimLeftPointerDown: (e: React.PointerEvent) => void;
   onTrimRightPointerDown: (e: React.PointerEvent) => void;
+  transitionSelectedId?: string | null;
+  onTransitionSelect: (id: string) => void;
+  onTransitionDuration: (id: string, seconds: number) => void;
+  onTransitionAdd: (created: ClipTransition[]) => void;
 }) {
   const style = getClipStyle(layer.componentId);
   const isText = layer.componentId === "TextAtom";
@@ -142,7 +159,7 @@ function TimelineClipBlock({
         onPointerDown={(e) => { if (!stateLocked) onPointerDown(e); }}
         onClick={onClick}
         className={cn(
-          "absolute inset-y-1 rounded border text-[10px] overflow-hidden cursor-pointer transition-colors",
+          "absolute inset-y-1 rounded border text-[10px] overflow-hidden cursor-pointer transition-colors group/clip",
           isSelected ? style.clipSel : style.clip,
           stateLocked && "opacity-60 cursor-default",
         )}
@@ -165,6 +182,17 @@ function TimelineClipBlock({
             {displayLabel}
           </span>
         )}
+        <ClipTransitionWedges
+          transitions={layer.transitions ?? []}
+          durationSec={durationSec}
+          pixelsPerSecond={pixelsPerSecond}
+          selectedId={transitionSelectedId}
+          target={hostTargetForComponent(layer.componentId)}
+          disabled={stateLocked}
+          onSelect={onTransitionSelect}
+          onDuration={onTransitionDuration}
+          onAdd={onTransitionAdd}
+        />
       </div>
 
       {!stateLocked && (
@@ -192,7 +220,9 @@ export function LayeredTimeline() {
     overrides,
     addedNodes,
     selectedLayerIds,
+    selectedTransition,
     selectLayer,
+    selectTransition,
     setCurrentFrame,
     setOverride,
     commitOverrideHistory,
@@ -588,6 +618,64 @@ export function LayeredTimeline() {
     setCurrentFrame(start);
   }, [selectLayer, playerRef, setCurrentFrame]);
 
+  const writeTransitions = useCallback((layerId: string, next: ClipTransition[]) => {
+    setOverride(layerId, { transitions: next });
+  }, [setOverride]);
+
+  const handleTransitionSelect = useCallback((layer: FlatLayer, id: string) => {
+    selectTransition({
+      transitionId: id,
+      clipDuration: (layer.timing.durationInFrames ?? 1) / fps,
+      layerId: layer.id,
+    });
+  }, [selectTransition, fps]);
+
+  const handleTransitionDuration = useCallback((layer: FlatLayer, id: string, seconds: number) => {
+    const next = (layer.transitions ?? []).map((transition) =>
+      transition.id === id ? { ...transition, duration: seconds } : transition,
+    );
+    writeTransitions(layer.id, next);
+  }, [writeTransitions]);
+
+  const handleTransitionAdd = useCallback((layer: FlatLayer, created: ClipTransition[]) => {
+    if (created.length === 0) return;
+    writeTransitions(layer.id, [...(layer.transitions ?? []), ...created]);
+    selectTransition({
+      transitionId: created[0]!.id,
+      clipDuration: (layer.timing.durationInFrames ?? 1) / fps,
+      layerId: layer.id,
+    });
+  }, [writeTransitions, selectTransition, fps]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (!isEditorFocusScope("bottom")) return;
+      if (
+        isEditableKeyboardTarget(event.target) ||
+        isEditableKeyboardTarget(document.activeElement)
+      ) {
+        return;
+      }
+      const selected = useLayerStateStore.getState().selectedTransition;
+      if (!selected?.layerId) return;
+      const layer = layers.find((item) => item.id === selected.layerId);
+      if (!layer) return;
+      const authored = layer.transitions ?? [];
+      if (!authored.some((transition) => transition.id === selected.transitionId)) {
+        return;
+      }
+      event.preventDefault();
+      writeTransitions(
+        layer.id,
+        authored.filter((transition) => transition.id !== selected.transitionId),
+      );
+      selectLayer(layer.id);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [layers, writeTransitions, selectLayer]);
+
   // ─── Split ──────────────────────────────────────────────────────────────────
 
   const handleSplit = useCallback(() => {
@@ -614,14 +702,19 @@ export function LayeredTimeline() {
     if (!node) return;
 
     const parentStartFrame = getParentStartFrame(layer);
+    const authored = transitionsFromHost(node);
     setOverride(
       layerId,
-      buildTimingOverride(start, cf - start, parentStartFrame),
+      {
+        ...buildTimingOverride(start, cf - start, parentStartFrame),
+        transitions: transitionsAfterSplit(authored, "left"),
+      },
     );
 
     const newId = `${node.id}-split-${Date.now()}`;
     const right: RenderableComponentData = JSON.parse(JSON.stringify(node));
     right.id = newId;
+    right.transitions = transitionsAfterSplit(authored, "right");
     const rightStart = cf;
     const rightDur = start + dur - cf;
     const relativeStartSec = (rightStart - parentStartFrame) / fps;
@@ -745,6 +838,14 @@ export function LayeredTimeline() {
                 onClick={() => handleLayerClick(layer)}
                 onTrimLeftPointerDown={(e) => handleTrimLeftPointerDown(e, layer)}
                 onTrimRightPointerDown={(e) => handleTrimRightPointerDown(e, layer)}
+                transitionSelectedId={
+                  selectedTransition?.layerId === layer.id
+                    ? selectedTransition.transitionId
+                    : null
+                }
+                onTransitionSelect={(id) => handleTransitionSelect(layer, id)}
+                onTransitionDuration={(id, seconds) => handleTransitionDuration(layer, id, seconds)}
+                onTransitionAdd={(created) => handleTransitionAdd(layer, created)}
               />
             </div>
           );

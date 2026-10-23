@@ -14,31 +14,30 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LayoutList, PanelLeft, Image as ImageIcon, X, RotateCcw } from "lucide-react";
+import { LayoutList, PanelLeft, X, RotateCcw } from "lucide-react";
 import { useCompileStore } from "../../../../stores/compile-store";
 import { useLayerStateStore } from "../../../../stores/layer-state-store";
 import { flattenLayers } from "@/lib/editor/flatten-layers";
 import type { FlatLayer } from "@/lib/editor/flatten-layers";
 import type { LayerOverride } from "../../../../stores/layer-state-store";
 import type { CanvasPipelineData, RenderableComponentData } from "@microfox/remotion";
-import { getRegisteredEffects } from "@microfox/remotion";
-import { MediaPicker } from "@/components/editor/media/media-picker";
-import type { MediaFile } from "@/app/types/media";
+import { getRegisteredEffects, hostTargetForComponent, isCompiledTransitionEffect, normalizeClipTransitions } from "@microfox/remotion";
 import { GenericEffectEditor } from "./GenericEffectEditor";
-import { useVideoThumbnail } from "@/hooks/use-video-thumbnail";
 import { ColorInput } from "@/components/editor/presets/form/inputs/color-input";
 import { parseColor } from "@/components/editor/presets/form/inputs/color-utils";
 import { PositionStyleSection } from "@/components/editor/presets/form/inputs/position-style-section";
 import { POSITION_STYLE_KEYS } from "@/components/editor/presets/form/inputs/position-style";
 import { TypographySection, TYPOGRAPHY_STYLE_KEYS } from "@/components/editor/presets/form/inputs/typography-section";
 import { BlockStyleSection } from "@/components/editor/presets/form/inputs/block-style-section";
-import { ImageStyleSection } from "@/components/editor/presets/form/inputs/image-style-section";
 import { IMAGE_STYLE_KEYS } from "@/components/editor/presets/form/inputs/image-style";
+import { VideoStyleSection } from "@/components/editor/presets/form/inputs/video-style-section";
+import { VIDEO_LOOK_KEYS } from "@/components/editor/presets/form/inputs/video-style";
 import { BLOCK_APPEARANCE_KEYS } from "@/components/editor/presets/form/inputs/block-style";
 import { SPECIAL_EFFECTS_STYLE_KEYS } from "@/components/editor/presets/form/inputs/special-effects";
 import { TextContentEditor } from "@/components/editor/presets/form/inputs/text-content-editor";
 import { cn } from "@/lib/utils";
 import { CanvasPipelineEditor } from "./CanvasPipelineEditor";
+import { ClipTransitionInspector } from "../../../bottom/editor/clip-transition-inspector";
 
 const TEXT_ATOM_OWNED_STYLE_KEYS = new Set<string>([
   ...TYPOGRAPHY_STYLE_KEYS,
@@ -118,29 +117,6 @@ function BlockStyleControls({
     </fieldset>
   );
 }
-
-const VideoPreviewThumbnail = ({ src, alt }: { src: string; alt?: string }) => {
-  const { thumbnailSrc } = useVideoThumbnail(src, {
-    timeInSeconds: 1,
-    width: 480,
-  });
-
-  if (thumbnailSrc) {
-    return (
-      <img
-        src={thumbnailSrc}
-        alt={alt ?? "Video thumbnail"}
-        className="max-w-full max-h-[200px] w-auto h-auto object-contain"
-      />
-    );
-  }
-
-  return (
-    <div className="w-full h-[200px] bg-black flex items-center justify-center">
-      <span className="text-xs text-white/80">Generating thumbnail…</span>
-    </div>
-  );
-};
 
 const LAYER_PROPS_VIEW_KEY = "layerPropsPanelView";
 type LayerPropsViewMode = "single" | "tabs";
@@ -666,6 +642,8 @@ export function LayerPropsPanel() {
   const { calculatedMetadata } = useCompileStore();
   const {
     selectedLayerIds,
+    selectedTransition,
+    selectLayer,
     setOverride,
     overrides,
     lockedLayerIds,
@@ -676,7 +654,6 @@ export function LayerPropsPanel() {
     resetLayerStateToGenerated,
   } = useLayerStateStore();
   const [viewMode, setViewMode] = useLayerPropsViewMode();
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [addEffectSelectValue, setAddEffectSelectValue] = useState("__add_effect_placeholder__");
 
   const mergedChildren = useMemo(
@@ -811,6 +788,16 @@ export function LayerPropsPanel() {
     setOverride(primary.id, { data: { ...(rawNode?.data ?? {}), ...updates } as LayerOverride["data"] });
   };
 
+  const applyVideoPatch = (patch: Record<string, unknown>) => {
+    if (isLocked) return;
+    const data = { ...((rawNode?.data ?? {}) as Record<string, unknown>) };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === undefined) delete data[key];
+      else data[key] = value;
+    }
+    setOverride(primary.id, { data: data as LayerOverride["data"] });
+  };
+
   const updateContainerStyle = (key: string, value: string | number | undefined) => {
     if (isLocked || !rawNode?.data) return;
     const data = rawNode.data as { containerProps?: { style?: Record<string, unknown>; className?: string } };
@@ -834,6 +821,35 @@ export function LayerPropsPanel() {
   };
 
   const effectsList = rawNode?.effects ?? [];
+  const visibleEffectCount = effectsList.filter((effect) => !isCompiledTransitionEffect(effect)).length;
+  const transitionTiming = rawNode?.context?.timing as { duration?: number; durationInFrames?: number } | undefined;
+  const transitionFps = calculatedMetadata?.fps ?? 30;
+  const clipDuration =
+    typeof transitionTiming?.duration === "number"
+      ? transitionTiming.duration
+      : typeof transitionTiming?.durationInFrames === "number"
+        ? transitionTiming.durationInFrames / transitionFps
+        : 0;
+  const transitionInspector = (
+    <ClipTransitionInspector
+      transitions={normalizeClipTransitions(rawNode?.transitions)}
+      selectedId={
+        selectedTransition?.layerId === primary.id ? selectedTransition.transitionId : null
+      }
+      target={hostTargetForComponent(primary.componentId)}
+      clipDuration={clipDuration || selectedTransition?.clipDuration || 0}
+      disabled={isLocked}
+      onChange={(next) => {
+        setOverride(primary.id, { transitions: next });
+        if (
+          selectedTransition &&
+          !next.some((transition) => transition.id === selectedTransition.transitionId)
+        ) {
+          selectLayer(primary.id);
+        }
+      }}
+    />
+  );
   const updateEffect = (index: number, data: Record<string, unknown>) => {
     if (isLocked || !rawNode) return;
     const next = effectsList.map((eff, i) => {
@@ -869,8 +885,13 @@ export function LayerPropsPanel() {
   const dataFont = (rawNode?.data as { font?: { family?: string; weights?: string[] } })?.font ?? {};
   const ownedStyleKeys = primary.componentId === "TextAtom"
     ? TEXT_ATOM_OWNED_STYLE_KEYS
-    : primary.componentId === "VideoAtom"
-      ? new Set([...BLOCK_OWNED_STYLE_KEYS, ...IMAGE_STYLE_KEYS])
+    : primary.componentId === "VideoAtom" || primary.componentId === "ImageAtom"
+      ? new Set([
+          ...BLOCK_OWNED_STYLE_KEYS,
+          ...(primary.componentId === "ImageAtom" ? POSITION_STYLE_KEYS : []),
+          ...IMAGE_STYLE_KEYS,
+          ...VIDEO_LOOK_KEYS,
+        ])
       : BLOCK_STYLE_COMPONENT_IDS.has(primary.componentId)
         ? new Set([
             ...BLOCK_OWNED_STYLE_KEYS,
@@ -958,59 +979,31 @@ export function LayerPropsPanel() {
                     />
                   </div>
                 )}
-                {(primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
-                  <ImageStyleSection
-                    kind={primary.componentId === "AudioAtom" ? "audio" : "video"}
-                    value={dataStyle}
-                    onChange={(next) => updateData({ style: next ?? {} })}
+                {primary.componentId === "AudioAtom" && (
+                  <VideoStyleSection
+                    kind="audio"
+                    atom={(rawNode?.data ?? {}) as Record<string, unknown>}
                     src={primary.previewSrc}
-                    onSrcChange={(src) => updateData({ src })}
                     disabled={isLocked}
+                    onPatch={applyVideoPatch}
+                  />
+                )}
+                {primary.componentId === "VideoAtom" && (
+                  <VideoStyleSection
+                    atom={(rawNode?.data ?? {}) as Record<string, unknown>}
+                    src={primary.previewSrc}
+                    disabled={isLocked}
+                    onPatch={applyVideoPatch}
                   />
                 )}
                 {primary.componentId === "ImageAtom" && (
-                  <div className="space-y-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">URL</Label>
-                      <div className="flex gap-1">
-                        <Input
-                          className="h-8 flex-1"
-                          value={primary.previewSrc ?? ""}
-                          onChange={(e) => updateData({ src: e.target.value })}
-                          disabled={isLocked}
-                          placeholder="Media URL"
-                        />
-                        <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={() => setShowMediaPicker(true)} disabled={isLocked} title="Pick from library">
-                          <ImageIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    {primary.previewSrc && (
-                      <div className="rounded-md border overflow-hidden bg-muted/30">
-                        {primary.componentId === "ImageAtom" ? (
-                          <img
-                            src={primary.previewSrc}
-                            alt=""
-                            className="max-w-full max-h-[280px] w-auto h-auto object-contain"
-                          />
-                        ) : (
-                          <VideoPreviewThumbnail src={primary.previewSrc} alt={primary.id} />
-                        )}
-                      </div>
-                    )}
-                    {showMediaPicker && (
-                      <MediaPicker
-                        pickerMode
-                        singular
-                        onSelect={(fileOrFiles: MediaFile | MediaFile[]) => {
-                          const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
-                          if (file?.filePath) updateData({ src: file.filePath });
-                          setShowMediaPicker(false);
-                        }}
-                        onClose={() => setShowMediaPicker(false)}
-                      />
-                    )}
-                  </div>
+                  <VideoStyleSection
+                    kind="image"
+                    atom={(rawNode?.data ?? {}) as Record<string, unknown>}
+                    src={primary.previewSrc}
+                    disabled={isLocked}
+                    onPatch={applyVideoPatch}
+                  />
                 )}
               </div>
             )}
@@ -1316,6 +1309,7 @@ export function LayerPropsPanel() {
                   </div>
                 )}
                 <div className="space-y-2 min-w-0 overflow-hidden">
+                  {transitionInspector}
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-xs font-medium text-muted-foreground">Effects</h4>
                     <Select
@@ -1339,9 +1333,10 @@ export function LayerPropsPanel() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {effectsList.length > 0 && (
+                  {visibleEffectCount > 0 && (
                     <div className="space-y-3 min-w-0">
                       {effectsList.map((eff, index) => {
+                        if (isCompiledTransitionEffect(eff)) return null;
                         const e = typeof eff === "object" && eff !== null ? eff as { id?: string; componentId?: string; data?: Record<string, unknown> } : null;
                         if (!e) return null;
                         const compId = e.componentId ?? "generic";
@@ -1378,7 +1373,7 @@ export function LayerPropsPanel() {
                       })}
                     </div>
                   )}
-                  {effectsList.length === 0 && (
+                  {visibleEffectCount === 0 && (
                     <div className="text-xs text-muted-foreground">No effects. Use &quot;Add effect...&quot; to add one.</div>
                   )}
                 </div>
@@ -1416,44 +1411,31 @@ export function LayerPropsPanel() {
                           />
                         </div>
                       )}
-                      {(primary.componentId === "VideoAtom" || primary.componentId === "AudioAtom") && (
-                        <ImageStyleSection
-                          kind={primary.componentId === "AudioAtom" ? "audio" : "video"}
-                          value={dataStyle}
-                          onChange={(next) => updateData({ style: next ?? {} })}
+                      {primary.componentId === "AudioAtom" && (
+                        <VideoStyleSection
+                          kind="audio"
+                          atom={(rawNode?.data ?? {}) as Record<string, unknown>}
                           src={primary.previewSrc}
-                          onSrcChange={(src) => updateData({ src })}
                           disabled={isLocked}
+                          onPatch={applyVideoPatch}
+                        />
+                      )}
+                      {primary.componentId === "VideoAtom" && (
+                        <VideoStyleSection
+                          atom={(rawNode?.data ?? {}) as Record<string, unknown>}
+                          src={primary.previewSrc}
+                          disabled={isLocked}
+                          onPatch={applyVideoPatch}
                         />
                       )}
                       {primary.componentId === "ImageAtom" && (
-                        <div className="space-y-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">URL</Label>
-                            <div className="flex gap-1">
-                              <Input className="h-8 flex-1" value={primary.previewSrc ?? ""} onChange={(e) => updateData({ src: e.target.value })} disabled={isLocked} placeholder="Media URL" />
-                              <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={() => setShowMediaPicker(true)} disabled={isLocked} title="Pick from library">
-                                <ImageIcon className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          {primary.previewSrc && (
-                            <div className="rounded-md border overflow-hidden bg-muted/30">
-                              {primary.componentId === "ImageAtom" ? (
-                                <img
-                                  src={primary.previewSrc}
-                                  alt=""
-                                  className="max-w-full max-h-[200px] w-auto h-auto object-contain"
-                                />
-                              ) : (
-                                <VideoPreviewThumbnail src={primary.previewSrc} alt={primary.id} />
-                              )}
-                            </div>
-                          )}
-                          {showMediaPicker && (
-                            <MediaPicker pickerMode singular onSelect={(fileOrFiles: MediaFile | MediaFile[]) => { const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles; if (file?.filePath) updateData({ src: file.filePath }); setShowMediaPicker(false); }} onClose={() => setShowMediaPicker(false)} />
-                          )}
-                        </div>
+                        <VideoStyleSection
+                          kind="image"
+                          atom={(rawNode?.data ?? {}) as Record<string, unknown>}
+                          src={primary.previewSrc}
+                          disabled={isLocked}
+                          onPatch={applyVideoPatch}
+                        />
                       )}
                     </div>
                   )}
@@ -1624,6 +1606,7 @@ export function LayerPropsPanel() {
             <TabsContent value="effects" className="mt-2 min-w-0 overflow-hidden">
               <ScrollArea className="h-[60vh] pr-2 min-w-0">
                 <div className="space-y-3 pb-4 min-w-0">
+                  {transitionInspector}
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-xs font-medium text-muted-foreground">Effects</h4>
                     <Select
@@ -1647,11 +1630,12 @@ export function LayerPropsPanel() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {effectsList.length === 0 ? (
+                  {visibleEffectCount === 0 ? (
                     <div className="text-xs text-muted-foreground">No effects. Use &quot;Add effect...&quot; to add one.</div>
                   ) : (
                     <div className="space-y-3">
                       {effectsList.map((eff, index) => {
+                        if (isCompiledTransitionEffect(eff)) return null;
                         const e = typeof eff === "object" && eff !== null ? eff as { id?: string; componentId?: string; data?: Record<string, unknown> } : null;
                         if (!e) return null;
                         const compId = e.componentId ?? "generic";

@@ -54,7 +54,7 @@ export const ImageAtomInput = z.object({
   style: z
     .record(z.string(), z.any())
     .optional()
-    .meta(styleSectionMeta({ block: true, position: true }))
+    .meta(styleSectionMeta({ block: true, position: true, image: true }))
     .describe('CSS style'),
 });
 
