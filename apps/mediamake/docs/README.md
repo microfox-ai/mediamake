@@ -28,37 +28,24 @@ Complete documentation for the MediaMake video composition system.
    - Effect recipes
    - Helper functions
 
-### Theme & Background Systems
-
-4. **[Custom Theme Background Guide](./CUSTOM_THEME_BACKGROUND_GUIDE.md)**
-   - Creating themed backgrounds
-   - Color palettes and gradients
-   - Pattern overlays
-   - Media backgrounds (image/video)
-   - Animation effects
-
 ### Testing & Implementation
 
-5. **[Testing Guide](./TESTING_GUIDE.md)**
+4. **[Testing Guide](./TESTING_GUIDE.md)**
    - How to test presets
    - Testing patterns
    - Best practices
 
-6. **[Implementation Summary](./IMPLEMENTATION_SUMMARY.md)**
-   - System architecture overview
-   - Key implementation details
-
 ### Rendering
 
-7. **[Local Rendering API](./local-rendering-api.md)**
+5. **[Local Rendering API](./local-rendering-api.md)**
    - Using the local rendering API
    - Render modes and options
 
-8. **[Render Provider System](./render-provider-system.md)**
+6. **[Render Provider System](./render-provider-system.md)**
    - Understanding render providers
    - Cloud vs local rendering
 
-9. **[Example API Usage](./example-api.md)**
+7. **[Example API Usage](./example-api.md)**
    - API examples and patterns
 
 ---
@@ -102,9 +89,6 @@ This ensures your preset:
 
 **Want to animate numbers counting up?**
 → See [Advanced Preset Guide - Pattern 6: Simulated Counter Animation](./ADVANCED_PRESET_GUIDE.md#pattern-6-simulated-counter-animation)
-
-**Want to create custom backgrounds?**
-→ See [Custom Theme Background Guide](./CUSTOM_THEME_BACKGROUND_GUIDE.md)
 
 **Want to use AI/metadata for intelligent highlighting?**
 → See [Advanced Preset Guide - Pattern 9: Using Metadata](./ADVANCED_PRESET_GUIDE.md#pattern-9-using-caption-and-word-metadata)

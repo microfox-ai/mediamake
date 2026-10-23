@@ -12,20 +12,14 @@ import { subMediaStitchPreset } from '../captions/sub-media-stitch';
 import { subScrollingVerticalPreset } from '../captions/sub-scrolling-vertical';
 import { subVerticalFloatPreset } from '../captions/sub-vertical-float';
 import { plainSubtitlesPreset } from '../captions/subtitles';
-import { beatExposurePreset } from '../complex_untested/beat-exposure';
-import { beatShakePreset } from '../complex_untested/beat-shake';
-import { beatZoomPreset } from '../complex_untested/beat-zoom';
 import { imageLoopSoundPreset } from '../complex_untested/imageloop-sound';
 import { musicCardPreset } from '../complex_untested/music-card';
 import { quotePresentPreset } from '../complex_untested/quote-present';
 import { thinkerVisualsPreset } from '../complex_untested/thinker-visuals';
-import { textbasePreset } from '../demo/textbase';
 import { baseScenePreset } from '../full/base-scene';
 import { scenePreset } from '../full/scene';
-import { videoStitchPreset } from '../full/video-stitch';
 import { waveformPreset } from '../full/waveform-full';
 import { beatstitchPreset } from '../general/beatstitch';
-import { customThemeBackgroundPreset } from '../general/custom-theme-background';
 import { htmlBlockAtomPreset } from '../general/htmlBlockAtom';
 import { imageLoopPreset } from '../general/imageloop';
 import { lottieShowcasePreset } from '../general/lottie-showcase';
@@ -39,17 +33,14 @@ import { beatShakeEffectPreset } from '../internalEffects/beat-shake-effect';
 import { beatZoomEffectPreset } from '../internalEffects/beat-zoom-effect';
 import { genericOpacityEffectPreset } from '../internalEffects/generic-opacity-effect';
 import { glowPulseTextEffectPreset } from '../internalEffects/glow-pulse-text-effect';
-import { hipHopScratchWipePreset } from '../private2/hip-hop-scratch-wipe';
 import { atomBlockPresets } from '../../define-atom-preset';
 
 export const predefinedPresets: Preset[] = [
   baseScenePreset,
   scenePreset,
-  customThemeBackgroundPreset,
   mediaTrackPreset,
   waveformPreset,
   waveformChildrenPreset,
-  videoStitchPreset,
   subVerticalFloatPreset,
   plainSubtitlesPreset,
   thinkerVisualsPreset,
@@ -69,7 +60,6 @@ export const predefinedPresets: Preset[] = [
   quotePresentPreset,
   htmlBlockAtomPreset,
   secondCounterPreset,
-  textbasePreset,
   genericOpacityEffectPreset,
   glowPulseTextEffectPreset,
   beatZoomEffectPreset,
@@ -80,10 +70,6 @@ export const predefinedPresets: Preset[] = [
   glitchEffectPreset,
   particleEffectPreset,
   particleMorphRevealPreset,
-  hipHopScratchWipePreset,
-  beatZoomPreset,
-  beatShakePreset,
-  beatExposurePreset,
   ...atomBlockPresets,
 ];
 

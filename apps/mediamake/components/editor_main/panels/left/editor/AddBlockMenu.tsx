@@ -31,7 +31,6 @@ const BASIC_BLOCK_IDS = [
     "htmlBlockAtom",
     "atom:TextAtom",
     "second-counter",
-    "custom-theme-background",
 ] as const;
 
 const TRACK_BLOCK_IDS = ["media-track", "imageloop"] as const;

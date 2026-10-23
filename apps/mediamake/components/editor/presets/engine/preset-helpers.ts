@@ -169,6 +169,12 @@ export const runPreset = async <T>(
   props: PresetPassedProps,
   metadata?: PresetMetadata,
 ): Promise<PresetOutput | null> => {
+  if (metadata?.deprecated) {
+    console.warn(
+      `Preset "${metadata.id}" is deprecated; it still renders but will be removed in a future release.`,
+    );
+  }
+
   // Create a copy of props to inject dependencies
   const injectedProps: PresetPassedProps = { ...props };
 

@@ -470,7 +470,7 @@ wordComponent.effects = wordEffect ? [wordEffect] : [];
 1. Browse `registry/internalEffects/`
 2. Read documentation at top of each file
 3. Check tags for `'internal'` and effect type
-4. Review usage in `textbase.ts`
+4. Review usage in `imageloop.ts` (beat effects via `metadata.dependencies.presets`)
 
 ### Best Practices
 

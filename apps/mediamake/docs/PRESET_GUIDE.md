@@ -1560,7 +1560,7 @@ Check these existing presets for reference:
 1. **Simple**: `base-scene.ts` - Basic scene with background
 2. **Complex**: `waveform-full.tsx` - Full audio visualization
 3. **Overlay**: `text-overlay.ts` - Text overlay with animations (deprecated; new text uses `atom:TextAtom`)
-4. **Media**: `video-stitch.ts` - Video composition
+4. **Media**: `media-track.ts` - Video and audio track
 
 All examples are in: `apps/mediamake/components/editor/presets/registry/`
 

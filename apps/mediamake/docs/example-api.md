@@ -17,15 +17,15 @@ POST Request
 
 ```
 {"presets":[{
-"presetId": "video-stitch-sequence",
+"presetId": "media-track",
 "presetType": "predefined",
 "presetInputData":  {
-    "aspectRatio": "16:9", // use 9:16 for vertical
-    "videoUrls": [
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-    ]
+    "mediaItems": {
+      "items": [
+        { "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "type": "video" },
+        { "src": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "type": "video" }
+      ]
+    }
   }
 }]}
 ```

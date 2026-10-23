@@ -339,7 +339,7 @@ Shows comprehensive text styling:
 }
 ```
 
-### From `textbase.ts`
+### Word-by-word text (from the removed `textbase` demo)
 
 Shows word-by-word text with effects:
 

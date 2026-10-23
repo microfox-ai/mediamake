@@ -17,15 +17,14 @@ import { sceneModeOf, TRACK_MODE_HINT, TRACK_MODE_ICON } from "@/components/edit
 
 function functionIcon(presetId: string): LucideIcon {
   if (presetId === "broll") return Clapperboard;
-  if (presetId === "media-track" || presetId === "video-stitch-sequence") return Film;
+  if (presetId === "media-track") return Film;
   if (presetId === "imageloop" || presetId === "imageloop-sound" || presetId === "lottie-showcase") {
     return Images;
   }
   if (
     presetId === "text-atom" ||
     presetId === "atom:TextAtom" ||
-    presetId === "text-overlay" ||
-    presetId === "textbase"
+    presetId === "text-overlay"
   ) {
     return Type;
   }
