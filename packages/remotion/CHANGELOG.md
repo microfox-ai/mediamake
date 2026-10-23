@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.4
+
+### Patch Changes
+
+- 877a71a: Changes from PR #414: fixes-editor
+
 ## 2.0.3
 
 ### Patch Changes
