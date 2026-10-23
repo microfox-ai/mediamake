@@ -68,38 +68,16 @@ const getClosestPowerOfTwo = (num: number): number => {
   return Math.abs(num - lower) < Math.abs(num - upper) ? lower : upper;
 };
 
-export const useWaveformData = (
-  config: UseWaveformDataConfig
-): UseWaveformDataReturn => {
-  const {
-    audioSrc,
-    numberOfSamples,
-    windowInSeconds,
-    dataOffsetInSeconds = 0,
-    normalize = false,
-    frame,
-    fps,
-    posterize,
-    includeFrequencyData = false,
-    minDb = -100,
-    maxDb = -30,
-    smoothNormalisation = 1,
-  } = config;
-
+/**
+ * Resolves an audio `src` the way the waveform atoms read it: http URLs as is,
+ * `ref:<id>` to that AudioAtom's file (or the first AudioAtom inside that layout
+ * or scene) with its `startFrom`, anything else through `staticFile`.
+ */
+export const useResolvedAudioSource = (
+  audioSrc: string
+): { source: string; audioStartsFrom: number | undefined } => {
   const { root } = useComposition();
-
-  // Validate and adjust numberOfSamples
-  const validatedNumberOfSamples = useMemo(() => {
-    if (!isValidPowerOfTwo(numberOfSamples)) {
-      console.warn(
-        `numberOfSamples must be a power of 2. Adjusting ${numberOfSamples} to ${getClosestPowerOfTwo(numberOfSamples)}`
-      );
-      return getClosestPowerOfTwo(numberOfSamples);
-    }
-    return numberOfSamples;
-  }, [numberOfSamples]);
-
-  const { source, audioStartsFrom } = useMemo(() => {
+  return useMemo(() => {
     if (!audioSrc) {
       return { source: audioSrc, audioStartsFrom: undefined };
     }
@@ -139,7 +117,39 @@ export const useWaveformData = (
       }
     }
     return { source: staticFile(audioSrc), audioStartsFrom: undefined };
-  }, [audioSrc]);
+  }, [audioSrc, root]);
+};
+
+export const useWaveformData = (
+  config: UseWaveformDataConfig
+): UseWaveformDataReturn => {
+  const {
+    audioSrc,
+    numberOfSamples,
+    windowInSeconds,
+    dataOffsetInSeconds = 0,
+    normalize = false,
+    frame,
+    fps,
+    posterize,
+    includeFrequencyData = false,
+    minDb = -100,
+    maxDb = -30,
+    smoothNormalisation = 1,
+  } = config;
+
+  // Validate and adjust numberOfSamples
+  const validatedNumberOfSamples = useMemo(() => {
+    if (!isValidPowerOfTwo(numberOfSamples)) {
+      console.warn(
+        `numberOfSamples must be a power of 2. Adjusting ${numberOfSamples} to ${getClosestPowerOfTwo(numberOfSamples)}`
+      );
+      return getClosestPowerOfTwo(numberOfSamples);
+    }
+    return numberOfSamples;
+  }, [numberOfSamples]);
+
+  const { source, audioStartsFrom } = useResolvedAudioSource(audioSrc);
 
   // Get audio data
   const audioData = useAudioData(source);
