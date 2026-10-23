@@ -1,14 +1,37 @@
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { JsonEditor } from "@/components/editor/player/json-editor";
 import type { InputCompositionProps } from "@microfox/remotion";
+import { Download } from "lucide-react";
 import { useCompileStore } from "../../../stores/compile-store";
 import { useLayerStateStore } from "../../../stores/layer-state-store";
 import { useProjectStore, type Timeline } from "../../../stores/project-store";
 import { useTimelineEditsStore } from "../../../stores/timeline-edits-store";
 import { useMemo } from "react";
+import { toast } from "sonner";
+
+function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function fileSlug(name: string | undefined) {
+  const slug = (name ?? "timeline")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return slug || "timeline";
+}
 
 /** Payload `generateOutput` reads. Preset definitions are fetched by id, so cached `presetInfo` is omitted. */
 function compilerInputFromTimeline(timeline: Timeline) {
@@ -80,11 +103,32 @@ export function OutputJsonDialog({
     loadedChildrenData,
   ]);
 
+  const downloadTimelineFiles = () => {
+    const source = editedTimeline ?? loadedTimeline ?? currentTimeline;
+    const slug = fileSlug(source?.displayName);
+    downloadJson(`${slug}-timeline-output.json`, timelineProps);
+    window.setTimeout(() => {
+      downloadJson(`${slug}-timeline-input.json`, timelineInput);
+    }, 150);
+    toast.success("Downloaded timeline output and timeline input");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Output JSON</DialogTitle>
+        <DialogHeader className="flex-row items-center pr-8">
+          <DialogTitle className="flex-1">Output JSON</DialogTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            title="Download timeline output and timeline input"
+            onClick={downloadTimelineFiles}
+          >
+            <Download />
+            <span className="sr-only">Download timeline output and timeline input</span>
+          </Button>
         </DialogHeader>
         <div className="h-[60vh] flex flex-col">
           <Tabs defaultValue="timeline" className="flex-1 flex flex-col min-h-0">

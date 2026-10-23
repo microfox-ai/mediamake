@@ -9,9 +9,11 @@ const EMPTY: TextStroke = { width: 2, color: "#000000" };
 export function TextStrokeControl({
     style,
     patch,
+    compact = false,
 }: {
     style: Record<string, unknown>;
     patch: (changes: Record<string, unknown>) => void;
+    compact?: boolean;
 }) {
     const stroke = readTextStroke(style);
     const [draft, setDraft] = useState<TextStroke>(stroke ?? EMPTY);
@@ -30,6 +32,7 @@ export function TextStrokeControl({
             active={Boolean(stroke)}
             clearLabel="Remove text stroke"
             onClear={() => patch(textStrokePatch(undefined))}
+            compact={compact}
         >
             <div className="space-y-3">
                 <div

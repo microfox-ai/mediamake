@@ -53,6 +53,9 @@ export function OpenSourceButton({ item }: { item: unknown }) {
   );
 }
 
+/** Width is locked so a thumbnail's intrinsic size cannot stretch the panel. */
+const POPOVER_WIDTH = "min(28rem, calc(100vw - 1.5rem))";
+
 /** Edit panel that opens to the left of its field anchor instead of a centered dialog. */
 export function AnchoredEditPopover({
   open,
@@ -79,8 +82,9 @@ export function AnchoredEditPopover({
         align="start"
         sideOffset={8}
         collisionPadding={12}
+        style={{ width: POPOVER_WIDTH, minWidth: POPOVER_WIDTH, maxWidth: POPOVER_WIDTH }}
         className={cn(
-          "z-50 w-[min(28rem,calc(100vw-1.5rem))] max-w-[min(28rem,calc(100vw-1.5rem))] min-w-0 max-h-[min(70vh,36rem)] overflow-x-hidden overflow-y-auto p-3",
+          "z-50 box-border max-h-[min(70vh,36rem)] overflow-x-hidden overflow-y-auto p-3",
           className,
         )}
         onOpenAutoFocus={(event) => event.preventDefault()}

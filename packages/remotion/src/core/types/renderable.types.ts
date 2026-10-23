@@ -1,4 +1,5 @@
 import React, { CSSProperties, ReactNode } from 'react';
+import type { ClipTransition } from '../../transitions/clip-transition';
 
 export type Boundaries = {
   left?: number | string;
@@ -74,6 +75,8 @@ export interface BaseComponentData {
   context?: RenderableContext;
   childrenData?: RenderableComponentData[];
   effects?: BaseEffect[];
+  /** Edge-anchored transitions. Compiled into `effects` from the current duration. */
+  transitions?: ClipTransition[];
 }
 
 export type BaseEffect =

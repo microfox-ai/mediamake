@@ -35,6 +35,10 @@ import { LinkedActionsSection } from "@/components/editor/presets/actions/form/A
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
+import { useLayerStateStore } from "../../../../stores/layer-state-store";
+import { ClipTransitionInspector } from "../../../bottom/editor/clip-transition-inspector";
+import { getAtPath, setAtPathValue } from "../../../bottom/editor/preset-range-utils";
+import { transitionsFromHost } from "@microfox/remotion";
 
 interface GeneralPresetPropsProps {
   preset: Preset;
@@ -55,6 +59,7 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const lastSyncedInputDataRef = useRef<string>("");
   const { selectReference } = useEditorStore();
   const { setFilePanelTab } = useEditorUIStore();
+  const selectedTransition = useLayerStateStore((s) => s.selectedTransition);
 
   // Get the current preset from edited timeline or original
   const editedTimeline = getEditedTimeline(timeline.id);
@@ -373,6 +378,29 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   return (
     <ScrollArea className="flex-1 overflow-y-auto">
       <div className="p-4 space-y-4">
+        {selectedTransition?.preset?.presetId === preset.id &&
+        selectedTransition.preset.timelineId === timeline.id ? (
+          <ClipTransitionInspector
+            transitions={transitionsFromHost(
+              getAtPath(localInputData, selectedTransition.preset.itemPath),
+            )}
+            selectedId={selectedTransition.transitionId}
+            target="image"
+            clipDuration={selectedTransition.clipDuration}
+            onChange={(next) => {
+              const itemPath = selectedTransition.preset?.itemPath;
+              if (!itemPath) return;
+              const withTransitions = setAtPathValue(
+                localInputData,
+                `${itemPath}.transitions`,
+                next,
+              );
+              handleInputDataChange(
+                setAtPathValue(withTransitions, `${itemPath}.transitionEffects`, undefined),
+              );
+            }}
+          />
+        ) : null}
         {/* Header */}
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">

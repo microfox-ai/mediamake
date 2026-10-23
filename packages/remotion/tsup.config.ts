@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'param-meta': 'src/core/param-meta.ts',
     'editor-atom-catalog': 'src/editor-atom-catalog.ts',
+    transitions: 'src/transitions/clip-transition.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

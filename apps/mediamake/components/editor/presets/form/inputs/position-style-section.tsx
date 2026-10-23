@@ -296,72 +296,190 @@ function MotionRow({
     );
 }
 
-function AlignmentIcons({
+const HORIZONTAL_ALIGN: { value: AxisAlign; icon: ReactNode }[] = [
+    { value: "start", icon: <AlignStartVertical /> },
+    { value: "center", icon: <AlignCenterVertical /> },
+    { value: "end", icon: <AlignEndVertical /> },
+];
+
+const VERTICAL_ALIGN: { value: AxisAlign; icon: ReactNode }[] = [
+    { value: "start", icon: <AlignStartHorizontal /> },
+    { value: "center", icon: <AlignCenterHorizontal /> },
+    { value: "end", icon: <AlignEndHorizontal /> },
+];
+
+function axisFromToggle(next: string): AxisAlign | undefined {
+    return next === "start" || next === "center" || next === "end" ? next : undefined;
+}
+
+function AlignmentAxis({
+    options,
+    value,
+    disabled,
+    labelFor,
+    onChange,
+}: {
+    options: { value: AxisAlign; icon: ReactNode }[];
+    value?: AxisAlign;
+    disabled: boolean;
+    labelFor: (axis: AxisAlign) => string;
+    onChange: (next: AxisAlign | undefined) => void;
+}) {
+    return (
+        <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={disabled ? "" : (value ?? "")}
+            onValueChange={(next) => {
+                if (!disabled) onChange(axisFromToggle(next));
+            }}
+            className="min-w-0 flex-1"
+            disabled={disabled}
+        >
+            {options.map((option, index) => {
+                const label = labelFor(option.value);
+                const edge =
+                    index === 0
+                        ? "!rounded-l-md !rounded-r-none"
+                        : index === options.length - 1
+                            ? "!rounded-r-md !rounded-l-none !border-l-0"
+                            : "!rounded-none !border-l-0";
+                return (
+                    <IconTip key={option.value} label={label}>
+                        <ToggleGroupItem
+                            value={option.value}
+                            aria-label={label}
+                            disabled={disabled}
+                            className={cn("h-7 min-w-0 flex-1 shrink p-0 [&_svg]:h-3.5 [&_svg]:w-3.5", edge)}
+                        >
+                            {option.icon}
+                        </ToggleGroupItem>
+                    </IconTip>
+                );
+            })}
+        </ToggleGroup>
+    );
+}
+
+function AlignmentColumn({
+    title,
+    description,
+    disabled,
+    disabledReason,
     horizontal,
     vertical,
     onHorizontal,
     onVertical,
+    subject,
 }: {
+    title: string;
+    description: string;
+    disabled: boolean;
+    disabledReason: string;
     horizontal?: AxisAlign;
     vertical?: AxisAlign;
     onHorizontal: (next: AxisAlign | undefined) => void;
     onVertical: (next: AxisAlign | undefined) => void;
+    /** "children" or "self", used in the icon tooltips. */
+    subject: "children" | "self";
 }) {
-    const horizontalOptions: { value: AxisAlign; icon: ReactNode; title: string }[] = [
-        { value: "start", icon: <AlignStartVertical />, title: "Align left" },
-        { value: "center", icon: <AlignCenterVertical />, title: "Align center" },
-        { value: "end", icon: <AlignEndVertical />, title: "Align right" },
-    ];
-    const verticalOptions: { value: AxisAlign; icon: ReactNode; title: string }[] = [
-        { value: "start", icon: <AlignStartHorizontal />, title: "Align top" },
-        { value: "center", icon: <AlignCenterHorizontal />, title: "Align middle" },
-        { value: "end", icon: <AlignEndHorizontal />, title: "Align bottom" },
-    ];
+    const place = subject === "children" ? "Align children" : "Align self";
+    const labelFor = (kind: "horizontal" | "vertical") => (axis: AxisAlign) => {
+        if (disabled) return disabledReason;
+        const where =
+            kind === "horizontal"
+                ? axis === "start"
+                    ? "left"
+                    : axis === "center"
+                        ? "center"
+                        : "right"
+                : axis === "start"
+                    ? "top"
+                    : axis === "center"
+                        ? "middle"
+                        : "bottom";
+        return `${place} ${where}`;
+    };
 
+    return (
+        <div className={cn("min-w-0 flex-1 space-y-1", disabled && "opacity-40")} data-alignment={subject}>
+            <IconTip label={disabled ? disabledReason : description}>
+                <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            </IconTip>
+            <div className="flex min-w-0 gap-1">
+                <AlignmentAxis
+                    options={HORIZONTAL_ALIGN}
+                    value={horizontal}
+                    disabled={disabled}
+                    labelFor={labelFor("horizontal")}
+                    onChange={onHorizontal}
+                />
+                <AlignmentAxis
+                    options={VERTICAL_ALIGN}
+                    value={vertical}
+                    disabled={disabled}
+                    labelFor={labelFor("vertical")}
+                    onChange={onVertical}
+                />
+            </div>
+        </div>
+    );
+}
+
+function AlignmentIcons({
+    items,
+    self,
+    itemsDisabledReason = "This preset has no container, so children alignment is off",
+    layoutX,
+    layoutY,
+    selfX,
+    selfY,
+    onLayoutX,
+    onLayoutY,
+    onSelfX,
+    onSelfY,
+}: {
+    /** Packs children inside this container. Off for atoms. */
+    items: boolean;
+    /** Places this layer inside its parent. */
+    self: boolean;
+    itemsDisabledReason?: string;
+    layoutX?: AxisAlign;
+    layoutY?: AxisAlign;
+    selfX?: AxisAlign;
+    selfY?: AxisAlign;
+    onLayoutX: (next: AxisAlign | undefined) => void;
+    onLayoutY: (next: AxisAlign | undefined) => void;
+    onSelfX: (next: AxisAlign | undefined) => void;
+    onSelfY: (next: AxisAlign | undefined) => void;
+}) {
     return (
         <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Alignment</p>
-            <div className="flex gap-2">
-                <ToggleGroup
-                    type="single"
-                    variant="outline"
-                    size="sm"
-                    value={horizontal ?? ""}
-                    onValueChange={(next) => onHorizontal(next === "start" || next === "center" || next === "end" ? next : undefined)}
-                    className="flex-1"
-                >
-                    {horizontalOptions.map((option) => (
-                        <IconTip key={option.value} label={option.title}>
-                            <ToggleGroupItem
-                                value={option.value}
-                                aria-label={option.title}
-                                className="h-7 flex-1 px-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-                            >
-                                {option.icon}
-                            </ToggleGroupItem>
-                        </IconTip>
-                    ))}
-                </ToggleGroup>
-                <ToggleGroup
-                    type="single"
-                    variant="outline"
-                    size="sm"
-                    value={vertical ?? ""}
-                    onValueChange={(next) => onVertical(next === "start" || next === "center" || next === "end" ? next : undefined)}
-                    className="flex-1"
-                >
-                    {verticalOptions.map((option) => (
-                        <IconTip key={option.value} label={option.title}>
-                            <ToggleGroupItem
-                                value={option.value}
-                                aria-label={option.title}
-                                className="h-7 flex-1 px-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-                            >
-                                {option.icon}
-                            </ToggleGroupItem>
-                        </IconTip>
-                    ))}
-                </ToggleGroup>
+            <div className="flex min-w-0 items-start gap-2">
+                <AlignmentColumn
+                    title="Items"
+                    description="Aligns children inside this container"
+                    disabled={!items}
+                    disabledReason={itemsDisabledReason}
+                    subject="children"
+                    horizontal={layoutX}
+                    vertical={layoutY}
+                    onHorizontal={onLayoutX}
+                    onVertical={onLayoutY}
+                />
+                <AlignmentColumn
+                    title="Self"
+                    description="Aligns this layer inside its parent"
+                    disabled={!self}
+                    disabledReason="Self alignment is off for this preset"
+                    subject="self"
+                    horizontal={selfX}
+                    vertical={selfY}
+                    onHorizontal={onSelfX}
+                    onVertical={onSelfY}
+                />
             </div>
         </div>
     );
@@ -416,11 +534,19 @@ function PlacementControls({
     value,
     onChange,
     layout,
+    items = true,
+    self = true,
+    itemsDisabledReason,
 }: {
     title: string;
     value: StyleValue | undefined;
     onChange: (next: StyleValue | undefined) => void;
     layout: boolean;
+    /** Children alignment. Off for atom presets. */
+    items?: boolean;
+    /** Self alignment. On for atoms, containers, and scenes. */
+    self?: boolean;
+    itemsDisabledReason?: string;
 }) {
     const clipId = useId();
     const style: StyleValue = value && typeof value === "object" ? value : {};
@@ -436,7 +562,7 @@ function PlacementControls({
     const commit = (patch: Partial<PlacementDraft>, mode: PlacementMode = tabRef.current) => {
         const current = readPlacement(latestRef.current);
         const nextDraft: PlacementDraft = { ...current, ...patch, mode };
-        const next = commitPlacement(latestRef.current, nextDraft, { layout });
+        const next = commitPlacement(latestRef.current, nextDraft, { layout, items, self });
         latestRef.current = next ?? {};
         onChange(next);
     };
@@ -585,10 +711,17 @@ function PlacementControls({
                 />
                 {layout && (
                     <AlignmentIcons
-                        horizontal={draft.layoutX}
-                        vertical={draft.layoutY}
-                        onHorizontal={(layoutX) => commit({ layoutX })}
-                        onVertical={(layoutY) => commit({ layoutY })}
+                        items={items}
+                        self={self}
+                        itemsDisabledReason={itemsDisabledReason}
+                        layoutX={draft.layoutX}
+                        layoutY={draft.layoutY}
+                        selfX={draft.selfX}
+                        selfY={draft.selfY}
+                        onLayoutX={(layoutX) => commit({ layoutX })}
+                        onLayoutY={(layoutY) => commit({ layoutY })}
+                        onSelfX={(selfX) => commit({ selfX })}
+                        onSelfY={(selfY) => commit({ selfY })}
                     />
                 )}
             </div>}
@@ -608,17 +741,34 @@ export function PositionStyleSection({
 }
 
 /**
- * Same placement controls as Position, plus child alignment and clip.
+ * Same placement controls as Position, plus children alignment, self alignment, and clip.
  * The result is stored on `containerProps.style`.
+ * Atoms enable self alignment only. Containers and scenes enable both columns.
  */
 export function LayoutStyleSection({
     value,
     onChange,
     title = "Layout",
+    items = true,
+    self = true,
+    itemsDisabledReason,
 }: {
     value?: StyleValue;
     onChange: (next: StyleValue | undefined) => void;
     title?: string;
+    items?: boolean;
+    self?: boolean;
+    itemsDisabledReason?: string;
 }) {
-    return <PlacementControls title={title} value={value} onChange={onChange} layout />;
+    return (
+        <PlacementControls
+            title={title}
+            value={value}
+            onChange={onChange}
+            layout
+            items={items}
+            self={self}
+            itemsDisabledReason={itemsDisabledReason}
+        />
+    );
 }

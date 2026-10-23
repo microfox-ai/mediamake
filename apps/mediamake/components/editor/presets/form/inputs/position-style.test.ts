@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+    alignmentColumns,
     commitPlacement,
     readPlacement,
     rotateBy90,
@@ -190,6 +191,75 @@ describe('commitPlacement', () => {
         assert.equal(draft.right, '0');
         assert.equal(draft.top, '0');
         assert.equal(draft.bottom, '0');
+    });
+
+    it('pins this layer in its parent without moving children', () => {
+        const fill = {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+        };
+        const next = commitPlacement(
+            fill,
+            { ...readPlacement(fill), selfX: 'start', selfY: 'end' },
+            { layout: true, items: false },
+        );
+        assert.equal(next?.display, undefined);
+        assert.equal(next?.alignItems, undefined);
+        assert.equal(next?.left, 0);
+        assert.equal(next?.right, 'auto');
+        assert.equal(next?.top, 'auto');
+        assert.equal(next?.bottom, 0);
+        assert.equal(next?.width, 'max-content');
+        assert.equal(next?.height, 'max-content');
+        assert.equal(next?.marginLeft, 0);
+        assert.equal(next?.marginRight, 'auto');
+        assert.equal(next?.marginTop, 'auto');
+        assert.equal(next?.marginBottom, 0);
+        const again = readPlacement(next);
+        assert.equal(again.selfX, 'start');
+        assert.equal(again.selfY, 'end');
+        assert.equal(again.width, undefined);
+        assert.equal(again.right, undefined);
+
+        const centered = commitPlacement(next, { ...again, selfX: 'center', selfY: 'center' }, { layout: true });
+        assert.equal(centered?.left, 0);
+        assert.equal(centered?.right, 0);
+        assert.equal(centered?.top, 0);
+        assert.equal(centered?.bottom, 0);
+        assert.equal(centered?.marginLeft, 'auto');
+        assert.equal(centered?.marginRight, 'auto');
+        assert.equal(centered?.alignItems, undefined);
+
+        const cleared = commitPlacement(centered, { ...readPlacement(centered), selfX: undefined, selfY: undefined }, { layout: true });
+        assert.equal(cleared?.marginLeft, undefined);
+        assert.equal(cleared?.width, undefined);
+        assert.equal(readPlacement(cleared).selfX, undefined);
+    });
+
+    it('keeps an authored width when self alignment centers the layer', () => {
+        const next = commitPlacement(undefined, {
+            ...readPlacement(undefined),
+            mode: 'normal',
+            width: '240',
+            selfX: 'center',
+        }, { layout: true });
+        assert.equal(next?.width, 240);
+        assert.equal(next?.left, 0);
+        assert.equal(next?.right, 0);
+        assert.equal(next?.marginLeft, 'auto');
+        assert.equal(next?.top, 0);
+        assert.equal(next?.bottom, 0);
+    });
+
+    it('turns children alignment off for atoms and on for containers and scenes', () => {
+        assert.deepEqual(alignmentColumns({ placement: 'atom', role: 'track' }), { items: false, self: true });
+        assert.deepEqual(alignmentColumns({ placement: 'container', role: 'track' }), { items: true, self: true });
+        assert.deepEqual(alignmentColumns({ role: 'scene' }), { items: true, self: true });
+        assert.deepEqual(alignmentColumns({ placement: 'container', role: 'scene' }), { items: true, self: true });
+        assert.deepEqual(alignmentColumns(undefined), { items: false, self: true });
     });
 
     it('steps rotation by 90 degrees and wraps at a full turn', () => {

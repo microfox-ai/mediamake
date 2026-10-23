@@ -86,6 +86,8 @@ const main = async () => {
     });
     console.log(`✔ ${path.relative(ROOT, output)}`);
   }
+  // the bundle copies the whole public dir (GBs of media): don't leave it in the temp folder
+  fs.rmSync(serveUrl, { recursive: true, force: true });
 };
 
 main().catch(err => {

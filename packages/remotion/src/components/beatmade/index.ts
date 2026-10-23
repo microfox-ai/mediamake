@@ -24,14 +24,17 @@ export type {
   EccentricZoomOptions,
 } from './image-beat-math';
 export {
+  adjustmentsToCss,
   applyImageLook,
   colorTintFilter,
   filterCss,
   isImageBlendMode,
   isImageFilter,
   isImageFit,
+  readFilterAdjust,
   readImageLook,
   splitImageBeatStyle,
+  FILTER_ADJUST_VARS,
   IMAGE_BLEND_MODES,
   IMAGE_FILTERS,
   IMAGE_FITS,

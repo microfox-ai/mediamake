@@ -7,6 +7,10 @@ import {
   type ContainerProps,
   type TrackShellParams,
 } from '../define-preset';
+import {
+  attachCompiledTransitions,
+  normalizeClipTransitions,
+} from '@microfox/remotion/transitions';
 
 interface ShellTiming {
   start: number;
@@ -98,12 +102,27 @@ const ATOM_FILL: ContainerProps = {
   style: ATOM_FILL_STYLE,
 };
 
+function compileTransitionsDeep<T>(node: T): T {
+  const compiled = attachCompiledTransitions(
+    node as Parameters<typeof attachCompiledTransitions>[0],
+  );
+  const children = (node as { childrenData?: unknown }).childrenData;
+  if (!Array.isArray(children) || children.length === 0) return compiled as T;
+  return {
+    ...compiled,
+    childrenData: children.map((child) =>
+      child && typeof child === 'object' ? compileTransitionsDeep(child) : child,
+    ),
+  } as T;
+}
+
 /** Direct atoms have no layout, so the fill lives on the atom itself. */
 function atomData(data: unknown): Record<string, unknown> {
   const base =
     data && typeof data === 'object' && !Array.isArray(data)
       ? { ...(data as Record<string, unknown>) }
       : {};
+  delete base.transitions;
   if (base.containerProps === null) {
     delete base.containerProps;
     return base;
@@ -132,17 +151,18 @@ export function applyTrackShell(
   if (placement === 'atom') {
     const source = (built && typeof built === 'object' ? built : {}) as AtomBuild;
     const timing = resolveTrackTiming(params);
-    const node = {
+    const node = compileTransitionsDeep({
       ...source,
       id: trackId(params),
       componentId: source.componentId || 'TextAtom',
       type: 'atom' as const,
+      transitions: normalizeClipTransitions(params.transitions),
       data: atomData(source.data),
       context: {
         ...(source.context ?? {}),
         timing: timingFields(timing),
       },
-    };
+    });
     return {
       output: {
         childrenData: [node] as NonNullable<PresetOutput['output']['childrenData']>,
@@ -162,14 +182,15 @@ export function applyTrackShell(
       : timing.sequence
         ? 'scene'
         : 'layout';
-  const node = {
+  const node = compileTransitionsDeep({
     id: trackId(params),
     componentId: 'BaseLayout',
     type,
+    transitions: normalizeClipTransitions(params.transitions),
     data: containerData(source.containerProps),
     context: { timing: timingFields(timing) },
     childrenData: Array.isArray(source.children) ? source.children : [],
-  };
+  });
   const output: PresetOutput['output'] = {
     childrenData: [node] as NonNullable<PresetOutput['output']['childrenData']>,
   };

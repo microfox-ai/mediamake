@@ -97,21 +97,21 @@ export const paramMetaTypes = {
   blockStyle: 'blockStyle',
   /**
    * Marks a CSS `style` object that accepts image look properties.
-   * Renders an Image section (thumbnail + popup for src, fit, filter,
-   * blend, opacity, tint) that writes those into the object / sibling src.
-   * Value: true
+   * Renders an Image section: thumbnail and a fixed-width popup for fit,
+   * blend, tint, opacity, and filter ranges. Value: true
    */
   imageStyle: 'imageStyle',
   /**
    * Marks a CSS `style` object that accepts video look properties.
-   * Renders a Video section (thumbnail + the same media popup as Image:
-   * src, fit, filter, blend, opacity, tint). Value: true
+   * Renders a Video section: thumbnail, trim / volume / mute / loop, and a
+   * fixed-width popup for fit, blend, tint, filter ranges, and in/out.
+   * Sibling playback fields are edited there and hidden on the form. Value: true
    */
   videoStyle: 'videoStyle',
   /**
    * Marks a field that accepts audio media.
-   * Renders an Audio section (thumbnail + the same media popup as Image,
-   * choosing the source). Value: true
+   * Renders an Audio section: thumbnail, trim, volume, and mute.
+   * Sibling playback fields are edited there and hidden on the form. Value: true
    */
   audioStyle: 'audioStyle',
   /**

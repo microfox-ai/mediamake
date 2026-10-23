@@ -8,6 +8,7 @@ import { mergeCSSStyles } from '../effects/mergeCSSStyles';
 import { atomCategory } from '../../atom-category';
 import { ImageAtomInput } from './input-schemas';
 import { mergeSpecialEffects } from './special-effects-style';
+import { applyImageLook } from '../beatmade/image-style';
 
 export { ImageAtomInput } from './input-schemas';
 
@@ -113,10 +114,21 @@ export const Atom: React.FC<ImageAtomProps> = ({ data, id }) => {
         return staticFile(data.src);
     }, [data.src, imageSource]);
 
-    const enhancedStyle = useMemo(
-        () => mergeCSSStyles(mergeSpecialEffects(data.style), overrideStyles ?? {}),
-        [data.style, overrideStyles, isLoading, hasError]
-    );
+    const enhancedStyle = useMemo(() => {
+        const style = (data.style ?? {}) as Record<string, unknown>;
+        const looked = applyImageLook(data.style);
+        const hasExplicitFit =
+            typeof style['--mm-image-fit'] === 'string' || typeof style.objectFit === 'string';
+        const lookPatch: React.CSSProperties = {};
+        if (hasExplicitFit && looked.objectFit) lookPatch.objectFit = looked.objectFit;
+        if (looked.mixBlendMode) lookPatch.mixBlendMode = looked.mixBlendMode;
+        if (typeof looked.opacity === 'number') lookPatch.opacity = looked.opacity;
+        if (looked.filter) lookPatch.filter = looked.filter;
+        return mergeCSSStyles(
+            mergeSpecialEffects({ ...(data.style ?? {}), ...lookPatch }),
+            overrideStyles ?? {},
+        );
+    }, [data.style, overrideStyles, isLoading, hasError]);
 
     return (
         <AncestorTransform style={enhancedStyle}>

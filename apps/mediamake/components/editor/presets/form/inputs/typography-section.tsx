@@ -926,19 +926,6 @@ export function TypographySection({
             </div>
 
 
-            <div className="space-y-1">
-                <FieldCaption>Fill</FieldCaption>
-                <TextFillControl style={style} patch={patch} />
-            </div>
-            <div className="space-y-1">
-                <FieldCaption>Text shadow</FieldCaption>
-                <TextShadowControl style={style} patch={patch} />
-            </div>
-            <div className="space-y-1">
-                <FieldCaption>Text stroke</FieldCaption>
-                <TextStrokeControl style={style} patch={patch} />
-            </div>
-
             <div className="flex flex-col gap-2">
                 <FontPicker
                     value={typeof style.fontFamily === "string" ? style.fontFamily : undefined}
@@ -1032,6 +1019,21 @@ export function TypographySection({
                         ]}
                     />
                     <TypeSettingsPopover style={style} patch={patch} />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+                <div className="min-w-0 space-y-1">
+                    <FieldCaption>Fill</FieldCaption>
+                    <TextFillControl compact style={style} patch={patch} />
+                </div>
+                <div className="min-w-0 space-y-1">
+                    <FieldCaption>Shadow</FieldCaption>
+                    <TextShadowControl compact style={style} patch={patch} />
+                </div>
+                <div className="min-w-0 space-y-1">
+                    <FieldCaption>Stroke</FieldCaption>
+                    <TextStrokeControl compact style={style} patch={patch} />
                 </div>
             </div>
         </div>

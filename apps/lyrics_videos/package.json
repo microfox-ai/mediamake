@@ -10,7 +10,10 @@
     "derive-media": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/derive-media.ts",
     "stills": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/stills.ts",
     "render-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render.ts",
-    "type-check": "tsc --noEmit"
+    "map": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/map.ts",
+    "type-check": "tsc --noEmit",
+    "logos": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/logos.ts",
+    "logos-studio": "remotion studio logoGraphics/index.ts --public-dir=logoGraphics/public"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

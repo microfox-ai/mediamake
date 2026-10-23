@@ -65,12 +65,26 @@ function htmlForRender(text: string): string {
         .replace(/<\/?p[^>]*>/gi, '');
 }
 
+const DEFAULT_FONT_FAMILY = 'Inter';
+const DEFAULT_FONT_SIZE = 64;
+
 /** A single family name in `style.fontFamily` (not a CSS stack) is loaded as a Google Font. */
 function loadableStyleFamily(style?: React.CSSProperties): string | undefined {
     const family = style?.fontFamily;
     if (typeof family !== 'string' || family.includes(',')) return undefined;
     const name = family.replace(/["']/g, '').trim();
     return name || undefined;
+}
+
+/** First add often has no style yet. A missing family or size is what the player errors on. */
+function styleWithDefaults(style?: React.CSSProperties): React.CSSProperties {
+    const family = typeof style?.fontFamily === 'string' ? style.fontFamily.trim() : '';
+    const size = style?.fontSize;
+    return {
+        ...style,
+        fontFamily: family || DEFAULT_FONT_FAMILY,
+        fontSize: size == null || size === '' ? DEFAULT_FONT_SIZE : size,
+    };
 }
 
 /**
@@ -87,7 +101,9 @@ function loadableStyleFamily(style?: React.CSSProperties): string | undefined {
 export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
     const overrideStyles = useAnimatedStyles(id);
     const [isFontLoading, setIsFontLoading] = useState(false);
-    const familyToLoad = loadableStyleFamily(data.style) || data.font?.family || 'Inter';
+    const text = typeof data?.text === 'string' ? data.text : '';
+    const style = useMemo(() => styleWithDefaults(data?.style), [data?.style]);
+    const familyToLoad = loadableStyleFamily(style) || data?.font?.family || DEFAULT_FONT_FAMILY;
     const [renderHandle] = useState(() =>
         delayRender(`Loading font: ${familyToLoad}`)
     );
@@ -96,13 +112,13 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
     const { isLoaded, error, isReady, fontFamily } = useFont(
         familyToLoad,
         {
-            weights: data.style?.fontWeight != null
-                ? [String(data.style.fontWeight)]
-                : data.font?.weights || ['400'],
-            style: data.style?.fontStyle === 'italic' ? 'italic' : undefined,
-            subsets: data.font?.subsets,
-            display: data.font?.display || 'swap',
-            preload: data.font?.preload !== false,
+            weights: style.fontWeight != null
+                ? [String(style.fontWeight)]
+                : data?.font?.weights || ['400'],
+            style: style.fontStyle === 'italic' ? 'italic' : undefined,
+            subsets: data?.font?.subsets,
+            display: data?.font?.display || 'swap',
+            preload: data?.font?.preload !== false,
             onLoad: (family, cssValue) => {
                 // console.log(`Font ${family} loaded successfully with CSS value: ${cssValue}`);
                 setIsFontLoading(false);
@@ -127,16 +143,16 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
         }
     }, [familyToLoad, isReady, isLoaded, error]);
 
-    const listStyleType = data.style?.listStyleType;
+    const listStyleType = style.listStyleType;
     const isList = typeof listStyleType === 'string' && listStyleType !== 'none';
     const hasParagraphSpacing =
-        (data.style as Record<string, unknown> | undefined)?.[PARAGRAPH_SPACING_VAR] !== undefined;
-    const html = isHtmlText(data.text);
+        (style as Record<string, unknown> | undefined)?.[PARAGRAPH_SPACING_VAR] !== undefined;
+    const html = isHtmlText(text);
 
     const content = useMemo(() => {
         if (html) return null;
-        if (!isList && !hasParagraphSpacing) return data.text;
-        return data.text.split('\n').map((paragraph, index) => (
+        if (!isList && !hasParagraphSpacing) return text;
+        return text.split('\n').map((paragraph, index) => (
             <div
                 key={index}
                 style={{
@@ -148,14 +164,14 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
                 {paragraph || '\u00a0'}
             </div>
         ));
-    }, [data.text, html, isList, hasParagraphSpacing]);
+    }, [text, html, isList, hasParagraphSpacing]);
 
     // Enhanced style with font loading support and gradient text
     const enhancedStyle: React.CSSProperties = useMemo(() => {
         const baseStyle: React.CSSProperties = mergeSpecialEffects({
-            ...data.style,
+            ...style,
             fontFamily,
-            ...applyTextFillStyle(data.style),
+            ...applyTextFillStyle(style),
         });
         const clipsText =
             baseStyle.backgroundClip === 'text' ||
@@ -169,10 +185,10 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
         // Legacy `data.gradient` still clips to the glyphs. A fill authored on
         // `style` (background-clip: text) wins, so the editor Fill control is
         // not overwritten.
-        const painted: React.CSSProperties = data.gradient && !clipsText
+        const painted: React.CSSProperties = data?.gradient && !clipsText
             ? {
                 ...baseStyle,
-                backgroundImage: data.gradient,
+                backgroundImage: data?.gradient,
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -188,7 +204,7 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
         return transform
             ? mergeCSSStyles(withEffects, { transform })
             : withEffects;
-    }, [fontFamily, data.style, data.gradient, overrideStyles]);
+    }, [fontFamily, style, data?.gradient, overrideStyles]);
 
     // Loading state
     if (isFontLoading && data.loadingState?.showLoadingIndicator) {
@@ -212,7 +228,7 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
                 {(style) => (
                     <div style={style} className={data.className}>
                         <span style={data.errorState?.errorStyle}>
-                            {data.errorState?.errorText || data.text}
+                            {data.errorState?.errorText || text}
                         </span>
                     </div>
                 )}
@@ -231,7 +247,7 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
                     data-font-error={!!error}
                     data-font-family={familyToLoad}
                     {...(html
-                        ? { dangerouslySetInnerHTML: { __html: htmlForRender(data.text) } }
+                        ? { dangerouslySetInnerHTML: { __html: htmlForRender(text) } }
                         : { children: content })}
                 />
             )}

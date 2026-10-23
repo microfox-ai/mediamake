@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MediaPicker } from "@/components/editor/media/media-picker";
-import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
+import { MediaItemThumb, PopupMediaPreview } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { AnchoredEditPopover, OpenSourceButton } from "./anchored-edit-popover";
 import { ColorInput } from "./color-input";
@@ -78,12 +78,15 @@ export function ImageStyleSection({
                     headerActions={<OpenSourceButton item={item} />}
                     anchor={
                         <div
-                            className="group relative aspect-square w-24 overflow-hidden rounded-md border bg-muted cursor-pointer"
+                            className="group relative aspect-square w-24 shrink-0 overflow-hidden rounded-md border bg-muted cursor-pointer"
                             onClick={() => {
                                 if (!disabled) setOpen(true);
                             }}
                         >
-                            <MediaItemThumb item={item} />
+                            <MediaItemThumb
+                                item={item}
+                                className="absolute inset-0 h-full w-full object-cover"
+                            />
                             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
                                 <Pencil className="h-5 w-5 text-white opacity-0 drop-shadow transition-opacity group-hover:opacity-100" />
                             </div>
@@ -107,10 +110,7 @@ export function ImageStyleSection({
                     }
                 >
                     <div className="space-y-3">
-                        <MediaItemThumb
-                            item={item}
-                            className="h-28 w-full rounded-md object-cover border"
-                        />
+                        <PopupMediaPreview item={item} />
                         {showLook && <>
                         <div className="grid grid-cols-3 gap-2">
                             <LookSelect

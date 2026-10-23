@@ -111,6 +111,87 @@ describe('applyTrackShell', () => {
     );
   });
 
+  it('compiles edge transitions onto the atom and keeps them off data', () => {
+    const output = applyTrackShell(
+      {
+        trackName: 'hello',
+        trackType: 'aligned',
+        start: 0,
+        duration: 4,
+        transitions: [
+          {
+            id: 'enter',
+            type: 'fade',
+            edge: 'in',
+            duration: 0.5,
+            easing: 'linear',
+            amount: 1,
+          },
+          {
+            id: 'exit',
+            type: 'fade',
+            edge: 'out',
+            duration: 0.5,
+            easing: 'linear',
+            amount: 1,
+          },
+        ],
+      },
+      { componentId: 'TextAtom', type: 'atom', data: { text: 'Hi' } },
+      'atom',
+    );
+    const node = output.output.childrenData?.[0] as {
+      transitions?: { edge: string }[];
+      effects?: { id: string; data?: { start?: number; origin?: string } }[];
+      data: { text?: string; transitions?: unknown };
+    };
+    assert.equal(node.data.text, 'Hi');
+    assert.equal(node.data.transitions, undefined);
+    assert.deepEqual(
+      node.transitions?.map((transition) => transition.edge),
+      ['in', 'out'],
+    );
+    const exit = node.effects?.find((effect) => effect.id === 'transition:exit');
+    assert.equal(exit?.data?.origin, 'transition');
+    assert.equal(exit?.data?.start, 3.5);
+  });
+
+  it('compiles transitions authored on child clips after the preset returns', () => {
+    const output = applyTrackShell(
+      { trackName: 'loop', trackType: 'aligned', start: 0, duration: 4 },
+      {
+        children: [
+          {
+            id: 'img-0',
+            componentId: 'ImageAtom',
+            type: 'atom',
+            transitions: [
+              {
+                id: 'exit',
+                type: 'fade',
+                edge: 'out',
+                duration: 0.4,
+                easing: 'linear',
+                amount: 1,
+              },
+            ],
+            data: { src: 'a.png' },
+            context: { timing: { duration: 2 } },
+          },
+        ],
+      },
+      'container',
+    );
+    const child = (output.output.childrenData?.[0] as {
+      childrenData?: {
+        effects?: { id: string; data?: { start?: number; origin?: string } }[];
+      }[];
+    }).childrenData?.[0];
+    const exit = child?.effects?.find((effect) => effect.id === 'transition:exit');
+    assert.equal(exit?.data?.origin, 'transition');
+    assert.equal(exit?.data?.start, 1.6);
+  });
+
   it('reads legacy lock and track range aliases', () => {
     const output = applyTrackShell(
       { trackName: 'old', trackFitDurationTo: 'other', trackRange: '0:10-0:20' },

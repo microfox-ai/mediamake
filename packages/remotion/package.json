@@ -33,6 +33,11 @@
       "types": "./dist/editor-atom-catalog.d.ts",
       "import": "./dist/editor-atom-catalog.mjs",
       "require": "./dist/editor-atom-catalog.js"
+    },
+    "./transitions": {
+      "types": "./dist/transitions.d.ts",
+      "import": "./dist/transitions.mjs",
+      "require": "./dist/transitions.js"
     }
   },
   "dependencies": {

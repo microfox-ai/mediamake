@@ -171,6 +171,11 @@ const mediaTrackItemSchema = z.object({
       [paramMetaTypes.groupEditable]: true,
     })
     .describe('Optional color tint overlay'),
+  style: z
+    .record(z.string(), z.any())
+    .optional()
+    .meta({ [paramMetaTypes.videoStyle]: true })
+    .describe('Video look: fit, blend, tint, opacity, and filters'),
   position: z
     .object({
       left: z.number().optional().describe('Left inset'),
@@ -316,6 +321,18 @@ const presetExecution = (
 ) => {
   // Get the base scene start offset from the clip information
   const baseSceneStartOffset = props.clip?.start ?? 0;
+
+  const styleHasLookMarkers = (style: unknown): style is Record<string, unknown> => {
+    if (!style || typeof style !== 'object') return false;
+    const record = style as Record<string, unknown>;
+    return [
+      '--mm-image-fit',
+      '--mm-image-filter',
+      '--mm-image-blend',
+      '--mm-image-tint',
+      '--mm-image-opacity',
+    ].some((key) => record[key] !== undefined && record[key] !== '');
+  };
 
   const parseTimeRange = (props.helpers?.parseTimeRange ?? (() => null)) as (
     range: string,
@@ -795,9 +812,13 @@ const presetExecution = (
   };
 
   const visualStyle = (mediaItem: MediaTrackItem): Record<string, unknown> => {
+    const position = positionStyle(mediaItem.position);
+    if (styleHasLookMarkers(mediaItem.style)) {
+      return { ...position, ...mediaItem.style };
+    }
     const filterCss = buildMediaFilter(mediaItem.filter, mediaItem.colorTint);
     return {
-      ...positionStyle(mediaItem.position),
+      ...position,
       ...(filterCss ? { filter: filterCss } : {}),
       ...(mediaItem.blendMode ? { mixBlendMode: mediaItem.blendMode } : {}),
       ...(mediaItem.opacity !== undefined
@@ -921,11 +942,16 @@ const presetExecution = (
         data: {
           src,
           ...(thumbnail ? { thumbnail: String(thumbnail) } : {}),
-          className:
-            mediaItem.fit === 'cover'
+          className: styleHasLookMarkers(mediaItem.style)
+            ? 'w-full h-full'
+            : mediaItem.fit === 'cover'
               ? 'w-full h-full object-cover'
               : 'w-full h-auto',
-          fit: mediaItem.fit ?? ('cover' as const),
+          fit:
+            (styleHasLookMarkers(mediaItem.style) &&
+            typeof mediaItem.style['--mm-image-fit'] === 'string'
+              ? mediaItem.style['--mm-image-fit']
+              : mediaItem.fit) ?? ('cover' as const),
           loop: mediaItem.loop ?? false,
           muted: mediaItem.mute ?? false,
           volume: mediaItem.volume ?? 1,

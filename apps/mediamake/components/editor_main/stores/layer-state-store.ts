@@ -3,7 +3,9 @@ import type {
   RenderableComponentData,
   CalculatedBoundaries,
   RenderableContext,
+  ClipTransition,
 } from "@microfox/remotion";
+import { attachCompiledTransitions } from "@microfox/remotion";
 import {
   useLayerHistoryStore,
   assignLayerItemIds,
@@ -55,7 +57,20 @@ export type LayerOverride = Partial<{
   };
   context: Partial<RenderableContext>;
   effects?: RenderableComponentData["effects"];
+  transitions?: ClipTransition[];
 }>;
+
+/** Which transition wedge is open in the inspector. */
+export interface TransitionSelection {
+  transitionId: string;
+  clipDuration: number;
+  layerId?: string;
+  preset?: {
+    timelineId: string;
+    presetId: string;
+    itemPath: string;
+  };
+}
 
 export interface TrackState {
   hidden: boolean;
@@ -101,6 +116,9 @@ interface LayerState {
   rebaseFromBase: boolean;
 
   selectedLayerIds: string[];
+  selectedTransition: TransitionSelection | null;
+  selectTransition: (selection: TransitionSelection) => void;
+  clearTransitionSelection: () => void;
   overrides: Map<string, LayerOverride>;
   hiddenLayerIds: Set<string>;
   lockedLayerIds: Set<string>;
@@ -305,6 +323,7 @@ function rebaseChildrenDataOntoBase(
           data: fresh.data,
           context: fresh.context,
           ...(fresh.effects !== undefined ? { effects: fresh.effects } : {}),
+          ...(fresh.transitions !== undefined ? { transitions: fresh.transitions } : {}),
         } as RenderableComponentData;
       }
       // Layer-only nodes (not in base) keep their own data/context.
@@ -360,6 +379,7 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
   pendingLayerMerge: null,
 
   selectedLayerIds: [],
+  selectedTransition: null,
   overrides: new Map(),
   hiddenLayerIds: new Set(),
   lockedLayerIds: new Set(),
@@ -374,6 +394,7 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
 
   selectLayer: (id, addToSelection = false) => {
     set((state) => ({
+      selectedTransition: null,
       selectedLayerIds: addToSelection
         ? state.selectedLayerIds.includes(id)
           ? state.selectedLayerIds.filter((x) => x !== id)
@@ -382,12 +403,24 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
     }));
   },
 
-  clearLayerSelection: () => set({ selectedLayerIds: [] }),
+  selectTransition: (selection) => {
+    set((state) => ({
+      selectedTransition: selection,
+      selectedLayerIds: selection.layerId
+        ? [selection.layerId]
+        : state.selectedLayerIds,
+    }));
+  },
+
+  clearTransitionSelection: () => set({ selectedTransition: null }),
+
+  clearLayerSelection: () => set({ selectedLayerIds: [], selectedTransition: null }),
 
   toggleLayerSelection: (id) => {
     set((state) => {
       const has = state.selectedLayerIds.includes(id);
       return {
+        selectedTransition: null,
         selectedLayerIds: has
           ? state.selectedLayerIds.filter((x) => x !== id)
           : [...state.selectedLayerIds, id],
@@ -479,6 +512,7 @@ export const useLayerStateStore = create<LayerState>((set, get) => ({
           ...(mergedTiming ? { timing: mergedTiming } : {}),
         } as LayerOverride["context"],
         ...(override.effects !== undefined && { effects: override.effects }),
+        ...(override.transitions !== undefined && { transitions: override.transitions }),
       });
       return { overrides: next };
     });
@@ -1290,6 +1324,13 @@ export function mergeOverridesIntoChildrenData(
     if (override?.effects !== undefined) {
       next.effects = override.effects;
     }
+    if (override?.transitions !== undefined) {
+      next.transitions = override.transitions;
+    }
+    const compiled = attachCompiledTransitions(next);
+    next.transitions = compiled.transitions;
+    next.effects = compiled.effects as RenderableComponentData["effects"];
+    next.data = compiled.data as RenderableComponentData["data"];
     if (node.childrenData && node.childrenData.length > 0) {
       next.childrenData = mergeOverridesIntoChildrenData(
         node.childrenData,

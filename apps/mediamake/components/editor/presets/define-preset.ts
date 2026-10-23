@@ -19,6 +19,8 @@ export interface TrackShellParams {
   trackStartOffset?: number;
   trackDuration?: number;
   trackRange?: string;
+  /** Edge transitions. Kept off atom `data` and compiled onto the node. */
+  transitions?: unknown;
 }
 
 export interface ContainerProps {

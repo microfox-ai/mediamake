@@ -3,7 +3,9 @@ import type {
   CalculatedBoundaries,
   CalculatedTiming,
   RenderableContext,
+  ClipTransition,
 } from "@microfox/remotion";
+import { transitionsFromHost } from "@microfox/remotion";
 import { collectVisualMedia } from "./visual-media";
 
 /** Absolute timing for the editor (composition space). Used when passing parent timing into flattenLayers. */
@@ -33,6 +35,8 @@ export interface FlatLayer {
   previewThumbnail?: string;
   /** Seconds into the source file where this clip starts. */
   previewSourceOffset?: number;
+  /** Edge transitions authored on this node. */
+  transitions?: ClipTransition[];
 }
 
 /**
@@ -409,6 +413,7 @@ export function flattenLayers(
       ...(previewSrc != null && { previewSrc }),
       ...(previewThumbnail != null && { previewThumbnail }),
       ...(previewSourceOffset != null && { previewSourceOffset }),
+      transitions: transitionsFromHost(node),
     });
 
     const nextParentTiming: ParentTimingOption = {

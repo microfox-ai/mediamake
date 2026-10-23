@@ -75,17 +75,36 @@ import {
   type SegmentKind,
   type TrackGroup,
 } from "../preset-range-utils";
+import { imageItemPathFromRangePath } from "../image-transition-tracks";
+import { ClipTransitionWedges } from "../clip-transition-wedge";
 import {
-  imageItemPathFromRangePath,
-  readTransitionEffects,
-  TransitionEdgeIcons,
-  TransitionLaneLabel,
-  TransitionRangeTrack,
-  transitionEdgeFlags,
-  type TransitionEdge,
-} from "../image-transition-tracks";
+  transitionsAfterSplit,
+  transitionsFromHost,
+  type ClipTransition,
+} from "@microfox/remotion";
 
 const MIN_SPLIT_GAP = 0.05;
+
+function shiftItemIndex(itemPath: string, delta: number): string | null {
+  const match = itemPath.match(/^(.*)\[(\d+)\]$/);
+  if (!match) return null;
+  return `${match[1]}[${Number(match[2]) + delta}]`;
+}
+
+function splitItemTransitions(
+  inputData: unknown,
+  itemPath: string,
+  side: "left" | "right",
+): unknown {
+  const authored = transitionsFromHost(getAtPath(inputData, itemPath));
+  if (authored.length === 0) return inputData;
+  const withList = setAtPathValue(
+    inputData,
+    `${itemPath}.transitions`,
+    transitionsAfterSplit(authored, side),
+  );
+  return setAtPathValue(withList, `${itemPath}.transitionEffects`, undefined);
+}
 
 function rangeFocusLabel(group: TrackGroup | undefined, segIdx: number): string {
   if (!group) return "Range";
@@ -164,6 +183,8 @@ export function PresetTracksSection({
   );
   const fps = useCompileStore((s) => s.calculatedMetadata?.fps ?? 30);
   const currentFrame = useLayerStateStore((s) => s.currentFrame);
+  const selectedTransition = useLayerStateStore((s) => s.selectedTransition);
+  const selectTransition = useLayerStateStore((s) => s.selectTransition);
   const currentTimeSec = currentFrame / fps;
 
   const timeline = editedTimeline || fallbackTimeline || undefined;
@@ -235,8 +256,6 @@ export function PresetTracksSection({
 
   const [segsMap, setSegsMap] = useState<Record<string, ParsedSegment[]>>({});
   const [selectedSeg, setSelectedSeg] = useState<SegSelection | null>(null);
-  const [expandedTransition, setExpandedTransition] =
-    useState<SegSelection | null>(null);
   const [clipboard, setClipboard] = useState<SegClipboard | null>(null);
 
   const dragRef = useRef<{
@@ -289,7 +308,6 @@ export function PresetTracksSection({
     setSegmentSelectionActive(true);
     claimBlockSelection(sectionId, () => {
       setSelectedSeg(null);
-      setExpandedTransition(null);
     });
     return () => {
       setSegmentSelectionActive(false);
@@ -312,40 +330,14 @@ export function PresetTracksSection({
     (next: SegSelection) => {
       claimBlockSelection(sectionId, () => {
         setSelectedSeg(null);
-        setExpandedTransition(null);
       });
       setSelectedSeg(next);
-      setExpandedTransition((cur) => {
-        if (!cur) return null;
-        if (
-          cur.templatePath === next.templatePath &&
-          cur.segIdx === next.segIdx
-        ) {
-          return cur;
-        }
-        return null;
-      });
     },
     [sectionId],
   );
 
-  const toggleTransitionLanes = useCallback((next: SegSelection) => {
-    selectSeg(next);
-    setExpandedTransition((cur) => {
-      if (
-        cur &&
-        cur.templatePath === next.templatePath &&
-        cur.segIdx === next.segIdx
-      ) {
-        return null;
-      }
-      return next;
-    });
-  }, [selectSeg]);
-
   const clearSelection = useCallback(() => {
     setSelectedSeg(null);
-    setExpandedTransition(null);
     releaseBlockSelection(sectionId);
   }, [sectionId]);
 
@@ -541,7 +533,6 @@ export function PresetTracksSection({
           return sel;
         };
         setSelectedSeg(shift);
-        setExpandedTransition(shift);
       };
 
       // Comma-separated string (and data: references): drop that segment's
@@ -580,18 +571,21 @@ export function PresetTracksSection({
     ],
   );
 
-  const commitTransitionDuration = useCallback(
-    (itemPath: string, effectIndex: number, edge: TransitionEdge, seconds: number) => {
+  const commitItemTransitions = useCallback(
+    (itemPath: string, next: ClipTransition[], clipDuration: number, selectId?: string) => {
       if (!timeline || !preset) return;
-      const key = edge === "in" ? "inRange" : "outRange";
-      const next = setAtPathValue(
-        presetInputData,
-        `${itemPath}.transitionEffects[${effectIndex}].${key}`,
-        seconds,
-      );
-      updatePresetInputData(timelineId, presetId, next);
+      let updated = setAtPathValue(presetInputData, `${itemPath}.transitions`, next);
+      updated = setAtPathValue(updated, `${itemPath}.transitionEffects`, undefined);
+      updatePresetInputData(timelineId, presetId, updated);
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
+      if (selectId) {
+        selectTransition({
+          transitionId: selectId,
+          clipDuration,
+          preset: { timelineId, presetId, itemPath },
+        });
+      }
     },
     [
       timeline,
@@ -602,6 +596,7 @@ export function PresetTracksSection({
       updatePresetInputData,
       getEditedTimeline,
       generateOutput,
+      selectTransition,
     ],
   );
 
@@ -892,6 +887,12 @@ export function PresetTracksSection({
         serializeSegment(right),
       );
       if (!next) return;
+      const leftItemPath = imageItemPathFromRangePath(path);
+      if (leftItemPath) {
+        next = splitItemTransitions(next, leftItemPath, "left");
+        const rightItemPath = shiftItemIndex(leftItemPath, 1);
+        if (rightItemPath) next = splitItemTransitions(next, rightItemPath, "right");
+      }
       updatePresetInputData(timelineId, presetId, next);
       const latestTimeline = getEditedTimeline(timelineId) || timeline;
       generateOutput(latestTimeline);
@@ -1057,10 +1058,30 @@ export function PresetTracksSection({
         splitAtPlayhead();
         return;
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedSeg) {
-        e.preventDefault();
-        deleteSelectedSeg();
-        return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const selected = useLayerStateStore.getState().selectedTransition;
+        const itemPath = selected?.preset?.presetId === presetId
+          && selected.preset.timelineId === timelineId
+          ? selected.preset.itemPath
+          : null;
+        if (itemPath && selected) {
+          const authored = transitionsFromHost(getAtPath(presetInputData, itemPath));
+          if (authored.some((transition) => transition.id === selected.transitionId)) {
+            e.preventDefault();
+            commitItemTransitions(
+              itemPath,
+              authored.filter((transition) => transition.id !== selected.transitionId),
+              selected.clipDuration,
+            );
+            useLayerStateStore.getState().clearTransitionSelection();
+            return;
+          }
+        }
+        if (selectedSeg) {
+          e.preventDefault();
+          deleteSelectedSeg();
+          return;
+        }
       }
       if ((e.key === "[" || e.code === "BracketLeft") && selectedSeg) {
         e.preventDefault();
@@ -1085,6 +1106,10 @@ export function PresetTracksSection({
     splitAtPlayhead,
     deleteSelectedSeg,
     snapSelectedSegToPlayhead,
+    commitItemTransitions,
+    presetId,
+    timelineId,
+    presetInputData,
   ]);
 
   const section: TimelineTrackSectionData = useMemo(() => {
@@ -1240,15 +1265,23 @@ export function PresetTracksSection({
                   ? () => deleteSegment(group, si)
                   : null;
               const itemPath = imageItemPathFromRangePath(path);
-              const transitions = itemPath
-                ? readTransitionEffects(getAtPath(presetInputData, itemPath))
-                : [];
-              const edges = transitionEdgeFlags(transitions);
-              const hasTransition = edges.hasIn || edges.hasOut;
-              const laneTarget = {
-                templatePath: group.templatePath,
-                segIdx: si,
-              };
+              const host = itemPath ? getAtPath(presetInputData, itemPath) : null;
+              const transitions = transitionsFromHost(host);
+              const canEditTransitions = Boolean(
+                itemPath &&
+                  (itemPath.startsWith("images") ||
+                    transitions.length > 0 ||
+                    (host &&
+                      typeof host === "object" &&
+                      ("transitions" in host || "transitionEffects" in host))),
+              );
+              const clipDuration = Math.max(0, seg.end - seg.start);
+              const transitionSelectedId =
+                itemPath &&
+                selectedTransition?.preset?.presetId === presetId &&
+                selectedTransition.preset.itemPath === itemPath
+                  ? selectedTransition.transitionId
+                  : null;
 
               return views.map((view) => {
                 const left = secToPx(view.start);
@@ -1341,18 +1374,41 @@ export function PresetTracksSection({
                   }
                   canPaste={!!clipboard}
                   overlay={
-                    hasTransition ? (
-                      <TransitionEdgeIcons
-                        hasIn={edges.hasIn}
-                        hasOut={edges.hasOut}
-                        onToggle={() => toggleTransitionLanes(laneTarget)}
+                    canEditTransitions && itemPath ? (
+                      <ClipTransitionWedges
+                        transitions={transitions}
+                        durationSec={clipDuration}
+                        pixelsPerSecond={pixelsPerSecond}
+                        selectedId={transitionSelectedId}
+                        target="image"
+                        onSelect={(id) =>
+                          selectTransition({
+                            transitionId: id,
+                            clipDuration,
+                            preset: { timelineId, presetId, itemPath },
+                          })
+                        }
+                        onDuration={(id, seconds) =>
+                          commitItemTransitions(
+                            itemPath,
+                            transitions.map((transition) =>
+                              transition.id === id
+                                ? { ...transition, duration: seconds }
+                                : transition,
+                            ),
+                            clipDuration,
+                          )
+                        }
+                        onAdd={(created) =>
+                          commitItemTransitions(
+                            itemPath,
+                            [...transitions, ...created],
+                            clipDuration,
+                            created[0]?.id,
+                          )
+                        }
                       />
                     ) : null
-                  }
-                  onDoubleClick={
-                    hasTransition
-                      ? () => toggleTransitionLanes(laneTarget)
-                      : undefined
                   }
                 />
                 );
@@ -1369,43 +1425,7 @@ export function PresetTracksSection({
         ),
       };
 
-      const extraRows: TimelineTrackRow[] = [];
-      const openLane = expandedTransition;
-      if (openLane && openLane.templatePath === group.templatePath) {
-        const seg = segs[openLane.segIdx];
-        const path = group.concretePaths[openLane.segIdx];
-        const itemPath = imageItemPathFromRangePath(path);
-        if (seg && itemPath) {
-          const effects = readTransitionEffects(
-            getAtPath(presetInputData, itemPath),
-          );
-          effects.forEach((effect, effectIndex) => {
-            extraRows.push({
-              id: `${sectionId}:${group.templatePath}:tr:${openLane.segIdx}:${effectIndex}`,
-              label: <TransitionLaneLabel effect={effect} />,
-              track: (
-                <TransitionRangeTrack
-                  effect={effect}
-                  imageStart={seg.start}
-                  imageEnd={seg.end}
-                  secToPx={secToPx}
-                  pixelsPerSecond={pixelsPerSecond}
-                  onCommit={(edge, seconds) =>
-                    commitTransitionDuration(
-                      itemPath,
-                      effectIndex,
-                      edge,
-                      seconds,
-                    )
-                  }
-                />
-              ),
-            });
-          });
-        }
-      }
-
-      return [mainRow, ...extraRows];
+      return [mainRow];
     });
 
     return {
@@ -1436,9 +1456,8 @@ export function PresetTracksSection({
     duplicateSelected,
     splitAtPlayhead,
     selectSeg,
-    toggleTransitionLanes,
-    expandedTransition,
-    commitTransitionDuration,
+    commitItemTransitions,
+    selectedTransition,
     clearSelection,
     copySegment,
     pasteClipboard,
@@ -1511,7 +1530,7 @@ function SegBlock({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className="absolute top-1.5 bottom-1.5 group/seg"
+          className="absolute top-1.5 bottom-1.5 group/seg group/clip"
           style={{
             left,
             width: Math.max(MIN_SEG_PX, width),

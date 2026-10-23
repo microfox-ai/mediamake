@@ -9,9 +9,11 @@ const EMPTY: TextShadow = { x: 0, y: 4, blur: 8, color: "rgba(0,0,0,0.45)" };
 export function TextShadowControl({
     style,
     patch,
+    compact = false,
 }: {
     style: Record<string, unknown>;
     patch: (changes: Record<string, unknown>) => void;
+    compact?: boolean;
 }) {
     const shadow = readTextShadow(style);
     const [draft, setDraft] = useState<TextShadow>(shadow ?? EMPTY);
@@ -30,6 +32,7 @@ export function TextShadowControl({
             active={Boolean(shadow)}
             clearLabel="Remove text shadow"
             onClear={() => patch(textShadowPatch(undefined))}
+            compact={compact}
         >
             <div className="space-y-3">
                 <div

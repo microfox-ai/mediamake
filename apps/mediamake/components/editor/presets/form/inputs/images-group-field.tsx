@@ -16,7 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaPicker } from "@/components/editor/media/media-picker";
 import { AnchoredEditPopover, OpenSourceButton } from "./anchored-edit-popover";
-import { MediaItemThumb } from "@/components/editor/media/media-item-thumb";
+import { MediaItemThumb, PopupMediaPreview } from "@/components/editor/media/media-item-thumb";
 import { MediaFile } from "@/app/types/media";
 import { paramMetaTypes, paramInputTypes } from "../../dataTypes";
 import {
@@ -29,7 +29,8 @@ import {
 } from "../../dataTypes/media";
 import { ContainerInsetsInput } from "./container-insets-input";
 import { ColorInput } from "./color-input";
-import { TransitionEffectsField } from "./transition-effects-field";
+import { MediaLookFields } from "./media-look-fields";
+import { PRESET_LOOK_FLAT_KEYS } from "./video-style";
 import { LockTargetInput } from "./lock-target-input";
 import { useEditorUIStore } from "@/components/editor_main/stores/editor-ui-store";
 import { useLayerStateStore } from "@/components/editor_main/stores/layer-state-store";
@@ -120,8 +121,9 @@ function isContainerProp(prop: ItemPropSchema): boolean {
   return prop.meta?.[paramMetaTypes.containerObject] === true;
 }
 
-function isTransitionEffectsProp(prop: ItemPropSchema): boolean {
-  return prop.meta?.[paramMetaTypes.transitionEffectsGroup] === true;
+function isLookStyleProp(prop: ItemPropSchema): boolean {
+  return prop.meta?.[paramMetaTypes.imageStyle] === true
+    || prop.meta?.[paramMetaTypes.videoStyle] === true;
 }
 
 /** Visual controls that do not apply to audio items. */
@@ -136,6 +138,7 @@ const VISUAL_PROP_KEYS = new Set([
   "fadeInDuration",
   "fadeOutTransition",
   "fadeOutDuration",
+  "style",
 ]);
 
 const COLOR_TINT_PROP: ItemPropSchema = {
@@ -279,8 +282,11 @@ export function ImagesGroupField({
   const hasVisualItems = displayImages.some(
     (img) => detectMediaKind(img) !== "audio",
   );
+  const lookProp = props.find(isLookStyleProp);
   const groupEditProps = groupProps.filter(
-    (p) => hasVisualItems || !VISUAL_PROP_KEYS.has(p.key),
+    (p) =>
+      (hasVisualItems || !VISUAL_PROP_KEYS.has(p.key)) &&
+      !(lookProp && (PRESET_LOOK_FLAT_KEYS as readonly string[]).includes(p.key)),
   );
   const popupProps = props.filter((p) => !STATIC_PROP_KEYS.has(p.key));
 
@@ -328,6 +334,11 @@ export function ImagesGroupField({
     const nextItems = Array.from({ length: Math.max(items.length, displayImages.length) }, (_, i) => {
       const base = items[i] && typeof items[i] === "object" ? { ...items[i] } : {};
       const next = i === index ? { ...base, ...stylingPatch } : base;
+      if (i === index) {
+        for (const [key, val] of Object.entries(stylingPatch)) {
+          if (val === undefined) delete next[key];
+        }
+      }
       return linked ? stripMediaStatic(next) : next;
     });
     commit(mediaRef, nextItems);
@@ -405,6 +416,9 @@ export function ImagesGroupField({
           delete base[key];
         } else {
           base[key] = val;
+          if (key === "style") {
+            for (const flat of PRESET_LOOK_FLAT_KEYS) delete base[flat];
+          }
         }
       }
       return linked ? stripMediaStatic(base) : base;
@@ -439,7 +453,7 @@ export function ImagesGroupField({
             </TabsTrigger>
           </TabsList>
           {linkControl}
-          {groupEditProps.length > 0 && (
+          {(groupEditProps.length > 0 || lookProp) && (
             <AnchoredEditPopover
               open={groupOpen}
               onOpenChange={setGroupOpen}
@@ -459,6 +473,12 @@ export function ImagesGroupField({
               }
             >
               <div className="space-y-3">
+                {lookProp && hasVisualItems ? (
+                  <MediaLookFields
+                    style={groupDraft.style}
+                    onStyle={(next) => setGroupDraft((draft) => ({ ...draft, style: next }))}
+                  />
+                ) : null}
                 <div className="grid grid-cols-2 gap-2">
                   {groupEditProps.map((prop) => (
                     <PropEditor
@@ -523,11 +543,6 @@ export function ImagesGroupField({
                 onOpenChange={(open) => {
                   if (!open && editIndex === index) setEditIndex(null);
                 }}
-                className={
-                  popupProps.some(isTransitionEffectsProp)
-                    ? "w-[min(40rem,calc(100vw-1.5rem))] max-w-[min(40rem,calc(100vw-1.5rem))]"
-                    : undefined
-                }
                 title={`Edit image ${index + 1}${linked ? " (src from ref)" : ""}`}
                 headerActions={<OpenSourceButton item={img} />}
                 anchor={
@@ -732,10 +747,7 @@ function ItemPopupFields({
     return (
       <div className="space-y-3">
         {kindLabel}
-        <MediaItemThumb
-          item={img}
-          className="h-28 w-full rounded-md object-cover border"
-        />
+        <PopupMediaPreview item={img} />
         <div className="grid grid-cols-2 gap-2">
           {audioProps.map((prop) => (
             <PropEditor
@@ -778,15 +790,22 @@ function ItemPopupFields({
   const positionProps = popupProps.filter(isContainerProp);
   const volumeProp = find("volume");
   const muteProp = find("mute") ?? find("muted");
+  const lookProp = popupProps.find(isLookStyleProp);
+  const clearLookFlats = () => Object.fromEntries(PRESET_LOOK_FLAT_KEYS.map((key) => [key, undefined]));
 
   return (
     <div className="space-y-3">
       {kindLabel}
-      <MediaItemThumb
-        item={img}
-        className="h-28 w-full rounded-md object-cover border"
-      />
+      <PopupMediaPreview item={img} />
+      {lookProp ? (
+        <MediaLookFields
+          style={img[lookProp.key] && typeof img[lookProp.key] === "object" ? img[lookProp.key] : undefined}
+          legacy={img}
+          onStyle={(next) => onChange({ [lookProp.key]: next, ...clearLookFlats() })}
+        />
+      ) : (
       <div className="grid grid-cols-3 gap-2">{row(["fit", "filter", "blendMode"])}</div>
+      )}
       {volumeProp || muteProp ? (
         <div className="grid grid-cols-2 gap-2">
           {volumeProp ? (
@@ -809,6 +828,7 @@ function ItemPopupFields({
           )}
         </div>
       ) : null}
+      {lookProp ? null : (
       <div className="grid grid-cols-2 gap-2">
         {row(["opacity"])}
         <PropEditor
@@ -817,6 +837,7 @@ function ItemPopupFields({
           onChange={(val) => onChange({ colorTint: val || undefined })}
         />
       </div>
+      )}
       <RangeWithLoop
         rangeProp={find("rangeString")}
         rangeValue={img.rangeString}
@@ -828,21 +849,6 @@ function ItemPopupFields({
         onLoopChange={(val) => onChange({ loop: val })}
         onLockToChange={(val) => onChange({ lockTo: val || undefined })}
       />
-      {(() => {
-        const prop = popupProps.find(isTransitionEffectsProp);
-        if (!prop) return null;
-        return (
-          <TransitionEffectsField
-            value={img.transitionEffects}
-            onChange={(next) => onChange({ transitionEffects: next })}
-            hostRange={
-              typeof img.rangeString === "string" ? img.rangeString : undefined
-            }
-            title="transitionEffects"
-            description={prop.description}
-          />
-        );
-      })()}
       {positionProps.map((prop) => (
         <div key={prop.key} className="space-y-1">
           <Label className="text-[10px] uppercase text-muted-foreground">
