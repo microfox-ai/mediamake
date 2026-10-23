@@ -67,7 +67,7 @@ for ax, (name, layers) in zip(axes[:, 0], SCENES.items()):
         lv = lambda t: 20 * np.log10(np.sqrt(np.mean(mix[int(t * SR): int((t + 0.4) * SR)] ** 2)) + 1e-9)
         print('  level ' + '  '.join(f'{t:g}s {lv(t):.0f}' for t in [0, 1.5, 3.5, dur / 2, dur - 4, dur - 2, dur - 0.6]))
     for label, f, at, align, rate in layers:
-        stem = decode(os.path.join(SFX, f + '.mp3'))
+        stem = decode(os.path.join(SFX, f + '.wav'))
         if rate != 1:  # played faster/slower: shorter/longer and re-pitched
             stem = librosa.resample(stem, orig_sr=SR * rate, target_sr=SR)
         key = key_of(f, align) / rate

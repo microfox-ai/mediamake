@@ -40,7 +40,8 @@ export type SfxProps<Name extends string> = {
 /**
  * `latency`: how much later than scheduled files play in rendered MP4s. Measure it with
  * tools/sync_check.py (cross-correlation against the mix) and store it in the brand's
- * sound/sfx.config.json; it has differed per brand (47 ms, 66 ms).
+ * sound/sfx.config.json. Files are WAV (sample-exact), so it stays put; with MP3 it moved by
+ * about a frame whenever the files were re-encoded.
  */
 export const createSfx = <Meta extends Record<string, SfxMeta>>({ brand, meta, latency }: { brand: string; meta: Meta; latency: number }) => {
   type Name = Extract<keyof Meta, string>;
@@ -58,7 +59,7 @@ export const createSfx = <Meta extends Record<string, SfxMeta>>({ brand, meta, l
     return (
       <Sequence from={from} layout="none">
         <Audio
-          src={staticFile(`${brand}/sfx/${name}.mp3`)}
+          src={staticFile(`${brand}/sfx/${name}.wav`)}
           trimBefore={trim || undefined}
           playbackRate={rate}
           volume={f => {

@@ -18,13 +18,13 @@ logoGraphics/                     the engine (committed)
   kit.ts                          defineLogo({ id, fps, width, height, preview?, scenes }), SceneProps, composition props
   lib/
     motion.ts                     clamp01, prog, mix, hash, noise1, soft (the fade curve)
-    Sfx.tsx                       createSfx({ brand, meta, latency }) → <Sfx name at align>; <SfxMix gain> (nested mixes multiply, 0 mutes)
+    Sfx.tsx                       createSfx({ brand, meta, latency }) → <Sfx name at align>; <SfxMix gain> (nested mixes multiply, 0 mutes); latency 0.042 s for WAV
     Guides.tsx                    YouTube end-card slots (VIDEO_W/H, SUB_D, CARDS_Y) drawn when `guides` is on
     fonts.ts                      loadFonts(brand, faces): fonts from the brand's public/fonts/, no network
     place.tsx                     createPlacedLogo({ Logo, view, box, stillAt }) → PlacedLogo, lockupH, logoPoint
     youtube.tsx                   PROFILE, BANNER (+ safe area), WATERMARK, Backdrop, BannerSafeArea
   tools/
-    sfx.py <brand>                normalise + measure a brand's sounds → graphics/sound/sfx.json, public/sfx/
+    sfx.py <brand>                normalise a brand's sounds to WAV in public/sfx/ + measure them → graphics/sound/sfx.json
     sync_check.py <brand> [scenes]   check rendered sound against the picture (cross-correlation), loudness
 
 brands/<brand>/                   one brand (gitignored)

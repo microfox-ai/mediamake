@@ -2,7 +2,7 @@
 
 Takes every file in brands/<brand>/graphics/sound/raw/ (made with ElevenLabs text-to-sound-effects;
 the prompts are recorded in sound/sfx.config.json), normalises its peak to −1 dBFS into
-graphics/public/sfx/<name>.mp3 (so a scene's volume is the mix level), and measures, in seconds
+graphics/public/sfx/<name>.wav (so a scene's volume is the mix level), and measures, in seconds
 from the start of each file:
   onset   where the first real sound starts (librosa's onset detector; lags on files that start loud)
   attack  the first moment the level reaches 30% of the hit's level (1.5 ms resolution): use it
@@ -12,7 +12,11 @@ from the start of each file:
 plus duration and loudness. Writes graphics/sound/sfx.json (read by lib/Sfx.tsx) and a waveform
 sheet to out/brands/<brand>/checks/sfx.png.
 
-A file named *-loop.mp3 is a 5 s seamless loop (generated with loop=true): it is stitched into one
+The output is 16-bit WAV, not MP3: an MP3 starts with encoder delay that the browser and ffmpeg
+handle differently, so the render latency moved by about a frame every time files were re-encoded.
+WAV is sample-exact, so a scene's timing (and the brand's measured latency) stays put.
+
+A raw file named *-loop.mp3 is a 5 s seamless loop (generated with loop=true): it is stitched into one
 long bed of loops.copies copies with loops.xfade s crossfades (never loop an MP3 at playback, its
 padding clicks at every seam) and high-passed at highpass[name] Hz (default 40), because generated
 ambiences can be mostly inaudible sub-bass rumble that throws the levels off.
@@ -47,9 +51,11 @@ def peak_db(path):
 
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(CHECKS, exist_ok=True)
+for old in glob.glob(os.path.join(OUT, '*.mp3')) + glob.glob(os.path.join(OUT, '*.wav')):
+    os.remove(old)  # rebuilt below; drops files whose raw source is gone
 for f in sorted(glob.glob(os.path.join(RAW, '*.mp3'))):
     name = os.path.basename(f)[:-4]
-    dst = os.path.join(OUT, name + '.mp3')
+    dst = os.path.join(OUT, name + '.wav')
     if name.endswith('-loop'):
         copies, xfade = LOOPS.get('copies', 5), LOOPS.get('xfade', 0.6)
         ins = sum([['-i', f] for _ in range(copies)], [])
@@ -61,14 +67,14 @@ for f in sorted(glob.glob(os.path.join(RAW, '*.mp3'))):
         tmp = dst[:-4] + '.tmp.wav'
         subprocess.run(['ffmpeg', '-v', 'error', '-y', *ins, '-filter_complex', ';'.join(chain), '-map', '[out]', tmp], check=True)
         g = -1.0 - peak_db(tmp)  # normalise after filtering
-        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', tmp, '-af', f'volume={g:.2f}dB', '-c:a', 'libmp3lame', '-b:a', '128k', dst], check=True)
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', tmp, '-af', f'volume={g:.2f}dB', '-c:a', 'pcm_s16le', dst], check=True)
         os.remove(tmp)
     else:
         gain = -1.0 - peak_db(f)
-        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f, '-af', f'volume={gain:.2f}dB', '-c:a', 'libmp3lame', '-b:a', '192k', dst], check=True)
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f, '-af', f'volume={gain:.2f}dB', '-c:a', 'pcm_s16le', dst], check=True)
 
 out = {}
-files = sorted(glob.glob(os.path.join(OUT, '*.mp3')))
+files = sorted(glob.glob(os.path.join(OUT, '*.wav')))
 fig, axes = plt.subplots(len(files), 1, figsize=(12, 1.3 * len(files)), sharex=True, squeeze=False)
 for ax, f in zip(axes[:, 0], files):
     name = os.path.splitext(os.path.basename(f))[0]
