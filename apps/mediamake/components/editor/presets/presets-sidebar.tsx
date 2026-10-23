@@ -119,7 +119,9 @@ export function PresetsSidebar({ selectedPreset, onSelectPreset }: PresetsSideba
                         <TabsContent value="predefined" className="flex-1 overflow-y-auto p-4 mt-0">
                             <div className="space-y-2">
                                 {predefinedPresets.length > 0 ? (
-                                    predefinedPresets.map(renderPresetCard)
+                                    predefinedPresets
+                                        .filter((preset) => !preset.metadata.deprecated)
+                                        .map(renderPresetCard)
                                 ) : (
                                     <Card>
                                         <CardHeader className="pb-2">

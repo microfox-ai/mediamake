@@ -20,6 +20,8 @@ import { resolveTiming } from "@/components/editor_main/timing/resolve-timing";
 import { estimateSequenceDuration } from "@/components/editor_main/timing/sequence-estimate";
 import { sceneBlocksFromMediaInput } from "@/components/editor_main/panels/bottom/editor/media-scene-blocks";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
+import { presetReplacement } from "@/components/editor/presets/registry/registry/deprecated-presets";
+import { DeprecatedPresetNotice } from "./DeprecatedPresetNotice";
 import { migratePresetTrackInput } from "@/components/editor/presets/registry/general/migrate-preset-track-input";
 import { Preset as PresetType, DatabasePreset } from "@/components/editor/presets/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,7 +59,7 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromStoreRef = useRef(false);
   const lastSyncedInputDataRef = useRef<string>("");
-  const { selectReference } = useEditorStore();
+  const { selectReference, selectPreset } = useEditorStore();
   const { setFilePanelTab } = useEditorUIStore();
   const selectedTransition = useLayerStateStore((s) => s.selectedTransition);
 
@@ -324,6 +326,48 @@ export function GeneralPresetProps({ preset, timeline }: GeneralPresetPropsProps
       useCompileStore.setState({ currentTimeline: refreshedTimeline });
     }
   }, [getEditedTimeline, timeline]);
+
+  const replacement = presetReplacement(currentPreset.presetId);
+
+  const handleReplaceDeprecated = () => {
+    if (!replacement) return;
+    const target = getPredefinedPresetById(replacement.presetId);
+    if (!target) {
+      toast.error(`${replacement.title} preset not found`);
+      return;
+    }
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    const edits = useTimelineEditsStore.getState();
+    edits.replacePresetDefinition(
+      timeline.id,
+      preset.id,
+      target,
+      replacement.convert(localInputData),
+    );
+    const updatedTimeline = edits.getEditedTimeline(timeline.id) || timeline;
+    const replaced = updatedTimeline.presets?.find((p) => p.id === preset.id);
+    if (replaced) selectPreset(replaced, updatedTimeline);
+    const compileStore = useCompileStore.getState();
+    if (compileStore.currentTimeline?.id === updatedTimeline.id) {
+      useCompileStore.setState({ currentTimeline: updatedTimeline });
+    }
+    generateOutput(updatedTimeline);
+    toast.success(`Moved ${trackName} to ${replacement.title}`);
+  };
+
+  if (replacement) {
+    return (
+      <DeprecatedPresetNotice
+        trackName={trackName}
+        presetTitle={replacement.deprecatedTitle}
+        replacementTitle={replacement.title}
+        onReplace={handleReplaceDeprecated}
+      />
+    );
+  }
 
   // // Show skeleton while loading
   // if (isLoading || !isReady) {

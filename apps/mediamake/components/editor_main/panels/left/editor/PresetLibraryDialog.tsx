@@ -57,11 +57,11 @@ export function PresetLibraryDialog({
 
     // Filter presets based on search query
     const filteredPredefinedPresets = predefinedPresets.filter((preset) =>
-        preset.metadata.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        !preset.metadata.deprecated && (preset.metadata.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         preset.metadata.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         preset.metadata.tags?.some((tag) =>
             tag.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+        ))
     );
 
     const filteredDatabasePresets = databasePresets.filter((preset) =>

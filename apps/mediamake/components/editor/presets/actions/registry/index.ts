@@ -11,12 +11,16 @@ import { captionReset } from "./caption-reset";
 import { captionSentenceStructure } from "./caption-sentence-structure";
 import { captionSpellingCorrect } from "./caption-spelling-correct";
 import { captionSplitHighlight } from "./caption-split-highlight";
+import { beatMontageChoice } from "./beat-montage-choice";
+import { beatmapAnalyze } from "./beatmap-analyze";
 import { imageBeatChoice } from "./image-beat-choice";
 import { savedStylesActions } from "./saved-styles-choice";
 import { waveformSpectrumFillChoice } from "./waveform-spectrum-fill-choice";
 
 const ACTION_REGISTRY: ActionDefinition[] = [
+  beatmapAnalyze,
   imageBeatChoice,
+  beatMontageChoice,
   waveformSpectrumFillChoice,
   ...savedStylesActions,
   captionSpellingCorrect,
@@ -95,4 +99,6 @@ export {
   shakeEffectRangeBrowser,
   waveformSpectrumFillChoice,
   imageBeatChoice,
+  beatMontageChoice,
+  beatmapAnalyze,
 };

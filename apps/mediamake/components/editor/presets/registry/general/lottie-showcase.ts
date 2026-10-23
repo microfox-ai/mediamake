@@ -1,5 +1,6 @@
 /**
- * Lottie Showcase Preset
+ * Lottie Showcase Preset — DEPRECATED.
+ * Saved showcases still render; the preset is hidden from add menus.
  *
  * This preset creates a showcase of Lottie animations with various layout patterns and entry animations.
  * It displays multiple Lottie JSON animations in grid, horizontal, vertical, or circular layouts.
@@ -324,9 +325,10 @@ const presetExecution = (
 export const lottieShowcasePreset = {
   metadata: {
     id: 'lottie-showcase',
-    title: '✨ Lottie Icon Showcase',
+    title: '✨ Lottie Icon Showcase (deprecated)',
     description:
-      'Showcase multiple Lottie animations with dynamic layouts and entrance effects. Perfect for feature highlights and product showcases.',
+      'Deprecated. Showcase multiple Lottie animations with dynamic layouts and entrance effects. Perfect for feature highlights and product showcases.',
+    deprecated: true,
     type: 'predefined' as const,
     presetType: 'children' as const,
     tags: ['lottie', 'animation', 'showcase', 'icons', 'features'],

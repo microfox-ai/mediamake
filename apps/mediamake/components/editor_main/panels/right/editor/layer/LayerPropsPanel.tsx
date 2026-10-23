@@ -53,6 +53,7 @@ const BLOCK_STYLE_COMPONENT_IDS = new Set([
   "HTMLBlockAtom",
   "ShapeAtom",
   "ImageBeat",
+  "BeatMontage",
 ]);
 
 /** Atoms whose own style schema sets positionStyle. */
@@ -61,6 +62,7 @@ const POSITION_STYLE_COMPONENT_IDS = new Set([
   "ImageAtom",
   "HTMLBlockAtom",
   "ImageBeat",
+  "BeatMontage",
 ]);
 
 const BLOCK_OWNED_STYLE_KEYS = new Set<string>([

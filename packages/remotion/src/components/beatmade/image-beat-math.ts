@@ -29,7 +29,16 @@ export interface EccentricZoomOptions {
   settleSec?: number;
   /** How far origins sit from centre, 0-1. Default 0.7. */
   originSpread?: number;
+  /** How much a beat's strength sizes its punch, 0-1. Default 0.6. */
+  dynamics?: number;
+  /** Extra punch on downbeats, as a share of the punch. Default 0. */
+  downbeatBoost?: number;
+  /** Degrees a punch may rotate, alternating sides. Default 0. */
+  tilt?: number;
 }
+
+/** A beat time, or a cue with its strength (0-1) and whether it is a downbeat. */
+export type ZoomBeat = number | { t: number; strength?: number; downbeat?: boolean };
 
 export interface EccentricZoom {
   scale: number;
@@ -39,6 +48,10 @@ export interface EccentricZoom {
   /** Focal point in percent, for tests / debug. */
   originX: number;
   originY: number;
+  /** Rotation in degrees. */
+  rotate: number;
+  /** Envelope of the latest punch, 1 on the hit falling to 0 when it settles. */
+  punch: number;
   /** Index of the beat that owns this punch, or -1. */
   beatIndex: number;
 }
@@ -223,22 +236,24 @@ export const easeOut = (t: number) => cubicBezier(t, 0, 0, 0.58, 1);
 /** CSS `ease-in-out` — cubic-bezier(0.42, 0, 0.58, 1). */
 export const easeInOut = (t: number) => cubicBezier(t, 0.42, 0, 0.58, 1);
 
-export function findLastBeatIndex(beats: number[], timeSec: number): number {
-  if (beats.length === 0 || timeSec < beats[0]) return -1;
+export function findLastBeatIndex(beats: ZoomBeat[], timeSec: number): number {
+  if (beats.length === 0 || beatTime(beats[0]) > timeSec) return -1;
   let lo = 0;
   let hi = beats.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    if (beats[mid] <= timeSec) lo = mid + 1;
+    if (beatTime(beats[mid]) <= timeSec) lo = mid + 1;
     else hi = mid - 1;
   }
   return hi;
 }
 
-type Camera = { scale: number; tx: number; ty: number; originX: number; originY: number };
+const beatTime = (b: ZoomBeat) => (typeof b === 'number' ? b : b.t);
+
+type Camera = { scale: number; tx: number; ty: number; originX: number; originY: number; rotate: number };
 
 /** Pan + scale that looks at `origin` (percent) around the image centre. */
-export function cameraAt(origin: { x: number; y: number }, scale: number): Camera {
+export function cameraAt(origin: { x: number; y: number }, scale: number, rotate = 0): Camera {
   const s = Math.max(1, scale);
   const dx = (origin.x - 50) / 50;
   const dy = (origin.y - 50) / 50;
@@ -248,6 +263,7 @@ export function cameraAt(origin: { x: number; y: number }, scale: number): Camer
     ty: -dy * ((s - 1) / 2) * 100,
     originX: origin.x,
     originY: origin.y,
+    rotate,
   };
 }
 
@@ -259,69 +275,84 @@ const lerpCamera = (from: Camera, to: Camera, t: number): Camera => ({
   ty: lerp(from.ty, to.ty, t),
   originX: lerp(from.originX, to.originX, t),
   originY: lerp(from.originY, to.originY, t),
+  rotate: lerp(from.rotate, to.rotate, t),
 });
 
 const restCamera = (baseScale: number): Camera => cameraAt({ x: 50, y: 50 }, baseScale);
+
+interface Punch {
+  punchSec: number;
+  settleSec: number;
+  zoomIntensity: number;
+  baseScale: number;
+  originSpread: number;
+  dynamics: number;
+  downbeatBoost: number;
+  tilt: number;
+}
+
+/** Share of the full punch a beat gets from its strength and bar position. */
+const punchSize = (beat: ZoomBeat, p: Punch) => {
+  if (typeof beat === 'number') return 1;
+  const strength = clamp01(beat.strength ?? 1);
+  return (1 - p.dynamics + p.dynamics * strength) * (beat.downbeat ? 1 + p.downbeatBoost : 1);
+};
 
 /**
  * Advance one beat: pan and zoom share the same bezier progress so they
  * move together. Punch eases in-out into the new crop; settle eases out.
  */
-const stepBeat = (
-  beatIndex: number,
-  elapsed: number,
-  from: Camera,
-  punchSec: number,
-  settleSec: number,
-  peakScale: number,
-  baseScale: number,
-  originSpread: number,
-): Camera => {
-  const origin = originForBeat(beatIndex, originSpread);
-  const peak = cameraAt(origin, peakScale);
-  const rest = cameraAt(origin, baseScale);
-  if (elapsed <= punchSec) {
-    return lerpCamera(from, peak, easeInOut(elapsed / punchSec));
+const stepBeat = (beatIndex: number, size: number, elapsed: number, from: Camera, p: Punch): Camera => {
+  const origin = originForBeat(beatIndex, p.originSpread);
+  const turn = p.tilt * size * (beatIndex % 2 === 0 ? 1 : -1);
+  const peak = cameraAt(origin, p.baseScale + p.zoomIntensity * size, turn);
+  const rest = cameraAt(origin, p.baseScale);
+  if (elapsed <= p.punchSec) {
+    return lerpCamera(from, peak, easeInOut(elapsed / p.punchSec));
   }
-  return lerpCamera(peak, rest, easeOut(Math.min(1, (elapsed - punchSec) / settleSec)));
+  return lerpCamera(peak, rest, easeOut(Math.min(1, (elapsed - p.punchSec) / p.settleSec)));
 };
 
 /**
- * Scale + pan at `timeSec` for a list of onset times.
+ * Scale + pan at `timeSec` for a list of beats (times, or cues with strength).
  * Each beat eases from the live camera into a new crop (pan and zoom together),
  * then eases out. A new beat continues from wherever the last move left off.
  */
 export function eccentricZoomAt(
   timeSec: number,
-  beats: number[],
+  beats: ZoomBeat[],
   options: EccentricZoomOptions = {},
 ): EccentricZoom {
-  const zoomIntensity = options.zoomIntensity ?? 0.32;
-  const baseScale = options.baseScale ?? 1.08;
-  const punchSec = Math.max(0.001, options.punchSec ?? 0.18);
-  const settleSec = Math.max(0.001, options.settleSec ?? 0.5);
-  const originSpread = options.originSpread ?? 0.7;
-  const peakScale = baseScale + zoomIntensity;
+  const p: Punch = {
+    zoomIntensity: options.zoomIntensity ?? 0.32,
+    baseScale: options.baseScale ?? 1.08,
+    punchSec: Math.max(0.001, options.punchSec ?? 0.18),
+    settleSec: Math.max(0.001, options.settleSec ?? 0.5),
+    originSpread: options.originSpread ?? 0.7,
+    dynamics: clamp01(options.dynamics ?? 0.6),
+    downbeatBoost: Math.max(0, options.downbeatBoost ?? 0),
+    tilt: options.tilt ?? 0,
+  };
 
   const beatIndex = findLastBeatIndex(beats, timeSec);
-  let camera = restCamera(baseScale);
+  let camera = restCamera(p.baseScale);
   if (beatIndex < 0) {
-    return { ...camera, beatIndex: -1 };
+    return { ...camera, punch: 0, beatIndex: -1 };
   }
 
-  for (let i = 0; i <= beatIndex; i++) {
-    const end = i === beatIndex ? timeSec : beats[i + 1];
-    camera = stepBeat(
-      i,
-      Math.max(0, end - beats[i]),
-      camera,
-      punchSec,
-      settleSec,
-      peakScale,
-      baseScale,
-      originSpread,
-    );
+  // A beat that follows a fully settled one starts from that rest crop, so
+  // only the moves since then need replaying.
+  const full = p.punchSec + p.settleSec;
+  let first = beatIndex;
+  while (first > 0 && beatTime(beats[first]) - beatTime(beats[first - 1]) < full) first--;
+  if (first > 0) camera = cameraAt(originForBeat(first - 1, p.originSpread), p.baseScale);
+
+  for (let i = first; i <= beatIndex; i++) {
+    const end = i === beatIndex ? timeSec : beatTime(beats[i + 1]);
+    camera = stepBeat(i, punchSize(beats[i], p), Math.max(0, end - beatTime(beats[i])), camera, p);
   }
 
-  return { ...camera, beatIndex };
+  const since = timeSec - beatTime(beats[beatIndex]);
+  const punch = since < full ? punchSize(beats[beatIndex], p) * (1 - since / full) ** 2 : 0;
+  return { ...camera, punch, beatIndex };
 }

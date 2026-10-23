@@ -129,6 +129,13 @@ interface TimelineEditsState {
   updateTimeline: (timelineId: string, updates: Partial<Timeline>, changeKey?: string) => void;
   updatePresetInputData: (timelineId: string, presetId: string, inputData: any) => void;
   updatePresetDisabled: (timelineId: string, presetId: string, disabled: boolean) => void;
+  /** Swap a block onto another preset in place. The block id, parent and order stay. */
+  replacePresetDefinition: (
+    timelineId: string,
+    presetId: string,
+    preset: PresetType | DatabasePreset,
+    inputData: any,
+  ) => void;
   updateNodeTiming: (timelineId: string, nodeId: string, timing: NodeTiming) => void;
   reparentInstanceNode: (timelineId: string, nodeId: string, parentId: string) => void;
   /** Place `nodeId` under a scene. `index` is the position after the node is removed. */
@@ -992,6 +999,23 @@ export const useTimelineEditsStore = create<TimelineEditsState>((set, get) => {
         ? mapNodeDisabled(timeline.nodes, ids, disabled)
         : undefined;
       get().updateTimeline(timelineId, nodes ? { presets, nodes } : { presets });
+    },
+
+    replacePresetDefinition: (timelineId, presetId, preset, inputData) => {
+      const timeline = resolveTimelineForEdit(timelineId);
+      if (!timeline?.presets) return;
+      const presets = timeline.presets.map((item) =>
+        item.id === presetId
+          ? {
+              ...item,
+              presetId: preset.metadata.id,
+              presetType: preset.metadata.presetType,
+              presetInfo: preset,
+              presetInputData: inputData,
+            }
+          : item,
+      );
+      get().updateTimeline(timelineId, { presets }, `replace:${presetId}`);
     },
 
     updateNodeTiming: (timelineId, nodeId, timing) => {
