@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { continueRender, delayRender, Img, staticFile } from 'remotion';
+import { continueRender, delayRender, Img } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { BaseRenderableProps } from '../../core/types';
 import { ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
@@ -111,7 +112,7 @@ export const Atom: React.FC<ImageAtomProps> = ({ data, id }) => {
         if (data.src.startsWith('http')) {
             return imageSource;
         }
-        return staticFile(data.src);
+        return resolveMediaSrc(data.src);
     }, [data.src, imageSource]);
 
     const enhancedStyle = useMemo(() => {

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { continueRender, delayRender, useCurrentFrame, useVideoConfig } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { Lottie, LottieAnimationData } from '@remotion/lottie';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { useAnimatedStyles } from '../effects';
@@ -40,7 +41,7 @@ const useLottieData = (src: string) => {
         setHasError(false);
 
         // Determine the source URL
-        const sourceUrl = src.startsWith('http') ? src : staticFile(src);
+        const sourceUrl = resolveMediaSrc(src);
 
         // Fetch the Lottie JSON data with better error handling
         fetch(sourceUrl, {

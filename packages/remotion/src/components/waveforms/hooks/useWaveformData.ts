@@ -5,6 +5,7 @@ import {
   visualizeAudio,
 } from '@remotion/media-utils';
 import { staticFile } from 'remotion';
+import { isUrlSrc } from '../../../utils/mediaSrc';
 import {
   findMatchingComponents,
   findMatchingComponentsByQuery,
@@ -69,7 +70,7 @@ const getClosestPowerOfTwo = (num: number): number => {
 };
 
 /**
- * Resolves an audio `src` the way the waveform atoms read it: http URLs as is,
+ * Resolves an audio `src` the way the waveform atoms read it: URLs (http, blob:, data:) as is,
  * `ref:<id>` to that AudioAtom's file (or the first AudioAtom inside that layout
  * or scene) with its `startFrom`, anything else through `staticFile`.
  */
@@ -81,7 +82,7 @@ export const useResolvedAudioSource = (
     if (!audioSrc) {
       return { source: audioSrc, audioStartsFrom: undefined };
     }
-    if (audioSrc.startsWith('http')) {
+    if (isUrlSrc(audioSrc)) {
       return { source: audioSrc, audioStartsFrom: undefined };
     }
     if (audioSrc.startsWith('ref:')) {

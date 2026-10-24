@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { continueRender, delayRender, staticFile } from 'remotion';
+import { continueRender, delayRender } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { CanvasAssets, CanvasSourceDef } from '../types';
 
 /**
@@ -12,8 +13,7 @@ import { CanvasAssets, CanvasSourceDef } from '../types';
 
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 
-const resolveSrc = (src: string): string =>
-  src.startsWith('http') || src.startsWith('data:') ? src : staticFile(src);
+const resolveSrc = resolveMediaSrc;
 
 export const loadImage = (src: string): Promise<HTMLImageElement> => {
   const key = resolveSrc(src);

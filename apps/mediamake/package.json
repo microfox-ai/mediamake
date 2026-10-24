@@ -139,6 +139,7 @@
     "remotion": "4.0.496",
     "sharp": "^0.34.3",
     "sonner": "^2.0.7",
+    "sucrase": "^3.35.1",
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "three": "^0.176.0",

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Audio as Html5Audio, staticFile, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
+import { Audio as Html5Audio, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { atomCategory } from '../../atom-category';
@@ -66,12 +67,7 @@ export const Atom: React.FC<AudioAtomProps> = ({ data }) => {
         return false;
     }, [muted, frame, fps]);
 
-    const source = useMemo(() => {
-        if (data.src.startsWith('http')) {
-            return data.src;
-        }
-        return staticFile(data.src);
-    }, [data.src]);
+    const source = useMemo(() => resolveMediaSrc(data.src), [data.src]);
 
     // <Html5Audio> throws in @remotion/web-renderer; see core/clientMediaTags.
     const environment = useRemotionEnvironment();
