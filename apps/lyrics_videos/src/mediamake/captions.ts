@@ -28,6 +28,23 @@ export type MediamakeCaption = {
 const r = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
+ * Some lyrics.json lines carry one `splitParts` entry (the whole line) while their `htmlText`
+ * holds the real line breaks; the preset then draws the line in one row and it runs off the
+ * frame. Take the parts from the `<br/>` breaks in that case.
+ */
+const withSplitParts = (metadata: Record<string, unknown> | undefined) => {
+  const meta = metadata ?? {};
+  const parts = meta.splitParts;
+  const html = typeof meta.htmlText === 'string' ? meta.htmlText : '';
+  if (!Array.isArray(parts) || parts.length !== 1 || !/<br\s*\/?>/i.test(html)) return meta;
+  const fromHtml = html
+    .split(/<br\s*\/?>/i)
+    .map(p => p.replace(/<[^>]+>/g, '').trim())
+    .filter(Boolean);
+  return fromHtml.length > 1 ? { ...meta, splitParts: fromHtml } : meta;
+};
+
+/**
  * `offset` is subtracted from every time, so captions line up with a layer that starts at
  * `offset` seconds into the song. Lines that end before the offset are dropped.
  */
@@ -45,7 +62,7 @@ export const toCaptions = (lines: LyricLine[], offset = 0): MediamakeCaption[] =
         duration: r(end - start),
         absoluteStart: start,
         absoluteEnd: end,
-        metadata: l.metadata ?? {},
+        metadata: withSplitParts(l.metadata),
         words: l.words.map((w, i) => ({
           id: `${l.id}-w${i}`,
           text: w.text,
