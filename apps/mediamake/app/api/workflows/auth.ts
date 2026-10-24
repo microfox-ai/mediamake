@@ -38,7 +38,10 @@ export async function getClientId(_req: NextRequest): Promise<string | undefined
       return session.clientId;
     }
   }
-  return undefined;
+  // API-key callers (the MCP server, the browser extension): middleware.ts has
+  // already validated the Bearer key and set x-client-id, overwriting any value
+  // the caller sent, so the header is as trustworthy as the session above.
+  return _req.headers.get('x-client-id') || undefined;
 }
 
 /** Constant-time string comparison (avoids leaking the secret via timing). */
