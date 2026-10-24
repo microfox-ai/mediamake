@@ -28,8 +28,13 @@ export function HomePage({ cards, initialTab }: { cards: CatalogEntry[]; initial
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          <Link href="/" onClick={() => selectTab('home')} className="text-lg font-bold tracking-tight">
-            mediamake
+          <Link
+            href="/"
+            onClick={() => selectTab('home')}
+            className="flex items-center gap-2 text-xl font-bold tracking-tight"
+          >
+            <img src="/brand/mediamake-mark.svg" alt="" className="size-7" />
+            MediaMake
           </Link>
 
           <nav className="mx-auto hidden md:block">
@@ -52,7 +57,8 @@ export function HomePage({ cards, initialTab }: { cards: CatalogEntry[]; initial
         {tab === 'home' && (
           // Hero is intentionally minimal for now.
           <section className="flex min-h-[40vh] flex-col items-center justify-center gap-3 py-16 text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">mediamake</h1>
+            <img src="/brand/mediamake-mark-glow.svg" alt="" className="h-20 w-auto" />
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">MediaMake</h1>
             <p className="max-w-xl text-muted-foreground">
               MCPs, skills, apps and tutorials for making content.
             </p>
