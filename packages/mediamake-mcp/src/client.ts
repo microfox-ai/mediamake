@@ -29,13 +29,19 @@ export type Query = Record<
   string | number | boolean | undefined | null
 >;
 
+/** An unset optional field in an .mcpb install can arrive as the literal `${user_config.x}`. */
+function envValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && !trimmed.startsWith('${') ? trimmed : undefined;
+}
+
 export function configFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): MediamakeConfig {
-  const baseUrl = (env.MEDIAMAKE_API_URL || 'http://localhost:3000')
-    .trim()
-    .replace(/\/+$/, '');
-  const apiKey = env.MEDIAMAKE_API_KEY?.trim() || undefined;
+  const baseUrl = (
+    envValue(env.MEDIAMAKE_API_URL) || 'http://localhost:3000'
+  ).replace(/\/+$/, '');
+  const apiKey = envValue(env.MEDIAMAKE_API_KEY);
   const timeoutMs =
     Number(env.MEDIAMAKE_TIMEOUT_MS) > 0
       ? Number(env.MEDIAMAKE_TIMEOUT_MS)
