@@ -1,26 +1,29 @@
 'use client';
 
-import { CheckIcon, FolderOpenIcon, LockIcon, MessageSquareIcon, SmartphoneIcon, StarIcon, XIcon, ZoomInIcon } from 'lucide-react';
+import { CheckIcon, FolderOpenIcon, FolderSearchIcon, LockIcon, MessageSquareIcon, SmartphoneIcon, StarIcon, XIcon, ZoomInIcon } from 'lucide-react';
+import { absolutePath, revealOrCopy } from '@/lib/image-revisions/reveal';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { selectActiveRevision, useThumbRevisionsStore } from './store';
+import { formatOf } from '@/lib/image-revisions/types';
+import { selectActiveRevision, useImageRevisionsStore } from './store';
 
-/** YouTube's feed shows thumbnails about this wide. */
-export const FEED_WIDTH = 246;
+/** Thumbnails, posters or any image set: aspect, small preview size, final count. */
+export const useFormat = () => formatOf(useImageRevisionsStore(s => s.job?.index));
+
 
 export function Badges({ id, compact }: { id: string; compact?: boolean }) {
-  const revision = useThumbRevisionsStore(selectActiveRevision);
-  const index = useThumbRevisionsStore(s => s.job?.index);
-  const comments = revision?.comments.filter(c => c.thumbs.includes(id)).length ?? 0;
+  const revision = useImageRevisionsStore(selectActiveRevision);
+  const index = useImageRevisionsStore(s => s.job?.index);
+  const comments = revision?.comments.filter(c => c.images.includes(id)).length ?? 0;
   const chip = 'inline-flex items-center gap-0.5 rounded px-1 py-px text-[10px] font-semibold';
   return (
     <span className="flex flex-wrap items-center gap-1">
       {revision?.final.includes(id) && (
         <span className={cn(chip, 'bg-amber-400 text-black')}>
-          <StarIcon className="size-3" /> {compact ? '' : revision.final.length > 1 ? 'A/B' : 'Final'}
+          <StarIcon className="size-3" /> {compact ? '' : revision.final.length > 1 ? 'A/B' : index?.kind === 'poster' ? 'Cover' : 'Final'}
         </span>
       )}
       {revision?.keep.includes(id) && (
@@ -39,12 +42,12 @@ export function Badges({ id, compact }: { id: string; compact?: boolean }) {
         </span>
       )}
       {index?.kept?.includes(id) && (
-        <Hint label="Locked by Claude (thumbs keep)">
+        <Hint label="Locked by the workflow (kept as it is)">
           <span className={cn(chip, 'border border-emerald-500/60 text-emerald-400')}>kept</span>
         </Hint>
       )}
       {index?.picked?.includes(id) && (
-        <Hint label="Copied to final/ by Claude (thumbs pick)">
+        <Hint label="Delivered as final by the workflow">
           <span className={cn(chip, 'border border-amber-400/60 text-amber-300')}>in final/</span>
         </Hint>
       )}
@@ -52,25 +55,30 @@ export function Badges({ id, compact }: { id: string; compact?: boolean }) {
   );
 }
 
-function Tile({ id, note, width }: { id: string; note?: string; width: number }) {
-  const render = useThumbRevisionsStore(s => s.renders[id]);
-  const selected = useThumbRevisionsStore(s => s.selection.includes(id));
-  const dropped = useThumbRevisionsStore(s => selectActiveRevision(s)?.drop.includes(id) ?? false);
-  const click = useThumbRevisionsStore(s => s.click);
-  const openZoom = useThumbRevisionsStore(s => s.openZoom);
+function Tile({ id, file, note, width }: { id: string; file: string; note?: string; width: number }) {
+  const render = useImageRevisionsStore(s => s.renders[id]);
+  const selected = useImageRevisionsStore(s => s.selection.includes(id));
+  const dropped = useImageRevisionsStore(s => selectActiveRevision(s)?.drop.includes(id) ?? false);
+  const click = useImageRevisionsStore(s => s.click);
+  const openZoom = useImageRevisionsStore(s => s.openZoom);
+  const index = useImageRevisionsStore(s => s.job?.index);
+  // a set of one size shares its shape; a mixed set shows each image's own
+  const format = useFormat();
+  const aspect = format.aspect ?? (render?.size ? `${render.size[0]} / ${render.size[1]}` : '4 / 3');
   return (
     <div style={{ width }} className="shrink-0">
       <button
         type="button"
         aria-pressed={selected}
-        aria-label={`Thumbnail ${id}`}
+        aria-label={`Image ${id}`}
         onClick={e => click(id, { shift: e.shiftKey, only: e.altKey })}
+        style={{ aspectRatio: aspect }}
         onDoubleClick={() => {
           click(id, { only: true });
           openZoom(id);
         }}
         className={cn(
-          'group relative block aspect-video w-full overflow-hidden rounded-md bg-muted outline-none ring-offset-2 ring-offset-background transition',
+          'group relative block w-full overflow-hidden rounded-md bg-muted outline-none ring-offset-2 ring-offset-background transition',
           selected ? 'ring-[3px] ring-primary' : 'hover:ring-2 hover:ring-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary',
         )}
       >
@@ -88,14 +96,31 @@ function Tile({ id, note, width }: { id: string; note?: string; width: number })
         >
           {selected && <CheckIcon className="size-3.5" />}
         </span>
-        <span
-          className="absolute right-1.5 top-1.5 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-          onClick={e => {
-            e.stopPropagation();
-            openZoom(id);
-          }}
-        >
-          <ZoomInIcon className="size-3.5" />
+        <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+          <Hint label={absolutePath(index) ? 'Show in Finder (copies the path when it can\'t)' : 'Copy the folder name (no path recorded)'}>
+            <span
+              role="button"
+              aria-label={`Show ${id} in Finder`}
+              className="rounded bg-black/60 p-1 text-white hover:bg-black/80"
+              onClick={e => {
+                e.stopPropagation();
+                void revealOrCopy(absolutePath(index, file), index?.job ?? id);
+              }}
+            >
+              <FolderSearchIcon className="size-3.5" />
+            </span>
+          </Hint>
+          <span
+            role="button"
+            aria-label={`Zoom in on ${id}`}
+            className="rounded bg-black/60 p-1 text-white hover:bg-black/80"
+            onClick={e => {
+              e.stopPropagation();
+              openZoom(id);
+            }}
+          >
+            <ZoomInIcon className="size-3.5" />
+          </span>
         </span>
       </button>
       <div className="mt-1 flex items-start gap-1.5">
@@ -112,10 +137,10 @@ function Tile({ id, note, width }: { id: string; note?: string; width: number })
 }
 
 function EmptyState() {
-  const support = useThumbRevisionsStore(s => s.support);
-  const pendingJob = useThumbRevisionsStore(s => s.pendingJob);
-  const pickJob = useThumbRevisionsStore(s => s.pickJob);
-  const sources = useThumbRevisionsStore(s => s.sources);
+  const support = useImageRevisionsStore(s => s.support);
+  const pendingJob = useImageRevisionsStore(s => s.pendingJob);
+  const pickJob = useImageRevisionsStore(s => s.pickJob);
+  const sources = useImageRevisionsStore(s => s.sources);
   if (support === 'browser' || support === 'insecure') {
     return (
       <p className="max-w-md text-sm text-muted-foreground">
@@ -125,9 +150,9 @@ function EmptyState() {
   }
   return (
     <div className="max-w-md space-y-3 text-center">
-      <h2 className="text-lg font-semibold">Review thumbnails</h2>
+      <h2 className="text-lg font-semibold">Review images</h2>
       <p className="text-sm text-muted-foreground">
-        Open a job folder (<code>apps/lyrics_videos/out/thumbnails/&lt;job&gt;</code>), select thumbnails, then pick finals, keep, drop or
+        Open any folder of images, or <code>apps/lyrics_videos/out</code> (every thumbnail and poster set in it is listed). Select some, then pick finals, keep, drop or
         comment. Everything saves next to the renders as a revision Claude reads.
       </p>
       {pendingJob && (
@@ -137,20 +162,21 @@ function EmptyState() {
         </p>
       )}
       <Button onClick={() => void pickJob()}>
-        <FolderOpenIcon className="size-4" /> Open thumbnails
+        <FolderOpenIcon className="size-4" /> Open images
       </Button>
     </div>
   );
 }
 
-export function ThumbGrid() {
-  const job = useThumbRevisionsStore(s => s.job);
-  const tile = useThumbRevisionsStore(s => s.tile);
-  const setTile = useThumbRevisionsStore(s => s.setTile);
-  const selection = useThumbRevisionsStore(s => s.selection);
-  const selectAll = useThumbRevisionsStore(s => s.selectAll);
-  const clearSelection = useThumbRevisionsStore(s => s.clearSelection);
-  const openZoom = useThumbRevisionsStore(s => s.openZoom);
+export function ImageGrid() {
+  const job = useImageRevisionsStore(s => s.job);
+  const tile = useImageRevisionsStore(s => s.tile);
+  const setTile = useImageRevisionsStore(s => s.setTile);
+  const selection = useImageRevisionsStore(s => s.selection);
+  const selectAll = useImageRevisionsStore(s => s.selectAll);
+  const clearSelection = useImageRevisionsStore(s => s.clearSelection);
+  const openZoom = useImageRevisionsStore(s => s.openZoom);
+  const format = useFormat();
 
   if (!job) {
     return (
@@ -180,9 +206,9 @@ export function ThumbGrid() {
         </Hint>
         <span className="hidden truncate text-muted-foreground 2xl:inline">Click to select several · ⇧ click a range · double-click to zoom</span>
         <div className="ml-auto flex items-center gap-2">
-          <Hint label="Show them at YouTube's feed size">
-            <Button variant={tile === FEED_WIDTH ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setTile(tile === FEED_WIDTH ? 300 : FEED_WIDTH)}>
-              <SmartphoneIcon className="size-3.5" /> Feed size
+          <Hint label={format.smallHint}>
+            <Button variant={tile === format.small ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setTile(tile === format.small ? 300 : format.small)}>
+              <SmartphoneIcon className="size-3.5" /> {format.smallLabel}
             </Button>
           </Hint>
           <Slider className="w-28" min={160} max={640} step={2} value={[tile]} onValueChange={([v]) => setTile(v)} aria-label="Tile size" />
@@ -193,12 +219,13 @@ export function ThumbGrid() {
           {job.index.styles.map(style => (
             <section key={style.id}>
               <h3 className="mb-2 text-sm font-semibold">
-                <span className="text-amber-400">{style.id}</span> {style.name}
+                {/* a one-group set made from a folder has nothing to label */}
+                {style.id !== 'all' && <span className="text-amber-400">{style.id}</span>} {style.name}
                 {style.idea && <span className="font-normal text-muted-foreground"> · {style.idea}</span>}
               </h3>
               <div className="flex flex-wrap gap-4">
                 {style.variants.map(v => (
-                  <Tile key={v.id} id={v.id} note={v.note} width={tile} />
+                  <Tile key={v.id} id={v.id} file={v.file} note={v.note} width={tile} />
                 ))}
               </div>
             </section>

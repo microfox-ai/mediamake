@@ -1,15 +1,33 @@
 /**
- * The thumbnail contract. A job (thumbnails/jobs/<job>/thumbs.json) lists styles, each with
+ * The stills contract, for YouTube thumbnails and music posters (album artwork). A job
+ * (thumbnails/jobs/<job>/thumbs.json, or poster.json for a poster) lists styles, each with
  * variants; a variant is a preset plus params (cheap to write) or a raw layer list (anything), and
- * small patches on top. resolveJob() turns it into flat layer lists that <Thumbnail> draws.
+ * small patches on top, plus an optional treatment (a whole-picture look: film, noir, riso…).
+ * resolveJob() turns it into flat layer lists that <Thumbnail> draws.
  *
  * Pure data and functions, no React or remotion imports: scripts/thumbs.ts runs this file in Node
  * (lint, index.json), Remotion bundles it for the compositions. Keep imports with `.ts` extensions.
  */
 import { PRESETS } from './presets/index.ts';
+import { TREATMENTS, type Post } from './treatments.ts';
 
-/** The thumbnail frame: YouTube's 1280×720 (16:9). Every coordinate in a spec is in these pixels. */
+/** The thumbnail frame: YouTube's 1280×720 (16:9). Every coordinate in a thumbnail spec is in these pixels. */
 export const CANVAS = { w: 1280, h: 720 } as const;
+
+export type JobKind = 'thumbnail' | 'poster';
+
+/**
+ * Per kind: the spec file, the design canvas (spec coordinates), the render scale and the output
+ * folder. Posters are designed at 1000×1000 and rendered at 3× = DistroKid's 3000×3000.
+ */
+export const KINDS: Record<JobKind, { spec: string; size: [number, number]; scale: number; out: string }> = {
+  thumbnail: { spec: 'thumbs.json', size: [1280, 720], scale: 1, out: 'thumbnails' },
+  poster: { spec: 'poster.json', size: [1000, 1000], scale: 3, out: 'posters' },
+};
+
+export const jobKind = (job: Pick<JobSpec, 'kind'>): JobKind => job.kind ?? 'thumbnail';
+export const jobSize = (job: Pick<JobSpec, 'kind' | 'size'>): [number, number] => job.size ?? KINDS[jobKind(job)].size;
+export const jobScale = (job: Pick<JobSpec, 'kind' | 'scale'>): number => job.scale ?? KINDS[jobKind(job)].scale;
 /** Where YouTube draws the video length on every thumbnail: keep logos and words out of it. */
 export const TIMESTAMP_ZONE: Box = [1080, 640, 200, 80];
 
@@ -160,7 +178,7 @@ export type LogoLayer = Base & {
 
 export type FxLayer = Base & {
   type: 'fx';
-  kind: 'vignette' | 'grain' | 'light' | 'halftone' | 'scanlines' | 'tint' | 'letterbox' | 'speedlines';
+  kind: 'vignette' | 'grain' | 'light' | 'halftone' | 'scanlines' | 'tint' | 'letterbox' | 'speedlines' | 'dust' | 'paper' | 'leak';
   strength?: number;
   color?: Color;
   at?: Point;
@@ -202,6 +220,8 @@ export type Params = {
   textGlow?: Color;
   /** film grain 0..1 */
   grain?: number;
+  /** multiplies the picture's brightness on top of `grade` (1.15 = a bit brighter); pictures only */
+  exposure?: number;
   logos?: { src: string; anchor?: Anchor; at?: Point; width?: number; plate?: LogoLayer['plate']; glow?: Glow }[];
   /** which side the words go on, for presets that split the frame */
   side?: 'left' | 'right';
@@ -221,14 +241,31 @@ export type VariantSpec = {
   patch?: Record<string, Record<string, unknown>>;
   add?: AddedLayer[];
   remove?: string[];
+  /** a whole-picture look from treatments.ts (film, matte, noir, riso…), applied over everything */
+  treatment?: string;
 };
 
-export type StyleSpec = VariantSpec & { id: string; name: string; idea?: string; variants: VariantSpec[] };
+export type StyleSpec = VariantSpec & {
+  id: string;
+  name: string;
+  idea?: string;
+  variants?: VariantSpec[];
+  /** one variant per treatment, IDs from 0 when the list starts with "plain" (A0 plain, A1 film, …) */
+  treatments?: string[];
+};
 
 export type FontSpec = { family: string; weight?: number; italic?: boolean; file?: string };
 
 export type JobSpec = {
   job: string;
+  /** thumbnail (default, 1280×720) or poster (square album artwork) */
+  kind?: JobKind;
+  /** design canvas, default per kind */
+  size?: [number, number];
+  /** render scale, default per kind (posters 3 → 3000×3000) */
+  scale?: number;
+  /** a poster's Spotify Canvas (thumbnails/Canvas.tsx): `<job>-canvas`, rendered by `thumbs canvas <job>` */
+  canvas?: { src: string; cut?: string; seconds?: number; fps?: number; push?: number; drift?: number; embers?: number; glow?: string; grain?: number };
   title?: string;
   brand?: string;
   fonts?: FontSpec[];
@@ -237,7 +274,7 @@ export type JobSpec = {
   styles: StyleSpec[];
 };
 
-export type ResolvedVariant = { id: string; style: string; styleName: string; note?: string; layers: Layer[] };
+export type ResolvedVariant = { id: string; style: string; styleName: string; note?: string; layers: Layer[]; post?: Post };
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -288,7 +325,21 @@ export const resolveVariant = (job: JobSpec, style: StyleSpec, variant: VariantS
       if (i < 0) throw new Error(`${id}: patch for unknown layer "${lid}". Layers: ${layers.map(l => l.id).filter(Boolean).join(', ')}`);
       layers[i] = merge(layers[i], fields);
     }
-  return { id, style: style.id, styleName: style.name, note: variant.note, layers: layers.filter(l => !l.hidden).map(l => applyHero(l, hero)) };
+  const resolved: ResolvedVariant = { id, style: style.id, styleName: style.name, note: variant.note, layers: layers.filter(l => !l.hidden).map(l => applyHero(l, hero)) };
+  const treatment = pick('treatment');
+  if (treatment && treatment !== 'plain') {
+    const t = TREATMENTS[treatment];
+    if (!t) throw new Error(`${id}: no treatment "${treatment}". Have: plain, ${Object.keys(TREATMENTS).join(', ')}`);
+    resolved.post = t.build(params);
+  }
+  return resolved;
 };
 
-export const resolveJob = (job: JobSpec): ResolvedVariant[] => job.styles.flatMap(style => style.variants.map((v, i) => resolveVariant(job, style, v, i)));
+/** A style's variants: its own, or one per treatment (A0 plain, A1 film, …). */
+export const styleVariants = (style: StyleSpec): VariantSpec[] => {
+  if (style.variants?.length || !style.treatments?.length) return style.variants ?? [];
+  const from = style.treatments[0] === 'plain' ? 0 : 1;
+  return style.treatments.map((t, i) => ({ id: `${style.id}${i + from}`, treatment: t, note: t === 'plain' ? 'plain' : TREATMENTS[t]?.name ?? t }));
+};
+
+export const resolveJob = (job: JobSpec): ResolvedVariant[] => job.styles.flatMap(style => styleVariants(style).map((v, i) => resolveVariant(job, style, v, i)));

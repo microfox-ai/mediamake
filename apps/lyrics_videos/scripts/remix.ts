@@ -1,0 +1,150 @@
+/**
+ * remix: get a music-remix project (make-video-music-remix skill) ready to render.
+ *
+ *   1. video/footage.json   the footage's shots from its segregation, as { id: [start, end] }
+ *   2. derived/plate.mp4    the footage cropped to its picture (remix.json `crop`), scaled to the
+ *                           window, short GOP (derived/plate-lo.mp4 at half size)
+ *   3. video/anchors.json   the subject's centre/area/box per source frame, from the matte stats
+ *   4. resolves video/edl.ts against the manifest: prints every cut with its transition, warns about
+ *      cuts that run past their shot, writes video/shots.json (the review map)
+ *   5. derived/shotmattes/jobs.json: one subject cutout per footage shot the edit uses;
+ *      --matte runs scripts/matte.py on the shots that have none yet (~0.3–1 s a frame)
+ *
+ * projects/<slug>/video/remix.json:
+ *   { "sources": [{ "id": "f1", "prefix": "sh", "source": "input/<footage>.mp4",
+ *                   "segregation": "footage/segregation.json", "crop": [w, h, x, y], "matteFps": 24 },
+ *                 { "id": "lm", "prefix": "lm", ... }],
+ *     "window": [1920, 804], "logo": "input/<logo>" }
+ *   (the old single-source form { source, segregation, crop, window } still works)
+ *
+ * Usage: npm run remix -w lyrics_videos -- <slug> [--matte] [--only=sh0010,sh0030] [--force]
+ */
+import { execFileSync, spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveAll, type Footage } from '../src/remix/resolve.ts';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2);
+const slug = args.find(a => !a.startsWith('--'));
+if (!slug) throw new Error('usage: npm run remix -w lyrics_videos -- <slug> [--matte]');
+const flag = (n: string) => args.some(a => a === `--${n}`);
+const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.split('=')[1];
+
+const dir = path.join(ROOT, 'projects', slug);
+type SourceCfg = { id: string; prefix: string; source: string; segregation: string; crop: [number, number, number, number]; matteFps?: number; plate?: string };
+const raw = JSON.parse(fs.readFileSync(path.join(dir, 'video/remix.json'), 'utf8'));
+// a single-source remix.json ({ source, segregation, crop }) is the first source with prefix "sh"
+const cfg = (raw.sources ? raw : { ...raw, sources: [{ id: 'main', prefix: 'sh', source: raw.source, segregation: raw.segregation, crop: raw.crop }] }) as {
+  sources: SourceCfg[];
+  window: [number, number];
+  logo?: string;
+};
+const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+const derived = path.join(dir, 'derived');
+const matteDir = path.join(derived, 'shotmattes');
+fs.mkdirSync(matteDir, { recursive: true });
+
+// 1. footage table: every source's shots, ids re-prefixed per source (sh0012 → lm0012)
+const footage: Footage = { sources: {}, shots: {} };
+for (const [k, sc] of cfg.sources.entries()) {
+  const seg = JSON.parse(fs.readFileSync(path.join(dir, sc.segregation), 'utf8'));
+  const plate = sc.plate ?? (k === 0 ? 'plate.mp4' : `plate-${sc.id}.mp4`);
+  footage.sources[sc.id] = { fps: Math.min(30, seg.video.fps), matteFps: sc.matteFps ?? Math.min(30, Math.round(seg.video.fps)), duration: seg.frames / seg.video.fps, plate: `derived/${plate}` };
+  for (const sh of seg.shots) footage.shots[sc.prefix + sh.id.slice(2)] = [sh.start, sh.end, sc.id];
+
+  // 2. the plate: the source cropped to its picture, at the window size, short GOP
+  const src = path.join(dir, sc.source);
+  const out = path.join(derived, plate);
+  if (flag('force') || !fs.existsSync(out) || fs.statSync(out).mtimeMs < fs.statSync(src).mtimeMs) {
+    const [cw, ch, cx, cy] = sc.crop;
+    const [w, h] = cfg.window;
+    console.log(`plate ${plate} ${w}×${h} ...`);
+    execFileSync('ffmpeg', [
+      '-v', 'error', '-y', '-i', src, '-an',
+      // high-fps sources go down to 30 fps: the compositions run at 30, more only weighs
+      '-vf', `crop=${cw}:${ch}:${cx}:${cy}${w === cw && h === ch ? '' : `,scale=${w}:${h}:flags=lanczos${w > cw ? ',unsharp=5:5:0.4' : ''}`}${seg.video.fps > 30.5 ? ',fps=30' : ''}`,
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p',
+      '-g', '12', '-keyint_min', '12', '-movflags', '+faststart', out,
+    ], { stdio: 'inherit' });
+  }
+}
+fs.writeFileSync(path.join(dir, 'video/footage.json'), JSON.stringify(footage));
+
+// the title card's logo → white on transparent: its own alpha when it has one, else its dark marks
+if (cfg.logo) {
+  const out = path.join(derived, 'logo.png');
+  const src = path.join(dir, cfg.logo);
+  if (flag('force') || !fs.existsSync(out) || fs.statSync(out).mtimeMs < fs.statSync(src).mtimeMs) {
+    const pix = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=pix_fmt', '-of', 'csv=p=0', src]).toString().trim();
+    const alpha = /a/.test(pix.replace('gray', ''));
+    const graph = alpha
+      ? '[0]format=rgba,geq=r=255:g=255:b=255:a=alpha(X\\,Y)'
+      : '[0]format=gray,negate,format=gray[a];[0]format=rgba,geq=r=255:g=255:b=255:a=255[c];[c][a]alphamerge';
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', src, '-filter_complex', graph, out]);
+    console.log(`logo derived/logo.png (${alpha ? 'its alpha' : 'dark marks'})`);
+  }
+}
+
+// 3. anchors: the subject per matte frame, from the matte stats
+const anchors: Record<string, number[][]> = {};
+for (const f of fs.readdirSync(matteDir)) {
+  if (f.endsWith('.stats.json')) anchors[f.replace('.stats.json', '')] = JSON.parse(fs.readFileSync(path.join(matteDir, f), 'utf8'));
+}
+fs.writeFileSync(path.join(dir, 'video/anchors.json'), JSON.stringify(anchors));
+
+// 4. resolve
+const edl = await import(pathToFileURL(path.join(dir, 'video/edl.ts')).href);
+const { cuts, text, sfx } = resolveAll(manifest, footage, edl.blocks, edl.words, edl.sfx ?? [], new Set(Object.keys(anchors)));
+const sectionAt = (t: number) => manifest.sections.find((s: any) => t >= s.from - 1e-6 && t < s.to)?.label;
+const fmt = (t: number) => t.toFixed(2).padStart(7);
+for (const c of cuts) {
+  const fx = c.fx.map(f => f.k).join(' ');
+  const tag = c.gfx ? 'gfx' : c.matte ? '◐' : '·';
+  console.log(`${c.id.padEnd(6)} ${fmt(c.from)} ${fmt(c.to)}  ${c.src.padEnd(7)} ${tag} ${c.tin.padEnd(6)} ${fx}${c.rate !== 1 ? ` ×${c.rate.toFixed(2)}` : ''}${c.warn ? `   ⚠ ${c.warn}` : ''}`);
+}
+for (const w of text.filter(t => t.to <= t.from)) console.log(`⚠ text "${w.cue.text}" has no time on screen (${w.from.toFixed(2)})`);
+for (const s of sfx) if (!fs.existsSync(path.join(derived, 'sfx', `${s.file}.wav`))) console.log(`⚠ sfx ${s.file}.wav missing in derived/sfx/`);
+const used = [...new Set(cuts.flatMap(c => (c.panels ? c.panels.map(p => p.src) : c.gfx ? [] : [c.src])))];
+const missing = used.filter(id => !anchors[id]);
+const lens = cuts.map(c => c.to - c.from);
+console.log(`\n${cuts.length} cuts (median ${lens.sort((a, b) => a - b)[lens.length >> 1].toFixed(2)}s) · ${text.length} text cues · ${sfx.length} sfx · ${used.length} shots, ${missing.length} without a matte yet`);
+
+fs.writeFileSync(
+  path.join(dir, 'video/shots.json'),
+  JSON.stringify(
+    cuts.map(c => ({
+      id: c.id,
+      from: +c.from.toFixed(3),
+      to: +c.to.toFixed(3),
+      label: `${c.src} ${c.tin}${c.fx.length ? ' ' + c.fx.map(f => f.k).join('+') : ''}`,
+      lyric: text.filter(t => t.from < c.to && t.to > c.from).map(t => t.words.map(w => w.text).join(' ')).join(' / ') || undefined,
+      section: sectionAt(c.from),
+    })),
+    null,
+    1,
+  ),
+);
+
+// 5. matte jobs: per source, every footage shot the edit uses (plus any already queued), whole shots
+const jobFiles: string[] = [];
+for (const [k, sc] of cfg.sources.entries()) {
+  const jobFile = path.join(matteDir, k === 0 ? 'jobs.json' : `jobs-${sc.id}.json`);
+  const prev = fs.existsSync(jobFile) ? JSON.parse(fs.readFileSync(jobFile, 'utf8')).shots : {};
+  const jobs: Record<string, [number, number]> = { ...prev };
+  for (const id of used) if (footage.shots[id][2] === sc.id) jobs[id] = [footage.shots[id][0], footage.shots[id][1]];
+  fs.writeFileSync(jobFile, JSON.stringify({ src: path.join(dir, sc.source), out: matteDir, crop: sc.crop, width: cfg.window[0], fps: `${footage.sources[sc.id].matteFps}`, shots: jobs }, null, 1));
+  jobFiles.push(jobFile);
+}
+console.log(`✔ video/footage.json, video/anchors.json, video/shots.json, derived/shotmattes/jobs*.json`);
+
+if (flag('matte')) {
+  const only = opt('only') ?? (missing.length ? missing.join(',') : undefined);
+  if (only) {
+    for (const jobFile of jobFiles) {
+      const r = spawnSync('uv', ['run', '-q', '--script', path.join(ROOT, 'scripts/matte.py'), jobFile, '--only', only], { stdio: 'inherit' });
+      if (r.status) process.exit(r.status);
+    }
+  }
+}

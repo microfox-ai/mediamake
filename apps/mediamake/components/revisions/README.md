@@ -1,7 +1,7 @@
 # Revisions
 
 A review screen for rendered videos on this computer, at `/remotion-revision` (`/revisions`
-redirects there). Its sibling for thumbnails is `/thumbnail-revision` (`components/thumbnail-revisions/`). The user watches a render,
+redirects there). Its sibling for images (thumbnails, posters, any image set) is `/image-revision` (`components/image-revisions/`). The user watches a render,
 jumps between shots, and leaves comments that land as files **next to the video**, where Claude
 reads them in the next session. Nothing is uploaded; everything goes through the File System
 Access API (Chromium only, like the rest of local media). The page is public (`app/(public)/`): no sign-in, no API calls.

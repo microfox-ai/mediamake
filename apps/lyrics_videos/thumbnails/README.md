@@ -1,7 +1,7 @@
-# thumbnails: the YouTube thumbnail engine
+# thumbnails: the stills engine (YouTube thumbnails and music posters)
 
-YouTube thumbnails (1280×720) made in Remotion from a short JSON spec, driven by the
-`make-thumbnail` skill. A thumbnail is a **preset plus a few params** (cheap to write), or a **raw
+YouTube thumbnails (1280×720, `make-thumbnail` skill) and music posters / album artwork
+(3000×3000, `make-music-poster` skill) made in Remotion from a short JSON spec. A thumbnail is a **preset plus a few params** (cheap to write), or a **raw
 layer list** (anything), plus small patches; one job holds several styles with several variants
 each, all rendered in one run with a labelled review sheet.
 
@@ -10,7 +10,7 @@ each, all rendered in one run with a labelled review sheet.
 | The engine: contract, layers, presets, Studio entry, tools | `thumbnails/` (this folder), `scripts/thumbs.ts` | **yes** |
 | A job: its pictures, cutouts, fonts, logos, spec | `thumbnails/jobs/<job>/` | no |
 | The user's reference thumbnails | `thumbnails/inspiration/` | no |
-| Renders | `out/thumbnails/<job>/` | no |
+| Renders | `out/thumbnails/<job>/`, posters in `out/posters/<job>/` | no |
 
 ```
 thumbnails/
@@ -34,7 +34,9 @@ npm run thumbs -w lyrics_videos -- render <job> [A1,B2] [--guides] [--png] [--no
 npm run thumbs -w lyrics_videos -- pick <job> B2            # the final → out/thumbnails/<job>/final/
 npm run thumbs -w lyrics_videos -- pick <job> A1,B2,D3      # three for YouTube's Test & Compare
 npm run thumbs -w lyrics_videos -- keep <job> B2            # lock one the user likes: kept/ snapshot, renders skip it, warns if its spec drifts
-npm run thumbs-studio -w lyrics_videos                       # Studio, every job (hot-reloads thumbs.json)
+npm run thumbs -w lyrics_videos -- init <job> --poster [--brand=…]   # a poster job (poster.json, no logo)
+npm run thumbs -w lyrics_videos -- pick <poster-job> A3 [--to=<release folder>]   # the cover → final/ (+ cover.jpg there)
+npm run thumbs-studio -w lyrics_videos                       # Studio, every job (hot-reloads the specs)
 ```
 
 `render` checks the spec first (missing files, fonts not in the job, things under YouTube's
@@ -84,6 +86,7 @@ take the most specific; `remove` drops layer ids, `add` appends layers (or slips
 | `grade` | `natural` · `punch` · `dark` · `mono` · `duotone` (dark → accent) |
 | `textGlow` | a colour glowing behind the hero |
 | `grain` | 0..1 film grain |
+| `exposure` | brightness multiplier for the picture on top of `grade` (1.15 ≈ a bit brighter); text and logos unchanged |
 | `logos` | `[{ src, anchor?, at?, width?, plate?, glow? }]`; each preset has default anchors |
 | `side` | which side the words go on (`side`, `sticker`) |
 | `upper` | false keeps the words' case (Telugu, script fonts) |
@@ -113,7 +116,7 @@ A look that needs something new: build it from presets + `add`/`remove`/`patch` 
 | `logo` | `src`, `anchor` tl/tc/tr/ml/mc/mr/bl/bc (never br: the timestamp), or `at` [x, y]; `width`, `margin`, `plate` {color, pad, shape}, `glow`, `shadow` |
 | `fill` | `box`, `color`, `background` (any CSS), `rays` {at, count, color, duty} |
 | `shape` | `kind` rect/circle/ring/burst/stripes (`box`) or arrow/line (`from`, `to`); `color`, `background`, `stroke`, `radius`, `skew`, `thickness`, `points`, `angle`, `shadow`, `glow` |
-| `fx` | `kind` vignette/grain/light/halftone/scanlines/tint/letterbox/speedlines; `strength`, `color`, `at`, `size`, `box` |
+| `fx` | `kind` vignette/grain/light/halftone/scanlines/tint/letterbox/speedlines/dust/paper/leak; `strength`, `color`, `at`, `size`, `box` (each kind has its own blend; `blend` overrides it) |
 | `custom` | `component` (a default export in the job's `custom/<component>.tsx`), `box`, `props` |
 
 Every layer also takes `id`, `opacity`, `blend` (CSS mix-blend-mode), `rotate`, `hidden`.
@@ -122,11 +125,62 @@ Text sizes and positions come from the letters' measured ink, so any font sits t
 `each` makes every line fill the box width, `block` gives all lines the largest common size, and
 the stack shrinks to the box height. Kickers, subs and overlays `attach` to the hero's letters.
 
-## Review: /thumbnail-revision
+## Posters (album artwork)
 
-The user reviews a job in mediamake's **Thumbnail Revisions** screen
-(`/thumbnail-revision?job=<job>`, code and file format in
-`apps/mediamake/components/thumbnail-revisions/README.md`). It opens `out/thumbnails/<job>/`
+A poster job is `jobs/<job>/poster.json` with `"kind": "poster"`: designed on a **1000×1000**
+canvas (spec coordinates), rendered at **3×** to 3000×3000 RGB JPEG (DistroKid's size), into
+`out/posters/<job>/`. `size` and `scale` override both. Square presets:
+
+| preset | look | extra params |
+|--------|------|--------------|
+| `cover` | full-bleed picture; optional title (`words`) and artist (`sub`) over a soft shade [bg, photo, shade, kicker, title, overlay, sub, logo-N] | `y` top/bottom, `height` |
+| `cover-behind` | title huge behind the cut-out subject, artist in front [bg, photo, title, cut, kicker, overlay, sub, logo-N] | `y` top/middle/bottom, `height`, `rim` |
+| `cover-frame` | framed print: picture inset, title and artist in the margin [bg, photo, title, sub, kicker, logo-N] | `paper`, `border` |
+
+No text unless `words` is set, no logo unless `logos` is. A poster job always has a style with no
+text (the picture alone; `init --poster` makes it as A) and text styles only on top of it; `render`
+warns when every cover has text. `render` warns when a picture is blown up
+past its own pixels (a soft cover), and when text looks like something streaming services reject
+(URLs, handles, service names, prices, "CD"). `pick` takes one ID (the cover) and copies the render
+as is; `--to=<folder>` also writes `cover.jpg` there (`--force` to replace one).
+
+## Treatments
+
+Whole-picture looks applied over a finished composition, text included (`treatments.ts`): a grade
+(brightness, contrast, saturation, sepia, hue…), picture filters (duotone, posterize, chromatic
+split, bloom) and texture layers on top (grain, dust, paper, halftone, scanlines, light leak,
+tint, vignette). `plain` is none.
+
+| name | look |
+|------|------|
+| `film` | warm, slightly faded 35 mm: lifted blacks, warm tint, grain |
+| `matte` | flat and calm: low contrast, muted colour, charcoal blacks |
+| `vivid` | rich saturation and contrast, a little highlight glow |
+| `noir` | black and white, hard contrast, grain, vignette |
+| `duotone` | two palette colours (dark → accent) |
+| `riso` | posterized colour, halftone dots, paper fibre |
+| `vhs` | red/blue split, scanlines, noise |
+| `vintage` | sepia, dust and scratches, paper, dark corners |
+| `dream` | highlight bloom and a warm light leak |
+| `night` | cold blue grade, deeper shadows, grain |
+
+`"treatment": "noir"` on a variant (or style, or defaults) applies one. `"treatments": ["plain",
+"film", …]` on a style makes one variant per treatment by itself, IDs from 0 when the list starts
+with plain (A0 plain, A1 film, …). They work on thumbnails too.
+
+## Spotify Canvas
+
+A poster job can carry `canvas` (`{ src, cut?, seconds?, fps?, push?, drift?, embers?, glow?, grain? }`):
+`SpotifyCanvas.tsx` makes a 1080×1920 loop of the 9:16 picture (breathing push, the cut-out
+subject drifting for depth, embers, pulsing light, grain; every motion periodic, so no seam).
+`npm run thumbs -w lyrics_videos -- canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`
+(H.264 yuv420p, silent). The `make-music-poster` skill covers the fal and Midjourney versions.
+
+## Review: /image-revision
+
+The user reviews a job in mediamake's **Image Revisions** screen
+(`/image-revision?job=<job>`, the review screen for any image set; code and both file formats in
+`apps/mediamake/components/image-revisions/README.md`). It opens `out/thumbnails/<job>/`
 through `index.json`, lets them select thumbnails and pick finals (1, or up to 3 for an A/B
 test), keep, drop or comment, zoom in with a magnifier, and pin comments to a spot. It saves
 beside the renders:
@@ -138,4 +192,5 @@ out/thumbnails/<job>/<job>.revisions/
   rev-001/        a 2× crop around each pinned spot (c02_F1.jpg)
 ```
 
-Keep `index.json`'s shape stable: the screen reads its styles, variants, `picked` and `kept`.
+Keep `index.json`'s shape stable: the screen reads its styles, variants, `kind`, `size`, `picked`
+and `kept`. Posters show square there, with one **Cover** to pick instead of up to three finals.

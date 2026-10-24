@@ -1,8 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 /**
- * Recently opened thumbnail jobs and source folders (e.g.
- * apps/lyrics_videos/out/thumbnails), kept in IndexedDB like the video
+ * Recently opened image sets and source folders (e.g.
+ * apps/lyrics_videos/out), kept in IndexedDB like the video
  * revisions' history but in their own database. Chrome still asks for
  * permission again unless the user chose "Allow on every visit".
  */
@@ -20,16 +20,17 @@ export interface SourceEntry {
   addedAt: number;
 }
 
-interface ThumbRevisionsDB extends DBSchema {
+interface ImageRevisionsDB extends DBSchema {
   recent: { key: string; value: RecentJob };
   sources: { key: string; value: SourceEntry };
 }
 
 const MAX_RECENT = 30;
-let dbPromise: Promise<IDBPDatabase<ThumbRevisionsDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<ImageRevisionsDB>> | null = null;
 
 function getDb() {
-  dbPromise ??= openDB<ThumbRevisionsDB>('mediamake-thumbnail-revisions', 1, {
+  // the name predates /image-revision; kept so sources added on /thumbnail-revision survive
+  dbPromise ??= openDB<ImageRevisionsDB>('mediamake-thumbnail-revisions', 1, {
     upgrade(db) {
       db.createObjectStore('recent', { keyPath: 'id' });
       db.createObjectStore('sources', { keyPath: 'id' });

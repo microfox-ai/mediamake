@@ -82,8 +82,8 @@ const data = {
       icon: <MessageSquareTextIcon />,
     },
     {
-      title: "Thumbnail Revisions",
-      url: "/thumbnail-revision",
+      title: "Image Revisions",
+      url: "/image-revision",
       icon: <ImagesIcon />,
     },
     {

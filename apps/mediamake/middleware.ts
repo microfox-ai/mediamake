@@ -137,8 +137,9 @@ export const config = {
    * - session (the session API route)
    * - dev-session (development-only auto login)
    * - dev-lyrics (development-only file access for the public /remotion-editor page)
+   * - dev-reveal (development-only "Show in Finder" for the public /image-revision page)
    *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics).*)',
+  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics|dev-reveal).*)',
 };
