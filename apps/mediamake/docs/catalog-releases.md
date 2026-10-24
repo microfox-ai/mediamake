@@ -18,14 +18,18 @@ Item ids look like `skill/lyric-video`.
 
 ## Stages
 
-| Stage | Who can open it | Card on the homepage |
-| --- | --- | --- |
-| `private` | Admins and anyone with a grant | Shown locked to everyone else |
-| `network` | The above, plus members of the `network` group | Shown locked to everyone else |
-| `public` | Everyone, signed in or not | Open |
+| Stage | Who can open it |
+| --- | --- |
+| `private` | Admins and anyone with a grant |
+| `network` | The above, plus members of the `network` group |
+| `public` | Everyone, once public releases are open (see below) |
 
-Set `"listed": false` in `catalog.json` to hide an item's card from people who
-cannot open it yet (its name stays secret, and its URLs answer 404).
+**Releases are locked for now.** Until `MEDIAMAKE_PUBLIC_RELEASES=open` is set,
+a `public` item needs a grant too (members of the `network` group see it).
+Items a viewer can't open are **hidden**: no card, and their pages and API
+links answer 404 as if they didn't exist. Signed-out visitors see nothing.
+Setting the variable later opens `public` items to everyone, with no other
+change.
 
 ## Setup (once)
 
@@ -87,6 +91,53 @@ npm run catalog -- list
 
 Versions are immutable: releasing the same version twice is refused, so bump it.
 
+## One-prompt installs
+
+Anyone with access installs an item by pasting this into Claude (the
+`/access?item=<id>` page shows it with a Copy button, and `listCatalog`
+returns it as `installPrompt`):
+
+> Set up mcp/get-into-zone from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
+
+[`install.md`](../../../install.md) walks Claude through GitHub (account,
+`git`, `gh auth login`), the person's MediaMake API key, and then the plan
+from `GET /api/catalog/install?item=<id>`: every dependency in order, each
+once, with 30-minute package links. A dependency the person can't open stops
+the plan with a 409 instead of half-installing.
+
+Declare what an item needs in `catalog.json` under `install`:
+
+```json
+{
+  "install": {
+    "method": "skill",
+    "requires": [
+      { "type": "repo", "repo": "microfox-ai/mediamake", "why": "The skill renders with the mediamake presets" },
+      { "type": "item", "id": "skill/remotion-basics" },
+      {
+        "type": "github-release",
+        "repo": "microfox-ai/extensions",
+        "asset": "get-into-zone-chrome.zip",
+        "name": "Get into zone Chrome extension",
+        "kind": "chrome-extension",
+        "guide": "https://github.com/microfox-ai/extensions#install-get-into-zone"
+      }
+    ],
+    "notes": "Shown to the person before installing."
+  }
+}
+```
+
+- `method` defaults from the kind: skills unpack into `~/.claude/skills/<slug>`,
+  MCPs open their `.mcpb` (`entry`), apps follow their INSTALL.md.
+- Put an `INSTALL.md` in the package for the item's own setup (settings to
+  fill in, a check that it works). It stays private with the package.
+- MCPs: `npm run catalog -- release path/to/name.mcpb` releases the bundle
+  as is. Name, version and description come from the bundle's
+  `manifest.json`; put a `name.catalog.json` beside it (or pass
+  `--manifest`) for the title, summary and `install` block, and a
+  `name.INSTALL.md` for its setup steps.
+
 ## For the app
 
 ```ts
@@ -96,7 +147,7 @@ import { listCatalog } from '@/lib/catalog';
 const viewer = await getViewer(); // { clientId } from the session cookie
 const skills = await listCatalog(viewer, 'skill');
 // → CatalogEntry[]: CatalogItem & { access: 'open' | 'granted' | 'locked' };
-//   locked entries have no href, unlisted locked items are left out
+//   only items the viewer can open; installable ones carry installPrompt
 ```
 
 - `canAccess(viewer, { id, visibility })` answers one item.
@@ -104,8 +155,9 @@ const skills = await listCatalog(viewer, 'skill');
   items with one database round trip.
 - `lib/catalog/items.ts` holds cards defined in code (only names that are fine
   to be public); a database item with the same id wins.
-- Locked cards link to `/access?item=<id>`, where people sign in, request
-  access, or redeem an invite. `/access?code=<code>` opens with the code filled in.
+- `/access?item=<id>` shows an item you can open with its install prompt and
+  a download; `/access?code=<code>` redeems an invite (the way new people get
+  in while releases are locked).
 
 HTTP endpoints (`/api/catalog/*` skip the API-key middleware and resolve the
 session cookie or Bearer key themselves):
@@ -113,9 +165,10 @@ session cookie or Bearer key themselves):
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /api/catalog?kind=skill` | Catalog as the caller sees it |
-| `GET /api/catalog/download?item=<id>[&version=][&redirect=1]` | 5-minute signed link, logged; 401/403 when locked |
+| `GET /api/catalog/download?item=<id>[&version=][&redirect=1]` | 5-minute signed link, logged; 404 when locked |
+| `GET /api/catalog/install?item=<id>` (Bearer API key) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
-| `GET/POST /api/catalog/access-requests` | List / create the caller's access requests |
+| `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
 | `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests |
 
 `MEDIAMAKE_ACCESS_GRANTS=clientId:skill/lyric-video|mcp/*,clientId2:*` still works as a

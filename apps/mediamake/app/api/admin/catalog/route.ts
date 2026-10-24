@@ -43,6 +43,27 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ items, grants, groups, invites, requests });
 }
 
+const requirementSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('item'), id: z.string().min(3) }),
+  z.object({ type: z.literal('repo'), repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/), why: z.string().optional() }),
+  z.object({
+    type: z.literal('github-release'),
+    repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+    asset: z.string().min(1),
+    name: z.string().min(1),
+    tag: z.string().optional(),
+    kind: z.enum(['chrome-extension', 'binary', 'other']).optional(),
+    guide: z.string().url().optional(),
+  }),
+]);
+
+const installSchema = z.object({
+  method: z.enum(['skill', 'mcpb', 'app', 'manual']).optional(),
+  entry: z.string().optional(),
+  requires: z.array(requirementSchema).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
 const itemSchema = z.object({
   kind: z.enum(CATALOG_KINDS as [CatalogKind, ...CatalogKind[]]),
   slug: z.string().refine(isValidSlug, 'slug must be lowercase letters, digits and dashes'),
@@ -54,6 +75,7 @@ const itemSchema = z.object({
   href: z.string().optional(),
   cover: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  install: installSchema.optional(),
 });
 
 const versionSchema = z.string().regex(/^[0-9A-Za-z.+-]{1,40}$/, 'version must look like 1.2.0');
@@ -72,7 +94,7 @@ function daysFromNow(days?: number) {
  * POST /api/admin/catalog
  *
  * Body variants:
- *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags? } }
+ *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, install? } }
  *                             (visibility/status left out keep the current value; new items start private, beta)
  *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }
  *  { type: 'remove_item',     itemId }

@@ -75,9 +75,52 @@ export interface CatalogItem {
   updatedAt?: string;
 }
 
+/**
+ * Something an item needs installed first. Install plans resolve these
+ * recursively, dependencies first (see lib/catalog/install).
+ */
+export type InstallRequirement =
+  /** Another catalog item, e.g. `skill/remotion-basics`. */
+  | { type: 'item'; id: string }
+  /** A GitHub repository to clone, e.g. `microfox-ai/mediamake`. */
+  | { type: 'repo'; repo: string; why?: string }
+  /** A file attached to a public GitHub release, e.g. a Chrome extension zip. */
+  | {
+      type: 'github-release';
+      repo: string;
+      asset: string;
+      name: string;
+      /** `latest` (default) or a tag such as `v0.1.1`. */
+      tag?: string;
+      kind?: 'chrome-extension' | 'binary' | 'other';
+      /** Human install guide for the release, shown to the person. */
+      guide?: string;
+    };
+
+/**
+ * How an item is installed once its package is downloaded.
+ *  - skill:  unpack into the skills folder (`~/.claude/skills/<slug>`).
+ *  - mcpb:   open the `.mcpb` bundle (`entry`) in Claude Desktop.
+ *  - app:    unpack and follow the package's INSTALL.md.
+ *  - manual: only follow the package's INSTALL.md.
+ * Any package may carry an INSTALL.md with item-specific steps; the
+ * installer always follows it after the method's own step.
+ */
+export type InstallMethod = 'skill' | 'mcpb' | 'app' | 'manual';
+
+export interface InstallSpec {
+  method?: InstallMethod;
+  /** File inside the package the method acts on, e.g. `get-into-zone.mcpb`. */
+  entry?: string;
+  requires?: InstallRequirement[];
+  /** Short note shown to the person before installing. */
+  notes?: string;
+}
+
 /** The stored record: card data plus versions and bookkeeping. */
 export interface CatalogItemRecord extends CatalogItem {
   slug: string;
+  install?: InstallSpec;
   versions: CatalogVersion[];
   createdAt: string;
   createdBy?: string;
@@ -85,7 +128,14 @@ export interface CatalogItemRecord extends CatalogItem {
   stageHistory?: { visibility: Visibility; at: string; by?: string }[];
 }
 
-export type CatalogEntry = CatalogItem & { access: CatalogAccess };
+export type CatalogEntry = CatalogItem & {
+  access: CatalogAccess;
+  /**
+   * A prompt to paste into Claude that installs the item and everything it
+   * needs. Only set on items the viewer can open that have a package.
+   */
+  installPrompt?: string;
+};
 export type CatalogItemWithAccess = CatalogEntry;
 
 export const CATALOG_STATUSES: CatalogStatus[] = ['live', 'beta', 'coming-soon'];

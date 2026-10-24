@@ -14,7 +14,9 @@ import {
 /**
  * Access control for gated catalog items.
  *
- * A viewer may open a non-public item when any of these holds:
+ * Public items are open to everyone once public releases are turned on
+ * (see publicReleasesOpen). Otherwise a viewer may open an item when any of
+ * these holds:
  *  - they are an admin (`isAdmin` on their Redis user profile);
  *  - a live grant names the item, its whole kind (`skill/*`) or everything
  *    (`*`), for them or for a group they are in;
@@ -137,12 +139,21 @@ export async function getEntitlements(viewer: Viewer): Promise<Entitlements> {
   return result;
 }
 
+/**
+ * Whether `public` items are open to everyone. Releases are locked until
+ * MEDIAMAKE_PUBLIC_RELEASES=open: until then a public item needs a grant
+ * like a private one, and nothing is shown to signed-out visitors.
+ */
+export function publicReleasesOpen(): boolean {
+  return process.env.MEDIAMAKE_PUBLIC_RELEASES === 'open';
+}
+
 /** What `entitlements` can do with `item`. */
 export function accessLevel(
   entitlements: Entitlements,
   item: GatedItem,
 ): AccessLevel {
-  if (item.visibility === 'public') return 'open';
+  if (item.visibility === 'public' && publicReleasesOpen()) return 'open';
   const kindWildcard = `${item.id.split('/')[0]}/*`;
   if (
     entitlements.isAdmin ||
@@ -152,7 +163,8 @@ export function accessLevel(
   ) {
     return 'granted';
   }
-  if (item.visibility === 'network' && entitlements.groups.includes(NETWORK_GROUP)) return 'granted';
+  // The network circle also sees public items while public releases are locked.
+  if (item.visibility !== 'private' && entitlements.groups.includes(NETWORK_GROUP)) return 'granted';
   return 'locked';
 }
 
@@ -161,6 +173,6 @@ export async function canAccess(
   viewer: Viewer,
   item: GatedItem,
 ): Promise<boolean> {
-  if (item.visibility === 'public') return true;
+  if (item.visibility === 'public' && publicReleasesOpen()) return true;
   return accessLevel(await getEntitlements(viewer), item) !== 'locked';
 }

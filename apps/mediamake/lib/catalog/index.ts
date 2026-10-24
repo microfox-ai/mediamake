@@ -1,13 +1,15 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
+import { installPromptFor } from './install-prompt';
 import { getStaticCatalogItems } from './items';
 import { catalogItemsDB } from './store';
 import type { CatalogEntry, CatalogItem, CatalogItemRecord, CatalogKind } from './types';
 
 export * from './types';
+export { installPromptFor } from './install-prompt';
 
-/** Strips stored-only fields (slug, versions, history) off a record. */
+/** Strips stored-only fields (slug, versions, install spec, history) off a record. */
 export function toCard(record: CatalogItemRecord | CatalogItem): CatalogItem {
-  const { slug, versions, createdAt, createdBy, stageHistory, ...card } = record as CatalogItemRecord;
+  const { slug, install, versions, createdAt, createdBy, stageHistory, ...card } = record as CatalogItemRecord;
   return card;
 }
 
@@ -20,8 +22,9 @@ export function toEntry(entitlements: Entitlements, item: CatalogItem): CatalogE
 }
 
 /**
- * Catalog as seen by one viewer, newest first. Gated items the viewer can't
- * open come back with access 'locked' and no href; unlisted ones are left out.
+ * Catalog as seen by one viewer, newest first. Only items the viewer can
+ * open are returned: locked items are hidden entirely, so their names never
+ * reach people without access. Installable items carry an `installPrompt`.
  *
  * Merges the static list in ./items (public-safe cards defined in code) with
  * the catalog database, where released and unreleased items are managed
@@ -43,11 +46,16 @@ export async function listCatalog(
   }
 
   const byId = new Map<string, CatalogItem>();
+  const installable = new Set<string>();
   for (const item of getStaticCatalogItems(kind)) byId.set(item.id, item);
-  for (const record of stored) byId.set(record.id, toCard(record));
+  for (const record of stored) {
+    byId.set(record.id, toCard(record));
+    if (record.versions.length || record.install?.requires?.length) installable.add(record.id);
+  }
 
   return [...byId.values()]
     .map(item => toEntry(entitlements, item))
-    .filter(entry => entry.access !== 'locked' || entry.listed !== false)
+    .filter(entry => entry.access !== 'locked')
+    .map(entry => (installable.has(entry.id) ? { ...entry, installPrompt: installPromptFor(entry.id) } : entry))
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 }
