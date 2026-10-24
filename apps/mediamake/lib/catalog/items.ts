@@ -11,7 +11,7 @@ export const catalogItems: CatalogItem[] = [
   {
     id: 'app/studio',
     kind: 'app',
-    title: 'Mediamake Studio',
+    title: 'MediaMake Studio',
     summary: 'Create, render and manage video projects with presets, workers and AI agents.',
     visibility: 'public',
     status: 'live',
@@ -35,7 +35,7 @@ export const catalogItems: CatalogItem[] = [
   {
     id: 'mcp/mediamake',
     kind: 'mcp',
-    title: 'Mediamake MCP',
+    title: 'MediaMake MCP',
     summary: 'Use mediamake projects, media and renders from Claude and other MCP clients.',
     visibility: 'private',
     status: 'coming-soon',
