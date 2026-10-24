@@ -136,8 +136,9 @@ export const config = {
    * - signup (the signup API route)
    * - session (the session API route)
    * - dev-session (development-only auto login)
-   * 
+   * - dev-lyrics (development-only file access for the public /remotion-editor page)
+   *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|session|dev-session).*)',
+  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics).*)',
 };
