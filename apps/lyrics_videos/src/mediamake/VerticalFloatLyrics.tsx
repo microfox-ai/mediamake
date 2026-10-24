@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { SceneProps } from '../kit/contract';
 import { toCaptions } from './captions';
-import { presetTree, runPreset } from './presets';
+import { applyContainerLayout, presetTree, runPreset } from './presets';
 import { PresetTree } from './PresetTree';
 
 type TextStyle = {
@@ -59,6 +59,8 @@ export type VerticalFloatStyle = {
     maxLines?: number;
     noGaps?: { enabled?: boolean; maxLength?: number };
   };
+  /** The editor's layout box for the whole caption track (a timeline node's containerProps). */
+  containerProps?: { style?: Record<string, unknown> };
 };
 
 export type VerticalFloatLyricsProps = {
@@ -85,7 +87,11 @@ export const VerticalFloatLyrics: React.FC<SceneProps<VerticalFloatLyricsProps>>
         : manifest.lyrics.filter(l => l.end > section.from && l.start < section.to);
     const inputCaptions = toCaptions(source, section.from);
     if (!inputCaptions.length) return [];
-    return presetTree(runPreset('sub-vertical-float', { ...style, inputCaptions }));
+    const { containerProps, ...params } = style ?? {};
+    return applyContainerLayout(
+      presetTree(runPreset('sub-vertical-float', { ...params, inputCaptions })),
+      containerProps,
+    );
   }, [manifest, section.from, section.to, style, lines]);
 
   if (!tree.length) return null;

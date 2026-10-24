@@ -81,3 +81,34 @@ export const presetTree = (output: unknown): RenderableComponentData[] => {
   if (Array.isArray(output.children)) return output.children as RenderableComponentData[];
   return [];
 };
+
+/**
+ * Puts a timeline node's `containerProps.style` (the editor's layout box) on the root of a preset
+ * tree, the way the editor does: `--mm-*` keys are editor bookkeeping and are dropped, and a box
+ * replaces the root's `inset-0`.
+ */
+export const applyContainerLayout = (
+  tree: RenderableComponentData[],
+  containerProps: { style?: Record<string, unknown> } | undefined,
+): RenderableComponentData[] => {
+  const raw = containerProps?.style;
+  if (!raw || !tree.length) return tree;
+  const layout = Object.fromEntries(
+    Object.entries(raw).filter(([key, v]) => !key.startsWith('--mm-') && v !== undefined && v !== ''),
+  );
+  if (!Object.keys(layout).length) return tree;
+  const [first, ...rest] = tree;
+  const data = (first.data ?? {}) as { containerProps?: { className?: string; style?: Record<string, unknown> } };
+  const existing = data.containerProps ?? {};
+  const className = existing.className?.replace(/\binset-0\b/g, ' ').replace(/\s+/g, ' ').trim();
+  return [
+    {
+      ...first,
+      data: {
+        ...data,
+        containerProps: { ...existing, className, style: { ...existing.style, ...layout } },
+      },
+    } as RenderableComponentData,
+    ...rest,
+  ];
+};

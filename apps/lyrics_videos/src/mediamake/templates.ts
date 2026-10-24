@@ -4,6 +4,7 @@
  */
 import { defineProject, layer, type Layer, type ProjectDefinition } from '../kit/contract';
 import { CoverBackdrop, type CoverBackdropProps } from './CoverBackdrop';
+import { OverlayText, type OverlayTextProps } from './OverlayText';
 import { lyricStyle, type LyricStyleName, waveStyle, type WaveStyleName } from './styles';
 import { TrackTitle, type TrackTitleProps } from './TrackTitle';
 import { VerticalFloatLyrics, type VerticalFloatStyle } from './VerticalFloatLyrics';
@@ -18,9 +19,16 @@ type Common = Frame & {
   cover?: string | CoverBackdropProps;
   /** Title card for the first seconds. `false` turns it off. */
   title?: false | (TrackTitleProps & { seconds?: number });
+  /** Text overlays (channel tag, a title in the song's language, credits), in song seconds. */
+  texts?: (OverlayTextProps & { from: number; to: number })[];
   /** Layers drawn on top of the template's. */
   extra?: Layer[];
 };
+
+const overlays = (texts: Common['texts']): Layer[] =>
+  (texts ?? []).map(({ from, to, ...props }) =>
+    layer({ scene: OverlayText, at: { from, to }, props, name: `text: ${props.text}` }),
+  );
 
 const backdrop = (cover: Common['cover']): Layer[] =>
   cover
@@ -69,6 +77,7 @@ export const lyricVideo = (
         props: { style: resolveLyrics(o.lyrics ?? 'default') },
         name: 'lyrics',
       }),
+      ...overlays(o.texts),
       ...(o.extra ?? []),
     ],
   });
@@ -100,6 +109,7 @@ export const waveformVideo = (
             }),
           ]
         : []),
+      ...overlays(o.texts),
       ...(o.extra ?? []),
     ],
   });

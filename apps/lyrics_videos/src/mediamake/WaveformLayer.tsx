@@ -7,7 +7,7 @@ import {
   type WaveformSpectrumLineDataProps,
 } from '@microfox/remotion';
 import type { SceneProps } from '../kit/contract';
-import { presetTree, runPreset } from './presets';
+import { applyContainerLayout, presetTree, runPreset } from './presets';
 import { PresetTree } from './PresetTree';
 
 /** The looks of mediamake's "Wave Look" action for WaveformSpectrumFill. */
@@ -87,6 +87,8 @@ type Box = {
   opacity?: number;
   /** Flip vertically, for a wave hanging from the top edge. */
   flip?: boolean;
+  /** Extra CSS transform on the box, e.g. 'rotate(270deg)' for a wave up the side. */
+  transform?: string;
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
 };
 
@@ -109,6 +111,8 @@ export type WaveformLayerProps =
       kind: 'waveform-audio';
       waveform?: Record<string, unknown> & { type?: 'waves' | 'static' };
       container?: Record<string, unknown>;
+      /** The editor's layout box around the preset (a timeline node's containerProps). */
+      containerProps?: { style?: Record<string, unknown> };
     };
 
 /**
@@ -128,11 +132,15 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
       { audio, waveform: { type: 'waves', ...props.waveform }, container: props.container },
       { config: { width: frameWidth, height: frameHeight, duration: section.to - section.from } },
     );
-    return presetTree(output).filter(node => node.componentId !== 'AudioAtom');
+    return applyContainerLayout(
+      presetTree(output).filter(node => node.componentId !== 'AudioAtom'),
+      props.containerProps,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.kind, manifest.audio.src, section.from, section.to, frameWidth, frameHeight,
     props.kind === 'waveform-audio' ? props.waveform : null,
-    props.kind === 'waveform-audio' ? props.container : null]);
+    props.kind === 'waveform-audio' ? props.container : null,
+    props.kind === 'waveform-audio' ? props.containerProps : null]);
 
   if (props.kind === 'waveform-audio') {
     return <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} />;
@@ -149,7 +157,7 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
     height,
     opacity: box.opacity ?? 1,
     mixBlendMode: box.mixBlendMode,
-    transform: box.flip ? 'scaleY(-1)' : undefined,
+    transform: [box.transform, box.flip ? 'scaleY(-1)' : ''].filter(Boolean).join(' ') || undefined,
   };
 
   return (

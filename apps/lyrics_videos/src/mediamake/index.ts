@@ -1,6 +1,7 @@
 // mediamake editor presets and atoms as lyrics_videos scenes. See README.md in this folder.
 export * from './captions';
 export * from './CoverBackdrop';
+export * from './OverlayText';
 export * from './presets';
 export * from './PresetTree';
 export * from './styles';
