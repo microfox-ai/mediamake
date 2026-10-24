@@ -6,9 +6,14 @@
  *                           window, short GOP (derived/plate-lo.mp4 at half size)
  *   3. video/anchors.json   the subject's centre/area/box per source frame, from the matte stats
  *   4. resolves video/edl.ts against the manifest: prints every cut with its transition, warns about
- *      cuts that run past their shot, writes video/shots.json (the review map)
+ *      cuts that run past their shot, prints each block's rhythm (cuts per beat, how many one-beat
+ *      cuts, how often the length changes) and every shot used twice (⚠ when the same source frames
+ *      show twice), writes video/shots.json (the review map); --unused lists the shots not used yet
  *   5. derived/shotmattes/jobs.json: one subject cutout per footage shot the edit uses;
  *      --matte runs scripts/matte.py on the shots that have none yet (~0.3–1 s a frame)
+ *   6. derived/slow/<shot>.mp4: every shot a slow() cut plays, motion-interpolated to 60 fps
+ *      (minterpolate) from its real frames (a "60 fps" upload of a film repeats its 24 frames 3-2,
+ *      so the unique frames are picked first); slowed cuts play from it, without judder
  *
  * projects/<slug>/video/remix.json:
  *   { "sources": [{ "id": "f1", "prefix": "sh", "source": "input/<footage>.mp4",
@@ -17,13 +22,13 @@
  *     "window": [1920, 804], "logo": "input/<logo>" }
  *   (the old single-source form { source, segregation, crop, window } still works)
  *
- * Usage: npm run remix -w lyrics_videos -- <slug> [--matte] [--only=sh0010,sh0030] [--force]
+ * Usage: npm run remix -w lyrics_videos -- <slug> [--matte] [--only=sh0010,sh0030] [--force] [--unused]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { resolveAll, type Footage } from '../src/remix/resolve.ts';
+import { resolveAll, sourceTime, type Footage } from '../src/remix/resolve.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -109,6 +114,43 @@ for (const s of sfx) if (!fs.existsSync(path.join(derived, 'sfx', `${s.file}.wav
 const used = [...new Set(cuts.flatMap(c => (c.panels ? c.panels.map(p => p.src) : c.gfx ? [] : [c.src])))];
 const missing = used.filter(id => !anchors[id]);
 const lens = cuts.map(c => c.to - c.from);
+
+// rhythm per block: a steady pulse reads better than chasing every line (one-beat cuts, few length changes)
+console.log('\nrhythm  block  cuts/beats  1-beat  <1-beat  length changes');
+for (const b of edl.blocks as { id: string; cuts: { b: number | 'end' }[] }[]) {
+  const ls = b.cuts.map(c => c.b).filter((x): x is number => x !== 'end');
+  if (!ls.length) continue;
+  const beats = ls.reduce((a, x) => a + x, 0);
+  const changes = ls.slice(1).filter((x, k) => x !== ls[k]).length;
+  console.log(`        ${b.id.padEnd(6)} ${String(ls.length).padStart(4)}/${String(beats).padEnd(6)} ${String(ls.filter(x => x === 1).length).padStart(6)}  ${String(ls.filter(x => x < 1).length).padStart(7)}  ${String(changes).padStart(6)}`);
+}
+
+// shots used twice: fine for other moments of a long take, a fault when the same frames show again
+const spans: Record<string, { id: string; a: number; b: number }[]> = {};
+for (const c of cuts) {
+  if (c.panels) for (const p of c.panels) (spans[p.src] ??= []).push({ id: c.id, a: p.srcIn, b: p.srcIn + (c.to - c.from) });
+  else if (!c.gfx) {
+    const end = sourceTime(c, c.to - c.from); // before srcIn when the cut rewinds (rev)
+    (spans[c.src] ??= []).push({ id: c.id, a: Math.min(c.srcIn, end), b: Math.max(c.srcIn, end) });
+  }
+}
+const twice = Object.entries(spans).filter(([, v]) => v.length > 1);
+if (twice.length) {
+  console.log('\nshots used more than once:');
+  for (const [shot, v] of twice) {
+    const clash = v.some((x, k) => v.some((y, j) => j > k && x.a < y.b - 0.04 && y.a < x.b - 0.04));
+    console.log(`  ${clash ? '⚠' : ' '} ${shot}  ${v.map(x => `${x.id} ${x.a.toFixed(2)}–${x.b.toFixed(2)}`).join('  ')}${clash ? '  (same frames twice)' : ''}`);
+  }
+}
+if (flag('unused')) {
+  const taken = new Set(Object.keys(spans));
+  console.log('\nunused shots (≥ 0.3 s):');
+  for (const id of Object.keys(footage.sources)) {
+    const free = Object.entries(footage.shots).filter(([k, [a, b, src]]) => src === id && !taken.has(k) && b - a >= 0.3);
+    console.log(`  ${id}: ${free.map(([k, [a, b]]) => `${k}:${(b - a).toFixed(2)}`).join(' ')}`);
+  }
+}
+
 console.log(`\n${cuts.length} cuts (median ${lens.sort((a, b) => a - b)[lens.length >> 1].toFixed(2)}s) · ${text.length} text cues · ${sfx.length} sfx · ${used.length} shots, ${missing.length} without a matte yet`);
 
 fs.writeFileSync(
@@ -126,6 +168,33 @@ fs.writeFileSync(
     1,
   ),
 );
+
+// 6. slow motion clips (the footage table gets them as footage.slow)
+const slowShots = [...new Set(cuts.filter(c => !c.gfx && c.rate < 1).map(c => c.src))];
+if (slowShots.length) {
+  fs.mkdirSync(path.join(derived, 'slow'), { recursive: true });
+  footage.slow = {};
+  for (const id of slowShots) {
+    const [s0, s1, sid] = footage.shots[id];
+    const sc = cfg.sources.find(x => x.id === sid)!;
+    const rel = `derived/slow/${id}.mp4`;
+    footage.slow[id] = rel;
+    const out = path.join(dir, rel);
+    if (!flag('force') && fs.existsSync(out)) continue;
+    const [cw, ch, cx, cy] = sc.crop;
+    const [w, h] = cfg.window;
+    console.log(`slow ${id} (${(s1 - s0).toFixed(2)} s) → 60 fps ...`);
+    execFileSync('ffmpeg', [
+      '-v', 'error', '-y', '-ss', `${s0}`, '-t', `${s1 - s0 + 0.1}`, '-i', path.join(dir, sc.source), '-an',
+      '-vf', [
+        `crop=${cw}:${ch}:${cx}:${cy}`, ...(w === cw && h === ch ? [] : [`scale=${w}:${h}:flags=lanczos${w > cw ? ',unsharp=5:5:0.4' : ''}`]),
+        'mpdecimate=max=2', 'fps=24', 'minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1',
+      ].join(','),
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-g', '12', out,
+    ], { stdio: 'inherit' });
+  }
+  fs.writeFileSync(path.join(dir, 'video/footage.json'), JSON.stringify(footage));
+}
 
 // 5. matte jobs: per source, every footage shot the edit uses (plus any already queued), whole shots
 const jobFiles: string[] = [];

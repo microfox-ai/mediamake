@@ -31,9 +31,10 @@ interface ApiKeyInfo {
 interface ApiKeysSidebarProps {
     selectedApiKey: string | null;
     onSelectApiKey: (apiKeyId: string) => void;
+    listVersion?: number;
 }
 
-export function ApiKeysSidebar({ selectedApiKey, onSelectApiKey }: ApiKeysSidebarProps) {
+export function ApiKeysSidebar({ selectedApiKey, onSelectApiKey, listVersion = 0 }: ApiKeysSidebarProps) {
     const [apiKeys, setApiKeys] = useState<ApiKeyInfo[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showApiKeys, setShowApiKeys] = useState<{ [key: string]: boolean }>({});
@@ -59,7 +60,7 @@ export function ApiKeysSidebar({ selectedApiKey, onSelectApiKey }: ApiKeysSideba
         };
 
         loadApiKeys();
-    }, []);
+    }, [listVersion]);
 
     const getStatusIcon = (isValid: boolean) => {
         return isValid ? (

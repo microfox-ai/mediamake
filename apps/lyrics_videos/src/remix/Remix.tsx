@@ -29,13 +29,17 @@ import { StartLights } from './gfx/StartLights';
 import { TitleCard } from './gfx/TitleCard';
 
 export type RemixTheme = {
-  /** punch: big words; line: captions and lines; data: HUD; title: the title card's title (falls back to punch) */
-  fonts: { punch: string; line: string; data: string; title?: string };
+  /** punch: big words; line: captions and lines; data: HUD; title: the title card's title (falls back to punch);
+   *  sign: the channel's sign-off ('flank', falls back to line) */
+  fonts: { punch: string; line: string; data: string; title?: string; sign?: string };
   colors: { ground: string; bone: string; red: string; cyan: string; acid: string };
   /** resolves when the fonts are loaded (measurement waits for it) */
   ready: Promise<unknown>;
   /** text in the top-left bar */
   hud?: string;
+  /** the small readouts in the four corners of the bars (name, lap time, section, gear and speed);
+   *  on unless false */
+  corners?: boolean;
 };
 
 /** per footage shot: per matte frame [cx, cy, area, x0, y0, x1, y1] as fractions of the window */
@@ -98,6 +102,14 @@ const anchorOf = (ctx: Ctx, key: string | undefined, source: string, srcFromMatt
 };
 const anchorAt = (ctx: Ctx, cut: ResolvedCut, songT: number) =>
   cut.matte ? anchorOf(ctx, cut.matte.key, cut.source, sourceTime(cut, songT - cut.from) - cut.matte.in) : ([0.5, 0.5, 0] as [number, number, number]);
+/** the subject's box [x0, y0, x1, y1] in window fractions at a song time (the middle third when unknown) */
+const boxAt = (ctx: Ctx, cut: ResolvedCut, songT: number): [number, number, number, number] => {
+  const a = cut.matte ? ctx.anchors[cut.matte.key] : undefined;
+  if (!a) return [0.4, 0.2, 0.6, 0.9];
+  const fps = ctx.footage.sources[cut.source]?.matteFps ?? 24;
+  const r = a[Math.max(0, Math.min(a.length - 1, Math.round((sourceTime(cut, songT - cut.from) - cut.matte!.in) * fps)))];
+  return r[2] > 0.005 ? [r[3], r[4], r[5], r[6]] : [0.4, 0.2, 0.6, 0.9];
+};
 
 // ------------------------------------------------------------------ media
 
@@ -107,15 +119,25 @@ const anchorAt = (ctx: Ctx, cut: ResolvedCut, songT: number) =>
  * timeline position (freeze frame + the Sequence's start) to the composition's length, which
  * silently showed late source frames from the wrong time.
  */
-const Frame: React.FC<{ src: string; t: number; transparent?: boolean; style?: React.CSSProperties }> = ({ src, t, transparent, style }) => {
+const Frame: React.FC<{ src: string; t: number; transparent?: boolean; exact?: boolean; style?: React.CSSProperties }> = ({ src, t, transparent, exact, style }) => {
   const { fps } = useVideoConfig();
+  // `exact`: the time as it is (slow motion from a high-fps plate needs the frames between ours)
   return (
     <Freeze frame={0}>
-      <OffthreadVideo src={src} startFrom={Math.max(0, Math.round(t * fps))} muted transparent={transparent} style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', objectFit: 'cover', ...style }} />
+      <OffthreadVideo src={src} startFrom={Math.max(0, exact ? t * fps : Math.round(t * fps))} muted transparent={transparent} style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', objectFit: 'cover', ...style }} />
     </Freeze>
   );
 };
 const plateSrc = (ctx: Ctx, source: string) => staticFile(`${ctx.slug}/${ctx.footage.sources[source].plate}`);
+/** slow motion plays from the shot's 60 fps interpolated clip (scripts/remix.ts step 6), at a time
+ *  snapped a quarter frame past one of its frames, so no frame shows twice */
+const SLOW_FPS = 60;
+const slowClip = (ctx: Ctx, cut: ResolvedCut, srcT: number) => {
+  const clip = cut.rate < 1 ? ctx.footage.slow?.[cut.src] : undefined;
+  if (!clip) return null;
+  const t = srcT - ctx.footage.shots[cut.src][0];
+  return { src: staticFile(`${ctx.slug}/${clip}`), t: (Math.round(t * SLOW_FPS) + 0.25) / SLOW_FPS };
+};
 const matteSrc = (ctx: Ctx, key: string) => staticFile(`${ctx.slug}/derived/shotmattes/${key}.webm`);
 
 /** zoom blur: the layer plus copies scaled out from the origin, fading */
@@ -205,13 +227,73 @@ const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boo
             const p = prog(song, wd.at, wd.at + 0.12);
             return (
               <span key={wi} style={{ display: 'inline-block', visibility: song >= wd.at - 1e-3 ? 'visible' : 'hidden', transform: `translateY(${(1 - p) * 0.06}em) scale(${1.14 - 0.14 * p})`, marginRight: wi < line.length - 1 ? '0.2em' : 0 }}>
-                {wd.text}
+                {rt.cue.el && rt.words.length === 1 ? <ElementWord ctx={ctx} text={wd.text} el={rt.cue.el} outline={outline} /> : wd.text}
               </span>
             );
           })}
         </div>
       ))}
     </div>
+  );
+};
+
+/** a big word with some letters in a periodic-table element box (cue.el): the accent-filled box with a
+ *  light inner border, the atomic number top left, the symbol in its own case ("Na"); the outline pass
+ *  over the subject draws only the box's border */
+const ElementWord: React.FC<{ ctx: Ctx; text: string; el: [number, number, number]; outline?: boolean }> = ({ ctx, text, el: [at, len, n], outline }) => {
+  const { colors, fonts } = ctx.theme;
+  const sym = text.slice(at, at + len);
+  return (
+    <>
+      {text.slice(0, at)}
+      <span
+        style={{
+          position: 'relative', display: 'inline-block', padding: '0.05em 0.08em 0.02em', margin: '0 0.05em',
+          background: outline ? 'transparent' : colors.red, color: outline ? 'transparent' : colors.bone,
+          boxShadow: outline ? `inset 0 0 0 0.02em ${colors.bone}` : `inset 0 0 0 0.022em color-mix(in srgb, ${colors.bone} 55%, transparent), 0 0.04em 0.3em rgba(0,0,0,0.45)`,
+        }}
+      >
+        {!outline && (
+          <span style={{ position: 'absolute', left: '0.1em', top: '0.08em', fontFamily: fonts.data, fontSize: '0.14em', lineHeight: 1, letterSpacing: 0, color: colors.bone, WebkitTextStroke: 0 }}>{n}</span>
+        )}
+        {sym.charAt(0) + sym.slice(1).toLowerCase()}
+      </span>
+      {text.slice(at + len)}
+    </>
+  );
+};
+
+/**
+ * 'flank': the first word left of the subject, the rest right of it, drawn behind the subject (its
+ * cutout goes over them): small caps in the line font (Michroma here) with very wide letter spacing,
+ * the way a channel signs off (rev-002: "tiny, with letter spacing a lot"). Placed from the subject's
+ * box when the cue starts, letters closing in from wider spacing as they arrive.
+ */
+const FlankWords: React.FC<{ ctx: Ctx; rt: ResolvedText; cut: ResolvedCut; song: number }> = ({ ctx, rt, cut, song }) => {
+  const { fonts } = ctx.theme;
+  const { w, h } = ctx.win;
+  const [first, ...rest] = rt.words.map(x => x.text);
+  const right = rest.join(' ');
+  const track = 1.1;
+  const [x0, , x1] = boxAt(ctx, cut, Math.max(rt.from, cut.from));
+  const gap = w * 0.035;
+  const margin = w * 0.05;
+  const size = useMemo(() => {
+    const room = (word: string, space: number) => (space / Math.max(1, measure(word, fonts.sign ?? fonts.line, 100, track))) * 100;
+    return Math.min(h * 0.045, room(first, x0 * w - gap - margin), room(right, (1 - x1) * w - gap - margin));
+  }, [first, right, x0, x1, w, h]);
+  const p = prog(song, rt.from, rt.from + 0.7);
+  const color = colorOf(ctx.theme, rt.cue.color);
+  const style = (align: 'left' | 'right'): React.CSSProperties => ({
+    position: 'absolute', top: h * 0.5, transform: `translateY(-50%)`, fontFamily: fonts.sign ?? fonts.line, fontSize: size, lineHeight: 1,
+    letterSpacing: `${track + (1 - p) * 0.8}em`, color, opacity: p, whiteSpace: 'nowrap', textAlign: align,
+    filter: p < 0.98 ? `blur(${(1 - p) * 8}px)` : undefined,
+  });
+  return (
+    <>
+      <div style={{ ...style('right'), right: w - (x0 * w - gap), marginRight: `-${track}em` }}>{first}</div>
+      <div style={{ ...style('left'), left: x1 * w + gap }}>{right}</div>
+    </>
   );
 };
 
@@ -296,7 +378,7 @@ const Split: React.FC<{ ctx: Ctx; cut: ResolvedCut; t: number; grade: string }> 
   return (
     <AbsoluteFill style={{ background: ctx.theme.colors.ground }}>
       {panels.map((p: ResolvedPanel, k) => {
-        const at = (k / n) * len;
+        const at = cut.panelAt?.[k] ?? (k / n) * len;
         if (t < at) return null;
         const e = prog(t, at, at + 0.18);
         const [cx] = anchorOf(ctx, p.matte?.key, p.source, t - at);
@@ -418,7 +500,8 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx, cut }) => {
 
   const srcT = sourceTime(cut, t, fps);
   const matteT = cut.matte ? srcT - cut.matte.in : 0;
-  const behind = ctx.text.filter(x => x.style === 'big' && x.from < cut.to && x.to > cut.from && song >= x.from - 1e-3 && song < x.to);
+  const behind = ctx.text.filter(x => (x.style === 'big' || x.style === 'flank') && x.from < cut.to && x.to > cut.from && song >= x.from - 1e-3 && song < x.to);
+  const slowed = cut.rate < 1;
   const echo = has(cut, 'echo');
   const pop = has(cut, 'pop');
   const popP = pop ? prog(t, 0, 0.2) : 0;
@@ -455,19 +538,19 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx, cut }) => {
       <Split ctx={ctx} cut={cut} t={t} grade={grade} />
     ) : cut.gfx ? null : (
       <ZoomBlur amount={zblur} ox={ox} oy={oy}>
-        <Frame src={plateSrc(ctx, cut.source)} t={srcT} style={{ filter: grade }} />
+        <Frame {...(slowClip(ctx, cut, srcT) ?? { src: plateSrc(ctx, cut.source), t: srcT })} exact={slowed} style={{ filter: grade }} />
       </ZoomBlur>
     );
   const cutoutAt = (lag = 0) => (cut.matte ? sourceTime(cut, Math.max(0, t - lag), fps) - cut.matte.in : 0);
   const needCutout = cut.matte && (behind.length > 0 || echo || pop || glow > 0.02);
   const subject = (
     <>
-      {behind.map(x => <BigWords key={x.i} ctx={ctx} rt={x} song={song} />)}
+      {behind.map(x => (x.style === 'flank' ? <FlankWords key={x.i} ctx={ctx} rt={x} cut={cut} song={song} /> : <BigWords key={x.i} ctx={ctx} rt={x} song={song} />))}
       {echo && cut.matte && Array.from({ length: echo.n ?? 3 }, (_, k) => k + 1).reverse().map(k => (
         <Frame key={k} src={matteSrc(ctx, cut.matte!.key)} t={cutoutAt(k * (echo.dt ?? 0.06))} transparent style={{ objectFit: 'fill', filter: grade, opacity: 0.5 / k }} />
       ))}
-      {needCutout && <Frame src={matteSrc(ctx, cut.matte!.key)} t={matteT} transparent style={{ objectFit: 'fill', filter: cutoutFilter }} />}
-      {cut.matte && behind.map(x => <BigWords key={`o${x.i}`} ctx={ctx} rt={x} song={song} outline />)}
+      {needCutout && <Frame src={matteSrc(ctx, cut.matte!.key)} t={matteT} transparent exact={slowed} style={{ objectFit: 'fill', filter: cutoutFilter }} />}
+      {cut.matte && behind.filter(x => x.style === 'big').map(x => <BigWords key={`o${x.i}`} ctx={ctx} rt={x} song={song} outline />)}
     </>
   );
   const flash = cut.tin === 'flash' ? interpolate(frame, [0, IN.flash!], [0.85, 0], { extrapolateRight: 'clamp' }) : frozen && frame < 2 ? 0.35 : 0;
@@ -492,7 +575,9 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx, cut }) => {
 
 // ------------------------------------------------------------------ bars
 
-const SHIFT = [...Array(5).fill('#3BE36B'), ...Array(5).fill('#FF2A1F'), ...Array(5).fill('#4F7BFF')] as string[];
+/** the rev lights in the top bar: 15 slanted blocks, bone for the first 10, red for the last 5 */
+const SHIFT_N = 15;
+const SHIFT_RED = 10;
 
 /** a lyric line as a caption in the bottom bar: the words arrive as they are sung */
 const Caption: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; y: number }> = ({ ctx, rt, song, y }) => {
@@ -532,7 +617,8 @@ const Bars: React.FC<{ ctx: Ctx; song: number }> = ({ ctx, song }) => {
   const bottom = win.y + win.h + (1080 - win.y - win.h) / 2;
   const small: React.CSSProperties = { position: 'absolute', fontFamily: fonts.data, fontSize: 15, letterSpacing: '0.32em', color: colors.bone, opacity: 0.5 * on, transform: 'translateY(-50%)', textTransform: 'uppercase', whiteSpace: 'nowrap' };
   const rpm = clamp01(envelopeAt(m, 'low', song) * 1.15);
-  const lit = Math.round(rpm * SHIFT.length);
+  const lit = Math.round(rpm * SHIFT_N);
+  const corners = theme.corners !== false;
   const kmh = Math.round(80 + 260 * envelopeAt(m, 'rms', song));
   const gear = Math.min(8, 1 + Math.floor(rpm * 8));
   const active = ctx.text.filter(x => song >= x.from && song < x.to);
@@ -540,23 +626,28 @@ const Bars: React.FC<{ ctx: Ctx; song: number }> = ({ ctx, song }) => {
   const label = active.find(x => x.style === 'label');
   return (
     <>
-      <div style={{ ...small, left: 56, top }}>{theme.hud ?? ''}</div>
+      {corners && <div style={{ ...small, left: 56, top }}>{theme.hud ?? ''}</div>}
       {label ? (
         <div style={{ position: 'absolute', left: 0, right: 0, top, transform: 'translateY(-50%)', textAlign: 'center', fontFamily: fonts.data, fontSize: 18, letterSpacing: '0.45em', color: colors.red }}>
           {label.cue.text.slice(0, Math.ceil(label.cue.text.length * prog(song, label.from, label.from + 0.3)))}
         </div>
       ) : (
-        <div style={{ position: 'absolute', left: '50%', top, transform: 'translate(-50%, -50%)', display: 'flex', gap: 7, opacity: on }}>
-          {SHIFT.map((c, k) => (
-            <div key={k} style={{ width: 11, height: 11, borderRadius: 6, background: k < lit ? c : 'rgba(255,255,255,0.08)', boxShadow: k < lit ? `0 0 10px ${c}` : undefined }} />
-          ))}
+        <div style={{ position: 'absolute', left: '50%', top, transform: 'translate(-50%, -50%)', display: 'flex', gap: 5, opacity: on }}>
+          {Array.from({ length: SHIFT_N }, (_, k) => {
+            const c = k < SHIFT_RED ? colors.bone : colors.red;
+            return <div key={k} style={{ width: 20, height: 9, transform: 'skewX(-28deg)', background: k < lit ? c : 'rgba(255,255,255,0.08)', boxShadow: k < lit ? `0 0 10px ${c}` : undefined }} />;
+          })}
         </div>
       )}
-      <div style={{ ...small, right: 56, top }}>LAP {lap}</div>
-      <div style={{ ...small, left: 56, top: bottom }}>{section.replace('-', ' ')} · {String(bar).padStart(2, '0')}/{(m.beats.downbeats ?? []).length}</div>
-      <div style={{ ...small, right: 56, top: bottom }}>
-        <span style={{ color: colors.red }}>G{gear}</span>&nbsp;&nbsp;{String(kmh).padStart(3, '0')} KM/H
-      </div>
+      {corners && (
+        <>
+          <div style={{ ...small, right: 56, top }}>LAP {lap}</div>
+          <div style={{ ...small, left: 56, top: bottom }}>{section.replace('-', ' ')} · {String(bar).padStart(2, '0')}/{(m.beats.downbeats ?? []).length}</div>
+          <div style={{ ...small, right: 56, top: bottom }}>
+            <span style={{ color: colors.red }}>G{gear}</span>&nbsp;&nbsp;{String(kmh).padStart(3, '0')} KM/H
+          </div>
+        </>
+      )}
       {caption && <Caption ctx={ctx} rt={caption} song={song} y={bottom} />}
     </>
   );
