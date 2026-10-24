@@ -38,6 +38,8 @@ export type Fx =
   | { k: 'freeze'; n?: number } // impact frame: holds the first `n` frames, subject outlined in light
   | { k: 'aura' } // a white glow around the subject, pulsing with the kick
   | { k: 'slow'; r: number } // slow motion at `r`× (0.5–0.8): spoken passages only
+  | { k: 'rev'; r?: number } // rewind: the take runs backwards from its offset at `r`× (a lyric that says "rewind")
+  | { k: 'flat' } // no subject cutout on this cut: words and the sign-off sit over the picture (a subject that fills the frame)
   | { k: 'steps'; at: number[]; s?: number }; // punch-ins on the subject at these beat indices, `s` each
 
 export type Cut = {
@@ -49,6 +51,8 @@ export type Cut = {
   fx: Fx[];
   /** '@split': the shots of the panels, left to right, appearing one after another */
   panels?: string[];
+  /** '@split': the beat each panel arrives on (equal shares of the cut when absent) */
+  panelAt?: number[];
 };
 export type Block = { id: string; at: number; cuts: Cut[] };
 
@@ -62,8 +66,10 @@ const parse = (mods: (Transition | Fx)[]) => ({
 export const c = (b: number | 'end', s: string | [string, number?, number?], ...mods: (Transition | Fx)[]): Cut =>
   typeof s === 'string' ? { b, src: s, ...parse(mods) } : { b, src: s[0], off: s[1], rate: s[2], ...parse(mods) };
 
-/** split(beats, [shots], ...mods): panels side by side, one arriving per equal share of the cut */
+/** split(beats, [shots], ...mods): panels side by side, one arriving per equal share of the cut;
+ *  splitAt(beats, [shots], [beats they arrive on], ...mods) lands each panel on its word */
 export const split = (b: number, panels: string[], ...mods: (Transition | Fx)[]): Cut => ({ b, src: '@split', panels, ...parse(mods) });
+export const splitAt = (b: number, panels: string[], at: number[], ...mods: (Transition | Fx)[]): Cut => ({ b, src: '@split', panels, panelAt: at, ...parse(mods) });
 
 export const mono: Fx = { k: 'mono' };
 export const push = (s = 0.08): Fx => ({ k: 'push', s });
@@ -75,6 +81,8 @@ export const ramp = (peak = 2.2): Fx => ({ k: 'ramp', peak });
 export const freeze = (n = 3): Fx => ({ k: 'freeze', n });
 export const aura: Fx = { k: 'aura' };
 export const slow = (r = 0.7): Fx => ({ k: 'slow', r });
+export const rev = (r = 2): Fx => ({ k: 'rev', r });
+export const flat: Fx = { k: 'flat' };
 export const steps = (at: number[], s = 0.14): Fx => ({ k: 'steps', at, s });
 
 export type TextStyle =
@@ -84,7 +92,8 @@ export type TextStyle =
   | 'label' // small mono in the letterbox bars
   | 'sub' // typed subtitle in the bottom bar (spoken parts)
   | 'timer' // a stopwatch counting down to the cue's end
-  | 'map'; // a circuit map drawing itself, a car dot lapping it; `text` is the circuit's name
+  | 'map' // a circuit map drawing itself, a car dot lapping it; `text` is the circuit's name
+  | 'flank'; // two words either side of the subject, behind it, wide-spaced ("ATOMIC RAP": first word left, the rest right)
 
 export type TextCue = {
   /** the words; '*' = the lyric line's own text */
@@ -101,9 +110,16 @@ export type TextCue = {
   hold?: number;
   /** or end where this lyric line starts (a timer counts down to it) */
   until?: [string, number?];
+  /** never before this beat (a word held over a cut can wait for the next shot) */
+  start?: number;
+  /** gone by this beat at the latest (clear a word before a face or a new section) */
+  end?: number;
   /** placement for overlays (big words): centre by default */
   pos?: 'bl' | 'tr' | 'bc' | 'c' | 'tl' | 'br';
   color?: 'bone' | 'red' | 'cyan' | 'acid';
+  /** big words: letters [at, at + len) drawn as a periodic-table element box with atomic number `n`
+   *  (Breaking Bad's credits: NAMELESS → [Na]MELESS is [0, 2, 11]) */
+  el?: [at: number, len: number, n: number];
 };
 
 /** A sound effect: a file in derived/sfx/, at a beat or on a sung word. */

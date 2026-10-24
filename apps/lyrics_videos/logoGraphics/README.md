@@ -78,8 +78,8 @@ uv run --with librosa --with matplotlib python logoGraphics/tools/sfx.py subhoda
 uv run --with librosa --with scipy --with matplotlib python logoGraphics/tools/sync_check.py subhodayam [intro-6-tamara,…]
 ```
 
-`which` matches composition ids by substring; it must stay within one brand unless you pass
-`--all-brands`.
+`which` matches composition ids by substring (`--exact` for whole ids only); it must stay within
+one brand unless you pass `--all-brands`.
 
 ## Using a logo in another composition
 

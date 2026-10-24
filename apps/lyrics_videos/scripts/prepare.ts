@@ -64,6 +64,8 @@ const RawLineSchema = z.object({
   absoluteStart: z.number().optional(),
   absoluteEnd: z.number().optional(),
   words: z.array(RawWordSchema).optional(),
+  /** mediamake caption metadata (htmlText with <b> highlights, splitParts, keyword). Kept as is. */
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 const RawLyricsSchema = z.union([
   z.array(RawLineSchema),
@@ -132,6 +134,7 @@ const normalizeLyrics = (
       start: round(start),
       end: round(end),
       words,
+      ...(l.metadata && Object.keys(l.metadata).length ? { metadata: l.metadata } : {}),
     };
   });
   return out.sort((a, b) => a.start - b.start);

@@ -5,7 +5,8 @@
  *
  * Usage: npm run logos -w lyrics_videos -- stills <which> 0.5,1.2,3 [--scale=0.5] [--alpha] [--guides]
  *        npm run logos -w lyrics_videos -- render <which> [--crf=16]
- *   <which> must stay within one brand (use the logo prefix, e.g. subhodayam-intro) unless --all-brands
+ *   <which> must stay within one brand (use the logo prefix, e.g. subhodayam-intro) unless --all-brands;
+ *   --exact matches whole ids only (subhodayam-logo without subhodayam-logo-still)
  *
  * Everything lands in one folder per brand, never loose in out/:
  *   out/brands/<brand>/stills/<scene>/<t>s.jpg         on the brand's preview colour (black by default)
@@ -33,7 +34,9 @@ const main = async () => {
   // ANGLE gives headless Chrome a GPU path (some scenes use WebGL)
   const chromiumOptions = { gl: 'angle' as const };
   const all = await getCompositions(serveUrl, { chromiumOptions });
-  const comps = which === 'all' ? all : all.filter(c => which.split(',').some(w => c.id === w || c.id.includes(w)));
+  // --exact: whole ids only (`x-logo` alone, not `x-logo-still` too)
+  const exact = flags.includes('--exact');
+  const comps = which === 'all' ? all : all.filter(c => which.split(',').some(w => c.id === w || (!exact && c.id.includes(w))));
   if (!comps.length) throw new Error(`No composition matches "${which}". Have: ${all.map(c => c.id).join(', ')}`);
   const brandOf = (c: (typeof all)[number]) => String(c.defaultProps.brand ?? 'unknown');
   // ids match by substring, so "intro-" would catch other brands' scenes (maybe another session's

@@ -17,10 +17,11 @@ import {
     Save,
     Eye,
     EyeOff,
-    RefreshCw
+    RefreshCw,
+    RotateCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface ApiKeyInfo {
@@ -33,15 +34,20 @@ interface ApiKeyInfo {
 
 interface ApiKeysContentProps {
     selectedApiKey: string | null;
+    onRotated?: (apiKey: ApiKeyInfo) => void;
 }
 
-export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
+export function ApiKeysContent({ selectedApiKey, onRotated }: ApiKeysContentProps) {
     const [selectedKey, setSelectedKey] = useState<ApiKeyInfo | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showApiKey, setShowApiKey] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isRotating, setIsRotating] = useState(false);
+    const [rotatedKey, setRotatedKey] = useState<string | null>(null);
+    const selectedKeyRef = useRef<ApiKeyInfo | null>(null);
+    selectedKeyRef.current = selectedKey;
 
     // Form state for creating/editing
     const [formData, setFormData] = useState({
@@ -53,6 +59,7 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
     // Load selected API key details
     useEffect(() => {
         if (selectedApiKey && selectedApiKey !== 'new') {
+            if (selectedKeyRef.current?.apiKey === selectedApiKey) return;
             loadApiKeyDetails(selectedApiKey);
         } else if (selectedApiKey === 'new') {
             setSelectedKey(null);
@@ -177,6 +184,42 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
         }
     };
 
+    const handleRotateApiKey = async () => {
+        if (!selectedKey || isRotating) return;
+
+        if (!confirm('Rotate this API key? The current key stops working immediately and is replaced with a new one.')) {
+            return;
+        }
+
+        setIsRotating(true);
+        try {
+            const response = await fetch('/api/admin/apikeys/rotate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ apiKey: selectedKey.apiKey }),
+            });
+
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                toast.error(data?.error || 'Failed to rotate API key');
+                return;
+            }
+
+            setSelectedKey(data);
+            setShowApiKey(true);
+            setRotatedKey(data.apiKey);
+            onRotated?.(data);
+            toast.success('API key rotated. Copy the new key now.');
+        } catch (error) {
+            console.error('Error rotating API key:', error);
+            toast.error('Error rotating API key');
+        } finally {
+            setIsRotating(false);
+        }
+    };
+
     const handleDeleteApiKey = async () => {
         if (!selectedKey) return;
 
@@ -286,10 +329,10 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
     }
 
     return (
-        <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+        <div className="flex-1 min-w-0 p-6 space-y-6 overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                     {selectedApiKey === 'new' ? (
                         <Plus className="h-6 w-6 text-blue-500" />
                     ) : (
@@ -308,12 +351,22 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
                     </div>
                 </div>
                 {selectedApiKey !== 'new' && selectedKey && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {getStatusBadge(selectedKey.isValid)}
+                        <Button
+                            onClick={handleRotateApiKey}
+                            variant="outline"
+                            size="sm"
+                            disabled={isRotating}
+                        >
+                            <RotateCw className={cn("h-4 w-4 mr-2", isRotating && "animate-spin")} />
+                            {isRotating ? "Rotating..." : "Rotate"}
+                        </Button>
                         <Button
                             onClick={handleDeleteApiKey}
                             variant="destructive"
                             size="sm"
+                            disabled={isRotating}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -419,7 +472,9 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
                                 </code>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                Keep this API key secure and never share it publicly. You can use it to authenticate your API requests.
+                                {selectedKey.apiKey === rotatedKey
+                                    ? 'This key was just rotated. Copy it now. The previous key no longer works.'
+                                    : 'Keep this API key secure and never share it publicly. You can use it to authenticate your API requests.'}
                             </p>
                         </div>
                     </CardContent>
@@ -448,7 +503,7 @@ export function ApiKeysContent({ selectedApiKey }: ApiKeysContentProps) {
                         <div>
                             <h4 className="font-medium mb-1">Security</h4>
                             <p className="text-muted-foreground">
-                                If you suspect your API key has been compromised, delete it immediately and create a new one.
+                                If you suspect your API key has been compromised, rotate it. The old secret stops working immediately.
                             </p>
                         </div>
                     </div>

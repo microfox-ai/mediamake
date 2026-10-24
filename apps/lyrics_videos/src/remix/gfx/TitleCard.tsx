@@ -2,9 +2,10 @@
  * '@title': a collab lockup, LOGO × TITLE. The logo is revealed alone in the centre by a light sweep
  * (a moving shine keeps running over it), then glides left as an × slashes in beside it and the
  * title slams in on its right on beat `cfg.hit`: each letter flies in on a motion-blurred speed
- * trail, lands with a flash of light, a red speed streak bursts behind it, the camera takes the hit;
- * a metallic shine and a red underline under the whole lockup follow, then the small line. The card
- * zooms out into the next cut.
+ * trail, lands with a flash of light, a speed streak bursts behind it, the camera takes the hit;
+ * a metallic shine and an underline under the whole lockup follow, then the small line. The card
+ * zooms out into the next cut. The logo, streaks, underline and glows take the theme's accent
+ * (colors.red).
  */
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, random, staticFile } from 'remotion';
@@ -26,6 +27,10 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
   const t = song - from;
   const hit = beatTime(manifest as never, cfg.hit);
   const { colors, fonts } = theme;
+  // the accent (colors.red), darker and lighter, and as a glow at alpha a: the card follows the theme
+  const dark = `color-mix(in srgb, ${colors.red} 60%, black)`;
+  const light = `color-mix(in srgb, ${colors.red} 72%, white)`;
+  const glow = (a: number) => `color-mix(in srgb, ${colors.red} ${Math.round(a * 100)}%, transparent)`;
   const logo = staticFile(`${slug}/${cfg.logo}`);
   const family = fonts.title ?? fonts.punch;
   const ratio = 387 / 1280;
@@ -90,13 +95,13 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
           return <line key={n} x1={x} y1={y} x2={x + len} y2={y} stroke={colors.bone} strokeOpacity={0.05 + 0.08 * random(`to${n}`)} strokeWidth={1.5} />;
         })}
       </svg>
-      <AbsoluteFill style={{ background: `radial-gradient(ellipse 55% 40% at 50% ${(cy / h) * 100}%, rgba(255,42,31,${0.2 * rev}) 0%, rgba(0,0,0,0) 70%)` }} />
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse 55% 40% at 50% ${(cy / h) * 100}%, ${glow(0.2 * rev)} 0%, rgba(0,0,0,0) 70%)` }} />
 
       <AbsoluteFill style={{ transform: `translate(${jx}px, ${jy}px) scale(${1 + 0.35 * exit})`, opacity: 1 - exit, filter: exit > 0.05 ? `blur(${exit * 10}px)` : undefined }}>
         {/* the logo */}
         <div style={{ position: 'absolute', left: lx, top: cy - LH / 2, width: LW, height: LH, transform: `scale(${1.12 - 0.12 * settle})`, filter: settle < 1 ? `blur(${(1 - settle) * 6}px)` : undefined }}>
           <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 ${100 - 100 * rev}% 0 0)` }}>
-            <div style={{ position: 'absolute', inset: 0, ...mask, background: `linear-gradient(100deg, #9c0b05 0%, ${colors.red} 40%, #ff5a48 55%, ${colors.red} 70%, #9c0b05 100%)` }} />
+            <div style={{ position: 'absolute', inset: 0, ...mask, background: `linear-gradient(100deg, ${dark} 0%, ${colors.red} 40%, ${light} 55%, ${colors.red} 70%, ${dark} 100%)` }} />
             <div
               style={{
                 position: 'absolute', inset: 0, ...mask,
@@ -106,13 +111,13 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
           </div>
           {/* the sweep's edge of light */}
           {rev > 0 && rev < 1 && (
-            <div style={{ position: 'absolute', top: -LH * 0.25, bottom: -LH * 0.25, left: `${rev * 100}%`, width: 6, background: '#fff', boxShadow: '0 0 30px 12px rgba(255,255,255,0.7), 0 0 90px 30px rgba(255,60,40,0.5)', transform: 'translateX(-50%) skewX(-18deg)' }} />
+            <div style={{ position: 'absolute', top: -LH * 0.25, bottom: -LH * 0.25, left: `${rev * 100}%`, width: 6, background: '#fff', boxShadow: `0 0 30px 12px rgba(255,255,255,0.7), 0 0 90px 30px ${glow(0.5)}`, transform: 'translateX(-50%) skewX(-18deg)' }} />
           )}
         </div>
 
         {/* the × */}
         {s1 > 0 && (
-          <svg width={w} height={h} style={{ position: 'absolute', inset: 0, overflow: 'visible', filter: `drop-shadow(0 0 ${6 + 24 * xGlow}px rgba(255,60,40,${0.4 + 0.6 * xGlow}))` }}>
+          <svg width={w} height={h} style={{ position: 'absolute', inset: 0, overflow: 'visible', filter: `drop-shadow(0 0 ${6 + 24 * xGlow}px ${glow(0.4 + 0.6 * xGlow)})` }}>
             {[
               [s1, -1],
               [s2, 1],
@@ -156,7 +161,7 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
                 {q < 1 && [3, 2, 1].map(j => (
                   <span key={j} style={{ position: 'absolute', left: 0, top: 0, transform: `translateX(${dx + j * 70 * (1 - q)}px)`, color: colors.bone, opacity: 0.18 * (1 - q) * (1 - j / 4), filter: 'url(#remix-mbh5)' }}>{ch}</span>
                 ))}
-                <span style={{ display: 'inline-block', transform: `translateX(${dx}px)`, filter: q < 0.95 ? 'url(#remix-mbh4)' : undefined, textShadow: flash > 0.02 ? `0 0 ${40 * flash}px rgba(255,255,255,${flash}), 0 0 ${90 * flash}px rgba(255,60,40,${0.7 * flash})` : undefined, ...letter }}>
+                <span style={{ display: 'inline-block', transform: `translateX(${dx}px)`, filter: q < 0.95 ? 'url(#remix-mbh4)' : undefined, textShadow: flash > 0.02 ? `0 0 ${40 * flash}px rgba(255,255,255,${flash}), 0 0 ${90 * flash}px ${glow(0.7 * flash)}` : undefined, ...letter }}>
                   {ch}
                 </span>
               </span>

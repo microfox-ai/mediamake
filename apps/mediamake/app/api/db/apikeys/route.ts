@@ -42,6 +42,10 @@ export const POST = async (req: NextRequest) => {
 
 export const DELETE = async (req: NextRequest) => {
   const { apiKey } = await req.json();
-  const apiKeyInfo = await apiKeyStore.del(apiKey);
-  return NextResponse.json(apiKeyInfo);
+  if (!apiKey || typeof apiKey !== 'string') {
+    return NextResponse.json({ error: 'apiKey is required' }, { status: 400 });
+  }
+  // del() returns void; NextResponse.json(undefined) is not serializable.
+  await apiKeyStore.del(apiKey);
+  return NextResponse.json({ success: true });
 };

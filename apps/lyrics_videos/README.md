@@ -106,6 +106,21 @@ absolute song time: `useSongTime`, `useSection`, `useLyrics`, `useBeat`, `useBar
 The composition loads `projects/<slug>/manifest.json` through `calculateMetadata`, and the duration
 comes from the audio.
 
+## mediamake presets (vertical-float lyrics, waveforms)
+
+`src/mediamake` runs mediamake's own editor presets inside a project: `VerticalFloatLyrics`
+(the `sub-vertical-float` caption preset), `WaveformLayer` (spectrum fill/line with the Wave Look
+looks, or the `waveform-audio` preset), `CoverBackdrop` and `TrackTitle`, plus the `lyricVideo()` and
+`waveformVideo()` templates. A project can then be a few lines:
+
+```tsx
+import { lyricVideo } from '../../../src/mediamake';
+export default lyricVideo({ id: 'my-song', cover: 'cover.jpg', lyrics: 'default', wave: 'default' });
+```
+
+See `src/mediamake/README.md`. After a preset changes in apps/mediamake, run
+`npm run sync-presets -w lyrics_videos`.
+
 ## Remix projects (footage cut to a song)
 
 A project with `video/edl.ts` is a music remix: existing footage cut to the song on its beat grid at

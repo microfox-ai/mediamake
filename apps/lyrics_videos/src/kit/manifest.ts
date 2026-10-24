@@ -21,6 +21,8 @@ export const LyricLineSchema = z.object({
   start: z.number(),
   end: z.number(),
   words: z.array(WordSchema),
+  /** mediamake caption metadata when lyrics.json came from mediamake (htmlText, splitParts, keyword). */
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const SectionSchema = z.object({
