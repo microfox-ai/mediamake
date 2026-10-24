@@ -1,6 +1,7 @@
 # Revisions
 
-A review screen for rendered videos on this computer, at `/revisions`. The user watches a render,
+A review screen for rendered videos on this computer, at `/remotion-revision` (`/revisions`
+redirects there). Its sibling for thumbnails is `/thumbnail-revision` (`components/thumbnail-revisions/`). The user watches a render,
 jumps between shots, and leaves comments that land as files **next to the video**, where Claude
 reads them in the next session. Nothing is uploaded; everything goes through the File System
 Access API (Chromium only, like the rest of local media). The page is public (`app/(public)/`): no sign-in, no API calls.
@@ -122,7 +123,7 @@ its window regains focus and every 5 s while visible, so those edits show up wit
    window regains focus, so new renders show up without opening anything. Chrome asks for one
    "Reconnect" click per source per visit unless "Allow on every visit" was chosen.
 
-Deep link for Claude: `/revisions?folder=<folder name>&video=<file name>` picks the matching
+Deep link for Claude: `/remotion-revision?folder=<folder name>&video=<file name>` picks the matching
 history entry and asks for access with one click. Browsers never expose absolute paths and no URL
 can grant folder access, so the first open of a folder is always the user's pick.
 

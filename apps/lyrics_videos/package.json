@@ -14,7 +14,9 @@
     "type-check": "tsc --noEmit",
     "logos": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/logos.ts",
     "logos-studio": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/brand-public.ts && remotion studio logoGraphics/index.ts --public-dir=out/brands/.public",
-    "brand": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/brand.ts"
+    "brand": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/brand.ts",
+    "thumbs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/thumbs.ts",
+    "thumbs-studio": "remotion studio thumbnails/index.ts --public-dir=thumbnails/jobs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

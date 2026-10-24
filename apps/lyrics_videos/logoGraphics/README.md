@@ -37,7 +37,7 @@ brands/<brand>/                   one brand (gitignored)
     tools/                        brand-only tools (glyphs from fonts, tracing a logo image, …)
     sound/                        raw/ (generated files), sfx.config.json (prompts, loops, latency), sfx.json (measurements), sync.config.json (layers to check)
     public/                       sfx/, fonts/: served as staticFile('<brand>/…')
-    brand/                        brand.json (what the kit contains), brandguide.md, colors.*, svg.ts, youtube/channel-description.md
+    brand/                        brand.json (what the kit contains), brandguide.md, colors.*, svg.ts, youtube/channel-description.md, thumbnail.json (for thumbnails/)
   brandguide.md, logo/, intros/, outros/, youtube/, guide/, fonts/, colors.*   the exported kit (npm run brand)
 ```
 
