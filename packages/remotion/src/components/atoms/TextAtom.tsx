@@ -10,6 +10,7 @@ import { atomCategory } from '../../atom-category';
 import { TextAtomInput } from './input-schemas';
 import { applyTextFillStyle } from './text-fill-style';
 import { mergeSpecialEffects } from './special-effects-style';
+import { familyToLoad as resolveFamilyToLoad, styleWithDefaults } from './text-font';
 
 export { TextAtomInput } from './input-schemas';
 
@@ -65,28 +66,6 @@ function htmlForRender(text: string): string {
         .replace(/<\/?p[^>]*>/gi, '');
 }
 
-const DEFAULT_FONT_FAMILY = 'Inter';
-const DEFAULT_FONT_SIZE = 64;
-
-/** A single family name in `style.fontFamily` (not a CSS stack) is loaded as a Google Font. */
-function loadableStyleFamily(style?: React.CSSProperties): string | undefined {
-    const family = style?.fontFamily;
-    if (typeof family !== 'string' || family.includes(',')) return undefined;
-    const name = family.replace(/["']/g, '').trim();
-    return name || undefined;
-}
-
-/** First add often has no style yet. A missing family or size is what the player errors on. */
-function styleWithDefaults(style?: React.CSSProperties): React.CSSProperties {
-    const family = typeof style?.fontFamily === 'string' ? style.fontFamily.trim() : '';
-    const size = style?.fontSize;
-    return {
-        ...style,
-        fontFamily: family || DEFAULT_FONT_FAMILY,
-        fontSize: size == null || size === '' ? DEFAULT_FONT_SIZE : size,
-    };
-}
-
 /**
  * Enhanced TextAtom with comprehensive dynamic font loading capabilities
  * 
@@ -102,8 +81,11 @@ export const Atom: React.FC<TextAtomProps> = ({ id, data }) => {
     const overrideStyles = useAnimatedStyles(id);
     const [isFontLoading, setIsFontLoading] = useState(false);
     const text = typeof data?.text === 'string' ? data.text : '';
-    const style = useMemo(() => styleWithDefaults(data?.style), [data?.style]);
-    const familyToLoad = loadableStyleFamily(style) || data?.font?.family || DEFAULT_FONT_FAMILY;
+    const familyToLoad = resolveFamilyToLoad(data?.style, data?.font?.family);
+    const style = useMemo(
+        () => styleWithDefaults(data?.style, familyToLoad),
+        [data?.style, familyToLoad]
+    );
     const [renderHandle] = useState(() =>
         delayRender(`Loading font: ${familyToLoad}`)
     );
