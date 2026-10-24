@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bundle } from '@remotion/bundler';
+import { enableTailwind } from '@remotion/tailwind-v4';
 import { renderStill, selectComposition } from '@remotion/renderer';
 import { ManifestSchema } from '../src/kit/manifest.ts';
 
@@ -49,6 +50,8 @@ const main = async () => {
   const serveUrl = await bundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
     publicDir: path.join(ROOT, 'projects'),
+    // same as remotion.config.ts: mediamake presets and atoms use Tailwind classes
+    webpackOverride: enableTailwind,
   });
   const inputProps = { manifest };
   // ANGLE gives headless Chrome a real GPU path (three.js / WebGL scenes need it)

@@ -18,7 +18,8 @@
     "thumbs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/thumbs.ts",
     "thumbs-studio": "remotion studio thumbnails/index.ts --public-dir=thumbnails/jobs",
     "remix": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/remix.ts",
-    "image-index": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/image-index.ts"
+    "image-index": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/image-index.ts",
+    "sync-presets": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/sync-presets.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -32,10 +33,12 @@
     "@remotion/media": "4.0.496",
     "@remotion/media-utils": "4.0.496",
     "@remotion/renderer": "4.0.496",
+    "@remotion/tailwind-v4": "^4.0.496",
     "@remotion/three": "4.0.496",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "remotion": "4.0.496",
+    "tailwindcss": "^4.3.3",
     "three": "^0.176.0",
     "zod": "^4.1.11"
   },

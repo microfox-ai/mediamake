@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+
+/* Class names that mediamake presets and @microfox/remotion atoms write at render time. */
+@source './mediamake/presets.json';
+@source '../../../packages/remotion/src';
