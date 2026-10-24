@@ -22,6 +22,14 @@ The repo's `.mcp.json` already registers it for Claude Code sessions opened at t
 claude mcp add mediamake -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MEDIAMAKE_API_KEY=... -- node /path/to/mediamake/packages/mediamake-mcp/dist/index.js
 ```
 
+### Install in Claude Desktop (.mcpb)
+
+```bash
+npm run build:mcpb --workspace @microfox/mediamake-mcp   # writes packages/mediamake-mcp/mediamake.mcpb
+```
+
+Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Extensions). It asks for the Mediamake URL and API key, and the key is stored in the OS keychain. The bundle is one self-contained `server/index.js` and needs only the Node runtime Claude Desktop ships with.
+
 ## Tools
 
 | Area                   | Tools                                                                                                                                                                                        |
