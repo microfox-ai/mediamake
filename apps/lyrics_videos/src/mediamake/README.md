@@ -10,6 +10,7 @@ timeline can be reused as is.
 | `WaveformLayer` | `spectrum-fill` (with the Wave Look action's looks: `single-wave` … `fearless-beats`, plus `impact`), `spectrum-line`, or `waveform-audio` (the waveform preset: `waves` = WaveformHistogram, `static` = WaveformHistogramRanged). |
 | `CoverBackdrop` | Cover art behind everything: zoom or pan loop, beat kick, dim, bottom fade for a wave strip. |
 | `TrackTitle` | Title plus a boxed artist line, the layout of the waveform scene preset. |
+| `OverlayText` | A text-overlay line with blur in/out: channel tags, titles, credits (`texts` in the templates). |
 | `lyricVideo()` / `waveformVideo()` | Whole-project templates returning a normal `defineProject(...)`. |
 | `LYRIC_STYLES` / `WAVE_STYLES` | Named looks. The non-default ones come from saved mediamake timelines. |
 | `runPreset()` / `PresetTree` | Run any synced preset and render its component tree. |
@@ -28,6 +29,17 @@ export default lyricVideo({
 
 Layers come in order: cover, wave, title, lyrics, then `extra`. Lyrics and wave run at `'all'`, so
 caption times stay the song's own.
+
+## Projects made from a mediamake timeline
+
+Put the timeline's song and picture URLs in `input/sources.json`
+(`{ "song.mp3": "<url>", "cover.jpg": "<url>" }`) and its captions in `input/lyrics.json`
+(`{ "captions": [...] }`, metadata kept), then:
+
+```bash
+npm run fetch-inputs -w lyrics_videos -- <slug>
+npm run prepare-project -w lyrics_videos -- <slug>
+```
 
 ## Keeping presets in sync
 
