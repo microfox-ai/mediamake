@@ -1,3 +1,6 @@
 out/
 projects/
 brands/
+thumbnails/jobs/*
+!thumbnails/jobs/.gitkeep
+thumbnails/inspiration/
