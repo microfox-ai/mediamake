@@ -1,5 +1,6 @@
 out/
-projects/
+projects/*
+!projects/sample-pulse/
 brands/
 thumbnails/jobs/*
 !thumbnails/jobs/.gitkeep
