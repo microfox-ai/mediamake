@@ -40,3 +40,8 @@ env.json
 apps/mediamake/docs/random/*
 # Private AI configuration frameworks
 .claude/
+
+# Unreleased skills, MCPs and apps live here, never in git. Release them to
+# private storage with `npm run catalog -- release private/skills/<name>`.
+/private/*
+!/private/README.md

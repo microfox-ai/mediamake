@@ -1,63 +1,166 @@
-import { cookies } from 'next/headers';
 import { Redis } from '@upstash/redis';
 import { CrudHash } from '@microfox/db-upstash';
-import type { CatalogItem } from '@/lib/catalog/types';
+import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
+import type { ApiKeyInfo } from '@/app/types/db';
+import { isAdmin } from '@/lib/admin-utils';
+import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
+import {
+  NETWORK_GROUP,
+  type AccessLevel,
+  type CatalogItem,
+} from '@/lib/catalog/types';
 
 /**
- * Access control for private catalog items.
+ * Access control for gated catalog items.
  *
- * Pages read the catalog through listCatalog (lib/catalog), which calls
- * canAccess, so the grant source can be swapped out here without touching
- * the UI.
- *
- * Current grant source (stub): the MEDIAMAKE_ACCESS_GRANTS env var,
- *   "clientA:skill/lyric-video|mcp/mediamake,clientB:*"
- * A grant can name an item id, a whole kind ("skill/*"), or everything ("*").
+ * A viewer may open a non-public item when any of these holds:
+ *  - they are an admin (`isAdmin` on their Redis user profile);
+ *  - a live grant names the item, its whole kind (`skill/*`) or everything
+ *    (`*`), for them or for a group they are in;
+ *  - the item is `network` and they are in the `network` group.
+ * Grants, groups and invites are stored in MongoDB (lib/catalog/store) and
+ * managed with `npm run catalog` or /api/admin/catalog.
  */
 
+/**
+ * Who is looking. `clientId` is null for signed-out visitors.
+ */
 export interface Viewer {
   clientId: string | null;
 }
 
+/** The fields access depends on; any other catalog fields may ride along. */
+export type GatedItem = Pick<CatalogItem, 'id' | 'visibility'> & Partial<CatalogItem>;
+
+/** Everything that decides what one viewer may open, resolved once. */
+export interface Entitlements {
+  clientId: string | null;
+  isAdmin: boolean;
+  groups: string[];
+  /** Every item is granted (a `'*'` grant). */
+  all: boolean;
+  itemIds: Set<string>;
+}
+
+function redis() {
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+}
+
+async function clientIdFromSession(sessionId: string | undefined) {
+  if (!sessionId) return null;
+  const session = await new CrudHash<any>(redis(), 'sessions').get(sessionId);
+  return session && session.expires > Date.now() ? (session.clientId as string) : null;
+}
+
+/** Viewer for server components and pages, from the session cookie. */
 export async function getViewer(): Promise<Viewer> {
   try {
     const sessionId = (await cookies()).get('session_token')?.value;
-    if (!sessionId || !process.env.UPSTASH_REDIS_REST_URL) {
-      return { clientId: null };
+    return { clientId: await clientIdFromSession(sessionId) };
+  } catch {
+    return { clientId: null };
+  }
+}
+
+/**
+ * Viewer for `/api/catalog/*` routes. Those routes skip the middleware so
+ * that signed-out visitors can browse, which means `x-client-id` is not set
+ * by us there and must never be trusted. We resolve the session cookie or a
+ * Bearer API key here instead.
+ */
+export async function resolveViewer(req: NextRequest): Promise<Viewer> {
+  try {
+    const fromSession = await clientIdFromSession(req.cookies.get('session_token')?.value);
+    if (fromSession) return { clientId: fromSession };
+
+    const bearer = req.headers.get('authorization')?.split(' ')[1];
+    if (bearer) {
+      const info = await new CrudHash<ApiKeyInfo>(redis(), 'apiKeys').get(bearer);
+      if (info?.isValid) return { clientId: info.clientId };
     }
-    const redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
-    const session = await new CrudHash<any>(redis, 'sessions').get(sessionId);
-    if (session && session.expires > Date.now()) {
-      return { clientId: session.clientId ?? null };
+
+    if (process.env.NODE_ENV === 'development' && process.env.DEV_API_KEY) {
+      return { clientId: process.env.NEXT_PUBLIC_DEV_CLIENT_ID ?? 'dev' };
     }
   } catch (error) {
-    console.error('[access] failed to read session', error);
+    console.error('[access] Could not resolve viewer:', error);
   }
   return { clientId: null };
 }
 
-function parseGrants(raw: string | undefined): Map<string, string[]> {
-  const grants = new Map<string, string[]>();
-  for (const entry of (raw ?? '').split(',')) {
-    const [clientId, items] = entry.split(':');
-    if (!clientId?.trim() || !items) continue;
-    grants.set(
-      clientId.trim(),
-      items.split('|').map((i) => i.trim()).filter(Boolean),
-    );
-  }
-  return grants;
+/**
+ * Grants from `MEDIAMAKE_ACCESS_GRANTS`, a fallback for when the database is
+ * not configured. Format: `clientId:skill/lyric-video|mcp/*,clientId2:*`.
+ */
+function envGrants(clientId: string): string[] {
+  const raw = process.env.MEDIAMAKE_ACCESS_GRANTS ?? '';
+  return raw
+    .split(',')
+    .map(entry => entry.trim().split(':'))
+    .filter(([id]) => id === clientId)
+    .flatMap(([, items]) => (items ?? '').split('|').map(s => s.trim()).filter(Boolean));
 }
 
-export async function canAccess(viewer: Viewer, item: CatalogItem): Promise<boolean> {
-  if (item.visibility === 'public') return true;
-  if (!viewer.clientId) return false;
+/** Resolves a viewer's admin flag, groups and grants. */
+export async function getEntitlements(viewer: Viewer): Promise<Entitlements> {
+  const { clientId } = viewer;
+  const result: Entitlements = { clientId, isAdmin: false, groups: [], all: false, itemIds: new Set() };
+  if (!clientId) return result;
 
-  const granted = parseGrants(process.env.MEDIAMAKE_ACCESS_GRANTS).get(viewer.clientId) ?? [];
-  return granted.some(
-    (grant) => grant === '*' || grant === item.id || grant === `${item.kind}/*`,
-  );
+  const fromEnv = envGrants(clientId);
+  for (const id of fromEnv) {
+    if (id === '*') result.all = true;
+    else result.itemIds.add(id);
+  }
+
+  try {
+    result.isAdmin = await isAdmin(clientId);
+  } catch (error) {
+    console.error('[access] Could not check admin flag:', error);
+  }
+
+  try {
+    result.groups = await accessGroupsDB.groupsOf(clientId);
+    const grants = await accessGrantsDB.liveFor(clientId, result.groups);
+    for (const grant of grants) {
+      if (grant.itemId === '*') result.all = true;
+      else result.itemIds.add(grant.itemId);
+    }
+  } catch (error) {
+    // No database configured, or it is down: fall back to env grants only.
+    console.error('[access] Could not load grants:', error);
+  }
+  return result;
+}
+
+/** What `entitlements` can do with `item`. */
+export function accessLevel(
+  entitlements: Entitlements,
+  item: GatedItem,
+): AccessLevel {
+  if (item.visibility === 'public') return 'open';
+  const kindWildcard = `${item.id.split('/')[0]}/*`;
+  if (
+    entitlements.isAdmin ||
+    entitlements.all ||
+    entitlements.itemIds.has(item.id) ||
+    entitlements.itemIds.has(kindWildcard)
+  ) {
+    return 'granted';
+  }
+  if (item.visibility === 'network' && entitlements.groups.includes(NETWORK_GROUP)) return 'granted';
+  return 'locked';
+}
+
+/** True when `viewer` may open `item`. */
+export async function canAccess(
+  viewer: Viewer,
+  item: GatedItem,
+): Promise<boolean> {
+  if (item.visibility === 'public') return true;
+  return accessLevel(await getEntitlements(viewer), item) !== 'locked';
 }
