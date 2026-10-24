@@ -1054,13 +1054,20 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const text = rawText.trim();
       const s = get();
       if (!text || !s.video || !s.folder) return false;
+      // Anchor to what is on screen now: the first comment creates the
+      // revision, and the playhead or selection may move meanwhile.
+      const fps = selectFps(s);
+      const { map, selection } = s;
+      if (!selection) videoEl?.pause();
+      const time = videoEl?.currentTime ?? s.currentTime;
+      const still = !selection && videoEl ? captureFrame(videoEl) : null;
+      still?.catch(() => undefined); // awaited (and reported) below
+
       const revisionId = s.activeRevisionId ?? (await get().newRevision());
       if (!revisionId) return false;
       const revision = get().revisions[revisionId];
       if (!revision) return false;
 
-      const fps = selectFps(get());
-      const { map, selection } = get();
       const id = nextCommentId(revision.comments);
       const createdAt = new Date().toISOString();
       let comment: RevisionComment;
@@ -1082,13 +1089,11 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
           ),
         };
       } else {
-        videoEl?.pause();
-        const time = videoEl?.currentTime ?? get().currentTime;
         const frame = frameAt(time, fps);
         const shot = shotAt(map, time);
         let snapshot: string | undefined;
         try {
-          const blob = videoEl ? await captureFrame(videoEl) : null;
+          const blob = await still;
           const dir = blob ? await revisionsDir(true) : null;
           const stills = dir ? await getSubdir(dir, revisionId, true) : null;
           if (blob && stills) {

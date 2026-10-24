@@ -11,14 +11,15 @@ import { useRevisionsStore } from './store';
 import { isTextField } from './keyboard';
 import { RevisionsHeader } from './RevisionsHeader';
 import { FilesPanel } from './FilesPanel';
-import { VideoStage } from './VideoStage';
+import { togglePlayerFullscreen, VideoStage } from './VideoStage';
 import { RevisionTimeline } from './RevisionTimeline';
 import { RevisionPanel } from './RevisionPanel';
 
 /**
- * Window-wide shortcuts. ⌘/Ctrl + arrows jump between shots and ⌥/Ctrl/⌘ +
- * Space plays from anywhere, text boxes included (plain Space types there).
- * Blocking ⌘← also stops Chrome's "Back".
+ * Window-wide shortcuts. ⌘/Ctrl + arrows jump between shots, ⌘/Ctrl + [ / ]
+ * set the selection's start / end, and ⌘/Ctrl + P or ⌥/Ctrl/⌘ + Space play,
+ * all from anywhere, text boxes included (plain Space types there).
+ * Blocking ⌘← and ⌘[ also stops Chrome's "Back", ⌘P its print dialog.
  */
 function useShortcuts() {
   useEffect(() => {
@@ -40,8 +41,22 @@ function useShortcuts() {
         );
         return;
       }
-      // ⌘Space is Spotlight on macOS, so ⌥Space and ⌃Space are accepted too.
-      if ((mod || e.altKey) && e.code === 'Space') {
+      // By character or key position, so other layouts work too; ⌘⇧[ ] stay
+      // Chrome's tab switching.
+      const bracketIn = e.key === '[' || e.code === 'BracketLeft';
+      const bracketOut = e.key === ']' || e.code === 'BracketRight';
+      if (mod && (bracketIn || bracketOut) && !e.shiftKey && !e.altKey) {
+        if (!store.video) return;
+        e.preventDefault();
+        if (bracketIn) store.setIn();
+        else store.setOut();
+        return;
+      }
+      // ⌘Space is Spotlight on macOS, so ⌘P, ⌥Space and ⌃Space are accepted too.
+      if (
+        (mod && e.key.toLowerCase() === 'p' && !e.shiftKey && !e.altKey) ||
+        ((mod || e.altKey) && e.code === 'Space')
+      ) {
         if (!store.video) return;
         e.preventDefault();
         store.togglePlay();
@@ -107,6 +122,10 @@ function useShortcuts() {
         case 'm':
         case 'M':
           store.toggleMute();
+          break;
+        case 'f':
+        case 'F':
+          togglePlayerFullscreen();
           break;
         case 'n':
         case 'N':

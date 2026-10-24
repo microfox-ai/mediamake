@@ -13,7 +13,7 @@ import { MaximizeIcon, XIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatTime, timeOfCut } from '@/lib/revisions/frames';
-import { shotAt } from '@/lib/revisions/map';
+import { sectionAt, shotAt } from '@/lib/revisions/map';
 import type {
   RevisionComment,
   TimeRange,
@@ -122,7 +122,7 @@ const Lanes = memo(function Lanes({
         {map.sections.map((section, i) => (
           <div
             key={section.id}
-            title={`${section.label} (${formatTime(section.from)}–${formatTime(section.to)})`}
+            title={`${section.label} (${formatTime(section.from)}–${formatTime(section.to)})\nDouble-click to select this section`}
             className="absolute top-0 flex h-full items-center overflow-hidden border-r border-background px-1 text-[10px] font-medium"
             style={{
               left: section.from * pps,
@@ -278,6 +278,8 @@ type Drag =
       startX: number;
       moved: boolean;
       double: boolean;
+      /** Pressed on the section lane: a double-click there selects the section. */
+      onSection?: boolean;
     };
 
 export function RevisionTimeline() {
@@ -434,12 +436,16 @@ export function RevisionTimeline() {
       return;
     }
     if (isDouble) {
+      // By height, not target: the selection overlay covers the lanes.
+      const y =
+        e.clientY - (contentRef.current?.getBoundingClientRect().top ?? 0);
       drag.current = {
         mode: 'select',
         anchor: t,
         startX: e.clientX,
         moved: false,
         double: true,
+        onSection: y >= RULER_H && y < RULER_H + SECTION_H,
       };
       return;
     }
@@ -474,11 +480,12 @@ export function RevisionTimeline() {
       return;
     }
     if (!d.double) return;
-    // Double-click without a drag selects the shot under the pointer.
-    const shot = shotAt(map, timeAt(e.clientX));
-    if (shot) {
-      setSelection({ from: shot.from, to: shot.to });
-      seek(timeOfCut(shot.from, fps));
+    // Double-click without a drag selects the shot (or section) under the pointer.
+    const t = timeAt(e.clientX);
+    const span = d.onSection ? sectionAt(map, t) : shotAt(map, t);
+    if (span) {
+      setSelection({ from: span.from, to: span.to });
+      seek(timeOfCut(span.from, fps));
     }
   };
 
@@ -543,8 +550,8 @@ export function RevisionTimeline() {
         ) : (
           <span className="ml-2 text-muted-foreground">
             Click to scrub · double-click + drag to select · double-click a shot
-            to select it · <ModKeys keys="Mod ← →" /> jump shots · ? for all
-            keys
+            or section to select it · <ModKeys keys="Mod [ ]" /> start / end ·{' '}
+            <ModKeys keys="Mod ← →" /> jump shots · ? for all keys
           </span>
         )}
         {playing && (

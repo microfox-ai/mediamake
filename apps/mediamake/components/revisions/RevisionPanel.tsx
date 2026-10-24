@@ -355,9 +355,23 @@ function AnchorChip() {
   );
 }
 
+/** One-click notes for the common calls; "this shot" reads "these shots" over several. */
+const QUICK_NOTES = [
+  'Keep this shot',
+  'Change this shot',
+  'Remove this shot',
+  'Shorter',
+  'Longer',
+  'Off the beat',
+  'Fix the text',
+  'Smoother transition',
+];
+
 function Composer() {
   const video = useRevisionsStore(s => s.video);
   const selection = useRevisionsStore(s => s.selection);
+  const map = useRevisionsStore(s => s.map);
+  const fps = useRevisionsStore(selectFps);
   const composerFocusToken = useRevisionsStore(s => s.composerFocusToken);
   const addComment = useRevisionsStore(s => s.addComment);
   const pause = useRevisionsStore(s => s.pause);
@@ -365,21 +379,31 @@ function Composer() {
   const [adding, setAdding] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const addKeys = useKeys('Mod ↵');
-  const playKeys = useKeys('PlayAnywhere');
+  const playKeys = useKeys('Mod P');
 
   useEffect(() => {
     if (composerFocusToken) ref.current?.focus();
   }, [composerFocusToken]);
 
-  const submit = async () => {
-    if (!text.trim() || adding) return;
+  /** A quick note goes first; a typed draft rides along after it. */
+  const submit = async (note?: string) => {
+    const draft = text.trim();
+    const comment = note ? (draft ? `${note}: ${draft}` : note) : draft;
+    if (!comment || adding) return;
     setAdding(true);
     try {
-      if (await addComment(text)) setText('');
+      if (await addComment(comment)) setText('');
     } finally {
       setAdding(false);
     }
   };
+
+  const severalShots =
+    !!selection &&
+    shotsInRange(map, selection.from, selection.to, fps).length > 1;
+  const quickNotes = QUICK_NOTES.map(note =>
+    severalShots ? note.replace('this shot', 'these shots') : note,
+  );
 
   if (!video) return null;
   return (
@@ -424,6 +448,28 @@ function Composer() {
             {adding ? 'Saving…' : 'Add comment'}
           </Button>
         </Hint>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {quickNotes.map(note => (
+          <Hint
+            key={note}
+            label={
+              text.trim()
+                ? `Add “${note}: …” with what you typed`
+                : `Add “${note}” on this ${selection ? 'range' : 'frame'}`
+            }
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[11px] font-normal"
+              disabled={adding}
+              onClick={() => void submit(note)}
+            >
+              {note}
+            </Button>
+          </Hint>
+        ))}
       </div>
     </div>
   );

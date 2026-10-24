@@ -134,23 +134,27 @@ can grant folder access, so the first open of a folder is always the user's pick
 | click / drag on timeline                                  | scrub                                                                                         |
 | double-click + drag (mouse), double-tap + drag (trackpad) | select a range                                                                                |
 | double-click a shot                                       | select that shot                                                                              |
+| double-click a section (top lane)                         | select that section                                                                           |
 | Shift + click / drag                                      | extend the selection from the playhead                                                        |
 | drag a selection edge                                     | adjust it                                                                                     |
 | `I` / `O`                                                 | set selection in / out at the playhead                                                        |
+| `⌘/Ctrl [` / `⌘/Ctrl ]`                                   | set selection start / end at the playhead; works anywhere, text boxes included                |
 | `Esc`                                                     | clear the selection                                                                           |
 | `⌘/Ctrl ←` `→`                                            | previous / next shot (comment pins when there is no map); works anywhere, text boxes included |
 | `⌘/Ctrl ⇧ ←` `→`                                          | previous / next section                                                                       |
 | `Space`                                                   | play / pause (loops the selection when loop is on)                                            |
-| `⌥ Space` (Mac) / `Ctrl Space`                            | play / pause from anywhere, text boxes included (`⌘ Space` is Spotlight on macOS)             |
+| `⌘/Ctrl P`, `⌥ Space` (Mac) / `Ctrl Space`                | play / pause from anywhere, text boxes included (`⌘ Space` is Spotlight on macOS)             |
 | `,` `.`                                                   | previous / next frame (same as `←` `→`)                                                       |
 | scroll on the video                                       | frame by frame; `⇧` scroll moves by the second                                                |
 | `N`                                                       | new revision                                                                                  |
 | `M`                                                       | mute / unmute                                                                                 |
+| `F`                                                       | full screen player, with its overlay and controls (`Esc` leaves)                              |
 | `-` `=` `0`                                               | zoom the timeline out / in / to fit                                                           |
 | `?`                                                       | list every shortcut                                                                           |
 | `←` `→` / `⇧←` `⇧→`                                       | one frame / one second                                                                        |
 | `C` or `Enter`                                            | write a comment                                                                               |
 | `⌘/Ctrl Enter`                                            | add the comment                                                                               |
+| quick-note buttons under the comment box                  | add "Keep this shot", "Change this shot", … in one click; anything typed is added after it    |
 | `⌘S`                                                      | save now                                                                                      |
 
 Point comments anchor to the playhead when added (the video pauses while typing, so what you see is
