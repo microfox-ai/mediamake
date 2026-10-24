@@ -12,6 +12,7 @@ import { AddBlockContextMenuItems } from "@/components/editor_main/panels/left/e
 import { hasTrackShell } from "@/components/editor/presets/form/apply-track-mode";
 import { BlockLockBadge, describeBlockLock } from "../block-lock-badge";
 import { PresetTrackModeControl } from "../track-mode-control";
+import { isCaptionPreset } from "@/components/editor_main/timing/caption-audio-lock";
 import { cn } from "@/lib/utils";
 import { getPredefinedPresetById } from "@/components/editor/presets/registry/registry/presets-registry";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
@@ -556,7 +557,7 @@ export function InstanceTimingSection({ timeline, order, scope }: InstanceTiming
               {membership}
             </span>
           ) : null}
-          {hasTrackShell(node.input) || isBaseSceneRow ? (
+          {hasTrackShell(node.input) || isBaseSceneRow || isCaptionPreset(node.presetId) ? (
             <div className="absolute right-0.5 top-0.5 z-10">
               <PresetTrackModeControl
                 timeline={timeline}

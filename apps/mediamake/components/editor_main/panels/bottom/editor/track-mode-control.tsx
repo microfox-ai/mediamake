@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { useCompileStore } from "@/components/editor_main/stores/compile-store";
 import { useTimelineEditsStore } from "@/components/editor_main/stores/timeline-edits-store";
 import type { Timeline } from "@/components/editor_main/stores/project-store";
+import { autoAudioLock, isCaptionPreset } from "@/components/editor_main/timing/caption-audio-lock";
+import { presetTrackName } from "@/components/editor_main/timing/preset-track-name";
 import { TRACK_MODE_HINT, TRACK_MODE_ICON } from "./track-mode-icons";
 
 const LockIcon = TRACK_MODE_ICON.lockedTo;
@@ -163,6 +165,27 @@ export function TrackModeControl({
   );
 }
 
+/**
+ * Caption blocks carry no track type. Show the one they get: locked to the
+ * only audio file, otherwise parallel. Picking a mode writes it and ends the
+ * automatic lock.
+ */
+function captionShellValue(
+  source: Pick<Timeline, "presets">,
+  presetId: string,
+  input: unknown,
+): Record<string, unknown> | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const presets = source.presets ?? [];
+  const preset = presets.find((item) => item.id === presetId);
+  if (!preset || !isCaptionPreset(preset.presetId)) return null;
+  const record = input as Record<string, unknown>;
+  const auto = autoAudioLock({ ...preset, presetInputData: record }, presets);
+  const target = auto ? presets.find((item) => item.id === auto.refId) : undefined;
+  if (!target) return { ...record, trackType: "aligned" };
+  return { ...record, trackType: "lockedTo", lock: presetTrackName(target, target.id) };
+}
+
 /** Writes link / sequence / parallel onto one preset from a timeline row header. */
 function trackShellValue(
   input: unknown,
@@ -190,9 +213,10 @@ export function PresetTrackModeControl({
   const updatePresetInputData = useTimelineEditsStore((s) => s.updatePresetInputData);
   const getEditedTimeline = useTimelineEditsStore((s) => s.getEditedTimeline);
   const generateOutput = useCompileStore((s) => s.generateOutput);
-  const value = trackShellValue(input, includeAuto);
-  if (!value) return null;
   const source = getEditedTimeline(timeline.id) || timeline;
+  const value =
+    trackShellValue(input, includeAuto) ?? captionShellValue(source, presetId, input);
+  if (!value) return null;
 
   return (
     <TrackModeControl

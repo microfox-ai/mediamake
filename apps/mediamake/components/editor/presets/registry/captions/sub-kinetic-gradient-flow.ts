@@ -1532,7 +1532,7 @@ const presetExecution = (
     const ids =
       built != null && built.length > 0
         ? built
-        : ['inputCaptions.[${index}]'];
+        : [`inputCaptions.[${index}]`];
     props?.applyDataItemIdsToNodeTree?.(captionNode, ids);
   });
 

@@ -71,6 +71,9 @@ export function resolveTiming(
   };
 
   const visiting = new Set<string>();
+  /** Auto locks whose target, in another scope, was not placed yet. */
+  const deferredLocks: Array<{ node: AppliedNode; parent: AppliedNode | null }> = [];
+  let settling = false;
 
   const fail = (
     nodeId: string,
@@ -80,20 +83,35 @@ export function resolveTiming(
     diagnostics.push({ nodeId, code, message });
   };
 
+  /**
+   * Pack a sequence's children and return the packed length.
+   * A plain lock copies its target and takes no slot, so it resolves after
+   * the packed siblings. Resolving it in order would place a later target
+   * before that target had its packed start, and both would land at 0.
+   */
+  const packSequence = (node: AppliedNode): number => {
+    let cursor = 0;
+    const deferred: Array<{ child: AppliedNode; at: number }> = [];
+    for (const child of node.children) {
+      if (child.disabled || child.role === 'modifier') continue;
+      const locksToOwnChild =
+        child.timing.kind === 'lock' &&
+        descendantIds(child.id).has(child.timing.refId);
+      if (child.timing.kind === 'lock' && !locksToOwnChild) {
+        deferred.push({ child, at: cursor });
+        continue;
+      }
+      const span = resolveNode(child, node, cursor);
+      if (span) cursor += span.duration;
+    }
+    for (const { child, at } of deferred) resolveNode(child, node, at);
+    return cursor;
+  };
+
   const placeChildren = (node: AppliedNode) => {
     if (node.role !== 'scene') return;
     if (node.arrangement === 'sequence') {
-      let cursor = 0;
-      for (const child of node.children) {
-        if (child.disabled || child.role === 'modifier') continue;
-        const span = resolveNode(child, node, cursor);
-        const locksToOwnChild =
-          child.timing.kind === 'lock' &&
-          descendantIds(child.id).has(child.timing.refId);
-        if (span && (child.timing.kind !== 'lock' || locksToOwnChild)) {
-          cursor += span.duration;
-        }
-      }
+      packSequence(node);
       return;
     }
     for (const child of node.children) {
@@ -184,15 +202,7 @@ export function resolveTiming(
         locked: false,
       };
       nodes.set(node.id, provisional);
-      let sum = 0;
-      let cursor = 0;
-      for (const child of node.children) {
-        if (child.disabled || child.role === 'modifier') continue;
-        const childSpan = resolveNode(child, node, cursor);
-        if (!childSpan) continue;
-        cursor += childSpan.duration;
-        sum += childSpan.duration;
-      }
+      const sum = packSequence(node);
       if (!(sum > 0)) {
         nodes.delete(node.id);
         fail(
@@ -435,7 +445,9 @@ export function resolveTiming(
       }
       const isAncestor = ancestorIds(node.id).includes(refId);
       const isSibling = (parent?.children ?? []).some((child) => child.id === refId);
-      if (!isSibling && !isAncestor) {
+      const crossScope = !isSibling && !isAncestor;
+      const auto = timing.kind === 'lock' && timing.auto === true;
+      if (crossScope && !auto) {
         fail(
           node.id,
           'lock-out-of-scope',
@@ -444,19 +456,38 @@ export function resolveTiming(
         visiting.delete(node.id);
         return undefined;
       }
-      const refParentId = parentOf.get(refId) ?? null;
-      const refParent = refParentId ? (byId.get(refParentId) ?? null) : null;
-      const refSpan = resolveNode(ref, refParent);
+      let refSpan: ResolvedSpan | undefined;
+      if (crossScope) {
+        // The target's parent may not be placed yet, and resolving it from
+        // here would lose its packed start. Wait for the tree walk to place it.
+        refSpan = nodes.get(refId);
+        if (!refSpan || !(refSpan.duration > 0)) {
+          if (settling) {
+            fail(node.id, 'lock-missing', `"${node.name}" follows "${ref.name}", which is not placed.`);
+          } else {
+            deferredLocks.push({ node, parent });
+          }
+          visiting.delete(node.id);
+          return undefined;
+        }
+      } else {
+        const refParentId = parentOf.get(refId) ?? null;
+        const refParent = refParentId ? (byId.get(refParentId) ?? null) : null;
+        refSpan = resolveNode(ref, refParent);
+      }
       if (!refSpan) {
         visiting.delete(node.id);
         return undefined;
       }
-      const duration = refSpan.duration;
+      const offset =
+        timing.kind === 'lock' && typeof timing.offset === 'number' && timing.offset > 0
+          ? timing.offset
+          : 0;
+      const duration = refSpan.duration - offset;
       let start = authoredStart;
       if (timing.kind === 'lock') {
-        start = isSibling
-          ? refSpan.start
-          : refSpan.absoluteStart - parentAbsoluteStart;
+        start =
+          (isSibling ? refSpan.start : refSpan.absoluteStart - parentAbsoluteStart) + offset;
       }
       return finish(start, duration, true);
     }
@@ -471,6 +502,16 @@ export function resolveTiming(
   };
 
   resolveNode(root, null);
+  // Cross-scope auto locks, once every target has its place. A chain may need
+  // more than one round. A round that places nothing reports what is left.
+  while (deferredLocks.length > 0) {
+    const pending = deferredLocks.splice(0);
+    for (const { node, parent } of pending) resolveNode(node, parent);
+    if (deferredLocks.length >= pending.length) {
+      settling = true;
+      for (const { node, parent } of deferredLocks.splice(0)) resolveNode(node, parent);
+    }
+  }
   return { nodes, diagnostics };
 }
 
