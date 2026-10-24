@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   AbsoluteFill,
   Sequence,
@@ -9,20 +9,35 @@ import {
 import { Audio } from '@remotion/media';
 import { CompositionProvider } from '@microfox/remotion';
 import { resolveAt, type ProjectDefinition } from './contract';
+import {
+  applyPropEdits,
+  editable,
+  EditsApplier,
+  layerKeys,
+  loadEdits,
+  type Edits,
+} from './edits';
 import { asset, ManifestContext, SectionContext } from './hooks';
 import { ManifestSchema, type Manifest } from './manifest';
 
 export type ProjectVideoProps = {
   /** null in Studio: loaded from projects/<slug>/manifest.json. Pass it as inputProps to render elsewhere. */
   manifest: Manifest | null;
+  /** null or missing: loaded from projects/<slug>/video/edits.json when there is one. */
+  edits?: Edits | null;
 };
 
 /** Turns a project's layers into Sequences, with the song playing underneath. */
 export const makeProjectVideo = (
   project: ProjectDefinition,
 ): React.FC<ProjectVideoProps> => {
-  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest }) => {
+  const keys = layerKeys(project.layers);
+  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest, edits }) => {
     const { fps } = useVideoConfig();
+    const layerProps = useMemo(
+      () => project.layers.map((l, i) => applyPropEdits(l.props, edits?.props?.[keys[i]])),
+      [edits],
+    );
     if (!manifest) throw new Error(`No manifest for ${project.id}`);
 
     return (
@@ -47,13 +62,20 @@ export const makeProjectVideo = (
                   durationInFrames={durationInFrames}
                   name={l.name ?? section.label}
                 >
-                  <SectionContext.Provider value={section}>
-                    <Scene {...l.props} manifest={manifest} section={section} />
-                  </SectionContext.Provider>
+                  {/* the whole layer can be moved in the editor; this adds no stacking context until it is */}
+                  <AbsoluteFill
+                    {...editable(`layer:${keys[i]}`, { label: l.name ?? section.label })}
+                    data-edit-layer={keys[i]}
+                  >
+                    <SectionContext.Provider value={section}>
+                      <Scene {...layerProps[i]} manifest={manifest} section={section} />
+                    </SectionContext.Provider>
+                  </AbsoluteFill>
                 </Sequence>
               );
             })}
             <Audio src={asset(manifest.audio.src)} />
+            <EditsApplier elements={edits?.elements} />
           </AbsoluteFill>
         </ManifestContext.Provider>
       </CompositionProvider>
@@ -84,11 +106,12 @@ export const makeCalculateMetadata =
   async ({ props, abortSignal }) => {
     const manifest =
       props.manifest ?? (await loadManifest(project.id, abortSignal));
+    const edits = props.edits ?? (await loadEdits(project.id, abortSignal));
     return {
       durationInFrames: Math.max(
         1,
         Math.ceil((manifest.audio.duration + (project.tail ?? 0)) * project.fps),
       ),
-      props: { ...props, manifest },
+      props: { ...props, manifest, edits },
     };
   };

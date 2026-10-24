@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, spring, useVideoConfig } from 'remotion';
-import { useLyrics, useSongTime, type SceneProps } from '../../../../src/kit';
+import { editable, useLyrics, useSongTime, type SceneProps } from '../../../../src/kit';
 import { body } from '../fonts';
 
 type KineticLyricsProps = {
@@ -33,7 +33,13 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = ({
     <AbsoluteFill
       style={{ alignItems: 'center', justifyContent: 'center', padding: 160 }}
     >
+      {/* one id per lyric line, so each line can sit somewhere else; size and accent are the layer's */}
       <div
+        {...editable(`line:${line.id}`, {
+          label: line.text,
+          props: '',
+          fields: ['fontSize', 'accent'],
+        })}
         style={{
           display: 'flex',
           flexWrap: 'wrap',

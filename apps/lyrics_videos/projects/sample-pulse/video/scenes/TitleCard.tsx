@@ -6,14 +6,16 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import { useBeat, useSection, type SceneProps } from '../../../../src/kit';
+import { editable, useBeat, useSection, type SceneProps } from '../../../../src/kit';
 import { body, display } from '../fonts';
 
-type TitleCardProps = { subtitle?: string };
+type TitleCardProps = { title?: string; subtitle?: string };
 
 /** Title and artist; springs in, fades out over the last second of its section. */
 export const TitleCard: React.FC<SceneProps<TitleCardProps>> = ({
   manifest,
+  section,
+  title,
   subtitle,
 }) => {
   const frame = useCurrentFrame();
@@ -36,6 +38,7 @@ export const TitleCard: React.FC<SceneProps<TitleCardProps>> = ({
       }}
     >
       <div
+        {...editable(`ring:${section.label}`, { label: 'Ring' })}
         style={{
           position: 'absolute',
           width: 520,
@@ -47,6 +50,7 @@ export const TitleCard: React.FC<SceneProps<TitleCardProps>> = ({
         }}
       />
       <div
+        {...editable(`title:${section.label}`, { label: 'Title', props: '', fields: ['title'] })}
         style={{
           fontFamily: display,
           fontSize: 220,
@@ -55,9 +59,14 @@ export const TitleCard: React.FC<SceneProps<TitleCardProps>> = ({
           transform: `translateY(${interpolate(enter, [0, 1], [40, 0])}px)`,
         }}
       >
-        {manifest.title.toUpperCase()}
+        {title ?? manifest.title.toUpperCase()}
       </div>
       <div
+        {...editable(`subtitle:${section.label}`, {
+          label: 'Subtitle',
+          props: '',
+          fields: ['subtitle'],
+        })}
         style={{
           fontFamily: body,
           fontSize: 40,

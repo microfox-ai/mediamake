@@ -32,7 +32,7 @@ export const Root: React.FC = () => (
         width={project.width}
         height={project.height}
         durationInFrames={1}
-        defaultProps={{ manifest: null }}
+        defaultProps={{ manifest: null, edits: null }}
         calculateMetadata={makeCalculateMetadata(project)}
       />
     ))}
