@@ -151,8 +151,12 @@ const presetExecution = (
         },
         context: {
           timing: {
-            start: caption.absoluteStart - (negativeOffset ?? 0.15),
-            duration: caption.duration + (negativeOffset ?? 0.15),
+            // Lead in early, but never before the audio's 0.
+            start: Math.max(0, caption.absoluteStart - (negativeOffset ?? 0.15)),
+            duration:
+              caption.absoluteStart +
+              caption.duration -
+              Math.max(0, caption.absoluteStart - (negativeOffset ?? 0.15)),
           },
         },
         childrenData: wordsData,
@@ -193,10 +197,10 @@ const presetExecution = (
           },
           context: {
             timing: {
+              // Captions sit at their audio time from 0, so the overlay
+              // runs to the last end. Subtracting the first start cut the tail.
               start: 0,
-              duration:
-                inputCaptions[inputCaptions.length - 1].absoluteEnd! -
-                inputCaptions[0].absoluteStart!,
+              duration: inputCaptions[inputCaptions.length - 1].absoluteEnd!,
             },
           },
           childrenData: captionsCHildrenData,

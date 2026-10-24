@@ -107,6 +107,35 @@ describe('resolveTiming', () => {
     assert.equal(nodes.get('c')?.absoluteStart, nodes.get('b')?.absoluteStart);
   });
 
+  it('keeps the packed start of a later lock target inside a sequence', () => {
+    // Subtitles locked to the audio, placed above it, after an intro.
+    for (const timing of [
+      { kind: 'explicit', start: 0, duration: 30 } as const,
+      { kind: 'hug', start: 0 } as const,
+    ]) {
+      const root = node({
+        id: 'scene',
+        role: 'scene',
+        arrangement: 'sequence',
+        presetId: 'scene',
+        timing,
+        children: [
+          node({ id: 'intro', timing: { kind: 'explicit', start: 0, duration: 4 } }),
+          node({ id: 'subs', timing: { kind: 'lock', refId: 'audio' } }),
+          node({ id: 'audio', timing: { kind: 'intrinsic', start: 0 } }),
+        ],
+      });
+      const { nodes, diagnostics } = resolveTiming(root, {
+        intrinsicDurations: { audio: 10 },
+      });
+      assert.equal(diagnostics.length, 0);
+      assert.equal(nodes.get('audio')?.start, 4);
+      assert.equal(nodes.get('subs')?.start, 4);
+      assert.equal(nodes.get('subs')?.duration, 10);
+      if (timing.kind === 'hug') assert.equal(nodes.get('scene')?.duration, 14);
+    }
+  });
+
   it('copies start and duration when locking to a sibling', () => {
     const root = node({
       id: 'scene',

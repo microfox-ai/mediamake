@@ -8,7 +8,17 @@ export type NodeTiming =
    */
   | { kind: 'autoRange' }
   | { kind: 'intrinsic'; start: number }
-  | { kind: 'lock'; refId: string }
+  | {
+      kind: 'lock';
+      refId: string;
+      /**
+       * Derived, never saved: a caption block following the only audio file.
+       * It may reach a target outside its sibling and ancestor scope.
+       */
+      auto?: boolean;
+      /** Seconds after the target's start. The length shrinks by the same amount. */
+      offset?: number;
+    }
   /**
    * One-release read path for old `fitDurationTo` values.
    * Copies duration from the reference and keeps the authored start.

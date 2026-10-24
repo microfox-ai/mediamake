@@ -4,6 +4,7 @@ import {
   presetUsesSceneBlocks,
   sceneBlocksForPreset,
 } from '@/components/editor_main/panels/bottom/editor/media-scene-blocks';
+import { autoAudioLock } from './caption-audio-lock';
 import type {
   AppliedNode,
   NodeTiming,
@@ -134,6 +135,10 @@ function timingFromPreset(
       return { kind: 'lock', refId: resolveInstanceRef(lockRef, presets) };
     }
     return { kind: 'unspecified', start: 0 };
+  }
+  if (role === 'track') {
+    const followed = autoAudioLock(preset, presets);
+    if (followed) return followed;
   }
   if (role === 'scene' && arrangement === 'sequence') return { kind: 'hug', start };
   if (role === 'scene' && arrangement === 'autoRange') return { kind: 'autoRange' };
@@ -283,7 +288,10 @@ function refreshFromPresets(node: AppliedNode, presets: TimelinePresetLike[]): A
 
 /** Fields written back onto a preset when the timeline changes its span. */
 export function timingInputPatch(timing: NodeTiming): Record<string, unknown> {
-  if (timing.kind === 'lock') return { lock: timing.refId };
+  if (timing.kind === 'lock') {
+    // A derived caption lock stays derived, so the block keeps following the audio.
+    return timing.auto ? {} : { lock: timing.refId };
+  }
   if (timing.kind === 'hug') {
     return { start: timing.start, duration: undefined, lock: undefined };
   }
