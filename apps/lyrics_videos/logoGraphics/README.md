@@ -72,6 +72,7 @@ npm run logos -w lyrics_videos -- stills subhodayam-end 6 --guides          # wi
 npm run logos -w lyrics_videos -- stills subhodayam-logo 3 --alpha          # transparent PNG
 npm run logos -w lyrics_videos -- render subhodayam-intro                   # → out/brands/subhodayam/renders/
 npm run brand -w lyrics_videos -- subhodayam [--only=intros,youtube] [--resume]   # export the kit into brands/subhodayam/
+# brand.json can also list `vectors` (more SVGs from named exports) and `favicon` (ico + png icons + manifest, rendered per size from square scenes); see scripts/brand.ts
 npm run type-check -w lyrics_videos
 uv run --with librosa --with matplotlib python logoGraphics/tools/sfx.py subhodayam
 uv run --with librosa --with scipy --with matplotlib python logoGraphics/tools/sync_check.py subhodayam [intro-6-tamara,…]

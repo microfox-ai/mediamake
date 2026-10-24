@@ -30,7 +30,10 @@ export const gradeOf = (mode: GradeMode | undefined, p: Params): Pick<PhotoLayer
     mono: { grade: { grayscale: 1, contrast: 1.3, brightness: 0.95 } },
     duotone: { duotone: [c.dark, c.accent], grade: { contrast: 1.15 } satisfies Grade },
   };
-  return grades[mode ?? 'punch'];
+  const picked = grades[mode ?? 'punch'];
+  // exposure lifts (or lowers) the picture on top of any grade; text and logos don't change
+  const e = typeof p.exposure === 'number' && p.exposure !== 1 ? p.exposure : undefined;
+  return e ? { ...picked, grade: { ...picked.grade, brightness: +((picked.grade?.brightness ?? 1) * e).toFixed(3) } } : picked;
 };
 
 /** A text role's font with the hero's family as the fallback. */

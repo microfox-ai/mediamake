@@ -2,10 +2,9 @@
 import React from 'react';
 import { Img } from 'remotion';
 import { src } from '../fonts.ts';
-import { CANVAS, type Box, type FillLayer, type FxLayer, type LogoLayer, type ShapeLayer } from '../spec.ts';
+import { useCanvas, useFull } from '../canvas.tsx';
+import type { Box, FillLayer, FxLayer, LogoLayer, ShapeLayer } from '../spec.ts';
 import { glowFilter, shadowFilter } from './filters.tsx';
-
-const FULL: Box = [0, 0, CANVAS.w, CANVAS.h];
 
 const common = (l: { opacity?: number; blend?: string; rotate?: number }): React.CSSProperties => ({
   opacity: l.opacity,
@@ -13,16 +12,21 @@ const common = (l: { opacity?: number; blend?: string; rotate?: number }): React
   transform: l.rotate ? `rotate(${l.rotate}deg)` : undefined,
 });
 
+/** An effect's own blend mode, unless the layer sets one. Goes after common(), which resets it. */
+const blend = (l: { blend?: string }, fallback: string) => (l.blend ?? fallback) as React.CSSProperties['mixBlendMode'];
+
 const at = ([x, y, w, h]: Box): React.CSSProperties => ({ position: 'absolute', left: x, top: y, width: w, height: h });
 
 export const Fill: React.FC<{ layer: FillLayer }> = ({ layer }) => {
+  const full = useFull();
   const r = layer.rays;
   const step = r ? 360 / (r.count ?? 16) : 0;
   const rays = r && `repeating-conic-gradient(from 0deg at ${(r.at?.[0] ?? 0.5) * 100}% ${(r.at?.[1] ?? 0.5) * 100}%, ${r.color} 0deg ${step * (r.duty ?? 0.5)}deg, transparent ${step * (r.duty ?? 0.5)}deg ${step}deg)`;
-  return <div style={{ ...at(layer.box ?? FULL), ...common(layer), backgroundColor: layer.color, backgroundImage: [rays, layer.background].filter(Boolean).join(', ') || undefined }} />;
+  return <div style={{ ...at(layer.box ?? full), ...common(layer), backgroundColor: layer.color, backgroundImage: [rays, layer.background].filter(Boolean).join(', ') || undefined }} />;
 };
 
 export const Shape: React.FC<{ layer: ShapeLayer }> = ({ layer }) => {
+  const full = useFull();
   const color = layer.color ?? '#fff';
   const filter = [shadowFilter(layer.shadow), glowFilter(layer.glow)].filter(Boolean).join(' ') || undefined;
   if (layer.kind === 'arrow' || layer.kind === 'line') {
@@ -34,14 +38,14 @@ export const Shape: React.FC<{ layer: ShapeLayer }> = ({ layer }) => {
     const shaft = `M0 ${-t / 2} L${len - head} ${-t / 2} L${len - head} ${t / 2} L0 ${t / 2} Z`;
     const tip = `M${len - head} ${-t * 1.6} L${len} 0 L${len - head} ${t * 1.6} Z`;
     return (
-      <svg style={{ position: 'absolute', inset: 0, overflow: 'visible', filter, ...common(layer), transform: undefined }} width={CANVAS.w} height={CANVAS.h}>
+      <svg style={{ position: 'absolute', inset: 0, overflow: 'visible', filter, ...common(layer), transform: undefined }} width={full[2]} height={full[3]}>
         <g transform={`translate(${x1} ${y1}) rotate(${(Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI})`}>
           <path d={layer.kind === 'arrow' ? `${shaft} ${tip}` : shaft} fill={color} stroke={layer.stroke?.color} strokeWidth={layer.stroke?.width} strokeLinejoin="round" paintOrder="stroke" />
         </g>
       </svg>
     );
   }
-  const box = layer.box ?? FULL;
+  const box = layer.box ?? full;
   const transform = [layer.rotate && `rotate(${layer.rotate}deg)`, layer.skew && `skewX(${layer.skew}deg)`].filter(Boolean).join(' ') || undefined;
   if (layer.kind === 'burst') {
     const n = layer.points ?? 14;
@@ -72,32 +76,39 @@ export const Shape: React.FC<{ layer: ShapeLayer }> = ({ layer }) => {
   );
 };
 
+/** Deterministic 0..1 from an integer, for scratches and specks. */
+const hash = (n: number) => {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+
 export const Fx: React.FC<{ layer: FxLayer }> = ({ layer }) => {
+  const canvas = useCanvas();
   const s = layer.strength ?? 0.5;
   const color = layer.color ?? '#000';
-  const box = at(layer.box ?? FULL);
+  const box = at(layer.box ?? [0, 0, canvas.w, canvas.h]);
   const [ax, ay] = layer.at ?? [0.5, 0.5];
   switch (layer.kind) {
     case 'vignette':
       return <div style={{ ...box, ...common(layer), background: `radial-gradient(ellipse at ${ax * 100}% ${ay * 100}%, transparent 40%, rgba(0,0,0,${s}) 100%)` }} />;
     case 'light':
-      return <div style={{ ...box, mixBlendMode: 'screen', ...common(layer), opacity: s, background: `radial-gradient(circle at ${ax * 100}% ${ay * 100}%, ${color} 0%, transparent ${layer.size ?? 45}%)` }} />;
+      return <div style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'screen'), opacity: s, background: `radial-gradient(circle at ${ax * 100}% ${ay * 100}%, ${color} 0%, transparent ${layer.size ?? 45}%)` }} />;
     case 'tint':
-      return <div style={{ ...box, mixBlendMode: 'soft-light', ...common(layer), opacity: s, background: color }} />;
+      return <div style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'soft-light'), opacity: s, background: color }} />;
     case 'scanlines':
       return <div style={{ ...box, ...common(layer), opacity: s, background: `repeating-linear-gradient(0deg, ${color} 0 2px, transparent 2px ${layer.size ?? 5}px)` }} />;
     case 'halftone':
       return (
         <div
-          style={{ ...box, mixBlendMode: 'multiply', ...common(layer), opacity: s, backgroundImage: `radial-gradient(${color} 30%, transparent 32%)`, backgroundSize: `${layer.size ?? 8}px ${layer.size ?? 8}px` }}
+          style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'multiply'), opacity: s, backgroundImage: `radial-gradient(${color} 30%, transparent 32%)`, backgroundSize: `${layer.size ?? 8}px ${layer.size ?? 8}px` }}
         />
       );
     case 'letterbox': {
       const bar = layer.size ?? 70;
       return (
         <>
-          <div style={{ position: 'absolute', left: 0, top: 0, width: CANVAS.w, height: bar, background: color, ...common(layer) }} />
-          <div style={{ position: 'absolute', left: 0, bottom: 0, width: CANVAS.w, height: bar, background: color, ...common(layer) }} />
+          <div style={{ position: 'absolute', left: 0, top: 0, width: canvas.w, height: bar, background: color, ...common(layer) }} />
+          <div style={{ position: 'absolute', left: 0, bottom: 0, width: canvas.w, height: bar, background: color, ...common(layer) }} />
         </>
       );
     }
@@ -114,9 +125,51 @@ export const Fx: React.FC<{ layer: FxLayer }> = ({ layer }) => {
           }}
         />
       );
+    case 'leak':
+      // a warm light leak blooming in from `at` (a corner, usually)
+      return (
+        <div
+          style={{
+            ...box,
+            ...common(layer),
+            mixBlendMode: blend(layer, 'screen'),
+            opacity: s,
+            background: `radial-gradient(circle at ${ax * 100}% ${ay * 100}%, #fff3c4 0%, ${layer.color ?? '#ff7a3d'} ${(layer.size ?? 40) * 0.35}%, transparent ${layer.size ?? 40}%), radial-gradient(ellipse at ${ax * 100}% ${ay * 100}%, ${layer.color ?? '#ff7a3d'}55 0%, transparent 75%)`,
+          }}
+        />
+      );
+    case 'paper':
+      // paper fibre: lit noise, multiplied over the picture
+      return (
+        <svg style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'multiply'), opacity: s }} width={canvas.w} height={canvas.h}>
+          <filter id="thumb-paper" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency={0.04} numOctaves={5} seed={11} result="n" />
+            <feDiffuseLighting in="n" lightingColor="#fff" surfaceScale={2}>
+              <feDistantLight azimuth={45} elevation={60} />
+            </feDiffuseLighting>
+          </filter>
+          <rect width="100%" height="100%" filter="url(#thumb-paper)" />
+        </svg>
+      );
+    case 'dust': {
+      // white specks from thresholded noise, plus a few vertical scratches
+      const scratches = Array.from({ length: 7 }, (_, i) => ({ x: hash(i + 1) * canvas.w, y: hash(i + 31) * canvas.h * 0.6, h: (0.2 + hash(i + 61) * 0.6) * canvas.h, o: 0.25 + hash(i + 91) * 0.5 }));
+      return (
+        <svg style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'screen'), opacity: s }} width={canvas.w} height={canvas.h}>
+          <filter id="thumb-dust" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency={0.9} numOctaves={1} seed={3} />
+            <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  30 0 0 0 -21.5" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#thumb-dust)" />
+          {scratches.map((l, i) => (
+            <line key={i} x1={l.x} y1={l.y} x2={l.x + 3} y2={l.y + l.h} stroke="#fff" strokeOpacity={l.o} strokeWidth={1.2} />
+          ))}
+        </svg>
+      );
+    }
     case 'grain':
       return (
-        <svg style={{ ...box, mixBlendMode: 'overlay', ...common(layer), opacity: s }} width={CANVAS.w} height={CANVAS.h}>
+        <svg style={{ ...box, ...common(layer), mixBlendMode: blend(layer, 'overlay'), opacity: s }} width={canvas.w} height={canvas.h}>
           <filter id="thumb-grain">
             <feTurbulence type="fractalNoise" baseFrequency={0.9} numOctaves={2} seed={7} stitchTiles="stitch" />
             <feColorMatrix type="saturate" values="0" />

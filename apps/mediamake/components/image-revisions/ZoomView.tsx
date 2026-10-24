@@ -1,44 +1,52 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, LockIcon, SearchIcon, SmartphoneIcon, StarIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, CopyIcon, FolderSearchIcon, LockIcon, SearchIcon, SmartphoneIcon, StarIcon, XIcon } from 'lucide-react';
+import { absolutePath, copyPath, revealOrCopy } from '@/lib/image-revisions/reveal';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Hint, isTextField } from '@/components/revisions/keyboard';
-import type { ThumbAction } from '@/lib/thumbnail-revisions/types';
-import { Badges, FEED_WIDTH } from './ThumbGrid';
-import { selectActiveRevision, useThumbRevisionsStore } from './store';
+import type { ImageAction } from '@/lib/image-revisions/types';
+import { Badges, useFormat } from './ImageGrid';
+import { selectActiveRevision, useImageRevisionsStore } from './store';
 
 const LOUPE = 260;
 const LOUPE_ZOOM = 3;
 
 /**
- * Full-window view of one thumbnail at a time, for catching small mistakes:
+ * Full-window view of one image at a time, for catching small mistakes:
  * a magnifier follows the pointer, a feed-size copy shows how it reads small,
  * and clicking the picture pins a comment to that spot (saved with a zoomed crop).
  */
 export function ZoomView() {
-  const zoom = useThumbRevisionsStore(s => s.zoom);
-  const job = useThumbRevisionsStore(s => s.job);
-  const renders = useThumbRevisionsStore(s => s.renders);
-  const revision = useThumbRevisionsStore(selectActiveRevision);
-  const closeZoom = useThumbRevisionsStore(s => s.closeZoom);
-  const zoomStep = useThumbRevisionsStore(s => s.zoomStep);
-  const toggleAction = useThumbRevisionsStore(s => s.toggleAction);
-  const addComment = useThumbRevisionsStore(s => s.addComment);
+  const zoom = useImageRevisionsStore(s => s.zoom);
+  const job = useImageRevisionsStore(s => s.job);
+  const renders = useImageRevisionsStore(s => s.renders);
+  const revision = useImageRevisionsStore(selectActiveRevision);
+  const closeZoom = useImageRevisionsStore(s => s.closeZoom);
+  const zoomStep = useImageRevisionsStore(s => s.zoomStep);
+  const toggleAction = useImageRevisionsStore(s => s.toggleAction);
+  const addComment = useImageRevisionsStore(s => s.addComment);
   const imgRef = useRef<HTMLImageElement>(null);
   const [loupe, setLoupe] = useState(true);
   const [feed, setFeed] = useState(true);
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<{ x: number; y: number } | null>(null);
+  const format = useFormat();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
 
   const id = zoom ? zoom.ids[zoom.index] : null;
   const render = id ? renders[id] : undefined;
   const variant = job?.index.styles.flatMap(s => s.variants.map(v => ({ ...v, style: s.name }))).find(v => v.id === id);
-  const pins = (revision?.comments ?? []).filter(c => c.pin?.thumb === id);
+  // the set's shape, or this image's own when the set mixes shapes
+  const shape = format.aspect
+    ? { aspect: format.aspect, ratio: format.ratio! }
+    : render?.size
+      ? { aspect: `${render.size[0]} / ${render.size[1]}`, ratio: render.size[0] / render.size[1] }
+      : { aspect: '4 / 3', ratio: 4 / 3 };
+  const pins = (revision?.comments ?? []).filter(c => c.pin?.image === id);
 
   useEffect(() => {
     setDraft(null);
@@ -56,7 +64,7 @@ export function ZoomView() {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey || !id) return;
-      const act = (a: ThumbAction) => void toggleAction(a, [id]);
+      const act = (a: ImageAction) => void toggleAction(a, [id]);
       switch (e.key) {
         case 'Escape':
           if (draft) setDraft(null);
@@ -106,13 +114,13 @@ export function ZoomView() {
     if (!draft || !text.trim() || busy) return;
     setBusy(true);
     // the zoomed crop is written with it, which takes a moment
-    const ok = await addComment(text, { pin: { thumb: id, ...draft }, image: imgRef.current ?? undefined }).finally(() => setBusy(false));
+    const ok = await addComment(text, { pin: { image: id, ...draft }, image: imgRef.current ?? undefined }).finally(() => setBusy(false));
     if (ok) {
       setDraft(null);
       setText('');
     }
   };
-  const actionButton = (action: ThumbAction, label: string, keys: string, icon: React.ReactNode, on: boolean) => (
+  const actionButton = (action: ImageAction, label: string, keys: string, icon: React.ReactNode, on: boolean) => (
     <Hint label={label} keys={keys} side="bottom">
       <Button size="sm" variant={on ? 'default' : 'outline'} className="h-7 gap-1 border-white/20 bg-transparent px-2 text-xs text-white data-[on=true]:bg-white data-[on=true]:text-black" data-on={on} onClick={() => void toggleAction(action, [id])}>
         {icon}
@@ -134,10 +142,20 @@ export function ZoomView() {
         </span>
         <Badges id={id} />
         <div className="ml-auto flex items-center gap-2">
-          {actionButton('final', 'Final (pick for upload)', 'F', <StarIcon className="size-3.5" />, !!revision?.final.includes(id))}
+          {actionButton('final', format.poster ? 'Cover (the one to upload)' : 'Final (pick for upload)', 'F', <StarIcon className="size-3.5" />, !!revision?.final.includes(id))}
           {actionButton('keep', 'Keep as it is', 'K', <LockIcon className="size-3.5" />, !!revision?.keep.includes(id))}
           {actionButton('drop', 'Drop', 'D', <XIcon className="size-3.5" />, !!revision?.drop.includes(id))}
           <span className="mx-1 h-5 w-px bg-white/20" />
+          <Hint label="Show this image in Finder (copies the path when it can't)" side="bottom">
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-white hover:bg-white/10 hover:text-white" onClick={() => void revealOrCopy(absolutePath(job?.index, variant?.file), job?.name ?? id)}>
+              <FolderSearchIcon className="size-4" />
+            </Button>
+          </Hint>
+          <Hint label="Copy this image's path" side="bottom">
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-white hover:bg-white/10 hover:text-white" onClick={() => void copyPath(absolutePath(job?.index, variant?.file), job?.name ?? id)}>
+              <CopyIcon className="size-4" />
+            </Button>
+          </Hint>
           <Hint label="Magnifier" keys="L" side="bottom">
             <Button size="sm" variant="ghost" className={cn('h-7 px-2 text-white hover:bg-white/10 hover:text-white', loupe && 'bg-white/15')} onClick={() => setLoupe(v => !v)}>
               <SearchIcon className="size-4" />
@@ -160,7 +178,7 @@ export function ZoomView() {
         <button type="button" aria-label="Previous" onClick={() => zoomStep(-1)} className="absolute left-3 rounded-full bg-white/10 p-2 hover:bg-white/20">
           <ChevronLeftIcon className="size-5" />
         </button>
-        <div className="relative max-h-full" style={{ aspectRatio: '16 / 9', height: 'min(100%, calc((100vw - 8rem) * 9 / 16))' }}>
+        <div className="relative max-h-full" style={{ aspectRatio: shape.aspect, height: `min(100%, calc((100vw - 8rem) / ${shape.ratio}))` }}>
           {render && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -243,9 +261,9 @@ export function ZoomView() {
           <button
             key={t}
             type="button"
-            onClick={() => useThumbRevisionsStore.setState({ zoom: { ...zoom, index: i } })}
+            onClick={() => useImageRevisionsStore.setState({ zoom: { ...zoom, index: i } })}
             className={cn('relative h-16 shrink-0 overflow-hidden rounded border-2', i === zoom.index ? 'border-amber-400' : 'border-transparent opacity-60 hover:opacity-100')}
-            style={{ aspectRatio: '16 / 9' }}
+            style={{ aspectRatio: format.aspect ?? (renders[t]?.size ? `${renders[t].size![0]} / ${renders[t].size![1]}` : '4 / 3') }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {renders[t] && <img src={renders[t].url} alt={t} className="size-full object-cover" />}
@@ -255,11 +273,11 @@ export function ZoomView() {
         </div>
         <span className="hidden shrink-0 pl-2 text-xs text-white/50 xl:block">Click the picture to pin a comment · ← → to move · Esc to close</span>
         {feed && render && (
-          <Hint label="How it reads in YouTube's feed">
+          <Hint label={format.smallHint}>
             <div className="shrink-0">
-              <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">Feed size</div>
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-white/50">{format.smallLabel}</div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={render.url} alt="" style={{ width: FEED_WIDTH }} className="rounded-sm" />
+              <img src={render.url} alt="" style={{ width: format.small }} className="rounded-sm" />
             </div>
           </Hint>
         )}

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { useThumbRevisionsStore } from './store';
+import { useImageRevisionsStore } from './store';
 
 function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -54,25 +54,25 @@ function JobRow({ name, title, active, onOpen, extra }: { name: string; title?: 
   );
 }
 
-export function JobsPanel() {
-  const job = useThumbRevisionsStore(s => s.job);
-  const sources = useThumbRevisionsStore(s => s.sources);
-  const recent = useThumbRevisionsStore(s => s.recent);
-  const pickJob = useThumbRevisionsStore(s => s.pickJob);
-  const openJob = useThumbRevisionsStore(s => s.openJob);
-  const openRecent = useThumbRevisionsStore(s => s.openRecent);
-  const forget = useThumbRevisionsStore(s => s.forgetRecent);
-  const addSource = useThumbRevisionsStore(s => s.addSource);
-  const reconnectSource = useThumbRevisionsStore(s => s.reconnectSource);
-  const removeSource = useThumbRevisionsStore(s => s.removeSource);
-  const rescanSources = useThumbRevisionsStore(s => s.rescanSources);
+export function SetsPanel() {
+  const job = useImageRevisionsStore(s => s.job);
+  const sources = useImageRevisionsStore(s => s.sources);
+  const recent = useImageRevisionsStore(s => s.recent);
+  const pickJob = useImageRevisionsStore(s => s.pickJob);
+  const openJob = useImageRevisionsStore(s => s.openJob);
+  const openRecent = useImageRevisionsStore(s => s.openRecent);
+  const forget = useImageRevisionsStore(s => s.forgetRecent);
+  const addSource = useImageRevisionsStore(s => s.addSource);
+  const reconnectSource = useImageRevisionsStore(s => s.reconnectSource);
+  const removeSource = useImageRevisionsStore(s => s.removeSource);
+  const rescanSources = useImageRevisionsStore(s => s.rescanSources);
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-2">
-        <Hint label="Pick out/thumbnails/<job>/ (or out/thumbnails to add every job)">
+        <Hint label="Pick any folder of images, or apps/lyrics_videos/out to list every thumbnail and poster set">
           <Button size="sm" className="w-full" onClick={() => void pickJob()}>
-            <FolderOpenIcon className="size-4" /> Open thumbnails
+            <FolderOpenIcon className="size-4" /> Open images
           </Button>
         </Hint>
       </div>
@@ -83,7 +83,7 @@ export function JobsPanel() {
               <IconAction label="Rescan sources" onClick={() => void rescanSources()}>
                 <RefreshCwIcon className="size-3.5" />
               </IconAction>
-              <IconAction label="Add a source folder (e.g. apps/lyrics_videos/out/thumbnails)" onClick={() => void addSource()}>
+              <IconAction label="Add a source folder (e.g. apps/lyrics_videos/out)" onClick={() => void addSource()}>
                 <PlusIcon className="size-3.5" />
               </IconAction>
             </span>
@@ -93,7 +93,7 @@ export function JobsPanel() {
         </SectionTitle>
         {!sources.length && (
           <p className="px-3 pb-2 text-xs text-muted-foreground">
-            Add <code>apps/lyrics_videos/out/thumbnails</code> once: every job in it is listed on each visit.
+            Add <code>apps/lyrics_videos/out</code> once: every image set in it (folders with an index.json) is listed on each visit.
           </p>
         )}
         {sources.map(source => (

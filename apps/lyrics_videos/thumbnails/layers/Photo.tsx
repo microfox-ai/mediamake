@@ -2,15 +2,17 @@
 import React, { useId } from 'react';
 import { Img } from 'remotion';
 import { src } from '../fonts.ts';
-import { CANVAS, type PhotoLayer } from '../spec.ts';
+import { useFull } from '../canvas.tsx';
+import type { PhotoLayer } from '../spec.ts';
 import { Defs, DuotoneFilter, OutlineFilter, glowFilter, gradeFilter, safeId, shadowFilter } from './filters.tsx';
 
 const fadeMask = (f: NonNullable<PhotoLayer['fade']>) => `linear-gradient(to ${f.side}, black ${(1 - (f.size ?? 0.5)) * 100}%, transparent 100%)`;
 
 export const Photo: React.FC<{ job: string; layer: PhotoLayer }> = ({ job, layer }) => {
   const id = safeId(useId());
+  const full = useFull();
   if (!layer.src) return null;
-  const [x, y, w, h] = layer.box ?? [0, 0, CANVAS.w, CANVAS.h];
+  const [x, y, w, h] = layer.box ?? full;
   const fit = layer.fit ?? (layer.type === 'image' ? 'contain' : 'cover');
   const [fx, fy] = layer.focus ?? [0.5, 0.5];
   const [ox, oy] = layer.offset ?? [0, 0];

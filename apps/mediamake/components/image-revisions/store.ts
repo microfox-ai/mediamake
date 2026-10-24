@@ -24,8 +24,8 @@ import {
   rememberJob,
   removeSource,
   type RecentJob,
-} from '@/lib/thumbnail-revisions/history';
-import { readIndex, scanJobs, type SourceJob } from '@/lib/thumbnail-revisions/jobs';
+} from '@/lib/image-revisions/history';
+import { readIndex, scanSets, type SourceSet } from '@/lib/image-revisions/sets';
 import {
   createRevision,
   nextCommentId,
@@ -36,19 +36,19 @@ import {
   revisionsDirName,
   revisionToMarkdown,
   snapshotFileName,
-} from '@/lib/thumbnail-revisions/revision-file';
+} from '@/lib/image-revisions/revision-file';
 import {
-  MAX_FINAL,
-  type ThumbAction,
-  type ThumbComment,
-  type ThumbIndex,
-  type ThumbPin,
-  type ThumbRevision,
-} from '@/lib/thumbnail-revisions/types';
+  formatOf,
+  type ImageAction,
+  type ImageComment,
+  type ImageSetIndex,
+  type ImagePin,
+  type ImageRevision,
+} from '@/lib/image-revisions/types';
 
 /*
- * State for the thumbnail revisions screen: the open job folder
- * (out/thumbnails/<job>/), its renders as object URLs, the selection, the
+ * State for the image revisions screen: the open image set (a folder such as
+ * out/thumbnails/<job>/, out/posters/<job>/ or any folder of images), its images as object URLs, the selection, the
  * zoom view and the revisions saved beside the renders.
  */
 
@@ -60,21 +60,31 @@ export interface SourceState {
   name: string;
   handle: FileSystemDirectoryHandle;
   status: 'ready' | 'needs-permission' | 'scanning' | 'error';
-  jobs: SourceJob[];
+  jobs: SourceSet[];
 }
 
 export interface OpenJob {
   name: string;
   handle: FileSystemDirectoryHandle;
-  index: ThumbIndex;
+  index: ImageSetIndex;
 }
 
 export interface Render {
   url: string;
   lastModified: number;
+  /** pixel size, read when the set doesn't give one (mixed shapes) */
+  size?: [number, number];
 }
 
-interface ThumbRevisionsState {
+/** A file inside the set's folder, by its relative path (sub/folder/file.png works too). */
+async function fileAt(dir: FileSystemDirectoryHandle, path: string): Promise<File | null> {
+  const parts = path.split('/').filter(Boolean);
+  let here: FileSystemDirectoryHandle | null = dir;
+  for (const part of parts.slice(0, -1)) here = here && (await getSubdir(here, part, false).catch(() => null));
+  return here ? readFileIn(here, parts[parts.length - 1]).catch(() => null) : null;
+}
+
+interface ImageRevisionsState {
   support: Support;
   sources: SourceState[];
   recent: RecentJob[];
@@ -82,7 +92,7 @@ interface ThumbRevisionsState {
   pendingJob: string | null;
   job: OpenJob | null;
   renders: Record<string, Render>;
-  revisions: Record<string, ThumbRevision>;
+  revisions: Record<string, ImageRevision>;
   revisionIds: string[];
   activeRevisionId: string | null;
   dirty: Record<string, boolean>;
@@ -120,9 +130,9 @@ interface ThumbRevisionsState {
   openRevision: (id: string) => void;
   setStatus: (status: RevisionStatus) => void;
   renameRevision: (title: string) => void;
-  toggleAction: (action: ThumbAction, ids?: string[]) => Promise<void>;
-  addComment: (text: string, opts?: { ids?: string[]; pin?: ThumbPin; image?: HTMLImageElement }) => Promise<boolean>;
-  updateComment: (id: string, patch: Partial<Pick<ThumbComment, 'text' | 'status'>>) => void;
+  toggleAction: (action: ImageAction, ids?: string[]) => Promise<void>;
+  addComment: (text: string, opts?: { ids?: string[]; pin?: ImagePin; image?: HTMLImageElement }) => Promise<boolean>;
+  updateComment: (id: string, patch: Partial<Pick<ImageComment, 'text' | 'status'>>) => void;
   deleteComment: (id: string) => Promise<void>;
   saveRevision: (id: string) => Promise<void>;
   flushSaves: () => Promise<void>;
@@ -136,10 +146,10 @@ function errorMessage(err: unknown): string {
 }
 
 /** Every variant ID in the order of the sheet (styles, then variants). */
-export const allIds = (index: ThumbIndex | null | undefined): string[] =>
+export const allIds = (index: ImageSetIndex | null | undefined): string[] =>
   (index?.styles ?? []).flatMap(s => s.variants.map(v => v.id));
 
-export const selectActiveRevision = (s: ThumbRevisionsState) =>
+export const selectActiveRevision = (s: ImageRevisionsState) =>
   s.activeRevisionId ? (s.revisions[s.activeRevisionId] ?? null) : null;
 
 function updateUrl(job: string | null) {
@@ -150,7 +160,7 @@ function updateUrl(job: string | null) {
   window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
 }
 
-export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => {
+export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => {
   const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const saveChains = new Map<string, Promise<void>>();
   const diskModified: Record<string, number> = {};
@@ -170,10 +180,20 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
     const next: Record<string, Render> = {};
     for (const style of job.index.styles) {
       for (const v of style.variants) {
-        const file = await readFileIn(job.handle, v.file).catch(() => null);
+        const file = await fileAt(job.handle, v.file);
         if (!file) continue;
         const prev = old[v.id];
-        next[v.id] = prev && prev.lastModified === file.lastModified ? prev : { url: URL.createObjectURL(file), lastModified: file.lastModified };
+        if (prev && prev.lastModified === file.lastModified) {
+          next[v.id] = prev;
+          continue;
+        }
+        let size: [number, number] | undefined;
+        if (!job.index.size) {
+          const bitmap = await createImageBitmap(file).catch(() => null);
+          if (bitmap) size = [bitmap.width, bitmap.height];
+          bitmap?.close();
+        }
+        next[v.id] = { url: URL.createObjectURL(file), lastModified: file.lastModified, size };
       }
     }
     for (const [id, r] of Object.entries(old)) if (next[id] !== r) URL.revokeObjectURL(r.url);
@@ -184,7 +204,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
     const dir = await revisionsDir(false).catch(() => null);
     if (token !== loadToken) return;
     const { revisions: current, dirty } = get();
-    const revisions: Record<string, ThumbRevision> = {};
+    const revisions: Record<string, ImageRevision> = {};
     if (dir) {
       for (const name of await listFileNames(dir)) {
         const id = revisionIdFromFile(name);
@@ -215,7 +235,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
     saveTimers.set(id, setTimeout(() => void get().saveRevision(id), AUTOSAVE_MS));
   };
 
-  const update = (id: string, fn: (r: ThumbRevision) => ThumbRevision) => {
+  const update = (id: string, fn: (r: ImageRevision) => ImageRevision) => {
     set(s => {
       const current = s.revisions[id];
       if (!current) return {};
@@ -235,7 +255,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
 
   const scanSource = async (source: SourceState): Promise<SourceState> => {
     try {
-      return { ...source, status: 'ready', jobs: await scanJobs(source.handle) };
+      return { ...source, status: 'ready', jobs: await scanSets(source.handle) };
     } catch (err) {
       console.error(err);
       return { ...source, status: 'error', jobs: [] };
@@ -269,7 +289,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
         set({ support: support.reason });
         return;
       }
-      const tile = Number(localStorage.getItem('thumbnail-revision-tile'));
+      const tile = Number(localStorage.getItem('image-revision-tile'));
       set({ support: 'ok', ...(tile ? { tile } : {}) });
       const [recent, stored] = await Promise.all([loadRecent().catch(() => []), loadSources().catch(() => [])]);
       const sources: SourceState[] = [];
@@ -293,17 +313,19 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
       try {
         const handle = await pickFolder(get().job?.handle);
         if (await readIndex(handle)) return get().openJob(handle);
-        // a folder of jobs (out/thumbnails, out): keep it as a source
-        const jobs = await scanJobs(handle);
+        // a folder of sets (out/thumbnails, out): keep it as a source
+        const jobs = await scanSets(handle);
         if (!jobs.length) {
-          toast.error(`No thumbnails in ${handle.name}: pick out/thumbnails/<job>/ (it has index.json)`, { duration: 6000 });
+          // any other folder of images opens as it is
+          if (await readIndex(handle, { fromFiles: true })) return get().openJob(handle);
+          toast.error(`No images in ${handle.name}: pick a folder of images, or apps/lyrics_videos/out`, { duration: 6000 });
           return;
         }
         const entry = await addSource(handle);
         set(s => ({
           sources: [...s.sources.filter(x => x.id !== entry.id), { ...entry, status: 'ready', jobs }],
         }));
-        toast.success(`${handle.name} holds ${jobs.length} job${jobs.length === 1 ? '' : 's'}: added as a source`);
+        toast.success(`${handle.name} holds ${jobs.length} image set${jobs.length === 1 ? '' : 's'}: added as a source`);
         if (jobs.length === 1) await get().openJob(jobs[0].handle);
       } catch (err) {
         if (!isAbortError(err)) toast.error(errorMessage(err));
@@ -316,9 +338,9 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
         return;
       }
       await get().flushSaves();
-      const index = await readIndex(handle);
+      const index = await readIndex(handle, { fromFiles: true });
       if (!index) {
-        toast.error(`${handle.name} has no index.json: render the job first (npm run thumbs -- render)`);
+        toast.error(`${handle.name} has no images (and no index.json)`);
         return;
       }
       const token = ++loadToken;
@@ -347,7 +369,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
         const entry = await addSource(handle);
         const source = await scanSource({ ...entry, status: 'scanning', jobs: [] });
         set(s => ({ sources: [...s.sources.filter(x => x.id !== entry.id), source] }));
-        if (!source.jobs.length) toast.message(`No thumbnail jobs found in ${handle.name} yet`);
+        if (!source.jobs.length) toast.message(`No image sets (folders with an index.json) in ${handle.name} yet`);
       } catch (err) {
         if (!isAbortError(err)) toast.error(errorMessage(err));
       }
@@ -377,7 +399,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
       const { job } = get();
       if (!job) return;
       const token = loadToken;
-      const index = await readIndex(job.handle);
+      const index = await readIndex(job.handle, { fromFiles: true });
       if (!index || token !== loadToken) return;
       const next = { ...job, index };
       const renders = await loadRenders(next);
@@ -415,7 +437,7 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
     zoomStep: delta =>
       set(s => (s.zoom ? { zoom: { ...s.zoom, index: (s.zoom.index + delta + s.zoom.ids.length) % s.zoom.ids.length } } : {})),
     setTile: px => {
-      localStorage.setItem('thumbnail-revision-tile', String(px));
+      localStorage.setItem('image-revision-tile', String(px));
       set({ tile: px });
     },
     requestComposerFocus: () => set(s => ({ composerFocus: s.composerFocus + 1 })),
@@ -452,19 +474,20 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
     toggleAction: async (action, ids) => {
       const target = ids ?? get().selection;
       if (!target.length) {
-        toast.message('Select thumbnails first');
+        toast.message('Select images first');
         return;
       }
       const id = await editable();
       if (!id) return;
       const r = get().revisions[id];
       const on = target.every(t => r[action].includes(t));
-      if (!on && action === 'final' && new Set([...r.final, ...target]).size > MAX_FINAL) {
-        toast.error(`Pick one final, or up to ${MAX_FINAL} for YouTube's A/B test (Test & Compare)`);
+      const { poster, maxFinal } = formatOf(get().job?.index);
+      if (!on && action === 'final' && new Set([...r.final, ...target]).size > maxFinal) {
+        toast.error(poster ? 'A poster has one cover: unmark the other first' : `Pick one final, or up to ${maxFinal} for YouTube's A/B test (Test & Compare)`);
         return;
       }
-      // a dropped thumbnail can't be a final or kept, and the other way round
-      const others: ThumbAction[] = action === 'drop' ? ['final', 'keep'] : ['drop'];
+      // a dropped image can't be a final or kept, and the other way round
+      const others: ImageAction[] = action === 'drop' ? ['final', 'keep'] : ['drop'];
       update(id, rev => {
         const next = { ...rev, [action]: on ? rev[action].filter(t => !target.includes(t)) : [...new Set([...rev[action], ...target])] };
         if (!on) for (const o of others) next[o] = next[o].filter(t => !target.includes(t));
@@ -474,22 +497,22 @@ export const useThumbRevisionsStore = create<ThumbRevisionsState>((set, get) => 
 
     addComment: async (rawText, opts = {}) => {
       const text = rawText.trim();
-      const thumbs = opts.pin ? [opts.pin.thumb] : (opts.ids ?? get().selection);
+      const images = opts.pin ? [opts.pin.image] : (opts.ids ?? get().selection);
       if (!text) return false;
-      if (!thumbs.length) {
-        toast.message('Select the thumbnails the comment is about');
+      if (!images.length) {
+        toast.message('Select the images the comment is about');
         return false;
       }
       const revisionId = await editable();
       if (!revisionId) return false;
-      const ordered = allIds(get().job?.index).filter(t => thumbs.includes(t));
-      const comment: ThumbComment = {
+      const ordered = allIds(get().job?.index).filter(t => images.includes(t));
+      const comment: ImageComment = {
         id: nextCommentId(get().revisions[revisionId].comments),
-        thumbs: ordered.length ? ordered : thumbs,
+        images: ordered.length ? ordered : images,
         text,
         createdAt: new Date().toISOString(),
         status: 'open',
-        ...(opts.pin ? { pin: opts.pin } : {}),
+        ...(opts.pin ? { pin: { ...opts.pin, ...(opts.image ? { size: [opts.image.naturalWidth, opts.image.naturalHeight] as [number, number] } : {}) } } : {}),
       };
       if (opts.pin && opts.image) {
         try {

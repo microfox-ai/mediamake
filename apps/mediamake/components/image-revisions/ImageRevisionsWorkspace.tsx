@@ -2,16 +2,18 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeftIcon, CheckIcon, FolderOpenIcon, KeyboardIcon, LoaderIcon, TriangleAlertIcon } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, CopyIcon, FileCogIcon, FolderOpenIcon, FolderSearchIcon, KeyboardIcon, LoaderIcon, TriangleAlertIcon } from 'lucide-react';
+import { absolutePath, copyPath, revealOrCopy } from '@/lib/image-revisions/reveal';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Hint, isTextField, useKeys } from '@/components/revisions/keyboard';
-import { JobsPanel } from './JobsPanel';
+import { SetsPanel } from './SetsPanel';
 import { RevisionPanel } from './RevisionPanel';
-import { ThumbGrid } from './ThumbGrid';
+import { ImageGrid } from './ImageGrid';
 import { ZoomView } from './ZoomView';
-import { useThumbRevisionsStore } from './store';
+import { formatOf } from '@/lib/image-revisions/types';
+import { useImageRevisionsStore } from './store';
 
 const SHORTCUTS: [string, string][] = [
   ['Click', 'Select / unselect (several at once)'],
@@ -25,7 +27,7 @@ const SHORTCUTS: [string, string][] = [
   ['Mod Enter', 'Add the comment'],
   ['N', 'New revision'],
   ['Mod S', 'Save now'],
-  ['In zoom: ← →', 'Previous / next thumbnail'],
+  ['In zoom: ← →', 'Previous / next image'],
   ['In zoom: click', 'Pin a comment to that spot'],
   ['In zoom: L / V', 'Magnifier / feed-size preview'],
   ['?', 'Show these shortcuts'],
@@ -38,7 +40,7 @@ function ShortcutKeys({ keys }: { keys: string }) {
 function useShortcuts() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const store = useThumbRevisionsStore.getState();
+      const store = useImageRevisionsStore.getState();
       if (store.zoom) return; // the zoom view has its own keys
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 's') {
@@ -103,8 +105,8 @@ function useShortcuts() {
 }
 
 function SaveIndicator() {
-  const saveState = useThumbRevisionsStore(s => s.saveState);
-  const anyDirty = useThumbRevisionsStore(s => Object.values(s.dirty).some(Boolean));
+  const saveState = useImageRevisionsStore(s => s.saveState);
+  const anyDirty = useImageRevisionsStore(s => Object.values(s.dirty).some(Boolean));
   if (saveState === 'error')
     return (
       <span className="flex items-center gap-1 text-xs text-destructive">
@@ -127,11 +129,11 @@ function SaveIndicator() {
 }
 
 function Header() {
-  const job = useThumbRevisionsStore(s => s.job);
-  const renders = useThumbRevisionsStore(s => Object.keys(s.renders).length);
-  const pickJob = useThumbRevisionsStore(s => s.pickJob);
-  const shortcutsOpen = useThumbRevisionsStore(s => s.shortcutsOpen);
-  const setShortcutsOpen = useThumbRevisionsStore(s => s.setShortcutsOpen);
+  const job = useImageRevisionsStore(s => s.job);
+  const renders = useImageRevisionsStore(s => Object.keys(s.renders).length);
+  const pickJob = useImageRevisionsStore(s => s.pickJob);
+  const shortcutsOpen = useImageRevisionsStore(s => s.shortcutsOpen);
+  const setShortcutsOpen = useImageRevisionsStore(s => s.setShortcutsOpen);
   return (
     <header className="flex h-9 shrink-0 items-center gap-3 border-b px-2">
       <Hint label="Back to projects" side="bottom">
@@ -141,11 +143,11 @@ function Header() {
           </Link>
         </Button>
       </Hint>
-      <span className="text-sm font-semibold">Thumbnail Revisions</span>
+      <span className="text-sm font-semibold">Image Revisions</span>
       {job && (
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           {job.index.title && <span className="text-foreground">{job.index.title} · </span>}
-          {job.name} · {renders} thumbnails
+          {job.name} · {renders} {formatOf(job.index).noun}
         </span>
       )}
       <div className="ml-auto flex items-center gap-3">
@@ -155,6 +157,27 @@ function Header() {
           </Link>
         </Hint>
         <SaveIndicator />
+        {job && (
+          <span className="flex items-center">
+            <Hint label={`Show this set's folder in Finder${job.index.path ? '' : ' (no path recorded: copies its name)'}`} side="bottom">
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => void revealOrCopy(absolutePath(job.index), job.name)}>
+                <FolderSearchIcon className="size-4" />
+              </Button>
+            </Hint>
+            <Hint label="Copy this set's folder path" side="bottom">
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => void copyPath(absolutePath(job.index), job.name)}>
+                <CopyIcon className="size-4" />
+              </Button>
+            </Hint>
+            {job.index.sourcePath && (
+              <Hint label={`Show what these are made from in Finder (${job.index.source ?? job.index.sourcePath})`} side="bottom">
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => void revealOrCopy(job.index.sourcePath!, job.name)}>
+                  <FileCogIcon className="size-4" />
+                </Button>
+              </Hint>
+            )}
+          </span>
+        )}
         {job && (
           <Hint label="Open another job" side="bottom">
             <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => void pickJob()}>
@@ -189,11 +212,11 @@ function Header() {
   );
 }
 
-export function ThumbnailRevisionsWorkspace() {
-  const init = useThumbRevisionsStore(s => s.init);
-  const refresh = useThumbRevisionsStore(s => s.refresh);
-  const rescanSources = useThumbRevisionsStore(s => s.rescanSources);
-  const flushSaves = useThumbRevisionsStore(s => s.flushSaves);
+export function ImageRevisionsWorkspace() {
+  const init = useImageRevisionsStore(s => s.init);
+  const refresh = useImageRevisionsStore(s => s.refresh);
+  const rescanSources = useImageRevisionsStore(s => s.rescanSources);
+  const flushSaves = useImageRevisionsStore(s => s.flushSaves);
 
   useShortcuts();
 
@@ -201,7 +224,7 @@ export function ThumbnailRevisionsWorkspace() {
     void init();
   }, [init]);
 
-  // Claude re-renders thumbnails and answers revisions while we're away: re-read on focus and every 5 s.
+  // Claude re-renders images and answers revisions while we're away: re-read on focus and every 5 s.
   useEffect(() => {
     const onFocus = () => {
       void refresh();
@@ -225,7 +248,7 @@ export function ThumbnailRevisionsWorkspace() {
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (Object.values(useThumbRevisionsStore.getState().dirty).some(Boolean)) {
+      if (Object.values(useImageRevisionsStore.getState().dirty).some(Boolean)) {
         void flushSaves();
         e.preventDefault();
       }
@@ -237,13 +260,13 @@ export function ThumbnailRevisionsWorkspace() {
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-background">
       <Header />
-      <ResizablePanelGroup direction="horizontal" autoSaveId="thumbnail-revisions" className="min-h-0 flex-1">
+      <ResizablePanelGroup direction="horizontal" autoSaveId="image-revisions" className="min-h-0 flex-1">
         <ResizablePanel defaultSize={16} minSize={10} maxSize={30}>
-          <JobsPanel />
+          <SetsPanel />
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize={60} minSize={35}>
-          <ThumbGrid />
+          <ImageGrid />
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize={24} minSize={18} maxSize={40}>

@@ -106,6 +106,23 @@ absolute song time: `useSongTime`, `useSection`, `useLyrics`, `useBeat`, `useBar
 The composition loads `projects/<slug>/manifest.json` through `calculateMetadata`, and the duration
 comes from the audio.
 
+## Remix projects (footage cut to a song)
+
+A project with `video/edl.ts` is a music remix: existing footage cut to the song on its beat grid at
+its own speed, joined by transitions (warp zooms anchored on the subject, match cuts, whips, spins,
+subject cutouts carried over the next shot), with camera shake, wide-tracked lyric lines, punch
+words behind the subject, motion graphics (`src/remix/gfx/`, three.js) and a few sound effects.
+The engine is `src/remix/`; the footage's shots come from a video-segregation run in
+`projects/<slug>/footage/`.
+
+```bash
+npm run remix -w lyrics_videos -- <slug>           # footage table, plates, anchors, resolve + check the cut list, shots.json
+npm run remix -w lyrics_videos -- <slug> --matte   # + subject cutouts per footage shot (scripts/matte.py, BiRefNet via uv)
+```
+
+Configured by `projects/<slug>/video/remix.json` (`source`, `segregation`, `crop`, `window`). Driven by
+the `make-video-music-remix` skill; `projects/hitixf1` is the reference.
+
 ## lyrics.json
 
 Any of these, with times in seconds from the start of the song:

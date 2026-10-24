@@ -7,6 +7,7 @@
  * letters, so gradient and texture fills stay clean on top.
  */
 import React, { useId } from 'react';
+import { useFull } from '../canvas.tsx';
 import { CANVAS, type Box, type Layer, type Line, type TextLayer } from '../spec.ts';
 import { glowFilter, safeId } from './filters.tsx';
 
@@ -57,14 +58,12 @@ const items = (layer: TextLayer): Item[] => {
 export type LineBox = { x: number; y: number; w: number; h: number; size: number; textW: number; spacing: number; inkTop: number; inkBottom: number };
 export type TextLayout = { items: Item[]; boxes: LineBox[]; inkTop: number; inkBottom: number };
 
-const FULL: Box = [0, 0, CANVAS.w, CANVAS.h];
-
-/** Sizes and positions of each line; `layers` resolves `attach` targets. */
-export const layout = (layer: TextLayer, layers: Layer[] = [], depth = 0): TextLayout => {
+/** Sizes and positions of each line; `layers` resolves `attach` targets; `full` is the canvas. */
+export const layout = (layer: TextLayer, layers: Layer[] = [], depth = 0, full: Box = [0, 0, CANVAS.w, CANVAS.h]): TextLayout => {
   const target = layer.attach && depth < 4 ? (layers.find(l => l.type === 'text' && l.id === layer.attach!.to) as TextLayer | undefined) : undefined;
-  const targetLayout = target ? layout(target, layers, depth + 1) : undefined;
+  const targetLayout = target ? layout(target, layers, depth + 1, full) : undefined;
   const its = items(layer);
-  const [bx, by, bw, bh] = layer.box ?? target?.box ?? FULL;
+  const [bx, by, bw, bh] = layer.box ?? target?.box ?? full;
   const tracking = layer.tracking ?? 0;
   const gapEm = layer.gap ?? 0.15;
   const fit = layer.spread ? 'none' : (layer.fit ?? 'each');
@@ -125,8 +124,9 @@ const extrudeShadow = (e: NonNullable<TextLayer['extrude']>, size: number) => {
 
 export const Text: React.FC<{ layer: TextLayer; layers: Layer[]; ready: boolean }> = ({ layer, layers, ready }) => {
   const id = safeId(useId());
+  const full = useFull();
   if (!ready) return null;
-  const { items: its, boxes, inkTop, inkBottom } = layout(layer, layers);
+  const { items: its, boxes, inkTop, inkBottom } = layout(layer, layers, 0, full);
   const cx = boxes[0].x + boxes[0].w / 2;
   const cy = (inkTop + inkBottom) / 2;
   const align = layer.align ?? 'center';

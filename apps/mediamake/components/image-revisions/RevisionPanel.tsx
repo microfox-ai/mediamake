@@ -8,15 +8,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { STATUS_LABEL, staleThumbs } from '@/lib/thumbnail-revisions/revision-file';
-import { MAX_FINAL, type ThumbAction } from '@/lib/thumbnail-revisions/types';
-import { allIds, selectActiveRevision, useThumbRevisionsStore } from './store';
+import { STATUS_LABEL, staleImages } from '@/lib/image-revisions/revision-file';
+import { formatOf, type ImageAction } from '@/lib/image-revisions/types';
+import { allIds, selectActiveRevision, useImageRevisionsStore } from './store';
 
 const QUICK = ['More like this', 'Try other fonts', 'Make the words bigger', 'Move the logo', 'Different words'];
 
 function IdChip({ id }: { id: string }) {
-  const click = useThumbRevisionsStore(s => s.click);
-  const openZoom = useThumbRevisionsStore(s => s.openZoom);
+  const click = useImageRevisionsStore(s => s.click);
+  const openZoom = useImageRevisionsStore(s => s.openZoom);
   return (
     <Hint label={`Select ${id} (double-click to zoom)`}>
       <button
@@ -44,11 +44,11 @@ function IdList({ ids, empty }: { ids: string[]; empty: string }) {
 }
 
 function RevisionTabs() {
-  const revisionIds = useThumbRevisionsStore(s => s.revisionIds);
-  const revisions = useThumbRevisionsStore(s => s.revisions);
-  const activeRevisionId = useThumbRevisionsStore(s => s.activeRevisionId);
-  const openRevision = useThumbRevisionsStore(s => s.openRevision);
-  const newRevision = useThumbRevisionsStore(s => s.newRevision);
+  const revisionIds = useImageRevisionsStore(s => s.revisionIds);
+  const revisions = useImageRevisionsStore(s => s.revisions);
+  const activeRevisionId = useImageRevisionsStore(s => s.activeRevisionId);
+  const openRevision = useImageRevisionsStore(s => s.openRevision);
+  const newRevision = useImageRevisionsStore(s => s.newRevision);
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b px-2">
       {revisionIds.map(id => (
@@ -73,14 +73,16 @@ function RevisionTabs() {
 }
 
 function SubmitBox() {
-  const revision = useThumbRevisionsStore(selectActiveRevision);
-  const job = useThumbRevisionsStore(s => s.job);
-  const renders = useThumbRevisionsStore(s => s.renders);
-  const setStatus = useThumbRevisionsStore(s => s.setStatus);
-  const flushSaves = useThumbRevisionsStore(s => s.flushSaves);
+  const revision = useImageRevisionsStore(selectActiveRevision);
+  const job = useImageRevisionsStore(s => s.job);
+  const renders = useImageRevisionsStore(s => s.renders);
+  const setStatus = useImageRevisionsStore(s => s.setStatus);
+  const flushSaves = useImageRevisionsStore(s => s.flushSaves);
   if (!revision || !job) return null;
-  const stale = staleThumbs(revision, Object.fromEntries(Object.entries(renders).map(([id, r]) => [id, r.lastModified])));
-  const message = `Thumbnail revision ${revision.id} for ${job.name} is ready (out/thumbnails/${job.name}/${job.name}.revisions/${revision.id}.md)`;
+  const stale = staleImages(revision, Object.fromEntries(Object.entries(renders).map(([id, r]) => [id, r.lastModified])));
+  // browsers don't expose paths: the set's index.json says where it lives, when its workflow wrote one
+  const where = job.index.location ? `${job.index.location}/` : `${job.name}/`;
+  const message = `Image revision ${revision.id} for ${job.name} is ready (${where}${job.name}.revisions/${revision.id}.md)`;
   const empty = !revision.comments.length && !revision.final.length && !revision.keep.length && !revision.drop.length;
   return (
     <div className="space-y-2 border-b p-3">
@@ -132,13 +134,13 @@ function SubmitBox() {
 }
 
 function SelectionActions() {
-  const selection = useThumbRevisionsStore(s => s.selection);
-  const index = useThumbRevisionsStore(s => s.job?.index);
-  const revision = useThumbRevisionsStore(selectActiveRevision);
-  const toggleAction = useThumbRevisionsStore(s => s.toggleAction);
-  const addComment = useThumbRevisionsStore(s => s.addComment);
-  const openZoom = useThumbRevisionsStore(s => s.openZoom);
-  const composerFocus = useThumbRevisionsStore(s => s.composerFocus);
+  const selection = useImageRevisionsStore(s => s.selection);
+  const index = useImageRevisionsStore(s => s.job?.index);
+  const revision = useImageRevisionsStore(selectActiveRevision);
+  const toggleAction = useImageRevisionsStore(s => s.toggleAction);
+  const addComment = useImageRevisionsStore(s => s.addComment);
+  const openZoom = useImageRevisionsStore(s => s.openZoom);
+  const composerFocus = useImageRevisionsStore(s => s.composerFocus);
   const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -146,11 +148,12 @@ function SelectionActions() {
   }, [composerFocus]);
 
   const ordered = allIds(index).filter(id => selection.includes(id));
-  const on = (a: ThumbAction) => ordered.length > 0 && ordered.every(id => revision?.[a].includes(id));
+  const format = formatOf(index);
+  const on = (a: ImageAction) => ordered.length > 0 && ordered.every(id => revision?.[a].includes(id));
   const submit = async () => {
     if (await addComment(text)) setText('');
   };
-  const action = (a: ThumbAction, label: string, keys: string, icon: React.ReactNode, hint: string) => (
+  const action = (a: ImageAction, label: string, keys: string, icon: React.ReactNode, hint: string) => (
     <Hint label={hint} keys={keys}>
       <Button size="sm" variant={on(a) ? 'default' : 'outline'} className="h-8 flex-1 gap-1 px-2 text-xs" disabled={!ordered.length} onClick={() => void toggleAction(a)}>
         {icon} {label}
@@ -169,9 +172,9 @@ function SelectionActions() {
           </Hint>
         )}
       </div>
-      <IdList ids={ordered} empty="Click thumbnails to select them (several at once)." />
+      <IdList ids={ordered} empty="Click images to select them (several at once)." />
       <div className="flex gap-1.5">
-        {action('final', 'Final', 'F', <StarIcon className="size-3.5" />, `Select for upload: 1 final, or up to ${MAX_FINAL} for YouTube's A/B test`)}
+        {action('final', format.finalLabel, 'F', <StarIcon className="size-3.5" />, format.poster ? 'The cover to upload (one)' : `Select for upload: 1 final, or up to ${format.maxFinal} for YouTube's A/B test`)}
         {action('keep', 'Keep', 'K', <LockIcon className="size-3.5" />, 'Keep exactly as it is')}
         {action('drop', 'Drop', 'D', <XIcon className="size-3.5" />, 'Not worth more work')}
       </div>
@@ -185,7 +188,7 @@ function SelectionActions() {
             void submit();
           }
         }}
-        placeholder={ordered.length ? `Comment on ${ordered.join(', ')}…` : 'Select thumbnails, then comment…'}
+        placeholder={ordered.length ? `Comment on ${ordered.join(', ')}…` : 'Select images, then comment…'}
         className="min-h-20 text-sm"
       />
       <div className="flex flex-wrap gap-1">
@@ -206,15 +209,16 @@ function SelectionActions() {
 }
 
 function Comments() {
-  const revision = useThumbRevisionsStore(selectActiveRevision);
-  const updateComment = useThumbRevisionsStore(s => s.updateComment);
-  const deleteComment = useThumbRevisionsStore(s => s.deleteComment);
+  const revision = useImageRevisionsStore(selectActiveRevision);
+  const index = useImageRevisionsStore(s => s.job?.index);
+  const updateComment = useImageRevisionsStore(s => s.updateComment);
+  const deleteComment = useImageRevisionsStore(s => s.deleteComment);
   if (!revision) return null;
   return (
     <div className="space-y-3 p-3">
       <div className="space-y-1.5 text-xs">
         <div className="flex items-center gap-2">
-          <span className="w-12 shrink-0 font-semibold">{revision.final.length > 1 ? 'A/B' : 'Final'}</span>
+          <span className="w-12 shrink-0 font-semibold">{revision.final.length > 1 ? 'A/B' : formatOf(index).finalLabel}</span>
           <IdList ids={revision.final} empty="—" />
         </div>
         <div className="flex items-center gap-2">
@@ -232,7 +236,7 @@ function Comments() {
         <div key={c.id} className={cn('space-y-1.5 rounded-md border p-2', c.status === 'done' && 'opacity-60')}>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-semibold text-muted-foreground">{c.id}</span>
-            <IdList ids={c.thumbs} empty="" />
+            <IdList ids={c.images} empty="" />
             {c.pin && (
               <Hint label={`Pinned at ${Math.round(c.pin.x * 100)}% across, ${Math.round(c.pin.y * 100)}% down${c.snapshot ? ' (zoomed crop saved)' : ''}`}>
                 <MapPinIcon className="size-3.5 text-amber-400" />
@@ -260,7 +264,7 @@ function Comments() {
 }
 
 export function RevisionPanel() {
-  const job = useThumbRevisionsStore(s => s.job);
+  const job = useImageRevisionsStore(s => s.job);
   if (!job) return <div className="p-4 text-xs text-muted-foreground">Revisions appear here once a job is open.</div>;
   return (
     <div className="flex h-full flex-col">
