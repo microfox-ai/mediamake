@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { staticFile, useVideoConfig, OffthreadVideo, Video as Html5Video, Loop, continueRender, delayRender, useRemotionEnvironment } from 'remotion';
+import { useVideoConfig, OffthreadVideo, Video as Html5Video, Loop, continueRender, delayRender, useRemotionEnvironment } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { BaseRenderableProps, ComponentConfig } from '../../core/types';
 import { getClientSideMediaTags } from '../../core/clientMediaTags';
 import { useAnimatedStyles } from '../effects';
@@ -148,12 +149,7 @@ export const Atom: React.FC<VideoAtomProps> = ({ data, id, context }) => {
     );
 
     // Calculate video source with proper handling for local vs remote files
-    const source = useMemo(() => {
-        if (data.src.startsWith('http')) {
-            return data.src;
-        }
-        return staticFile(data.src);
-    }, [data.src]);
+    const source = useMemo(() => resolveMediaSrc(data.src), [data.src]);
 
     // Calculate trim values in frames
     const trimBefore = useMemo(() => {

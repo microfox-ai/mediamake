@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { continueRender, delayRender, Img, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { continueRender, delayRender, Img, useCurrentFrame, useVideoConfig } from 'remotion';
+import { resolveMediaSrc } from '../../utils/mediaSrc';
 import { BaseRenderableData } from '../../core/types/renderable.types';
 import { useAnimatedStyles } from '../effects';
 import { AncestorTransform, useLayoutTransform } from '../effects/layout-transform';
@@ -161,7 +162,7 @@ export const ImageBeat: React.FC<ImageBeatProps> = ({ data, id }) => {
   const source = useMemo(() => {
     if (!src) return '';
     if (src.startsWith('http')) return imageSource;
-    return staticFile(src);
+    return resolveMediaSrc(src);
   }, [src, imageSource]);
 
   const { block, image } = useMemo(() => splitImageBeatStyle(style), [style]);
