@@ -7,7 +7,10 @@ export function siteUrl(): string | undefined {
 }
 
 /** The one-line prompt that has Claude install an item and its dependencies. */
-export function installPromptFor(itemId: string): string {
+export function installPromptFor(itemId: string, installCode?: string): string {
   const site = siteUrl();
-  return `Set up ${itemId} from MediaMake${site ? ` (${site})` : ''} by following ${INSTALL_GUIDE_URL}`;
+  return (
+    `Set up ${itemId} from MediaMake${site ? ` (${site})` : ''}` +
+    `${installCode ? ` with install code ${installCode}` : ''} by following ${INSTALL_GUIDE_URL}`
+  );
 }
