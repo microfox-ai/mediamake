@@ -6,6 +6,7 @@ import { ArrowUpRight, Check, Copy, Lock, Unlock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
 
 const kindLabel: Record<CatalogEntry['kind'], string> = {
@@ -57,7 +58,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
         {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
       </div>
 
-      {!locked && card.installPrompt && <CopyInstallPrompt prompt={card.installPrompt} fallbackHref={accessHref} />}
+      {!locked && card.installPrompt && <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />}
 
       {card.tags && card.tags.length > 0 && (
         <div className={cn('mt-auto flex flex-wrap gap-1.5', locked && 'opacity-60')}>
@@ -80,7 +81,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
 }
 
 /** Copies the one-line Claude install prompt without leaving the homepage. */
-function CopyInstallPrompt({ prompt, fallbackHref }: { prompt: string; fallbackHref: string }) {
+function CopyInstallPrompt({ itemId, prompt, fallbackHref }: { itemId: string; prompt: string; fallbackHref: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -93,7 +94,7 @@ function CopyInstallPrompt({ prompt, fallbackHref }: { prompt: string; fallbackH
         e.preventDefault();
         e.stopPropagation();
         try {
-          await navigator.clipboard.writeText(prompt);
+          await copyInstallPrompt(itemId, prompt);
         } catch {
           // No clipboard access: the install page shows the prompt to copy by hand.
           window.location.assign(fallbackHref);

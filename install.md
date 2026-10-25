@@ -3,11 +3,11 @@
 These are instructions for **Claude** (Claude Code, Claude Desktop or the
 Claude app with a computer it can use). A person pastes a prompt like:
 
-> Set up mcp/get-into-zone from MediaMake (https://your-mediamake-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
+> Set up mcp/get-into-zone from MediaMake (https://your-mediamake-site) with install code mmi_… by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
 and you install that item and everything it needs. Follow the steps in order.
 Work quietly; stop and ask the person **only** where a step says _Ask_, and
-when you ask, say exactly what to click or type. Never print their API key
+when you ask, say exactly what to click or type. Never print their API key or install code
 back to them or write it anywhere except where a step says to.
 
 ## 0. Read the request
@@ -18,6 +18,8 @@ back to them or write it anywhere except where a step says to.
 - **Site URL** (`$MEDIAMAKE_URL`): the URL in the prompt. If there is none,
   use `MEDIAMAKE_URL` from the environment or `~/.mediamake/config.json`; if
   still unknown, _Ask_ for the MediaMake site address they were given.
+- **Install code**: the `mmi_…` after "install code", if the prompt has
+  one. The site adds it when they copy the prompt while signed in.
 - Note which Claude you are running in. It decides where skills go (step 4).
 
 ## 1. GitHub
@@ -40,27 +42,40 @@ MediaMake repository cloned.
      the one-time code shown in the browser page that opens. Confirm with
      `gh auth status`.
 
-## 2. MediaMake API key
+## 2. Who is installing
 
-1. Use `MEDIAMAKE_API_KEY` from the environment, or `apiKey` in
-   `~/.mediamake/config.json`, if set.
-2. Otherwise _Ask_ them to open `$MEDIAMAKE_URL/api-keys` (sign up at
-   `$MEDIAMAKE_URL/signup` first if they have no account), copy their API key
-   and paste it to you.
-3. Save it for later runs: write `~/.mediamake/config.json` as
-   `{ "url": "<MEDIAMAKE_URL>", "apiKey": "<key>" }` and `chmod 600` it.
+Pick the credential for step 3 (`$AUTH`), in this order. Don't ask for an
+API key when an earlier option applies.
+
+1. **Install code** from the prompt: `$AUTH` = the code. Nothing to ask.
+2. `MEDIAMAKE_API_KEY` from the environment, or `apiKey` in
+   `~/.mediamake/config.json`: `$AUTH` = that key.
+3. Neither: try step 3 with no `Authorization` header (items open to
+   everyone need none). Only if that answers **401**, _Ask_ them to open the
+   item's page on `$MEDIAMAKE_URL`, sign in, click **Copy** on the install
+   prompt again and paste it to you; use the install code in it. (People
+   who want to keep an API key for later can copy theirs from
+   `$MEDIAMAKE_URL/api-keys` instead; save it to
+   `~/.mediamake/config.json` as `{ "url": "<MEDIAMAKE_URL>", "apiKey": "<key>" }`
+   and `chmod 600` it.)
+
+An install code works for this one item for 2 hours, which covers asking
+for the plan again when its links expire. Never save it.
 
 ## 3. Get the install plan
 
 ```bash
-curl -fsS -H "Authorization: Bearer $MEDIAMAKE_API_KEY" \
+curl -fsS -H "Authorization: Bearer $AUTH" \
   "$MEDIAMAKE_URL/api/catalog/install?item=<item id>"
 ```
+
+(Leave the `-H` out when step 2 left `$AUTH` empty.)
 
 - **200**: a JSON plan. `steps` are already in order, dependencies first.
   Package links expire at `linksExpireAt` (30 minutes); if one has expired,
   request the plan again.
-- **401**: the key is wrong. Go back to step 2.
+- **401**: no credential, an expired install code, or a wrong key. Go
+  back to step 2, option 3.
 - **404**: the item doesn't exist or isn't shared with this account. Tell
   them that, and that whoever shared it can give access (an invite link opens
   `$MEDIAMAKE_URL/access?code=…`). Stop.
@@ -113,7 +128,8 @@ Download `downloadUrl` into the working folder.
    - **mcpb**: the bundle is `entry` inside the package. For Claude Desktop,
      open it (`open <file>` on macOS, `start "" "<file>"` on Windows) and
      _Ask_ them to click **Install** and fill in any settings it asks for
-     (MediaMake URL and API key: use the ones from step 2). For Claude Code,
+     (MediaMake URL: `$MEDIAMAKE_URL`; a MediaMake API key only if it
+     is required, from step 2 or `$MEDIAMAKE_URL/api-keys`). For Claude Code,
      unzip the bundle, read its `manifest.json`, and add the server with
      `claude mcp add` using its `server.mcp_config` command and args
      (`${__dirname}` = the unzipped folder, `${user_config.*}` = the

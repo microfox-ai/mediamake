@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { AccessLevel } from '@/lib/catalog/types';
 
 export function AccessActions({
@@ -41,7 +42,7 @@ export function AccessActions({
     }
     return (
       <div className="space-y-4">
-        {installPrompt && <InstallPrompt prompt={installPrompt} />}
+        {installPrompt && <InstallPrompt itemId={itemId} prompt={installPrompt} />}
         <Button asChild variant={installPrompt ? 'outline' : 'default'}>
           <a href={`/api/catalog/download?item=${encodeURIComponent(itemId)}&redirect=1`}>Download package</a>
         </Button>
@@ -148,21 +149,22 @@ export function RedeemInvite({
 }
 
 /** The paste-into-Claude prompt that installs an item and what it needs. */
-export function InstallPrompt({ prompt }: { prompt: string }) {
+export function InstallPrompt({ itemId, prompt }: { itemId: string; prompt: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Install with Claude</p>
       <p className="text-sm text-muted-foreground">
-        Paste this into Claude Code or Claude Desktop. It installs this and everything it needs, and tells you when it
-        needs you.
+        Copy this and paste it into Claude Code or Claude Desktop. It installs this and everything it needs, and tells you
+        when it needs you. The copy carries a one-time install code (valid for 2 hours), so Claude won't ask for your
+        API key.
       </p>
       <div className="flex gap-2">
         <code className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>
         <Button
           variant="secondary"
           onClick={async () => {
-            await navigator.clipboard.writeText(prompt);
+            await copyInstallPrompt(itemId, prompt);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
