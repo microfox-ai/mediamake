@@ -298,10 +298,18 @@ async function main() {
 
     case 'list': {
       const { items, grants, groups } = await admin({});
+      // Who has access, and how: every live grant is a record in access_grants.
+      const describe = (g: any) =>
+        `    ${g.subject.kind} ${g.subject.id}  ${g.expiresAt ? `until ${g.expiresAt.slice(0, 10)}` : 'no expiry'}` +
+        `${g.inviteCode ? `  via invite ${g.inviteCode}` : ''}${g.note ? `  "${g.note}"` : ''}  (grant ${g.grantId})`;
       for (const item of items) {
-        const count = grants.filter((g: any) => g.itemId === item.id).length;
-        console.log(`${item.visibility.padEnd(8)} ${item.id}@${item.version ?? '-'}  ${count} grant(s)${item.listed === false ? '  [unlisted]' : ''}`);
+        const itemGrants = grants.filter((g: any) => g.itemId === item.id);
+        console.log(`${item.visibility.padEnd(8)} ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${item.listed === false ? '  [unlisted]' : ''}`);
+        for (const g of itemGrants) console.log(describe(g));
       }
+      const everything = grants.filter((g: any) => g.itemId === '*');
+      if (everything.length) console.log('every item:');
+      for (const g of everything) console.log(describe(g));
       for (const group of groups) console.log(`group ${group.groupId}: ${group.members.join(', ') || '(empty)'}`);
       return;
     }
