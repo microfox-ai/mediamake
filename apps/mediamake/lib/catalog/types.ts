@@ -64,6 +64,11 @@ export interface CatalogItem {
    * locked. Use it for items whose name should not be seen yet.
    */
   listed?: boolean;
+  /**
+   * A `public` page anyone can already open (no package, nothing to gate),
+   * shown to everyone even while releases are locked.
+   */
+  openToAll?: boolean;
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;

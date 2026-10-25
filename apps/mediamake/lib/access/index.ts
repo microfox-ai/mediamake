@@ -153,7 +153,7 @@ export function accessLevel(
   entitlements: Entitlements,
   item: GatedItem,
 ): AccessLevel {
-  if (item.visibility === 'public' && publicReleasesOpen()) return 'open';
+  if (item.visibility === 'public' && (publicReleasesOpen() || item.openToAll)) return 'open';
   const kindWildcard = `${item.id.split('/')[0]}/*`;
   if (
     entitlements.isAdmin ||
@@ -173,6 +173,6 @@ export async function canAccess(
   viewer: Viewer,
   item: GatedItem,
 ): Promise<boolean> {
-  if (item.visibility === 'public' && publicReleasesOpen()) return true;
+  if (item.visibility === 'public' && (publicReleasesOpen() || item.openToAll)) return true;
   return accessLevel(await getEntitlements(viewer), item) !== 'locked';
 }
