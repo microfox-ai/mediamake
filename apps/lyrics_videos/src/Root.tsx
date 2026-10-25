@@ -2,6 +2,7 @@ import React from 'react';
 import { Composition } from 'remotion';
 import type { ProjectDefinition } from './kit/contract';
 import { makeCalculateMetadata, makeProjectVideo } from './kit/ProjectVideo';
+import { WaveLab, waveLabMetadata } from './mediamake/WaveLab';
 
 // Every projects/<slug>/video/index.tsx becomes a composition. Folders starting with "_" are skipped.
 const projectContext = require.context(
@@ -36,5 +37,16 @@ export const Root: React.FC = () => (
         calculateMetadata={makeCalculateMetadata(project)}
       />
     ))}
+    {/* waveform lyric video looks on any project: npm run wave-lab */}
+    <Composition
+      id="wave-lab"
+      component={WaveLab}
+      fps={30}
+      width={1920}
+      height={1080}
+      durationInFrames={1}
+      defaultProps={{ manifest: null, look: null, label: null }}
+      calculateMetadata={waveLabMetadata}
+    />
   </>
 );

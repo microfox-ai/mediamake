@@ -121,6 +121,12 @@ export default lyricVideo({ id: 'my-song', cover: 'cover.jpg', lyrics: 'default'
 See `src/mediamake/README.md`. After a preset changes in apps/mediamake, run
 `npm run sync-presets -w lyrics_videos`.
 
+Waveform lyric videos (a song and a picture in; the `make-waveform-lyric-video` skill) are a
+`video/storyboard.ts` of three choices — wave, font set, caption animation — picked from
+`catalog/` (see `catalog/README.md`) or designed for the song.
+`npm run wave-lab -w lyrics_videos -- <slug> <waves|fonts|captions|final>` shoots the candidates on
+the project's own song and picture; `-- catalog` shoots every catalog entry into `out/waveform-catalog/`.
+
 ## Remix projects (footage cut to a song)
 
 A project with `video/edl.ts` is a music remix: existing footage cut to the song on its beat grid at

@@ -1,0 +1,555 @@
+{
+ "captions": [
+  {
+   "text": "So you can have the kingdom,",
+   "absoluteStart": 2.44,
+   "absoluteEnd": 4.06,
+   "words": [
+    {
+     "text": "So",
+     "absoluteStart": 2.44,
+     "absoluteEnd": 2.6
+    },
+    {
+     "text": "you",
+     "absoluteStart": 2.6,
+     "absoluteEnd": 2.8
+    },
+    {
+     "text": "can",
+     "absoluteStart": 2.8,
+     "absoluteEnd": 3.0
+    },
+    {
+     "text": "have",
+     "absoluteStart": 3.0,
+     "absoluteEnd": 3.16
+    },
+    {
+     "text": "the",
+     "absoluteStart": 3.16,
+     "absoluteEnd": 3.38
+    },
+    {
+     "text": "kingdom,",
+     "absoluteStart": 3.38,
+     "absoluteEnd": 4.06
+    }
+   ]
+  },
+  {
+   "text": "the glory and the gore.",
+   "absoluteStart": 5.36,
+   "absoluteEnd": 6.94,
+   "words": [
+    {
+     "text": "the",
+     "absoluteStart": 5.36,
+     "absoluteEnd": 5.52
+    },
+    {
+     "text": "glory",
+     "absoluteStart": 5.52,
+     "absoluteEnd": 5.88
+    },
+    {
+     "text": "and",
+     "absoluteStart": 5.88,
+     "absoluteEnd": 6.04
+    },
+    {
+     "text": "the",
+     "absoluteStart": 6.04,
+     "absoluteEnd": 6.28
+    },
+    {
+     "text": "gore.",
+     "absoluteStart": 6.28,
+     "absoluteEnd": 6.94
+    }
+   ]
+  },
+  {
+   "text": "I've seen the final chapter,",
+   "absoluteStart": 8.26,
+   "absoluteEnd": 9.84,
+   "words": [
+    {
+     "text": "I've",
+     "absoluteStart": 8.26,
+     "absoluteEnd": 8.42
+    },
+    {
+     "text": "seen",
+     "absoluteStart": 8.42,
+     "absoluteEnd": 8.58
+    },
+    {
+     "text": "the",
+     "absoluteStart": 8.58,
+     "absoluteEnd": 8.78
+    },
+    {
+     "text": "final",
+     "absoluteStart": 8.78,
+     "absoluteEnd": 9.14
+    },
+    {
+     "text": "chapter,",
+     "absoluteStart": 9.14,
+     "absoluteEnd": 9.84
+    }
+   ]
+  },
+  {
+   "text": "and I'm not",
+   "absoluteStart": 9.94,
+   "absoluteEnd": 10.7,
+   "words": [
+    {
+     "text": "and",
+     "absoluteStart": 9.94,
+     "absoluteEnd": 10.16
+    },
+    {
+     "text": "I'm",
+     "absoluteStart": 10.16,
+     "absoluteEnd": 10.42
+    },
+    {
+     "text": "not",
+     "absoluteStart": 10.42,
+     "absoluteEnd": 10.7
+    }
+   ]
+  },
+  {
+   "text": "that character anymore.",
+   "absoluteStart": 10.7,
+   "absoluteEnd": 12.42,
+   "words": [
+    {
+     "text": "that",
+     "absoluteStart": 10.7,
+     "absoluteEnd": 11.12
+    },
+    {
+     "text": "character",
+     "absoluteStart": 11.12,
+     "absoluteEnd": 11.78
+    },
+    {
+     "text": "anymore.",
+     "absoluteStart": 11.78,
+     "absoluteEnd": 12.42
+    }
+   ]
+  },
+  {
+   "text": "I'm turning off the engine.",
+   "absoluteStart": 14.08,
+   "absoluteEnd": 15.62,
+   "words": [
+    {
+     "text": "I'm",
+     "absoluteStart": 14.08,
+     "absoluteEnd": 14.2
+    },
+    {
+     "text": "turning",
+     "absoluteStart": 14.2,
+     "absoluteEnd": 14.56
+    },
+    {
+     "text": "off",
+     "absoluteStart": 14.56,
+     "absoluteEnd": 14.74
+    },
+    {
+     "text": "the",
+     "absoluteStart": 14.74,
+     "absoluteEnd": 15.02
+    },
+    {
+     "text": "engine.",
+     "absoluteStart": 15.02,
+     "absoluteEnd": 15.62
+    }
+   ]
+  },
+  {
+   "text": "I am shutting down the sound.",
+   "absoluteStart": 15.96,
+   "absoluteEnd": 17.44,
+   "words": [
+    {
+     "text": "I",
+     "absoluteStart": 15.96,
+     "absoluteEnd": 16.1
+    },
+    {
+     "text": "am",
+     "absoluteStart": 16.1,
+     "absoluteEnd": 16.34
+    },
+    {
+     "text": "shutting",
+     "absoluteStart": 16.34,
+     "absoluteEnd": 16.7
+    },
+    {
+     "text": "down",
+     "absoluteStart": 16.7,
+     "absoluteEnd": 16.88
+    },
+    {
+     "text": "the",
+     "absoluteStart": 16.88,
+     "absoluteEnd": 17.1
+    },
+    {
+     "text": "sound.",
+     "absoluteStart": 17.1,
+     "absoluteEnd": 17.44
+    }
+   ]
+  },
+  {
+   "text": "You can have the title,",
+   "absoluteStart": 17.5,
+   "absoluteEnd": 18.84,
+   "words": [
+    {
+     "text": "You",
+     "absoluteStart": 17.5,
+     "absoluteEnd": 17.64
+    },
+    {
+     "text": "can",
+     "absoluteStart": 17.64,
+     "absoluteEnd": 17.82
+    },
+    {
+     "text": "have",
+     "absoluteStart": 17.82,
+     "absoluteEnd": 17.98
+    },
+    {
+     "text": "the",
+     "absoluteStart": 17.98,
+     "absoluteEnd": 18.18
+    },
+    {
+     "text": "title,",
+     "absoluteStart": 18.18,
+     "absoluteEnd": 18.84
+    }
+   ]
+  },
+  {
+   "text": "the scepter,",
+   "absoluteStart": 18.92,
+   "absoluteEnd": 19.62,
+   "words": [
+    {
+     "text": "the",
+     "absoluteStart": 18.92,
+     "absoluteEnd": 19.08
+    },
+    {
+     "text": "scepter,",
+     "absoluteStart": 19.08,
+     "absoluteEnd": 19.62
+    }
+   ]
+  },
+  {
+   "text": "and the crown.",
+   "absoluteStart": 19.68,
+   "absoluteEnd": 20.36,
+   "words": [
+    {
+     "text": "and",
+     "absoluteStart": 19.68,
+     "absoluteEnd": 19.82
+    },
+    {
+     "text": "the",
+     "absoluteStart": 19.82,
+     "absoluteEnd": 19.96
+    },
+    {
+     "text": "crown.",
+     "absoluteStart": 19.96,
+     "absoluteEnd": 20.36
+    }
+   ]
+  },
+  {
+   "text": "I'm taking my own freedom,",
+   "absoluteStart": 20.46,
+   "absoluteEnd": 21.94,
+   "words": [
+    {
+     "text": "I'm",
+     "absoluteStart": 20.46,
+     "absoluteEnd": 20.72
+    },
+    {
+     "text": "taking",
+     "absoluteStart": 20.72,
+     "absoluteEnd": 21.02
+    },
+    {
+     "text": "my",
+     "absoluteStart": 21.02,
+     "absoluteEnd": 21.24
+    },
+    {
+     "text": "own",
+     "absoluteStart": 21.24,
+     "absoluteEnd": 21.46
+    },
+    {
+     "text": "freedom,",
+     "absoluteStart": 21.46,
+     "absoluteEnd": 21.94
+    }
+   ]
+  },
+  {
+   "text": "the only thing I need.",
+   "absoluteStart": 22.02,
+   "absoluteEnd": 23.6,
+   "words": [
+    {
+     "text": "the",
+     "absoluteStart": 22.02,
+     "absoluteEnd": 22.22
+    },
+    {
+     "text": "only",
+     "absoluteStart": 22.22,
+     "absoluteEnd": 22.48
+    },
+    {
+     "text": "thing",
+     "absoluteStart": 22.48,
+     "absoluteEnd": 22.7
+    },
+    {
+     "text": "I",
+     "absoluteStart": 22.7,
+     "absoluteEnd": 22.92
+    },
+    {
+     "text": "need.",
+     "absoluteStart": 22.92,
+     "absoluteEnd": 23.6
+    }
+   ]
+  },
+  {
+   "text": "You can have the harvest.",
+   "absoluteStart": 23.66,
+   "absoluteEnd": 24.84,
+   "words": [
+    {
+     "text": "You",
+     "absoluteStart": 23.66,
+     "absoluteEnd": 23.8
+    },
+    {
+     "text": "can",
+     "absoluteStart": 23.8,
+     "absoluteEnd": 23.96
+    },
+    {
+     "text": "have",
+     "absoluteStart": 23.96,
+     "absoluteEnd": 24.14
+    },
+    {
+     "text": "the",
+     "absoluteStart": 24.14,
+     "absoluteEnd": 24.36
+    },
+    {
+     "text": "harvest.",
+     "absoluteStart": 24.36,
+     "absoluteEnd": 24.84
+    }
+   ]
+  },
+  {
+   "text": "I'm keeping just the seed.",
+   "absoluteStart": 24.94,
+   "absoluteEnd": 26.08,
+   "words": [
+    {
+     "text": "I'm",
+     "absoluteStart": 24.94,
+     "absoluteEnd": 25.08
+    },
+    {
+     "text": "keeping",
+     "absoluteStart": 25.08,
+     "absoluteEnd": 25.38
+    },
+    {
+     "text": "just",
+     "absoluteStart": 25.38,
+     "absoluteEnd": 25.58
+    },
+    {
+     "text": "the",
+     "absoluteStart": 25.58,
+     "absoluteEnd": 25.8
+    },
+    {
+     "text": "seed.",
+     "absoluteStart": 25.8,
+     "absoluteEnd": 26.08
+    }
+   ]
+  },
+  {
+   "text": "'Cause the final act of power,",
+   "absoluteStart": 26.1,
+   "absoluteEnd": 27.7,
+   "words": [
+    {
+     "text": "'Cause",
+     "absoluteStart": 26.1,
+     "absoluteEnd": 26.3
+    },
+    {
+     "text": "the",
+     "absoluteStart": 26.3,
+     "absoluteEnd": 26.5
+    },
+    {
+     "text": "final",
+     "absoluteStart": 26.5,
+     "absoluteEnd": 26.86
+    },
+    {
+     "text": "act",
+     "absoluteStart": 26.86,
+     "absoluteEnd": 27.04
+    },
+    {
+     "text": "of",
+     "absoluteStart": 27.04,
+     "absoluteEnd": 27.24
+    },
+    {
+     "text": "power,",
+     "absoluteStart": 27.24,
+     "absoluteEnd": 27.7
+    }
+   ]
+  },
+  {
+   "text": "the one they'll never see,",
+   "absoluteStart": 27.78,
+   "absoluteEnd": 28.98,
+   "words": [
+    {
+     "text": "the",
+     "absoluteStart": 27.78,
+     "absoluteEnd": 27.96
+    },
+    {
+     "text": "one",
+     "absoluteStart": 27.96,
+     "absoluteEnd": 28.1
+    },
+    {
+     "text": "they'll",
+     "absoluteStart": 28.1,
+     "absoluteEnd": 28.32
+    },
+    {
+     "text": "never",
+     "absoluteStart": 28.32,
+     "absoluteEnd": 28.68
+    },
+    {
+     "text": "see,",
+     "absoluteStart": 28.68,
+     "absoluteEnd": 28.98
+    }
+   ]
+  },
+  {
+   "text": "is not in taking over.",
+   "absoluteStart": 29.08,
+   "absoluteEnd": 30.64,
+   "words": [
+    {
+     "text": "is",
+     "absoluteStart": 29.08,
+     "absoluteEnd": 29.24
+    },
+    {
+     "text": "not",
+     "absoluteStart": 29.24,
+     "absoluteEnd": 29.56
+    },
+    {
+     "text": "in",
+     "absoluteStart": 29.56,
+     "absoluteEnd": 29.76
+    },
+    {
+     "text": "taking",
+     "absoluteStart": 29.76,
+     "absoluteEnd": 30.2
+    },
+    {
+     "text": "over.",
+     "absoluteStart": 30.2,
+     "absoluteEnd": 30.64
+    }
+   ]
+  },
+  {
+   "text": "It's in giving back the key.",
+   "absoluteStart": 31.04,
+   "absoluteEnd": 32.58,
+   "words": [
+    {
+     "text": "It's",
+     "absoluteStart": 31.04,
+     "absoluteEnd": 31.28
+    },
+    {
+     "text": "in",
+     "absoluteStart": 31.28,
+     "absoluteEnd": 31.6
+    },
+    {
+     "text": "giving",
+     "absoluteStart": 31.6,
+     "absoluteEnd": 31.88
+    },
+    {
+     "text": "back",
+     "absoluteStart": 31.88,
+     "absoluteEnd": 32.08
+    },
+    {
+     "text": "the",
+     "absoluteStart": 32.08,
+     "absoluteEnd": 32.3
+    },
+    {
+     "text": "key.",
+     "absoluteStart": 32.3,
+     "absoluteEnd": 32.58
+    }
+   ]
+  }
+ ]
+}

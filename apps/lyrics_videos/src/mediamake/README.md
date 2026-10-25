@@ -6,29 +6,47 @@ timeline can be reused as is.
 
 | Scene / helper | What it does |
 | --- | --- |
-| `VerticalFloatLyrics` | Lyrics through the `sub-vertical-float` caption preset. `style` takes the preset's own inputs (colors, highlight/sub text styles, position, subtitleSync). Lines from a mediamake `lyrics.json` keep their `metadata.htmlText` (`<b>` highlights, `<br/>` breaks). |
-| `WaveformLayer` | `spectrum-fill` (with the Wave Look action's looks: `single-wave` … `fearless-beats`, plus `impact`), `spectrum-line`, or `waveform-audio` (the waveform preset: `waves` = WaveformHistogram, `static` = WaveformHistogramRanged). |
-| `CoverBackdrop` | Cover art behind everything: zoom or pan loop, beat kick, dim, bottom fade for a wave strip. |
+| `CaptionLayer` | Lyrics through any synced caption preset (`sub-vertical-float`, `sub-fast-rap-static`, `sub-kinetic-motion`, `sub-kinetic-gradient-flow`, `sub-scrolling-vertical`) with its own inputs. Lines from a mediamake `lyrics.json` keep their `metadata.htmlText` (`<b>` highlights, `<br/>` breaks). |
+| `VerticalFloatLyrics` | The same for `sub-vertical-float` only; `style` takes the preset's inputs. |
+| `WaveformLayer` | `spectrum-fill` (with the Wave Look action's looks: `single-wave` … `fearless-beats`, plus `impact`), `spectrum-line`, or `waveform-audio` (the waveform preset: `waves` = WaveformHistogram, `static` = WaveformHistogramRanged). `mirrorX` flips it onto the other edge. |
+| `CoverBackdrop` | The picture behind everything (default: the first image in `input/`): zoom or pan loop, beat kick, dim, bottom fade for a wave strip, energy shake. |
 | `TrackTitle` | Title plus a boxed artist line, the layout of the waveform scene preset. |
-| `OverlayText` | A text-overlay line with blur in/out: channel tags, titles, credits (`texts` in the templates). |
-| `lyricVideo()` / `waveformVideo()` | Whole-project templates returning a normal `defineProject(...)`. |
-| `LYRIC_STYLES` / `WAVE_STYLES` | Named looks. The non-default ones come from saved mediamake timelines. |
+| `OverlayText` | A text-overlay line with blur in/out: channel tags, titles, credits. |
+| `OverlayVideo` | A looping overlay clip in `screen` blend (particles, dust, light leaks). |
+| `look.ts` | A waveform lyric video as data: `Look` = picture + **wave** + **font set** + **caption setup** (+ title, texts, overlays). `Storyboard` = a project's candidates for each step and its picks; catalog ids or designs written out; `tintWave()` recolours a wave. Pure: Node scripts import it. |
+| `lookVideo()` / `storyboardVideo()` | A Look, or a storyboard's picks, as a project (`defineProject`). |
+| `WaveLab` | The `wave-lab` composition: any Look on any project's song, with an ID badge. `npm run wave-lab` shoots it. |
+| `lyricVideo()` / `waveformVideo()` | The older whole-project templates, with `LYRIC_STYLES` / `WAVE_STYLES`. |
 | `runPreset()` / `PresetTree` | Run any synced preset and render its component tree. |
 
-```tsx
-// projects/<slug>/video/index.tsx
-import { lyricVideo } from '../../../src/mediamake';
+The waves, font sets and caption setups to start from are in **`apps/lyrics_videos/catalog/`**;
+`npm run wave-lab -w lyrics_videos -- catalog` shoots each into `out/waveform-catalog/`.
 
-export default lyricVideo({
-  id: '<slug>',
-  cover: 'cover.jpg',          // a file in input/
-  lyrics: 'default',           // a LYRIC_STYLES name, or a VerticalFloatStyle object
-  wave: { kind: 'spectrum-fill', look: 'fearless-beats', impact: 0.6 },
-});
+```tsx
+// projects/<slug>/video/storyboard.ts — the three steps, then the picks
+import { tintWave, type Storyboard } from '../../../src/mediamake/look.ts';
+
+export default {
+  base: { cover: { image: 'cover.jpg', beatKick: 0.5 } },
+  waves: { W1: 'side-bars-white', W2: tintWave('fill-fearless-white', '#e11d48', '#fecdd3') },
+  fonts: { F1: 'calligraffitti-bebas', F2: 'cormorant-montserrat' },
+  captions: { C1: 'sentence-float-2', C2: 'blur-float-4' },
+  pick: { wave: 'W2', fonts: 'F1', captions: 'C2' },
+} satisfies Storyboard;
+
+// projects/<slug>/video/index.tsx
+import { storyboardVideo } from '../../../src/mediamake';
+import storyboard from './storyboard';
+export default storyboardVideo('<slug>', storyboard);
 ```
 
-Layers come in order: cover, wave, title, lyrics, then `extra`. Lyrics and wave run at `'all'`, so
-caption times stay the song's own.
+```bash
+npm run wave-lab -w lyrics_videos -- <slug> waves      # W1, W2 … → out/<slug>/<slug>-storyboard/waves/
+npm run wave-lab -w lyrics_videos -- <slug> final      # the picked look, four moments
+```
+
+Layers come in order: picture, overlays, waves, title, lyrics, texts. Lyrics and waves run at
+`'all'`, so caption times stay the song's own.
 
 ## Projects made from a mediamake timeline
 

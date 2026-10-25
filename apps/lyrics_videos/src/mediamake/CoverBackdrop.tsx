@@ -4,8 +4,8 @@ import type { SceneProps } from '../kit/contract';
 import { asset, useBeat, useEnergy, useSongTime } from '../kit/hooks';
 
 export type CoverBackdropProps = {
-  /** A manifest asset name ("cover.png"), a manifest path or a URL. */
-  image: string;
+  /** A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/. */
+  image?: string;
   /** Slow loop on the picture, like mediamake's zoom-loop / pan-loop image effects. */
   motion?: 'zoom-loop' | 'pan-loop' | 'still';
   /** Seconds per loop. Default 20. */
@@ -46,7 +46,9 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = ({
   const t = useSongTime();
   const energy = useEnergy();
   const { pulse } = useBeat(7);
-  const src = asset(manifest.assets[image] ?? image);
+  const name = image || Object.keys(manifest.assets).find(k => /\.(jpe?g|png|webp|avif)$/i.test(k));
+  if (!name) throw new Error(`CoverBackdrop: no picture in ${manifest.slug}/input/`);
+  const src = asset(manifest.assets[name] ?? name);
 
   // Eased ping-pong, so the loop never jumps.
   const phase = (t % loopSeconds) / loopSeconds;

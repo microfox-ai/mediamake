@@ -20,7 +20,8 @@
     "remix": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/remix.ts",
     "image-index": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/image-index.ts",
     "sync-presets": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/sync-presets.ts",
-    "fetch-inputs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/fetch-inputs.ts"
+    "fetch-inputs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/fetch-inputs.ts",
+    "wave-lab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wave-lab.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

@@ -23,6 +23,10 @@ const OUT = path.resolve(HERE, '../src/mediamake/presets.json');
 /** Presets the lyric and waveform layers use: file → export name. */
 const PRESETS: Record<string, string> = {
   'captions/sub-vertical-float.ts': 'subVerticalFloatPreset',
+  'captions/sub-fast-rap-static.ts': 'subFastRapStaticPreset',
+  'captions/sub-kinetic-motion.ts': 'subKineticMotionPreset',
+  'captions/sub-kinetic-gradient-flow.ts': 'subKineticGradientFlowPreset',
+  'captions/sub-scrolling-vertical.ts': 'subScrollingVerticalPreset',
   'general/waveform.ts': 'waveformPreset',
   'full/waveform-full.ts': 'waveformPreset',
 };
