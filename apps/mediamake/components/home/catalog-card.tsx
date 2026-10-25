@@ -1,6 +1,10 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Lock, Unlock } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, Lock, Unlock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CatalogEntry } from '@/lib/catalog/types';
 
@@ -19,8 +23,10 @@ const statusLabel: Record<CatalogEntry['status'], string> = {
 
 export function CatalogCard({ card }: { card: CatalogEntry }) {
   const locked = card.access === 'locked';
-  // Locked cards lead to the request-access / redeem-invite page.
-  const href = locked ? `/access?item=${encodeURIComponent(card.id)}` : card.href;
+  // Locked cards lead to the request-access / redeem-invite page, and
+  // installable ones without a page of their own to their install page.
+  const accessHref = `/access?item=${encodeURIComponent(card.id)}`;
+  const href = locked ? accessHref : (card.href ?? (card.installPrompt ? accessHref : undefined));
 
   const body = (
     <div
@@ -51,6 +57,8 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
         {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
       </div>
 
+      {!locked && card.installPrompt && <CopyInstallPrompt prompt={card.installPrompt} fallbackHref={accessHref} />}
+
       {card.tags && card.tags.length > 0 && (
         <div className={cn('mt-auto flex flex-wrap gap-1.5', locked && 'opacity-60')}>
           {card.tags.map((tag) => (
@@ -68,5 +76,35 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
     <Link href={href} className="block h-full">
       {body}
     </Link>
+  );
+}
+
+/** Copies the one-line Claude install prompt without leaving the homepage. */
+function CopyInstallPrompt({ prompt, fallbackHref }: { prompt: string; fallbackHref: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      className="w-fit"
+      title={prompt}
+      onClick={async (e) => {
+        // The card itself is a link to the install page.
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(prompt);
+        } catch {
+          // No clipboard access: the install page shows the prompt to copy by hand.
+          window.location.assign(fallbackHref);
+          return;
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+      {copied ? 'Copied' : 'Copy install prompt'}
+    </Button>
   );
 }
