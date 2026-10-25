@@ -38,6 +38,7 @@ const SHORTCUTS: [string, string][] = [
   ['Mod Enter', 'Add the comment'],
   ['N', 'New revision'],
   ['M', 'Mute / unmute'],
+  ['F', 'Fullscreen video'],
   ['- / = / 0', 'Zoom the timeline out / in / to fit'],
   ['Mod scroll', 'Zoom the timeline at the pointer'],
   ['Mod S', 'Save now'],
