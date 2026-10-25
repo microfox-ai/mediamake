@@ -179,7 +179,7 @@ export function NavWorkers() {
         )}
 
         {grouped.map(({ group, workers }) => {
-          const isAnyActive = workers.some((id) => pathname === `/workers/${id}`)
+          const isAnyActive = workers.some((id) => pathname === `/core/workers/${id}`)
 
           return (
             <Collapsible
@@ -201,8 +201,8 @@ export function NavWorkers() {
                   <SidebarMenuSub>
                     {workers.map((id) => (
                       <SidebarMenuSubItem key={id}>
-                        <SidebarMenuSubButton asChild isActive={pathname === `/workers/${id}`}>
-                          <Link href={`/workers/${id}`}>
+                        <SidebarMenuSubButton asChild isActive={pathname === `/core/workers/${id}`}>
+                          <Link href={`/core/workers/${id}`}>
                             <span className="truncate">{workerLabel(id)}</span>
                           </Link>
                         </SidebarMenuSubButton>

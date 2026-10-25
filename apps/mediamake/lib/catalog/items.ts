@@ -15,7 +15,7 @@ export const catalogItems: CatalogItem[] = [
     summary: 'Create, render and manage video projects with presets, workers and AI agents.',
     visibility: 'public',
     status: 'live',
-    href: '/projects',
+    href: '/core/projects',
     tags: ['video', 'render'],
     releasedAt: '2025-09-01',
   },

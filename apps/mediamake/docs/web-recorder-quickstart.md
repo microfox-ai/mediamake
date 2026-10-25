@@ -47,7 +47,7 @@
 
 ### Accessing the Web Recorder
 
-1. Navigate to the Media page: `http://localhost:3000/media`
+1. Navigate to the Media page: `http://localhost:3000/core/media`
 2. You'll see three dropzones:
    - **URL Indexing** (left)
    - **Upload Files** (center)

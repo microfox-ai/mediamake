@@ -284,7 +284,7 @@ export function QuotaExhaustedDialog({
             className="sm:mr-auto gap-2"
             onClick={() => {
               onOpenChange(false);
-              router.push("/quota");
+              router.push("/core/quota");
             }}
           >
             <GaugeIcon className="h-4 w-4" />

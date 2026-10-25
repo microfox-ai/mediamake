@@ -55,7 +55,7 @@ API key when an earlier option applies.
    item's page on `$MEDIAMAKE_URL`, sign in, click **Copy** on the install
    prompt again and paste it to you; use the install code in it. (People
    who want to keep an API key for later can copy theirs from
-   `$MEDIAMAKE_URL/api-keys` instead; save it to
+   `$MEDIAMAKE_URL/core/api-keys` instead; save it to
    `~/.mediamake/config.json` as `{ "url": "<MEDIAMAKE_URL>", "apiKey": "<key>" }`
    and `chmod 600` it.)
 
@@ -129,7 +129,7 @@ Download `downloadUrl` into the working folder.
      open it (`open <file>` on macOS, `start "" "<file>"` on Windows) and
      _Ask_ them to click **Install** and fill in any settings it asks for
      (MediaMake URL: `$MEDIAMAKE_URL`; a MediaMake API key only if it
-     is required, from step 2 or `$MEDIAMAKE_URL/api-keys`). For Claude Code,
+     is required, from step 2 or `$MEDIAMAKE_URL/core/api-keys`). For Claude Code,
      unzip the bundle, read its `manifest.json`, and add the server with
      `claude mcp add` using its `server.mcp_config` command and args
      (`${__dirname}` = the unzipped folder, `${user_config.*}` = the
