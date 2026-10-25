@@ -31,6 +31,28 @@ links answer 404 as if they didn't exist. Signed-out visitors see nothing.
 Setting the variable later opens `public` items to everyone, with no other
 change.
 
+Public items install the same way as private ones: open the card, copy the
+prompt. While releases are locked, a `public` item still needs a grant (or
+the `network` group); after `MEDIAMAKE_PUBLIC_RELEASES=open` everyone sees
+its card, signed in or not. Installing always needs a MediaMake account,
+because the install plan and packages are fetched with the person's API key.
+
+## Who has access
+
+Every way someone gets access is a record, never a code change:
+
+| Record | Created by | Collection |
+| --- | --- | --- |
+| Grant to a person or group (with expiry, note, and the invite it came from) | `grant`, `approve`, redeeming an invite | `access_grants` |
+| Group membership (`network`, …) | `group add` | `access_groups` |
+| Invite links and how often they were used | `invite` | `access_invites` |
+| Requests from the "Request access" button | the person | `access_requests` |
+| Each package download | `/api/catalog/download` | `catalog_downloads` |
+
+`npm run catalog -- list` prints every item with its live grants (who, until
+when, via which invite) and every group with its members. `revoke` marks a
+grant revoked rather than deleting it, so the history stays.
+
 ## Setup (once)
 
 1. In `.env.local` for the CLI: `MEDIAMAKE_URL` (the deployed app) and
@@ -93,9 +115,10 @@ Versions are immutable: releasing the same version twice is refused, so bump it.
 
 ## One-prompt installs
 
-Anyone with access installs an item by pasting this into Claude (the
-`/access?item=<id>` page shows it with a Copy button, and `listCatalog`
-returns it as `installPrompt`):
+Anyone with access installs an item by pasting this into Claude. Its card on
+the homepage has a **Copy install prompt** button and links to
+`/access?item=<id>`, which shows the prompt too (`listCatalog` returns it as
+`installPrompt`):
 
 > Set up mcp/get-into-zone from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
