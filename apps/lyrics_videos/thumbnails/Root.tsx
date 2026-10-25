@@ -3,6 +3,7 @@
  * Studio folder: one still per variant (`<job>-<ID>`, at the job's canvas size), plus `<job>-sheet`
  * (all of them, labelled) and `<job>-sheet-small` (feed / streaming-list size). jobs/ is
  * gitignored; "_" folders are skipped. A spec that doesn't resolve shows as `<job>-error`.
+ * A job's exposure.json (written by `thumbs render`, see exposure.ts) lifts dark pictures.
  */
 import React from 'react';
 import { Composition, Folder, Still } from 'remotion';
@@ -10,8 +11,14 @@ import { Canvas, type CanvasProps } from './SpotifyCanvas.tsx';
 import { Sheet, type SheetProps, type SheetStyle, sheetSize } from './Sheet.tsx';
 import { Thumbnail, type ThumbnailProps } from './Thumbnail.tsx';
 import { CANVAS, type JobSpec, jobKind, jobSize, resolveJob } from './spec.ts';
+import type { ExposureFile } from './exposure.ts';
 
 const jobContext = require.context('./jobs', true, /^\.\/[^_./][^/]*\/(thumbs|poster)\.json$/);
+const exposureContext = require.context('./jobs', true, /^\.\/[^_./][^/]*\/exposure\.json$/);
+const exposureOf = (folder: string) => {
+  const key = `./${folder}/exposure.json`;
+  return exposureContext.keys().includes(key) ? exposureContext<ExposureFile>(key) : undefined;
+};
 
 const ErrorCard: React.FC<{ message: string }> = ({ message }) => (
   <div style={{ background: '#300', color: '#fcc', font: '28px Menlo, monospace', padding: 40, width: '100%', height: '100%', whiteSpace: 'pre-wrap' }}>{message}</div>
@@ -23,7 +30,7 @@ const jobs = jobContext.keys().map(key => {
   try {
     if (spec.job !== folder) throw new Error(`${key.split('/')[2]} "job" is "${spec.job}" but the folder is "${folder}"`);
     if (key.endsWith('poster.json') && jobKind(spec) !== 'poster') throw new Error('poster.json needs "kind": "poster"');
-    const variants = resolveJob(spec);
+    const variants = resolveJob(spec, exposureOf(folder));
     const styles: SheetStyle[] = spec.styles.map(s => ({ id: s.id, name: s.name, idea: s.idea, variants: variants.filter(v => v.style === s.id) }));
     return { job: folder, spec, variants, styles, error: undefined };
   } catch (err) {

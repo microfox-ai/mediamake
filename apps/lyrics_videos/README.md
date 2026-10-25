@@ -127,7 +127,7 @@ A project with `video/edl.ts` is a music remix: existing footage cut to the song
 its own speed, joined by transitions (warp zooms anchored on the subject, match cuts, whips, spins,
 subject cutouts carried over the next shot), with camera shake, wide-tracked lyric lines, punch
 words behind the subject, motion graphics (`src/remix/gfx/`, three.js) and a few sound effects.
-The engine is `src/remix/`; the footage's shots come from a video-segregation run in
+The engine is `src/remix/`; the footage's shots come from an analyze-video run in
 `projects/<slug>/footage/`.
 
 ```bash

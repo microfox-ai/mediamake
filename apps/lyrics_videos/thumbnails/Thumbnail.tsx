@@ -63,7 +63,7 @@ const hex = (c: string) => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => (v / 255).toFixed(3));
 };
 
-/** The treatment's picture filters as one SVG filter chain: posterize → duotone → chromatic split → bloom. */
+/** The treatment's picture filters as one SVG filter chain: posterize → duotone → curves → chromatic split → bloom. */
 const PostFilter: React.FC<{ id: string; post: Post }> = ({ id, post }) => {
   const steps: React.ReactNode[] = [];
   let last = 'SourceGraphic';
@@ -80,16 +80,29 @@ const PostFilter: React.FC<{ id: string; post: Post }> = ({ id, post }) => {
     last = 'poster';
   }
   if (post.duotone) {
-    const [a, b] = post.duotone.map(hex);
+    // dark → light, through a middle colour when there are three
+    const stops = post.duotone.map(hex);
+    const channel = (i: number) => stops.map(c => c[i]).join(' ');
     steps.push(
       <feColorMatrix key="lum" in={last} type="matrix" values="0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0" result="lum" />,
       <feComponentTransfer key="duo" in="lum" result="duo">
-        <feFuncR type="table" tableValues={`${a[0]} ${b[0]}`} />
-        <feFuncG type="table" tableValues={`${a[1]} ${b[1]}`} />
-        <feFuncB type="table" tableValues={`${a[2]} ${b[2]}`} />
+        <feFuncR type="table" tableValues={channel(0)} />
+        <feFuncG type="table" tableValues={channel(1)} />
+        <feFuncB type="table" tableValues={channel(2)} />
       </feComponentTransfer>,
     );
     last = 'duo';
+  }
+  if (post.curves) {
+    const t = (v?: number[]) => (v ?? [0, 1]).join(' ');
+    steps.push(
+      <feComponentTransfer key="curves" in={last} result="curves">
+        <feFuncR type="table" tableValues={t(post.curves.r)} />
+        <feFuncG type="table" tableValues={t(post.curves.g)} />
+        <feFuncB type="table" tableValues={t(post.curves.b)} />
+      </feComponentTransfer>,
+    );
+    last = 'curves';
   }
   if (post.chroma) {
     const only = (r: number, g: number, b: number) => `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
@@ -131,7 +144,7 @@ export const Thumbnail: React.FC<ThumbnailProps> = ({ job, variant, fonts, guide
   const id = safeId(useId());
   const [w, h] = size ?? [CANVAS.w, CANVAS.h];
   const post = variant.post;
-  const svg = post && (post.posterize || post.duotone || post.chroma || post.bloom);
+  const svg = post && (post.posterize || post.duotone || post.curves || post.chroma || post.bloom);
   const filter = post ? [gradeFilter(post.grade), svg && `url(#${id}-post)`].filter(Boolean).join(' ') : '';
   return (
     <CanvasContext.Provider value={{ w, h }}>

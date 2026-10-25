@@ -38,5 +38,9 @@ env.json
 /karcreativeworks/*
 
 apps/mediamake/docs/random/*
-# Private AI configuration frameworks
-.claude/
+# Private AI configuration frameworks. .claude/skills keeps only the symlinks of public skills
+# (their files are committed in .agents/skills/); private skills are real folders and stay
+# ignored. See SKILLS.md and tools/skills.mjs.
+.claude/*
+!.claude/skills/
+.claude/skills/*/
