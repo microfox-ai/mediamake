@@ -17,5 +17,5 @@ export default async function Homepage({
   const viewer = await getViewer();
   const cards = await listCatalog(viewer);
 
-  return <HomePage cards={cards} initialTab={initialTab} />;
+  return <HomePage cards={cards} initialTab={initialTab} signedIn={!!viewer.clientId} />;
 }

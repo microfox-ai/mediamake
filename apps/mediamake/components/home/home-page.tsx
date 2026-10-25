@@ -13,7 +13,15 @@ const MEDIAMAKE_REPO = 'https://github.com/microfox-ai/mediamake';
 const EXTENSIONS_REPO = 'https://github.com/microfox-ai/extensions';
 
 
-export function HomePage({ cards, initialTab }: { cards: CatalogEntry[]; initialTab: HomeTab }) {
+export function HomePage({
+  cards,
+  initialTab,
+  signedIn,
+}: {
+  cards: CatalogEntry[];
+  initialTab: HomeTab;
+  signedIn: boolean;
+}) {
   const [tab, setTab] = useState<HomeTab>(initialTab);
   const active = homeTabs.find((t) => t.value === tab)!;
 
@@ -87,7 +95,17 @@ export function HomePage({ cards, initialTab }: { cards: CatalogEntry[]; initial
             </div>
           ) : (
             <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-              Nothing released here yet.
+              {signedIn ? (
+                'Nothing shared with you here yet.'
+              ) : (
+                <>
+                  Releases are invite only for now.{' '}
+                  <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
+                    Sign in
+                  </Link>{' '}
+                  to see what's shared with you.
+                </>
+              )}
             </div>
           )}
         </section>
