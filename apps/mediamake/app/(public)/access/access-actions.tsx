@@ -15,6 +15,7 @@ export function AccessActions({
   signedIn,
   pending: initiallyPending,
   loginHref,
+  installPrompt,
 }: {
   itemId: string;
   access: AccessLevel;
@@ -22,6 +23,7 @@ export function AccessActions({
   signedIn: boolean;
   pending: boolean;
   loginHref: string;
+  installPrompt?: string;
 }) {
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(initiallyPending);
@@ -38,9 +40,12 @@ export function AccessActions({
       );
     }
     return (
-      <Button asChild>
-        <a href={`/api/catalog/download?item=${encodeURIComponent(itemId)}&redirect=1`}>Download</a>
-      </Button>
+      <div className="space-y-4">
+        {installPrompt && <InstallPrompt prompt={installPrompt} />}
+        <Button asChild variant={installPrompt ? 'outline' : 'default'}>
+          <a href={`/api/catalog/download?item=${encodeURIComponent(itemId)}&redirect=1`}>Download package</a>
+        </Button>
+      </div>
     );
   }
 
@@ -138,6 +143,33 @@ export function RedeemInvite({
         </Button>
       </div>
       {result && <p className={`text-sm ${result.ok ? 'text-muted-foreground' : 'text-destructive'}`}>{result.text}</p>}
+    </div>
+  );
+}
+
+/** The paste-into-Claude prompt that installs an item and what it needs. */
+export function InstallPrompt({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Install with Claude</p>
+      <p className="text-sm text-muted-foreground">
+        Paste this into Claude Code or Claude Desktop. It installs this and everything it needs, and tells you when it
+        needs you.
+      </p>
+      <div className="flex gap-2">
+        <code className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            await navigator.clipboard.writeText(prompt);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   type CatalogStatus,
   type CatalogVersion,
   type GrantSubject,
+  type InstallSpec,
   type Visibility,
 } from './types';
 
@@ -80,6 +81,7 @@ export const catalogItemsDB = {
   async upsert(
     item: Omit<CatalogItem, 'updatedAt' | 'version' | 'releasedAt' | 'visibility' | 'status'> & {
       slug: string;
+      install?: InstallSpec;
       visibility?: Visibility;
       status?: CatalogStatus;
     },

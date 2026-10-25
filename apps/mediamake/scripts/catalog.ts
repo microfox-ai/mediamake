@@ -10,7 +10,7 @@
  *   MEDIAMAKE_ADMIN_KEY  an API key whose client has isAdmin=true
  *
  * Usage: npm run catalog -- <command> [...]
- *   release <dir> [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
+ *   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
  *   promote <itemId> <private|network|public>
  *   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
  *   revoke  <itemId|*> (--to <clientId> | --group <groupId>)   |   revoke --grant <grantId>
@@ -26,9 +26,9 @@
 import { config } from 'dotenv';
 import { createHash } from 'crypto';
 import { execFileSync } from 'child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
-import { basename, isAbsolute, join, resolve } from 'path';
+import { basename, extname, isAbsolute, join, resolve } from 'path';
 
 config({ path: resolve(process.cwd(), '.env.local') });
 config({ path: resolve(process.cwd(), '.env') });
@@ -37,7 +37,7 @@ const BASE_URL = (process.env.MEDIAMAKE_URL || 'http://localhost:3000').replace(
 const ADMIN_KEY = process.env.MEDIAMAKE_ADMIN_KEY || process.env.DEV_API_KEY || '';
 
 const USAGE = `Usage: npm run catalog -- <command> [...]
-  release <dir> [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
+  release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
   promote <itemId> <private|network|public>
   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
   revoke  <itemId|*> (--to <clientId> | --group <groupId>)  |  revoke --grant <grantId>
@@ -109,24 +109,63 @@ function titleCase(slug: string) {
   return slug.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-async function release(dirArg: string | undefined, flags: Flags) {
-  if (!dirArg) fail('release needs a folder, e.g. release private/skills/lyric-video');
-  const dir = userPath(dirArg);
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) fail(`${dir} is not a folder`);
+/** Reads manifest.json out of an .mcpb bundle (a zip), if `unzip` is available. */
+function readMcpbManifest(file: string): Record<string, any> {
+  try {
+    return JSON.parse(execFileSync('unzip', ['-p', file, 'manifest.json'], { encoding: 'utf8' }));
+  } catch {
+    return {};
+  }
+}
 
-  // catalog.json beside the content overrides anything read from SKILL.md.
-  const manifestPath = join(dir, 'catalog.json');
+async function release(pathArg: string | undefined, flags: Flags) {
+  if (!pathArg) fail('release needs a folder or an .mcpb file, e.g. release private/skills/lyric-video');
+  const source = userPath(pathArg);
+  if (!existsSync(source)) fail(`${source} does not exist`);
+
+  // A bare .mcpb file is released as a package holding just that file, plus
+  // <name>.catalog.json and <name>.INSTALL.md from beside it when present.
+  const isBundle = statSync(source).isFile();
+  if (isBundle && extname(source) !== '.mcpb') fail(`${source} is a file; pass a folder or an .mcpb bundle`);
+  const work = mkdtempSync(join(tmpdir(), 'mediamake-release-'));
+  const dir = isBundle ? join(work, 'package') : source;
+  if (isBundle) {
+    mkdirSync(dir);
+    copyFileSync(source, join(dir, basename(source)));
+  }
+
+  const manifestPath =
+    flag(flags, 'manifest') !== undefined
+      ? userPath(flag(flags, 'manifest')!)
+      : isBundle
+        ? source.replace(/\.mcpb$/, '.catalog.json')
+        : join(dir, 'catalog.json');
+  if (isBundle && existsSync(manifestPath)) copyFileSync(manifestPath, join(dir, 'catalog.json'));
+  const installGuide = source.replace(/\.mcpb$/, '.INSTALL.md');
+  if (isBundle && existsSync(installGuide)) copyFileSync(installGuide, join(dir, 'INSTALL.md'));
+  // catalog.json overrides anything read from SKILL.md or the .mcpb manifest.
   const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
   const skillMd = join(dir, 'SKILL.md');
-  const front = existsSync(skillMd) ? readFrontMatter(skillMd) : {};
+  const bundle = readdirSync(dir).find(f => f.endsWith('.mcpb'));
+  const front = existsSync(skillMd)
+    ? readFrontMatter(skillMd)
+    : bundle
+      ? (({ name, version, description, display_name }) => ({ name, version, description, title: display_name }))(
+          readMcpbManifest(join(dir, bundle)),
+        )
+      : {};
 
-  const kind = flag(flags, 'kind') ?? manifest.kind ?? (existsSync(skillMd) ? 'skill' : undefined);
+  const kind =
+    flag(flags, 'kind') ?? manifest.kind ?? (existsSync(skillMd) ? 'skill' : bundle ? 'mcp' : undefined);
   if (!kind) fail('Could not tell the kind; add --kind skill|mcp|app|tutorial or a catalog.json');
-  const slug = flag(flags, 'slug') ?? manifest.slug ?? front.name ?? basename(dir);
+  const slug = flag(flags, 'slug') ?? manifest.slug ?? front.name ?? basename(source, '.mcpb');
   const version = flag(flags, 'version') ?? manifest.version ?? front.version;
-  if (!version) fail('No version; pass --version 1.0.0 or set "version" in catalog.json or SKILL.md');
+  if (!version) fail('No version; pass --version 1.0.0 or set "version" in catalog.json, SKILL.md or the .mcpb');
   const visibility = flag(flags, 'stage') ?? manifest.visibility;
   const itemId = `${kind}/${slug}`;
+  const install = bundle && !manifest.install?.entry
+    ? { method: 'mcpb', ...manifest.install, entry: bundle }
+    : manifest.install;
 
   console.log(`📦 Releasing ${itemId}@${version}${visibility ? ` as ${visibility}` : ''}`);
 
@@ -135,7 +174,7 @@ async function release(dirArg: string | undefined, flags: Flags) {
     item: {
       kind,
       slug,
-      title: manifest.title ?? titleCase(slug),
+      title: manifest.title ?? front.title ?? titleCase(slug),
       summary: manifest.summary ?? front.description ?? '',
       visibility,
       status: flag(flags, 'status') ?? manifest.status,
@@ -143,6 +182,7 @@ async function release(dirArg: string | undefined, flags: Flags) {
       href: manifest.href,
       cover: manifest.cover,
       tags: manifest.tags,
+      install,
     },
   });
 
@@ -152,7 +192,6 @@ async function release(dirArg: string | undefined, flags: Flags) {
     version,
   });
 
-  const work = mkdtempSync(join(tmpdir(), 'mediamake-release-'));
   const archive = join(work, `${slug}-${version}.tar.gz`);
   try {
     execFileSync('tar', [

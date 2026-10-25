@@ -18,14 +18,8 @@ export async function GET(req: NextRequest) {
 
   const viewer = await resolveViewer(req);
   const access = accessLevel(await getEntitlements(viewer), item);
-  if (access === 'locked') {
-    // Unlisted items answer like missing ones, so their ids can't be probed.
-    if (item.listed === false) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(
-      { error: viewer.clientId ? 'You do not have access to this item yet' : 'Sign in to download', access },
-      { status: viewer.clientId ? 403 : 401 },
-    );
-  }
+  // Locked items answer like missing ones, so their ids can't be probed.
+  if (access === 'locked') return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const version = wanted
     ? item.versions.find(v => v.version === wanted)

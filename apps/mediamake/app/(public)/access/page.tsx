@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getEntitlements, getViewer } from '@/lib/access';
-import { toCard, toEntry, type CatalogEntry } from '@/lib/catalog';
+import { installPromptFor, toCard, toEntry, type CatalogEntry } from '@/lib/catalog';
 import { accessRequestsDB, catalogItemsDB } from '@/lib/catalog/store';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { AccessActions, RedeemInvite } from './access-actions';
 export const dynamic = 'force-dynamic';
 
 /**
- * /access?item=skill/lyric-video  — open, download, or ask for one item.
+ * /access?item=skill/lyric-video  — install or download one item you have access to.
  * /access?code=XXXX               — redeem an invite someone shared with you.
  */
 export default async function AccessPage({
@@ -28,7 +28,8 @@ export default async function AccessPage({
     const record = await catalogItemsDB.get(itemId).catch(() => null);
     if (record) {
       const entry = toEntry(await getEntitlements(viewer), toCard(record));
-      if (entry.access !== 'locked' || record.listed !== false) item = entry;
+      // Locked items are hidden: answer as if they don't exist.
+      if (entry.access !== 'locked') item = entry;
       if (item?.access === 'locked' && viewer.clientId) {
         pending = (await accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => [])).includes(record.id);
       }
@@ -46,7 +47,14 @@ export default async function AccessPage({
           <Card>
             <CardHeader>
               <CardTitle>Not found</CardTitle>
-              <CardDescription>There is no item called {itemId}, or it is not shared yet.</CardDescription>
+              <CardDescription>
+                There is no item called {itemId}, or it is not shared with you.
+                {!viewer.clientId && (
+                  <>
+                    {' '}If someone shared it with you, <Link href={loginHref} className="underline">sign in</Link> first.
+                  </>
+                )}
+              </CardDescription>
             </CardHeader>
           </Card>
         )}
@@ -71,6 +79,7 @@ export default async function AccessPage({
                 hasPackage={!!item.version}
                 signedIn={!!viewer.clientId}
                 pending={pending}
+                installPrompt={item.version ? installPromptFor(item.id) : undefined}
                 loginHref={loginHref}
               />
             </CardContent>

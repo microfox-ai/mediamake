@@ -9,9 +9,12 @@ private/
   skills/
     lyric-video/
       SKILL.md          # name, description and version in the front matter
-      catalog.json      # optional: title, summary, tags, cover, visibility, listed
+      catalog.json      # optional: title, summary, tags, visibility, install (dependencies)
+      INSTALL.md        # optional: item-specific setup the installer follows
       references/...
   mcps/
+    get-into-zone.mcpb
+    get-into-zone.catalog.json
   apps/
 ```
 
