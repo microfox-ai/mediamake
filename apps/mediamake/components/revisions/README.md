@@ -146,6 +146,7 @@ can grant folder access, so the first open of a folder is always the user's pick
 | scroll on the video                                       | frame by frame; `⇧` scroll moves by the second                                                |
 | `N`                                                       | new revision                                                                                  |
 | `M`                                                       | mute / unmute                                                                                 |
+| `F`                                                       | fullscreen the video with its transport (`Esc` or `F` leaves)                                 |
 | `-` `=` `0`                                               | zoom the timeline out / in / to fit                                                           |
 | `?`                                                       | list every shortcut                                                                           |
 | `←` `→` / `⇧←` `⇧→`                                       | one frame / one second                                                                        |

@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import {
   ChevronFirstIcon,
   ChevronLastIcon,
   FileVideoIcon,
   FolderOpenIcon,
   FolderTreeIcon,
+  MaximizeIcon,
+  MinimizeIcon,
   PauseIcon,
   PlayIcon,
   RefreshCwIcon,
@@ -51,6 +53,31 @@ function estimateFps(intervals: number[]): number | null {
   return Math.abs(nearest - raw) / raw < 0.03
     ? nearest
     : Math.round(raw * 100) / 100;
+}
+
+/** The stage (video, overlays and transport) is what goes fullscreen, so the controls stay. */
+let stageElement: HTMLDivElement | null = null;
+
+/** Enters or leaves fullscreen on the video stage. */
+export function toggleStageFullscreen() {
+  if (document.fullscreenElement) {
+    void document.exitFullscreen();
+  } else if (stageElement) {
+    void stageElement.requestFullscreen().catch(() => undefined);
+  }
+}
+
+const subscribeFullscreen = (onChange: () => void) => {
+  document.addEventListener('fullscreenchange', onChange);
+  return () => document.removeEventListener('fullscreenchange', onChange);
+};
+
+function useStageFullscreen(): boolean {
+  return useSyncExternalStore(
+    subscribeFullscreen,
+    () => !!stageElement && document.fullscreenElement === stageElement,
+    () => false,
+  );
 }
 
 function EmptyState() {
@@ -220,6 +247,7 @@ function Transport() {
   const muted = useRevisionsStore(s => s.muted);
   const setRate = useRevisionsStore(s => s.setRate);
   const toggleMute = useRevisionsStore(s => s.toggleMute);
+  const fullscreen = useStageFullscreen();
 
   // A new video element starts at 1× and unmuted.
   useEffect(() => {
@@ -321,6 +349,19 @@ function Transport() {
               <VolumeXIcon className="size-4" />
             ) : (
               <Volume2Icon className="size-4" />
+            )}
+          </Button>
+        </Hint>
+        <Hint label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} keys="F">
+          <Button
+            variant="ghost"
+            className={iconButton}
+            onClick={toggleStageFullscreen}
+          >
+            {fullscreen ? (
+              <MinimizeIcon className="size-4" />
+            ) : (
+              <MaximizeIcon className="size-4" />
             )}
           </Button>
         </Hint>
@@ -444,7 +485,12 @@ export function VideoStage() {
   }, [video?.url]);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-neutral-950">
+    <div
+      ref={el => {
+        stageElement = el;
+      }}
+      className="flex h-full min-w-0 flex-col bg-neutral-950"
+    >
       {video && videoChangedOnDisk && (
         <div className="flex items-center gap-2 bg-amber-500/15 px-3 py-1.5 text-xs text-amber-200">
           <TriangleAlertIcon className="size-3.5" />
