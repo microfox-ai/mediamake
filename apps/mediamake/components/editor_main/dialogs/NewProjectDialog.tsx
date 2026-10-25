@@ -55,7 +55,7 @@ export function NewProjectDialog({ open, onOpenChange }: NewProjectDialogProps) 
       
       onOpenChange(false);
       setName("");
-      router.push(`/editor?id=${project.id}`);
+      router.push(`/core/editor?id=${project.id}`);
     } catch (error) {
       console.error("Error creating project:", error);
       alert("Failed to create project. Please try again.");

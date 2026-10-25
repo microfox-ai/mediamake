@@ -81,7 +81,7 @@ const navigationConfig: NavigationConfig[] = [
             <HomeIcon strokeWidth={2.5} className={cn("h-[18px] w-[18px]")} />
         ),
         label: "Home",
-        href: "/studio",
+        href: "/core/studio",
     },
     {
         icon: <SplitIcon strokeWidth={2.5} className={cn("h-4 w-4")} />,
@@ -89,7 +89,7 @@ const navigationConfig: NavigationConfig[] = [
             <SplitIcon strokeWidth={2.5} className={cn("h-[18px] w-[18px]")} />
         ),
         label: "Agent Map",
-        href: "/studio/agent-map",
+        href: "/core/studio/agent-map",
     },
     // {
     //     icon: <Triangle strokeWidth={2.5} className={cn("h-4 w-4")} />,
@@ -97,7 +97,7 @@ const navigationConfig: NavigationConfig[] = [
     //         <Triangle strokeWidth={2.5} className={cn("h-[18px] w-[18px]")} />
     //     ),
     //     label: "Agent Map",
-    //     href: "/studio/agent-map",
+    //     href: "/core/studio/agent-map",
     // },
     {
         icon: <BookIcon strokeWidth={2.5} className={cn("h-4 w-4")} />,
@@ -493,7 +493,7 @@ const RequestsList = ({
                                         {renderDateSeparator(dayjs(request.createdAt).toDate(), dayjs(prevRequest?.createdAt).toDate())}
                                         <Link
                                             key={request?.id}
-                                            href={`/studio/chat/${request?.id}`}
+                                            href={`/core/studio/chat/${request?.id}`}
                                             className={`flex cursor-pointer w-full line-clamp-1 items-center rounded-sm px-2 py-2 text-sm ${request?.id === requestParamId
                                                 ? "bg-gray-200 text-black"
                                                 : "hover:bg-gray-100"

@@ -170,7 +170,7 @@ export function LoadProjectDialog({ open, onOpenChange }: LoadProjectDialogProps
       setCurrentProjectId(projectId);
       await loadProjectTimelines(projectId, session?.clientId);
       
-      router.push(`/editor?id=${projectId}`);
+      router.push(`/core/editor?id=${projectId}`);
       onOpenChange(false);
     } catch (error) {
       console.error("Error loading project:", error);

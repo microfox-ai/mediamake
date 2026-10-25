@@ -213,7 +213,7 @@ export function LocalMediaRenderNotice({
         )}
         {blocked ? (
           <Button size="sm" variant="secondary" asChild>
-            <a href="/media" target="_blank" rel="noreferrer">
+            <a href="/core/media" target="_blank" rel="noreferrer">
               <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
               Open Media library
             </a>

@@ -54,7 +54,7 @@ export function HomePage({
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
             <Button asChild size="sm">
-              <Link href="/projects">
+              <Link href="/apps">
                 Open App
                 <ArrowRight className="size-4" />
               </Link>

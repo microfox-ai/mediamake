@@ -72,7 +72,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-With `DEV_CLIENT_KEY` or `DEV_API_KEY` set, the app signs the browser in on its own. Open a URL with `?manual=1` when you need the login form for a different account. To preview a video from JSON without opening a project, go to [http://localhost:3000/dev/preview](http://localhost:3000/dev/preview), paste a timeline input or a compiled composition, and press Apply.
+With `DEV_CLIENT_KEY` or `DEV_API_KEY` set, the app signs the browser in on its own. Open a URL with `?manual=1` when you need the login form for a different account. To preview a video from JSON without opening a project, go to [http://localhost:3000/core/dev/preview](http://localhost:3000/core/dev/preview), paste a timeline input or a compiled composition, and press Apply.
 
 API routes stay compiled for the dev session (`onDemandEntries` in `next.config.ts`). Restart `npm run dev` after pulling that change so the new buffer is picked up. `next dev --turbopack` is faster still, but this app's `webpack` hook (Remotion, mongodb, sharp) is not applied under Turbopack, so keep the default webpack dev server until those externals are mirrored.
 

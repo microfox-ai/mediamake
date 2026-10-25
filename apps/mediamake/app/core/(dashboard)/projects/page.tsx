@@ -92,7 +92,7 @@ export default function ProjectsPage() {
     );
   }
 
-  const open = (id: string) => router.push(`/editor?id=${id}`);
+  const open = (id: string) => router.push(`/core/editor?id=${id}`);
 
   return (
     <SidebarInset>

@@ -1,6 +1,15 @@
 import type { NextConfig } from 'next';
 import packageJson from './package.json';
 
+// Top-level folders of app/core: the signed-in app with the sidebar, the
+// editor, admin tools and the agent studio.
+const CORE_PAGES = [
+  'agents', 'api-keys', 'billing', 'dashboard', 'dev', 'history', 'image-history',
+  'media', 'midjourney', 'midjourney-queue', 'player', 'presets', 'projects', 'quota',
+  'studio-3d', 'transcriber', 'video-history', 'workers', 'youtube-splits',
+  'editor', 'preset-batch-creator', 'studio',
+];
+
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false,
@@ -13,6 +22,14 @@ const nextConfig: NextConfig = {
   onDemandEntries: {
     maxInactiveAge: 60 * 60 * 1000,
     pagesBufferLength: 100,
+  },
+  // Signed-in pages moved under /core; keep old links and bookmarks working.
+  async redirects() {
+    return CORE_PAGES.map((page) => ({
+      source: `/${page}/:path*`,
+      destination: `/core/${page}/:path*`,
+      permanent: false,
+    }));
   },
   experimental: {
     optimizePackageImports: ['lucide-react', '@tabler/icons-react'],

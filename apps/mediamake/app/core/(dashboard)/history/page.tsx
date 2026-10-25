@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function HistoryPage() {
-  redirect("/video-history");
+  redirect("/core/video-history");
 }

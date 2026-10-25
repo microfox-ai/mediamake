@@ -127,7 +127,7 @@ export function RevisionsHeader() {
     <header className="flex h-9 shrink-0 items-center gap-3 border-b px-2">
       <Hint label="Back to projects" side="bottom">
         <Button asChild variant="ghost" size="sm" className="h-7 px-2">
-          <Link href="/projects">
+          <Link href="/core/projects">
             <ArrowLeftIcon className="size-4" />
           </Link>
         </Button>

@@ -86,7 +86,7 @@ function useAppSessionContext(sessionId?: string) {
                     setAutoSubmit(_autoSubmit ?? null);
                     mutateSessions();
                     router.push(
-                        `/studio/chat/${newRequest.id}`
+                        `/core/studio/chat/${newRequest.id}`
                     );
                     return "Session created successfully!";
                 },

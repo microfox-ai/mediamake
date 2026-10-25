@@ -7,15 +7,16 @@ import type { CatalogItem, CatalogKind } from './types';
  * are never in this repo; they're handed to people with access.
  */
 export const catalogItems: CatalogItem[] = [
-  // Apps
+  // Apps. Public pages anyone can open today carry openToAll.
   {
     id: 'app/studio',
     kind: 'app',
-    title: 'MediaMake Studio',
-    summary: 'Create, render and manage video projects with presets, workers and AI agents.',
+    title: 'MediaMake Core',
+    summary: 'Create, render and manage video projects with presets, workers and AI agents. Sign in to use it.',
     visibility: 'public',
+    openToAll: true,
     status: 'live',
-    href: '/projects',
+    href: '/core/projects',
     tags: ['video', 'render'],
     releasedAt: '2025-09-01',
   },
@@ -25,10 +26,35 @@ export const catalogItems: CatalogItem[] = [
     title: 'Remotion Editor',
     summary: 'Edit lyric videos right in the browser.',
     visibility: 'public',
+    openToAll: true,
     status: 'beta',
     href: '/remotion-editor',
     tags: ['lyrics', 'editor'],
     releasedAt: '2026-10-20',
+  },
+  {
+    id: 'app/remotion-revision',
+    kind: 'app',
+    title: 'Video Revisions',
+    summary: 'Review renders from a local folder: pick finals and leave timed comments, saved beside them for Claude.',
+    visibility: 'public',
+    openToAll: true,
+    status: 'beta',
+    href: '/remotion-revision',
+    tags: ['review', 'video'],
+    releasedAt: '2026-10-22',
+  },
+  {
+    id: 'app/image-revision',
+    kind: 'app',
+    title: 'Image Revisions',
+    summary: 'Pick finals, keep, drop and comment on any set of local images, saved beside them for Claude.',
+    visibility: 'public',
+    openToAll: true,
+    status: 'beta',
+    href: '/image-revision',
+    tags: ['review', 'images'],
+    releasedAt: '2026-10-22',
   },
 
   // MCPs
