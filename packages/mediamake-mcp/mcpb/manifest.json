@@ -40,6 +40,18 @@
       "description": "Create a new Mediamake project."
     },
     {
+      "name": "get_brand_kit",
+      "description": "Read a project's brand kit: colours, fonts, guide and every uploaded asset."
+    },
+    {
+      "name": "upload_brand_kit",
+      "description": "Upload a pack-brand-kit folder from this computer to a project."
+    },
+    {
+      "name": "update_brand_kit",
+      "description": "Change a project's brand kit fields."
+    },
+    {
       "name": "list_timelines",
       "description": "List timelines (id, name, dates)."
     },
