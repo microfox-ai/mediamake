@@ -18,6 +18,8 @@ import {
   CATALOG_KINDS,
   CATALOG_STATUSES,
   DEFAULT_GATE_DAYS,
+  NETWORK_GROUP,
+  PRIVATE_GROUP,
   VISIBILITIES,
   catalogItemId,
   isValidSlug,
@@ -139,6 +141,8 @@ function daysFromNow(days?: number) {
  *                             (moves a development item to community now; it goes public by itself at that time)
  *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays a community item)
  *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (vault: admins and explicit grants only)
+ *  { type: 'set_tier',        clientId, tier: 'public' | 'community' | 'private' }
+ *                             (moves a person between the private and network groups)
  *  { type: 'remove_item',     itemId }
  *  { type: 'create_upload',   itemId, version }             → { uploadUrl, storageKey }
  *  { type: 'publish_version', itemId, version, storageKey, sha256, bytes, notes? }
@@ -279,6 +283,19 @@ export async function POST(req: NextRequest) {
       const subject = subjectFrom(body);
       if (!subject || !body.itemId) return bad('grantId, or itemId with clientId/groupId, is required');
       return NextResponse.json({ revoked: await accessGrantsDB.revokeFor(body.itemId, subject, adminId) });
+    }
+
+    case 'set_tier': {
+      const clientId = (body.clientId as string | undefined)?.trim();
+      const tier = body.tier as string;
+      if (!clientId || !['public', 'community', 'private'].includes(tier)) {
+        return bad('clientId and tier (public, community or private) are required');
+      }
+      await accessGroupsDB.removeMembers(PRIVATE_GROUP, [clientId]);
+      await accessGroupsDB.removeMembers(NETWORK_GROUP, [clientId]);
+      if (tier === 'private') await accessGroupsDB.addMembers(PRIVATE_GROUP, [clientId], 'Private testers');
+      if (tier === 'community') await accessGroupsDB.addMembers(NETWORK_GROUP, [clientId], 'Community');
+      return NextResponse.json({ success: true });
     }
 
     case 'group_add':

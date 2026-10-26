@@ -196,3 +196,12 @@ export function viewerTier(entitlements: Entitlements): ViewerTier {
 export async function getViewerTier(viewer: Viewer): Promise<ViewerTier> {
   return viewerTier(await getEntitlements(viewer));
 }
+
+/**
+ * Whether a tier may keep projects in the cloud and reach them through the
+ * MediaMake MCP (which also needs an API key). Public users keep projects
+ * local.
+ */
+export function canUseCloudProjects(tier: ViewerTier): boolean {
+  return tier !== 'public';
+}

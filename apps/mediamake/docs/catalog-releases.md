@@ -33,8 +33,15 @@ along; the CLI below does the same from a terminal.
 | --- | --- | --- |
 | **Admin** | `isAdmin` on their Redis profile | Everything. The only one who releases. |
 | **Private** | member of the `private` group (or a `*` grant) | Open every item except the vault. Can't release. |
-| **Community** | member of the `network` group (or an invite into it) | Open community and public items before they go public. Installs with an install code, no API key to paste. |
+| **Community** | member of the `network` group (or an invite into it) | Open community and public items before they go public. |
 | **Public** | everyone else | Open public items once releases are open. |
+
+An API key only signs someone in (and unlocks the MediaMake MCP); it opens
+nothing beyond public items by itself. The tier decides the rest, and the
+admin sets it per person under **People → API key holders** on the dashboard
+(`set_tier` in the admin API). Cloud projects are for the community, private
+testers and admins (`canUseCloudProjects(tier)`); public users keep projects
+local.
 
 `viewerTier(entitlements)` / `getViewerTier(viewer)` in `lib/access` return a
 person's tier for features that depend on who someone is (render routing,

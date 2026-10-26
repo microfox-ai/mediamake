@@ -40,7 +40,7 @@ export function PeoplePanel({
           groupId={PRIVATE_GROUP}
           icon={<FlaskConical className="size-4" />}
           title="Private testers"
-          body="Everything in development and ready, except the vault. Can't release."
+          body="Everything in development and ready, except the vault, plus cloud projects. Can't release."
           tone="bg-amber-500/10 text-amber-700 dark:text-amber-300"
           members={privateMembers}
           run={run}
@@ -50,7 +50,7 @@ export function PeoplePanel({
           groupId={COMMUNITY_GROUP}
           icon={<Users className="size-4" />}
           title="Community"
-          body="Production-ready items before they go public. Installs with an install code, no API key to paste."
+          body="Production-ready items before they go public, and cloud projects through the MediaMake MCP."
           tone="bg-violet-500/10 text-violet-700 dark:text-violet-300"
           members={communityMembers}
           run={run}
@@ -62,6 +62,8 @@ export function PeoplePanel({
           tone="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         />
       </div>
+
+      <KeyHolders data={data} privateMembers={privateMembers} communityMembers={communityMembers} run={run} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border bg-card">
@@ -194,6 +196,80 @@ function GroupCard({
           onPick={clientId => run(`Added to ${title.toLowerCase()}`, { type: 'group_add', groupId, clientIds: [clientId], name: title })}
         />
       </div>
+    </section>
+  );
+}
+
+const TIER_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'community', label: 'Community' },
+  { value: 'private', label: 'Private' },
+] as const;
+
+/**
+ * Everyone with an API key and the tier you've given them. A key alone
+ * grants nothing beyond public items; the tier decides what it opens.
+ */
+function KeyHolders({
+  data,
+  privateMembers,
+  communityMembers,
+  run,
+}: {
+  data: AdminCatalog;
+  privateMembers: string[];
+  communityMembers: string[];
+  run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
+}) {
+  if (!data.people.length) return null;
+  const tierOf = (clientId: string) =>
+    privateMembers.includes(clientId) ? 'private' : communityMembers.includes(clientId) ? 'community' : 'public';
+
+  return (
+    <section className="rounded-2xl border bg-card">
+      <header className="border-b px-5 py-4">
+        <h3 className="text-sm font-semibold">API key holders</h3>
+        <p className="text-xs text-muted-foreground">
+          A key signs people in and unlocks the MediaMake MCP. What it opens depends on the tier you give them here.
+        </p>
+      </header>
+      <ul className="divide-y">
+        {data.people.map(person => {
+          const current = tierOf(person.clientId);
+          return (
+            <li key={person.clientId} className="flex items-center justify-between gap-3 px-5 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm">{person.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {person.clientId} · {person.activeKeys} active key{person.activeKeys === 1 ? '' : 's'}
+                </p>
+              </div>
+              <div className="flex shrink-0 rounded-lg border p-0.5">
+                {TIER_OPTIONS.map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={option.value === current}
+                    onClick={() =>
+                      run(`${person.name} is now ${option.label.toLowerCase()}`, {
+                        type: 'set_tier',
+                        clientId: person.clientId,
+                        tier: option.value,
+                      })
+                    }
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-xs text-muted-foreground transition',
+                      option.value === current && 'bg-muted font-medium text-foreground',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
