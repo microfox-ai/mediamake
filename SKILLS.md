@@ -37,6 +37,7 @@ Media making: videos (the only skills that start with make-)
 | `make-lyrics-video` | private | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
 | `make-video-music-remix` | private | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… |
 | `make-video-music-remix-like-f1xhitit` (variant of `make-video-music-remix`) | private | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
+| `make-video-music-remix-like-quicksilverxkingpin` (variant of `make-video-music-remix`) | private | Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero… |
 | `make-video-music-remix-shorts` | private | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
 | `make-waveform-lyric-video` | private | Make a waveform lyric video in Remotion from just a song (an audio file) and a poster or artwork — the picture looping and kicking on the beat, an audio-reactive wavef… |
 
@@ -55,7 +56,7 @@ Kits and packs that bundle several outputs
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `pack-brand-kit` | private | Build a complete brand kit from a logo the user gives (an image of a wordmark, plus the font names): the animated logo as a transparent reusable Remotion component, sh… |
+| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a complete brand kit from a logo the user gives (an image of a wordmark, plus the font names): the animated logo as a transparent reusable Remotion component, sh… |
 | `pack-youtube` | private | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file — thumbnails (through create-thumbnail) and then the title and description (throug… |
 
 ## revise
@@ -64,7 +65,7 @@ Review loops with the user
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `revise-image` | private | Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the revi… |
+| [`revise-image`](.agents/skills/revise-image/SKILL.md) | public | Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the revi… |
 | `revise-video` | private | Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read thei… |
 
 ## analyze

@@ -17,7 +17,8 @@
  *
  * Names are <verb>-<thing>, the verb is the category (see CATEGORIES); a variant is
  * <base>-like-<ref> (or <base>-v<N> for a frozen older version) and says `variant-of` in its
- * frontmatter metadata. `metadata.category` overrides the verb.
+ * frontmatter metadata. `metadata.category` overrides the verb. A skill that needs another skill's
+ * output says so in `metadata.depends-on` (comma-separated names); the dependency is one-way.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -89,6 +90,7 @@ export const allSkills = () => {
       linked: isLink || isDir,
       category: categoryOf(name, fm.metadata),
       variantOf: fm.metadata['variant-of'],
+      dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
       description: fm.description ?? '',
       frontName: fm.name,
     });
@@ -113,7 +115,7 @@ const list = () => {
     const group = skills.filter(s => s.category === c.id);
     if (!group.length) continue;
     console.log(`\n${c.id} · ${c.about}`);
-    for (const s of group) console.log(`  ${s.visibility === 'public' ? '●' : '○'} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.linked ? '' : '  [not linked in .claude/skills]'}`);
+    for (const s of group) console.log(`  ${s.visibility === 'public' ? '●' : '○'} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.dependsOn.length ? ` (needs ${s.dependsOn.join(', ')})` : ''}${s.linked ? '' : '  [not linked in .claude/skills]'}`);
   }
   console.log('\n● public (committed)  ○ private (this machine only)');
 };
@@ -140,7 +142,8 @@ const checks = skill => {
       for (const p of privateNames) if (new RegExp(`(^|[^\\w-])${p}([^\\w-]|$)`).test(line)) mentions.set(p, [...(mentions.get(p) ?? []), at]);
     });
   }
-  for (const [p, at] of mentions) notes.push(`mentions the private skill ${p} (${at.join(', ')}): publish it too, or the link is dead for everyone else`);
+  for (const d of skill.dependsOn) if (privateNames.includes(d)) notes.push(`depends on the private skill ${d}: publish it first, or this skill can't work for anyone else`);
+  for (const [p, at] of mentions) if (!skill.dependsOn.includes(p)) notes.push(`mentions the private skill ${p} (${at.join(', ')}): publish it too, or the link is dead for everyone else`);
   return { problems, notes: [...new Set(notes)] };
 };
 
