@@ -9,7 +9,9 @@ timeline can be reused as is.
 | `CaptionLayer` | Lyrics through any synced caption preset (`sub-vertical-float`, `sub-fast-rap-static`, `sub-kinetic-motion`, `sub-kinetic-gradient-flow`, `sub-scrolling-vertical`) with its own inputs. Lines from a mediamake `lyrics.json` keep their `metadata.htmlText` (`<b>` highlights, `<br/>` breaks). |
 | `VerticalFloatLyrics` | The same for `sub-vertical-float` only; `style` takes the preset's inputs. |
 | `WaveformLayer` | `spectrum-fill` (with the Wave Look action's looks: `single-wave` … `fearless-beats`, plus `impact`), `spectrum-line`, or `waveform-audio` (the waveform preset: `waves` = WaveformHistogram, `static` = WaveformHistogramRanged). `mirrorX` flips it onto the other edge. |
-| `CoverBackdrop` | The picture behind everything (default: the first image in `input/`): zoom or pan loop, beat kick, dim, bottom fade for a wave strip, energy shake. |
+| `CoverBackdrop` | The picture behind everything (default: the first image in `input/`): zoom or pan loop (from `origin`), beat kick, dim, bottom fade for a wave strip, energy shake, and a `look`. `coverMotion` / `coverPoint` say where a point of the picture is on screen at any time. |
+| `PictureLook` | The cover's `look`: the poster treatments made alive — grade, posterize, duotone, curves, chromatic split (on kicks), bloom (pulsing on the beat), animated grain, vignette, light leak, god rays from a picture point, embers, halftone, paper, dust, flicker, scanlines, letterbox. |
+| `Visualizers` | WaveformLayer kinds beyond bars and lines: `halo`, `yantra`, `sparks`, `rings`, `bolt`, `flames`, from the same FFT and the song's onsets; `at` points follow the cover's motion. |
 | `TrackTitle` | Title plus a boxed artist line, the layout of the waveform scene preset. |
 | `OverlayText` | A text-overlay line with blur in/out: channel tags, titles, credits. |
 | `OverlayVideo` | A looping overlay clip in `screen` blend (particles, dust, light leaks). |
@@ -41,7 +43,9 @@ export default storyboardVideo('<slug>', storyboard);
 ```
 
 ```bash
+npm run wave-lab -w lyrics_videos -- <slug> looks      # L1, L2 … the picture's style (storyboard `looks`)
 npm run wave-lab -w lyrics_videos -- <slug> waves      # W1, W2 … → out/<slug>/<slug>-storyboard/waves/
+npm run wave-lab -w lyrics_videos -- <slug> waves --clip=6   # + a 6 s clip of each, and a reel
 npm run wave-lab -w lyrics_videos -- <slug> final      # the picked look, four moments
 ```
 
@@ -61,8 +65,10 @@ npm run prepare-project -w lyrics_videos -- <slug>
 
 ## Keeping presets in sync
 
-`presets.json` is generated from `apps/mediamake/components/editor/presets/registry`. After a preset
-changes there, run:
+`presets.json` is generated from `apps/mediamake/components/editor/presets/registry`, and
+`html-text.ts` from `apps/mediamake/lib/captions/html-text.ts` (the htmlText helpers the editor
+injects on `props.helpers`; `runPreset` injects them too, so `<b>` and `<br/>` work as in the
+editor). After a preset or those helpers change there, run:
 
 ```bash
 npm run sync-presets -w lyrics_videos

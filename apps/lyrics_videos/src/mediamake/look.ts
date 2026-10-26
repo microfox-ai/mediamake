@@ -23,6 +23,8 @@ export type TextStyle = {
   /** Size relative to the caption setup's avgFontSize. */
   textScale?: number;
   isGlowEnabled?: boolean;
+  /** CSS gradient filling the words instead of the colour (sub-vertical-float). */
+  gradient?: string;
 };
 
 /** Step 1: one waveform, or several drawn together (both edges, a line over a fill). */
@@ -82,18 +84,24 @@ export type Look = LookBase & {
 /** A catalog id (apps/lyrics_videos/catalog) or a design written out. */
 export type Ref<T> = string | T;
 
-export type Step = 'waves' | 'fonts' | 'captions';
+export type Step = 'looks' | 'waves' | 'fonts' | 'captions';
 
 /** projects/<slug>/video/storyboard.ts: the candidates of each step, and what the user picked. */
 export type Storyboard = {
   base?: LookBase;
+  /**
+   * Before the wave: the picture's style (L1, L2, …), cover settings laid over base.cover, usually
+   * a `look` (grade, picture filters, texture: PictureLook.tsx). null = the picture as it is.
+   */
+  looks?: Record<string, CoverBackdropProps | null>;
   /** Step 1. Keys are the IDs the user picks by (W1, W2, …). null = no wave. */
   waves?: Record<string, Ref<WaveDesign> | null>;
   /** Step 2 (F1, F2, …). */
   fonts?: Record<string, Ref<FontSet>>;
   /** Step 3 (C1, C2, …). */
-  captions?: Record<string, Ref<CaptionSetup>>;
-  pick?: { wave?: string; fonts?: string; captions?: string };
+  /** Step 3 (C1, C2, …). null = no preset captions (the project draws its own lyrics). */
+  captions?: Record<string, Ref<CaptionSetup> | null>;
+  pick?: { look?: string; wave?: string; fonts?: string; captions?: string };
   /** Song seconds to shoot each step at. Default: the loudest moment, and its lyric line. */
   at?: Partial<Record<Step, number[]>>;
 };
@@ -138,15 +146,18 @@ export const storyboardLook = (sb: Storyboard, candidate?: { step: Step; id: str
     if (!table || !(id in table)) throw new Error(`storyboard.ts has no ${step} candidate "${id}"`);
     return table[id];
   };
+  const pictureLook = choose('looks', sb.looks, sb.pick?.look);
   const wave = choose('waves', sb.waves, sb.pick?.wave);
   const fonts = choose('fonts', sb.fonts, sb.pick?.fonts);
   const captions = choose('captions', sb.captions, sb.pick?.captions);
-  const lyricsOff = candidate?.step === 'waves' || (!candidate && !sb.pick?.fonts && !sb.pick?.captions);
+  const lyricsOff =
+    candidate?.step === 'looks' || candidate?.step === 'waves' || (!candidate && !sb.pick?.fonts && !sb.pick?.captions);
   return {
     ...sb.base,
+    cover: { ...sb.base?.cover, ...pictureLook },
     wave: wave ? waveRef(wave) : null,
     fonts: fontsRef(fonts ?? DEFAULT_FONTS),
-    captions: lyricsOff ? null : captionsRef(captions ?? DEFAULT_CAPTIONS),
+    captions: lyricsOff || captions === null ? null : captionsRef(captions ?? DEFAULT_CAPTIONS),
   };
 };
 
@@ -207,6 +218,7 @@ export const tintWave = (design: Ref<WaveDesign>, main: string, second = main): 
     if (w.kind === 'spectrum-line') {
       return { ...w, data: { ...w.data, strokeColor: main, glowColor: second } };
     }
+    if (w.kind !== 'waveform-audio') return w; // the visualizers take their colours as props
     return {
       ...w,
       waveform: { ...w.waveform, barColor: main, gradientStartColor: main, gradientEndColor: second },

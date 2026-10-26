@@ -295,4 +295,26 @@ export const FONTS = {
       colors: white('#f9a8d4'),
     },
   },
+
+  // New, 2026-10-26
+  'yatra-mukta-gold': {
+    name: 'Yatra One gold / Mukta (Devanagari)',
+    about:
+      'Festive brush-calligraphy hero words filled with polished gold (a bright shine band between bronze edges) over ivory Mukta, on a dark kumkum shadow so they read on fire. For Hindi devotional songs.',
+    tags: ['hindi', 'devanagari', 'devotional', 'gold', 'festive'],
+    source: 'new 2026-10-26: mahishasura-mardini-hindi (F11)',
+    value: {
+      highlight: {
+        font: 'YatraOne',
+        textTransform: 'none',
+        letterSpacing: '0em',
+        textScale: 1.4,
+        isGlowEnabled: true,
+        gradient: 'linear-gradient(180deg, #8a5a12 0%, #e9bf5c 26%, #fff7d6 44%, #f3c65a 56%, #b5791d 78%, #6e430a 100%)',
+      },
+      sub: { font: 'Mukta:700', textTransform: 'none', letterSpacing: '0em', textScale: 1, isGlowEnabled: true },
+      colors: { primary: '#fff8e7', secondary: '#fff8e7', accent: '#3a0505' },
+      sample: 'जय जय हे महिषासुर मर्दिनी',
+    },
+  },
 } satisfies Record<string, CatalogEntry<FontSet>>;

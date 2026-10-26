@@ -33,10 +33,12 @@ Media making: videos (the only skills that start with make-)
 
 | Skill | Visibility | What it does |
 |---|---|---|
+| `make-lyric-shorts` | private | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… |
 | `make-lyrics-video` | private | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
 | `make-video-music-remix` | private | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… |
 | `make-video-music-remix-like-f1xhitit` (variant of `make-video-music-remix`) | private | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
-| `make-waveform-lyric-video` | private | Make a waveform lyric video in Remotion, the channel format the user builds in mediamake's timeline editor — one picture (cover or key art) that loops and kicks on the… |
+| `make-video-music-remix-shorts` | private | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
+| `make-waveform-lyric-video` | private | Make a waveform lyric video in Remotion from just a song (an audio file) and a poster or artwork — the picture looping and kicking on the beat, an audio-reactive wavef… |
 
 ## create
 

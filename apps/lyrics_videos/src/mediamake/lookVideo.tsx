@@ -9,6 +9,7 @@ import { captionParams, storyboardLook, type Look, type Storyboard } from './loo
 import { OverlayText } from './OverlayText';
 import { OverlayVideo } from './OverlayVideo';
 import { TrackTitle } from './TrackTitle';
+import { VISUALIZER_KINDS } from './Visualizers';
 import { WaveformLayer } from './WaveformLayer';
 
 /** The look's layers, bottom to top. Without a `cover`, the picture is the project's first image. */
@@ -21,7 +22,13 @@ export const lookLayers = (look: Look, extra: Layer[] = []): Layer[] => {
       layer({ scene: OverlayVideo, at: 'all', props, name: `overlay ${i + 1}` }),
     ),
     ...waves.map((props, i) =>
-      layer({ scene: WaveformLayer, at: 'all', props, name: i ? `wave ${i + 1}` : 'wave' }),
+      layer({
+        scene: WaveformLayer,
+        at: 'all',
+        // effects locked to a point of the picture follow the cover's motion
+        props: VISUALIZER_KINDS.includes(props.kind as never) ? { ...props, cover: look.cover } : props,
+        name: i ? `wave ${i + 1}` : 'wave',
+      }),
     ),
     ...(title
       ? [

@@ -9,7 +9,7 @@
  *   npm run wave-lab -w lyrics_videos -- catalog --gallery     only rewrite the gallery
  *   npm run wave-lab -w lyrics_videos -- catalog <step> --sheet=id,id [--out=file.jpg]
  *       a contact sheet of existing shots (a menu to show the user), nothing rendered
- *   npm run wave-lab -w lyrics_videos -- <slug> <waves|fonts|captions|final> [--only=W1,W2] [--at=s,s]
+ *   npm run wave-lab -w lyrics_videos -- <slug> <looks|waves|fonts|captions|final> [--only=W1,W2] [--at=s,s] [--clip=6]
  *       → out/<slug>/<slug>-storyboard/<step>/<id>.jpg
  *
  * A project's candidates and picks are in projects/<slug>/video/storyboard.ts (see look.ts). Waves
@@ -22,7 +22,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { bundle } from '@remotion/bundler';
-import { renderStill, selectComposition } from '@remotion/renderer';
+import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { CAPTIONS, FONTS, WAVES } from '../catalog/index.ts';
 import { ManifestSchema, type LyricLine, type Manifest } from '../src/kit/manifest.ts';
@@ -64,12 +64,15 @@ const flag = (k: string) => args.find(a => a.startsWith(`--${k}=`))?.slice(k.len
 const [target, stepArg] = args.filter(a => !a.startsWith('--'));
 const only = flag('only')?.split(',');
 const atFlag = flag('at')?.split(',').map(Number);
+/** Seconds of motion per shot (from 2 s before its first moment), as <step>/<id>.mp4 plus one reel. */
+const clipSeconds = flag('clip') ? Number(flag('clip')) : 0;
 if (!target) {
-  console.error('Usage: npm run wave-lab -w lyrics_videos -- catalog [step] | <slug> <waves|fonts|captions|final>');
+  console.error('Usage: npm run wave-lab -w lyrics_videos -- catalog [step] | <slug> <looks|waves|fonts|captions|final> [--only=W1,W2] [--at=s,s] [--clip=seconds]');
   process.exit(1);
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+const tmpdirFor = (dir: string) => fs.mkdtempSync(path.join(os.tmpdir(), `wave-lab-${path.basename(dir)}-`));
 const readManifest = (slug: string) =>
   ManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(ROOT, 'projects', slug, 'manifest.json'), 'utf8')));
 
@@ -215,11 +218,11 @@ const storyboardShots = async (slug: string, step: Step | 'final'): Promise<Shot
       return {
         id,
         step,
-        label: `${id} · ${typeof ref === 'string' ? ref : ref === null ? 'no wave' : 'new'}`,
+        label: `${id} · ${typeof ref === 'string' ? ref : ref === null ? (step === 'looks' ? 'as it is' : 'no wave') : 'new'}`,
         note: typeof ref === 'string' ? `catalog: ${ref}` : 'designed for this song',
         look,
         manifest: sample ? withSample(m, sample) : m,
-        at: at ?? (step === 'waves' ? [r2(loud + 0.5)] : step === 'fonts' ? [r2(line.end - 0.12)] : lineMoments(m, line)),
+        at: at ?? (step === 'waves' || step === 'looks' ? [r2(loud + 0.5)] : step === 'fonts' ? [r2(line.end - 0.12)] : lineMoments(m, line)),
       };
     });
 };
@@ -321,8 +324,8 @@ const main = async () => {
     console.log(`✔ ${path.relative(process.cwd(), out)}`);
     return;
   }
-  if (!isCatalog && !['waves', 'fonts', 'captions', 'final'].includes(stepArg ?? '')) {
-    throw new Error('Name the step: waves, fonts, captions or final');
+  if (!isCatalog && !['looks', 'waves', 'fonts', 'captions', 'final'].includes(stepArg ?? '')) {
+    throw new Error('Name the step: looks, waves, fonts, captions or final');
   }
   const steps = isCatalog ? (stepArg ? [stepArg as Step] : STEPS) : [];
   const shots = isCatalog ? await catalogShots(steps) : await storyboardShots(target, stepArg as Step | 'final');
@@ -368,6 +371,23 @@ const main = async () => {
         while (cells.length < 4) cells.push(cells[cells.length - 1]);
         ffmpeg([...cells.flatMap(f => ['-i', f]), '-filter_complex', 'xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0,scale=1280:-2', '-q:v', '4', path.join(dir, `${shot.id}.jpg`)]);
       }
+      if (clipSeconds > 0) {
+        const f0 = Math.max(0, Math.round((shot.at[0] - 2) * composition.fps));
+        const f1 = Math.min(composition.durationInFrames - 1, f0 + Math.round(clipSeconds * composition.fps) - 1);
+        await renderMedia({
+          serveUrl,
+          composition,
+          codec: 'h264',
+          outputLocation: path.join(dir, `${shot.id}.mp4`),
+          inputProps,
+          frameRange: [f0, f1],
+          scale: SCALE,
+          crf: 20,
+          chromiumOptions,
+          timeoutInMilliseconds: 120000,
+        });
+        console.log(`✔ ${path.relative(ROOT, path.join(dir, `${shot.id}.mp4`))}  (${clipSeconds} s from ${r2(f0 / composition.fps)} s)`);
+      }
       done.push(shot);
       console.log(`✔ ${path.relative(ROOT, path.join(dir, `${shot.id}.jpg`))}  (${shot.at.join(', ')} s)`);
     }
@@ -383,6 +403,15 @@ const main = async () => {
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.jpg') && f !== 'sheet.jpg').sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     contactSheet(files.map(f => path.join(dir, f)), path.join(dir, 'sheet.jpg'));
     console.log(`✔ ${path.relative(ROOT, path.join(dir, 'sheet.jpg'))}  (${files.length})`);
+    if (clipSeconds > 0) {
+      // this run's clips back to back in one reel (same encoder settings, so a stream copy)
+      const clips = done.filter(s => s.step === step).map(s => path.join(dir, `${s.id}.mp4`));
+      const list = path.join(tmpdirFor(dir), 'reel.txt');
+      fs.writeFileSync(list, clips.map(c => `file '${c.replace(/'/g, "'\\''")}'`).join('\n'));
+      const reel = path.join(dir, `reel-${done.filter(s => s.step === step).map(s => s.id).join('-')}.mp4`);
+      ffmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', reel]);
+      console.log(`✔ ${path.relative(ROOT, reel)}`);
+    }
   }
   writeIndex(outRoot, {
     job: path.basename(outRoot),

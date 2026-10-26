@@ -4,22 +4,34 @@ import type { ProjectDefinition } from './kit/contract';
 import { makeCalculateMetadata, makeProjectVideo } from './kit/ProjectVideo';
 import { WaveLab, waveLabMetadata } from './mediamake/WaveLab';
 
-// Every projects/<slug>/video/index.tsx becomes a composition. Folders starting with "_" are skipped.
+// Every projects/<slug>/video/index.tsx becomes a composition, and every short cut from it,
+// projects/<slug>/shorts/<id>/index.tsx, one per format it is made in (make-video-music-remix-shorts:
+// '<slug>-<id>-9x16'). Folders starting with "_" are skipped.
 const projectContext = require.context(
   '../projects',
   true,
-  /^\.\/[^_./][^/]*\/video\/index\.tsx$/,
+  /^\.\/[^_./][^/]*\/(video|shorts\/[^_./][^/]*)\/index\.tsx$/,
 );
 
-const projects = projectContext.keys().map(key => {
+const projects = projectContext.keys().flatMap(key => {
   const slug = key.split('/')[1];
-  const project = projectContext<{ default: ProjectDefinition }>(key).default;
+  const made = projectContext<{ default: ProjectDefinition | ProjectDefinition[] }>(key).default;
+  if (key.includes('/shorts/')) {
+    const shorts = Array.isArray(made) ? made : [made];
+    for (const short of shorts) {
+      if (!short?.window || (short.slug ?? short.id) !== slug) {
+        throw new Error(`${key.slice(2)} must default-export defineShorts(...) for the project '${slug}'`);
+      }
+    }
+    return shorts;
+  }
+  const project = made as ProjectDefinition;
   if (!project || project.id !== slug) {
     throw new Error(
       `projects/${slug}/video/index.tsx must default-export defineProject({ id: '${slug}', ... })`,
     );
   }
-  return project;
+  return [project];
 });
 
 export const Root: React.FC = () => (

@@ -144,6 +144,23 @@ npm run remix -w lyrics_videos -- <slug> --matte   # + subject cutouts per foota
 Configured by `projects/<slug>/video/remix.json` (`source`, `segregation`, `crop`, `window`). Driven by
 the `make-video-music-remix` skill; `projects/hitixf1` is the reference.
 
+### Shorts (vertical cuts of a remix)
+
+`projects/<slug>/shorts/<id>/` is a vertical short of one stretch of the song: `short.json` (the
+window, the formats), `edl.ts` (its cut list in the song's beats, usually starting from the long
+edit's) and `index.tsx` (`defineShorts`, one composition per format: `<slug>-<id>-9x16`, `-3x4`,
+`-4x5`). In a vertical frame `Remix` reframes each cut around its subject; `band()` and stacked
+`split`s keep the wide picture sharp. Driven by the `make-video-music-remix-shorts` skill.
+
+```bash
+npm run shorts -w lyrics_videos -- <slug> pick                          # the three coolest stretches + alternates (mp3s, picks.png)
+npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4 # scaffold the approved ones
+npm run shorts -w lyrics_videos -- <slug> mark C bad                    # never pick that stretch again
+npm run remix -w lyrics_videos -- <slug> --short=s01                    # check the short's window
+npm run stills -w lyrics_videos -- <slug> 0.2,5 --only --short=s01 --format=9x16
+npm run render-project -w lyrics_videos -- <slug> --short=s01           # → out/<slug>/shorts/s01/<slug>-s01-<format>.mp4
+```
+
 ## lyrics.json
 
 Any of these, with times in seconds from the start of the song:
