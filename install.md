@@ -20,7 +20,8 @@ back to them or write it anywhere except where a step says to.
   still unknown, _Ask_ for the MediaMake site address they were given.
 - **Install code**: the `mmi_…` after "install code", if the prompt has
   one. The site adds it when they copy the prompt while signed in.
-- Note which Claude you are running in. It decides where skills go (step 4).
+- Note which Claude you are running in. It decides where skills and MCPs
+  go (step 4).
 
 ## 1. GitHub
 
@@ -89,6 +90,20 @@ Before installing, tell them in one or two lines what you're about to set up
 
 Make a working folder: `~/.mediamake/installs/<item slug>`.
 
+**Already set up?** Before each step, look for what it installs: the repo
+folder, the extension on `chrome://extensions` (_Ask_, or read it from a
+status tool of an MCP that is already connected), the skill folder, or an
+MCP server with the bundle manifest's `name` (Claude Code:
+`claude mcp get <name>`; Claude Desktop: **Settings → Extensions** and
+`mcpServers` in `claude_desktop_config.json`). If it's there from somewhere
+else (their own build or checkout, an older download) and it works, tell
+them what you found and _Ask_ whether to keep it (skip this step and go on)
+or replace it with this release. Never replace a working setup without
+asking. Replacing removes the old copy first, so two don't run side by side;
+each section below says how. A copy you installed from MediaMake before
+(under `~/Extensions`, `~/.claude/skills` or `~/.mediamake/mcp`) is an
+update: replace it without asking.
+
 ### `type: "repo"`: clone a GitHub repository
 
 Clone to `~/mediamake` for `microfox-ai/mediamake`, otherwise
@@ -108,8 +123,11 @@ Download `downloadUrl` into the working folder.
   _Ask_ them to: open `chrome://extensions` (Edge `edge://extensions`, Brave
   `brave://extensions`), turn on **Developer mode** (top right), click
   **Load unpacked**, and pick that folder; or, if it was already loaded, click
-  the reload icon on its card. Give them the exact folder path. Follow
-  `guide` for anything extra, such as the extension's own settings.
+  the reload icon on its card. Give them the exact folder path. When it
+  replaces a copy loaded from another folder, have them click **Remove** on
+  that card first: a new folder gets a new extension id, so both copies would
+  run, and its settings start empty. Follow `guide` for anything extra, such
+  as the extension's own settings.
 - Anything else: follow `guide`.
 
 ### `type: "item"`: a MediaMake package
@@ -124,16 +142,25 @@ Download `downloadUrl` into the working folder.
      `<slug>/` (it holds `SKILL.md`). Claude Code: `~/.claude/skills/<slug>`.
      Claude Desktop or the Claude app: _Ask_ them to add it in **Settings →
      Capabilities → Skills** (zip the folder for them first and give them the
-     path). Replace an older copy of the same skill.
+     path). Replace an older copy of the same skill, unless it's a symlink or
+     sits in a git checkout: that's their working copy, so _Ask_ first.
    - **mcpb**: the bundle is `entry` inside the package. For Claude Desktop,
      open it (`open <file>` on macOS, `start "" "<file>"` on Windows) and
      _Ask_ them to click **Install** and fill in any settings it asks for
      (MediaMake URL: `$MEDIAMAKE_URL`; a MediaMake API key only if it
-     is required, from step 2 or `$MEDIAMAKE_URL/core/api-keys`). For Claude Code,
-     unzip the bundle, read its `manifest.json`, and add the server with
-     `claude mcp add` using its `server.mcp_config` command and args
-     (`${__dirname}` = the unzipped folder, `${user_config.*}` = the
-     settings it asks for).
+     is required: the key from step 2 if it gave you one, otherwise from
+     `$MEDIAMAKE_URL/core/api-keys`; never the install code). For Claude
+     Code, unzip the bundle into `~/.mediamake/mcp/<slug>/` (not the working
+     folder, which is deleted at the end; on an update, replace that folder's
+     contents), read its `manifest.json`, and add the server for all their
+     projects from its `server.mcp_config`:
+     `claude mcp add --scope user <name> -e KEY=value … -- <command> <args…>`
+     (`${__dirname}` = `~/.mediamake/mcp/<slug>`, `${user_config.*}` = that
+     setting's `default`, or _Ask_ when it's `required` without one; leave
+     out an `env` entry that comes out empty). If a server named `<name>` is
+     already registered, `claude mcp remove <name> --scope <its scope>`
+     first. `claude mcp get <name>` should then say Connected; its tools
+     appear in the next Claude Code session, not this one.
    - **app**: follow the package's `INSTALL.md`.
    - **manual**: follow the package's `INSTALL.md`.
 5. If the package has an `INSTALL.md`, follow it now (for every method). It
@@ -145,9 +172,12 @@ Download `downloadUrl` into the working folder.
   tools, or call a status tool).
 - Tell them in a few lines what's installed, where, and the one thing to try
   first. Mention anything that still needs them (a restart of Claude Desktop
-  so a new skill or MCP shows up, an extension to pin).
-- Delete the working folder's downloads; keep the unpacked skills,
-  extensions and repos where you installed them.
+  or a new Claude Code session so a new skill or MCP shows up, an extension
+  to pin).
+- Delete the working folder once they've added anything you handed them
+  from it (a zipped skill, an `.mcpb` opened in Claude Desktop). Nothing
+  installed lives there: skills, `~/Extensions/…`, `~/.mediamake/mcp/…` and
+  repos stay where you put them.
 
 If a step fails, say which step and the exact error, fix what you can, and
 retry that step only. Don't re-run steps that already succeeded.
