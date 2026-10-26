@@ -32,7 +32,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import opentype from 'opentype.js';
-import { solveStack, type TypeStyle } from '../src/lyricshorts/layout.ts';
+import { aimOf, frameCuts, inkOf, LUMA_BANDS, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
+import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -116,6 +117,10 @@ if (cmd === 'pick') {
     return xs.map(x => (x - mu) / sd);
   };
   const driveZ = z(barStats.map(b => b.drive));
+  // the words each short already made sings, as 3-word grams
+  const madeGrams = history.shorts
+    .filter(h => h.status !== 'bad')
+    .map(h => ({ id: h.id, grams: new Set(words.map((w, k) => ({ w, k })).filter(({ w }) => w.start >= h.from - 0.05 && w.start < h.to).map(({ k }) => gram(k))) }));
   const voxZ = z(barStats.map(b => b.vox));
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
   // phrases, not the transcription's lines (often cut by length): a sentence or clause ends at
@@ -192,6 +197,14 @@ if (cmd === 'pick') {
         if (made) {
           s -= 0.8;
           why.push(`re-cut of ${made.id}`);
+        } else {
+          // the same words sung elsewhere (a chorus that comes back) are a re-cut too: a short that sings
+          // what another one already sings repeats it, wherever it sits in the song
+          const twin = madeGrams.find(g => mean(inside.map(({ k }) => (g.grams.has(gram(k)) ? 1 : 0))) > 0.5);
+          if (twin) {
+            s -= 1.2;
+            why.push(`sings the same words as ${twin.id}`);
+          }
         }
         cands.push({ a, b, from, to, s, why, first: inside.slice(0, 5).map(x => x.w.text).join(' '), last: inside.slice(-4).map(x => x.w.text).join(' ') });
       }
@@ -295,8 +308,15 @@ if (cmd === 'new') {
   );
   fs.writeFileSync(
     path.join(sd, 'index.tsx'),
-    `${header}import { defineLyricShort, type LyricShortSpec } from '../../../../src/lyricshorts/define';\nimport { THEME } from '../theme';\nimport { edl } from './edl.ts';\nimport short from './short.json';\n\nexport default defineLyricShort({ slug: '${slug}', short: short as LyricShortSpec, edl, theme: THEME });\n`,
+    `${header}import { defineLyricShort, type LyricShortSpec } from '../../../../src/lyricshorts/define';\nimport type { Faces, Luma } from '../../../../src/lyricshorts/framing';\n// the footage's subjects (mark them: SKILL.md, step 2) and each clip's brightness (written by \`clips\`)\nimport faces from '../../footage/faces.json';\nimport { THEME } from '../theme';\nimport { edl } from './edl.ts';\nimport luma from './luma.json';\nimport short from './short.json';\n\nexport default defineLyricShort({ slug: '${slug}', short: short as LyricShortSpec, edl, theme: THEME, faces: faces as unknown as Faces, luma: luma as unknown as Luma });\n`,
   );
+  fs.writeFileSync(path.join(sd, 'luma.json'), '{}\n');
+  const facesFile = path.join(dir, 'footage', 'faces.json');
+  if (!fs.existsSync(facesFile)) {
+    fs.mkdirSync(path.dirname(facesFile), { recursive: true });
+    fs.writeFileSync(facesFile, `${JSON.stringify({ aspect: 16 / 9, shots: {} }, null, 1)}\n`);
+    console.log('  · mark the footage\'s subjects in footage/faces.json (SKILL.md, step 2): every cut frames on them');
+  }
   if (!fs.existsSync(path.join(shortsDir, 'theme.ts'))) console.log('  · write shorts/theme.ts (the project\'s LyricShortTheme) before opening Studio');
   history.shorts.push({ id, from, to, fromBeat: Math.round(beatAt(m, from)), toBeat: Math.round(beatAt(m, to)), sections: sectionsIn(from, to), run: picks.run, date: today(), status: 'made', formats, skill: 'make-lyric-shorts' });
   fs.writeFileSync(historyFile, `${JSON.stringify(history, null, 1)}\n`);
@@ -328,10 +348,10 @@ if (cmd === 'clips') {
   const id = what;
   if (!id) throw new Error('clips <id>');
   const sd = path.join(shortsDir, id);
-  const short = JSON.parse(fs.readFileSync(path.join(sd, 'short.json'), 'utf8')) as { from: number; to: number; fps?: number };
+  const short = JSON.parse(fs.readFileSync(path.join(sd, 'short.json'), 'utf8')) as { from: number; to: number; fps?: number; loop?: boolean };
   const { edl } = (await import(pathToFileURL(path.join(sd, 'edl.ts')).href)) as { edl: LyricShortEdl };
   const fps = short.fps ?? 30;
-  const { screens, cuts, whole, warnings } = resolveShort(m, short, edl);
+  const { screens, cuts: resolvedCuts, whole, warnings } = resolveShort(m, short, edl);
 
   // footage sources and their shots
   const cfgFile = path.join(shortsDir, 'footage.json');
@@ -359,27 +379,40 @@ if (cmd === 'clips') {
   const b = (t: number) => beatAt(m, t).toFixed(1).padStart(6);
   console.log(`${m.title} · ${id} · ${mmss(short.from)}–${mmss(short.to)} (${(short.to - short.from).toFixed(1)} s)\n`);
   console.log('screens');
+  const layouts = solveShort(screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack'), font, THEME.type, 1080, 1920);
   for (const s of screens) {
     if (s.kind === 'full') console.log(`  ${b(s.start)}–${b(s.end)}  full frame`);
     else {
-      const lay = solveStack(s, font, THEME.type, 1080, 1920);
+      const lay = layouts.get(s.index)!;
       // how the stack meets the frame: letters stretched (only if the theme allows it), then black above
       // and below (the stack is centred) or, too tall, shrunk evenly
       const [s0, s1] = THEME.type.stretch;
       const sy = Math.min(s1, Math.max(s0, lay.stretch));
       const rest = lay.stretch / sy;
       const fit = `${sy !== 1 ? `letters ×${sy.toFixed(2)} tall, ` : ''}${rest >= 1 ? `fills ${Math.round(100 / rest)} % of the height` : `shrunk to ${Math.round(100 * rest)} %`}`;
-      const off = rest > 1.45 || rest < 0.8;
+      // words over the whole footage until the flip leave no bands: only the masked part counts
+      const off = (rest > 1.45 || rest < 0.8) && (lay.flip === undefined || lay.flip < s.end);
       // a row stays black until its word is sung: a screen whose words take long to arrive reads as a
       // black screen (the user on v7's 6–10-word screens: "seeing black screen for a lot of time")
       const wait = Math.max(...s.words.map(w => w.show)) - s.start;
-      const slow = wait > 2.2;
-      console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow ? '  ⚠' : ''}`);
+      // black words over the footage until the flip: the wait isn't black
+      const slow = wait > 2.2 && lay.flip === undefined;
+      console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${lay.flip !== undefined ? `  ◐ black words, the mask from ${b(lay.flip).trim()}` : ''}${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow ? '  ⚠' : ''}`);
       if (off) warnings.push(`screen ${s.index} (${lay.label}) ${rest > 1 ? 'leaves very wide black bands above and below' : 'is too tall and shrinks a lot'}: regroup its words`);
       if (slow) warnings.push(`screen ${s.index} (${lay.label}) waits ${wait.toFixed(1)} s for its last word: its lower rows sit black that long — split it`);
       console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
     }
   }
+  // every cut framed on its subject (footage/faces.json, per source), as the render frames it
+  const faces: Faces = { aspect: 16 / 9, shots: {} };
+  for (const src of sources) {
+    const f = path.join(dir, src.segregation, 'faces.json');
+    if (!fs.existsSync(f)) continue;
+    const doc = JSON.parse(fs.readFileSync(f, 'utf8')) as Faces;
+    faces.aspect = doc.aspect;
+    for (const [shot, box] of Object.entries(doc.shots)) faces.shots[src.prefix === 'sh' ? shot : shot.replace(/^sh/, src.prefix)] = box;
+  }
+  const cuts = frameCuts(resolvedCuts, screens, layouts, faces, 1080, 1920, short.loop);
   console.log('\ncuts');
   const outDir = path.join(dir, 'derived', 'lyricshorts');
   fs.mkdirSync(outDir, { recursive: true });
@@ -405,7 +438,7 @@ if (cmd === 'clips') {
     const vf = [`crop=${cw}:${ch}:${cx}:${cy}`, 'scale=1080:1920:flags=lanczos', `fps=${Math.min(60, srcFps.get(src.id) ?? 30)}`, c.mono ? 'hue=s=0' : '', 'format=yuv420p'].filter(Boolean).join(',');
     if (!fs.existsSync(file)) jobs.push({ file, argv: ['-v', 'error', '-y', '-ss', (shot.start + c.in).toFixed(3), '-i', path.join(dir, src.source), '-t', c.span.toFixed(3), '-vf', vf, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', `${file}.part.mp4`] });
     const trs = [c.tr.kind !== 'cut' ? c.tr.kind + (c.tr.dir ? ` ${c.tr.dir}` : '') : '', c.flash ? 'flash' : '', c.shake ? `shake ${c.shake}` : ''].filter(Boolean).join(' + ') + (whole.includes(i) ? '  (whole frame: the screen changes here)' : '');
-    console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` zoom ${c.zoom}` : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
+    console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
   }
   // decoding 4K AV1 is heavy: a few at a time
   const parallel = Math.max(1, Math.min(4, Math.floor(os.cpus().length / 3)));
@@ -424,6 +457,25 @@ if (cmd === 'clips') {
     const t0 = Date.now();
     await Promise.all(Array.from({ length: parallel }, run));
     console.log(`\n  cut ${jobs.length} clips in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  }
+
+  // each clip's brightness in bands down its middle frame, for the words over the footage: black on
+  // bright shots, white on dark (luma.json, read by the render)
+  const luma: Luma = {};
+  for (const c of cuts) {
+    const raw = execFileSync('ffmpeg', ['-v', 'error', '-ss', ((c.end - c.start) / 2).toFixed(3), '-i', path.join(outDir, c.file), '-frames:v', '1', '-vf', `scale=1:${LUMA_BANDS}:flags=area,format=gray`, '-f', 'rawvideo', '-']);
+    luma[c.file] = [...raw.subarray(0, LUMA_BANDS)];
+  }
+  fs.writeFileSync(path.join(sd, 'luma.json'), `${JSON.stringify(luma, null, 1)}\n`);
+  const reversed = screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack' && layouts.get(s.index)!.flip !== undefined);
+  if (reversed.length) {
+    console.log('\nwords over the footage');
+    for (const s of reversed) {
+      const flip = layouts.get(s.index)!.flip!;
+      const c = cuts.find(x => (s.start + flip) / 2 >= x.start && (s.start + flip) / 2 < x.end);
+      const ink = inkOf(s, layouts.get(s.index)!, flip, cuts, luma, 1920, THEME.type.reverse?.white);
+      console.log(`  ${b(s.start)}–${b(flip)}  ${layouts.get(s.index)!.label}: ${ink} words${c ? ` over ${c.shot} (bands, top to bottom: ${luma[c.file].join(' ')})` : ''}${s.ink ? ' (by hand)' : ''}`);
+    }
   }
 
   // the Revisions map: one shot per cut, named by the words on screen over it

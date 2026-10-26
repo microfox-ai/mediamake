@@ -45,6 +45,11 @@ export type StackSpec = {
   through?: { word?: string; beats?: number };
   /** let the layout set a word vertically (theme.type.vertical decides when not given) */
   vertical?: boolean;
+  /** words over the whole footage first (black on bright footage, white on dark), flipping to the mask
+   *  (the footage inside the letters) mid-line: true, false, or { flip: beat, ink } (default:
+   *  theme.type.reverse decides — long screens, flipping when about half the stack is lit; the ink from
+   *  the shot's brightness) */
+  reverse?: boolean | { flip?: number; ink?: 'black' | 'white' };
 };
 
 /** the footage full frame, no type (after a dive, on an instrumental hit, the ending) */
@@ -64,6 +69,9 @@ export type CutSpec = {
   y?: number;
   /** crop tighter than the full height (1 = full height) */
   zoom?: number;
+  /** the subject in this cut, when it differs from the shot's in footage/faces.json: [x0, y0, x1, y1,
+   *  eyes], fractions of the source frame. Without x / y / zoom the crop is framed on it (framing.ts). */
+  face?: FaceBox;
   /** playback speed of the source (1 = its own speed) */
   rate?: number;
   /** black and white */
@@ -162,6 +170,10 @@ export const beatAt = (song: SongLike, t: number): number => {
   return k + (t - list[k].t) / (list[k + 1].t - list[k].t);
 };
 
+/** a shot's subject: its face box (or the subject's, where there is no face) and the y of its eye line,
+ *  fractions of the source frame */
+export type FaceBox = [number, number, number, number, number];
+
 export type ResolvedWord = { text: string; sung: string; start: number; end: number; show: number };
 /** a row by hand: indices into the stack's words; `reveal` in song seconds */
 export type ResolvedRow = { words: number[]; vertical: false | 'up' | 'down' | 'upright'; fill?: Fill; color?: string; reveal?: number };
@@ -184,6 +196,10 @@ export type ResolvedStack = {
   /** the word a 'through' exit dives into, and the word an 'into' entry pulls back out of */
   throughWord: number;
   intoWord: number;
+  /** words over the footage first: true / false, or the flip to the mask in song seconds; undefined: the
+   *  theme decides. `ink`: their colour by hand (else from the footage's brightness) */
+  reverse?: boolean | number;
+  ink?: 'black' | 'white';
 };
 export type ResolvedFull = { kind: 'full'; index: number; start: number; end: number };
 export type ResolvedScreen = ResolvedStack | ResolvedFull;
@@ -207,6 +223,9 @@ export type ResolvedCut = {
   /** seconds of the shot the clip file holds, from `in` (speed ramps and the tail under the next cut) */
   span: number;
   file: string;
+  /** no crop by hand (x, y, zoom): framing.ts frames it on its subject */
+  auto: boolean;
+  face?: FaceBox;
 };
 
 /**
@@ -330,6 +349,8 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
       pullTo: (s.enter === 'into' ? (s.through?.beats ?? 2) : 0) * beat,
       throughWord: wordIndex(s.exit === 'through' ? s.through?.word : undefined, words.length - 1),
       intoWord: wordIndex(s.enter === 'into' ? s.through?.word : undefined, 0),
+      reverse: typeof s.reverse === 'object' ? (s.reverse.flip !== undefined ? beatTime(song, s.reverse.flip) : true) : s.reverse,
+      ink: typeof s.reverse === 'object' ? s.reverse.ink : undefined,
     });
   });
   screens.sort((a, b) => a.start - b.start);
@@ -355,7 +376,8 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
     const timing = { rate: c.rate ?? 1, tr, next, start, end };
     const span = clipTime(timing, end - start + CLIP_PAD);
     const flash = c.flash === true ? 'default' : c.flash || null;
-    return { ...base, ...timing, at: c.at, flash, shake: c.shake ?? 0, span, file: clipFile(base, span) };
+    const auto = c.x === undefined && c.y === undefined && c.zoom === undefined;
+    return { ...base, ...timing, at: c.at, flash, shake: c.shake ?? 0, span, file: clipFile(base, span), auto, face: c.face };
   });
   cuts.forEach((c, i) => {
     const n = cuts[i + 1];

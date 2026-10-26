@@ -36,10 +36,23 @@ export type TypeStyle = {
    *  smaller than `minVertical` costs it more (it reads as a thin label, not a word) */
   minSize: number;
   minVertical: number;
+  /** words set down the frame in columns, read with the head tilted: hard to read (user, s02/s03: "too
+   *  many vertical wording shots … can't read it"), so a few a short at most (`max`, hand-set ones
+   *  count), only for lines sung in `maxSpan` seconds or less with at most `maxWords` words, and only
+   *  where rows would fill less than `belowFill` of the frame */
+  columns?: { max: number; maxWords: number; maxSpan: number; belowFill: number };
   /** how much the layout weighs dark time (a row's share of the frame × how long it waits to be sung) */
   darkWeight: number;
   /** rows smaller than this font size (fraction of the width) are solid: too thin to see footage through */
   minMask: number;
+  /** black words over the whole footage, flipping to the mask mid-line (user, s02/s03 v2: "when there are
+   *  too many words you can show it in reverse like text is black … when the line is reaching midpoint,
+   *  since most of the screen becomes filled, you can transit to mask style again"): screens of at least
+   *  `minWords` words, flipping once `lit` of the stack's ink is lit, if that leaves `minHold` seconds of
+   *  black words (a shorter spell just blinks). Over footage darker than `white` (mean luma 0–255 of the
+   *  shot under the spell, default 100) the words are white (user: "sometimes white text is also fine,
+   *  depends on what is visible on the video") */
+  reverse?: { minWords: number; lit: number; minHold: number; white?: number };
 };
 
 export type Box = { left: number; right: number; top: number; bottom: number };
@@ -63,7 +76,16 @@ export type RowLayout = {
     dive: { x: number; y: number; r: number };
   };
 
-export type StackLayout = { rows: RowLayout[]; stretch: number; score: number; throughRow: number; intoRow: number; label: string };
+export type StackLayout = {
+  rows: RowLayout[];
+  stretch: number;
+  score: number;
+  throughRow: number;
+  intoRow: number;
+  label: string;
+  /** song seconds: black words over the whole footage before it, the mask after; undefined: the mask throughout */
+  flip?: number;
+};
 
 export const caseOf = (text: string, c: TypeStyle['case']) => (c === 'lower' ? text.toLowerCase() : c === 'upper' ? text.toUpperCase() : text);
 
@@ -128,7 +150,7 @@ const partitions = (n: number, max: number): number[][][] => {
 type Vert = { side: 'left' | 'right'; k: number; dir: 'up' | 'down' | 'upright' };
 type Cand = { rows: number[][]; v: Vert | null; forced?: { fill?: Fill; color?: string; reveal?: number }[] };
 
-export const solveStack = (stack: ResolvedStack, font: Font, st: TypeStyle, W: number, H: number): StackLayout => {
+export const solveStack = (stack: ResolvedStack, font: Font, st: TypeStyle, W: number, H: number, columns = false): StackLayout => {
   const texts = stack.words.map(w => caseOf(w.text, st.case));
   const cache = new Map<string, { x1: number; y1: number; x2: number; y2: number }>();
   const measure = (idx: number[]) => {
@@ -150,36 +172,66 @@ export const solveStack = (stack: ResolvedStack, font: Font, st: TypeStyle, W: n
   // every row by hand set down the frame (a giant upright "i" beside "hold the line" turned to read
   // downward): columns side by side, all as tall as each other, tight — no spread rows, no gaps between
   // words (user, v10: the rows spread beside the pillar left gaps that "look bad … put them in vertical")
-  if (stack.rows && stack.rows.length > 1 && stack.rows.every(r => r.vertical)) {
-    const cols = stack.rows.map((r, i) => {
-      const b = measure(r.words);
-      const up = r.vertical === 'upright';
+  // columns: words set down the frame side by side, all as tall as each other, tight — a giant upright
+  // "i" beside "hold the line" turned to read downward; "dreaming | quietly | tonight". Rows that can't
+  // fill a height are never spread apart (user, v10: gaps between words "look bad … put them in vertical")
+  type Col = { words: number[]; vertical: 'up' | 'down' | 'upright'; fill?: Fill; color?: string; reveal?: number };
+  const columnFit = (cols: Col[]) => {
+    const per = cols.map(c => {
+      const b = measure(c.words);
       // thickness per pixel of length: standing, its width per height; turned, its height per width
-      return { r, i, b, up, per: up ? (b.x2 - b.x1) / (b.y2 - b.y1) : (b.y2 - b.y1) / (b.x2 - b.x1) };
+      return c.vertical === 'upright' ? (b.x2 - b.x1) / (b.y2 - b.y1) : (b.y2 - b.y1) / (b.x2 - b.x1);
     });
     const gaps = gap * (cols.length - 1);
-    const P = Math.min(Hav, (colFull - gaps) / cols.reduce((a, c) => a + c.per, 0));
-    const total = cols.reduce((a, c) => a + c.per * P, 0) + gaps;
-    let x = (W - total) / 2;
+    const P = Math.min(Hav, (colFull - gaps) / per.reduce((a, x) => a + x, 0));
+    const width = per.reduce((a, x) => a + x * P, 0) + gaps;
+    return { per, P, width, area: (P / Hav) * Math.min(1, width / colFull) };
+  };
+  const columnsLayout = (cols: Col[], score: number): StackLayout => {
+    const { per, P, width } = columnFit(cols);
+    // where each column sits: a run of columns turned to read downward goes right to left, as vertical
+    // Japanese does (read with the head tilted right, the rightmost line comes first — left to right,
+    // "ignite | the flame" read "the flame ignite"); a run turned upward goes left to right; a standing
+    // word (the giant i) keeps its place
+    const order: number[] = [];
+    for (let i = 0; i < cols.length; ) {
+      let j = i;
+      while (j + 1 < cols.length && cols[j + 1].vertical === cols[i].vertical && cols[i].vertical !== 'upright') j++;
+      const run = Array.from({ length: j - i + 1 }, (_, q) => i + q);
+      order.push(...(cols[i].vertical === 'down' ? run.reverse() : run));
+      i = j + 1;
+    }
+    const xs = new Map<number, number>();
+    let xx = (W - width) / 2;
+    for (const i of order) {
+      xs.set(i, xx);
+      xx += per[i] * P + gap;
+    }
     const y0 = st.top * H + (Hav - P) / 2;
-    const rowsOut: RowLayout[] = cols.map(({ r, b, up, per }) => {
-      const th = per * P;
+    const rowsOut: RowLayout[] = cols.map((c, i) => {
+      const b = measure(c.words);
+      const up = c.vertical === 'upright';
+      const th = per[i] * P;
       const size = (REF * P) / (up ? b.y2 - b.y1 : b.x2 - b.x1);
       const k = size / REF;
-      const cx = x;
+      const cx = xs.get(i)!;
       const map: Pt = up
         ? (px, py) => [cx + (px - b.x1 * k), y0 + (py - b.y1 * k)]
-        : r.vertical === 'down'
+        : c.vertical === 'down'
           ? (px, py) => [cx + (b.y2 * k - py), y0 + (px - b.x1 * k)]
           : (px, py) => [cx + (py - b.y1 * k), y0 + (b.x2 * k - px)];
-      const { paths } = setWords(font, r.words.map(w => texts[w]), size, st.tracking, map);
-      x += th + gap;
-      const fill: Fill = r.fill ?? (size >= st.minMask * W ? 'video' : 'solid');
-      return { words: r.words, paths: paths.map(p => p.toPathData(2)), vertical: r.vertical, size, fill, solidByHand: r.fill === 'solid', color: r.color, reveal: r.reveal, left: cx, right: cx + th, top: y0, bottom: y0 + P, dive: { x: 0, y: 0, r: 1 } };
+      const { paths } = setWords(font, c.words.map(w => texts[w]), size, st.tracking, map);
+      const m: Mark = c.fill || c.color || c.reveal !== undefined ? c : (c.words.map(w => stack.marks[w]).find(Boolean) ?? {});
+      const fill: Fill = m.fill ?? (size >= st.minMask * W ? 'video' : 'solid');
+      return { words: c.words, paths: paths.map(p => p.toPathData(2)), vertical: c.vertical, size, fill, solidByHand: m.fill === 'solid', color: m.color, reveal: m.reveal, left: cx, right: cx + th, top: y0, bottom: y0 + P, dive: { x: 0, y: 0, r: 1 } };
     });
     const rowOf = (w: number) => Math.max(0, rowsOut.findIndex(r => r.words.includes(w)));
     const label = rowsOut.map(r => `${{ up: '↑', down: '↓', upright: '▮' }[r.vertical as 'up']}${r.words.map(k => texts[k]).join(' ')}`).join(' | ');
-    return { rows: rowsOut, stretch: Hav / P, score: 0, throughRow: rowOf(stack.throughWord), intoRow: rowOf(stack.intoWord), label };
+    // `stretch` reports how much of the frame the columns fill (they can be height- or width-limited)
+    return { rows: rowsOut, stretch: 1 / columnFit(cols).area, score, throughRow: rowOf(stack.throughWord), intoRow: rowOf(stack.intoWord), label };
+  };
+  if (stack.rows && stack.rows.length >= 1 && stack.rows.every(r => r.vertical)) {
+    return columnsLayout(stack.rows.map(r => ({ words: r.words, vertical: r.vertical as Col['vertical'], fill: r.fill, color: r.color, reveal: r.reveal })), 0);
   }
 
   const cands: Cand[] = [];
@@ -321,6 +373,29 @@ export const solveStack = (stack: ResolvedStack, font: Font, st: TypeStyle, W: n
   };
 
   const best = cands.map(evaluate).sort((a, b) => a.score - b.score)[0];
+
+  // a short phrase that can't fill a height as rows may stand as columns instead, read left to right,
+  // each turned to read downward — a lone "i" first stands upright as a pillar (the user's giant I)
+  if (!stack.rows && columns && texts.length <= 7) {
+    const t0 = stack.start;
+    const span = Math.max(0.4, Math.max(...stack.words.map(w => w.show)) - t0);
+    let bestCol: { cols: Col[]; score: number } | null = null;
+    for (const groups of partitions(texts.length, 3)) {
+      if (groups.length > 4) continue;
+      const cols: Col[] = groups.map((g, gi) => ({ words: g, vertical: gi === 0 && g.length === 1 && texts[g[0]] === 'i' ? 'upright' : 'down' }));
+      // a turned column of one letter is a slab, not a word
+      if (cols.some(c => c.vertical === 'down' && c.words.length === 1 && texts[c.words[0]].length === 1)) continue;
+      const { area, P, per } = columnFit(cols);
+      // turned words read harder than rows: columns win only where rows clearly can't fill
+      let score = 3 * -Math.log(area) + 0.8 + 0.35 * Math.max(0, cols.length - 2);
+      if (cols[0].vertical === 'upright') score -= 0.3; // the giant I
+      // dark time, as for rows: a column is black until its first word is sung
+      const dark = cols.reduce((a, c, i) => a + ((per[i] * P) / colFull) * (P / Hav) * (Math.max(0, Math.min(...c.words.map(w => stack.words[w].show)) - t0) / span), 0);
+      score += st.darkWeight * dark;
+      if (!bestCol || score < bestCol.score) bestCol = { cols, score };
+    }
+    if (bestCol && bestCol.score < best.score) return columnsLayout(bestCol.cols, bestCol.score);
+  }
   const { c, vIdx, hIdx, beside, thick, colB, f, sy, extra, pillar } = best;
   const left = W * st.margin;
   const top = st.top * H;
@@ -474,11 +549,75 @@ const divePoint = (paths: string[], size: number, box: Box) => {
   return { x: box.left + ((bi % w) - pad + 0.5) * q, y: box.top + (Math.floor(bi / w) - pad + 0.5) * q, r: Math.max(1, (best - 0.5) * q) };
 };
 
-export const layoutStack = (stack: ResolvedStack, font: Font, st: TypeStyle, W: number, H: number): StackLayout => {
-  const lay = solveStack(stack, font, st, W, H);
-  const dives = new Set<number>();
-  if (stack.exit === 'through') dives.add(lay.throughRow);
-  if (stack.enter === 'into') dives.add(lay.intoRow);
-  for (const k of dives) lay.rows[k].dive = divePoint(lay.rows[k].paths, lay.rows[k].size, lay.rows[k]);
-  return lay;
+/** how much of the frame a layout fills: rows leave bands (stretch > 1) or shrink (< 1); columns report
+ *  1 / their area */
+const fillOf = (lay: StackLayout) => (lay.stretch >= 1 ? 1 / lay.stretch : lay.stretch);
+const isColumns = (lay: StackLayout) => lay.rows.some(r => r.vertical);
+
+/** every stack of a short laid out together: rows everywhere, columns only on the few short, fast lines
+ *  where rows would leave the frame mostly empty — the budget is the short's, hand-set columns count */
+const solveTypes = (stacks: ResolvedStack[], font: Font, st: TypeStyle, W: number, H: number): Map<number, StackLayout> => {
+  const out = new Map(stacks.map(s => [s.index, solveStack(s, font, st, W, H, false)] as const));
+  const c = st.columns;
+  if (!c) return out;
+  let left = c.max - [...out.values()].filter(isColumns).length;
+  if (left <= 0) return out;
+  const options = stacks
+    .filter(s => !s.rows && s.words.length <= c.maxWords && Math.max(...s.words.map(w => w.end)) - Math.min(...s.words.map(w => w.start)) <= c.maxSpan && fillOf(out.get(s.index)!) < c.belowFill)
+    .map(s => {
+      const lay = solveStack(s, font, st, W, H, true);
+      return { s, lay, gain: isColumns(lay) ? fillOf(lay) - fillOf(out.get(s.index)!) : 0 };
+    })
+    .filter(o => o.gain > 0.15)
+    .sort((a, b) => b.gain - a.gain);
+  for (const o of options) {
+    if (left-- <= 0) break;
+    out.set(o.s.index, o.lay);
+  }
+  return out;
+};
+
+/** when a stack flips from black words over the footage to the mask: as the word lands that brings the
+ *  lit share of its ink (each word's share of its row, by its letters) to `lit` */
+const flipOf = (stack: ResolvedStack, lay: StackLayout, st: TypeStyle): number | undefined => {
+  if (stack.reverse === false || stack.enter === 'into') return undefined;
+  if (typeof stack.reverse === 'number') return stack.reverse;
+  const r = st.reverse ?? { minWords: 4, lit: 0.5, minHold: 0.6 };
+  if (stack.reverse !== true && (!st.reverse || stack.words.length < r.minWords)) return undefined;
+  const area = new Map<number, number>();
+  for (const row of lay.rows) {
+    const a = (row.right - row.left) * (row.bottom - row.top);
+    const letters = row.words.reduce((n, w) => n + stack.words[w].text.length, 0);
+    for (const w of row.words) area.set(w, (a * stack.words[w].text.length) / letters);
+  }
+  const total = [...area.values()].reduce((a, b) => a + b, 0);
+  const order = stack.words.map((_, i) => i).sort((a, b) => stack.words[a].show - stack.words[b].show);
+  let sum = 0;
+  for (const i of order) {
+    sum += area.get(i) ?? 0;
+    if (sum < r.lit * total) continue;
+    const flip = Math.min(stack.words[i].show, stack.exit === 'through' ? stack.diveFrom : Infinity);
+    return stack.reverse === true || flip - stack.start >= r.minHold ? flip : undefined;
+  }
+  return undefined;
+};
+
+/** every stack of a short laid out together (rows, the few columns), and when each flips to the mask */
+export const solveShort = (stacks: ResolvedStack[], font: Font, st: TypeStyle, W: number, H: number): Map<number, StackLayout> => {
+  const out = solveTypes(stacks, font, st, W, H);
+  for (const stack of stacks) out.get(stack.index)!.flip = flipOf(stack, out.get(stack.index)!, st);
+  return out;
+};
+
+/** solveShort, plus the dive points (needs a canvas) */
+export const layoutShort = (stacks: ResolvedStack[], font: Font, st: TypeStyle, W: number, H: number): Map<number, StackLayout> => {
+  const out = solveShort(stacks, font, st, W, H);
+  for (const stack of stacks) {
+    const lay = out.get(stack.index)!;
+    const dives = new Set<number>();
+    if (stack.exit === 'through') dives.add(lay.throughRow);
+    if (stack.enter === 'into') dives.add(lay.intoRow);
+    for (const k of dives) lay.rows[k].dive = divePoint(lay.rows[k].paths, lay.rows[k].size, lay.rows[k]);
+  }
+  return out;
 };
