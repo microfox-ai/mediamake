@@ -3,10 +3,10 @@
 import { useMemo } from 'react';
 import { ArrowRightIcon, FolderKanbanIcon, GitForkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { filterFamilies, filterProjects, filterSkills } from '@/lib/skill-library/filter';
+import { filterFamilies, filterProductions, filterSkills } from '@/lib/skill-library/filter';
 import { humanize } from '@/lib/skill-library/model';
 import type { Skill } from '@/lib/skill-library/types';
-import { Chip, KIND_LABEL, ProjectCard, SkillCard } from './Cards';
+import { Chip, KIND_LABEL, ProductionCard, SkillCard } from './Cards';
 import { Thumb } from './Thumb';
 import { useSkillLibraryStore } from './store';
 
@@ -28,14 +28,14 @@ export function useMatchingSkills(): Skill[] {
   );
 }
 
-export function useMatchingProjects() {
+export function useMatchingProductions() {
   const library = useSkillLibraryStore(s => s.library);
   const query = useSkillLibraryStore(s => s.query);
   const filters = useSkillLibraryStore(s => s.filters);
   const sort = useSkillLibraryStore(s => s.sort);
   const pins = useSkillLibraryStore(s => s.pins);
   return useMemo(
-    () => filterProjects(library, { query, owner: filters.owner, pinned: filters.pinned ? new Set(pins) : null, sort }),
+    () => filterProductions(library, { query, owner: filters.owner, pinned: filters.pinned ? new Set(pins) : null, sort }),
     [library, query, filters, sort, pins],
   );
 }
@@ -93,7 +93,7 @@ export function SkillsGrid() {
   );
 }
 
-/** One row per base skill: the base, then each variant with where it came from, then the projects it was used in. */
+/** One row per base skill: the base, then each variant with where it came from, then the productions it was used in. */
 export function FamiliesView() {
   const matching = useMatchingSkills();
   const library = useSkillLibraryStore(s => s.library);
@@ -108,7 +108,7 @@ export function FamiliesView() {
     <div className="space-y-10">
       {withVariants.length === 0 && (
         <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-          No variants yet. A variant is a copy of a skill steered toward one project or style (<code className="font-mono text-xs">&lt;skill&gt;-like-&lt;project&gt;</code>) or an older version kept as it was (
+          No variants yet. A variant is a copy of a skill steered toward one production or style (<code className="font-mono text-xs">&lt;skill&gt;-like-&lt;production&gt;</code>) or an older version kept as it was (
           <code className="font-mono text-xs">&lt;skill&gt;-v2</code>). Make one with <code className="font-mono text-xs">/fork-skill</code>, or open a skill and press <b>Make a variant</b>.
         </p>
       )}
@@ -120,7 +120,7 @@ export function FamiliesView() {
               <h2 className="text-[15px] font-semibold tracking-tight">{base?.title ?? humanize(f.base)}</h2>
               <span className="font-mono text-[11px] text-muted-foreground">{f.base}</span>
               <span className="ml-auto text-xs text-muted-foreground">
-                {f.variants.length} variant{f.variants.length === 1 ? '' : 's'} · {f.projects.length} project{f.projects.length === 1 ? '' : 's'}
+                {f.variants.length} variant{f.variants.length === 1 ? '' : 's'} · {f.productions.length} production{f.productions.length === 1 ? '' : 's'}
               </span>
             </div>
             <div className="flex items-stretch gap-3 overflow-x-auto pb-1">
@@ -156,15 +156,15 @@ export function FamiliesView() {
                 );
               })}
             </div>
-            {f.projects.length > 0 && (
+            {f.productions.length > 0 && (
               <div className="mt-4 flex items-center gap-2 overflow-x-auto border-t pt-3">
                 <span className="flex shrink-0 items-center gap-1.5 px-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                  <FolderKanbanIcon className="size-3.5" /> Projects
+                  <FolderKanbanIcon className="size-3.5" /> Productions
                 </span>
-                {f.projects.map(slug => {
-                  const p = library.projects[slug];
+                {f.productions.map(slug => {
+                  const p = library.productions[slug];
                   return (
-                    <button key={slug} type="button" onClick={() => select({ kind: 'project', id: slug })} className="flex shrink-0 items-center gap-2 rounded-full border bg-background py-0.5 pl-0.5 pr-3 text-xs transition hover:bg-muted">
+                    <button key={slug} type="button" onClick={() => select({ kind: 'production', id: slug })} className="flex shrink-0 items-center gap-2 rounded-full border bg-background py-0.5 pl-0.5 pr-3 text-xs transition hover:bg-muted">
                       <Thumb image={p.thumbnail} seed={slug} title={p.title} compact className="size-6 rounded-full" />
                       {p.title}
                     </button>
@@ -187,23 +187,23 @@ export function FamiliesView() {
   );
 }
 
-export function ProjectsGrid() {
-  const projects = useMatchingProjects();
+export function ProductionsGrid() {
+  const productions = useMatchingProductions();
   const size = useSkillLibraryStore(s => s.cardSize);
-  const total = useSkillLibraryStore(s => Object.keys(s.library.projects).length);
+  const total = useSkillLibraryStore(s => Object.keys(s.library.productions).length);
   if (!total)
     return (
       <Nothing>
         <span className="max-w-md text-center">
-          No projects found. A project is a folder with a <code className="font-mono text-xs">mediamake.json</code> (or an <code className="font-mono text-xs">input/project.json</code>, like lyrics_videos projects). Add the folder that holds them.
+          No productions found. A production is a folder with a <code className="font-mono text-xs">mediamake.json</code> (or an <code className="font-mono text-xs">input/project.json</code>, like lyrics_videos projects). Add the folder that holds them.
         </span>
       </Nothing>
     );
-  if (!projects.length) return <Nothing>No projects match.</Nothing>;
+  if (!productions.length) return <Nothing>No productions match.</Nothing>;
   return (
     <div className={cn('grid gap-x-3 gap-y-4', GRID[size])}>
-      {projects.map(p => (
-        <ProjectCard key={p.slug} project={p} size={size} />
+      {productions.map(p => (
+        <ProductionCard key={p.slug} production={p} size={size} />
       ))}
     </div>
   );

@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { FolderKanbanIcon, GitForkIcon, LayersIcon, StarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Project, Skill, VariantKind } from '@/lib/skill-library/types';
+import type { Production, Skill, VariantKind } from '@/lib/skill-library/types';
 import { Thumb } from './Thumb';
 import { pinKey, useSkillLibraryStore } from './store';
 
-export const KIND_LABEL: Record<VariantKind, string> = { project: 'From a project', style: 'Style', version: 'Version' };
+export const KIND_LABEL: Record<VariantKind, string> = { production: 'From a production', style: 'Style', version: 'Version' };
 
 export function Chip({ children, className, tone = 'muted' }: { children: React.ReactNode; className?: string; tone?: 'muted' | 'accent' | 'outline' | 'dark' }) {
   return (
@@ -54,9 +54,9 @@ export function SkillCard({ skill, stacked = 0, dim, size = 'md' }: { skill: Ski
   const pinned = useSkillLibraryStore(s => s.pins.includes(pinKey({ kind: 'skill', id: skill.name })));
   const select = useSkillLibraryStore(s => s.select);
   const togglePin = useSkillLibraryStore(s => s.togglePin);
-  const projects = useSkillLibraryStore(s => s.library.projects);
+  const productions = useSkillLibraryStore(s => s.library.productions);
   const [hover, setHover] = useState(false);
-  const origin = skill.variant?.project ? projects[skill.variant.project] : null;
+  const origin = skill.variant?.production ? productions[skill.variant.production] : null;
 
   return (
     <div
@@ -119,9 +119,9 @@ export function SkillCard({ skill, stacked = 0, dim, size = 'md' }: { skill: Ski
                 <FolderKanbanIcon /> {origin.title}
               </Chip>
             )}
-            {!origin && skill.projects.length > 0 && (
+            {!origin && skill.productions.length > 0 && (
               <Chip>
-                <FolderKanbanIcon /> {skill.projects.length}
+                <FolderKanbanIcon /> {skill.productions.length}
               </Chip>
             )}
           </div>
@@ -131,41 +131,41 @@ export function SkillCard({ skill, stacked = 0, dim, size = 'md' }: { skill: Ski
   );
 }
 
-export function ProjectCard({ project, size = 'md' }: { project: Project; size?: 'sm' | 'md' | 'lg' }) {
-  const selected = useSkillLibraryStore(s => s.selected?.kind === 'project' && s.selected.id === project.slug);
-  const pinned = useSkillLibraryStore(s => s.pins.includes(pinKey({ kind: 'project', id: project.slug })));
+export function ProductionCard({ production, size = 'md' }: { production: Production; size?: 'sm' | 'md' | 'lg' }) {
+  const selected = useSkillLibraryStore(s => s.selected?.kind === 'production' && s.selected.id === production.slug);
+  const pinned = useSkillLibraryStore(s => s.pins.includes(pinKey({ kind: 'production', id: production.slug })));
   const select = useSkillLibraryStore(s => s.select);
   const togglePin = useSkillLibraryStore(s => s.togglePin);
   const skills = useSkillLibraryStore(s => s.library.skills);
-  const used = project.skills.filter(n => skills[n]);
+  const used = production.skills.filter(n => skills[n]);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      data-card={`project:${project.slug}`}
-      onClick={() => select({ kind: 'project', id: project.slug })}
-      onKeyDown={e => e.key === 'Enter' && select({ kind: 'project', id: project.slug })}
+      data-card={`production:${production.slug}`}
+      onClick={() => select({ kind: 'production', id: production.slug })}
+      onKeyDown={e => e.key === 'Enter' && select({ kind: 'production', id: production.slug })}
       className={cn('group relative flex min-w-0 cursor-pointer flex-col gap-2.5 rounded-2xl p-1.5 outline-none transition hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring', selected && 'bg-muted/80 ring-1 ring-foreground/15')}
     >
       <div className="relative">
-        <Thumb image={project.thumbnail} seed={project.slug} title={project.title} label="project" className="aspect-video rounded-xl border border-black/5" />
+        <Thumb image={production.thumbnail} seed={production.slug} title={production.title} label="production" className="aspect-video rounded-xl border border-black/5" />
         <span className="absolute right-2 top-2">
-          <PinButton pinned={pinned} onToggle={() => togglePin(pinKey({ kind: 'project', id: project.slug }))} />
+          <PinButton pinned={pinned} onToggle={() => togglePin(pinKey({ kind: 'production', id: production.slug }))} />
         </span>
-        {project.bornVariants.length > 0 && (
+        {production.bornVariants.length > 0 && (
           <span className="absolute bottom-2 left-2">
             <Chip tone="dark">
-              <GitForkIcon /> {project.bornVariants.length} variant{project.bornVariants.length === 1 ? '' : 's'} made here
+              <GitForkIcon /> {production.bornVariants.length} variant{production.bornVariants.length === 1 ? '' : 's'} made here
             </Chip>
           </span>
         )}
       </div>
       <div className="min-w-0 px-1 pb-1">
-        <div className={cn('truncate font-medium leading-tight', TITLE_SIZE[size])}>{project.title}</div>
+        <div className={cn('truncate font-medium leading-tight', TITLE_SIZE[size])}>{production.title}</div>
         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-          {project.artist ? `${project.artist} · ` : ''}
-          <span className="font-mono">{project.slug}</span>
+          {production.artist ? `${production.artist} · ` : ''}
+          <span className="font-mono">{production.slug}</span>
         </div>
         {size !== 'sm' && (
           <div className="mt-2 flex flex-wrap gap-1">

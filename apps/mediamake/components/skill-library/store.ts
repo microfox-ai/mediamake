@@ -7,9 +7,9 @@ import { isAbortError } from '@/lib/local-media/file-access';
 import * as history from '@/lib/skill-library/history';
 import { buildLibrary } from '@/lib/skill-library/model';
 import { fileAt, scanSource } from '@/lib/skill-library/scan';
-import { writeProjectManifest, writeSkillManifest, writeThumbnail } from '@/lib/skill-library/write';
-import type { FileRef, Library, ProjectManifest, SkillManifest, SourceScan, VariantKind } from '@/lib/skill-library/types';
-import { PROJECT_MANIFEST, PROJECT_SCHEMA, SKILL_MANIFEST, SKILL_SCHEMA } from '@/lib/skill-library/types';
+import { writeProductionManifest, writeSkillManifest, writeThumbnail } from '@/lib/skill-library/write';
+import type { FileRef, Library, ProductionManifest, SkillManifest, SourceScan, VariantKind } from '@/lib/skill-library/types';
+import { PRODUCTION_MANIFEST, PRODUCTION_SCHEMA, SKILL_MANIFEST, SKILL_SCHEMA } from '@/lib/skill-library/types';
 
 type PickerWindow = Window & {
   showDirectoryPicker?: (options?: { id?: string; mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
@@ -30,10 +30,10 @@ export interface SourceState extends history.SourceEntry {
   scannedAt?: number;
 }
 
-export type View = 'skills' | 'families' | 'projects';
+export type View = 'skills' | 'families' | 'productions';
 export type Sort = 'name' | 'recent';
 export type CardSize = 'sm' | 'md' | 'lg';
-export type Selection = { kind: 'skill'; id: string } | { kind: 'project'; id: string } | null;
+export type Selection = { kind: 'skill'; id: string } | { kind: 'production'; id: string } | null;
 export interface Filters {
   category: string | null;
   type: 'all' | 'base' | 'variant';
@@ -43,7 +43,7 @@ export interface Filters {
 }
 export const NO_FILTERS: Filters = { category: null, type: 'all', variantKind: null, owner: null, pinned: false };
 
-const EMPTY: Library = { skills: {}, projects: {}, families: [], categories: [], owners: [] };
+const EMPTY: Library = { skills: {}, productions: {}, families: [], categories: [], owners: [] };
 
 interface State {
   support: FolderSupport | null;
@@ -81,7 +81,7 @@ interface State {
   pickThumbnail: (sel: NonNullable<Selection>) => Promise<void>;
   thumbnailFromImage: (sel: NonNullable<Selection>, ref: FileRef) => Promise<void>;
   saveSkill: (name: string, patch: Partial<SkillManifest>) => Promise<boolean>;
-  saveProject: (slug: string, patch: Partial<ProjectManifest>) => Promise<boolean>;
+  saveProduction: (slug: string, patch: Partial<ProductionManifest>) => Promise<boolean>;
 }
 
 const pinKey = (sel: NonNullable<Selection>) => `${sel.kind}:${sel.id}`;
@@ -90,7 +90,7 @@ export { pinKey };
 function syncUrl(sel: Selection, view: View) {
   const url = new URL(window.location.href);
   url.searchParams.delete('skill');
-  url.searchParams.delete('project');
+  url.searchParams.delete('production');
   if (sel) url.searchParams.set(sel.kind, sel.id);
   if (view === 'skills') url.searchParams.delete('view');
   else url.searchParams.set('view', view);
@@ -119,7 +119,7 @@ export const useSkillLibraryStore = create<State>((set, get) => {
     try {
       const scan = await scanSource(src.handle, id);
       patchSource(id, { status: 'ready', scan, scannedAt: Date.now() });
-      if (scan.truncated) toast.message(`Stopped reading ${src.name} after ${scan.visited} folders`, { description: 'Add a smaller folder (e.g. .claude/skills or a projects folder) to see everything in it.' });
+      if (scan.truncated) toast.message(`Stopped reading ${src.name} after ${scan.visited} folders`, { description: 'Add a smaller folder (e.g. .claude/skills or a productions folder) to see everything in it.' });
     } catch {
       patchSource(id, { status: 'error' });
     }
@@ -129,7 +129,7 @@ export const useSkillLibraryStore = create<State>((set, get) => {
   /** The folder to write into, after asking for write access to its source. */
   const writable = async (sel: NonNullable<Selection>) => {
     const { library, sources } = get();
-    const item = sel.kind === 'skill' ? library.skills[sel.id] : library.projects[sel.id];
+    const item = sel.kind === 'skill' ? library.skills[sel.id] : library.productions[sel.id];
     if (!item) return null;
     const src = sources.find(s => s.id === item.sourceId);
     if (!src || (await requestReadWrite(src.handle)) !== 'granted') {
@@ -145,7 +145,7 @@ export const useSkillLibraryStore = create<State>((set, get) => {
     const manifest =
       sel.kind === 'skill'
         ? { file: SKILL_MANIFEST, schema: SKILL_SCHEMA, thumbnail: target.item.manifest?.thumbnail }
-        : { file: PROJECT_MANIFEST, schema: PROJECT_SCHEMA, thumbnail: target.item.manifest?.thumbnail };
+        : { file: PRODUCTION_MANIFEST, schema: PRODUCTION_SCHEMA, thumbnail: target.item.manifest?.thumbnail };
     try {
       const file = await writeThumbnail(target.dir, image, name, manifest);
       toast.success(`Thumbnail saved`, { description: `${target.item.path}/${file}` });
@@ -177,7 +177,7 @@ export const useSkillLibraryStore = create<State>((set, get) => {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
       const skill = params.get('skill');
-      const project = params.get('project');
+      const production = params.get('production');
       const [pins, cardSize, groupVariants, sort] = await Promise.all([
         history.loadPref<string[]>('pins', []),
         history.loadPref<CardSize>('cardSize', 'md'),
@@ -191,8 +191,8 @@ export const useSkillLibraryStore = create<State>((set, get) => {
         cardSize,
         groupVariants,
         sort,
-        view: view === 'families' || view === 'projects' ? view : 'skills',
-        selected: skill ? { kind: 'skill', id: skill } : project ? { kind: 'project', id: project } : null,
+        view: view === 'families' || view === 'productions' ? view : 'skills',
+        selected: skill ? { kind: 'skill', id: skill } : production ? { kind: 'production', id: production } : null,
       });
       if (!support.supported) return;
       const entries = await history.loadSources().catch(() => []);
@@ -304,12 +304,12 @@ export const useSkillLibraryStore = create<State>((set, get) => {
       }
     },
 
-    saveProject: async (slug, patch) => {
-      const target = await writable({ kind: 'project', id: slug });
+    saveProduction: async (slug, patch) => {
+      const target = await writable({ kind: 'production', id: slug });
       if (!target) return false;
       try {
-        await writeProjectManifest(target.dir, patch);
-        toast.success('Saved', { description: `${target.item.path}/${PROJECT_MANIFEST}` });
+        await writeProductionManifest(target.dir, patch);
+        toast.success('Saved', { description: `${target.item.path}/${PRODUCTION_MANIFEST}` });
         await scanOne(target.item.sourceId);
         return true;
       } catch (err) {

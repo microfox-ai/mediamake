@@ -1,6 +1,6 @@
 import { readJsonIn, removeFileIn, writeFileIn } from '@/lib/revisions/fs';
-import type { ProjectManifest, SkillManifest } from './types';
-import { PROJECT_MANIFEST, PROJECT_SCHEMA, SKILL_MANIFEST, SKILL_SCHEMA } from './types';
+import type { ProductionManifest, SkillManifest } from './types';
+import { PRODUCTION_MANIFEST, PRODUCTION_SCHEMA, SKILL_MANIFEST, SKILL_SCHEMA } from './types';
 
 type IterableDirectoryHandle = FileSystemDirectoryHandle & {
   values: () => AsyncIterable<FileSystemDirectoryHandle | FileSystemFileHandle>;
@@ -43,13 +43,13 @@ async function merge<T extends Record<string, unknown>>(dir: FileSystemDirectory
 export const writeSkillManifest = (dir: FileSystemDirectoryHandle, patch: Partial<SkillManifest>) =>
   merge<SkillManifest>(dir, SKILL_MANIFEST, SKILL_SCHEMA, patch);
 
-export const writeProjectManifest = (dir: FileSystemDirectoryHandle, patch: Partial<ProjectManifest>) =>
-  merge<ProjectManifest>(dir, PROJECT_MANIFEST, PROJECT_SCHEMA, patch);
+export const writeProductionManifest = (dir: FileSystemDirectoryHandle, patch: Partial<ProductionManifest>) =>
+  merge<ProductionManifest>(dir, PRODUCTION_MANIFEST, PRODUCTION_SCHEMA, patch);
 
 const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
 
 /**
- * Writes `thumbnail.<ext>` into a skill or project folder (replacing any other
+ * Writes `thumbnail.<ext>` into a skill or production folder (replacing any other
  * thumbnail.*), and points the manifest at it when the manifest names another file.
  */
 export async function writeThumbnail(

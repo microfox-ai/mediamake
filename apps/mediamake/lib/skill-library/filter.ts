@@ -1,4 +1,4 @@
-import type { Family, Library, Project, Skill, VariantKind } from './types';
+import type { Family, Library, Production, Skill, VariantKind } from './types';
 
 export interface SkillQuery {
   query: string;
@@ -24,16 +24,16 @@ function skillText(lib: Library, s: Skill): string {
     s.variant?.label,
     s.variant?.ref,
     s.variant?.kind,
-    ...s.projects.map(p => lib.projects[p]?.title),
-    s.variant?.project && lib.projects[s.variant.project]?.title,
+    ...s.productions.map(p => lib.productions[p]?.title),
+    s.variant?.production && lib.productions[s.variant.production]?.title,
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
 }
 
-function projectText(lib: Library, p: Project): string {
-  return [p.slug, p.title, p.artist, p.summary, p.owner, ...p.tags, ...p.skills, ...p.bornVariants.map(v => lib.skills[v]?.variant?.label)]
+function productionText(lib: Library, p: Production): string {
+  return [p.slug, p.title, p.artist, p.project, p.summary, p.owner, ...p.tags, ...p.skills, ...p.bornVariants.map(v => lib.skills[v]?.variant?.label)]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -67,13 +67,13 @@ export function filterFamilies(lib: Library, matching: Skill[]): (Family & { mem
     .sort((a, b) => b.variants.length - a.variants.length || byName(a.base, b.base));
 }
 
-export function filterProjects(lib: Library, q: Pick<SkillQuery, 'query' | 'owner' | 'pinned' | 'sort'>): Project[] {
+export function filterProductions(lib: Library, q: Pick<SkillQuery, 'query' | 'owner' | 'pinned' | 'sort'>): Production[] {
   const terms = words(q.query);
-  const out = Object.values(lib.projects).filter(p => {
+  const out = Object.values(lib.productions).filter(p => {
     if (q.owner && p.owner !== q.owner) return false;
-    if (q.pinned && !q.pinned.has(`project:${p.slug}`)) return false;
+    if (q.pinned && !q.pinned.has(`production:${p.slug}`)) return false;
     if (!terms.length) return true;
-    const text = projectText(lib, p);
+    const text = productionText(lib, p);
     return terms.every(t => text.includes(t));
   });
   return out.sort((a, b) => (q.sort === 'recent' ? b.lastModified - a.lastModified : 0) || byName(a.title, b.title));

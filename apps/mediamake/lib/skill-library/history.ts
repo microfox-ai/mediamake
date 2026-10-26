@@ -1,7 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 /**
- * Source folders (a repo, ~/.claude/skills, a projects folder) and the
+ * Source folders (a repo, ~/.claude/skills, a productions folder) and the
  * viewer's pins, kept in IndexedDB like the revision screens' history. Chrome
  * asks for permission again on each visit unless "Allow on every visit" was chosen.
  */

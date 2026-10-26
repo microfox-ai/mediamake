@@ -1,25 +1,25 @@
 /*
  * The two files the skill library reads besides SKILL.md. Both are optional:
  * without them the library still lists every skill (from its frontmatter),
- * finds variants by `metadata.variant-of` or their name, and finds projects
+ * finds variants by `metadata.variant-of` or their name, and finds productions
  * by `input/project.json`. See components/skill-library/README.md.
  */
 
 export const SKILL_SCHEMA = 'mediamake.skill/v1';
-export const PROJECT_SCHEMA = 'mediamake.project/v1';
+export const PRODUCTION_SCHEMA = 'mediamake.production/v1';
 
 /** skill.json next to SKILL.md. */
 export const SKILL_MANIFEST = 'skill.json';
-/** mediamake.json at the root of a project folder. */
-export const PROJECT_MANIFEST = 'mediamake.json';
+/** mediamake.json at the root of a production folder. */
+export const PRODUCTION_MANIFEST = 'mediamake.json';
 
 /**
- * project: modelled on one finished project (`<base>-like-<project>`).
- * style: a look that isn't one project (`<base>-like-<style>`).
+ * production: modelled on one finished production (`<base>-like-<production>`).
+ * style: a look that isn't one production (`<base>-like-<style>`).
  * version: the base frozen before a big change (`<base>-v<N>`).
  */
-export type VariantKind = 'project' | 'style' | 'version';
-export const VARIANT_KINDS: VariantKind[] = ['project', 'style', 'version'];
+export type VariantKind = 'production' | 'style' | 'version';
+export const VARIANT_KINDS: VariantKind[] = ['production', 'style', 'version'];
 
 /** skill.json · mediamake.skill/v1. Paths are relative to the skill's folder. */
 export interface SkillManifest {
@@ -34,7 +34,7 @@ export interface SkillManifest {
   /** More images shown on the skill's page (examples of what it makes). */
   gallery?: string[];
   tags?: string[];
-  /** Whose skill or variant this is: a variant made from your project is yours. */
+  /** Whose skill or variant this is: a variant made from your production is yours. */
   owner?: string;
   /** Overrides the category taken from the name's verb. */
   category?: string;
@@ -42,30 +42,35 @@ export interface SkillManifest {
     /** The base skill's name (same as frontmatter `metadata.variant-of`). */
     of?: string;
     kind?: VariantKind;
-    /** The project slug, style name or version it is modelled on. */
+    /** The production slug, style name or version it is modelled on. */
     ref?: string;
     /** Shown on the card, e.g. "F1 × Hit It". */
     label?: string;
-    /** The project it was made from, when that's a project slug the library knows. */
-    project?: string;
+    /** The production it was made from, when that's a production slug the library knows. */
+    production?: string;
   };
-  /** Slugs of projects made with this skill. */
-  projects?: string[];
+  /** Slugs of productions made with this skill. */
+  productions?: string[];
   [key: string]: unknown;
 }
 
-/** mediamake.json · mediamake.project/v1. Paths are relative to the project's folder. */
-export interface ProjectManifest {
+/** mediamake.json · mediamake.production/v1. Paths are relative to the production's folder. */
+export interface ProductionManifest {
   schema?: string;
   slug?: string;
   title?: string;
   /** Artist, channel or client. */
   artist?: string;
+  /**
+   * The mediamake project (channel or brand, with its brand kit) this production belongs to:
+   * the cloud project's name or id.
+   */
+  project?: string;
   summary?: string;
   thumbnail?: string;
   owner?: string;
   tags?: string[];
-  /** Skills and variants used in this project, by name. */
+  /** Skills and variants used in this production, by name. */
   skills?: string[];
   [key: string]: unknown;
 }
@@ -108,12 +113,12 @@ export interface ScannedSkill {
   lastModified: number;
 }
 
-export interface ScannedProject {
+export interface ScannedProduction {
   slug: string;
   sourceId: string;
   path: string;
   dir: FileSystemDirectoryHandle;
-  manifest: ProjectManifest | null;
+  manifest: ProductionManifest | null;
   /** input/project.json (lyrics_videos projects): title, artist. */
   info: { title?: string; artist?: string } | null;
   /** thumbnail.* or cover.* in the folder, or a cover in input/. */
@@ -121,7 +126,7 @@ export interface ScannedProject {
   lastModified: number;
 }
 
-/** An image set (index.json · mediamake.image-set/v1), e.g. a project's thumbnails. */
+/** An image set (index.json · mediamake.image-set/v1), e.g. a production's thumbnails. */
 export interface ScannedSet {
   job: string;
   sourceId: string;
@@ -137,7 +142,7 @@ export interface ScannedSet {
 
 export interface SourceScan {
   skills: ScannedSkill[];
-  projects: ScannedProject[];
+  productions: ScannedProduction[];
   sets: ScannedSet[];
   /** Folders looked at; the scan stops at a budget. */
   visited: number;
@@ -170,35 +175,37 @@ export interface Skill {
     kind: VariantKind;
     ref: string;
     label: string;
-    /** Origin project's slug when known. */
-    project?: string;
+    /** Origin production's slug when known. */
+    production?: string;
   } | null;
   /** The base family: the root skill's name (itself for a base). */
   family: string;
   /** Names of direct variants. */
   variants: string[];
-  /** Project slugs this skill is used in (manifests, mentions, image sets it made). */
-  projects: string[];
+  /** Production slugs this skill is used in (manifests, mentions, image sets it made). */
+  productions: string[];
   thumbnail: FileRef | null;
   preview: FileRef | null;
   gallery: FileRef[];
 }
 
-export interface Project {
+export interface Production {
   slug: string;
   title: string;
   artist?: string;
+  /** The mediamake project (channel or brand) it belongs to. */
+  project?: string;
   summary?: string;
   owner?: string;
   tags: string[];
   sourceId: string;
   path: string;
   dir: FileSystemDirectoryHandle;
-  manifest: ProjectManifest | null;
+  manifest: ProductionManifest | null;
   lastModified: number;
   /** Skills used here (bases and variants). */
   skills: string[];
-  /** Variants that were made from this project. */
+  /** Variants that were made from this production. */
   bornVariants: string[];
   thumbnail: FileRef | null;
   gallery: FileRef[];
@@ -210,12 +217,12 @@ export interface Family {
   baseInstalled: boolean;
   /** Every variant, depth-first (variants of variants included). */
   variants: string[];
-  projects: string[];
+  productions: string[];
 }
 
 export interface Library {
   skills: Record<string, Skill>;
-  projects: Record<string, Project>;
+  productions: Record<string, Production>;
   families: Family[];
   categories: { id: string; count: number }[];
   owners: string[];

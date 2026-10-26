@@ -48,7 +48,7 @@ export function Sidebar() {
   const variants = skills.filter(s => s.variant);
   const kindCount = (k: string) => variants.filter(v => v.variant!.kind === k).length;
   const filtered = JSON.stringify(filters) !== JSON.stringify(NO_FILTERS);
-  const forSkills = view !== 'projects';
+  const forSkills = view !== 'productions';
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-muted/20">
@@ -110,7 +110,7 @@ export function Sidebar() {
                       <RefreshCwIcon className="size-3.5" />
                     </button>
                   </Hint>
-                  <Hint label="Add a folder: a repo, ~/.claude/skills, or a projects folder">
+                  <Hint label="Add a folder: a repo, ~/.claude/skills, or a productions folder">
                     <button type="button" className="rounded p-1 hover:bg-muted hover:text-foreground" onClick={() => void addSource()}>
                       <PlusIcon className="size-3.5" />
                     </button>
@@ -134,7 +134,7 @@ export function Sidebar() {
                 </div>
                 {src.status === 'ready' && src.scan && (
                   <div className="pl-[22px] text-[11px] text-muted-foreground">
-                    {src.scan.skills.length} skills · {src.scan.projects.length} projects
+                    {src.scan.skills.length} skills · {src.scan.productions.length} productions
                   </div>
                 )}
                 {src.status === 'needs-permission' && (

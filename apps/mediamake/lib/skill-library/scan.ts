@@ -1,8 +1,8 @@
 import { readFileIn, readJsonIn } from '@/lib/revisions/fs';
 import { normalizeIndex } from '@/lib/image-revisions/sets';
 import { parseSkillMd } from './frontmatter';
-import type { ProjectManifest, ScannedProject, ScannedSet, ScannedSkill, SkillLocation, SkillManifest, SourceScan } from './types';
-import { PROJECT_MANIFEST, PROJECT_SCHEMA, SKILL_MANIFEST } from './types';
+import type { ProductionManifest, ScannedProduction, ScannedSet, ScannedSkill, SkillLocation, SkillManifest, SourceScan } from './types';
+import { PRODUCTION_MANIFEST, PRODUCTION_SCHEMA, SKILL_MANIFEST } from './types';
 
 type IterableDirectoryHandle = FileSystemDirectoryHandle & {
   values: () => AsyncIterable<FileSystemDirectoryHandle | FileSystemFileHandle>;
@@ -14,7 +14,7 @@ const COVER = /^(thumbnail|cover|poster)\.(jpe?g|png|webp|gif|avif)$/i;
 
 /**
  * Folders never worth walking into: dependencies, builds, and the code folders
- * of an app (skills and projects don't live there). Hidden folders are skipped
+ * of an app (skills and productions don't live there). Hidden folders are skipped
  * too, except `.claude` and `.agents`, where Claude Code keeps skills.
  */
 const SKIP = new Set([
@@ -77,9 +77,9 @@ async function readSkill(dir: FileSystemDirectoryHandle, path: string, files: st
   };
 }
 
-async function readProject(dir: FileSystemDirectoryHandle, path: string, files: string[], sourceId: string): Promise<ScannedProject | null> {
-  const manifest = files.includes(PROJECT_MANIFEST) ? await readJson<ProjectManifest>(dir, PROJECT_MANIFEST) : null;
-  const isManifest = manifest && (!manifest.schema || manifest.schema === PROJECT_SCHEMA);
+async function readProduction(dir: FileSystemDirectoryHandle, path: string, files: string[], sourceId: string): Promise<ScannedProduction | null> {
+  const manifest = files.includes(PRODUCTION_MANIFEST) ? await readJson<ProductionManifest>(dir, PRODUCTION_MANIFEST) : null;
+  const isManifest = manifest && (!manifest.schema || manifest.schema === PRODUCTION_SCHEMA);
   const input = await subdir(dir, 'input');
   const info = input ? await readJson<{ title?: string; artist?: string }>(input, 'project.json') : null;
   if (!isManifest && !info) return null;
@@ -115,14 +115,14 @@ async function readSet(dir: FileSystemDirectoryHandle, path: string, sourceId: s
 }
 
 /**
- * Every skill (a folder with SKILL.md), project (mediamake.json or
+ * Every skill (a folder with SKILL.md), production (mediamake.json or
  * input/project.json) and image set (index.json) under `root`. Works on a repo
- * root (finds .claude/skills, .agents/skills, apps/x/projects and apps/x/out),
- * ~/.claude/skills, a projects folder, or one skill. Stops at a budget of
+ * root (finds .claude/skills, .agents/skills, apps/x/productions and apps/x/out),
+ * ~/.claude/skills, a productions folder, or one skill. Stops at a budget of
  * folders so a huge pick can't hang the page.
  */
 export async function scanSource(root: FileSystemDirectoryHandle, sourceId: string, { maxDepth = 5, budget = 4000 } = {}): Promise<SourceScan> {
-  const out: SourceScan = { skills: [], projects: [], sets: [], visited: 0, truncated: false };
+  const out: SourceScan = { skills: [], productions: [], sets: [], visited: 0, truncated: false };
   const walk = async (dir: FileSystemDirectoryHandle, path: string, depth: number) => {
     if (out.visited >= budget) {
       out.truncated = true;
@@ -141,10 +141,10 @@ export async function scanSource(root: FileSystemDirectoryHandle, sourceId: stri
       if (skill) out.skills.push(skill);
       return;
     }
-    if (files.includes(PROJECT_MANIFEST) || dirs.some(d => d.name === 'input')) {
-      const project = await readProject(dir, path, files, sourceId);
-      if (project) {
-        out.projects.push(project);
+    if (files.includes(PRODUCTION_MANIFEST) || dirs.some(d => d.name === 'input')) {
+      const production = await readProduction(dir, path, files, sourceId);
+      if (production) {
+        out.productions.push(production);
         return;
       }
     }

@@ -2,8 +2,8 @@ import type {
   Family,
   FileRef,
   Library,
-  Project,
-  ScannedProject,
+  Production,
+  ScannedProduction,
   ScannedSet,
   ScannedSkill,
   Skill,
@@ -46,7 +46,7 @@ export function firstSentence(d: string, max = 180): string {
 }
 
 const VARIANT_NAME = /^(.+?)-(?:like-(.+)|v(\d+))$/;
-const PROJECT_MENTION = /projects\/([a-z0-9][a-z0-9_-]*)/gi;
+const PRODUCTION_MENTION = /projects\/([a-z0-9][a-z0-9_-]*)/gi;
 const LOCATION_RANK: Record<SkillLocation, number> = { committed: 0, local: 1, folder: 2 };
 
 const fileRef = (sourceId: string, path: string, dir: FileSystemDirectoryHandle, file: string): FileRef => ({
@@ -60,30 +60,31 @@ const uniq = <T,>(xs: T[]) => [...new Set(xs)];
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()) : []);
 const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
-/** Merges every source's scan into one library: dedupes, finds variants and links skills to projects. */
+/** Merges every source's scan into one library: dedupes, finds variants and links skills to productions. */
 export function buildLibrary(scans: { sourceId: string; scan: SourceScan }[]): Library {
-  // ---- projects (first source wins on a slug clash)
-  const rawProjects = new Map<string, ScannedProject>();
-  for (const { scan } of scans) for (const p of scan.projects) if (!rawProjects.has(p.slug)) rawProjects.set(p.slug, p);
+  // ---- productions (first source wins on a slug clash)
+  const rawProductions = new Map<string, ScannedProduction>();
+  for (const { scan } of scans) for (const p of scan.productions) if (!rawProductions.has(p.slug)) rawProductions.set(p.slug, p);
 
   const sets: ScannedSet[] = scans.flatMap(s => s.scan.sets);
-  const projectOfSet = (set: ScannedSet): string | undefined => {
-    if (rawProjects.has(set.job)) return set.job;
+  const productionOfSet = (set: ScannedSet): string | undefined => {
+    if (rawProductions.has(set.job)) return set.job;
     const hay = `${set.source ?? ''} ${set.path}`;
-    for (const slug of rawProjects.keys()) if (new RegExp(`(^|/)${slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/|$)`).test(hay)) return slug;
+    for (const slug of rawProductions.keys()) if (new RegExp(`(^|/)${slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/|$)`).test(hay)) return slug;
     return undefined;
   };
   const setRefs = (set: ScannedSet) => set.images.map(f => fileRef(set.sourceId, set.path, set.dir, f));
 
-  const projects: Record<string, Project> = {};
-  for (const [slug, p] of rawProjects) {
+  const productions: Record<string, Production> = {};
+  for (const [slug, p] of rawProductions) {
     const m = p.manifest;
     const own = m?.thumbnail ? fileRef(p.sourceId, p.path, p.dir, m.thumbnail) : p.thumbFile ? fileRef(p.sourceId, p.path, p.dir, p.thumbFile) : null;
-    const gallery = sets.filter(s => projectOfSet(s) === slug).sort((a, b) => (a.kind === 'thumbnail' ? -1 : 0) - (b.kind === 'thumbnail' ? -1 : 0)).flatMap(setRefs);
-    projects[slug] = {
+    const gallery = sets.filter(s => productionOfSet(s) === slug).sort((a, b) => (a.kind === 'thumbnail' ? -1 : 0) - (b.kind === 'thumbnail' ? -1 : 0)).flatMap(setRefs);
+    productions[slug] = {
       slug,
       title: m?.title ?? p.info?.title ?? humanize(slug),
       artist: m?.artist ?? p.info?.artist,
+      project: typeof m?.project === 'string' ? m.project : undefined,
       summary: m?.summary,
       owner: m?.owner,
       tags: strings(m?.tags),
@@ -129,14 +130,14 @@ export function buildLibrary(scans: { sourceId: string; scan: SourceScan }[]): L
       variant: null,
       family: name,
       variants: [],
-      projects: [],
+      productions: [],
       thumbnail: m?.thumbnail ? fileRef(s.sourceId, s.path, s.dir, m.thumbnail) : s.thumbFile ? fileRef(s.sourceId, s.path, s.dir, s.thumbFile) : null,
       preview: m?.preview ? fileRef(s.sourceId, s.path, s.dir, m.preview) : null,
       gallery: strings(m?.gallery).map(f => fileRef(s.sourceId, s.path, s.dir, f)),
     };
   }
 
-  const mentions = (text: string) => uniq([...text.matchAll(PROJECT_MENTION)].map(x => x[1]).filter(slug => slug in projects));
+  const mentions = (text: string) => uniq([...text.matchAll(PRODUCTION_MENTION)].map(x => x[1]).filter(slug => slug in productions));
 
   // ---- variants
   for (const s of Object.values(skills)) {
@@ -149,34 +150,34 @@ export function buildLibrary(scans: { sourceId: string; scan: SourceScan }[]): L
     const suffix = s.name.startsWith(`${of}-`) ? s.name.slice(of.length + 1) : '';
     const version = suffix.match(/^v(\d+)$/)?.[1];
     const ref = mv?.ref ?? meta['variant-ref'] ?? (version ? `v${version}` : suffix.replace(/^like-/, '')) ?? s.name;
-    const project =
-      (mv?.project && mv.project in projects ? mv.project : undefined) ??
-      (ref in projects ? ref : undefined) ??
+    const production =
+      (mv?.production && mv.production in productions ? mv.production : undefined) ??
+      (ref in productions ? ref : undefined) ??
       mentions(`${s.description}\n${scanned.body.slice(0, 1500)}`)[0];
     const declared = (mv?.kind ?? meta['variant-kind']) as VariantKind | undefined;
-    const kind: VariantKind = declared && VARIANT_KINDS.includes(declared) ? declared : version ? 'version' : project ? 'project' : 'style';
-    const label = mv?.label ?? (kind === 'project' && project ? projects[project].title : kind === 'version' ? `${skills[of]?.title ?? humanize(of)} ${ref}` : ref.replace(/[-_]+/g, ' '));
-    s.variant = { of, kind, ref, label, project };
+    const kind: VariantKind = declared && VARIANT_KINDS.includes(declared) ? declared : version ? 'version' : production ? 'production' : 'style';
+    const label = mv?.label ?? (kind === 'production' && production ? productions[production].title : kind === 'version' ? `${skills[of]?.title ?? humanize(of)} ${ref}` : ref.replace(/[-_]+/g, ' '));
+    s.variant = { of, kind, ref, label, production };
     if (skills[of]) skills[of].variants.push(s.name);
-    if (project) projects[project].bornVariants.push(s.name);
+    if (production) productions[production].bornVariants.push(s.name);
   }
 
-  // ---- skill ↔ project links: manifests, mentions in SKILL.md, image sets a skill made
+  // ---- skill ↔ production links: manifests, mentions in SKILL.md, image sets a skill made
   const link = (skill: string, slug: string) => {
-    if (!skills[skill] || !projects[slug] || skills[skill].variant?.project === slug) return;
-    if (!skills[skill].projects.includes(slug)) skills[skill].projects.push(slug);
-    if (!projects[slug].skills.includes(skill)) projects[slug].skills.push(skill);
+    if (!skills[skill] || !productions[slug] || skills[skill].variant?.production === slug) return;
+    if (!skills[skill].productions.includes(slug)) skills[skill].productions.push(slug);
+    if (!productions[slug].skills.includes(skill)) productions[slug].skills.push(skill);
   };
   for (const s of Object.values(skills)) {
-    for (const slug of strings(s.manifest?.projects)) link(s.name, slug);
+    for (const slug of strings(s.manifest?.productions)) link(s.name, slug);
     const scanned = found.get(s.name)!.find(c => c.sourceId === s.sourceId && c.path === s.path)!;
     for (const slug of mentions(scanned.body)) link(s.name, slug);
   }
-  for (const p of Object.values(projects)) for (const name of strings(p.manifest?.skills)) link(name, p.slug);
+  for (const p of Object.values(productions)) for (const name of strings(p.manifest?.skills)) link(name, p.slug);
   for (const set of sets) {
     if (!set.workflow || !skills[set.workflow]) continue;
     const s = skills[set.workflow];
-    const slug = projectOfSet(set);
+    const slug = productionOfSet(set);
     if (slug) link(s.name, slug);
     if (s.gallery.length < 12) s.gallery.push(...setRefs(set).slice(0, 12 - s.gallery.length));
   }
@@ -211,15 +212,15 @@ export function buildLibrary(scans: { sourceId: string; scan: SourceScan }[]): L
       base,
       baseInstalled: !!skills[base],
       variants,
-      projects: uniq(members.flatMap(n => [...skills[n].projects, ...(skills[n].variant?.project ? [skills[n].variant!.project!] : [])])),
+      productions: uniq(members.flatMap(n => [...skills[n].productions, ...(skills[n].variant?.production ? [skills[n].variant!.production!] : [])])),
     });
   }
 
   // ---- thumbnails: own file, then what it made, then where it came from
   for (const s of Object.values(skills)) {
     if (s.thumbnail) continue;
-    const origin = s.variant?.project ? projects[s.variant.project]?.thumbnail : null;
-    s.thumbnail = s.gallery[0] ?? origin ?? s.projects.map(p => projects[p]?.thumbnail).find(Boolean) ?? null;
+    const origin = s.variant?.production ? productions[s.variant.production]?.thumbnail : null;
+    s.thumbnail = s.gallery[0] ?? origin ?? s.productions.map(p => productions[p]?.thumbnail).find(Boolean) ?? null;
   }
   for (const s of Object.values(skills)) {
     if (s.thumbnail || s.variant) continue;
@@ -234,7 +235,7 @@ export function buildLibrary(scans: { sourceId: string; scan: SourceScan }[]): L
     .map(([id, count]) => ({ id, count }))
     .sort((a, b) => (order.indexOf(a.id) + 1 || 99) - (order.indexOf(b.id) + 1 || 99) || byName(a.id, b.id));
 
-  const owners = uniq([...Object.values(skills).map(s => s.owner), ...Object.values(projects).map(p => p.owner)].filter((o): o is string => !!o)).sort(byName);
+  const owners = uniq([...Object.values(skills).map(s => s.owner), ...Object.values(productions).map(p => p.owner)].filter((o): o is string => !!o)).sort(byName);
 
-  return { skills, projects, families, categories, owners };
+  return { skills, productions, families, categories, owners };
 }

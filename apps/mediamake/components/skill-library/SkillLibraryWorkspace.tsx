@@ -9,13 +9,13 @@ import { Hint, isTextField } from '@/components/revisions/keyboard';
 import { DetailPanel } from './DetailPanel';
 import { EditDialog } from './EditDialog';
 import { Sidebar } from './Sidebar';
-import { FamiliesView, ProjectsGrid, SkillsGrid, useMatchingProjects, useMatchingSkills } from './Views';
+import { FamiliesView, ProductionsGrid, SkillsGrid, useMatchingProductions, useMatchingSkills } from './Views';
 import { pinKey, useSkillLibraryStore, type CardSize, type View } from './store';
 
 const VIEWS: { id: View; label: string; key: string }[] = [
   { id: 'skills', label: 'Skills', key: '1' },
   { id: 'families', label: 'Variants', key: '2' },
-  { id: 'projects', label: 'Projects', key: '3' },
+  { id: 'productions', label: 'Productions', key: '3' },
 ];
 
 function Segmented<T extends string>({ value, options, onChange, className }: { value: T; options: { id: T; label: React.ReactNode; hint?: string }[]; onChange: (v: T) => void; className?: string }) {
@@ -84,7 +84,7 @@ function Header({ search }: { search: React.RefObject<HTMLInputElement | null> }
   const scanning = useSkillLibraryStore(s => s.sources.some(src => src.status === 'scanning'));
   const rescan = useSkillLibraryStore(s => s.rescan);
   const skills = useMatchingSkills().length;
-  const projects = useMatchingProjects().length;
+  const productions = useMatchingProductions().length;
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b px-3">
@@ -113,12 +113,12 @@ function Header({ search }: { search: React.RefObject<HTMLInputElement | null> }
           ref={search}
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder={view === 'projects' ? 'Search projects, artists, skills…' : 'Search skills, variants, projects…'}
+          placeholder={view === 'productions' ? 'Search productions, artists, skills…' : 'Search skills, variants, productions…'}
           className="h-9 w-full rounded-full border bg-muted/40 pl-9 pr-12 text-sm outline-none transition placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-ring/30"
         />
         <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border bg-background px-1.5 font-mono text-[10px] text-muted-foreground">/</kbd>
       </div>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{view === 'projects' ? `${projects} projects` : `${skills} skills`}</span>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{view === 'productions' ? `${productions} productions` : `${skills} skills`}</span>
       {view === 'skills' && (
         <Hint label="Show variants inside their base skill's card" side="bottom">
           <button
@@ -163,9 +163,9 @@ function Welcome() {
         <div className="mx-auto mb-6 grid size-14 place-items-center rounded-2xl bg-foreground text-background">
           <LayersIcon className="size-7" />
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">Your skills, their variants, and the projects they made</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Your skills, their variants, and the productions they made</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-          Add a folder and every Claude Code skill in it is listed with a thumbnail, its variants beside it, and the projects that used it. Everything is read on this computer; nothing is uploaded.
+          Add a folder and every Claude Code skill in it is listed with a thumbnail, its variants beside it, and the productions that used it. Everything is read on this computer; nothing is uploaded.
         </p>
         {unsupported ? (
           <p className="mt-6 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
@@ -178,9 +178,9 @@ function Welcome() {
             </Button>
             <div className="mt-8 grid gap-2 text-left text-sm sm:grid-cols-3">
               {[
-                ['A repo', 'Finds .claude/skills, .agents/skills, every projects folder and the thumbnails in out/.'],
-                ['~/.claude/skills', 'Your personal skills, the ones Claude Code loads in every project.'],
-                ['A projects folder', 'Folders with a mediamake.json or input/project.json.'],
+                ['A repo', 'Finds .claude/skills, .agents/skills, every productions folder and the thumbnails in out/.'],
+                ['~/.claude/skills', 'Your personal skills, the ones Claude Code loads in every production.'],
+                ['A productions folder', 'Folders with a mediamake.json or input/project.json.'],
               ].map(([t, d]) => (
                 <div key={t} className="rounded-2xl border p-3.5">
                   <div className="font-medium">{t}</div>
@@ -228,7 +228,7 @@ export function SkillLibraryWorkspace() {
               <div className="px-6 py-6">
                 {view === 'skills' && <SkillsGrid />}
                 {view === 'families' && <FamiliesView />}
-                {view === 'projects' && <ProjectsGrid />}
+                {view === 'productions' && <ProductionsGrid />}
               </div>
             </div>
           )}

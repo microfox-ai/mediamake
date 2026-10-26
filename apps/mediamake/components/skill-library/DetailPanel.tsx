@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
 import { categoryAbout } from '@/lib/skill-library/model';
-import type { FileRef, Project, Skill } from '@/lib/skill-library/types';
+import type { FileRef, Production, Skill } from '@/lib/skill-library/types';
 import { Chip, KIND_LABEL, MiniRow } from './Cards';
 import { Thumb } from './Thumb';
 import { pinKey, useSkillLibraryStore, type Selection } from './store';
@@ -62,12 +62,12 @@ function Hero({ sel, image, preview, seed, title, label }: { sel: NonNullable<Se
 }
 
 function ForkButton({ skill }: { skill: Skill }) {
-  const projects = useSkillLibraryStore(s => s.library.projects);
+  const productions = useSkillLibraryStore(s => s.library.productions);
   const [style, setStyle] = useState('');
-  const linked = skill.projects.map(p => projects[p]).filter(Boolean);
-  const others = Object.values(projects).filter(p => !skill.projects.includes(p.slug));
+  const linked = skill.productions.map(p => productions[p]).filter(Boolean);
+  const others = Object.values(productions).filter(p => !skill.productions.includes(p.slug));
   const prompt = (ref: string) => `/fork-skill ${skill.name} ${ref}`;
-  const row = (p: Project) => (
+  const row = (p: Production) => (
     <MiniRow key={p.slug} image={p.thumbnail} seed={p.slug} title={p.title} subtitle={p.slug} onClick={() => void copy(prompt(p.slug), 'Prompt')} />
   );
   return (
@@ -79,7 +79,7 @@ function ForkButton({ skill }: { skill: Skill }) {
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-2">
         <p className="px-1.5 pb-2 text-xs text-muted-foreground">
-          A variant is your own copy, steered toward a project or a style. Pick what it&apos;s modelled on; the prompt for Claude is copied.
+          A variant is your own copy, steered toward a production or a style. Pick what it&apos;s modelled on; the prompt for Claude is copied.
         </p>
         <form
           className="flex gap-1.5 px-1.5 pb-2"
@@ -95,9 +95,9 @@ function ForkButton({ skill }: { skill: Skill }) {
           </Button>
         </form>
         <div className="max-h-72 overflow-y-auto">
-          {linked.length > 0 && <div className="px-1.5 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Its projects</div>}
+          {linked.length > 0 && <div className="px-1.5 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Its productions</div>}
           {linked.map(row)}
-          {others.length > 0 && <div className="px-1.5 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Other projects</div>}
+          {others.length > 0 && <div className="px-1.5 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Other productions</div>}
           {others.map(row)}
         </div>
       </PopoverContent>
@@ -113,7 +113,7 @@ function SkillDetail({ skill }: { skill: Skill }) {
   const thumbnailFromImage = useSkillLibraryStore(s => s.thumbnailFromImage);
   const sel = { kind: 'skill', id: skill.name } as const;
   const base = skill.variant ? library.skills[skill.variant.of] : null;
-  const origin = skill.variant?.project ? library.projects[skill.variant.project] : null;
+  const origin = skill.variant?.production ? library.productions[skill.variant.production] : null;
   const sourceName = (id: string) => sources.find(s => s.id === id)?.name ?? '';
   const [more, setMore] = useState(false);
 
@@ -176,7 +176,7 @@ function SkillDetail({ skill }: { skill: Skill }) {
           )}
           {origin && (
             <div className="mt-1">
-              <MiniRow image={origin.thumbnail} seed={origin.slug} title={`Modelled on ${origin.title}`} subtitle={origin.slug} badge={<FolderKanbanIcon className="mr-1 size-3.5 text-muted-foreground" />} onClick={() => select({ kind: 'project', id: origin.slug })} />
+              <MiniRow image={origin.thumbnail} seed={origin.slug} title={`Modelled on ${origin.title}`} subtitle={origin.slug} badge={<FolderKanbanIcon className="mr-1 size-3.5 text-muted-foreground" />} onClick={() => select({ kind: 'production', id: origin.slug })} />
             </div>
           )}
           {skill.variant && !origin && (
@@ -198,12 +198,12 @@ function SkillDetail({ skill }: { skill: Skill }) {
         </section>
       )}
 
-      {skill.projects.length > 0 && (
+      {skill.productions.length > 0 && (
         <section>
-          <Label>Used in · {skill.projects.length}</Label>
-          {skill.projects.map(slug => {
-            const p = library.projects[slug];
-            return <MiniRow key={slug} image={p.thumbnail} seed={slug} title={p.title} subtitle={p.artist ?? slug} onClick={() => select({ kind: 'project', id: slug })} />;
+          <Label>Used in · {skill.productions.length}</Label>
+          {skill.productions.map(slug => {
+            const p = library.productions[slug];
+            return <MiniRow key={slug} image={p.thumbnail} seed={slug} title={p.title} subtitle={p.artist ?? slug} onClick={() => select({ kind: 'production', id: slug })} />;
           })}
         </section>
       )}
@@ -225,36 +225,37 @@ function SkillDetail({ skill }: { skill: Skill }) {
   );
 }
 
-function ProjectDetail({ project }: { project: Project }) {
+function ProductionDetail({ production }: { production: Production }) {
   const library = useSkillLibraryStore(s => s.library);
   const sources = useSkillLibraryStore(s => s.sources);
   const select = useSkillLibraryStore(s => s.select);
   const setEditing = useSkillLibraryStore(s => s.setEditing);
   const thumbnailFromImage = useSkillLibraryStore(s => s.thumbnailFromImage);
-  const sel = { kind: 'project', id: project.slug } as const;
-  const path = `${sources.find(s => s.id === project.sourceId)?.name ?? ''}/${project.path}`;
-  const skills = project.skills.map(n => library.skills[n]).filter(Boolean);
+  const sel = { kind: 'production', id: production.slug } as const;
+  const path = `${sources.find(s => s.id === production.sourceId)?.name ?? ''}/${production.path}`;
+  const skills = production.skills.map(n => library.skills[n]).filter(Boolean);
 
   return (
     <div className="space-y-6">
-      <Hero sel={sel} image={project.thumbnail} seed={project.slug} title={project.title} label="project" />
+      <Hero sel={sel} image={production.thumbnail} seed={production.slug} title={production.title} label="production" />
       <div>
-        <h2 className="text-xl font-semibold leading-tight tracking-tight">{project.title}</h2>
+        <h2 className="text-xl font-semibold leading-tight tracking-tight">{production.title}</h2>
         <div className="mt-1 text-xs text-muted-foreground">
-          {project.artist && <span>{project.artist} · </span>}
-          <span className="font-mono">{project.slug}</span>
+          {production.artist && <span>{production.artist} · </span>}
+          <span className="font-mono">{production.slug}</span>
         </div>
-        {(project.owner || project.tags.length > 0) && (
+        {(production.project || production.owner || production.tags.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-1">
-            {project.owner && <Chip tone="outline">{project.owner}</Chip>}
-            {project.tags.map(t => (
+            {production.project && <Chip tone="accent">{production.project}</Chip>}
+            {production.owner && <Chip tone="outline">{production.owner}</Chip>}
+            {production.tags.map(t => (
               <Chip key={t} tone="outline">
                 #{t}
               </Chip>
             ))}
           </div>
         )}
-        {project.summary && <p className="mt-3 text-[13px] leading-relaxed text-foreground/85">{project.summary}</p>}
+        {production.summary && <p className="mt-3 text-[13px] leading-relaxed text-foreground/85">{production.summary}</p>}
       </div>
       <div className="flex flex-wrap gap-1.5">
         <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-full" onClick={() => setEditing(sel)}>
@@ -267,7 +268,7 @@ function ProjectDetail({ project }: { project: Project }) {
 
       <section>
         <Label>Skills used · {skills.length}</Label>
-        {!skills.length && <p className="text-xs text-muted-foreground">None linked yet. Press Link skills, or list them under &quot;skills&quot; in the project&apos;s mediamake.json.</p>}
+        {!skills.length && <p className="text-xs text-muted-foreground">None linked yet. Press Link skills, or list them under &quot;skills&quot; in the production&apos;s mediamake.json.</p>}
         {skills.map(s => (
           <MiniRow
             key={s.name}
@@ -277,13 +278,13 @@ function ProjectDetail({ project }: { project: Project }) {
             subtitle={s.name}
             onClick={() => select({ kind: 'skill', id: s.name })}
             badge={
-              <Hint label={`Copy a prompt to make a variant of ${s.name} from this project`}>
+              <Hint label={`Copy a prompt to make a variant of ${s.name} from this production`}>
                 <span
                   role="button"
                   tabIndex={0}
                   onClick={e => {
                     e.stopPropagation();
-                    void copy(`/fork-skill ${s.name} ${project.slug}`, 'Prompt');
+                    void copy(`/fork-skill ${s.name} ${production.slug}`, 'Prompt');
                   }}
                   className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-background hover:text-foreground"
                 >
@@ -295,17 +296,17 @@ function ProjectDetail({ project }: { project: Project }) {
         ))}
       </section>
 
-      {project.bornVariants.length > 0 && (
+      {production.bornVariants.length > 0 && (
         <section>
-          <Label>Variants made from it · {project.bornVariants.length}</Label>
-          {project.bornVariants.map(v => {
+          <Label>Variants made from it · {production.bornVariants.length}</Label>
+          {production.bornVariants.map(v => {
             const s = library.skills[v];
             return <MiniRow key={v} image={s.thumbnail} seed={s.family} title={s.variant!.label} subtitle={s.name} onClick={() => select({ kind: 'skill', id: v })} />;
           })}
         </section>
       )}
 
-      <Gallery images={project.gallery} seed={project.slug} onUse={ref => void thumbnailFromImage(sel, ref)} />
+      <Gallery images={production.gallery} seed={production.slug} onUse={ref => void thumbnailFromImage(sel, ref)} />
     </div>
   );
 }
@@ -319,8 +320,8 @@ export function DetailPanel() {
   const ready = useSkillLibraryStore(s => s.sources.every(src => src.status !== 'scanning'));
   if (!selected) return null;
   const skill = selected.kind === 'skill' ? library.skills[selected.id] : null;
-  const project = selected.kind === 'project' ? library.projects[selected.id] : null;
-  if (!skill && !project && !ready) return null; // a deep link waits for the scan
+  const production = selected.kind === 'production' ? library.productions[selected.id] : null;
+  if (!skill && !production && !ready) return null; // a deep link waits for the scan
   const key = pinKey(selected);
   const pinned = pins.includes(key);
 
@@ -343,8 +344,8 @@ export function DetailPanel() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-5 pb-8">
           {skill && <SkillDetail skill={skill} />}
-          {project && <ProjectDetail project={project} />}
-          {!skill && !project && <p className="py-10 text-center text-sm text-muted-foreground">&quot;{selected.id}&quot; isn&apos;t in these folders.</p>}
+          {production && <ProductionDetail production={production} />}
+          {!skill && !production && <p className="py-10 text-center text-sm text-muted-foreground">&quot;{selected.id}&quot; isn&apos;t in these folders.</p>}
         </div>
       </div>
     </aside>
