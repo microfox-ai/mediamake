@@ -38,14 +38,12 @@ env.json
 /karcreativeworks/*
 
 apps/mediamake/docs/random/*
-# Private AI configuration frameworks. .claude/skills keeps only the symlinks of public skills
-# (their files are committed in .agents/skills/); private skills are real folders and stay
-# ignored. See SKILLS.md and tools/skills.mjs.
+# Local Claude Code settings stay out of git. Skills are all public: .claude/skills (links to
+# .agents/skills/) is committed in full. See SKILLS.md and tools/skills.mjs.
 .claude/*
 !.claude/skills/
-.claude/skills/*/
 
-# Unreleased skills, MCPs and apps live here, never in git. Release them to
-# private storage with `npm run catalog -- release private/skills/<name>`.
+# Unreleased MCPs and apps live here, never in git. Release them to private
+# storage with `npm run catalog -- release private/mcps/<name>.mcpb`.
 /private/*
 !/private/README.md
