@@ -2,16 +2,20 @@
  * The lyric short scene: footage full frame underneath, the current screen's stack drawn twice over it —
  * once as a mask (white letters on black, multiplied over the footage, so the footage plays only inside
  * the letters) and once as flat colour on top (solid rows, and a faint floor so dark footage still reads
- * as letters). A 'through' exit scales the stack around the centre of a row's thickest stroke until the
- * letter covers the frame and only footage is left; 'into' runs the same backwards.
+ * as letters). A long screen starts reversed — words over the whole footage, black on bright footage and
+ * white on dark (luma.json) — and flips to the mask as about half of it is lit (layout `flip`); the same
+ * multiply layer draws both. A 'through' exit scales the stack around the centre of a row's thickest
+ * stroke until the letter covers the frame and only footage is left; 'into' runs the same backwards.
+ * Each cut's crop is framed on its subject (framing.ts, footage/faces.json).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { AbsoluteFill, cancelRender, continueRender, delayRender, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import { useSongTime } from '../kit/hooks';
 import type { Font } from 'opentype.js';
-import { layoutStack, loadFont, type RowLayout, type StackLayout, type TypeStyle } from './layout';
+import { layoutShort, loadFont, type RowLayout, type StackLayout, type TypeStyle } from './layout';
 import { entryFx, exitFx, FootageAt, FxLayer, motionOf, surfaceOf, svgMotion, type Fx, type FootageLook } from './Footage';
+import { frameCuts, inkOf, type Faces, type Luma } from './framing';
 import { OVERLAP, resolveShort, type LyricShortEdl, type ResolvedScreen, type ResolvedStack } from './spec';
 
 export type LyricShortTheme = {
@@ -46,7 +50,14 @@ export type LyricShortProps = {
   window: { from: number; to: number };
   /** made to loop: nothing that drifts with time (the leaks) may jump at the seam */
   loop?: boolean;
+  /** the footage's subjects (projects/<slug>/footage/faces.json): cuts without a crop by hand frame on them */
+  faces?: Faces;
+  /** each clip's brightness (shorts/<id>/luma.json): words over the footage go white on dark shots */
+  luma?: Luma;
 };
+
+/** seconds the flip from black words to the mask takes */
+const FLIP = 0.1;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const gray = (v: number) => {
@@ -112,7 +123,7 @@ const diveOf = (s: ResolvedStack, lay: StackLayout, t: number, W: number, H: num
   return { p, transform: `translate(${cx} ${cy}) scale(${s1}) translate(${-x} ${-y})` };
 };
 
-export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, slug, edl, theme, window: win, loop }) => {
+export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, slug, edl, theme, window: win, loop, faces, luma }) => {
   const { width: W, height: H, fps } = useVideoConfig();
   const t = useSongTime();
   const resolved = useMemo(() => resolveShort(manifest, win, edl), [manifest, edl, win.from, win.to]);
@@ -129,10 +140,18 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
   }, [handle, theme.type.font]);
   const layouts = useMemo(() => {
     if (!font) return null;
-    const map = new Map<number, StackLayout>();
-    for (const s of resolved.screens) if (s.kind === 'stack') map.set(s.index, layoutStack(s, font, theme.type, W, H));
-    return map;
+    return layoutShort(resolved.screens.filter((s): s is ResolvedStack => s.kind === 'stack'), font, theme.type, W, H);
   }, [font, resolved, theme, W, H]);
+  const cuts = useMemo(() => (layouts ? frameCuts(resolved.cuts, resolved.screens, layouts, faces, W, H, loop) : resolved.cuts), [layouts, resolved, faces, W, H, loop]);
+  // the colour of each reversed stack's words: black on bright footage, white on dark
+  const inks = useMemo(() => {
+    const out = new Map<number, 'black' | 'white'>();
+    for (const s of resolved.screens) {
+      const lay = s.kind === 'stack' ? layouts?.get(s.index) : undefined;
+      if (s.kind === 'stack' && lay?.flip !== undefined) out.set(s.index, inkOf(s, lay, lay.flip, cuts, luma, H, theme.type.reverse?.white));
+    }
+    return out;
+  }, [resolved, layouts, cuts, luma, theme, H]);
 
   const look: FootageLook = { grade: theme.grade, flash: theme.cuts?.flash ?? '#FFFFFF', blade: theme.cuts?.blade ?? '#FF8FB8', pulse: theme.cuts?.pulse ?? 0 };
   const kicks = manifest.onsets?.kick ?? [];
@@ -153,10 +172,13 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     // leaks bloom as full-frame footage opens (also late in a dive), then settle
     const leakAmt = theme.leaks ? theme.leaks.amount * (fullOn ? 0.45 + 0.55 * Math.exp(-(t - screen!.start) / 0.9) : dive.p > 0.5 ? (dive.p - 0.5) * 2 : 0) : 0;
     const fadeOut = stack?.exit === 'fade' ? clamp01((stack.end - t) / 0.3) : 1;
+    // 0: black words over the whole footage, 1: the mask
+    const masked = layout?.flip === undefined ? 1 : clamp01((t - layout.flip) / FLIP);
+    const white = stack ? inks.get(stack.index) === 'white' : false;
     const drawStack = (mode: 'mask' | 'solid') =>
       stack && layout ? (
         <svg width={W} height={H} style={{ position: 'absolute', inset: 0, ...(mode === 'mask' ? { mixBlendMode: 'multiply' as const } : {}) }}>
-          {mode === 'mask' ? <rect width={W} height={H} fill="#000" /> : null}
+          {mode === 'mask' ? <rect width={W} height={H} fill={gray(1 - masked)} /> : null}
           <g transform={motion ? svgMotion(motion, origin ?? [W / 2, H / 2]) : undefined}>
           <g transform={dive.transform}>
             {layout.rows.map((row, k) => {
@@ -165,13 +187,22 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
               let solid = row.fill === 'solid' ? 1 : theme.floor;
               if (row.fill === 'solid' && row.reveal !== undefined) solid = 1 - clamp01((t - row.reveal) / 0.5) * (1 - theme.floor);
               solid *= 1 - clamp01(dive.p * 3); // the dive lands on footage
+              if (!row.solidByHand) solid *= masked; // words over the footage are plain black or white: no ink, no floor
               // a row made solid by hand takes the solid colour; one too small to mask takes the ink
               const color = row.color ?? (row.solidByHand ? theme.colors.solid : theme.colors.ink);
               return (
                 <g key={k}>
                   {row.words.map((w, i) => {
                     const level = (forced ? 1 : wordLevel(stack.words[w].show)) * fadeOut;
-                    return mode === 'mask' ? <path key={i} d={row.paths[i]} fill={gray(level)} /> : <path key={i} d={row.paths[i]} fill={color} fillOpacity={level * solid} />;
+                    // reversed, a lit word darkens the footage to black (or leaves it whole under white
+                    // ink); masked, it opens onto the footage
+                    if (mode === 'mask') return <path key={i} d={row.paths[i]} fill={gray((1 - masked) * (white ? 1 : 1 - level) + masked * level)} />;
+                    return (
+                      <React.Fragment key={i}>
+                        <path d={row.paths[i]} fill={color} fillOpacity={level * solid} />
+                        {white && masked < 1 && !row.solidByHand ? <path d={row.paths[i]} fill="#FFFFFF" fillOpacity={level * (1 - masked)} /> : null}
+                      </React.Fragment>
+                    );
                   })}
                 </g>
               );
@@ -206,7 +237,7 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     return [(Math.min(...lit.map(r => r.left)) + Math.max(...lit.map(r => r.right))) / 2, (top + bottom) / 2];
   };
   const footageAt = (only?: number, motion?: Fx, origin?: [number, number]) => (
-    <FootageAt slug={slug} cuts={resolved.cuts} t={t} look={look} kicks={kicks} whole={whole} only={only} id={only === undefined ? 'f' : 'u'} outer={motion} origin={origin} />
+    <FootageAt slug={slug} cuts={cuts} t={t} look={look} kicks={kicks} whole={whole} only={only} id={only === undefined ? 'f' : 'u'} outer={motion} origin={origin} />
   );
   /** a whole composite through a transition: motion to the footage and the words, surface to a wrapper */
   const moving = (fx: Fx, screen: ResolvedScreen | null, origin: [number, number], key: string) => {
@@ -262,7 +293,14 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
       flashColor = c.flash === 'default' ? look.flash : c.flash;
     }
   }
+  // a soft flash as black words flip to the mask
+  for (const lay of layouts?.values() ?? []) {
+    const tau = lay.flip === undefined ? -1 : t - lay.flip;
+    if (tau >= -0.5 / fps && tau < 0.18) flash = Math.max(flash, 0.32 * (1 - Math.max(0, tau) / 0.18) ** 2);
+  }
 
+  // nothing until the font is in: the crops (and so the clip files) come from the layout
+  if (!layouts) return <AbsoluteFill style={{ backgroundColor: theme.colors.ground }} />;
   return (
     <AbsoluteFill style={{ backgroundColor: theme.colors.ground }}>
       <AbsoluteFill style={sx || sy ? { transform: `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) rotate(${sr.toFixed(2)}deg) scale(1.04)` } : undefined}>{content}</AbsoluteFill>
