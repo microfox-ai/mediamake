@@ -60,3 +60,42 @@ export function contentTypeFromMime(
   if (mime.startsWith('audio/')) return 'audio';
   return 'document';
 }
+
+export interface ToolOptions {
+  /**
+   * The server runs on the user's machine and may read and write their files
+   * (filePath, saveTo, folder arguments). False for the hosted /mcp endpoint,
+   * which runs inside the Mediamake app and must never touch its own disk.
+   */
+  localFiles: boolean;
+  /** Longest a tool may poll (render `wait`), for a host with a request time limit. */
+  maxWaitSeconds?: number;
+}
+
+/**
+ * Drops the arguments that name local files from a tool's input shape when
+ * the server is hosted. The handler's types keep them as optional, which they
+ * already are, and it rejects them anyway in case a client sends them.
+ */
+export function withoutLocalArgs<S extends Record<string, unknown>>(
+  shape: S,
+  keys: (keyof S)[],
+  options: ToolOptions,
+): S {
+  if (options.localFiles) return shape;
+  const copy = { ...shape };
+  for (const key of keys) delete copy[key];
+  return copy;
+}
+
+export function rejectLocalArgs(
+  options: ToolOptions,
+  args: Record<string, unknown>,
+) {
+  if (options.localFiles) return;
+  const used = Object.keys(args).filter(key => args[key] !== undefined);
+  if (used.length)
+    throw new Error(
+      `The hosted Mediamake connector can't read or write files on your computer (${used.join(', ')}). Pass a public https URL instead, or install the local Mediamake extension (.mcpb) for file access.`,
+    );
+}

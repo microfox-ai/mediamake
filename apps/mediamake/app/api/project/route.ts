@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
+import { summarizeBrandKit, type BrandKit } from '@/lib/brand-kit';
 
 interface ProjectDocument {
   _id?: ObjectId;
@@ -8,6 +9,8 @@ interface ProjectDocument {
   displayName: string;
   tags?: string[];
   sharedWith?: Array<{ clientId: string; role: 'editor' | 'viewer'; grantId?: string; addedAt: string }>;
+  /** The channel or brand's kit; read and written through /api/project/brand-kit. */
+  brandKit?: BrandKit;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +29,7 @@ function projectToResponse(doc: ProjectDocument, requestingClientId?: string) {
     isOwned,
     sharedRole: sharedEntry?.role,
     sharedWith: isOwned ? (doc.sharedWith ?? []) : undefined,
+    brandKit: summarizeBrandKit(doc.brandKit),
   };
 }
 

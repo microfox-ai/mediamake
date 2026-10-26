@@ -1,6 +1,6 @@
 {
   "name": "@microfox/mediamake-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "MCP server for Mediamake: projects, timelines, presets, media, transcription, workers, agents and renders.",
   "type": "module",
@@ -8,6 +8,14 @@
     "mediamake-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./dist/index.js",
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
   "files": [
     "dist/**",
     "README.md"

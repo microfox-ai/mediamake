@@ -4,6 +4,8 @@ Complete documentation for the MediaMake video composition system.
 
 ## 📖 Table of Contents
 
+Feature notes from September 2026 (canvas pipeline, editor collaboration, browser rendering, workflow auth, preset form inputs) are in [features-2026-09](./features-2026-09/README.md).
+
 ### Getting Started
 
 1. **[Preset System Guide](./PRESET_GUIDE.md)** - Complete guide to understanding and creating presets

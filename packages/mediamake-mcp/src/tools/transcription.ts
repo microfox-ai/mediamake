@@ -3,7 +3,14 @@ import { basename, dirname } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, mimeFromName, safe } from '../util.js';
+import {
+  json,
+  mimeFromName,
+  rejectLocalArgs,
+  safe,
+  withoutLocalArgs,
+  type ToolOptions,
+} from '../util.js';
 import { uploadBytes } from './media.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -59,34 +66,42 @@ async function save(path: string | undefined, captions: unknown) {
 export function registerTranscriptionTools(
   server: McpServer,
   client: MediamakeClient,
+  options: ToolOptions = { localFiles: true },
 ) {
   server.registerTool(
     'transcribe',
     {
       title: 'Transcribe audio',
-      description:
-        'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. A local filePath is uploaded first. Signed CDN links (Suno) expire: pass them as sourceUrl through upload_media first, or here as filePath after downloading.',
-      inputSchema: {
-        audioUrl: z.string().url().optional().describe('Public https URL'),
-        filePath: z
-          .string()
-          .optional()
-          .describe('Absolute local path; uploaded to Mediamake storage first'),
-        provider: z
-          .enum(['assembly', 'elevenlabs-stt', 'gemini'])
-          .default('assembly'),
-        language: z.string().optional().describe('Language code, or "auto"'),
-        title: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-        lyrics: z.string().optional().describe('Known lyrics or script text'),
-        includeWords: z
-          .boolean()
-          .default(false)
-          .describe(
-            'Return word timings inline (large); saveTo always gets them',
-          ),
-        saveTo: saveToSchema,
-      },
+      description: options.localFiles
+        ? 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. A local filePath is uploaded first. Signed CDN links (Suno) expire: pass them as sourceUrl through upload_media first, or here as filePath after downloading.'
+        : 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. Signed CDN links (Suno) expire: pass them as sourceUrl through upload_media first and transcribe the URL it returns.',
+      inputSchema: withoutLocalArgs(
+        {
+          audioUrl: z.string().url().optional().describe('Public https URL'),
+          filePath: z
+            .string()
+            .optional()
+            .describe(
+              'Absolute local path; uploaded to Mediamake storage first',
+            ),
+          provider: z
+            .enum(['assembly', 'elevenlabs-stt', 'gemini'])
+            .default('assembly'),
+          language: z.string().optional().describe('Language code, or "auto"'),
+          title: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+          lyrics: z.string().optional().describe('Known lyrics or script text'),
+          includeWords: z
+            .boolean()
+            .default(false)
+            .describe(
+              'Return word timings inline (large); saveTo always gets them',
+            ),
+          saveTo: saveToSchema,
+        },
+        ['filePath', 'saveTo'],
+        options,
+      ),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -105,6 +120,7 @@ export function registerTranscriptionTools(
         includeWords,
         saveTo,
       }) => {
+        rejectLocalArgs(options, { filePath, saveTo });
         if (!audioUrl === !filePath)
           throw new Error('Pass exactly one of audioUrl or filePath.');
         let url = audioUrl;
@@ -168,16 +184,22 @@ export function registerTranscriptionTools(
     'get_transcription',
     {
       title: 'Get transcription',
-      description:
-        "Get one transcription's captions. Optionally write them to a local lyrics.json.",
-      inputSchema: {
-        id: z.string(),
-        includeWords: z.boolean().default(false),
-        saveTo: saveToSchema,
-      },
+      description: options.localFiles
+        ? "Get one transcription's captions. Optionally write them to a local lyrics.json."
+        : "Get one transcription's captions. includeWords returns the full caption JSON, the format lyrics_videos reads as input/lyrics.json.",
+      inputSchema: withoutLocalArgs(
+        {
+          id: z.string(),
+          includeWords: z.boolean().default(false),
+          saveTo: saveToSchema,
+        },
+        ['saveTo'],
+        options,
+      ),
       annotations: READ,
     },
     safe(async ({ id, includeWords, saveTo }) => {
+      rejectLocalArgs(options, { saveTo });
       const { transcription } = await client.get(
         `/api/transcriptions/${encodeURIComponent(id)}`,
       );

@@ -1,13 +1,14 @@
 # Skills
 
-Claude Code skills in this repo. **Public** skills are committed: their files are in
+Claude Code skills in this repo. **Every skill is public**: its files are committed in
 `.agents/skills/<name>/` and `.claude/skills/<name>` links to them, so they load for anyone who
-opens the repo in Claude Code. **Private** skills are real folders in `.claude/skills/`, which is
-gitignored: only their name and summary are listed here, the files stay on the owner's machine.
-The `publish-skill` skill makes one public; `fork-skill` makes a variant.
+opens the repo in Claude Code. Apps and MCPs are the ones that go through gated releases
+(see [catalog-releases.md](apps/mediamake/docs/catalog-releases.md)). The `publish-skill` skill
+adds a new skill and checks it for keys and private paths; `fork-skill` makes a variant.
 
-Regenerate this file with `node tools/skills.mjs index` (publish and fork do it themselves);
-`node tools/skills.mjs check` warns when it is out of date. The mediamake app shows it at
+Regenerate this file with `node tools/skills.mjs index` (add and fork do it themselves);
+`node tools/skills.mjs check` fails when it is out of date or a skill holds a key or a path on
+this machine, in CI too. The mediamake app shows it at
 [`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy.
 
 ## Naming
@@ -33,13 +34,13 @@ Media making: videos (the only skills that start with make-)
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `make-lyric-shorts` | private | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… |
-| `make-lyrics-video` | private | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
-| `make-video-music-remix` | private | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… |
-| `make-video-music-remix-like-f1xhitit` (variant of `make-video-music-remix`) | private | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
-| `make-video-music-remix-like-quicksilverxkingpin` (variant of `make-video-music-remix`) | private | Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero… |
-| `make-video-music-remix-shorts` | private | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
-| `make-waveform-lyric-video` | private | Make a waveform lyric video in Remotion from just a song (an audio file) and a poster or artwork — the picture looping and kicking on the beat, an audio-reactive wavef… |
+| [`make-lyric-shorts`](.agents/skills/make-lyric-shorts/SKILL.md) | public | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… |
+| [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
+| [`make-video-music-remix`](.agents/skills/make-video-music-remix/SKILL.md) | public | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… |
+| [`make-video-music-remix-like-f1xhitit`](.agents/skills/make-video-music-remix-like-f1xhitit/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
+| [`make-video-music-remix-like-quicksilverxkingpin`](.agents/skills/make-video-music-remix-like-quicksilverxkingpin/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero… |
+| [`make-video-music-remix-shorts`](.agents/skills/make-video-music-remix-shorts/SKILL.md) | public | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
+| [`make-waveform-lyric-video`](.agents/skills/make-waveform-lyric-video/SKILL.md) | public | Make a waveform lyric video in Remotion from just a song (an audio file) and a poster or artwork — the picture looping and kicking on the beat, an audio-reactive wavef… |
 
 ## create
 
@@ -47,8 +48,8 @@ Images and artwork
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `create-music-poster` | private | Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail eng… |
-| `create-thumbnail` | private | Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), with a big imp… |
+| [`create-music-poster`](.agents/skills/create-music-poster/SKILL.md) | public | Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail eng… |
+| [`create-thumbnail`](.agents/skills/create-thumbnail/SKILL.md) | public | Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), with a big imp… |
 
 ## pack
 
@@ -57,7 +58,7 @@ Kits and packs that bundle several outputs
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a complete brand kit from a logo the user gives (an image of a wordmark, plus the font names): the animated logo as a transparent reusable Remotion component, sh… |
-| `pack-youtube` | private | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file — thumbnails (through create-thumbnail) and then the title and description (throug… |
+| [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file — thumbnails (through create-thumbnail) and then the title and description (throug… |
 
 ## revise
 
@@ -66,7 +67,7 @@ Review loops with the user
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`revise-image`](.agents/skills/revise-image/SKILL.md) | public | Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the revi… |
-| `revise-video` | private | Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read thei… |
+| [`revise-video`](.agents/skills/revise-video/SKILL.md) | public | Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read thei… |
 
 ## analyze
 
@@ -74,7 +75,7 @@ Breaking media down for later edits
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `analyze-video` | private | Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that… |
+| [`analyze-video`](.agents/skills/analyze-video/SKILL.md) | public | Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that… |
 
 ## write
 
@@ -82,7 +83,7 @@ Text: titles, descriptions, metadata
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `write-youtube-metadata` | private | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) fro… |
+| [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) fro… |
 
 ## skill
 
@@ -90,8 +91,8 @@ Managing skills themselves
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| `fork-skill` | private | Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-musi… |
-| `publish-skill` | private | Publish one or more of this repo's private Claude Code skills — list the private skills still available in a category (make, create, pack, revise, analyze, write, skil… |
+| [`fork-skill`](.agents/skills/fork-skill/SKILL.md) | public | Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-musi… |
+| [`publish-skill`](.agents/skills/publish-skill/SKILL.md) | public | Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for… |
 
 ## remotion
 

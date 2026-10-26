@@ -13,6 +13,23 @@ export type CatalogKind = 'skill' | 'mcp' | 'app' | 'tutorial';
 export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial'];
 
 /**
+ * Kinds that are always public. Every skill's files are committed in the
+ * repo (.agents/skills, listed in SKILLS.md), so a skill item is never gated:
+ * no development, community, vault or release gate, and it opens for everyone
+ * even while public releases are locked. Apps, MCPs and tutorials go through
+ * the gated releases below.
+ */
+export const ALWAYS_PUBLIC_KINDS: CatalogKind[] = ['skill'];
+
+/** True when the item's kind is always public (see ALWAYS_PUBLIC_KINDS). */
+export function isAlwaysPublic(item: { id?: string; kind?: CatalogKind }): boolean {
+  const kind = item.kind ?? (item.id?.split('/')[0] as CatalogKind | undefined);
+  return !!kind && ALWAYS_PUBLIC_KINDS.includes(kind);
+}
+
+export const ALWAYS_PUBLIC_ERROR = 'Skills are always public: only apps, MCPs and tutorials go through gated releases';
+
+/**
  * Release stage of an item, from most to least restricted.
  *  - private: only viewers with an explicit grant.
  *  - network: members of the `network` group (the internal circle) plus grants.
@@ -24,8 +41,40 @@ export type Visibility = CatalogVisibility;
 
 export const VISIBILITIES: Visibility[] = ['private', 'network', 'public'];
 
-/** The group whose members can use every `network` item. */
+/** The group whose members can use every `network` item (the community tier). */
 export const NETWORK_GROUP = 'network';
+export const COMMUNITY_GROUP = NETWORK_GROUP;
+
+/**
+ * The group of private testers: they can use every item, in development or
+ * ready, except the ones marked never-publish. They can't release anything;
+ * only admins can.
+ */
+export const PRIVATE_GROUP = 'private';
+
+/** Days a release spends with the community before it goes public, unless told otherwise. */
+export const DEFAULT_GATE_DAYS = 30;
+
+/**
+ * Release tiers, as the admin dashboard shows them. Stored as `visibility`
+ * plus `neverPublish`:
+ *  - vault:       never published. Admins only, plus explicit item grants.
+ *  - development: being built (`private`). Private testers and grants.
+ *  - community:   production ready, pre-release (`network`). The community group too.
+ *  - public:      released. Everyone (once public releases are open).
+ * A community item with `publicAt` is gated: it turns public by itself at that time.
+ */
+export type ReleaseTier = 'vault' | 'development' | 'community' | 'public';
+export const RELEASE_TIERS: ReleaseTier[] = ['vault', 'development', 'community', 'public'];
+
+/**
+ * Who a viewer is, from most to least access:
+ *  - admin:     everything, and the only one who can release.
+ *  - private:   in the `private` group (or holds a `*` grant): everything but the vault.
+ *  - community: in the `network` group: production-ready items before release.
+ *  - public:    everyone else: released items only.
+ */
+export type ViewerTier = 'admin' | 'private' | 'community' | 'public';
 
 /**
  * What a viewer can do with an item.
@@ -69,6 +118,16 @@ export interface CatalogItem {
    * shown to everyone even while releases are locked.
    */
   openToAll?: boolean;
+  /**
+   * Never published: stays in the vault (admins and explicit grants only)
+   * and can't be moved to network or public.
+   */
+  neverPublish?: boolean;
+  /**
+   * When a gated release goes public by itself (ISO date). Until then the
+   * item is a community item; see effectiveVisibility.
+   */
+  publicAt?: string;
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;
@@ -129,6 +188,8 @@ export interface CatalogItemRecord extends CatalogItem {
   versions: CatalogVersion[];
   createdAt: string;
   createdBy?: string;
+  /** When the current release gate (`publicAt`) was set, for its progress bar. */
+  gateStartedAt?: string;
   /** Visibility changes over time, newest last. */
   stageHistory?: { visibility: Visibility; at: string; by?: string }[];
 }
@@ -213,6 +274,31 @@ export interface CatalogDownload {
   version: string;
   clientId: string | null;
   at: string;
+}
+
+/**
+ * Visibility right now: a skill is always public, and a gated item whose
+ * `publicAt` has passed is public.
+ */
+export function effectiveVisibility(
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
+  now: number = Date.now(),
+): Visibility {
+  if (isAlwaysPublic(item)) return 'public';
+  if (item.neverPublish) return 'private';
+  if (item.visibility === 'network' && item.publicAt && Date.parse(item.publicAt) <= now) return 'public';
+  return item.visibility;
+}
+
+/** The dashboard tier of an item right now. */
+export function releaseTier(
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
+  now: number = Date.now(),
+): ReleaseTier {
+  if (isAlwaysPublic(item)) return 'public';
+  if (item.neverPublish) return 'vault';
+  const visibility = effectiveVisibility(item, now);
+  return visibility === 'public' ? 'public' : visibility === 'network' ? 'community' : 'development';
 }
 
 export function catalogItemId(kind: CatalogKind, slug: string): string {

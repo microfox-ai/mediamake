@@ -65,7 +65,7 @@ export default async function AccessPage({
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="capitalize">{item.kind}</Badge>
                 {item.visibility !== 'public' && (
-                  <Badge variant="secondary">{item.visibility === 'network' ? 'Network' : 'Private'}</Badge>
+                  <Badge variant="secondary">{item.visibility === 'network' ? 'Community' : 'Private'}</Badge>
                 )}
                 {item.version && <span className="text-xs text-muted-foreground">v{item.version}</span>}
               </div>

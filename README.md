@@ -1,71 +1,129 @@
 # MediaMake
 
-> **⚠️ Work in Progress:** This project is currently under development. Please contact [karcreativeworks](https://github.com/karcreativeworks) if you want access, have requests, or wish to contribute.
+> **Work in progress.** Contact [karcreativeworks](https://github.com/karcreativeworks) for access, requests or to contribute.
 
-A comprehensive AI-driven video generation tools & libraries built on top of Remotion, designed to create professional videos & edits through data-driven components and automated workflows.
+MediaMake turns JSON into videos. It is built on [Remotion](https://www.remotion.dev): a video is a
+timeline of presets (a scene, then tracks such as captions or a waveform, then effects) plus the media
+they point at, and the app renders it on AWS Lambda or on your own machine. Around that sit the tools
+for making content with Claude: an MCP server, a library of skills, brand kits, review apps and a
+catalog for handing all of it out.
 
-## Overview
+## What's in the repo
 
-MediaMake is a complete ecosystem for AI-powered video creation that transforms complex video editing into simple, data-driven processes. The platform consists of multiple interconnected components that work together to enable AI agents to generate professional videos through structured JSON data.
+```
+apps/
+  mediamake/          The Next.js app: Core dashboard, editor, API, hosted MCP, catalog, review apps
+  lyrics_videos/      Remotion workspace for song-driven lyric videos, shorts and posters (local renders)
+  writepad/           A separate writing app (Next.js), not part of the MediaMake site
+packages/
+  remotion/           @microfox/remotion: JSON → Remotion components (scenes, layouts, atoms, effects)
+  datamotion/         @microfox/datamotion: data-driven component configs used by the AI agents
+  mediamake-mcp/      @microfox/mediamake-mcp: the MCP server (local stdio / .mcpb build)
+tools/
+  skills.mjs          Builds SKILLS.md and checks skills for keys and machine paths
+  eslint-config/, tsconfig/   Shared lint and TypeScript configs
+scripts/              Release and CI helper scripts (used by .github/workflows)
+private/              Your unreleased MCPs and apps. Gitignored except its README
+.agents/skills/       Every skill (all public, committed); .claude/skills links to them
+SKILLS.md             Index of every skill
+install.md            What Claude follows to install a catalog item
+```
 
-## Core Architecture
+## The app (`apps/mediamake`)
 
-### 1. DataMotion Package
+The site has a public side and a signed-in side.
 
-The foundational package that hosts core configurations and provides data-based components with predefined AI configurations. DataMotion enables AI systems to generate video content on-the-fly by:
+- **`/`** is the homepage and catalog: MCPs, skills, apps and tutorials, each with an install prompt.
+- **`/apps`** is the launcher for every app below, with the ones you can open marked.
+- **`/core/...`** is MediaMake Core (sign in): projects, the editor, presets, media, the transcriber,
+  render history, workers, agents, API keys, billing and quota. Admins also get
+  **`/core/releases`**, the release dashboard (see below).
+- **Review and browser apps**, open to everyone: `/remotion-editor` (edit lyric videos in the
+  browser), `/remotion-revision` and `/image-revision` (comment on renders and image sets, track
+  revisions), `/skill-library` (browse the skills on your computer with their variants and the
+  projects that used them) and `/skills` (the public skills index).
+- **`/access`** handles invites and access requests for catalog items.
 
-- Helper tools/agents with predefined zods to generate the edits.
-- Hosting a large set of configurable effects, transitions, and layouts
-- Enabling multiple video variations from the same data input
-- Supporting dynamic component generation for future scalability
+### Rendering: Lambda or local
 
-### 2. MediaMek Application (Next.js App)
+Every render gets a suggestion for where to run, with the reason. Light renders (images, one song, a
+few short clips) go to Lambda; heavy ones (big files, many minutes of video) are suggested locally,
+because Lambda cost grows with media volume. You can always pick either. Lambda is limited to admins,
+the private tier and clients with the `lambdaRender` flag. Local means the editor's Browser render tab,
+`remotion render`, or the `lyrics_videos` scripts. Details:
+[render-routing.md](apps/mediamake/docs/render-routing.md).
 
-A comprehensive platform that combines:
+### Brand kits
 
-- **Player Component**: Real-time video preview and testing with JSON input
-- **Editor Component**: Visual editing interface (exportable as react package in future for react based AI agent builders)
-- **Uploader**: Git workflow-based code publishing
-- **Registry System**: Component and project management
+A cloud project (a channel or brand) can carry a brand kit: colours, fonts, brand guide, logos,
+intros, outros, end screens and sounds. Upload the folder the `pack-brand-kit` skill exports from the
+Projects page, or with the MCP's `upload_brand_kit`. Needs community access or above.
 
-JSON => REMOTION => VIDEO
-<img width="1510" height="767" alt="image" src="https://github.com/user-attachments/assets/8742dd70-8e7e-4261-a552-c670acc69a43" />
+### Catalog, tiers and releases
 
-Render History With Billing Details
-<img width="1500" height="770" alt="image" src="https://github.com/user-attachments/assets/62714a8d-90f3-4071-b2e8-1cad33c0881b" />
+**Skills are public by default**: every skill is committed in this repo and open to everyone, with
+nothing hidden. **Apps and MCPs** are the gated ones: they are handed out as catalog items, their
+packages live in private storage, and each sits in a tier: **vault** (never published), **in
+development**, **community** (ready, pre-release, optionally gated to turn public after a date) and
+**public**. People get a tier too (admin, private, community, public), set per API key holder.
 
+- **Install an item**: open its card on the homepage (or `/access?item=<kind>/<name>`), copy the install
+  prompt and paste it into Claude. Claude follows [install.md](install.md).
+- **Release and share** (admins): `/core/releases` shows a board per tier (skills always sit in Public), the release timeline,
+  people per tier and per-item access. From the terminal: `npm run catalog` in `apps/mediamake`.
+  See [catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
 
+## The MCP server
 
+Lets Claude (or any MCP client) drive MediaMake: projects and timelines, presets, media,
+transcription, workers and agents, brand kits and renders. Two ways to add it:
 
-### 3. @microfox/remotion
+- **Hosted, by URL** (nothing to install): add `https://<your-mediamake-host>/mcp` as a custom
+  connector in Claude and sign in with your MediaMake account. In Claude Code:
+  `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`. It can't see your
+  files, so media comes in by URL.
+- **Local** (`.mcpb` for Claude Desktop, or stdio): runs on your machine with an API key and can read
+  and write local files. Build with `npm run build:mcpb --workspace @microfox/mediamake-mcp`. The
+  repo's `.mcp.json` registers it for Claude Code sessions opened here.
 
-A wrapper library around Remotion that provides:
+Full tool list and setup: [packages/mediamake-mcp/README.md](packages/mediamake-mcp/README.md).
 
-- Converting simple JSON data into complex Remotion components
-- Type-safe component registry for easy coding
-- Helper functions for building videos
-- Pre-configured base settings and compositions
-- Layout management with timing controls
-- Scene, Layout, and Atom component architecture
+## Skills
 
-## Catalog: releases, access and installs
+Claude Code skills for making content: lyric videos and shorts, music remixes, thumbnails, posters,
+brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for videos, `create-*` for
+images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
+`.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
+[SKILLS.md](SKILLS.md) lists them all. A new skill made as a folder in `.claude/skills/` is moved and
+linked with `node tools/skills.mjs add --all`; `node tools/skills.mjs check` (also run in CI) fails
+when a skill holds an API key, a token or a path on your machine, or when SKILLS.md is out of date.
 
-MediaMake hands out MCPs, skills, apps and tutorials as catalog items. The
-code for this is here; the packages themselves live in private storage.
+## Getting started
 
-- **Install an item**: open its card on the MediaMake homepage (or
-  `/access?item=<kind>/<name>`), copy the install prompt and paste it into
-  Claude. [`install.md`](install.md) is what Claude follows.
-- **Release and share** (admins): `npm run catalog` in `apps/mediamake`.
-  Who has access to what is recorded in the database (grants, groups,
-  invites, requests), and `npm run catalog -- list` prints it. See
-  [docs/catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
-- **Related code**: the [Get into zone extension and its MCP](https://github.com/microfox-ai/extensions).
+Needs Node 20 or newer.
 
-## Contributing
+```bash
+npm install
+npm run build --workspace=@microfox/remotion   # the app imports the built package
+cd apps/mediamake && npm run dev                # http://localhost:3000
+```
 
-MediaMek is designed to be extensible. The modular architecture allows for easy addition of new components, effects, and data structures.
+Put the app's environment in `apps/mediamake/.env.local` (MongoDB, Upstash Redis, S3/Spaces, Remotion
+AWS keys, AI provider keys); see [apps/mediamake/README.md](apps/mediamake/README.md). With
+`DEV_CLIENT_KEY` set, the dev server signs your browser in on its own.
+
+For lyric videos, see [apps/lyrics_videos/README.md](apps/lyrics_videos/README.md)
+(`npm run studio -w lyrics_videos`).
+
+## More docs
+
+- [apps/mediamake/docs](apps/mediamake/docs/README.md): presets, rendering, ElevenLabs, recording,
+  and the [September 2026 feature notes](apps/mediamake/docs/features-2026-09/README.md) (canvas
+  pipeline, editor collaboration, browser rendering)
+- [packages/remotion/docs](packages/remotion/docs/QUICKSTART.md): the `@microfox/remotion` API
+- Related: the [Get into zone extension and its MCP](https://github.com/microfox-ai/extensions)
 
 ## License
 
-This project builds upon Remotion and requires appropriate licensing for production use. See Remotion's licensing terms for details.
+MIT for this repository ([LICENSE](LICENSE)). MediaMake is built on Remotion, which needs a company
+license for some commercial use; see Remotion's licensing terms.

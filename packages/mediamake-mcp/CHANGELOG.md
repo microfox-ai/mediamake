@@ -1,5 +1,11 @@
 # @microfox/mediamake-mcp
 
+## 0.1.2
+
+### Patch Changes
+
+- e6d03ad: Changes from PR #439: project-thread-jkksvn
+
 ## 0.1.1
 
 ### Patch Changes
