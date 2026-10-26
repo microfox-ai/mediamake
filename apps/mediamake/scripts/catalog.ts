@@ -12,6 +12,9 @@
  * Usage: npm run catalog -- <command> [...]
  *   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
  *   promote <itemId> <private|network|public>
+ *   schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
+ *   unschedule <itemId>
+ *   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
  *   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
  *   revoke  <itemId|*> (--to <clientId> | --group <groupId>)   |   revoke --grant <grantId>
  *   group   add|remove <groupId> <clientId> [<clientId>...]
@@ -39,6 +42,9 @@ const ADMIN_KEY = process.env.MEDIAMAKE_ADMIN_KEY || process.env.DEV_API_KEY || 
 const USAGE = `Usage: npm run catalog -- <command> [...]
   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
   promote <itemId> <private|network|public>
+  schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
+  unschedule <itemId>
+  vault <itemId> [--off]                           (never publish: admins and explicit grants only)
   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
   revoke  <itemId|*> (--to <clientId> | --group <groupId>)  |  revoke --grant <grantId>
   group   add|remove <groupId> <clientId> [<clientId>...]
@@ -246,6 +252,25 @@ async function main() {
       return console.log(`✅ ${itemId} is now ${visibility}`);
     }
 
+    case 'schedule': {
+      const itemId = positional[0] ?? fail('schedule <itemId> [--days 30 | --at <date>]');
+      const { item } = await admin({ type: 'schedule_release', itemId, days, at: flag(flags, 'at') });
+      return console.log(`✅ ${itemId} is a community item until ${item.publicAt}, then public`);
+    }
+
+    case 'unschedule': {
+      const itemId = positional[0] ?? fail('unschedule <itemId>');
+      await admin({ type: 'cancel_release', itemId });
+      return console.log(`✅ ${itemId} no longer goes public by itself`);
+    }
+
+    case 'vault': {
+      const itemId = positional[0] ?? fail('vault <itemId> [--off]');
+      const neverPublish = !flags.off;
+      await admin({ type: 'set_never_publish', itemId, neverPublish });
+      return console.log(neverPublish ? `✅ ${itemId} is in the vault (never published)` : `✅ ${itemId} is out of the vault, back in development`);
+    }
+
     case 'grant': {
       const itemId = positional[0];
       if (!itemId) fail("grant <itemId|'*'> --to <clientId>");
@@ -304,7 +329,9 @@ async function main() {
         `${g.inviteCode ? `  via invite ${g.inviteCode}` : ''}${g.note ? `  "${g.note}"` : ''}  (grant ${g.grantId})`;
       for (const item of items) {
         const itemGrants = grants.filter((g: any) => g.itemId === item.id);
-        console.log(`${item.visibility.padEnd(8)} ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${item.listed === false ? '  [unlisted]' : ''}`);
+        const stage = item.neverPublish ? 'vault' : item.visibility;
+        const gate = item.publicAt ? `  public on ${item.publicAt.slice(0, 10)}` : '';
+        console.log(`${stage.padEnd(8)} ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${gate}${item.listed === false ? '  [unlisted]' : ''}`);
         for (const g of itemGrants) console.log(describe(g));
       }
       const everything = grants.filter((g: any) => g.itemId === '*' || g.itemId.endsWith('/*'));

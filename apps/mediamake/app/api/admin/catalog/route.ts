@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CrudHash } from '@microfox/db-upstash';
+import { Redis } from '@upstash/redis';
 import { z } from 'zod';
+import type { ApiKeyInfo } from '@/app/types/db';
+import { publicReleasesOpen } from '@/lib/access';
 import { requireAdmin } from '@/lib/admin-utils';
 import {
   accessGrantsDB,
@@ -13,6 +17,7 @@ import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import {
   CATALOG_KINDS,
   CATALOG_STATUSES,
+  DEFAULT_GATE_DAYS,
   VISIBILITIES,
   catalogItemId,
   isValidSlug,
@@ -22,10 +27,32 @@ import {
   type Visibility,
 } from '@/lib/catalog/types';
 
+/** Everyone with an API key, by client, without the keys themselves. */
+async function listPeople() {
+  try {
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    const keys = await new CrudHash<ApiKeyInfo>(redis, 'apiKeys').list();
+    const byClient = new Map<string, { clientId: string; name: string; activeKeys: number }>();
+    for (const key of keys.filter(Boolean)) {
+      const person = byClient.get(key.clientId) ?? { clientId: key.clientId, name: key.clientName || key.clientId, activeKeys: 0 };
+      if (key.isValid) person.activeKeys += 1;
+      byClient.set(key.clientId, person);
+    }
+    return [...byClient.values()].sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    console.error('[admin/catalog] Could not list API key holders:', error);
+    return [];
+  }
+}
+
 /**
  * GET /api/admin/catalog
  * Everything an admin needs to manage releases: items (with versions),
- * live grants, groups, invites and pending access requests.
+ * live grants, groups, invites, pending access requests, the people who
+ * hold API keys, and whether public releases are open site-wide.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -33,14 +60,25 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
-  const [items, grants, groups, invites, requests] = await Promise.all([
+  await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
+  const [items, grants, groups, invites, requests, people] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
     accessInvitesDB.list(),
     accessRequestsDB.list('pending'),
+    listPeople(),
   ]);
-  return NextResponse.json({ items, grants, groups, invites, requests });
+  return NextResponse.json({
+    items,
+    grants,
+    groups,
+    invites,
+    requests,
+    people,
+    publicReleasesOpen: publicReleasesOpen(),
+    defaultGateDays: DEFAULT_GATE_DAYS,
+  });
 }
 
 const requirementSchema = z.discriminatedUnion('type', [
@@ -97,6 +135,10 @@ function daysFromNow(days?: number) {
  *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, install? } }
  *                             (visibility/status left out keep the current value; new items start private, beta)
  *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }
+ *  { type: 'schedule_release', itemId, days? (default 30) | at? (ISO) }
+ *                             (moves a development item to community now; it goes public by itself at that time)
+ *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays a community item)
+ *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (vault: admins and explicit grants only)
  *  { type: 'remove_item',     itemId }
  *  { type: 'create_upload',   itemId, version }             → { uploadUrl, storageKey }
  *  { type: 'publish_version', itemId, version, storageKey, sha256, bytes, notes? }
@@ -125,13 +167,54 @@ export async function POST(req: NextRequest) {
       const parsed = itemSchema.safeParse(body.item);
       if (!parsed.success) return bad(parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
       const data = parsed.data;
-      const item = await catalogItemsDB.upsert({ ...data, id: catalogItemId(data.kind, data.slug) }, adminId);
-      return NextResponse.json({ item });
+      try {
+        const item = await catalogItemsDB.upsert({ ...data, id: catalogItemId(data.kind, data.slug) }, adminId);
+        return NextResponse.json({ item });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
     }
 
     case 'set_visibility': {
       if (!VISIBILITIES.includes(body.visibility)) return bad(`visibility must be one of ${VISIBILITIES.join(', ')}`);
-      const item = await catalogItemsDB.setVisibility(body.itemId, body.visibility, adminId);
+      try {
+        const item = await catalogItemsDB.setVisibility(body.itemId, body.visibility, adminId);
+        if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ item });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
+    }
+
+    case 'schedule_release': {
+      let publicAt: string;
+      if (body.at) {
+        const at = Date.parse(body.at);
+        if (Number.isNaN(at)) return bad('at must be an ISO date');
+        if (at <= Date.now()) return bad('at must be in the future; use set_visibility to release now');
+        publicAt = new Date(at).toISOString();
+      } else {
+        const days = body.days === undefined ? DEFAULT_GATE_DAYS : Number(body.days);
+        if (!(days > 0 && days <= 365)) return bad('days must be between 1 and 365');
+        publicAt = new Date(Date.now() + days * 86_400_000).toISOString();
+      }
+      try {
+        const item = await catalogItemsDB.scheduleRelease(body.itemId, publicAt, adminId);
+        if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ item });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
+    }
+
+    case 'cancel_release': {
+      const item = await catalogItemsDB.scheduleRelease(body.itemId, null, adminId);
+      if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ item });
+    }
+
+    case 'set_never_publish': {
+      const item = await catalogItemsDB.setNeverPublish(body.itemId, Boolean(body.neverPublish), adminId);
       if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       return NextResponse.json({ item });
     }
