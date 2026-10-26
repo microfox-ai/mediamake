@@ -6,6 +6,7 @@
  * a preset renders here exactly as it does in the editor.
  */
 import type { RenderableComponentData } from '@microfox/remotion';
+import { parseCaptionHtmlText, resolveCaptionHighlightMeta } from './html-text';
 import presets from './presets.json';
 
 export type MediamakePresetId = keyof typeof presets;
@@ -65,7 +66,10 @@ export const runPreset = (
     ) => unknown;
     compiled.set(id, fn);
   }
-  return fn(mergeParams(presetDefaults(id), params), props);
+  // The helpers the editor always injects (preset-stdlib's defaultInjectedHelpers) that the
+  // presets use here: without them htmlText's <b> highlights and <br/> rows are ignored.
+  const helpers = { parseCaptionHtmlText, resolveCaptionHighlightMeta, ...(props.helpers as object) };
+  return fn(mergeParams(presetDefaults(id), params), { ...props, helpers });
 };
 
 /**

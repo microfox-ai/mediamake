@@ -80,6 +80,13 @@ const captionTextStyle = (
         .optional()
         .meta({ title: 'Glow' })
         .describe('Drop shadow glow on these words'),
+      gradient: z
+        .string()
+        .optional()
+        .meta({ title: 'Gradient' })
+        .describe(
+          'CSS gradient that fills these words instead of the colour, e.g. linear-gradient(180deg, #fff6c8, #f5b335 55%, #a8620f)',
+        ),
     })
     .optional()
     .meta({
@@ -383,6 +390,10 @@ const presetExecution = (
         // when this style object was never saved.
         source ? false : Boolean(legacyGlow),
       ),
+      gradient:
+        typeof source?.gradient === 'string' && source.gradient.trim()
+          ? source.gradient.trim()
+          : undefined,
     };
   };
 
@@ -2001,10 +2012,19 @@ const presetExecution = (
             color: textColor,
             letterSpacing: activeTextStyle.letterSpacing,
             ...fontStyle,
-            textShadow: isGlowEnabled
-              ? `0 2px 12px ${selectedColorChoice.accent}`
-              : 'none',
+            // A text-shadow would paint over a gradient clipped to the glyphs:
+            // gradient words get their shadow as a drop-shadow filter.
+            textShadow:
+              isGlowEnabled && !activeTextStyle.gradient
+                ? `0 2px 12px ${selectedColorChoice.accent}`
+                : 'none',
+            ...(isGlowEnabled && activeTextStyle.gradient
+              ? { filter: `drop-shadow(0 2px 8px ${selectedColorChoice.accent})` }
+              : {}),
           },
+          ...(activeTextStyle.gradient
+            ? { gradient: activeTextStyle.gradient }
+            : {}),
           font: {
             family: fontFamily,
           },

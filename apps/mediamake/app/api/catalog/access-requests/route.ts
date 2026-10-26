@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publicReleasesOpen, resolveViewer } from '@/lib/access';
 import { accessRequestsDB, catalogItemsDB } from '@/lib/catalog/store';
+import { effectiveVisibility } from '@/lib/catalog/types';
 
 /** GET /api/catalog/access-requests — item ids the caller is waiting on. */
 export async function GET(req: NextRequest) {
@@ -20,10 +21,10 @@ export async function POST(req: NextRequest) {
   // Locked items are hidden, so only items the caller can already see (and
   // listed ones, once public releases are open) can be asked for.
   const item = await catalogItemsDB.get(itemId);
-  if (!item || item.listed === false || !publicReleasesOpen()) {
+  if (!item || item.listed === false || item.neverPublish || !publicReleasesOpen()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  if (item.visibility === 'public') return NextResponse.json({ error: 'This item is already public' }, { status: 400 });
+  if (effectiveVisibility(item) === 'public') return NextResponse.json({ error: 'This item is already public' }, { status: 400 });
 
   const request = await accessRequestsDB.create(itemId, viewer.clientId, message?.slice(0, 1000));
   return NextResponse.json({ success: true, request });

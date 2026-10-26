@@ -2,8 +2,9 @@
  * thumbs: YouTube thumbnails (thumbnails/jobs/<job>/thumbs.json) and music posters / album artwork
  * (thumbnails/jobs/<job>/poster.json), see thumbnails/README.md.
  *
- * Usage: npm run thumbs -w lyrics_videos -- init <job> [--poster] [--brand=<folder>] [--title="…"]
+ * Usage: npm run thumbs -w lyrics_videos -- init <job> [--poster] [--brand=<folder>] [--title="…"] [--mood=bright|balanced|dark|as-is]
  *        npm run thumbs -w lyrics_videos -- cutout <job> input/photo.jpg [--model=birefnet-portrait] [--point=0.5,0.4] [--all]
+ *        npm run thumbs -w lyrics_videos -- look <job> [--write]         (which treatments suit the picture)
  *        npm run thumbs -w lyrics_videos -- render <job> [A1,B2] [--png] [--guides] [--no-sheet]
  *        npm run thumbs -w lyrics_videos -- pick <job> A2            (one final)
  *        npm run thumbs -w lyrics_videos -- pick <job> A2,B1,C3      (three for YouTube's A/B test)
@@ -14,23 +15,32 @@
  *   init     makes the job folder; with --brand copies the brand's logos, fonts and thumbnail
  *            profile (brands/<brand>/graphics/brand/thumbnail.json) into it
  *   cutout   segments the subject locally (thumbnails/tools/cutout.py) → cutouts/<name>.png
+ *   look     measures each hero picture and scores every treatment for it and the mood
+ *            (thumbnails/look.ts); --write turns a style's "treatments": "auto" into the picks
+ *            and their tuning (render does it by itself)
  *   render   checks the spec, downloads missing Google fonts, renders every variant (or the IDs
- *            given) to out/thumbnails/<job>/<ID>.jpg, the labelled sheets, and index.json
+ *            given) to out/thumbnails/<job>/<ID>.jpg, the labelled sheets, and index.json; for a
+ *            poster it first sets the picture's exposure for the job's mood and then lifts any
+ *            treatment that came out darker than its plain cover (thumbnails/exposure.ts)
  *   pick     copies the chosen IDs to out/thumbnails/<job>/final/ (under YouTube's 2 MB limit);
  *            for a poster, the one cover (3000×3000 JPEG) to out/posters/<job>/final/
  *   keep     snapshots IDs into out/thumbnails/<job>/kept/ (image + resolved spec); render then
  *            leaves them alone and warns if their spec has changed since
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { type Box, type FontSpec, type JobSpec, KINDS, type ResolvedVariant, TIMESTAMP_ZONE, fontFile, jobKind, jobScale, jobSize, resolveJob, styleVariants } from '../thumbnails/spec.ts';
 import { PRESETS } from '../thumbnails/presets/index.ts';
-import { ALL_TREATMENTS } from '../thumbnails/treatments.ts';
+import { TREATMENTS } from '../thumbnails/treatments.ts';
+import { features, pickTreatments, scoreTreatments } from '../thumbnails/look.ts';
+import { type ExposureFile, MOODS, type Mood, type Stats, fixFor, levelsFor, curve, summarize } from '../thumbnails/exposure.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JOBS = path.join(ROOT, 'thumbnails', 'jobs');
@@ -61,6 +71,29 @@ const imageSize = (file: string): [number, number] | null => {
   const r = spawnSync(ffprobeInstaller.path, ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0:s=x', file], { encoding: 'utf8' });
   const m = r.stdout?.trim().match(/^(\d+)x(\d+)/);
   return m ? [Number(m[1]), Number(m[2])] : null;
+};
+
+/** An image's RGB pixels, scaled to `width` px wide. */
+const pixels = (file: string, width: number) => {
+  const size = imageSize(file);
+  if (!size) throw new Error(`Couldn't read ${rel(file)}`);
+  const w = Math.min(width, size[0]);
+  const h = 2 * Math.round((size[1] * w) / size[0] / 2);
+  const r = spawnSync(ffmpegInstaller.path, ['-v', 'error', '-i', file, '-vf', `scale=${w}:${h}`, '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-'], { maxBuffer: 1 << 27 });
+  if (r.status !== 0 || r.stdout?.length !== w * h * 3) throw new Error(`Couldn't read ${rel(file)}: ${r.stderr}`);
+  return { data: new Uint8Array(r.stdout), w, h };
+};
+
+/** Luma and brightest-channel histograms of an image scaled down to 320 px wide. */
+const stats = (file: string): Stats => {
+  const luma = new Array(256).fill(0);
+  const peak = new Array(256).fill(0);
+  const px = pixels(file, 320).data;
+  for (let i = 0; i + 2 < px.length; i += 3) {
+    luma[Math.round(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2])]++;
+    peak[Math.max(px[i], px[i + 1], px[i + 2])]++;
+  }
+  return { luma, peak };
 };
 
 /** What streaming services reject in album artwork (DistroKid's list). */
@@ -143,12 +176,14 @@ const init = () => {
   for (const d of ['input', 'assets', 'fonts', 'cutouts']) fs.mkdirSync(path.join(dir, d), { recursive: true });
   const brand = flag('brand');
   const poster = flags.includes('--poster');
-  const spec: JobSpec = { job, ...(poster ? { kind: 'poster' as const } : {}), title: flag('title'), brand, fonts: [], defaults: { params: {} }, styles: [] };
+  const mood = flag('mood') as Mood | undefined;
+  if (mood && !['bright', 'balanced', 'dark', 'as-is'].includes(mood)) throw new Error('--mood is bright, balanced, dark or as-is');
+  const spec: JobSpec = { job, ...(poster ? { kind: 'poster' as const, mood: mood ?? 'balanced' } : {}), title: flag('title'), brand, fonts: [], defaults: { params: {} }, styles: [] };
   let rules: string[] = [];
   if (brand) {
     const kit = path.join(ROOT, 'brands', brand);
     const profileFile = path.join(kit, 'graphics', 'brand', 'thumbnail.json');
-    if (!fs.existsSync(profileFile)) throw new Error(`No ${rel(profileFile)}: make the brand's thumbnail profile first (make-thumbnail skill, "Brands")`);
+    if (!fs.existsSync(profileFile)) throw new Error(`No ${rel(profileFile)}: make the brand's thumbnail profile first (create-thumbnail skill, "Brands")`);
     const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8')) as {
       logos: { file: string; as: string; width?: number; note?: string }[];
       fonts: (FontSpec & { file: string; role?: string })[];
@@ -169,7 +204,8 @@ const init = () => {
     rules = profile.rules ?? [];
   }
   // the art alone comes first: a text version is only ever an addition to it
-  if (poster) spec.styles = [{ id: 'A', name: 'Art only', idea: 'the picture alone, no text: the base every text version builds on', preset: 'cover', treatments: ALL_TREATMENTS }];
+  // treatments are picked from the picture on the first render (thumbnails/look.ts)
+  if (poster) spec.styles = [{ id: 'A', name: 'Art only', idea: 'the picture alone, no text: the base every text version builds on', preset: 'cover', treatments: 'auto' }];
   const file = path.join(dir, KINDS[poster ? 'poster' : 'thumbnail'].spec);
   if (fs.existsSync(file)) warn(`${rel(file)} exists, left as it is`);
   else fs.writeFileSync(file, JSON.stringify(spec, null, 2) + '\n'), done(file);
@@ -182,6 +218,7 @@ const init = () => {
           '## Release',
           '- song title, artist:',
           '- what it is about, the one feeling the cover should leave:',
+          `- mood (poster.json "mood": bright / balanced / dark; dark only when the song is): ${mood ?? 'balanced'}`,
           '- text versions (ask: title + artist / title only / none); style A, the art with no text, is always made:',
           '- logo (default none; ask):',
           '- fonts the user wants (ask):',
@@ -229,7 +266,61 @@ const cutout = () => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 
+/** Each style's hero picture (`src` of its photo layer), resolving "auto" styles as plain to find it. */
+const heroes = (spec: JobSpec) => {
+  const probe: JobSpec = { ...spec, styles: spec.styles.map(s => (s.treatments === 'auto' ? { ...s, treatments: ['plain'] } : s)) };
+  const variants = resolveJob(probe);
+  return new Map(
+    spec.styles.map(s => {
+      const photo = variants.find(v => v.style === s.id)?.layers.find(l => l.type === 'photo' && l.src);
+      return [s.id, photo && 'src' in photo ? photo.src : undefined] as const;
+    }),
+  );
+};
+
+/**
+ * Scores every treatment for each hero picture as auto-exposure will show it, prints the ranking
+ * with reasons, and with `write` fills every "auto" style with the picks and their tuning
+ * (poster.json, plus a note in brief.md). Styles with a list are left alone: IDs never move.
+ */
+const look = (write: boolean) => {
+  const spec = readSpec(job);
+  const mood: Mood = spec.mood ?? 'balanced';
+  const byStyle = heroes(spec);
+  const results = new Map<string, ReturnType<typeof scoreTreatments>>();
+  const notes: string[] = [];
+  for (const src of new Set([...byStyle.values()].filter((v): v is string => !!v))) {
+    const file = path.join(jobDir(job), src);
+    const px = pixels(file, 480);
+    const levels = mood === 'as-is' ? undefined : levelsFor(stats(file), mood);
+    const f = features(px.data, px.w, px.h, levels ? curve(levels) : undefined);
+    const scored = scoreTreatments(f, mood, Object.keys(TREATMENTS));
+    const picked = new Set(pickTreatments(scored).map(p => p.name));
+    results.set(src, scored.filter(p => picked.has(p.name)));
+    const seen = `light ${f.mean}, contrast ${f.contrast}, black ${Math.round(f.dark * 100)}%, highlights ${Math.round(f.bright * 100)}%, saturation ${f.saturation}, warmth ${f.warmth}, hues ${f.hueSpread}${f.hue === null ? '' : ` (main ${f.hue}°)`}, neon ${Math.round(f.neon * 100)}%, skin ${Math.round(f.skin * 100)}%, detail ${f.detail}, noise ${f.noise}, edges ${f.edges}`;
+    const lines = scored.map(p => `  ${picked.has(p.name) ? '✓' : ' '} ${p.name.padEnd(8)} ${p.score.toFixed(2)}  ${p.why.join('; ') || 'neutral'}${p.tune ? `  [tune ${JSON.stringify(p.tune)}]` : ''}`);
+    console.log(`◐ ${src} (${mood}): ${seen}\n  palette ${f.palette.map(c => `${c.color} ${Math.round(c.share * 100)}%`).join(' · ')}\n${lines.join('\n')}`);
+    notes.push(`- ${src} (${mood}): ${seen}`, ...scored.filter(p => picked.has(p.name)).map(p => `  - ${p.name} ${p.score.toFixed(2)}: ${p.why.join('; ') || 'neutral'}`));
+  }
+  if (!write) return;
+  const auto = spec.styles.filter(s => s.treatments === 'auto');
+  if (!auto.length) return console.log('No style has "treatments": "auto"; nothing written');
+  for (const s of auto) {
+    const picks = results.get(byStyle.get(s.id) ?? '');
+    if (!picks) throw new Error(`Style ${s.id}: no hero picture to look at`);
+    s.treatments = ['plain', ...picks.map(p => p.name)];
+    const tune = Object.fromEntries(picks.filter(p => p.tune).map(p => [p.name, p.tune!]));
+    if (Object.keys(tune).length) s.tune = { ...s.tune, ...tune };
+    console.log(`✔ style ${s.id}: plain + ${picks.map(p => p.name).join(', ')}`);
+  }
+  fs.writeFileSync(specFile(job), JSON.stringify(spec, null, 2) + '\n');
+  done(specFile(job));
+  const brief = path.join(jobDir(job), 'brief.md');
+  fs.appendFileSync(brief, `\n## Treatments picked from the picture (${new Date().toISOString().slice(0, 10)}, styles ${auto.map(s => s.id).join(', ')})\n${notes.join('\n')}\n`);
+};
+
 const render = async () => {
+  if (readSpec(job).styles.some(s => s.treatments === 'auto')) look(true);
   const spec = readSpec(job);
   if (spec.job !== job) throw new Error(`${path.basename(specFile(job))} "job" is "${spec.job}", the folder is "${job}"`);
   const poster = jobKind(spec) === 'poster';
@@ -243,11 +334,20 @@ const render = async () => {
   const only = third?.split(',');
   const out = outDir(job);
   fs.mkdirSync(out, { recursive: true });
-  const serveUrl = await bundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
-  const comps = (await getCompositions(serveUrl)).filter(c => c.id.startsWith(`${job}-`) && c.defaultProps.job === job);
-  const error = comps.find(c => c.id === `${job}-error`);
-  if (error) throw new Error(String(error.defaultProps.message));
   const png = flags.includes('--png');
+  const ext = png ? 'png' : 'jpg';
+  const exposure = poster || spec.mood ? measureSources(spec, variants) : undefined;
+  let serveUrl = '';
+  let comps: Awaited<ReturnType<typeof getCompositions>> = [];
+  // exposure.json is read when bundling, so a change to it needs a new bundle
+  const load = async () => {
+    if (serveUrl) fs.rmSync(serveUrl, { recursive: true, force: true });
+    serveUrl = await bundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
+    comps = (await getCompositions(serveUrl)).filter(c => c.id.startsWith(`${job}-`) && c.defaultProps.job === job);
+    const error = comps.find(c => c.id === `${job}-error`);
+    if (error) throw new Error(String(error.defaultProps.message));
+  };
+  await load();
   const still = async (id: string, file: string, props: Record<string, unknown> = {}) => {
     const composition = comps.find(c => c.id === id);
     if (!composition) throw new Error(`No composition ${id}`);
@@ -257,17 +357,107 @@ const render = async () => {
     if (!poster && !sheet && fs.statSync(file).size > MAX_BYTES) warn(`${rel(file)} is over YouTube's 2 MB (pick re-encodes it)`);
     done(file);
   };
-  for (const v of variants) {
-    if (only && !only.includes(v.id)) continue;
-    if (kept.includes(v.id) && fs.existsSync(path.join(out, `${v.id}.jpg`))) continue; // locked: leave the user's copy alone
-    await still(`${job}-${v.id}`, path.join(out, `${v.id}.${png ? 'png' : 'jpg'}`), { guides: flags.includes('--guides') });
+  const todo = variants.filter(v => !(only && !only.includes(v.id)) && !(kept.includes(v.id) && fs.existsSync(path.join(out, `${v.id}.jpg`)))); // kept: leave the user's copy alone
+  const renderAll = async (list: ResolvedVariant[]) => {
+    for (const v of list) await still(`${job}-${v.id}`, path.join(out, `${v.id}.${ext}`), { guides: flags.includes('--guides') });
+  };
+  await renderAll(todo);
+  if (exposure && exposure.mood !== 'as-is') {
+    // the lift is an estimate, so measure again; a few rounds at most
+    for (let round = 0; round < 3; round++) {
+      const lifted = liftDarkTreatments(exposure, variants, todo, ext);
+      if (!lifted.length) break;
+      console.log(`↻ re-rendering ${lifted.map(v => v.id).join(', ')} with a lift (they came out darker than their plain cover)`);
+      await load();
+      await renderAll(lifted);
+    }
+    reportExposure(exposure, variants, todo, ext);
   }
   if (!flags.includes('--no-sheet')) {
-    await still(`${job}-sheet`, path.join(out, `sheet.${png ? 'png' : 'jpg'}`));
-    await still(`${job}-sheet-small`, path.join(out, `sheet-small.${png ? 'png' : 'jpg'}`));
+    await still(`${job}-sheet`, path.join(out, `sheet.${ext}`));
+    await still(`${job}-sheet-small`, path.join(out, `sheet-small.${ext}`));
   }
-  writeIndex(spec, variants, png ? 'png' : 'jpg');
+  writeIndex(spec, variants, ext);
   fs.rmSync(serveUrl, { recursive: true, force: true });
+};
+
+const exposureFile = () => path.join(jobDir(job), 'exposure.json');
+
+/**
+ * Measures each hero picture and writes the levels for the job's mood to jobs/<job>/exposure.json
+ * (the compositions read it). Fixes from the last render are kept as the starting point.
+ */
+const measureSources = (spec: JobSpec, variants: ResolvedVariant[]): ExposureFile => {
+  const mood: Mood = spec.mood ?? 'balanced';
+  const old = fs.existsSync(exposureFile()) ? (JSON.parse(fs.readFileSync(exposureFile(), 'utf8')) as ExposureFile) : undefined;
+  // a lift only carries over to the same variant in the same mood
+  const keep = (id: string) => old?.mood === mood && old.fixedFor?.[id] === variantHash(variants.find(v => v.id === id));
+  const ids = Object.keys(old?.fixes ?? {}).filter(keep);
+  const file: ExposureFile = {
+    mood,
+    sources: {},
+    fixes: Object.fromEntries(ids.map(id => [id, old!.fixes[id]])),
+    fixedFor: Object.fromEntries(ids.map(id => [id, old!.fixedFor![id]])),
+  };
+  if (mood !== 'as-is') {
+    const sources = new Set(variants.flatMap(v => v.layers.filter(l => l.type === 'photo' && l.src).map(l => (l as { src: string }).src)));
+    for (const src of sources) {
+      const s = stats(path.join(jobDir(job), src));
+      const levels = levelsFor(s, mood);
+      file.sources[src] = { levels, before: summarize(s), after: summarize(s, curve(levels)) };
+      const { before, after } = file.sources[src];
+      console.log(`☀ ${src} (${mood}): mean ${before.mean} → ${after.mean}, bright parts ${before.p90} → ${after.p90}, highlights ${before.p99} → ${after.p99} (white point ${levels.white}, lift ${levels.gamma})`);
+    }
+  }
+  fs.writeFileSync(exposureFile(), JSON.stringify(file, null, 2) + '\n');
+  return file;
+};
+
+const variantHash = (v?: ResolvedVariant) => (v ? createHash('sha1').update(JSON.stringify(v)).digest('hex').slice(0, 12) : '');
+
+/** The plain cover a treatment variant is compared with: its style's variant without a treatment. */
+const plainOf = (v: ResolvedVariant, variants: ResolvedVariant[]) => (v.post ? variants.find(o => o.style === v.style && !o.post) : undefined);
+
+/** Treatments that came out darker than their plain cover allows: raises their fix in exposure.json and returns them. */
+const liftDarkTreatments = (exposure: ExposureFile, variants: ResolvedVariant[], rendered: ResolvedVariant[], ext: string) => {
+  const keep = MOODS[exposure.mood as Exclude<Mood, 'as-is'>].keep;
+  const file = (v: ResolvedVariant) => path.join(outDir(job), `${v.id}.${ext}`);
+  const lifted: ResolvedVariant[] = [];
+  for (const v of rendered) {
+    const plain = plainOf(v, variants);
+    if (!plain || !fs.existsSync(file(plain))) continue;
+    const s = stats(file(v));
+    const target = summarize(stats(file(plain))).mean * keep;
+    if (summarize(s).mean >= target * 0.97) continue;
+    const fix = +Math.min(2, (exposure.fixes[v.id] ?? 1) * fixFor(s, target)).toFixed(3);
+    if (fix <= (exposure.fixes[v.id] ?? 1) + 0.01) continue;
+    exposure.fixes[v.id] = fix;
+    (exposure.fixedFor ??= {})[v.id] = variantHash(v);
+    lifted.push(v);
+  }
+  if (lifted.length) fs.writeFileSync(exposureFile(), JSON.stringify(exposure, null, 2) + '\n');
+  return lifted;
+};
+
+/** One line per render: brightness against its plain cover, highlights, lift; warns about covers that stay dark. */
+const reportExposure = (exposure: ExposureFile, variants: ResolvedVariant[], rendered: ResolvedVariant[], ext: string) => {
+  const mood = MOODS[exposure.mood as Exclude<Mood, 'as-is'>];
+  const file = (v: ResolvedVariant) => path.join(outDir(job), `${v.id}.${ext}`);
+  const measured = new Map(rendered.map(v => [v.id, summarize(stats(file(v)))]));
+  const lines = rendered.map(v => {
+    const m = measured.get(v.id)!;
+    const plain = plainOf(v, variants);
+    const ref = plain && (measured.get(plain.id) ?? (fs.existsSync(file(plain)) ? summarize(stats(file(plain))) : undefined));
+    const vs = ref ? ` (${Math.round((m.mean / ref.mean) * 100)}% of ${plain!.id})` : '';
+    const fix = exposure.fixes[v.id] ? `, lift ×${exposure.fixes[v.id]}` : '';
+    return `  ${v.id.padEnd(4)} ${(v.note ?? '').padEnd(11)} mean ${m.mean.toFixed(2)}${vs}, highlights ${m.p99.toFixed(2)}${fix}`;
+  });
+  console.log(`exposure (${exposure.mood}):\n${lines.join('\n')}`);
+  for (const v of rendered) {
+    const m = measured.get(v.id)!;
+    if (!v.post && m.mean < mood.mean * 0.6) warn(`${v.id} stays dark (mean ${m.mean}) even with the most lift "${exposure.mood}" allows: use a brighter picture, or "mood": "dark" if the song is dark`);
+    if (exposure.mood !== 'dark' && m.p99 < 0.8) warn(`${v.id} has no real highlights (brightest ${m.p99}): it will read flat and dark`);
+  }
 };
 
 type Index = { schema?: string; job: string; kind?: string; workflow?: string; source?: string; location?: string; path?: string; sourcePath?: string; title?: string; brand?: string; size: [number, number]; styles: { id: string; name: string; idea?: string; variants: { id: string; file: string; note?: string }[] }[]; sheets: string[]; picked?: string[]; final?: string[]; kept?: string[] };
@@ -281,7 +471,7 @@ const writeIndex = (spec: JobSpec, variants: ResolvedVariant[], ext: string) => 
     schema: 'mediamake.image-set/v1',
     job,
     kind: jobKind(spec),
-    workflow: jobKind(spec) === 'poster' ? 'make-music-poster' : 'make-thumbnail',
+    workflow: jobKind(spec) === 'poster' ? 'create-music-poster' : 'create-thumbnail',
     source: path.relative(path.resolve(ROOT, '../..'), specFile(job)),
     location: path.relative(path.resolve(ROOT, '../..'), outDir(job)),
     // absolute, so /image-revision can show the folder in Finder (dev server) or copy the path
@@ -392,11 +582,12 @@ const canvas = async () => {
 
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: npm run thumbs -w lyrics_videos -- init|cutout|render|pick|keep <job> …');
+    console.error('Usage: npm run thumbs -w lyrics_videos -- init|cutout|look|render|pick|keep|canvas <job> …');
     process.exit(1);
   }
   if (cmd === 'init') init();
   else if (cmd === 'cutout') cutout();
+  else if (cmd === 'look') look(flags.includes('--write'));
   else if (cmd === 'render') await render();
   else if (cmd === 'pick') pick();
   else if (cmd === 'keep') keep();

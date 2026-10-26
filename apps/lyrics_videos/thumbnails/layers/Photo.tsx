@@ -4,7 +4,7 @@ import { Img } from 'remotion';
 import { src } from '../fonts.ts';
 import { useFull } from '../canvas.tsx';
 import type { PhotoLayer } from '../spec.ts';
-import { Defs, DuotoneFilter, OutlineFilter, glowFilter, gradeFilter, safeId, shadowFilter } from './filters.tsx';
+import { Defs, DuotoneFilter, LevelsFilter, OutlineFilter, glowFilter, gradeFilter, safeId, shadowFilter } from './filters.tsx';
 
 const fadeMask = (f: NonNullable<PhotoLayer['fade']>) => `linear-gradient(to ${f.side}, black ${(1 - (f.size ?? 0.5)) * 100}%, transparent 100%)`;
 
@@ -17,12 +17,13 @@ export const Photo: React.FC<{ job: string; layer: PhotoLayer }> = ({ job, layer
   const [fx, fy] = layer.focus ?? [0.5, 0.5];
   const [ox, oy] = layer.offset ?? [0, 0];
   const zoom = layer.zoom ?? 1;
-  const imgFilter = [gradeFilter(layer.grade), layer.duotone && `url(#${id}-duo)`].filter(Boolean).join(' ');
+  const imgFilter = [layer.levels && `url(#${id}-lv)`, gradeFilter(layer.grade), layer.duotone && `url(#${id}-duo)`].filter(Boolean).join(' ');
   const outerFilter = [layer.outline && `url(#${id}-line)`, shadowFilter(layer.shadow), glowFilter(layer.glow)].filter(Boolean).join(' ');
   const mask = layer.fade ? fadeMask(layer.fade) : undefined;
   return (
     <div style={{ position: 'absolute', left: x, top: y, width: w, height: h, opacity: layer.opacity, mixBlendMode: layer.blend as React.CSSProperties['mixBlendMode'], transform: layer.rotate ? `rotate(${layer.rotate}deg)` : undefined, filter: outerFilter || undefined }}>
       <Defs>
+        {layer.levels && <LevelsFilter id={`${id}-lv`} levels={layer.levels} />}
         {layer.duotone && <DuotoneFilter id={`${id}-duo`} colors={layer.duotone} />}
         {layer.outline && <OutlineFilter id={`${id}-line`} width={layer.outline.width} color={layer.outline.color} />}
       </Defs>

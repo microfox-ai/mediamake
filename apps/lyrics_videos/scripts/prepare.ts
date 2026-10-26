@@ -501,12 +501,19 @@ const main = () => {
   let energy: Manifest['energy'] = quick.energy;
 
   const analysis = readAnalysis(projectDir);
-  const lyrics = normalizeLyrics(analysis.aligned ?? rawLyrics, duration, warn);
+  let lyrics = normalizeLyrics(analysis.aligned ?? rawLyrics, duration, warn);
   if (!lyrics.length) throw new Error('input/lyrics.json has no lines.');
   if (analysis.aligned) {
-    const given = RawLyricsSchema.parse(rawLyrics).map(l => l.text.trim());
-    if (given.join('\n') !== lyrics.map(l => l.text).join('\n'))
+    const given = RawLyricsSchema.parse(rawLyrics);
+    if (given.map(l => l.text.trim()).join('\n') !== lyrics.map(l => l.text).join('\n'))
       warn('analysis/lyrics.aligned.json text differs from input/lyrics.json: re-run the analysis');
+    // The aligner keeps only text and times: carry each line's mediamake metadata (htmlText <b>
+    // highlights, splitParts) over from input/lyrics.json.
+    else
+      lyrics = lyrics.map((l, i) => {
+        const metadata = given[i].metadata;
+        return metadata && Object.keys(metadata).length ? { ...l, metadata } : l;
+      });
   }
 
   let sections = projectInput.sections ?? deriveSections(lyrics, duration);

@@ -38,7 +38,11 @@ export type ResolvedCut = {
   panels?: ResolvedPanel[];
   /** '@split': seconds into the cut each panel arrives */
   panelAt?: number[];
+  /** '@flashes': [song seconds, strength] of each flash */
+  flashAt?: [number, number][];
   warn?: string;
+  /** hold(): the last source time the take shows; its last frame holds after it */
+  holdAt?: number;
 };
 
 /**
@@ -46,7 +50,12 @@ export type ResolvedCut = {
  * impact frame holds two frames into the take, not its first: source edits often hide a one-frame
  * flash of another shot at a cut, and a held flash frame shows the wrong picture.
  */
-export const sourceTime = (cut: Pick<ResolvedCut, 'from' | 'to' | 'srcIn' | 'rate' | 'fx'>, t: number, fps = 30): number => {
+export const sourceTime = (cut: Pick<ResolvedCut, 'from' | 'to' | 'srcIn' | 'rate' | 'fx' | 'holdAt'>, t: number, fps = 30): number => {
+  const st = sourceTimeFree(cut, t, fps);
+  return cut.holdAt !== undefined ? Math.min(st, cut.holdAt) : st;
+};
+
+const sourceTimeFree = (cut: Pick<ResolvedCut, 'from' | 'to' | 'srcIn' | 'rate' | 'fx'>, t: number, fps: number): number => {
   const rv = cut.fx.find(x => x.k === 'rev') as Extract<Fx, { k: 'rev' }> | undefined;
   if (rv) return cut.srcIn - (rv.r ?? 2) * t;
   const fr = cut.fx.find(x => x.k === 'freeze') as Extract<Fx, { k: 'freeze' }> | undefined;
@@ -112,11 +121,14 @@ export const resolveCuts = (m: ManifestLike, f: Footage, blocks: Block[], matted
           return { src: p, source, srcIn: s0, srcOut: s1 - 1 / 30, matte: matted.has(p) ? { key: p, in: s0 } : undefined };
         });
         if (c.panelAt) cut.panelAt = c.panelAt.map(b => beatTime(m, b) - from);
+      } else if (c.flashes) {
+        cut.flashAt = c.flashes.map(([b, s]) => [beatTime(m, b), s]);
       } else if (!gfx) {
         const [s0, s1, source] = shotOf(c.src, id);
         cut.source = source;
         cut.srcIn = s0 + (c.off ?? 0);
         cut.rate = slow ? Math.max(0.4, Math.min(1, slow.r)) : Math.max(1, c.rate ?? 1);
+        if (c.fx.some(x => x.k === 'hold')) cut.holdAt = s1 - 1 / 24;
         const over = sourceTime(cut, to - from) - s1;
         const under = s0 - sourceTime(cut, to - from);
         if (over > 1 / 24) cut.warn = `runs ${over.toFixed(2)}s past the end of ${c.src} (into the footage's next shot)`;
@@ -132,8 +144,8 @@ export const resolveCuts = (m: ManifestLike, f: Footage, blocks: Block[], matted
   return out;
 };
 
-const LAYER: Record<TextStyle, string> = { big: 'big', front: 'big', line: 'line', label: 'label', sub: 'sub', timer: 'timer', map: 'map', flank: 'flank' };
-const HOLD: Record<TextStyle, number> = { big: 1, front: 1.5, line: 1.5, label: 3, sub: 4, timer: 0, map: 4, flank: 4 };
+const LAYER: Record<TextStyle, string> = { big: 'big', front: 'big', line: 'line', label: 'label', sub: 'sub', timer: 'timer', map: 'map', flank: 'flank', comic: 'comic', decal: 'decal', bar: 'bar', plane: 'plane', glass: 'big', ko: 'ko', stack: 'stack', flow: 'flow' };
+const HOLD: Record<TextStyle, number> = { big: 1, front: 1.5, line: 1.5, label: 3, sub: 4, timer: 0, map: 4, flank: 4, comic: 1, decal: 4, bar: 1.2, plane: 1.5, glass: 1.2, ko: 1, stack: 2, flow: 1 };
 
 /**
  * Seconds a sung word shows before its aligned start. Aligned starts trail the consonant onsets by
@@ -158,7 +170,12 @@ export const resolveText = (m: ManifestLike, cues: TextCue[], lead = TEXT_LEAD):
       const sung = line.words;
       const text = cue.text === '*' ? line.text.toUpperCase().replace(/[.,!?]+$/, '') : cue.text;
       const parts = text.split(' ');
-      if (cue.perWord || cue.text === '*') {
+      if (cue.ws) {
+        // 'stack': each '/'-separated line lands on its own sung word
+        const lines = text.split('/');
+        words = lines.map((t, k) => ({ text: t, at: Math.max(0, (sung[cue.ws![k] ?? cue.ws![cue.ws!.length - 1]] ?? sung[sung.length - 1]).start - lead) }));
+        lastEnd = (sung[cue.ws[cue.ws.length - 1]] ?? sung[sung.length - 1]).end;
+      } else if (cue.perWord || cue.text === '*') {
         words = parts.map((t, k) => ({ text: t, at: Math.max(0, (sung[w0 + k] ?? sung[sung.length - 1]).start - lead) }));
         lastEnd = (sung[w0 + parts.length - 1] ?? sung[sung.length - 1]).end;
       } else {

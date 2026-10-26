@@ -92,7 +92,9 @@ const list = (ids: string[]) => (ids.length ? ids.join(', ') : '—');
 /** The workflow-specific part of the instructions, when the set says which workflow made it. */
 const howTo = (index: ImageSetIndex | null, job: string) => {
   const workflow = index?.workflow;
-  if (workflow === 'make-thumbnail' || workflow === 'make-music-poster' || (!workflow && formatOf(index).thumbnail))
+  // make-* are the skills' names before the rename; older index.json files still carry them
+  const thumbs = ['create-thumbnail', 'create-music-poster', 'make-thumbnail', 'make-music-poster'];
+  if ((workflow && thumbs.includes(workflow)) || (!workflow && formatOf(index).thumbnail))
     return `Finals → \`npm run thumbs -w lyrics_videos -- pick ${job} <IDs>\`${index?.kind === 'poster' ? ' (add `--to=<release folder>` to copy the cover there as cover.jpg)' : ''}; keep → \`thumbs keep\`. Fix each comment as a change to that variant or as a new variant (IDs never change once seen) and re-render those IDs.`;
   return 'Act on finals, keeps and drops, and fix each comment, the way the workflow that made these images works (re-generate or edit those images, keeping their IDs).';
 };
@@ -122,7 +124,7 @@ export function revisionToMarkdown(
     `- Status: ${revision.status}`,
     `- Updated: ${revision.updatedAt}`,
     '',
-    `For Claude${index?.workflow ? ` (${index.workflow} skill)` : ''}: act on this when the status is \`ready\`. ` +
+    `For Claude${index?.workflow ? ` (${index.workflow} skill)` : ''}: act on this when the status is \`ready\`, following the revise-image skill. ` +
       howTo(index, revision.job) +
       ' Dropped IDs are not worth more work. Then set each comment\'s `status` to `done` with a short `reply` and ' +
       'the revision\'s `status` to `resolved` in the JSON.',

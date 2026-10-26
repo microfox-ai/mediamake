@@ -8,7 +8,8 @@
  *   4. resolves video/edl.ts against the manifest: prints every cut with its transition, warns about
  *      cuts that run past their shot, prints each block's rhythm (cuts per beat, how many one-beat
  *      cuts, how often the length changes) and every shot used twice (⚠ when the same source frames
- *      show twice), writes video/shots.json (the review map); --unused lists the shots not used yet
+ *      show twice), writes video/shots.json (the review map); --unused lists the shots not used yet;
+ *      --animatic draws out/<slug>/animatic/<block>.jpg: the middle frame of every cut, to read the story
  *   5. derived/shotmattes/jobs.json: one subject cutout per footage shot the edit uses;
  *      --matte runs scripts/matte.py on the shots that have none yet (~0.3–1 s a frame)
  *   6. derived/slow/<shot>.mp4: every shot a slow() cut plays, motion-interpolated to 60 fps
@@ -22,7 +23,12 @@
  *     "window": [1920, 804], "logo": "input/<logo>" }
  *   (the old single-source form { source, segregation, crop, window } still works)
  *
- * Usage: npm run remix -w lyrics_videos -- <slug> [--matte] [--only=sh0010,sh0030] [--force] [--unused]
+ * Usage: npm run remix -w lyrics_videos -- <slug> [--matte] [--only=sh0010,sh0030] [--force] [--unused] [--animatic]
+ *
+ * --short=<id> (make-video-music-remix-shorts): resolve shorts/<id>/edl.ts instead and check only its
+ * window (short.json): its cuts, rhythm, repeats and mattes; shots.json and the animatic go with the
+ * short (shorts/<id>/shots.json, out/<slug>/shorts/<id>/animatic/). Shared media (plates, mattes, slow
+ * clips, footage.json) stay the project's.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -75,6 +81,11 @@ for (const [k, sc] of cfg.sources.entries()) {
     ], { stdio: 'inherit' });
   }
 }
+// slow-motion clips made for this edit or a short stay listed (step 6 adds new ones)
+const prevFootage = path.join(dir, 'video/footage.json');
+const prevSlow: Record<string, string> = fs.existsSync(prevFootage) ? JSON.parse(fs.readFileSync(prevFootage, 'utf8')).slow ?? {} : {};
+const keptSlow = Object.fromEntries(Object.entries(prevSlow).filter(([id, rel]) => footage.shots[id] && fs.existsSync(path.join(dir, rel))));
+if (Object.keys(keptSlow).length) footage.slow = keptSlow;
 fs.writeFileSync(path.join(dir, 'video/footage.json'), JSON.stringify(footage));
 
 // the title card's logo → white on transparent: its own alpha when it has one, else its dark marks
@@ -99,10 +110,27 @@ for (const f of fs.readdirSync(matteDir)) {
 }
 fs.writeFileSync(path.join(dir, 'video/anchors.json'), JSON.stringify(anchors));
 
-// 4. resolve
-const edl = await import(pathToFileURL(path.join(dir, 'video/edl.ts')).href);
-const { cuts, text, sfx } = resolveAll(manifest, footage, edl.blocks, edl.words, edl.sfx ?? [], new Set(Object.keys(anchors)));
+// 4. resolve (a short: its own cut list, checked over its window only)
+const shortId = opt('short');
+const short: { from: number; to: number; formats: string[] } | null = shortId ? JSON.parse(fs.readFileSync(path.join(dir, 'shorts', shortId, 'short.json'), 'utf8')) : null;
+const edl = await import(pathToFileURL(path.join(dir, shortId ? `shorts/${shortId}/edl.ts` : 'video/edl.ts')).href);
+const all = resolveAll(manifest, footage, edl.blocks, edl.words, edl.sfx ?? [], new Set(Object.keys(anchors)));
+const inWindow = (x: { from: number; to: number }) => !short || (x.to > short.from + 1e-3 && x.from < short.to - 1e-3);
+const cuts = all.cuts.filter(inWindow);
+const text = all.text.filter(inWindow);
+const sfx = all.sfx.filter(s => !short || (s.at > short.from - 3 && s.at < short.to));
+if (short) {
+  // a vertical frame filled by the wide picture blows it up: soft past ~1.5×
+  const sizes: Record<string, number> = { '9x16': 1920, '3x4': 1440, '4x5': 1350 };
+  const zoom = short.formats.map(f => `${f} ×${(sizes[f] / cfg.window[1]).toFixed(1)}`).join(', ');
+  console.log(`short ${shortId}: ${short.from.toFixed(2)}–${short.to.toFixed(2)} s · a full-frame reframe enlarges the ${cfg.window[0]}×${cfg.window[1]} picture ${zoom}${short.formats.some(f => sizes[f] / cfg.window[1] > 1.5) ? ' (soft: band() and stacked splits stay sharp)' : ''}\n`);
+}
 const sectionAt = (t: number) => manifest.sections.find((s: any) => t >= s.from - 1e-6 && t < s.to)?.label;
+const beatLen = (t: number) => {
+  const bt = manifest.beats.list as { t: number }[];
+  const i = Math.max(0, bt.findIndex(b => b.t > t) - 1);
+  return (bt[Math.min(i + 1, bt.length - 1)].t - bt[i].t) || 0.6;
+};
 const fmt = (t: number) => t.toFixed(2).padStart(7);
 for (const c of cuts) {
   const fx = c.fx.map(f => f.k).join(' ');
@@ -110,6 +138,16 @@ for (const c of cuts) {
   console.log(`${c.id.padEnd(6)} ${fmt(c.from)} ${fmt(c.to)}  ${c.src.padEnd(7)} ${tag} ${c.tin.padEnd(6)} ${fx}${c.rate !== 1 ? ` ×${c.rate.toFixed(2)}` : ''}${c.warn ? `   ⚠ ${c.warn}` : ''}`);
 }
 for (const w of text.filter(t => t.to <= t.from)) console.log(`⚠ text "${w.cue.text}" has no time on screen (${w.from.toFixed(2)})`);
+// a split panel plays its take from where it lands and holds the last frame (often a fade or black) when
+// the take is shorter: flag the ones holding more than half a beat
+for (const c of cuts.filter(x => x.panels)) {
+  c.panels!.forEach((p, k) => {
+    const at = c.from + (c.panelAt?.[k] ?? (k / c.panels!.length) * (c.to - c.from));
+    const over = c.to - at - (p.srcOut - p.srcIn);
+    const len = beatLen(c.from);
+    if (over > len / 2) console.log(`⚠ ${c.id} panel ${k + 1} (${p.src}) holds its last frame ${(over / len).toFixed(1)} beats: a longer take, or land it later`);
+  });
+}
 for (const s of sfx) if (!fs.existsSync(path.join(derived, 'sfx', `${s.file}.wav`))) console.log(`⚠ sfx ${s.file}.wav missing in derived/sfx/`);
 const used = [...new Set(cuts.flatMap(c => (c.panels ? c.panels.map(p => p.src) : c.gfx ? [] : [c.src])))];
 const missing = used.filter(id => !anchors[id]);
@@ -118,6 +156,7 @@ const lens = cuts.map(c => c.to - c.from);
 // rhythm per block: a steady pulse reads better than chasing every line (one-beat cuts, few length changes)
 console.log('\nrhythm  block  cuts/beats  1-beat  <1-beat  length changes');
 for (const b of edl.blocks as { id: string; cuts: { b: number | 'end' }[] }[]) {
+  if (short && !cuts.some(c => c.id.split('.')[0] === b.id)) continue;
   const ls = b.cuts.map(c => c.b).filter((x): x is number => x !== 'end');
   if (!ls.length) continue;
   const beats = ls.reduce((a, x) => a + x, 0);
@@ -153,8 +192,38 @@ if (flag('unused')) {
 
 console.log(`\n${cuts.length} cuts (median ${lens.sort((a, b) => a - b)[lens.length >> 1].toFixed(2)}s) · ${text.length} text cues · ${sfx.length} sfx · ${used.length} shots, ${missing.length} without a matte yet`);
 
+// the animatic: one frame from the middle of every cut, a sheet per block, to read the story before a render
+if (flag('animatic')) {
+  const out = path.join(ROOT, 'out', slug, ...(shortId ? ['shorts', shortId] : []), 'animatic');
+  fs.mkdirSync(path.join(out, 'f'), { recursive: true });
+  const [tw, th] = [320, Math.round((320 * cfg.window[1]) / cfg.window[0])];
+  const byBlock: Record<string, string[]> = {};
+  for (const c of cuts) {
+    const f = path.join(out, 'f', `${c.id}.jpg`);
+    const label = `drawtext=text='${c.id} ${(c.to - c.from).toFixed(2)}':x=4:y=4:fontsize=13:fontcolor=yellow:box=1:boxcolor=black@0.6`;
+    if (c.gfx || c.panels) execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=0x202020:s=${tw}x${th}`, '-frames:v', '1', '-vf', label, '-update', '1', f]);
+    else {
+      const sc = cfg.sources.find(x => x.id === c.source)!;
+      const [cw, ch, cx, cy] = sc.crop;
+      const mono = c.fx.some(x => x.k === 'mono') ? ',hue=s=0' : '';
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', sourceTime(c, (c.to - c.from) / 2).toFixed(3), '-i', path.join(dir, sc.source), '-frames:v', '1',
+        '-vf', `crop=${cw}:${ch}:${cx}:${cy},scale=${tw}:${th}${mono},${label}`, '-update', '1', f]);
+    }
+    (byBlock[c.id.split('.')[0]] ??= []).push(f);
+  }
+  for (const [b, files] of Object.entries(byBlock)) {
+    const cols = 8;
+    const n = Math.ceil(files.length / cols) * cols;
+    const inputs = files.flatMap(f => ['-i', f]);
+    for (let k = files.length; k < n; k++) inputs.push('-f', 'lavfi', '-i', `color=c=black:s=${tw}x${th}`);
+    const layout = Array.from({ length: n }, (_, k) => `${(k % cols) * tw}_${Math.floor(k / cols) * th}`).join('|');
+    execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', `${Array.from({ length: n }, (_, k) => `[${k}]`).join('')}xstack=inputs=${n}:layout=${layout}`, '-frames:v', '1', '-update', '1', path.join(out, `${b}.jpg`)]);
+  }
+  console.log(`✔ ${path.relative(ROOT, out)}/<block>.jpg (${Object.keys(byBlock).length} sheets)`);
+}
+
 fs.writeFileSync(
-  path.join(dir, 'video/shots.json'),
+  path.join(dir, shortId ? `shorts/${shortId}/shots.json` : 'video/shots.json'),
   JSON.stringify(
     cuts.map(c => ({
       id: c.id,
@@ -173,7 +242,7 @@ fs.writeFileSync(
 const slowShots = [...new Set(cuts.filter(c => !c.gfx && c.rate < 1).map(c => c.src))];
 if (slowShots.length) {
   fs.mkdirSync(path.join(derived, 'slow'), { recursive: true });
-  footage.slow = {};
+  footage.slow = { ...footage.slow };
   for (const id of slowShots) {
     const [s0, s1, sid] = footage.shots[id];
     const sc = cfg.sources.find(x => x.id === sid)!;
@@ -206,7 +275,7 @@ for (const [k, sc] of cfg.sources.entries()) {
   fs.writeFileSync(jobFile, JSON.stringify({ src: path.join(dir, sc.source), out: matteDir, crop: sc.crop, width: cfg.window[0], fps: `${footage.sources[sc.id].matteFps}`, shots: jobs }, null, 1));
   jobFiles.push(jobFile);
 }
-console.log(`✔ video/footage.json, video/anchors.json, video/shots.json, derived/shotmattes/jobs*.json`);
+console.log(`✔ video/footage.json, video/anchors.json, ${shortId ? `shorts/${shortId}` : 'video'}/shots.json, derived/shotmattes/jobs*.json`);
 
 if (flag('matte')) {
   const only = opt('only') ?? (missing.length ? missing.join(',') : undefined);

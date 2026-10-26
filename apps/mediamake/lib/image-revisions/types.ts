@@ -41,7 +41,7 @@ export interface ImageSetIndex {
   brand?: string;
   /** Pixel size when every image shares it; otherwise each tile takes its image's shape. */
   size?: [number, number];
-  /** The skill or workflow that made the images, so Claude knows how to act on a revision (make-thumbnail, make-music-poster…). */
+  /** The skill or workflow that made the images, so Claude knows how to act on a revision (create-thumbnail, create-music-poster…). */
   workflow?: string;
   /** Where the images are made from (a spec, a prompt file), relative to the repo. */
   source?: string;

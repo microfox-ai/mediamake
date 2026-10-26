@@ -1,7 +1,7 @@
 # thumbnails: the stills engine (YouTube thumbnails and music posters)
 
-YouTube thumbnails (1280×720, `make-thumbnail` skill) and music posters / album artwork
-(3000×3000, `make-music-poster` skill) made in Remotion from a short JSON spec. A thumbnail is a **preset plus a few params** (cheap to write), or a **raw
+YouTube thumbnails (1280×720, `create-thumbnail` skill) and music posters / album artwork
+(3000×3000, `create-music-poster` skill) made in Remotion from a short JSON spec. A thumbnail is a **preset plus a few params** (cheap to write), or a **raw
 layer list** (anything), plus small patches; one job holds several styles with several variants
 each, all rendered in one run with a labelled review sheet.
 
@@ -30,11 +30,12 @@ out/thumbnails/<job>/  <ID>.jpg, sheet.jpg, sheet-small.jpg, index.json, final/
 ```bash
 npm run thumbs -w lyrics_videos -- init <job> [--brand=inverteddevils] [--title="…"]   # job folder (+ brand logos, fonts, palette, rules)
 npm run thumbs -w lyrics_videos -- cutout <job> input/hero.jpg [--model=birefnet-portrait|birefnet-general|isnet-anime] [--point=0.5,0.4] [--all]
+npm run thumbs -w lyrics_videos -- look <job> [--write]     # which treatments suit each hero picture, and why (--write fills "auto" styles)
 npm run thumbs -w lyrics_videos -- render <job> [A1,B2] [--guides] [--png] [--no-sheet]  # → out/thumbnails/<job>/
 npm run thumbs -w lyrics_videos -- pick <job> B2            # the final → out/thumbnails/<job>/final/
 npm run thumbs -w lyrics_videos -- pick <job> A1,B2,D3      # three for YouTube's Test & Compare
 npm run thumbs -w lyrics_videos -- keep <job> B2            # lock one the user likes: kept/ snapshot, renders skip it, warns if its spec drifts
-npm run thumbs -w lyrics_videos -- init <job> --poster [--brand=…]   # a poster job (poster.json, no logo)
+npm run thumbs -w lyrics_videos -- init <job> --poster [--brand=…] [--mood=…]   # a poster job (poster.json, no logo, treatments "auto")
 npm run thumbs -w lyrics_videos -- pick <poster-job> A3 [--to=<release folder>]   # the cover → final/ (+ cover.jpg there)
 npm run thumbs-studio -w lyrics_videos                       # Studio, every job (hot-reloads the specs)
 ```
@@ -144,12 +145,24 @@ past its own pixels (a soft cover), and when text looks like something streaming
 (URLs, handles, service names, prices, "CD"). `pick` takes one ID (the cover) and copies the render
 as is; `--to=<folder>` also writes `cover.jpg` there (`--force` to replace one).
 
+**Auto-exposure** (`exposure.ts`). A poster's `"mood"` says how bright it should feel, from the
+song: `bright`, `balanced` (default), `dark` (only when the song is), or `as-is` (off). `render`
+measures each hero picture and writes levels to `jobs/<job>/exposure.json`: white point at the
+brightest channel's 99.5 % (highlights reach white), black point at the darkest 0.5 % (blacks stay
+black), and a mid-tone lift until the bright parts (p90 luma) land where the mood wants them
+(capped per mood). The hero and its cutout get the levels, text and logos don't. After rendering
+it compares every treatment with its style's plain cover and gives one that came out darker than
+the mood allows an extra lift (`fixes`), re-rendering it (three rounds at most). It prints one line
+per cover (brightness vs. plain, highlights, lift) and warns when a cover stays dark or has no
+highlights. Thumbnails get it too when their thumbs.json sets a `mood`.
+
 ## Treatments
 
 Whole-picture looks applied over a finished composition, text included (`treatments.ts`): a grade
 (brightness, contrast, saturation, sepia, hue…), picture filters (duotone, posterize, chromatic
 split, bloom) and texture layers on top (grain, dust, paper, halftone, scanlines, light leak,
-tint, vignette). `plain` is none.
+tint, vignette). `plain` is none. A treatment must not darken the cover: auto-exposure lifts one
+that does, but keep new looks near their plain cover's brightness and check them on a dark picture.
 
 | name | look |
 |------|------|
@@ -157,16 +170,32 @@ tint, vignette). `plain` is none.
 | `matte` | flat and calm: low contrast, muted colour, charcoal blacks |
 | `vivid` | rich saturation and contrast, a little highlight glow |
 | `noir` | black and white, hard contrast, grain, vignette |
-| `duotone` | two palette colours (dark → accent) |
+| `duotone` | the palette mapped dark → accent → ink, the accent low so mid-tones stay light |
 | `riso` | posterized colour, halftone dots, paper fibre |
 | `vhs` | red/blue split, scanlines, noise |
 | `vintage` | sepia, dust and scratches, paper, dark corners |
 | `dream` | highlight bloom and a warm light leak |
-| `night` | cold blue grade, deeper shadows, grain |
+| `night` | cold blue grade, moonlit highlights, grain |
+| `cinema` | teal shadows, warm skin and highlights (the film-poster split grade) |
+| `neon` | deep blacks, saturated colour that glows |
+| `pastel` | airy and soft: lifted, low contrast, gentle colour, a pale glow |
 
 `"treatment": "noir"` on a variant (or style, or defaults) applies one. `"treatments": ["plain",
 "film", …]` on a style makes one variant per treatment by itself, IDs from 0 when the list starts
 with plain (A0 plain, A1 film, …). They work on thumbnails too.
+
+**Picked from the picture** (`look.ts`). `"treatments": "auto"` (what `init --poster` writes)
+lets the picture choose: `render` (or `look <job> --write`) measures the hero as auto-exposure
+will show it (light, contrast, black and highlight share, saturation, colourfulness, warmth, how
+many hues, neon, skin, detail, noise, how dark the edges already are, its five main colours),
+scores every look against it and the mood (each rule says why: "skin tones: film is kind to
+faces", "mostly black: posterizing crushes the shadows"), and keeps the ones that fit (≥ 0.55, 4
+to 6, at most one per family unless clearly better: faded, punch, mono, texture, glow, grade).
+It writes them into the style as a list (so IDs never move) with a `tune` per look, fitting it to
+the picture: `{ "duotone": { "duotone": [the picture's own colours], "vignette": 0.3 } }`, where
+`vignette`, `grain`, `tint` and `bloom` multiply that effect's strength (less vignette when the
+edges are already dark, less grain on a noisy picture, less warm tint on a warm one), and the
+reasons go to `brief.md`. `look <job>` alone prints the ranking without writing anything.
 
 ## Spotify Canvas
 
@@ -174,7 +203,7 @@ A poster job can carry `canvas` (`{ src, cut?, seconds?, fps?, push?, drift?, em
 `SpotifyCanvas.tsx` makes a 1080×1920 loop of the 9:16 picture (breathing push, the cut-out
 subject drifting for depth, embers, pulsing light, grain; every motion periodic, so no seam).
 `npm run thumbs -w lyrics_videos -- canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`
-(H.264 yuv420p, silent). The `make-music-poster` skill covers the fal and Midjourney versions.
+(H.264 yuv420p, silent). The `create-music-poster` skill covers the fal and Midjourney versions.
 
 ## Review: /image-revision
 

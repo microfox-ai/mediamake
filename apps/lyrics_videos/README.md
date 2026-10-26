@@ -121,13 +121,19 @@ export default lyricVideo({ id: 'my-song', cover: 'cover.jpg', lyrics: 'default'
 See `src/mediamake/README.md`. After a preset changes in apps/mediamake, run
 `npm run sync-presets -w lyrics_videos`.
 
+Waveform lyric videos (a song and a picture in; the `make-waveform-lyric-video` skill) are a
+`video/storyboard.ts` of three choices — wave, font set, caption animation — picked from
+`catalog/` (see `catalog/README.md`) or designed for the song.
+`npm run wave-lab -w lyrics_videos -- <slug> <waves|fonts|captions|final>` shoots the candidates on
+the project's own song and picture; `-- catalog` shoots every catalog entry into `out/waveform-catalog/`.
+
 ## Remix projects (footage cut to a song)
 
 A project with `video/edl.ts` is a music remix: existing footage cut to the song on its beat grid at
 its own speed, joined by transitions (warp zooms anchored on the subject, match cuts, whips, spins,
 subject cutouts carried over the next shot), with camera shake, wide-tracked lyric lines, punch
 words behind the subject, motion graphics (`src/remix/gfx/`, three.js) and a few sound effects.
-The engine is `src/remix/`; the footage's shots come from a video-segregation run in
+The engine is `src/remix/`; the footage's shots come from an analyze-video run in
 `projects/<slug>/footage/`.
 
 ```bash
@@ -137,6 +143,23 @@ npm run remix -w lyrics_videos -- <slug> --matte   # + subject cutouts per foota
 
 Configured by `projects/<slug>/video/remix.json` (`source`, `segregation`, `crop`, `window`). Driven by
 the `make-video-music-remix` skill; `projects/hitixf1` is the reference.
+
+### Shorts (vertical cuts of a remix)
+
+`projects/<slug>/shorts/<id>/` is a vertical short of one stretch of the song: `short.json` (the
+window, the formats), `edl.ts` (its cut list in the song's beats, usually starting from the long
+edit's) and `index.tsx` (`defineShorts`, one composition per format: `<slug>-<id>-9x16`, `-3x4`,
+`-4x5`). In a vertical frame `Remix` reframes each cut around its subject; `band()` and stacked
+`split`s keep the wide picture sharp. Driven by the `make-video-music-remix-shorts` skill.
+
+```bash
+npm run shorts -w lyrics_videos -- <slug> pick                          # the three coolest stretches + alternates (mp3s, picks.png)
+npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4 # scaffold the approved ones
+npm run shorts -w lyrics_videos -- <slug> mark C bad                    # never pick that stretch again
+npm run remix -w lyrics_videos -- <slug> --short=s01                    # check the short's window
+npm run stills -w lyrics_videos -- <slug> 0.2,5 --only --short=s01 --format=9x16
+npm run render-project -w lyrics_videos -- <slug> --short=s01           # → out/<slug>/shorts/s01/<slug>-s01-<format>.mp4
+```
 
 ## lyrics.json
 

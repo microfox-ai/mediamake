@@ -36,9 +36,9 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
   const ratio = 387 / 1280;
 
   // the lockup: [logo] × [TITLE], centred as a whole
-  let size = 150;
+  let size = cfg.size ?? 150;
   let titleW = measure(cfg.text, family, size, 0);
-  const lw = 540;
+  const lw = cfg.logoW ?? 540;
   const xs = 84;
   const gap = 64;
   const fit = (w * 0.86) / (lw + xs + gap * 2 + titleW);
@@ -55,7 +55,7 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
   const cy = h * 0.43;
 
   // the logo: alone and big in the centre, then it glides into the lockup as the × and title arrive
-  const LW0 = 720;
+  const LW0 = Math.max(720, lw * 1.1);
   const slide = p01(song, hit - 0.42, hit - 0.06, inOut);
   const LW = LW0 + (LWl - LW0) * slide;
   const LH = LW * ratio;

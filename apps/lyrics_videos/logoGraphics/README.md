@@ -90,6 +90,6 @@ The logo component animates from frame 0 of wherever it is mounted, so place it 
 
 ## Adding a brand
 
-Follow the `make-brand-kit` skill. In short: make `brands/<brand>/graphics/` with `index.tsx`
+Follow the `pack-brand-kit` skill. In short: make `brands/<brand>/graphics/` with `index.tsx`
 (`defineLogo`), `theme.ts` (with `BRAND = '<brand>'`), the logo component and its geometry;
 build scenes on `lib/`; put sounds and fonts in `public/`; list the kit in `brand/brand.json`.
