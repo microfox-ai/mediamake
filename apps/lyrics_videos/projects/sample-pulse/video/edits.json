@@ -1,0 +1,31 @@
+{
+  "schema": "lyrics_videos.edits/v1",
+  "elements": {
+    "line:line-0": {
+      "x": -24.4,
+      "y": -437.1,
+      "label": "City lights are humming low",
+      "at": 3.833
+    },
+    "line:line-1": {
+      "x": 1.8,
+      "y": 336.7,
+      "font": "Abril Fatface",
+      "label": "Every street a radio",
+      "at": 6.7
+    },
+    "line:line-2": {
+      "x": -22.6,
+      "y": -369.7,
+      "label": "Turn it up and let it go",
+      "at": 8.967
+    },
+    "line:line-3": {
+      "x": -12.4,
+      "y": 319.4,
+      "label": "We're the pulse",
+      "at": 13.433
+    }
+  },
+  "props": {}
+}
