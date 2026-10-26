@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "description": "Drive Mediamake from Claude: projects and timelines, presets, media, transcription, generation workers, agents and renders.",
   "long_description": "Connects Claude to your Mediamake app with a Mediamake API key. Read saved projects and timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, upload and search media, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda.",
+  "icon": "icon.png",
   "author": {
     "name": "Microfox",
     "url": "https://github.com/microfox-ai"
@@ -19,7 +20,9 @@
     "entry_point": "server/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/index.js"],
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
       "env": {
         "MEDIAMAKE_API_URL": "${user_config.api_url}",
         "MEDIAMAKE_API_KEY": "${user_config.api_key}"
@@ -137,7 +140,7 @@
     },
     {
       "name": "list_agents",
-      "description": "List Mediamake AI agents (preset writing, prompting, Midjourney, metadata, summarise, research, audio analysis…)."
+      "description": "List Mediamake AI agents (preset writing, prompting, Midjourney, metadata, summarise, research, audio analysis\u2026)."
     },
     {
       "name": "run_agent",

@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { Implementation } from '@modelcontextprotocol/sdk/types.js';
 import { MediamakeClient, configFromEnv } from './client.js';
 import { registerBrandKitTools } from './tools/brand-kit.js';
 import { registerMediaTools } from './tools/media.js';
@@ -12,6 +13,12 @@ import type { ToolOptions } from './util.js';
 export { MediamakeClient, MediamakeApiError, configFromEnv } from './client.js';
 export type { MediamakeConfig } from './client.js';
 export type { ToolOptions } from './util.js';
+
+export interface ServerOptions extends ToolOptions {
+  /** Shown by clients next to the server's name (the hosted route passes the brand mark). */
+  icons?: Implementation['icons'];
+  websiteUrl?: string;
+}
 
 const INSTRUCTIONS = `Mediamake turns JSON into Remotion videos.
 A project holds timelines. A timeline is a list of preset instances (a full/scene preset such as base-scene, then tracks such as sub-vertical-float captions or waveform, then effects) plus defaultData.references (captions, audio, images) that preset inputs point at.
@@ -29,10 +36,16 @@ This is the hosted connector: it runs on the Mediamake servers and cannot read o
  */
 export function createServer(
   client = new MediamakeClient(configFromEnv()),
-  options: ToolOptions = { localFiles: true },
+  options: ServerOptions = { localFiles: true },
 ) {
   const server = new McpServer(
-    { name: 'mediamake', version: '0.1.0' },
+    {
+      name: 'mediamake',
+      title: 'MediaMake',
+      version: '0.1.0',
+      ...(options.icons ? { icons: options.icons } : {}),
+      ...(options.websiteUrl ? { websiteUrl: options.websiteUrl } : {}),
+    },
     {
       instructions: options.localFiles
         ? INSTRUCTIONS
