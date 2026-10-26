@@ -47,7 +47,12 @@ import {
   useLocalRefProblems,
 } from './local-media-render-notice';
 import { findLocalMediaRefs } from '@/lib/local-media/urls';
-import { planRender, type LambdaAccess } from '@/lib/render-routing/plan';
+import {
+  analyzeRenderLoad,
+  planRender,
+  type LambdaAccess,
+} from '@/lib/render-routing/plan';
+import { probeMediaSizes } from '@/lib/render-routing/sizes';
 import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/components/session-provider';
@@ -123,13 +128,13 @@ const METHOD_LABELS: Record<RenderMethod, string> = {
   local: 'Local Render',
 };
 
-/** Marks the tab the render routing recommends. */
+/** Marks the tab the render routing suggests. */
 function RecommendedMark() {
   return (
     <span
       className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-500"
-      title="Recommended for this timeline"
-      aria-label="Recommended"
+      title="Suggested for this timeline"
+      aria-label="Suggested"
     />
   );
 }
@@ -283,15 +288,42 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     };
   }, [isOpen, session?.clientId]);
 
-  // Heavy media renders locally, images and graphics on Lambda.
+  // File sizes of the timeline's video and audio, for the suggestion below.
+  // null while they are being looked up.
+  const mediaSrcs = useMemo(
+    () =>
+      analyzeRenderLoad(settings.inputProps, settings.renderType)
+        .media.map(m => m.src)
+        .join('\n'),
+    [settings.inputProps, settings.renderType],
+  );
+  const [mediaSizes, setMediaSizes] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setMediaSizes(null);
+    const srcs = mediaSrcs ? mediaSrcs.split('\n') : [];
+    probeMediaSizes(srcs.map(src => ({ src })))
+      .catch(() => ({}))
+      .then(sizes => {
+        if (!cancelled) setMediaSizes(sizes);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mediaSrcs]);
+
+  // A suggestion, never a lock: lots of footage or very large files suggest
+  // local, light media suggests Lambda. The user picks.
   const renderPlan = useMemo(
     () =>
       planRender({
         inputProps: settings.inputProps,
         renderType: settings.renderType,
         lambda: lambdaAccess ?? { allowed: true },
+        sizes: mediaSizes ?? {},
       }),
-    [settings.inputProps, settings.renderType, lambdaAccess],
+    [settings.inputProps, settings.renderType, lambdaAccess, mediaSizes],
   );
   const localMethod: RenderMethod = SHOW_LOCAL_RENDER ? 'local' : 'browser';
   const recommendedMethod: RenderMethod =
@@ -299,18 +331,18 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
   const lambdaDenied = lambdaAccess !== null && !lambdaAccess.allowed;
   const awsBlocked = localRefs.length > 0 || lambdaDenied;
 
-  // Pick the recommended method once per opening, after access is known.
-  // Later changes are the user's.
+  // Pick the suggested method once per opening, after access and sizes are
+  // known. Later changes are the user's.
   const routedRef = useRef(false);
   useEffect(() => {
     if (!isOpen) {
       routedRef.current = false;
       return;
     }
-    if (routedRef.current || lambdaAccess === null || browserActive) return;
+    if (routedRef.current || lambdaAccess === null || mediaSizes === null || browserActive) return;
     routedRef.current = true;
     setRenderMethod(recommendedMethod);
-  }, [isOpen, lambdaAccess, browserActive, recommendedMethod, setRenderMethod]);
+  }, [isOpen, lambdaAccess, mediaSizes, browserActive, recommendedMethod, setRenderMethod]);
 
   useEffect(() => {
     if (awsBlocked && renderMethod === 'aws') setRenderMethod(localMethod);
@@ -782,8 +814,10 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
               <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  {renderPlan.reason}
-                  {renderMethod !== recommendedMethod && !browserActive && (
+                  {mediaSizes === null
+                    ? 'Checking the media to suggest where to render…'
+                    : renderPlan.reason}
+                  {mediaSizes !== null && renderMethod !== recommendedMethod && !browserActive && (
                     <>
                       {' '}
                       <button

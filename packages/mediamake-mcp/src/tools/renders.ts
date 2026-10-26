@@ -92,7 +92,7 @@ export function registerRenderTools(
     {
       title: 'Plan render',
       description:
-        'Where a render should run, without rendering: "local" for video or audio heavy timelines (cheapest on your own machine) and "lambda" for images and graphics only. Also says whether this API key may use Lambda at all.',
+        'Suggest where a render should run, without rendering, with the reason. "local" when the timeline plays minutes of video, very long audio, a 1 GB+ file or 500 MB+ of media in all (every Lambda chunk downloads and decodes it again); "lambda" for lighter media, images and graphics. Show the user the suggestion and reason and let them choose; either target works when lambdaAvailable is true.',
       inputSchema: {
         inputProps: z.record(z.string(), z.any()),
         renderType: z.enum(['video', 'audio', 'still']).default('video'),
@@ -116,7 +116,7 @@ export function registerRenderTools(
     {
       title: 'Render composition',
       description:
-        'Render a Remotion composition from inputProps. target "auto" (default) follows plan_render: images and graphics render on AWS Lambda; video or audio heavy timelines, or API keys without Lambda access, are not rendered and come back with the plan, so render them locally (target "local" when the Mediamake app runs on this machine, or the Remotion CLI) or pass target "lambda" to use Lambda anyway. target "local" renders on the machine running the Mediamake app (dev server only). For the DataMotion composition inputProps is { childrenData, config: { width, height, fps, duration }, style }. Reuse the inputProps of a past render with get_render_input_props. renderType "still" returns a PNG immediately.',
+        'Render a Remotion composition from inputProps. target "auto" (default) follows plan_render: timelines with light media render on AWS Lambda; media-heavy timelines (lots of footage or very large files), or API keys without Lambda access, are not rendered and come back with the plan, so render them locally (target "local" when the Mediamake app runs on this machine, or the Remotion CLI) or pass target "lambda" to use Lambda anyway. target "local" renders on the machine running the Mediamake app (dev server only). For the DataMotion composition inputProps is { childrenData, config: { width, height, fps, duration }, style }. Reuse the inputProps of a past render with get_render_input_props. renderType "still" returns a PNG immediately.',
       inputSchema: {
         inputProps: z.record(z.string(), z.any()),
         composition: z.string().default('DataMotion'),

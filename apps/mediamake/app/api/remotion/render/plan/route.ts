@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientId } from '@/lib/auth-utils';
 import { getLambdaAccess } from '@/lib/render-routing/lambda-access';
-import { planRender, type RenderType } from '@/lib/render-routing/plan';
+import { analyzeRenderLoad, planRender, type RenderType } from '@/lib/render-routing/plan';
+import { probeMediaSizes } from '@/lib/render-routing/sizes';
 
 /**
  * Where should this render run? See lib/render-routing/plan.ts.
  *
  * GET  — { lambda: { allowed, reason? } } for the caller. The editor uses
  *        this and plans on the client, so it never uploads the props twice.
- * POST — { inputProps, renderType? } → the full plan: target ('lambda' or
- *        'local'), reason, and the media counts it was based on.
+ * POST — { inputProps, renderType?, sizes? } → the full plan: the suggested
+ *        target ('lambda' or 'local'), why, and the media it measured.
+ *        File sizes the caller doesn't pass (src → bytes) are looked up
+ *        with HEAD requests.
  */
 
 export const GET = async (req: NextRequest) => {
@@ -19,11 +22,19 @@ export const GET = async (req: NextRequest) => {
 
 export const POST = async (req: NextRequest) => {
   try {
-    const { inputProps, renderType } = await req.json();
+    const { inputProps, renderType, sizes: given } = await req.json();
     const type: RenderType =
       renderType === 'still' || renderType === 'audio' ? renderType : 'video';
-    const lambda = await getLambdaAccess(getClientId(req));
-    return NextResponse.json(planRender({ inputProps, renderType: type, lambda }));
+    const sizes: Record<string, number> = given && typeof given === 'object' ? given : {};
+    const [lambda, probed] = await Promise.all([
+      getLambdaAccess(getClientId(req)),
+      probeMediaSizes(
+        analyzeRenderLoad(inputProps, type, sizes).media,
+      ),
+    ]);
+    return NextResponse.json(
+      planRender({ inputProps, renderType: type, lambda, sizes: { ...probed, ...sizes } }),
+    );
   } catch (err) {
     return NextResponse.json(
       { type: 'error', message: (err as Error).message },
