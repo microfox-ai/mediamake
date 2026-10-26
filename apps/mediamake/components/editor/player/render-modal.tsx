@@ -47,6 +47,12 @@ import {
   useLocalRefProblems,
 } from './local-media-render-notice';
 import { findLocalMediaRefs } from '@/lib/local-media/urls';
+import {
+  analyzeRenderLoad,
+  planRender,
+  type LambdaAccess,
+} from '@/lib/render-routing/plan';
+import { probeMediaSizes } from '@/lib/render-routing/sizes';
 import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/components/session-provider';
@@ -115,6 +121,23 @@ interface RenderModalProps {
 const SHOW_LOCAL_RENDER =
   process.env.NODE_ENV !== 'production' ||
   process.env.NEXT_PUBLIC_ENABLE_LOCAL_RENDER === 'true';
+
+const METHOD_LABELS: Record<RenderMethod, string> = {
+  aws: 'AWS Lambda',
+  browser: 'Browser',
+  local: 'Local Render',
+};
+
+/** Marks the tab the render routing suggests. */
+function RecommendedMark() {
+  return (
+    <span
+      className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-500"
+      title="Suggested for this timeline"
+      aria-label="Suggested"
+    />
+  );
+}
 
 /** Still renders send either a frame index or a time in seconds, never both. */
 function stillPositionPayload(settings: {
@@ -246,12 +269,85 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
     [settings.inputProps],
   );
   const localProblems = useLocalRefProblems(localRefs);
-  const awsBlocked = localRefs.length > 0;
+
+  // Lambda is only for API keys with render access; null while loading.
+  const [lambdaAccess, setLambdaAccess] = useState<LambdaAccess | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/remotion/render/plan')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled) setLambdaAccess(data?.lambda ?? { allowed: false });
+      })
+      .catch(() => {
+        if (!cancelled) setLambdaAccess({ allowed: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, session?.clientId]);
+
+  // File sizes of the timeline's video and audio, for the suggestion below.
+  // null while they are being looked up.
+  const mediaSrcs = useMemo(
+    () =>
+      analyzeRenderLoad(settings.inputProps, settings.renderType)
+        .media.map(m => m.src)
+        .join('\n'),
+    [settings.inputProps, settings.renderType],
+  );
+  const [mediaSizes, setMediaSizes] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setMediaSizes(null);
+    const srcs = mediaSrcs ? mediaSrcs.split('\n') : [];
+    probeMediaSizes(srcs.map(src => ({ src })))
+      .catch(() => ({}))
+      .then(sizes => {
+        if (!cancelled) setMediaSizes(sizes);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mediaSrcs]);
+
+  // A suggestion, never a lock: lots of footage or very large files suggest
+  // local, light media suggests Lambda. The user picks.
+  const renderPlan = useMemo(
+    () =>
+      planRender({
+        inputProps: settings.inputProps,
+        renderType: settings.renderType,
+        lambda: lambdaAccess ?? { allowed: true },
+        sizes: mediaSizes ?? {},
+      }),
+    [settings.inputProps, settings.renderType, lambdaAccess, mediaSizes],
+  );
+  const localMethod: RenderMethod = SHOW_LOCAL_RENDER ? 'local' : 'browser';
+  const recommendedMethod: RenderMethod =
+    renderPlan.target === 'lambda' ? 'aws' : localMethod;
+  const lambdaDenied = lambdaAccess !== null && !lambdaAccess.allowed;
+  const awsBlocked = localRefs.length > 0 || lambdaDenied;
+
+  // Pick the suggested method once per opening, after access and sizes are
+  // known. Later changes are the user's.
+  const routedRef = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      routedRef.current = false;
+      return;
+    }
+    if (routedRef.current || lambdaAccess === null || mediaSizes === null || browserActive) return;
+    routedRef.current = true;
+    setRenderMethod(recommendedMethod);
+  }, [isOpen, lambdaAccess, mediaSizes, browserActive, recommendedMethod, setRenderMethod]);
 
   useEffect(() => {
-    if (awsBlocked && renderMethod === 'aws') setRenderMethod('browser');
+    if (awsBlocked && renderMethod === 'aws') setRenderMethod(localMethod);
     else if (!SHOW_LOCAL_RENDER && renderMethod === 'local') setRenderMethod('browser');
-  }, [awsBlocked, renderMethod, setRenderMethod]);
+  }, [awsBlocked, renderMethod, setRenderMethod, localMethod]);
 
   const [safeConcurrency, setSafeConcurrency] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
@@ -667,7 +763,7 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
               inputProps={settings.inputProps}
               onUseCloudCopies={(next) => {
                 updateSetting('inputProps', next);
-                setRenderMethod('aws');
+                setRenderMethod(lambdaDenied ? localMethod : 'aws');
               }}
             />
           )}
@@ -687,25 +783,55 @@ export function RenderModal({ isOpen, onClose }: RenderModalProps) {
                 disabled={awsBlocked}
                 className="flex items-center gap-1"
                 title={
-                  awsBlocked
+                  localRefs.length > 0
                     ? 'Unavailable: this timeline uses files from your computer'
-                    : undefined
+                    : lambdaDenied
+                      ? lambdaAccess?.reason
+                      : undefined
                 }
               >
                 {awsBlocked && <Lock className="h-3.5 w-3.5" />}
                 AWS Lambda
+                {recommendedMethod === 'aws' && <RecommendedMark />}
               </TabsTrigger>
               <TabsTrigger value="browser" className="flex items-center gap-1">
                 <Globe className="h-4 w-4" />
                 Browser
-                {browserActive && (
+                {browserActive ? (
                   <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                ) : (
+                  recommendedMethod === 'browser' && <RecommendedMark />
                 )}
               </TabsTrigger>
               {SHOW_LOCAL_RENDER && (
-                <TabsTrigger value="local">Local Render</TabsTrigger>
+                <TabsTrigger value="local" className="flex items-center gap-1">
+                  Local Render
+                  {recommendedMethod === 'local' && <RecommendedMark />}
+                </TabsTrigger>
               )}
             </TabsList>
+            {lambdaAccess !== null && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {mediaSizes === null
+                    ? 'Checking the media to suggest where to render…'
+                    : renderPlan.reason}
+                  {mediaSizes !== null && renderMethod !== recommendedMethod && !browserActive && (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="underline underline-offset-2 hover:text-foreground"
+                        onClick={() => setRenderMethod(recommendedMethod)}
+                      >
+                        Use {METHOD_LABELS[recommendedMethod]}
+                      </button>
+                    </>
+                  )}
+                </span>
+              </p>
+            )}
 
             <TabsContent value="aws" className="space-y-4">
               <div className="flex flex-col gap-4 py-4">

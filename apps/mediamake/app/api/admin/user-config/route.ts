@@ -7,6 +7,7 @@ import {
   type WorkerPermissions,
   type PeriodType,
 } from '@/lib/quota-mongodb';
+import { setLambdaFlag } from '@/lib/render-routing/lambda-access';
 
 /**
  * POST /api/admin/user-config
@@ -17,6 +18,7 @@ import {
  *  { type: 'ai_provider',       clientId, provider, maxTokens, periodType, resetUsage? }
  *  { type: 'remove_ai_provider',clientId, provider }
  *  { type: 'worker_permissions', clientId, canCallWorkers, canCallAgents }
+ *  { type: 'lambda_render',     clientId, allowed }  (see lib/render-routing/lambda-access)
  */
 export async function POST(req: NextRequest) {
   let adminId: string;
@@ -83,6 +85,11 @@ export async function POST(req: NextRequest) {
         canCallAgents: !!canCallAgents,
       };
       await userQuotaDB.setWorkerPermissions(clientId.trim(), permissions, actor);
+      return NextResponse.json({ success: true });
+    }
+
+    case 'lambda_render': {
+      await setLambdaFlag(clientId.trim(), !!body.allowed);
       return NextResponse.json({ success: true });
     }
 

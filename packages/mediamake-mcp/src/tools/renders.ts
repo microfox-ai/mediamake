@@ -73,16 +73,50 @@ function compactProgress(renderId: string, bucketName: string, p: any) {
   };
 }
 
+function compactPlan(plan: any) {
+  return {
+    recommended: plan?.target,
+    reason: plan?.reason,
+    lambdaAvailable: plan?.lambdaAvailable,
+    lambdaDeniedReason: plan?.lambda?.allowed ? undefined : plan?.lambda?.reason,
+    load: plan?.load,
+  };
+}
+
 export function registerRenderTools(
   server: McpServer,
   client: MediamakeClient,
 ) {
   server.registerTool(
+    'plan_render',
+    {
+      title: 'Plan render',
+      description:
+        'Suggest where a render should run, without rendering, with the reason. "local" when the timeline plays minutes of video, very long audio, a 1 GB+ file or 500 MB+ of media in all (every Lambda chunk downloads and decodes it again); "lambda" for lighter media, images and graphics. Show the user the suggestion and reason and let them choose; either target works when lambdaAvailable is true.',
+      inputSchema: {
+        inputProps: z.record(z.string(), z.any()),
+        renderType: z.enum(['video', 'audio', 'still']).default('video'),
+      },
+      annotations: READ,
+    },
+    safe(async ({ inputProps, renderType }) =>
+      json(
+        compactPlan(
+          await client.post('/api/remotion/render/plan', {
+            inputProps,
+            renderType,
+          }),
+        ),
+      ),
+    ),
+  );
+
+  server.registerTool(
     'render',
     {
       title: 'Render composition',
       description:
-        'Render a Remotion composition from inputProps on AWS Lambda (default) or on the machine running the Mediamake app (target "local", dev server only). For the DataMotion composition inputProps is { childrenData, config: { width, height, fps, duration }, style }. Reuse the inputProps of a past render with get_render_input_props. renderType "still" returns a PNG immediately.',
+        'Render a Remotion composition from inputProps. target "auto" (default) follows plan_render: timelines with light media render on AWS Lambda; media-heavy timelines (lots of footage or very large files), or API keys without Lambda access, are not rendered and come back with the plan, so render them locally (target "local" when the Mediamake app runs on this machine, or the Remotion CLI) or pass target "lambda" to use Lambda anyway. target "local" renders on the machine running the Mediamake app (dev server only). For the DataMotion composition inputProps is { childrenData, config: { width, height, fps, duration }, style }. Reuse the inputProps of a past render with get_render_input_props. renderType "still" returns a PNG immediately.',
       inputSchema: {
         inputProps: z.record(z.string(), z.any()),
         composition: z.string().default('DataMotion'),
@@ -100,7 +134,7 @@ export function registerRenderTools(
           .describe('still only: time in seconds'),
         projectId: z.string().optional(),
         tags: z.array(z.string()).optional(),
-        target: z.enum(['lambda', 'local']).default('lambda'),
+        target: z.enum(['auto', 'lambda', 'local']).default('auto'),
         outputLocation: z
           .string()
           .optional()
@@ -127,6 +161,14 @@ export function registerRenderTools(
         wait,
         timeoutSeconds,
       }) => {
+        if (target === 'auto') {
+          const plan = await client.post('/api/remotion/render/plan', {
+            inputProps,
+            renderType,
+          });
+          if (plan.target !== 'lambda')
+            return json({ rendered: false, ...compactPlan(plan) });
+        }
         if (target === 'local') {
           const res = await client.post(
             '/api/remotion/render/local',

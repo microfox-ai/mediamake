@@ -32,6 +32,7 @@ import {
 import { InputCompositionProps } from '@microfox/remotion';
 import { ObjectId } from 'mongodb';
 import { containsLocalMedia } from '@/lib/local-media/urls';
+import { getLambdaAccess } from '@/lib/render-routing/lambda-access';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -107,6 +108,14 @@ export const POST = async (req: NextRequest) => {
             'These presets use media from your computer, which AWS Lambda cannot reach. Upload those files to the cloud first.',
         },
         { status: 400 },
+      );
+    }
+
+    const lambdaAccess = await getLambdaAccess(clientId);
+    if (!lambdaAccess.allowed) {
+      return NextResponse.json(
+        { error: lambdaAccess.reason, renderTarget: 'local' },
+        { status: 403 },
       );
     }
 
