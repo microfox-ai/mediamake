@@ -15,7 +15,10 @@ It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, auth
 
 The connector acts as your account: it calls the API with one of your API keys, so your tier (public, community, private, admin) and access grants apply exactly as they do with the `.mcpb`. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
 
-It has every tool except the ones that touch files on your computer: no `upload_brand_kit` (upload kits on the Projects page instead), and `upload_media`, `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
+It has the same tools, adapted for a server that can't see your files:
+
+- `upload_brand_kit` takes the kit folder as a list of files instead of a path: text files (`brandguide.md`, `colors.json`, `brand.json`, …) inline, small files as base64 (3 MB per call), and for everything else it returns a presigned upload URL and a ready `curl` command. Claude PUTs those (Claude Code and Desktop with a shell run the commands from the kit folder), then calls `finish_brand_kit_upload`, which checks each file arrived and adds it to the kit.
+- `upload_media`, `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
 
 How it works, in `apps/mediamake`:
 

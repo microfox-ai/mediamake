@@ -20,7 +20,7 @@ Typical flows: transcribe a song -> create_timeline / add_preset_to_timeline -> 
 Workers (run_worker) and renders cost money; confirm with the user before large batches.`;
 
 const HOSTED_NOTE = `
-This is the hosted connector: it runs on the Mediamake servers and cannot read or write files on the user's computer. Bring media in by public https URL (upload_media with sourceUrl).`;
+This is the hosted connector: it runs on the Mediamake servers and cannot read or write files on the user's computer. Bring media in by public https URL (upload_media with sourceUrl). upload_brand_kit takes the kit's file list and returns upload URLs for the big files: PUT them (curl from the kit folder), then call finish_brand_kit_upload.`;
 
 /**
  * Builds the Mediamake MCP server. The stdio entry (index.ts) and the hosted
