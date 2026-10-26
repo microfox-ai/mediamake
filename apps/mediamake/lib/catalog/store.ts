@@ -45,6 +45,7 @@ export async function ensureCatalogIndexes() {
   const db = await getDatabase();
   await db.collection(COL.items).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.items).createIndex({ kind: 1, visibility: 1 });
+  await db.collection(COL.items).createIndex({ publicAt: 1 }, { sparse: true });
   await db.collection(COL.grants).createIndex({ grantId: 1 }, { unique: true });
   await db.collection(COL.grants).createIndex({ 'subject.kind': 1, 'subject.id': 1 });
   await db.collection(COL.grants).createIndex({ itemId: 1 });
@@ -118,15 +119,23 @@ export const catalogItemsDB = {
     return (await this.get(item.id))!;
   },
 
-  /** Moves an item between stages, e.g. private → network → public. */
+  /**
+   * Moves an item between stages, e.g. private → network → public. Moving
+   * by hand clears a pending gate (scheduleRelease sets a new one after);
+   * never-publish items stay private.
+   */
   async setVisibility(id: string, visibility: Visibility, actor?: string) {
     const db = await getDatabase();
     const now = nowISO();
     const existing = await this.get(id);
     if (!existing) return null;
+    if (existing.neverPublish && visibility !== 'private') {
+      throw new Error(`${id} is marked never-publish; take it out of the vault first`);
+    }
     await db.collection<CatalogItemRecord>(COL.items).updateOne(
       { id },
       {
+        $unset: { publicAt: '', gateStartedAt: '' },
         $set: {
           visibility,
           updatedAt: now,
@@ -138,6 +147,77 @@ export const catalogItemsDB = {
         $push: { stageHistory: { visibility, at: now, by: actor } },
       },
     );
+    return this.get(id);
+  },
+
+  /**
+   * Records gated releases whose time has come as public, dated from their
+   * `publicAt`. Access already treats them as public (effectiveVisibility);
+   * this keeps the stored stage and history in step. Returns the ids moved.
+   */
+  async settleGates(): Promise<string[]> {
+    const db = await getDatabase();
+    const now = nowISO();
+    const due = await db
+      .collection<CatalogItemRecord>(COL.items)
+      .find(
+        { publicAt: { $lte: now }, visibility: 'network', neverPublish: { $ne: true } },
+        { projection: { _id: 0, id: 1, publicAt: 1, stageHistory: 1 } },
+      )
+      .toArray();
+    for (const item of due) {
+      const firstTime = !item.stageHistory?.some(h => h.visibility === 'public');
+      await db.collection<CatalogItemRecord>(COL.items).updateOne(
+        { id: item.id },
+        {
+          $set: { visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: item.publicAt } : {}) },
+          $unset: { publicAt: '', gateStartedAt: '' },
+          $push: { stageHistory: { visibility: 'public', at: item.publicAt!, by: 'gate' } },
+        },
+      );
+    }
+    return due.map(item => item.id);
+  },
+
+  /**
+   * Gates a release: the item becomes a community item now and goes public
+   * by itself at `publicAt`. Passing null cancels the gate (the item stays
+   * where it is).
+   */
+  async scheduleRelease(id: string, publicAt: string | null, actor?: string) {
+    const db = await getDatabase();
+    const existing = await this.get(id);
+    if (!existing) return null;
+    if (publicAt === null) {
+      await db
+        .collection<CatalogItemRecord>(COL.items)
+        .updateOne({ id }, { $unset: { publicAt: '', gateStartedAt: '' }, $set: { updatedAt: nowISO() } });
+      return this.get(id);
+    }
+    if (existing.neverPublish) throw new Error(`${id} is marked never-publish; take it out of the vault first`);
+    if (existing.visibility === 'public') throw new Error(`${id} is already public`);
+    if (existing.visibility === 'private') await this.setVisibility(id, 'network', actor);
+    const now = nowISO();
+    await db.collection<CatalogItemRecord>(COL.items).updateOne({ id }, { $set: { publicAt, gateStartedAt: now, updatedAt: now } });
+    return this.get(id);
+  },
+
+  /**
+   * Puts an item in the vault (never published, admins and explicit grants
+   * only) or takes it out, back to development.
+   */
+  async setNeverPublish(id: string, neverPublish: boolean, actor?: string) {
+    const db = await getDatabase();
+    const existing = await this.get(id);
+    if (!existing) return null;
+    if (neverPublish) {
+      if (existing.visibility !== 'private') await this.setVisibility(id, 'private', actor);
+      await db
+        .collection<CatalogItemRecord>(COL.items)
+        .updateOne({ id }, { $set: { neverPublish: true, updatedAt: nowISO() }, $unset: { publicAt: '', gateStartedAt: '' } });
+    } else {
+      await db.collection<CatalogItemRecord>(COL.items).updateOne({ id }, { $unset: { neverPublish: '' }, $set: { updatedAt: nowISO() } });
+    }
     return this.get(id);
   },
 

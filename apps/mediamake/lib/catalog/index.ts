@@ -2,19 +2,27 @@ import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/
 import { installPromptFor } from './install-prompt';
 import { getStaticCatalogItems } from './items';
 import { catalogItemsDB } from './store';
-import type { CatalogEntry, CatalogItem, CatalogItemRecord, CatalogKind } from './types';
+import { effectiveVisibility, type CatalogEntry, type CatalogItem, type CatalogItemRecord, type CatalogKind } from './types';
 
 export * from './types';
 export { installPromptFor } from './install-prompt';
 
 /** Strips stored-only fields (slug, versions, install spec, history) off a record. */
 export function toCard(record: CatalogItemRecord | CatalogItem): CatalogItem {
-  const { slug, install, versions, createdAt, createdBy, stageHistory, ...card } = record as CatalogItemRecord;
+  const { slug, install, versions, createdAt, createdBy, stageHistory, gateStartedAt, ...card } = record as CatalogItemRecord;
   return card;
 }
 
-/** Marks an item for one viewer; locked items lose their href. */
-export function toEntry(entitlements: Entitlements, item: CatalogItem): CatalogEntry {
+/**
+ * Marks an item for one viewer; locked items lose their href. A gated item
+ * past its `publicAt` is shown as public, dated from that moment.
+ */
+export function toEntry(entitlements: Entitlements, stored: CatalogItem): CatalogEntry {
+  const visibility = effectiveVisibility(stored);
+  const item =
+    visibility === stored.visibility
+      ? stored
+      : { ...stored, visibility, releasedAt: visibility === 'public' && stored.publicAt ? stored.publicAt : stored.releasedAt };
   const access = accessLevel(entitlements, item);
   if (access !== 'locked') return { ...item, access };
   const { href: _href, ...rest } = item;

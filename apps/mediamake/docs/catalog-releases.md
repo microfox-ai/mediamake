@@ -16,26 +16,58 @@ this; the content itself lives in private storage.
 
 Item ids look like `skill/lyric-video`.
 
-## Stages
+## Tiers
 
-| Stage | Who can open it |
-| --- | --- |
-| `private` | Admins and anyone with a grant |
-| `network` | The above, plus members of the `network` group |
-| `public` | Everyone, once public releases are open (see below) |
+Every item sits in one tier, and every person belongs to one. The admin
+dashboard at **`/core/releases`** shows both and is where you move things
+along; the CLI below does the same from a terminal.
+
+| Item tier | Stored as | Who can open it |
+| --- | --- | --- |
+| **Vault** | `neverPublish: true` | Admins, and grants that name the item itself. Can't be moved to community or public until taken out of the vault. |
+| **In development** | `visibility: private` | Admins, private testers, and grants |
+| **Community** | `visibility: network` | The above, plus the community (`network` group) |
+| **Public** | `visibility: public` | Everyone, once public releases are open (see below) |
+
+| Person tier | How they get it | What they can do |
+| --- | --- | --- |
+| **Admin** | `isAdmin` on their Redis profile | Everything. The only one who releases. |
+| **Private** | member of the `private` group (or a `*` grant) | Open every item except the vault. Can't release. |
+| **Community** | member of the `network` group (or an invite into it) | Open community and public items before they go public. |
+| **Public** | everyone else | Open public items once releases are open. |
+
+An API key only signs someone in (and unlocks the MediaMake MCP); it opens
+nothing beyond public items by itself. The tier decides the rest, and the
+admin sets it per person under **People → API key holders** on the dashboard
+(`set_tier` in the admin API). Cloud projects are for the community, private
+testers and admins (`canUseCloudProjects(tier)`); public users keep projects
+local.
+
+`viewerTier(entitlements)` / `getViewerTier(viewer)` in `lib/access` return a
+person's tier for features that depend on who someone is (render routing,
+for example). Item access always goes through `accessLevel`.
+
+### Gated releases
+
+A community item can carry a gate: `publicAt`, a date when it turns public by
+itself. **Mark ready and start gate** on the dashboard (or `schedule`) moves an
+item from development to community and sets the gate, 30 days by default.
+Access treats the item as public from that moment (`effectiveVisibility`); the
+next time the dashboard loads, the change is recorded in `stageHistory` with
+`by: 'gate'`. Moving an item by hand (release now, back to development, into
+the vault) cancels its gate.
 
 **Releases are locked for now.** Until `MEDIAMAKE_PUBLIC_RELEASES=open` is set,
-a `public` item needs a grant too (members of the `network` group see it).
+a `public` item needs a grant too (the community and private testers see it),
+and that includes items whose gate has ended. The dashboard says so at the top.
 Items a viewer can't open are **hidden**: no card, and their pages and API
 links answer 404 as if they didn't exist. Signed-out visitors see nothing.
 Setting the variable later opens `public` items to everyone, with no other
 change.
 
 Public items install the same way as private ones: open the card, copy the
-prompt. While releases are locked, a `public` item still needs a grant (or
-the `network` group); after `MEDIAMAKE_PUBLIC_RELEASES=open` everyone sees
-its card, signed in or not. Installing always needs a MediaMake account,
-because the install plan and packages are fetched with the person's API key.
+prompt. Installing always needs a MediaMake account, because the install plan
+and packages are fetched with the person's install code or API key.
 
 ## Who has access
 
@@ -77,13 +109,16 @@ npm run catalog -- release ../../private/skills/lyric-video --stage private --ve
 npm run catalog -- grant skill/lyric-video --to <clientId> --days 30
 npm run catalog -- invite skill/lyric-video --uses 5 --days 30   # prints a /access?code=… link
 
-# Bring people into your network circle (they see every `network` item)
-npm run catalog -- group add network <clientId> <clientId>
-npm run catalog -- invite --group network --uses 20              # or let them join by invite
+# Tiers of people
+npm run catalog -- group add private <clientId>                  # private testers: everything but the vault
+npm run catalog -- group add network <clientId> <clientId>       # community: every `network` item
+npm run catalog -- invite --group network --uses 20              # or let them join the community by invite
 
 # Move it along
-npm run catalog -- promote skill/lyric-video network
-npm run catalog -- promote skill/lyric-video public
+npm run catalog -- schedule skill/lyric-video --days 30          # community now, public by itself in 30 days
+npm run catalog -- unschedule skill/lyric-video                  # keep it with the community, no date
+npm run catalog -- promote skill/lyric-video public              # release now
+npm run catalog -- vault skill/brand-internals                   # never publish (--off to take it out)
 
 # Requests from the "Request access" button
 npm run catalog -- requests
@@ -192,7 +227,7 @@ session cookie or Bearer key themselves):
 | `GET /api/catalog/install?item=<id>` (Bearer API key) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
-| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests |
+| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish` |
 
 `MEDIAMAKE_ACCESS_GRANTS=clientId:skill/lyric-video|mcp/*,clientId2:*` still works as a
 fallback when no database is configured.
