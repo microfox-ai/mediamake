@@ -1,7 +1,10 @@
 import { randomBytes } from 'crypto';
 import { getDatabase } from '../mongodb';
 import {
+  ALWAYS_PUBLIC_ERROR,
+  ALWAYS_PUBLIC_KINDS,
   NETWORK_GROUP,
+  isAlwaysPublic,
   type AccessGrant,
   type AccessGroup,
   type AccessInvite,
@@ -92,7 +95,7 @@ export const catalogItemsDB = {
     const now = nowISO();
     const { visibility: requested, status, ...card } = item;
     const existing = await this.get(item.id);
-    const visibility = requested ?? existing?.visibility ?? 'private';
+    const visibility = isAlwaysPublic(item) ? 'public' : (requested ?? existing?.visibility ?? 'private');
     if (!existing) {
       const record: CatalogItemRecord = {
         ...card,
@@ -129,6 +132,7 @@ export const catalogItemsDB = {
     const now = nowISO();
     const existing = await this.get(id);
     if (!existing) return null;
+    if (isAlwaysPublic(existing) && visibility !== 'public') throw new Error(ALWAYS_PUBLIC_ERROR);
     if (existing.neverPublish && visibility !== 'private') {
       throw new Error(`${id} is marked never-publish; take it out of the vault first`);
     }
@@ -176,7 +180,23 @@ export const catalogItemsDB = {
         },
       );
     }
-    return due.map(item => item.id);
+    // Skills are always public: record any stored as private or network (from before that rule) as public.
+    const skills = await db
+      .collection<CatalogItemRecord>(COL.items)
+      .find({ kind: { $in: ALWAYS_PUBLIC_KINDS }, $or: [{ visibility: { $ne: 'public' } }, { neverPublish: true }, { publicAt: { $exists: true } }] }, { projection: { _id: 0, id: 1, stageHistory: 1 } })
+      .toArray();
+    for (const item of skills) {
+      const firstTime = !item.stageHistory?.some(h => h.visibility === 'public');
+      await db.collection<CatalogItemRecord>(COL.items).updateOne(
+        { id: item.id },
+        {
+          $set: { visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: now } : {}) },
+          $unset: { neverPublish: '', publicAt: '', gateStartedAt: '' },
+          $push: { stageHistory: { visibility: 'public', at: now, by: 'skills-public' } },
+        },
+      );
+    }
+    return [...due, ...skills].map(item => item.id);
   },
 
   /**
@@ -194,6 +214,7 @@ export const catalogItemsDB = {
         .updateOne({ id }, { $unset: { publicAt: '', gateStartedAt: '' }, $set: { updatedAt: nowISO() } });
       return this.get(id);
     }
+    if (isAlwaysPublic(existing)) throw new Error(ALWAYS_PUBLIC_ERROR);
     if (existing.neverPublish) throw new Error(`${id} is marked never-publish; take it out of the vault first`);
     if (existing.visibility === 'public') throw new Error(`${id} is already public`);
     if (existing.visibility === 'private') await this.setVisibility(id, 'network', actor);
@@ -211,6 +232,7 @@ export const catalogItemsDB = {
     const existing = await this.get(id);
     if (!existing) return null;
     if (neverPublish) {
+      if (isAlwaysPublic(existing)) throw new Error(ALWAYS_PUBLIC_ERROR);
       if (existing.visibility !== 'private') await this.setVisibility(id, 'private', actor);
       await db
         .collection<CatalogItemRecord>(COL.items)

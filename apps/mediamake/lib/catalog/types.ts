@@ -13,6 +13,23 @@ export type CatalogKind = 'skill' | 'mcp' | 'app' | 'tutorial';
 export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial'];
 
 /**
+ * Kinds that are always public. Every skill's files are committed in the
+ * repo (.agents/skills, listed in SKILLS.md), so a skill item is never gated:
+ * no development, community, vault or release gate, and it opens for everyone
+ * even while public releases are locked. Apps, MCPs and tutorials go through
+ * the gated releases below.
+ */
+export const ALWAYS_PUBLIC_KINDS: CatalogKind[] = ['skill'];
+
+/** True when the item's kind is always public (see ALWAYS_PUBLIC_KINDS). */
+export function isAlwaysPublic(item: { id?: string; kind?: CatalogKind }): boolean {
+  const kind = item.kind ?? (item.id?.split('/')[0] as CatalogKind | undefined);
+  return !!kind && ALWAYS_PUBLIC_KINDS.includes(kind);
+}
+
+export const ALWAYS_PUBLIC_ERROR = 'Skills are always public: only apps, MCPs and tutorials go through gated releases';
+
+/**
  * Release stage of an item, from most to least restricted.
  *  - private: only viewers with an explicit grant.
  *  - network: members of the `network` group (the internal circle) plus grants.
@@ -259,11 +276,15 @@ export interface CatalogDownload {
   at: string;
 }
 
-/** Visibility right now: a gated item whose `publicAt` has passed is public. */
+/**
+ * Visibility right now: a skill is always public, and a gated item whose
+ * `publicAt` has passed is public.
+ */
 export function effectiveVisibility(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'>,
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
   now: number = Date.now(),
 ): Visibility {
+  if (isAlwaysPublic(item)) return 'public';
   if (item.neverPublish) return 'private';
   if (item.visibility === 'network' && item.publicAt && Date.parse(item.publicAt) <= now) return 'public';
   return item.visibility;
@@ -271,9 +292,10 @@ export function effectiveVisibility(
 
 /** The dashboard tier of an item right now. */
 export function releaseTier(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'>,
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
   now: number = Date.now(),
 ): ReleaseTier {
+  if (isAlwaysPublic(item)) return 'public';
   if (item.neverPublish) return 'vault';
   const visibility = effectiveVisibility(item, now);
   return visibility === 'public' ? 'public' : visibility === 'network' ? 'community' : 'development';

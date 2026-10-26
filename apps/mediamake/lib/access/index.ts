@@ -9,6 +9,7 @@ import {
   NETWORK_GROUP,
   PRIVATE_GROUP,
   effectiveVisibility,
+  isAlwaysPublic,
   type AccessLevel,
   type CatalogItem,
   type ViewerTier,
@@ -17,7 +18,9 @@ import {
 /**
  * Access control for gated catalog items.
  *
- * Public items are open to everyone once public releases are turned on
+ * Skills are always public and open to everyone, signed in or not, even
+ * while public releases are locked (their files are committed in the repo).
+ * Other public items are open to everyone once public releases are turned on
  * (see publicReleasesOpen). A gated item counts as public once its
  * `publicAt` has passed. Otherwise a viewer may open an item when any of
  * these holds:
@@ -159,7 +162,7 @@ export function accessLevel(
   item: GatedItem,
 ): AccessLevel {
   const visibility = effectiveVisibility(item);
-  if (visibility === 'public' && (publicReleasesOpen() || item.openToAll)) return 'open';
+  if (visibility === 'public' && (publicReleasesOpen() || item.openToAll || isAlwaysPublic(item))) return 'open';
   if (entitlements.isAdmin || entitlements.itemIds.has(item.id)) return 'granted';
   // The vault only opens to admins and grants that name the item.
   if (item.neverPublish) return 'locked';
@@ -177,7 +180,7 @@ export async function canAccess(
   viewer: Viewer,
   item: GatedItem,
 ): Promise<boolean> {
-  if (effectiveVisibility(item) === 'public' && (publicReleasesOpen() || item.openToAll)) return true;
+  if (effectiveVisibility(item) === 'public' && (publicReleasesOpen() || item.openToAll || isAlwaysPublic(item))) return true;
   return accessLevel(await getEntitlements(viewer), item) !== 'locked';
 }
 

@@ -20,12 +20,12 @@ packages/
   datamotion/         @microfox/datamotion: data-driven component configs used by the AI agents
   mediamake-mcp/      @microfox/mediamake-mcp: the MCP server (local stdio / .mcpb build)
 tools/
-  skills.mjs          Builds SKILLS.md and checks the public/private skill split
+  skills.mjs          Builds SKILLS.md and checks skills for keys and machine paths
   eslint-config/, tsconfig/   Shared lint and TypeScript configs
 scripts/              Release and CI helper scripts (used by .github/workflows)
-private/              Your unreleased skills, MCPs and apps. Gitignored except its README
-.agents/skills/       Public skills (committed); .claude/skills links to them
-SKILLS.md             Index of every skill, public and private
+private/              Your unreleased MCPs and apps. Gitignored except its README
+.agents/skills/       Every skill (all public, committed); .claude/skills links to them
+SKILLS.md             Index of every skill
 install.md            What Claude follows to install a catalog item
 ```
 
@@ -61,14 +61,15 @@ Projects page, or with the MCP's `upload_brand_kit`. Needs community access or a
 
 ### Catalog, tiers and releases
 
-MCPs, skills, apps and tutorials are handed out as catalog items; the packages live in private
-storage. Each item sits in a tier: **vault** (never published), **in development**, **community**
-(ready, pre-release, optionally gated to turn public after a date) and **public**. People get a tier too
-(admin, private, community, public), set per API key holder.
+**Skills are public by default**: every skill is committed in this repo and open to everyone, with
+nothing hidden. **Apps and MCPs** are the gated ones: they are handed out as catalog items, their
+packages live in private storage, and each sits in a tier: **vault** (never published), **in
+development**, **community** (ready, pre-release, optionally gated to turn public after a date) and
+**public**. People get a tier too (admin, private, community, public), set per API key holder.
 
 - **Install an item**: open its card on the homepage (or `/access?item=<kind>/<name>`), copy the install
   prompt and paste it into Claude. Claude follows [install.md](install.md).
-- **Release and share** (admins): `/core/releases` shows a board per tier, the release timeline,
+- **Release and share** (admins): `/core/releases` shows a board per tier (skills always sit in Public), the release timeline,
   people per tier and per-item access. From the terminal: `npm run catalog` in `apps/mediamake`.
   See [catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
 
@@ -91,9 +92,11 @@ Full tool list and setup: [packages/mediamake-mcp/README.md](packages/mediamake-
 
 Claude Code skills for making content: lyric videos and shorts, music remixes, thumbnails, posters,
 brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for videos, `create-*` for
-images, `pack-*` for bundles, and so on). Public skills are committed in `.agents/skills/`; private ones
-stay in your local `.claude/skills/` and only their name and summary appear in
-[SKILLS.md](SKILLS.md). Regenerate the index with `node tools/skills.mjs index`.
+images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
+`.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
+[SKILLS.md](SKILLS.md) lists them all. A new skill made as a folder in `.claude/skills/` is moved and
+linked with `node tools/skills.mjs add --all`; `node tools/skills.mjs check` (also run in CI) fails
+when a skill holds an API key, a token or a path on your machine, or when SKILLS.md is out of date.
 
 ## Getting started
 

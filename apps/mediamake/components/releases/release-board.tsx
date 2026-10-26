@@ -17,7 +17,7 @@ import {
   Users,
   Wand2,
 } from 'lucide-react';
-import type { CatalogItemRecord, CatalogKind, ReleaseTier } from '@/lib/catalog/types';
+import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -200,6 +200,8 @@ function ItemMenu({
   onRelease: () => void;
 }) {
   const act = (action: ItemAction) => () => onAction(item, action);
+  // Skills are always public: no stages, gate or vault to move them through.
+  const alwaysPublic = isAlwaysPublic(item);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -241,7 +243,12 @@ function ItemMenu({
             </DropdownMenuItem>
           </>
         )}
-        {tier === 'public' && (
+        {alwaysPublic && (
+          <DropdownMenuItem disabled>
+            <Rocket /> Always public (skill)
+          </DropdownMenuItem>
+        )}
+        {tier === 'public' && !alwaysPublic && (
           <DropdownMenuItem onClick={act({ type: 'set_visibility', visibility: 'network' })}>
             <Undo2 /> Pull back to community
           </DropdownMenuItem>
@@ -250,7 +257,7 @@ function ItemMenu({
         <DropdownMenuItem onClick={act({ type: 'access' })}>
           <Users /> Who has access
         </DropdownMenuItem>
-        {tier !== 'vault' && (
+        {tier !== 'vault' && !alwaysPublic && (
           <DropdownMenuItem onClick={act({ type: 'set_never_publish', neverPublish: true })}>
             <Archive /> Move to the vault
           </DropdownMenuItem>

@@ -1,6 +1,7 @@
 /**
  * The repo's SKILLS.md (written by `node tools/skills.mjs index`) as data for the /skills page:
- * the naming rules and, per category, every skill with its visibility and one-line summary.
+ * the naming rules and, per category, every skill with its one-line summary. Every skill is public
+ * now; `private` rows only appear in a SKILLS.md written before that.
  * The parser follows the generator's format; anything it doesn't recognise is skipped.
  */
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ export type SkillRow = {
   visibility: 'public' | 'private';
   summary: string;
   variantOf?: string;
-  /** repo path of SKILL.md, for public skills */
+  /** repo path of SKILL.md */
   file?: string;
 };
 
