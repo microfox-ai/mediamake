@@ -1,7 +1,8 @@
 name: Private content guard
 
-# Unreleased skills/MCPs/apps belong in the gitignored private/ folder and in
-# private storage, never in this public repository. Fail if any slipped in.
+# Unreleased MCPs and apps belong in the gitignored private/ folder and in
+# private storage, never in this public repository. Skills are all public, so
+# they are only checked for keys and machine paths.
 on:
   pull_request:
   push:
@@ -26,3 +27,6 @@ jobs:
             exit 1
           fi
           echo "private/ holds only its README."
+      - name: No keys or machine paths in skills, SKILLS.md up to date
+        # Every skill is public; tools/skills.mjs fails on keys, tokens and /Users/… paths
+        run: node tools/skills.mjs check

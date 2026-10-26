@@ -2,9 +2,9 @@ import type { CatalogItem, CatalogKind } from './types';
 
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose
- * names are already public here: unreleased items belong in the catalog
- * database so they stay out of this public repo. The skill files themselves
- * are never in this repo; they're handed to people with access.
+ * names are already public here: unreleased apps and MCPs belong in the
+ * catalog database so they stay out of this public repo. Skills are always
+ * public: their files are committed in .agents/skills and listed at /skills.
  */
 export const catalogItems: CatalogItem[] = [
   // Apps. Public pages anyone can open today carry openToAll.
@@ -87,8 +87,9 @@ export const catalogItems: CatalogItem[] = [
     kind: 'skill',
     title: 'Lyric video',
     summary: 'Turn a song and its lyrics into a timed lyric video.',
-    visibility: 'private',
+    visibility: 'public',
     status: 'beta',
+    href: '/skills',
     tags: ['music', 'lyrics'],
     releasedAt: '2026-10-24',
   },
@@ -97,8 +98,9 @@ export const catalogItems: CatalogItem[] = [
     kind: 'skill',
     title: 'Waveform video',
     summary: 'Audio-reactive waveform visuals for tracks and podcasts.',
-    visibility: 'network',
+    visibility: 'public',
     status: 'beta',
+    href: '/skills',
     tags: ['music', 'audio'],
     releasedAt: '2026-10-24',
   },

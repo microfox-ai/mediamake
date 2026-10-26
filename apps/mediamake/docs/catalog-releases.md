@@ -1,20 +1,31 @@
 # Catalog releases and access
 
-MediaMake ships skills, MCPs, apps and tutorials as **catalog items**. An item
-starts private, is shared with a few people, then with your network, and
-finally goes public. The repository is public, so it holds only the code for
-this; the content itself lives in private storage.
+MediaMake ships skills, MCPs, apps and tutorials as **catalog items**. An app,
+MCP or tutorial starts private, is shared with a few people, then with your
+network, and finally goes public. The repository is public, so it holds only
+the code for this; their content lives in private storage.
+
+**Skills are public by default.** Every skill's files are committed in the repo
+(`.agents/skills/`, listed in `SKILLS.md`), so nothing about a skill is hidden:
+a `skill/…` item is always public and open to everyone, even while public
+releases are locked. It sits in the Public column of the dashboard, `release`
+publishes it as public, and `promote`, `schedule` and `vault` refuse it
+(`isAlwaysPublic` and `ALWAYS_PUBLIC_KINDS` in `lib/catalog/types.ts`; skill
+items stored with another stage from before this rule are moved to public the
+next time the dashboard loads). Everything below about stages, gates and the
+vault is for apps, MCPs and tutorials.
 
 ## Where things live
 
 | What | Where | Public? |
 | --- | --- | --- |
-| Your unreleased content | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
+| Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
+| Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
 | Grants, groups, invites, requests, download log | MongoDB `access_grants`, `access_groups`, `access_invites`, `access_requests`, `catalog_downloads` | No |
 
-Item ids look like `skill/lyric-video`.
+Item ids look like `mcp/get-into-zone` or `skill/lyric-video`.
 
 ## Tiers
 
@@ -101,13 +112,14 @@ grant revoked rather than deleting it, so the history stays.
 ```bash
 cd apps/mediamake
 
-# Release (or re-release with a new version). Reads SKILL.md front matter and
-# an optional catalog.json next to it. Leaving --stage out keeps the current stage.
-npm run catalog -- release ../../private/skills/lyric-video --stage private --version 1.0.0
+# Release (or re-release with a new version). Reads the bundle's manifest (or a
+# SKILL.md's front matter) and an optional catalog.json next to it. Leaving
+# --stage out keeps the current stage. A skill is always released as public.
+npm run catalog -- release ../../private/mcps/get-into-zone.mcpb --stage private --version 1.0.0
 
 # Share with a few people
-npm run catalog -- grant skill/lyric-video --to <clientId> --days 30
-npm run catalog -- invite skill/lyric-video --uses 5 --days 30   # prints a /access?code=… link
+npm run catalog -- grant mcp/get-into-zone --to <clientId> --days 30
+npm run catalog -- invite mcp/get-into-zone --uses 5 --days 30   # prints a /access?code=… link
 
 # Tiers of people
 npm run catalog -- group add private <clientId>                  # private testers: everything but the vault
@@ -115,17 +127,17 @@ npm run catalog -- group add network <clientId> <clientId>       # community: ev
 npm run catalog -- invite --group network --uses 20              # or let them join the community by invite
 
 # Move it along
-npm run catalog -- schedule skill/lyric-video --days 30          # community now, public by itself in 30 days
-npm run catalog -- unschedule skill/lyric-video                  # keep it with the community, no date
-npm run catalog -- promote skill/lyric-video public              # release now
-npm run catalog -- vault skill/brand-internals                   # never publish (--off to take it out)
+npm run catalog -- schedule mcp/get-into-zone --days 30          # community now, public by itself in 30 days
+npm run catalog -- unschedule mcp/get-into-zone                  # keep it with the community, no date
+npm run catalog -- promote mcp/get-into-zone public              # release now
+npm run catalog -- vault app/brand-internals                     # never publish (--off to take it out)
 
 # Requests from the "Request access" button
 npm run catalog -- requests
 npm run catalog -- approve <requestId> --days 30
 
 # Take access back
-npm run catalog -- revoke skill/lyric-video --to <clientId>
+npm run catalog -- revoke mcp/get-into-zone --to <clientId>
 npm run catalog -- list
 ```
 

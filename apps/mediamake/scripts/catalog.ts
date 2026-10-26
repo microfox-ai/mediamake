@@ -4,6 +4,9 @@
  * Release and access CLI for the MediaMake catalog (skills, MCPs, apps,
  * tutorials). Packages are uploaded to private storage through the admin
  * API, so nothing you release here is ever committed to the repository.
+ * Skills are always public (their files are committed in .agents/skills), so
+ * a skill is released as public and the gate commands refuse it; apps, MCPs
+ * and tutorials go through the stages.
  *
  * Needs, in .env.local or the environment:
  *   MEDIAMAKE_URL        e.g. https://mediamake.example.com (default http://localhost:3000)
@@ -167,7 +170,11 @@ async function release(pathArg: string | undefined, flags: Flags) {
   const slug = flag(flags, 'slug') ?? manifest.slug ?? front.name ?? basename(source, '.mcpb');
   const version = flag(flags, 'version') ?? manifest.version ?? front.version;
   if (!version) fail('No version; pass --version 1.0.0 or set "version" in catalog.json, SKILL.md or the .mcpb');
-  const visibility = flag(flags, 'stage') ?? manifest.visibility;
+  const requested = flag(flags, 'stage') ?? manifest.visibility;
+  if (kind === 'skill' && requested && requested !== 'public') {
+    console.warn(`⚠ Skills are always public; releasing ${slug} as public, not ${requested}`);
+  }
+  const visibility = kind === 'skill' ? 'public' : requested;
   const itemId = `${kind}/${slug}`;
   const install = bundle && !manifest.install?.entry
     ? { method: 'mcpb', ...manifest.install, entry: bundle }

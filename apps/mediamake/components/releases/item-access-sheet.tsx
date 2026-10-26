@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, Link2, X } from 'lucide-react';
-import type { CatalogItemRecord } from '@/lib/catalog/types';
+import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,7 +52,9 @@ export function ItemAccessSheet({
     { label: 'You (admin)', on: true },
     { label: `Private testers · ${privateCount}`, on: tier !== 'vault' },
     { label: `Community · ${communityCount}`, on: tier === 'community' || tier === 'public' },
-    { label: data.publicReleasesOpen ? 'Everyone' : 'Everyone (locked site-wide)', on: tier === 'public' && data.publicReleasesOpen },
+    isAlwaysPublic(item)
+      ? { label: 'Everyone (skills are always public)', on: true }
+      : { label: data.publicReleasesOpen ? 'Everyone' : 'Everyone (locked site-wide)', on: tier === 'public' && data.publicReleasesOpen },
   ];
 
   const createInvite = async () => {

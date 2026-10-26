@@ -1,15 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ExternalLinkIcon, GitForkIcon, LockIcon, SearchIcon, SparklesIcon } from 'lucide-react';
+import { ExternalLinkIcon, GitForkIcon, SearchIcon, SparklesIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import type { SkillRow, SkillsIndex } from '@/lib/skills/skills-md';
 
 const REPO = 'https://github.com/microfox-ai/mediamake/blob/main';
-
-type Filter = 'all' | 'public' | 'private';
 
 function SkillCard({ skill }: { skill: SkillRow }) {
   const href = skill.file ? `${REPO}/${skill.file}` : undefined;
@@ -17,13 +14,6 @@ function SkillCard({ skill }: { skill: SkillRow }) {
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground">
       <div className="flex flex-wrap items-center gap-2">
         <code className="font-mono text-sm font-semibold">{skill.name}</code>
-        {skill.visibility === 'public' ? (
-          <Badge variant="secondary">public</Badge>
-        ) : (
-          <Badge variant="outline" className="text-muted-foreground">
-            <LockIcon /> private
-          </Badge>
-        )}
         {skill.variantOf && (
           <Badge variant="outline" className="text-muted-foreground">
             <GitForkIcon /> variant of {skill.variantOf}
@@ -42,7 +32,6 @@ function SkillCard({ skill }: { skill: SkillRow }) {
 
 export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
 
   const all = useMemo(() => index?.categories.flatMap(c => c.skills) ?? [], [index]);
   const categories = useMemo(() => {
@@ -50,10 +39,10 @@ export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
     return (index?.categories ?? [])
       .map(c => ({
         ...c,
-        skills: c.skills.filter(s => (filter === 'all' || s.visibility === filter) && (!q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q))),
+        skills: c.skills.filter(s => !q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q)),
       }))
       .filter(c => c.skills.length);
-  }, [index, query, filter]);
+  }, [index, query]);
 
   if (!index)
     return (
@@ -61,8 +50,6 @@ export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
         No SKILLS.md found. Run <code className="font-mono">node tools/skills.mjs index</code> at the repo root.
       </main>
     );
-
-  const counts = { all: all.length, public: all.filter(s => s.visibility === 'public').length, private: all.filter(s => s.visibility === 'private').length };
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -72,10 +59,9 @@ export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
             <SparklesIcon className="size-6 text-primary" /> Skills
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            The Claude Code skills in this repo. <strong className="text-foreground">Public</strong> skills are committed (in
-            <code className="mx-1 font-mono text-xs">.agents/skills/</code>) and load for anyone who opens the repo;
-            <strong className="mx-1 text-foreground">private</strong> ones stay on the owner&apos;s machine and are listed by name only.
-            The <code className="font-mono text-xs">publish-skill</code> skill makes one public, <code className="font-mono text-xs">fork-skill</code> makes a variant.
+            The Claude Code skills in this repo, all {all.length} of them <strong className="text-foreground">public</strong>: their files are
+            committed in <code className="mx-1 font-mono text-xs">.agents/skills/</code> and load for anyone who opens the repo.
+            The <code className="font-mono text-xs">publish-skill</code> skill adds a new one, <code className="font-mono text-xs">fork-skill</code> makes a variant.
           </p>
           {index.naming.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
@@ -92,19 +78,6 @@ export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
           <div className="relative flex-1">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search skills" className="pl-8" aria-label="Search skills" />
-          </div>
-          <div className="flex rounded-md border p-0.5" role="group" aria-label="Visibility">
-            {(['all', 'public', 'private'] as Filter[]).map(f => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                aria-pressed={filter === f}
-                className={cn('rounded px-3 py-1 text-xs font-medium capitalize text-muted-foreground', filter === f && 'bg-muted text-foreground')}
-              >
-                {f} <span className="tabular-nums">{counts[f]}</span>
-              </button>
-            ))}
           </div>
         </div>
 

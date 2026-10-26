@@ -4,7 +4,7 @@ import { parseSkillsMd, readSkillsMd } from '@/lib/skills/skills-md';
 
 export const metadata: Metadata = {
   title: 'Skills · MediaMake',
-  description: "The repo's Claude Code skills by category: public ones (committed) and private ones (on the owner's machine)",
+  description: "The repo's Claude Code skills by category, all public and committed",
 };
 
 // read at build time from the repo's SKILLS.md; in dev it is read on every request

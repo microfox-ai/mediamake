@@ -163,7 +163,8 @@ export function ReleasesDashboard() {
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
         <p className="text-sm text-muted-foreground">
-          Move skills, MCPs and apps from the vault to the public. Community items go public by themselves when their gate ends.
+          Move apps and MCPs from the vault to the public. Community items go public by themselves when their gate ends.
+          Skills are always public: their files are committed in the repo, so they sit in Public and skip the gate.
         </p>
       </div>
 
@@ -173,6 +174,7 @@ export function ReleasesDashboard() {
           <p className="text-muted-foreground">
             <span className="font-medium text-foreground">Public releases are locked site-wide.</span> Public items, including ones whose gate has ended,
             stay visible only to the community, private testers and grants until <code className="rounded bg-muted px-1 py-0.5 text-xs">MEDIAMAKE_PUBLIC_RELEASES=open</code> is set.
+            Skills are open to everyone either way.
           </p>
         </div>
       )}

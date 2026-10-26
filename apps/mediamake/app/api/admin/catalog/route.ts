@@ -135,7 +135,8 @@ function daysFromNow(days?: number) {
  *
  * Body variants:
  *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, install? } }
- *                             (visibility/status left out keep the current value; new items start private, beta)
+ *                             (visibility/status left out keep the current value; new items start private, beta;
+ *                             skills are always public)
  *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }
  *  { type: 'schedule_release', itemId, days? (default 30) | at? (ISO) }
  *                             (moves a development item to community now; it goes public by itself at that time)
@@ -218,9 +219,13 @@ export async function POST(req: NextRequest) {
     }
 
     case 'set_never_publish': {
-      const item = await catalogItemsDB.setNeverPublish(body.itemId, Boolean(body.neverPublish), adminId);
-      if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      return NextResponse.json({ item });
+      try {
+        const item = await catalogItemsDB.setNeverPublish(body.itemId, Boolean(body.neverPublish), adminId);
+        if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ item });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
     }
 
     case 'remove_item': {
