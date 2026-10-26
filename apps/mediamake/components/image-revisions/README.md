@@ -39,7 +39,7 @@ A set is a folder of images. To review it here:
   "job": "kingdom-cover", // the set's name (= the folder's)
   "kind": "poster", // thumbnail and poster get their rules (A/B finals, one cover); anything else is a plain set
   "title": "You Can Have the Kingdom",
-  "workflow": "make-music-poster", // the skill that made it: Claude acts on revisions the way it works
+  "workflow": "create-music-poster", // the skill that made it: Claude acts on revisions the way it works
   "source": "apps/lyrics_videos/thumbnails/jobs/kingdom-cover/poster.json", // what to change
   "location": "apps/lyrics_videos/out/posters/kingdom-cover", // where this folder is (browsers can't tell)
   "path": "/Users/…/apps/lyrics_videos/out/posters/kingdom-cover", // absolute: Show in Finder / Copy path

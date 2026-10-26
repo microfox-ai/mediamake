@@ -35,11 +35,17 @@ export type Layer<P = any> = {
 export type ProjectDefinition = {
   /** Must equal the project folder name; used as the composition id. */
   id: string;
+  /** The project folder (manifest, edits, media) when it differs from `id`: a short cut from a project
+   *  is its own composition ('<slug>-<short>-9x16') over the same folder. */
+  slug?: string;
   fps: number;
   width: number;
   height: number;
   /** Seconds of video after the song ends (end credits, outros). Place layers there with `{ from, to }`. */
   tail?: number;
+  /** Play only this stretch of the song (seconds): the video starts at `from` and ends at `to`, layers
+   *  keep their song times. `fadeIn` / `fadeOut`: seconds of audio fade at the ends (default 0 / 0.4). */
+  window?: { from: number; to: number; fadeIn?: number; fadeOut?: number };
   layers: Layer[];
 };
 

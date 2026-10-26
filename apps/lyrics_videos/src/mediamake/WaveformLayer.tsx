@@ -9,6 +9,7 @@ import {
 import type { SceneProps } from '../kit/contract';
 import { applyContainerLayout, presetTree, runPreset } from './presets';
 import { PresetTree } from './PresetTree';
+import { Visualizer, type VisualizerProps } from './Visualizers';
 
 /** The looks of mediamake's "Wave Look" action for WaveformSpectrumFill. */
 export type WaveLook =
@@ -92,7 +93,7 @@ type Box = {
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
 };
 
-export type WaveformLayerProps =
+export type WaveformLayerProps = (
   | {
       kind: 'spectrum-fill';
       look?: WaveLook;
@@ -113,7 +114,13 @@ export type WaveformLayerProps =
       container?: Record<string, unknown>;
       /** The editor's layout box around the preset (a timeline node's containerProps). */
       containerProps?: { style?: Record<string, unknown> };
-    };
+    }
+  /** Halo, yantra, sparks, rings, bolt, flames (Visualizers.tsx). */
+  | VisualizerProps
+) & {
+  /** Mirror the whole wave left-right: side bars on the right edge instead of the left. */
+  mirrorX?: boolean;
+};
 
 /**
  * An audio-reactive waveform that follows the song, with mediamake's waveform atoms and presets.
@@ -142,8 +149,17 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
     props.kind === 'waveform-audio' ? props.container : null,
     props.kind === 'waveform-audio' ? props.containerProps : null]);
 
+  const mirror: React.CSSProperties | undefined = props.mirrorX ? { transform: 'scaleX(-1)' } : undefined;
+  if (props.kind !== 'waveform-audio' && props.kind !== 'spectrum-fill' && props.kind !== 'spectrum-line') {
+    const { manifest: _m, section: _s, mirrorX: _x, ...visual } = props as VisualizerProps & SceneProps<object> & { mirrorX?: boolean };
+    return (
+      <AbsoluteFill style={mirror}>
+        <Visualizer {...(visual as VisualizerProps)} audio={audio} />
+      </AbsoluteFill>
+    );
+  }
   if (props.kind === 'waveform-audio') {
-    return <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} />;
+    return <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} style={mirror} />;
   }
 
   const box = props.box ?? {};
@@ -161,7 +177,7 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
   };
 
   return (
-    <AbsoluteFill>
+    <AbsoluteFill style={mirror}>
       <div style={wrapper}>
         {props.kind === 'spectrum-fill' ? (
           <WaveformSpectrumFill

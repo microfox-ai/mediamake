@@ -1,6 +1,7 @@
 /** SVG filters and CSS filter strings the layers share (outlines, duotone, glows, shadows). */
 import React from 'react';
 import type { Color, Glow, Grade, Shadow } from '../spec.ts';
+import { type Levels, tableValues } from '../exposure.ts';
 
 /** A CSS-safe id from React's useId. */
 export const safeId = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -41,6 +42,20 @@ export const DuotoneFilter: React.FC<{ id: string; colors: [Color, Color] }> = (
         <feFuncR type="table" tableValues={`${ra} ${rb}`} />
         <feFuncG type="table" tableValues={`${ga} ${gb}`} />
         <feFuncB type="table" tableValues={`${ba} ${bb}`} />
+      </feComponentTransfer>
+    </filter>
+  );
+};
+
+/** Auto-exposure's tone curve (exposure.ts) on every channel. */
+export const LevelsFilter: React.FC<{ id: string; levels: Levels }> = ({ id, levels }) => {
+  const table = tableValues(levels);
+  return (
+    <filter id={id} colorInterpolationFilters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues={table} />
+        <feFuncG type="table" tableValues={table} />
+        <feFuncB type="table" tableValues={table} />
       </feComponentTransfer>
     </filter>
   );

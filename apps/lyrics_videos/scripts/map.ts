@@ -46,7 +46,7 @@ type MapSection = { id: string; label: string; from: number; to: number };
 export type VideoMap = {
   schema: 'mediamake.video-map/v1';
   video: string;
-  source: { path: string; project: string; shots: 'video/shots.json' | 'lyrics' };
+  source: { path: string; project: string; shots: string };
   fps: number;
   duration: number;
   width: number;
@@ -125,8 +125,8 @@ function shotsFromLyrics(manifest: Manifest, ids: Map<string, string>): Shot[] {
   return shots;
 }
 
-function readShots(slug: string, manifest: Manifest): Shot[] | null {
-  const file = path.join(ROOT, 'projects', slug, 'video', 'shots.json');
+function readShots(slug: string, manifest: Manifest, rel = 'video/shots.json'): Shot[] | null {
+  const file = path.join(ROOT, 'projects', slug, rel);
   if (!fs.existsSync(file)) return null;
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
   const shots = z.array(ShotSchema.passthrough()).parse(Array.isArray(raw) ? raw : raw.shots);
@@ -141,21 +141,26 @@ function readShots(slug: string, manifest: Manifest): Shot[] | null {
   }));
 }
 
+/** a short (make-video-music-remix-shorts): its shot list and where it starts in the song (seconds) */
+export type MapShort = { shots: string; offset: number };
+
 export function buildVideoMap(
   slug: string,
   videoPath: string,
   frames?: { from: number; to: number },
+  short?: MapShort,
 ): VideoMap {
   const manifestPath = path.join(ROOT, 'projects', slug, 'manifest.json');
   const manifest = ManifestSchema.parse(JSON.parse(fs.readFileSync(manifestPath, 'utf8')));
   const video = probe(videoPath);
   const ids = sectionIds(manifest);
-  const explicit = readShots(slug, manifest);
+  const explicit = readShots(slug, manifest, short?.shots);
   const songShots = explicit ?? shotsFromLyrics(manifest, ids);
 
-  // A --frames render starts at frame `from`; shift everything into the clip's own time.
-  const offset = frames ? frames.from / video.fps : 0;
-  const end = frames ? (frames.to + 1) / video.fps : Infinity;
+  // A --frames render starts at frame `from`; shift everything into the clip's own time. A short
+  // starts at its window's song time.
+  const offset = (short?.offset ?? 0) + (frames ? frames.from / video.fps : 0);
+  const end = frames ? (short?.offset ?? 0) + (frames.to + 1) / video.fps : short ? short.offset + video.duration : Infinity;
   const clip = <T extends { from: number; to: number }>(items: T[]): T[] =>
     items
       .filter(it => it.to > offset && it.from < end)
@@ -164,7 +169,7 @@ export function buildVideoMap(
   return {
     schema: 'mediamake.video-map/v1',
     video: path.basename(videoPath),
-    source: { path: path.resolve(videoPath), project: slug, shots: explicit ? 'video/shots.json' : 'lyrics' },
+    source: { path: path.resolve(videoPath), project: slug, shots: explicit ? short?.shots ?? 'video/shots.json' : 'lyrics' },
     fps: video.fps,
     duration: round(video.duration),
     width: video.width,
@@ -189,8 +194,8 @@ export function parseFramesFlag(flags: string[]): { from: number; to: number } |
   return { from: a, to: Number.isFinite(b) ? b : Number.MAX_SAFE_INTEGER };
 }
 
-export function writeVideoMap(slug: string, videoPath: string, frames?: { from: number; to: number }): string {
-  const map = buildVideoMap(slug, videoPath, frames);
+export function writeVideoMap(slug: string, videoPath: string, frames?: { from: number; to: number }, short?: MapShort): string {
+  const map = buildVideoMap(slug, videoPath, frames, short);
   const out = mapPathFor(videoPath);
   fs.writeFileSync(out, `${JSON.stringify(map, null, 2)}\n`);
   const shown = path.relative(process.cwd(), out);

@@ -9,7 +9,8 @@
  * (lint, index.json), Remotion bundles it for the compositions. Keep imports with `.ts` extensions.
  */
 import { PRESETS } from './presets/index.ts';
-import { TREATMENTS, type Post } from './treatments.ts';
+import { TREATMENTS, type Post, type Tune, applyTune } from './treatments.ts';
+import { type ExposureFile, type Levels, type Mood, withFix } from './exposure.ts';
 
 /** The thumbnail frame: YouTube's 1280×720 (16:9). Every coordinate in a thumbnail spec is in these pixels. */
 export const CANVAS = { w: 1280, h: 720 } as const;
@@ -76,6 +77,8 @@ export type PhotoLayer = Base & {
   grade?: Grade;
   /** map dark→light onto two colours */
   duotone?: [Color, Color];
+  /** tone curve from auto-exposure (exposure.ts), applied before `grade`; set by resolveJob, not by hand */
+  levels?: Levels;
   /** fade the picture out toward one side, over `size` (a fraction of the box, default 0.5) */
   fade?: { side: 'left' | 'right' | 'top' | 'bottom'; size?: number };
   /** sticker outline around the opaque pixels (cutouts) */
@@ -243,6 +246,8 @@ export type VariantSpec = {
   remove?: string[];
   /** a whole-picture look from treatments.ts (film, matte, noir, riso…), applied over everything */
   treatment?: string;
+  /** per treatment name: how it is fitted to this picture (look.ts writes it; see Tune in treatments.ts) */
+  tune?: Record<string, Tune>;
 };
 
 export type StyleSpec = VariantSpec & {
@@ -250,8 +255,11 @@ export type StyleSpec = VariantSpec & {
   name: string;
   idea?: string;
   variants?: VariantSpec[];
-  /** one variant per treatment, IDs from 0 when the list starts with "plain" (A0 plain, A1 film, …) */
-  treatments?: string[];
+  /**
+   * one variant per treatment, IDs from 0 when the list starts with "plain" (A0 plain, A1 film, …);
+   * "auto" is picked from the picture (look.ts) and written back as a list by `thumbs render`
+   */
+  treatments?: string[] | 'auto';
 };
 
 export type FontSpec = { family: string; weight?: number; italic?: boolean; file?: string };
@@ -268,6 +276,8 @@ export type JobSpec = {
   canvas?: { src: string; cut?: string; seconds?: number; fps?: number; push?: number; drift?: number; embers?: number; glow?: string; grain?: number };
   title?: string;
   brand?: string;
+  /** a poster's brightness, from the song (exposure.ts): bright · balanced (default) · dark · as-is (no auto-exposure) */
+  mood?: Mood;
   fonts?: FontSpec[];
   /** applies to every style and variant */
   defaults?: VariantSpec;
@@ -295,7 +305,16 @@ const applyHero = (layer: Layer, hero: Hero): Layer => {
   return { focus: hero.focus, zoom: hero.zoom, offset: hero.offset, flip: hero.flip, ...layer, src };
 };
 
-export const resolveVariant = (job: JobSpec, style: StyleSpec, variant: VariantSpec, index: number): ResolvedVariant => {
+/** The hero picture and its cutout get the source's auto-exposure levels, plus this variant's fix. */
+const applyLevels = (layer: Layer, hero: Hero, id: string, exposure?: ExposureFile): Layer => {
+  if (!exposure || exposure.mood === 'as-is' || !hero.src) return layer;
+  const source = exposure.sources[hero.src];
+  if (!source) return layer;
+  const ours = (layer.type === 'photo' && layer.src === hero.src) || (layer.type === 'cutout' && !!hero.cut && layer.src === hero.cut);
+  return ours ? { ...layer, levels: withFix(source.levels, exposure.fixes[id]) } : layer;
+};
+
+export const resolveVariant = (job: JobSpec, style: StyleSpec, variant: VariantSpec, index: number, exposure?: ExposureFile): ResolvedVariant => {
   const chain = [job.defaults ?? {}, style, variant];
   const pick = <K extends keyof VariantSpec>(k: K) => chain.reduce<VariantSpec[K] | undefined>((acc, s) => s[k] ?? acc, undefined);
   const params = chain.reduce<Params>((acc, s) => merge(acc, s.params ?? {}), {});
@@ -325,21 +344,26 @@ export const resolveVariant = (job: JobSpec, style: StyleSpec, variant: VariantS
       if (i < 0) throw new Error(`${id}: patch for unknown layer "${lid}". Layers: ${layers.map(l => l.id).filter(Boolean).join(', ')}`);
       layers[i] = merge(layers[i], fields);
     }
-  const resolved: ResolvedVariant = { id, style: style.id, styleName: style.name, note: variant.note, layers: layers.filter(l => !l.hidden).map(l => applyHero(l, hero)) };
+  const resolved: ResolvedVariant = { id, style: style.id, styleName: style.name, note: variant.note, layers: layers.filter(l => !l.hidden).map(l => applyLevels(applyHero(l, hero), hero, id, exposure)) };
   const treatment = pick('treatment');
   if (treatment && treatment !== 'plain') {
     const t = TREATMENTS[treatment];
     if (!t) throw new Error(`${id}: no treatment "${treatment}". Have: plain, ${Object.keys(TREATMENTS).join(', ')}`);
-    resolved.post = t.build(params);
+    const tune = chain.reduce<Record<string, Tune>>((acc, s) => merge(acc, s.tune ?? {}), {});
+    resolved.post = applyTune(t.build(params), tune[treatment]);
   }
   return resolved;
 };
 
 /** A style's variants: its own, or one per treatment (A0 plain, A1 film, …). */
 export const styleVariants = (style: StyleSpec): VariantSpec[] => {
+  if (style.treatments === 'auto')
+    throw new Error(`Style ${style.id}: "treatments": "auto" is picked from the picture by \`thumbs render\` (or \`thumbs look <job> --write\`): run it first`);
   if (style.variants?.length || !style.treatments?.length) return style.variants ?? [];
   const from = style.treatments[0] === 'plain' ? 0 : 1;
   return style.treatments.map((t, i) => ({ id: `${style.id}${i + from}`, treatment: t, note: t === 'plain' ? 'plain' : TREATMENTS[t]?.name ?? t }));
 };
 
-export const resolveJob = (job: JobSpec): ResolvedVariant[] => job.styles.flatMap(style => styleVariants(style).map((v, i) => resolveVariant(job, style, v, i)));
+/** `exposure` is the job's exposure.json, when `thumbs render` has written one. */
+export const resolveJob = (job: JobSpec, exposure?: ExposureFile): ResolvedVariant[] =>
+  job.styles.flatMap(style => styleVariants(style).map((v, i) => resolveVariant(job, style, v, i, exposure)));
