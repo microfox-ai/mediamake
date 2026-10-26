@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowUpRight, Clapperboard, FilePenLine, Images, KeyRound, LayoutDashboard, Lock, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Clapperboard, FilePenLine, Images, KeyRound, Layers, LayoutDashboard, Lock, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getViewer } from '@/lib/access';
 
@@ -48,6 +48,13 @@ const apps: AppCard[] = [
     href: '/image-revision',
     icon: Images,
     tags: ['review', 'images'],
+  },
+  {
+    title: 'Skill Library',
+    summary: 'Browse the skills on your computer with thumbnails, their variants, and the projects that used them.',
+    href: '/skill-library',
+    icon: Layers,
+    tags: ['skills', 'variants'],
   },
   {
     title: 'Access & invites',

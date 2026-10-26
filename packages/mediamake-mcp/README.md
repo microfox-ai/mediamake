@@ -35,6 +35,7 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Area                   | Tools                                                                                                                                                                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Projects and timelines | `list_projects`, `get_project`, `create_project`, `list_timelines`, `get_timeline`, `survey_timelines`, `create_timeline`, `update_timeline`, `list_legacy_timelines`, `get_legacy_timeline` |
+| Brand kits             | `get_brand_kit`, `upload_brand_kit`, `update_brand_kit` (community access or above)                                                                                                       |
 | Presets                | `list_presets`, `get_preset`, `add_preset_to_timeline`                                                                                                                                       |
 | Media                  | `list_media`, `search_media`, `get_media`, `upload_media`                                                                                                                                    |
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
@@ -52,6 +53,10 @@ Saved timelines exist in three shapes, and every timeline this server returns sa
 - `legacy-preset-data`: oldest, deprecated. Lives in the `presetData` collection; import it with `create_timeline` and `legacyId`.
 
 `get_timeline` returns a compact summary by default (config, references, preset list, node outline, warnings such as deprecated presets). `detail: "full"` returns the document with embedded preset code removed and, with `maxArrayItems`, long caption arrays cut short. `survey_timelines` aggregates many timelines at once (formats, preset usage per format, canvas sizes), which is the starting point for learning how existing videos are built.
+
+### Brand kits
+
+A project is a channel or brand, and its brand kit (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, colours, brand guide, thumbnail profile) lives on it. `upload_brand_kit` takes the folder `pack-brand-kit` exports (`apps/lyrics_videos/brands/<brand>/`) and uploads it in one call (`dryRun` lists it first); `get_brand_kit` is what to read before making anything for that brand. Brand kits need community access or above: public accounts keep their kits locally.
 
 ### Lyric videos
 

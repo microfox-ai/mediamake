@@ -30,9 +30,12 @@ import {
   Share2Icon,
   ExternalLinkIcon,
   PencilIcon,
+  PaletteIcon,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { ShareProjectDialog } from "@/components/editor_main/dialogs/ShareProjectDialog";
+import { BrandKitSheet } from "@/components/projects/BrandKitSheet";
+import type { BrandKitSummary } from "@/lib/brand-kit";
 
 interface Project {
   id: string;
@@ -43,6 +46,7 @@ interface Project {
   isOwned?: boolean;
   sharedRole?: "editor" | "viewer";
   sharedWith?: Array<{ clientId: string; role: string }>;
+  brandKit?: BrandKitSummary;
 }
 
 type Tab = "all" | "owned" | "shared";
@@ -55,6 +59,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = React.useState("");
   const [tab, setTab] = React.useState<Tab>("all");
   const [shareTarget, setShareTarget] = React.useState<Project | null>(null);
+  const [brandTarget, setBrandTarget] = React.useState<Project | null>(null);
 
   const fetch_ = React.useCallback(async () => {
     setLoading(true);
@@ -108,7 +113,7 @@ export default function ProjectsPage() {
                   <FolderIcon className="h-5 w-5" /> Projects
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Manage your projects and control who has access.
+                  Your channels and brands: each holds its brand kit, its timelines and who has access.
                 </p>
               </div>
               <Button
@@ -196,6 +201,24 @@ export default function ProjectsPage() {
                           key={p.id}
                           className="group flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
                         >
+                          <button
+                            type="button"
+                            title="Brand kit"
+                            onClick={() => setBrandTarget(p)}
+                            className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/40"
+                          >
+                            {p.brandKit?.logo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.brandKit.logo} alt="" className="h-full w-full object-contain p-1" />
+                            ) : (
+                              <PaletteIcon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            {!!p.brandKit?.colors.length && (
+                              <span className="absolute inset-x-0 bottom-0 flex h-1">
+                                {p.brandKit.colors.map((c) => <span key={c} className="flex-1" style={{ background: c }} />)}
+                              </span>
+                            )}
+                          </button>
                           <div
                             className="flex-1 min-w-0 cursor-pointer"
                             onClick={() => open(p.id)}
@@ -215,6 +238,11 @@ export default function ProjectsPage() {
                               )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {p.brandKit && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full border text-muted-foreground">
+                                  brand kit · {p.brandKit.assetCount} file{p.brandKit.assetCount === 1 ? "" : "s"}
+                                </span>
+                              )}
                               {(p.tags ?? []).map((tag) => (
                                 <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                                   {tag}
@@ -227,6 +255,15 @@ export default function ProjectsPage() {
                           </div>
 
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              title="Brand kit"
+                              onClick={(e) => { e.stopPropagation(); setBrandTarget(p); }}
+                            >
+                              <PaletteIcon className="h-3.5 w-3.5" />
+                            </Button>
                             {isOwned && (
                               <Button
                                 variant="ghost"
@@ -255,6 +292,17 @@ export default function ProjectsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {brandTarget && (
+              <BrandKitSheet
+                open={!!brandTarget}
+                onOpenChange={(v) => { if (!v) setBrandTarget(null); }}
+                projectId={brandTarget.id}
+                projectName={brandTarget.displayName}
+                clientId={session?.clientId}
+                onSaved={fetch_}
+              />
+            )}
 
             {shareTarget && (
               <ShareProjectDialog

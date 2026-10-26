@@ -56,6 +56,18 @@ export const catalogItems: CatalogItem[] = [
     tags: ['review', 'images'],
     releasedAt: '2026-10-22',
   },
+  {
+    id: 'app/skill-library',
+    kind: 'app',
+    title: 'Skill Library',
+    summary: 'Browse the skills on your computer with thumbnails, their variants and the projects that used them.',
+    visibility: 'public',
+    openToAll: true,
+    status: 'beta',
+    href: '/skill-library',
+    tags: ['skills', 'variants'],
+    releasedAt: '2026-10-26',
+  },
 
   // MCPs
   {

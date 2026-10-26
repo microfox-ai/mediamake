@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { MediamakeClient, configFromEnv } from './client.js';
+import { registerBrandKitTools } from './tools/brand-kit.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerPresetTools } from './tools/presets.js';
 import { registerProjectTools } from './tools/projects.js';
@@ -20,6 +21,7 @@ export function createServer(client = new MediamakeClient(configFromEnv())) {
     { instructions: INSTRUCTIONS },
   );
   registerProjectTools(server, client);
+  registerBrandKitTools(server, client);
   registerPresetTools(server, client);
   registerMediaTools(server, client);
   registerTranscriptionTools(server, client);
