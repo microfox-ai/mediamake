@@ -411,7 +411,7 @@ export function PresetUI({ presetSets = [], isLoading = false, baseData = {} }: 
                             }
                             localStorage.removeItem('preset-current-loaded')
                             setShowEditDialog(false)
-                            router.push('/presets')
+                            router.push('/core/presets')
                         }}>Open Editor</Button>
                     </DialogFooter>
                 </DialogContent>

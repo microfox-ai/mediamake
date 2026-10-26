@@ -3,6 +3,14 @@
     "blender": {
       "command": "/opt/homebrew/bin/uvx",
       "args": ["blender-mcp"]
+    },
+    "mediamake": {
+      "command": "node",
+      "args": ["packages/mediamake-mcp/dist/index.js"],
+      "env": {
+        "MEDIAMAKE_API_URL": "${MEDIAMAKE_API_URL:-http://localhost:3000}",
+        "MEDIAMAKE_API_KEY": "${MEDIAMAKE_API_KEY:-}"
+      }
     }
   }
 }

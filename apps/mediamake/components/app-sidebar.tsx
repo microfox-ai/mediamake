@@ -47,7 +47,7 @@ const aiagents = Object.entries(aiRouterRegistry.map).map(([path, value]) => {
   }
   return {
     name: value.agents[0].actAsTool.name,
-    url: `/agents/${path}`,
+    url: `/core/agents/${path}`,
     icon: value.agents[0].actAsTool.metadata?.icon,
   }
 }).filter((item) => !item?.url?.includes("/script-meta") && !item?.url?.includes("/autofix")).filter((item): item is NonNullable<typeof item> => item !== null).filter((agent, index, self) =>
@@ -63,17 +63,17 @@ const data = {
   navMain: [
     {
       title: "Projects",
-      url: "/projects",
+      url: "/core/projects",
       icon: <FolderIcon />,
     },
     {
       title: "Editor",
-      url: "/editor",
+      url: "/core/editor",
       icon: <FilmIcon />,
     },
     {
       title: "Preview",
-      url: "/dev/preview",
+      url: "/core/dev/preview",
       icon: <ClapperboardIcon />,
     },
     {
@@ -88,68 +88,68 @@ const data = {
     },
     {
       title: "Quota",
-      url: "/quota",
+      url: "/core/quota",
       icon: <GaugeIcon />,
     },
     {
       title: "Video Render History",
-      url: "/video-history",
+      url: "/core/video-history",
       icon: <ListIcon />,
     },
     {
       title: "Image Render History",
-      url: "/image-history",
+      url: "/core/image-history",
       icon: <ListIcon />,
     },
     {
       title: "API Keys",
-      url: "/api-keys",
+      url: "/core/api-keys",
       icon: <KeyIcon />,
     },
     {
       title: "Billing",
-      url: "/billing",
+      url: "/core/billing",
       icon: <CreditCardIcon />,
     },
     {
       title: "Transcriber",
-      url: "/transcriber",
+      url: "/core/transcriber",
       icon: <AudioLinesIcon />,
     },
     {
       title: "Presets",
-      url: "/presets",
+      url: "/core/presets",
       icon: <MagnetIcon />,
       badge: "Deprecated",
     },
     {
       title: "Media",
-      url: "/media",
+      url: "/core/media",
       icon: <FolderOpenIcon />,
     },
     {
       title: "Video Splits",
-      url: "/youtube-splits",
+      url: "/core/youtube-splits",
       icon: <TvIcon />,
     },
     {
       title: "Font Base",
-      url: "/fontbase",
+      url: "/core/fontbase",
       icon: <TypeIcon />,
     },
     {
       title: "Midjourney",
-      url: "/midjourney",
+      url: "/core/midjourney",
       icon: <SparklesIcon />,
     },
     {
       title: "Midjourney Queue",
-      url: "/midjourney-queue",
+      url: "/core/midjourney-queue",
       icon: <ListIcon />,
     },
     {
       title: "3D Studio",
-      url: "/studio-3d",
+      url: "/core/studio-3d",
       icon: <BoxIcon />,
     },
     // {

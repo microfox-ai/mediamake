@@ -2,6 +2,7 @@ import { ApiKeyInfo } from '@/app/types/db';
 import { CrudHash } from '@microfox/db-upstash';
 import { Redis } from '@upstash/redis';
 import { NextRequest, NextResponse } from 'next/server';
+import { isAdminRequest } from '@/lib/admin-utils';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL ?? 'https://ignore',
@@ -9,7 +10,12 @@ const redis = new Redis({
 });
 const apiKeyStore = new CrudHash<ApiKeyInfo>(redis, 'apiKeys');
 
+// Every key is a sign-in password, so this raw store is admin only.
+// The /api-keys page uses /api/apikeys.
+const forbidden = () => NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+
 export const GET = async (req: NextRequest) => {
+  if (!(await isAdminRequest(req))) return forbidden();
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get('clientId');
   const apiKey = searchParams.get('apiKey');
@@ -29,6 +35,7 @@ export const GET = async (req: NextRequest) => {
 };
 
 export const POST = async (req: NextRequest) => {
+  if (!(await isAdminRequest(req))) return forbidden();
   const { apiKey, clientId, clientName, isValid } = await req.json();
   const apiKeyInfo = await apiKeyStore.set(apiKey, {
     id: apiKey,
@@ -41,6 +48,7 @@ export const POST = async (req: NextRequest) => {
 };
 
 export const DELETE = async (req: NextRequest) => {
+  if (!(await isAdminRequest(req))) return forbidden();
   const { apiKey } = await req.json();
   if (!apiKey || typeof apiKey !== 'string') {
     return NextResponse.json({ error: 'apiKey is required' }, { status: 400 });

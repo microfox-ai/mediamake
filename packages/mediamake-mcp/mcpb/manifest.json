@@ -1,0 +1,184 @@
+{
+  "manifest_version": "0.3",
+  "name": "mediamake",
+  "display_name": "Mediamake",
+  "version": "0.1.0",
+  "description": "Drive Mediamake from Claude: projects and timelines, presets, media, transcription, generation workers, agents and renders.",
+  "long_description": "Connects Claude to your Mediamake app with a Mediamake API key. Read saved projects and timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, upload and search media, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda.",
+  "author": {
+    "name": "Microfox",
+    "url": "https://github.com/microfox-ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microfox-ai/mediamake"
+  },
+  "homepage": "https://github.com/microfox-ai/mediamake/tree/main/packages/mediamake-mcp",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "MEDIAMAKE_API_URL": "${user_config.api_url}",
+        "MEDIAMAKE_API_KEY": "${user_config.api_key}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "list_projects",
+      "description": "List Mediamake projects the API key can see (owned or shared)."
+    },
+    {
+      "name": "get_project",
+      "description": "Get one project and a page of its timelines (newest first)."
+    },
+    {
+      "name": "create_project",
+      "description": "Create a new Mediamake project."
+    },
+    {
+      "name": "list_timelines",
+      "description": "List timelines (id, name, dates)."
+    },
+    {
+      "name": "get_timeline",
+      "description": "Read a saved timeline."
+    },
+    {
+      "name": "survey_timelines",
+      "description": "Read many timelines at once and aggregate them: how many are in each format, which presets each format uses and how often, and canvas configs."
+    },
+    {
+      "name": "create_timeline",
+      "description": "Create a timeline in a project."
+    },
+    {
+      "name": "update_timeline",
+      "description": "Replace fields of a timeline."
+    },
+    {
+      "name": "list_legacy_timelines",
+      "description": "List saved timelines in the oldest, deprecated format (the presetData collection)."
+    },
+    {
+      "name": "get_legacy_timeline",
+      "description": "Read one legacy presetData timeline."
+    },
+    {
+      "name": "list_presets",
+      "description": "List presets (the building blocks of a timeline)."
+    },
+    {
+      "name": "get_preset",
+      "description": "Get a preset's metadata (including defaultInputParams) and its input JSON schema (presetParams)."
+    },
+    {
+      "name": "add_preset_to_timeline",
+      "description": "Append a preset instance to a timeline, the way the editor's Add button does at the top level: inputs start from the preset's defaultInputParams, your presetInputData is merged on top, and the track gets a unique trackName."
+    },
+    {
+      "name": "list_media",
+      "description": "List files in the Mediamake media library, newest first, with filters."
+    },
+    {
+      "name": "search_media",
+      "description": "Semantic search over the analysed media library (descriptions, keywords, art style, colours)."
+    },
+    {
+      "name": "get_media",
+      "description": "Get one media library entry with all its metadata."
+    },
+    {
+      "name": "upload_media",
+      "description": "Put a file into Mediamake storage and the media library, and return its public URL."
+    },
+    {
+      "name": "transcribe",
+      "description": "Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library."
+    },
+    {
+      "name": "list_transcriptions",
+      "description": "List saved transcriptions, newest first."
+    },
+    {
+      "name": "get_transcription",
+      "description": "Get one transcription's captions."
+    },
+    {
+      "name": "list_workers",
+      "description": "List Mediamake generation workers: video (google-veo, kling-ai, runway, luma, pika, minimax, wan, heygen, d-id, sync-so), image (google-nanobanana, flux, ideogram, stability, magnific), audio (elevenlabs tts/sfx/voice clone, udio, stable audio), ffmpeg compose and subtitle burn, transcriber and more."
+    },
+    {
+      "name": "get_worker_schema",
+      "description": "JSON schema of a worker's input."
+    },
+    {
+      "name": "run_worker",
+      "description": "Start a worker job (generation costs credits on the provider)."
+    },
+    {
+      "name": "get_worker_job",
+      "description": "Status and output of a worker job."
+    },
+    {
+      "name": "list_agents",
+      "description": "List Mediamake AI agents (preset writing, prompting, Midjourney, metadata, summarise, research, audio analysis…)."
+    },
+    {
+      "name": "run_agent",
+      "description": "Call a Mediamake agent by its path (from list_agents) and return its response."
+    },
+    {
+      "name": "render",
+      "description": "Render a Remotion composition from inputProps on AWS Lambda (default) or on the machine running the Mediamake app (target \"local\", dev server only)."
+    },
+    {
+      "name": "render_presets",
+      "description": "Render a list of preset instances on Lambda: the server runs each preset in order (a full/scene preset first, then tracks and effects) and renders the result."
+    },
+    {
+      "name": "render_status",
+      "description": "Progress of a Lambda render; returns the output URL once done."
+    },
+    {
+      "name": "list_renders",
+      "description": "Render history, newest first (without inputProps)."
+    },
+    {
+      "name": "get_render_input_props",
+      "description": "The exact inputProps a past render used (the compiled composition JSON)."
+    }
+  ],
+  "keywords": [
+    "mediamake",
+    "remotion",
+    "video",
+    "lyrics",
+    "transcription",
+    "render"
+  ],
+  "compatibility": {
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "user_config": {
+    "api_url": {
+      "type": "string",
+      "title": "Mediamake URL",
+      "description": "Base URL of your Mediamake app, e.g. https://your-mediamake-host or http://localhost:3000",
+      "default": "http://localhost:3000",
+      "required": true
+    },
+    "api_key": {
+      "type": "string",
+      "title": "Mediamake API key",
+      "description": "From Mediamake Settings, API keys. Leave empty only for a local dev server with DEV_API_KEY set.",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}

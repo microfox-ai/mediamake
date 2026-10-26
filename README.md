@@ -48,6 +48,20 @@ A wrapper library around Remotion that provides:
 - Layout management with timing controls
 - Scene, Layout, and Atom component architecture
 
+## Catalog: releases, access and installs
+
+MediaMake hands out MCPs, skills, apps and tutorials as catalog items. The
+code for this is here; the packages themselves live in private storage.
+
+- **Install an item**: open its card on the MediaMake homepage (or
+  `/access?item=<kind>/<name>`), copy the install prompt and paste it into
+  Claude. [`install.md`](install.md) is what Claude follows.
+- **Release and share** (admins): `npm run catalog` in `apps/mediamake`.
+  Who has access to what is recorded in the database (grants, groups,
+  invites, requests), and `npm run catalog -- list` prints it. See
+  [docs/catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
+- **Related code**: the [Get into zone extension and its MCP](https://github.com/microfox-ai/extensions).
+
 ## Contributing
 
 MediaMek is designed to be extensible. The modular architecture allows for easy addition of new components, effects, and data structures.

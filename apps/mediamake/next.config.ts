@@ -1,6 +1,15 @@
 import type { NextConfig } from 'next';
 import packageJson from './package.json';
 
+// Top-level folders of app/core: the signed-in app with the sidebar, the
+// editor, admin tools and the agent studio.
+const CORE_PAGES = [
+  'agents', 'api-keys', 'billing', 'dashboard', 'dev', 'history', 'image-history',
+  'media', 'midjourney', 'midjourney-queue', 'player', 'presets', 'projects', 'quota',
+  'studio-3d', 'transcriber', 'video-history', 'workers', 'youtube-splits',
+  'editor', 'preset-batch-creator', 'studio',
+];
+
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false,
@@ -14,12 +23,26 @@ const nextConfig: NextConfig = {
     maxInactiveAge: 60 * 60 * 1000,
     pagesBufferLength: 100,
   },
+  // Signed-in pages moved under /core; keep old links and bookmarks working.
+  async redirects() {
+    return CORE_PAGES.map((page) => ({
+      source: `/${page}/:path*`,
+      destination: `/core/${page}/:path*`,
+      permanent: false,
+    }));
+  },
   experimental: {
     optimizePackageImports: ['lucide-react', '@tabler/icons-react'],
   },
   // Prevent Next.js from bundling packages that use dynamic require() patterns
   // (e.g. clone-deep → lazy-cache uses require(name, alias) which webpack can't parse).
   serverExternalPackages: ['clone-deep', 'lazy-cache', 'shallow-clone', 'kind-of', 'for-own', 'is-plain-object'],
+  // The dev-lyrics routes read apps/lyrics_videos from disk under `next dev` only
+  // (lib/remotion-editor/server/lyrics-fs.ts). Tracing would copy that whole folder,
+  // including gitignored local projects, into the deployed functions.
+  outputFileTracingExcludes: {
+    '/api/dev-lyrics/**': ['../lyrics_videos/**'],
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.

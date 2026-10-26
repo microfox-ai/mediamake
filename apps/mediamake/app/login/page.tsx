@@ -41,7 +41,7 @@ function LoginFormInner() {
         const redirectTo = searchParams.get('redirectTo');
         const isRelative =
           !!redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
-        router.push(isRelative ? redirectTo : '/projects');
+        router.push(isRelative ? redirectTo : '/core/projects');
         router.refresh();
       } catch {
         if (!cancelled) setDevSigningIn(false);
@@ -71,7 +71,7 @@ function LoginFormInner() {
       if (response.ok) {
         const redirectTo = searchParams.get('redirectTo');
         const isRelative = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
-        router.push(isRelative ? redirectTo : '/projects');
+        router.push(isRelative ? redirectTo : '/core/projects');
         router.refresh();
       } else {
         const data = await response.json();

@@ -11,7 +11,7 @@ import { useRevisionsStore } from './store';
 import { isTextField } from './keyboard';
 import { RevisionsHeader } from './RevisionsHeader';
 import { FilesPanel } from './FilesPanel';
-import { VideoStage } from './VideoStage';
+import { VideoStage, toggleStageFullscreen } from './VideoStage';
 import { RevisionTimeline } from './RevisionTimeline';
 import { RevisionPanel } from './RevisionPanel';
 
@@ -107,6 +107,10 @@ function useShortcuts() {
         case 'm':
         case 'M':
           store.toggleMute();
+          break;
+        case 'f':
+        case 'F':
+          toggleStageFullscreen();
           break;
         case 'n':
         case 'N':
