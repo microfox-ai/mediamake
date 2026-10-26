@@ -197,7 +197,12 @@ export type TextCue = {
   koZoom?: number;
   /** 'ko': how it ends — 'dive' through a letter into the next cut (default), or 'fall': the letters drop
    *  away one by one and leave the black (DROP, when the next cut is a dark stage) */
-  koOut?: 'dive' | 'fall';
+  koOut?: 'dive' | 'fall' | 'cut';
+  /** 'ko': seconds to close in at the start — the shot shows whole, then the letters come in from beyond the
+   *  frame and shrink until the shot is masked into the word (rev-008: TEMPER); 0 = the word is there at once */
+  koIn?: number;
+  /** 'front' words: drawn as an outline only, the picture showing through (rev-008: DIVINE) */
+  hollow?: boolean;
   /** big words: split around the subject — the first `split` letters left of its cutout, the rest right of
    *  it, as tall as the subject (quicksilverxkingpin rev-005: "ears about the height of his silhouette; the
    *  Y on the left of him, EARS on the right"); with act 'push' the left part slides in at `pushAt` */

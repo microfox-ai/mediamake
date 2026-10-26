@@ -402,8 +402,9 @@ const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boo
         position: 'absolute', left: w * hx, top: h * vy, transform: `translate(-50%, -50%)${fx || fy ? ` translate(${fx.toFixed(1)}px, ${fy.toFixed(1)}px)` : ''}`, width: w, textAlign: 'center',
         fontFamily: family, fontSize: fit.size, lineHeight: rt.cue.font === 'script' ? 1.15 : 0.9, color: outline ? 'transparent' : color, whiteSpace: 'nowrap',
         // a script's hairlines vanish on a busy picture: thicken them a little and give them a soft glow
-        WebkitTextStroke: outline ? `${Math.max(2, fit.size * (rt.cue.font === 'script' ? 0.01 : 0.006))}px ${color}` : rt.cue.font === 'script' ? `${(fit.size * 0.014).toFixed(1)}px ${color}` : undefined,
-        opacity: outline ? 0.85 : 1,
+        WebkitTextStroke: outline ? `${Math.max(2, fit.size * (rt.cue.hollow ? 0.011 : rt.cue.font === 'script' ? 0.01 : 0.006))}px ${color}` : rt.cue.font === 'script' ? `${(fit.size * 0.014).toFixed(1)}px ${color}` : undefined,
+        opacity: outline && !rt.cue.hollow ? 0.85 : 1,
+        filter: rt.cue.hollow ? `drop-shadow(0 0 ${(fit.size * 0.02).toFixed(1)}px rgba(0,0,0,0.6))` : undefined,
         textShadow: front && !outline ? '0 8px 40px rgba(0,0,0,0.5)' : rt.cue.font === 'script' && !outline ? `0 0 ${(fit.size * 0.06).toFixed(1)}px rgba(0,0,0,0.55), 0 0 ${(fit.size * 0.03).toFixed(1)}px ${color}` : undefined,
       }}
     >
@@ -658,7 +659,7 @@ const ActWord: React.FC<{ text: string; act: Act; age: number; seed: string; col
       const t = Math.max(0, age);
       const id = `remix-liquid-${seed.replace(/\W/g, '')}${outline ? 'o' : ''}`;
       // waves a little over a letter wide and a third of one tall (sized to the letters), swelling as it goes on
-      const amp = (0.03 + 0.2 * Easing.inOut(Easing.quad)(clamp01(t / 1.4))) * px;
+      const amp = (0.03 + 0.2 * Easing.inOut(Easing.quad)(clamp01(t / 0.8))) * px;
       return (
         <span style={{ ...box, filter: `url(#${id})` }}>
           <svg width={0} height={0} style={{ position: 'absolute' }}>
@@ -961,9 +962,12 @@ const KoWord: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ctx, r
   const size = Math.min((w * 0.82) / (measure(text, family, 100) / 100), typeH(ctx) * 0.8);
   const tw = measure(text, family, size);
   const zd = rt.cue.koZoom ?? 0.3;
-  const z = rt.cue.koOut === 'fall' ? 0 : Easing.in(Easing.cubic)(clamp01((song - (rt.to - zd)) / zd));
+  // the dive out (koOut 'dive'), or the close in (koIn): the letters from beyond the frame down to the word
+  const zOut = rt.cue.koOut === 'fall' || rt.cue.koOut === 'cut' ? 0 : Easing.in(Easing.cubic)(clamp01((song - (rt.to - zd)) / zd));
+  const zIn = rt.cue.koIn ? 1 - Easing.inOut(Easing.cubic)(clamp01((song - rt.from) / rt.cue.koIn)) : 0;
+  const z = Math.max(zOut, zIn);
   const at = rt.words[0]?.at ?? rt.from;
-  const land = prog(song, at, at + 0.12);
+  const land = rt.cue.koIn ? 1 : prog(song, at, at + 0.12);
   // the dive starts inside a stem (an I or T at its middle, others at their left stem), never in a counter
   const k = Math.max(0, [...text].findIndex(ch => 'ITHLEFPKNMBDR'.includes(ch)));
   const ch = text[k] ?? text[0];
@@ -994,15 +998,18 @@ const KoWord: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ctx, r
       <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="central" fontFamily={family} fontSize={size} transform={tf} {...extra}>{text}</text>
     );
   return (
-    <svg width={w} height={h} style={{ position: 'absolute', inset: 0 }}>
+    <svg width={w} height={h} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
       <defs>
-        <mask id={id} maskUnits="userSpaceOnUse" x={0} y={0} width={w} height={h}>
-          <rect width={w} height={h} fill="white" />
+        {/* the letters' edge stays inside the window (mid-zoom they reach far past it) */}
+        <clipPath id={`${id}-win`}><rect width={w} height={h} /></clipPath>
+        <mask id={id} maskUnits="userSpaceOnUse" x={-w * 0.1} y={-h * 0.1} width={w * 1.2} height={h * 1.2}>
+          <rect x={-w * 0.1} y={-h * 0.1} width={w * 1.2} height={h * 1.2} fill="white" />
           {word({ fill: 'black' })}
         </mask>
       </defs>
-      <rect width={w} height={h} fill={ctx.theme.colors.ground} mask={`url(#${id})`} opacity={1 - clamp01((z - 0.8) / 0.2)} />
-      {word({ fill: 'none', stroke: color, strokeWidth: Math.max(2, size * 0.008) / s, opacity: 0.9 * (1 - z) * land })}
+      {/* the black reaches past the window: the speaker pump scales the picture a little beyond it (rev-007: "lines visible at top and bottom") */}
+      <rect x={-w * 0.1} y={-h * 0.1} width={w * 1.2} height={h * 1.2} fill={ctx.theme.colors.ground} mask={`url(#${id})`} opacity={1 - clamp01((z - 0.8) / 0.2)} />
+      <g clipPath={`url(#${id}-win)`}>{word({ fill: 'none', stroke: color, strokeWidth: Math.max(2, size * 0.008) / s, opacity: 0.9 * (1 - z) * land })}</g>
     </svg>
   );
 };
@@ -1960,7 +1967,7 @@ export const Remix: React.FC<SceneProps<RemixProps>> = ({ manifest, slug, blocks
         <AbsoluteFill style={{ background: `radial-gradient(ellipse at center, rgba(0,0,0,0) ${58 - 30 * tens}%, rgba(0,0,0,${0.42 + 0.45 * tens}) 100%)` }} />
         {active.filter(x => x.style === 'timer').map(x => <Timer key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'map').map(x => <TrackMap key={x.i} ctx={ctx} rt={x} song={song} />)}
-        {active.filter(x => x.style === 'front').map(x => <BigWords key={x.i} ctx={ctx} rt={x} song={song} front />)}
+        {active.filter(x => x.style === 'front').map(x => <BigWords key={x.i} ctx={ctx} rt={x} song={song} front outline={x.cue.hollow} />)}
         {active.filter(x => x.style === 'comic').map(x => <ComicWord key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'glass').map(x => <GlassWords key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'stack').map(x => <StackWords key={x.i} ctx={ctx} rt={x} song={song} />)}

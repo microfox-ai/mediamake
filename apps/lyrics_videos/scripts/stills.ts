@@ -81,6 +81,8 @@ const main = async () => {
     // same as remotion.config.ts: mediamake presets and atoms use Tailwind classes
     webpackOverride: enableTailwind,
   });
+  // a failed run (browser timeout, render error) must not leave its GBs behind either
+  process.on('exit', () => fs.rmSync(serveUrl, { recursive: true, force: true }));
   const inputProps = { manifest };
   // ANGLE gives headless Chrome a real GPU path (three.js / WebGL scenes need it)
   const chromiumOptions = { gl: 'angle' as const };
