@@ -2,9 +2,42 @@
 
 An MCP server that lets Claude (or any MCP client) drive Mediamake through its HTTP API: read projects and saved timelines, browse presets, build timelines, upload media, transcribe songs, run generation workers and agents, and render.
 
-It is a thin stdio wrapper over the existing `/api/*` routes in `apps/mediamake`, authenticated with a Mediamake API key, so it works against production or a local dev server.
+It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, authenticated with a Mediamake API key, so it works against production or a local dev server. It comes two ways:
 
-## Setup
+- **Hosted, by URL** (easiest): the Mediamake app serves it at `https://<your-mediamake-host>/mcp`. Add that URL as a connector and sign in with your Mediamake account. Nothing to install.
+- **Local** (stdio, `.mcpb` or `node dist/index.js`): runs on your machine with an API key, and is the one to use when Claude should read or write files on your computer.
+
+## Add by URL (hosted connector)
+
+- **Claude (claude.ai and Claude Desktop)**: Settings → Connectors → Add custom connector, URL `https://<your-mediamake-host>/mcp`. Claude opens the Mediamake sign-in page; log in with your client ID and key, then press Allow.
+- **Claude Code**: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`, then `/mcp` in a session to sign in. Or skip the sign-in with a key: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp --header "Authorization: Bearer <api key>"`.
+- **Any other MCP client** that speaks Streamable HTTP and OAuth works the same way.
+
+The connector acts as your account: it calls the API with one of your API keys, so your tier (public, community, private, admin) and access grants apply exactly as they do with the `.mcpb`. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
+
+It has every tool except the ones that touch files on your computer: no `upload_brand_kit` (upload kits on the Projects page instead), and `upload_media`, `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
+
+How it works, in `apps/mediamake`:
+
+| Path | What it is |
+| --- | --- |
+| `/mcp` | The MCP server (Streamable HTTP, stateless JSON responses). Accepts an OAuth access token or a plain API key as `Authorization: Bearer`. |
+| `/.well-known/oauth-protected-resource[/mcp]` | RFC 9728 metadata pointing clients at the OAuth server |
+| `/.well-known/oauth-authorization-server` | RFC 8414 OAuth server metadata |
+| `/oauth/register` | Dynamic client registration (RFC 7591), which is how Claude registers itself |
+| `/oauth/authorize` | Sends signed-out users to `/login`, then shows an Allow / Cancel screen (authorization code + PKCE S256) |
+| `/oauth/token`, `/oauth/revoke` | Code and refresh-token exchange (refresh tokens rotate), and revocation |
+
+Clients, codes and tokens live in Upstash Redis (`oauthClients`, `oauthCodes`, `oauthAccessTokens`, `oauthRefreshTokens`), keyed by the SHA-256 of each token. Access tokens last an hour and refresh tokens 30 days. Two optional environment variables on the app:
+
+| Variable | Default | |
+| --- | --- | --- |
+| `MEDIAMAKE_PUBLIC_URL` | the request's host | The public origin used in the OAuth metadata. Set it behind a custom domain or proxy. |
+| `MCP_API_BASE_URL` | the public origin | Where `/mcp` sends its `/api/*` calls. Set it when the public URL can't call itself, for example a preview deployment behind Vercel Deployment Protection. |
+
+Tool calls run inside the `/mcp` function, so each one is bounded by its `maxDuration` (300 s). A render with `wait: true` stops waiting after about four and a half minutes and returns its progress; `render_status` picks it up from there.
+
+## Local setup
 
 ```bash
 npm run build --workspace @microfox/mediamake-mcp

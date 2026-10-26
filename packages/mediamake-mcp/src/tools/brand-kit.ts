@@ -3,7 +3,7 @@ import { join, relative, sep } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, mimeFromName, safe } from '../util.js';
+import { json, mimeFromName, safe, type ToolOptions } from '../util.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
 const WRITE = {
@@ -62,7 +62,11 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<v
   );
 }
 
-export function registerBrandKitTools(server: McpServer, client: MediamakeClient) {
+export function registerBrandKitTools(
+  server: McpServer,
+  client: MediamakeClient,
+  options: ToolOptions = { localFiles: true },
+) {
   server.registerTool(
     'get_brand_kit',
     {
@@ -88,6 +92,39 @@ export function registerBrandKitTools(server: McpServer, client: MediamakeClient
     }),
   );
 
+  // Reads a folder on disk, so only the local server has it. Hosted users
+  // upload kits on the Projects page, or attach hosted files with update_brand_kit.
+  if (options.localFiles) registerUploadBrandKit(server, client);
+
+  server.registerTool(
+    'update_brand_kit',
+    {
+      title: 'Update brand kit',
+      description:
+        "Change a project's brand kit fields. Only fields you pass change (null clears one). colors accepts [{ name, hex, role }] or a { name: '#hex' } map; fonts [{ family, role, css }]. assets [{ path, url, kind? }] are added or replaced by path; removeAssets drops paths. Use upload_brand_kit to upload files from this computer.",
+      inputSchema: {
+        projectId: z.string(),
+        name: z.string().nullable().optional(),
+        summary: z.string().nullable().optional(),
+        colors: z.any().optional(),
+        fonts: z
+          .array(z.object({ family: z.string(), role: z.string().optional(), css: z.string().optional(), url: z.string().optional() }))
+          .optional(),
+        guide: z.string().nullable().optional().describe('The brand guide, as markdown'),
+        channelDescription: z.string().nullable().optional(),
+        thumbnailProfile: z.record(z.string(), z.any()).nullable().optional(),
+        assets: z
+          .array(z.object({ path: z.string(), url: z.string(), kind: z.string().optional(), label: z.string().optional() }))
+          .optional(),
+        removeAssets: z.array(z.string()).optional(),
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async body => json(await client.put('/api/project/brand-kit', body))),
+  );
+}
+
+function registerUploadBrandKit(server: McpServer, client: MediamakeClient) {
   server.registerTool(
     'upload_brand_kit',
     {
@@ -212,32 +249,5 @@ export function registerBrandKitTools(server: McpServer, client: MediamakeClient
         },
       });
     }),
-  );
-
-  server.registerTool(
-    'update_brand_kit',
-    {
-      title: 'Update brand kit',
-      description:
-        "Change a project's brand kit fields. Only fields you pass change (null clears one). colors accepts [{ name, hex, role }] or a { name: '#hex' } map; fonts [{ family, role, css }]. assets [{ path, url, kind? }] are added or replaced by path; removeAssets drops paths. Use upload_brand_kit to upload files.",
-      inputSchema: {
-        projectId: z.string(),
-        name: z.string().nullable().optional(),
-        summary: z.string().nullable().optional(),
-        colors: z.any().optional(),
-        fonts: z
-          .array(z.object({ family: z.string(), role: z.string().optional(), css: z.string().optional(), url: z.string().optional() }))
-          .optional(),
-        guide: z.string().nullable().optional().describe('The brand guide, as markdown'),
-        channelDescription: z.string().nullable().optional(),
-        thumbnailProfile: z.record(z.string(), z.any()).nullable().optional(),
-        assets: z
-          .array(z.object({ path: z.string(), url: z.string(), kind: z.string().optional(), label: z.string().optional() }))
-          .optional(),
-        removeAssets: z.array(z.string()).optional(),
-      },
-      annotations: { ...WRITE, idempotentHint: true },
-    },
-    safe(async body => json(await client.put('/api/project/brand-kit', body))),
   );
 }

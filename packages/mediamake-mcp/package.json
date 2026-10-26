@@ -8,6 +8,14 @@
     "mediamake-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./dist/index.js",
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
   "files": [
     "dist/**",
     "README.md"

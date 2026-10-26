@@ -3,7 +3,15 @@ import { basename } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { contentTypeFromMime, json, mimeFromName, safe } from '../util.js';
+import {
+  contentTypeFromMime,
+  json,
+  mimeFromName,
+  rejectLocalArgs,
+  safe,
+  withoutLocalArgs,
+  type ToolOptions,
+} from '../util.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
 
@@ -57,7 +65,11 @@ export async function uploadBytes(
   return { url: presigned.publicUrl, mediaFile: entry };
 }
 
-export function registerMediaTools(server: McpServer, client: MediamakeClient) {
+export function registerMediaTools(
+  server: McpServer,
+  client: MediamakeClient,
+  options: ToolOptions = { localFiles: true },
+) {
   server.registerTool(
     'list_media',
     {
@@ -145,32 +157,37 @@ export function registerMediaTools(server: McpServer, client: MediamakeClient) {
     'upload_media',
     {
       title: 'Upload media',
-      description:
-        'Put a file into Mediamake storage and the media library, and return its public URL. Give either a local filePath or a sourceUrl. A sourceUrl is downloaded here and re-uploaded, which also makes short-lived signed links (Suno, Midjourney CDN) permanent and usable for transcription and renders.',
-      inputSchema: {
-        filePath: z
-          .string()
-          .optional()
-          .describe('Absolute path on the machine running this server'),
-        sourceUrl: z.string().url().optional(),
-        fileName: z
-          .string()
-          .optional()
-          .describe('Defaults to the file or URL name'),
-        mimeType: z
-          .string()
-          .optional()
-          .describe('Defaults to a guess from the extension or the download'),
-        tags: z
-          .array(z.string())
-          .min(1)
-          .describe('At least one tag (the library requires it)'),
-        projectId: z.string().optional(),
-        analyzeImage: z
-          .boolean()
-          .default(true)
-          .describe('Run AI description and keywords on images'),
-      },
+      description: options.localFiles
+        ? 'Put a file into Mediamake storage and the media library, and return its public URL. Give either a local filePath or a sourceUrl. A sourceUrl is downloaded here and re-uploaded, which also makes short-lived signed links (Suno, Midjourney CDN) permanent and usable for transcription and renders.'
+        : 'Put a file into Mediamake storage and the media library, and return its public URL. The file is downloaded from sourceUrl (public https) and re-uploaded, which also makes short-lived signed links (Suno, Midjourney CDN) permanent and usable for transcription and renders.',
+      inputSchema: withoutLocalArgs(
+        {
+          filePath: z
+            .string()
+            .optional()
+            .describe('Absolute path on the machine running this server'),
+          sourceUrl: z.string().url().optional(),
+          fileName: z
+            .string()
+            .optional()
+            .describe('Defaults to the file or URL name'),
+          mimeType: z
+            .string()
+            .optional()
+            .describe('Defaults to a guess from the extension or the download'),
+          tags: z
+            .array(z.string())
+            .min(1)
+            .describe('At least one tag (the library requires it)'),
+          projectId: z.string().optional(),
+          analyzeImage: z
+            .boolean()
+            .default(true)
+            .describe('Run AI description and keywords on images'),
+        },
+        ['filePath'],
+        options,
+      ),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -187,8 +204,11 @@ export function registerMediaTools(server: McpServer, client: MediamakeClient) {
         projectId,
         analyzeImage,
       }) => {
+        rejectLocalArgs(options, { filePath });
         if (!filePath === !sourceUrl)
           throw new Error('Pass exactly one of filePath or sourceUrl.');
+        if (!options.localFiles && new URL(sourceUrl!).protocol !== 'https:')
+          throw new Error('sourceUrl must be a public https URL.');
 
         let bytes: Uint8Array;
         let name: string;

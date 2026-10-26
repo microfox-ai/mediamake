@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, safe, sleep } from '../util.js';
+import { json, safe, sleep, type ToolOptions } from '../util.js';
 import { OBJECT_ID } from './presets.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -86,7 +86,22 @@ function compactPlan(plan: any) {
 export function registerRenderTools(
   server: McpServer,
   client: MediamakeClient,
+  options: ToolOptions = { localFiles: true },
 ) {
+  // A hosted request has to finish before its function times out; past that,
+  // the result says the render is still running and render_status picks it up.
+  const waitFor = (
+    renderId: string,
+    bucketName: string,
+    timeoutSeconds: number,
+  ) =>
+    waitForRender(
+      client,
+      renderId,
+      bucketName,
+      Math.min(timeoutSeconds, options.maxWaitSeconds ?? Infinity),
+    );
+
   server.registerTool(
     'plan_render',
     {
@@ -213,12 +228,7 @@ export function registerRenderTools(
             configUsed: res.configUsed,
           });
         return json(
-          await waitForRender(
-            client,
-            res.renderId,
-            res.bucketName,
-            timeoutSeconds,
-          ),
+          await waitFor(res.renderId, res.bucketName, timeoutSeconds),
         );
       },
     ),
@@ -286,12 +296,7 @@ export function registerRenderTools(
             configUsed: res.configUsed,
           });
         return json(
-          await waitForRender(
-            client,
-            res.renderId,
-            res.bucketName,
-            timeoutSeconds,
-          ),
+          await waitFor(res.renderId, res.bucketName, timeoutSeconds),
         );
       },
     ),
@@ -313,9 +318,7 @@ export function registerRenderTools(
     },
     safe(async ({ renderId, bucketName, wait, timeoutSeconds }) => {
       if (wait)
-        return json(
-          await waitForRender(client, renderId, bucketName, timeoutSeconds),
-        );
+        return json(await waitFor(renderId, bucketName, timeoutSeconds));
       return json(
         compactProgress(
           renderId,
