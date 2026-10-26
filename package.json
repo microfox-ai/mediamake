@@ -51,10 +51,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/microfox-ai/microfox.git"
+    "url": "git+https://github.com/microfox-ai/mediamake.git"
   },
   "bugs": {
-    "url": "https://github.com/microfox-ai/microfox/issues"
+    "url": "https://github.com/microfox-ai/mediamake/issues"
   },
   "keywords": [
     "microfox"

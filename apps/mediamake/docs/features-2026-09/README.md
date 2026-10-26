@@ -1,6 +1,6 @@
 # New Features — 2026-09-04
 
-Docs for the features added by the `feat/after-editor-preset-refactor-merge`
+Notes for the features added by the `feat/after-editor-preset-refactor-merge`
 branch.
 
 These are kept separate on purpose. Nothing here changes
