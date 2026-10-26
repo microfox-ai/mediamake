@@ -39,7 +39,7 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Media                  | `list_media`, `search_media`, `get_media`, `upload_media`                                                                                                                                    |
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
-| Renders                | `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
+| Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
 
 There are no delete tools on purpose.
 
@@ -60,6 +60,8 @@ Saved timelines exist in three shapes, and every timeline this server returns sa
 ### Renders
 
 `render_presets` runs a list of preset instances server-side and renders on Lambda. It runs them in list order and does not apply a tree timeline's `nodes` timing, so for an exact editor match export the composition from the editor and use `render` with those `inputProps` (or reuse a past render's with `get_render_input_props`). `render` with `target: "local"` renders on the machine running the app (dev server only), which helps while Lambda is being redeployed.
+
+`render` defaults to `target: "auto"`, which asks the app where the render should run (`plan_render` shows the same answer without rendering). Timelines with video or audio are cheapest on your own machine, so `auto` only renders on Lambda when the timeline is images and graphics only, or it is a still; otherwise it returns the plan with `rendered: false`. Lambda is also only open to API keys with render access (admins, the private tier, or a per-client `lambdaRender` flag). Pass `target: "lambda"` to render a heavy timeline on Lambda anyway.
 
 ## Development
 

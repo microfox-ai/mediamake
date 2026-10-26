@@ -18,6 +18,8 @@ import { platformCostUsageDB } from '@/lib/cost-usage-mongodb';
 import { userQuotaDB } from '@/lib/quota-mongodb';
 import { isAdmin } from '@/lib/admin-utils';
 import { containsLocalMedia } from '@/lib/local-media/urls';
+import { getLambdaAccess } from '@/lib/render-routing/lambda-access';
+import { planRender } from '@/lib/render-routing/plan';
 
 // Custom configuration type
 interface CustomLambdaConfig {
@@ -67,6 +69,23 @@ export const POST = async (req: NextRequest) => {
         { status: 400 },
       );
     }
+
+    // Lambda is billed to us: only API keys with render access may use it.
+    // Everyone else is pointed at a local render.
+    const lambdaAccess = await getLambdaAccess(req.headers.get('x-client-id'));
+    if (!lambdaAccess.allowed) {
+      return NextResponse.json(
+        { type: 'error', message: lambdaAccess.reason, renderTarget: 'local' },
+        { status: 403 },
+      );
+    }
+    // Advice only: a media-heavy render still runs here when asked to.
+    const plan = planRender({
+      inputProps,
+      renderType: renderType === 'still' || renderType === 'audio' ? renderType : 'video',
+      lambda: lambdaAccess,
+    });
+    const routing = { recommended: plan.target, reason: plan.reason };
 
     if (
       !process.env.AWS_ACCESS_KEY_ID &&
@@ -301,6 +320,7 @@ export const POST = async (req: NextRequest) => {
           concurrency: config.concurrency ?? 'auto',
           framesPerLambda: config.framesPerLambda ?? 'auto',
         },
+        routing,
       });
     }
 
@@ -359,6 +379,7 @@ export const POST = async (req: NextRequest) => {
         concurrency: config.concurrency ?? 'auto',
         framesPerLambda: config.framesPerLambda ?? 'auto',
       },
+      routing,
     });
   } catch (err) {
     console.error(err);
