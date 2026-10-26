@@ -48,7 +48,17 @@ async function handle(req: NextRequest) {
     apiKey: caller.apiKey,
     timeoutMs: (maxDuration - 10) * 1000,
   });
-  const server = createServer(client, { localFiles: false, maxWaitSeconds: maxDuration - 30 });
+  const origin = publicOrigin(req);
+  const server = createServer(client, {
+    localFiles: false,
+    maxWaitSeconds: maxDuration - 30,
+    websiteUrl: origin,
+    icons: [
+      { src: `${origin}/brand/favicon.svg`, mimeType: 'image/svg+xml', sizes: ['any'] },
+      { src: `${origin}/brand/icon-512.png`, mimeType: 'image/png', sizes: ['512x512'] },
+      { src: `${origin}/brand/icon-192.png`, mimeType: 'image/png', sizes: ['192x192'] },
+    ],
+  });
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
