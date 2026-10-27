@@ -1,6 +1,6 @@
 /**
  * lyric-shorts: vertical lyric shorts with stacked, width-fit words that the footage plays inside
- * (make-lyric-shorts skill; engine in src/lyricshorts/).
+ * (make-lyrics-shorts-summerstyle-boldwords skill; engine in src/lyricshorts/).
  *
  *   pick   scores every stretch of 15–45 s that starts on a sung line and ends after one: how much of it
  *          is sung, how much of that comes back elsewhere in the song (the hook), the vocal and the
@@ -301,7 +301,7 @@ if (cmd === 'new') {
     lastEnd = w.end;
   }
   if (cur.length) lines.push(cur.join(' '));
-  const header = `/**\n * ${m.title} — lyric short ${id}: ${mmss(from)}–${mmss(to)} of the song (beats ${beatAt(m, from).toFixed(0)}–${beatAt(m, to).toFixed(0)}; ${sectionsIn(from, to).join(' · ')}).\n * make-lyric-shorts. Beats are indices of manifest.beats.list.\n *\n * Sung words (word@beat):\n${lines.map(l => ` *   ${l}`).join('\n')}\n */\n`;
+  const header = `/**\n * ${m.title} — lyric short ${id}: ${mmss(from)}–${mmss(to)} of the song (beats ${beatAt(m, from).toFixed(0)}–${beatAt(m, to).toFixed(0)}; ${sectionsIn(from, to).join(' · ')}).\n * make-lyrics-shorts-summerstyle-boldwords. Beats are indices of manifest.beats.list.\n *\n * Sung words (word@beat):\n${lines.map(l => ` *   ${l}`).join('\n')}\n */\n`;
   fs.writeFileSync(
     path.join(sd, 'edl.ts'),
     `${header}import { cut, full, stack, type LyricShortEdl } from '../../../../src/lyricshorts/spec.ts';\n\nexport const edl: LyricShortEdl = {\n  // the footage under everything: a cut per beat range (shot, seconds into it, crop centre x)\n  cuts: [\n    // cut(${beatAt(m, from).toFixed(0)}, 'sh0002', { in: 0, x: 0.5 }),\n  ],\n  // what is on screen: a phrase a screen, filling the frame (the layout picks the rows), full-frame footage\n  screens: [\n    // stack('first words of the phrase', { exit: 'through' }),\n    // full(${beatAt(m, to).toFixed(0)}),\n  ],\n};\n`,
@@ -318,7 +318,7 @@ if (cmd === 'new') {
     console.log('  · mark the footage\'s subjects in footage/faces.json (SKILL.md, step 2): every cut frames on them');
   }
   if (!fs.existsSync(path.join(shortsDir, 'theme.ts'))) console.log('  · write shorts/theme.ts (the project\'s LyricShortTheme) before opening Studio');
-  history.shorts.push({ id, from, to, fromBeat: Math.round(beatAt(m, from)), toBeat: Math.round(beatAt(m, to)), sections: sectionsIn(from, to), run: picks.run, date: today(), status: 'made', formats, skill: 'make-lyric-shorts' });
+  history.shorts.push({ id, from, to, fromBeat: Math.round(beatAt(m, from)), toBeat: Math.round(beatAt(m, to)), sections: sectionsIn(from, to), run: picks.run, date: today(), status: 'made', formats, skill: 'make-lyrics-shorts-summerstyle-boldwords' });
   fs.writeFileSync(historyFile, `${JSON.stringify(history, null, 1)}\n`);
   console.log(`✔ shorts/${id}/  ${mmss(from)}–${mmss(to)}  ${formats.map(f => `${slug}-${id}-${f}`).join(', ')}`);
   process.exit(0);

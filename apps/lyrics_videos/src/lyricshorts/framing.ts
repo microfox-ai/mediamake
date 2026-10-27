@@ -1,5 +1,5 @@
 /**
- * Framing (make-lyric-shorts): every cut's 9:16 crop sits on its subject — the face box marked per shot in
+ * Framing (make-lyrics-shorts-summerstyle-boldwords): every cut's 9:16 crop sits on its subject — the face box marked per shot in
  * projects/<slug>/footage/faces.json (or the cut's own `face`) — placed by how the cut is seen:
  * - the footage seen whole (a full screen, or black words before a stack flips to the mask): the eye line
  *   on the upper third, the face centred across the frame and about a third of its height;

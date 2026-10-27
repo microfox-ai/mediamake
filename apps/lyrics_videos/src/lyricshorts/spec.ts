@@ -1,5 +1,5 @@
 /**
- * Lyric shorts (make-lyric-shorts): vertical shorts of a song where the sung words fill the frame top to
+ * Lyric shorts (make-lyrics-shorts-summerstyle-boldwords): vertical shorts of a song where the sung words fill the frame top to
  * bottom, a word or two a row, each row stretched to the column's width (and the letters stretched
  * taller or squashed a little so the stack fills the height exactly), one word maybe running vertically
  * down a side, in an ultra-bold face with the footage playing inside the letters; a stack can dive
