@@ -1,6 +1,6 @@
 ---
 name: pack-youtube
-description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file — thumbnails (through create-thumbnail) and then the title and description (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/lyrics_videos/out/youtube/<slug>/, ready to paste into YouTube Studio. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.
+description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/lyrics_videos/out/youtube/<slug>/, ready to paste into YouTube Studio. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.
 ---
 
 # pack-youtube
@@ -30,6 +30,24 @@ description, the thumbnails, the end-screen guide and UPLOAD.md. Nothing the use
 anywhere else. When it is done, give the user a one-click way to open it: a `bash` block with
 `open -R "<absolute path to the video>"` (the app adds a Run button; Finder opens with it
 selected). Never open Finder yourself.
+
+## Parallel threads (the user's standing request)
+
+"When creating brands or creating youtube pack, run parallel threads for faster execution"
+(2026-10-27). After the intake (step 1), run the pieces that don't wait on each other at once:
+
+| piece | runs as | waits for |
+|-------|---------|-----------|
+| thumbnails (step 2, `create-thumbnail`) | a session: it has its own picking rounds | the intake |
+| `lyrics.txt`, the description's intro and outro, hashtags (step 3, `write-youtube-metadata`) | this session | the intake |
+| the title (one, or three for an A/B test) | this session | the thumbnail's hero words; three titles after the pick |
+| the outro: the brand's outros as a review set, then the picked one joined with ffmpeg | a subagent | the user's outro pick (the join only) |
+| the video check (it ends on the end screen, loudness, length) | a subagent | the final video |
+
+The thumbnail session owns `thumbnails/jobs/<slug>/` and `out/thumbnails/<slug>/`; this session
+owns the pack folder and assembles it. The pack is never `ready` until the user picks: the
+thumbnails, the title and the outro are theirs. Say in one line what runs where, and report each
+thread as it comes back. A pack with a single thumbnail style and no video is too small to split.
 
 ## 1. Inputs and intake
 
@@ -145,3 +163,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-27 · Nakama! (Anime Music Zone) · `open -R "…Nakama!.mp4"` failed in zsh (`event not found`: `!` is history expansion even in double quotes) → name the pack's video without shell-special characters (`!`, quotes, `$`), keep them only in title.txt, and single-quote paths in `open -R` blocks.
 - 2026-10-27 · Get into Zone (brand kit with eight outros) · "when a brandkit has multiple outros, it is best if claude shows the outros using a revisor to pick from for user choice … when creating the final video attaching outro, no need to render the whole video again, just attaching it at end via ffmpeg or something is fine" → the end-screen step: several outros are picked in the Image Revisions screen (one still each, MP4 path in the note), and the picked outro is joined to the video with ffmpeg (outro matched, concat stream copy), never a full re-render.
 - 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.
+- 2026-10-27 · skill · "when creating brands or creating youtube pack, run parallel threads for faster execution" → the Parallel threads section: thumbnails in their own session, the description here at the same time, the title after the thumbnail's words, the outro review and ffmpeg join and the video check in subagents; this session owns and assembles the pack.

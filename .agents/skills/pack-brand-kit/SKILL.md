@@ -1,6 +1,6 @@
 ---
 name: pack-brand-kit
-description: Build a complete brand kit from a logo the user gives (an image of a wordmark, plus the font names): the animated logo as a transparent reusable Remotion component, short intros, YouTube end screens, YouTube channel assets (profile picture, banner, watermark), the brand's thumbnail profile (thumbnail.json: logos, fonts, palette and rules for thumbnail jobs), a static SVG/PNG logo, a visual brand guide made in Remotion and a written brandguide.md, all exported into apps/lyrics_videos/brands/<name>/; on request, sound effects for intros and end screens (needs the ElevenLabs connector). Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/lyrics_videos/brands/ (its graphics/ source or its kit) or to the shared engine in apps/lyrics_videos/logoGraphics/. Append new user feedback to the log at the bottom.
+description: Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/lyrics_videos/brands/ or to the shared engine in apps/lyrics_videos/logoGraphics/. Append new user feedback to the log at the bottom.
 metadata:
   depends-on: revise-image
 ---
@@ -76,14 +76,152 @@ that are still connecting. If a required connector is missing, or the user has n
 all, say so **before starting**, name what it blocks, and ask them to connect it (e.g. via
 `/mcp`), or to go ahead with only the parts that don't need it.
 
+## Scope: size the kit first
+
+Not every brand needs everything. A brand that is just getting started is well served by a logo, a
+favicon, a font and a tagline; a channel going live needs its YouTube pieces; only some brands need
+the complete setup. **Ask which tier before building** (AskUserQuestion, the three options below
+with what each holds), unless the user's words already say ("just a logo and a favicon", "the
+complete kit"). In the same intake, ask whether the brand has **more than one logo** (see Two key
+logos), and for Standard and Full how much the brand matters to them (see Design research). A brand can move up a tier later: anything added goes in `graphics/` and
+`brand.json` as usual.
+
+| tier | for | holds | steps |
+|------|-----|-------|-------|
+| **Starter** | a brand just getting started | the logo as a static lockup (dark and light grounds, SVG + PNG), favicons, the fonts, the tagline (theirs, or 3–5 lines to pick from), colours (`colors.json`/`.css`), a short `brandguide.md` (logo, colour, type, tagline), `brand.json` + export | 0–2, the static and favicon parts of 3 and 8, a short 7 (no slides) |
+| **Standard** | a channel going live | Starter + the logo animation (one round of 3 concepts, the pick as the component), 1–2 intros, 1–2 end screens, the YouTube kit (profile picture, banner, watermark), `thumbnail.json`, a 5–6 page visual guide; sound offered | 0–9, smaller rounds |
+| **Full** | a complete setup | everything in this skill: 5-concept rounds, up to five intros and five end screens, sound, artwork and a second key logo where the brand has one, research rounds for the banner, the 10+ page visual guide | 0–9 |
+
+Starter skips intros, end screens, the YouTube kit, sound, the visual guide slides and
+`thumbnail.json`; offer the logo animation and `thumbnail.json` as add-ons in one line, and build
+them only on a yes. Write the tier in `graphics/scenes/storyboard.md` and keep to it: don't build a
+tier's pieces unasked.
+
+## Parallel threads (the user's standing request)
+
+"When creating brands or creating youtube pack, run parallel threads for faster execution"
+(2026-10-27). The logo comes first, because every other piece is built on it: the main session takes
+the brand through steps 0–3 (concepts, glyphs, the logo component) on its own. Once the logo is
+fixed, split the pieces that don't depend on each other and run them at once:
+
+| piece | runs as | why |
+|-------|---------|-----|
+| intros (step 4) | a session | it has its own picking rounds with the user |
+| end screens (step 5) | a session | its own rounds |
+| the YouTube kit's art (step 6: banner research, Midjourney artwork) | a session | its own rounds |
+| a second key logo's whole set (e.g. Get into Zone's fist) | a session | a kit of its own |
+| static files, SVGs, favicons, colours, `brandguide.md`, `brand.json` (7–9) | this session | it owns the shared files |
+| research (reference banners, competitor channels, fonts) | a subagent | the findings come back here |
+| sound | inside the session that owns those scenes, after its picks | levels and sync need the final scenes |
+
+Rules that keep the threads from colliding. `brands/` is gitignored, so a worktree would not
+carry it: the sessions share this checkout (`use_worktree: false`), and file ownership does the job
+a branch would:
+- Before starting a thread, give it its own folder `graphics/scenes/<part>/` with a `scenes.tsx`
+  exporting `<PART>_SCENES: LogoScene[] = []`, and spread that array into `index.tsx` yourself. The
+  thread registers its scenes only there.
+- A thread edits only its own folder, its own tools in `graphics/tools/`, new files under
+  `graphics/public/art/<part>/`, and new sounds named `<part>-*` (adding its entries to
+  `sound/sfx.config.json`, never changing others). It never edits `index.tsx`, `brand/brand.json`,
+  `brand/brandguide.md`, `scenes/storyboard.md`, the guide or another part's files, and never runs
+  the brand export.
+- It keeps its notes in `scenes/<part>/storyboard.md`, drafts `scenes/<part>/brandguide-section.md`,
+  and ends with a **"Kept scenes → kit paths"** table (scene id, kind, kit path).
+- The main session wires those into `brand.json`, the guide pages and `brandguide.md`, exports,
+  checks the files (sizes, alpha, loudness), and offers to archive the finished session.
+- Each thread asks for its own paid calls (with the cost first) and names Chrome profiles by email.
+- The brief carries the brand's facts (palette, fonts, tagline, motion language, the picked logo
+  and where its component lives), the user's rules (ask before paid calls, keep earlier renders,
+  the picks are the user's), the files it owns and what done looks like.
+
+Say in one line which piece runs where when the threads start, and report each one in a line as it
+comes back. A Starter kit is too small to split: build it in one thread.
+
+## Design research and inspo boards (Standard and Full)
+
+**Starter: speed is the mantra.** Skip the research rounds and the boards. Go straight from the
+brand's name, genre and the user's words to 2–3 logo options, then the favicon, fonts, tagline and
+export. Research only if the user asks for it.
+
+**Standard and Full:** research before creating anything (logo concepts, the logo animation,
+intros, end screens, the banner and profile art, any extra asset). Never start a round from a blank
+page.
+
+1. **Search Pinterest and Dribbble** with 3–6 queries for the brand's world plus the piece, for
+   example "anime music channel banner", "boxed wordmark logo", "logo reveal minimal", "youtube end
+   screen music". Pinterest: browse in the browser, or collect with the Get into zone extension
+   (`pinterest_bulk_start` on a search or board tab, then `pinterest_bulk_stop`; files land in
+   ~/Downloads; ask which Chrome profile by email). Dribbble: browse shots in the browser. Real
+   channel banners can be read straight off channel pages (see the feedback log).
+2. **Build an inspo board.** Save 12–30 references to
+   `graphics/explorations/<piece>-<round>/references/`. Tile them on a numbered board in
+   `out/brands/<brand>/checks/<piece>-inspo.jpg`, grouped into 2–4 directions, with one line each on
+   what it does (layout, type, colour, motion, texture). Make the set reviewable (`image-index`,
+   review link) and keep `references.md` beside it: the queries, where each image came from, and the
+   notes.
+3. **Take the user's opinion first.** Send the board and ask which references and directions to
+   follow (numbers are fine), then build to their picks. Note the picks in the round's
+   `concepts.md`.
+4. References are inspiration only. Never copy one, never trace it, and never put one in the kit.
+
+**Depth follows how much the brand matters.** Standard gets one board per piece. When the user says
+the brand is very important (or asks for the Full setup), go in detail:
+- a board for every piece, with 30 or more references across 3–4 directions;
+- a check-in after each board;
+- extra variation rounds;
+- mood notes on colour, type and motion before the first concept.
+
+## Two key logos (edge case)
+
+Some brands carry two logos. Get into Zone has a picture logo (the flaming fist, its artwork and
+profile picture) and a word mark (the Frame, with the Prism shine). When a brand has two:
+- Name them as **key logo 1 and 2** in `brandguide.md` (a "Key logos" section that says what each is
+  for) and on a "Key logos" guide page.
+- Give each logo the set its tier calls for: its own component, intros, end screens and icons. Name
+  its files apart: `logo/<brand>-logo*` for the word mark, `logo/<brand>-<name>*` for the other (for
+  example `get-into-zone-fist-hd.png`).
+- The other logo's set is a natural parallel thread: give it its own `scenes/<name>/`.
+- **The favicon** comes from whichever logo still reads at 16 px. A picture logo usually turns into
+  a blob there, so the word mark's mark takes the tab and the picture gets a large icon.
+- **The profile picture** is the user's pick, often the picture logo. Offer the other as the
+  second choice.
+- `thumbnail.json` lists both, with a note on when to use each.
+- Never let one logo's style leak into the other's pieces unasked. The fist's fire is not the
+  Prism's look.
+- A picture logo that arrives small (a 160 px avatar) needs the full-size original. Ask for it
+  first; offer an upscale (with its cost) only if there is none.
+
+## Extra assets (on request)
+
+The tiers are the default. When the user asks for anything beyond them, build it into the kit the
+same way:
+- **Social:** an Open Graph share image (1200 × 630), Instagram posts (1080²) and stories
+  (1080 × 1920).
+- **Video:** 9:16 versions of intros and end screens, lower thirds, subscribe and like animations,
+  stream overlays.
+- **Sound:** sting WAVs.
+- **Print and merch:** letterhead and business cards, sticker sheets, t-shirt mockups.
+- **Office:** a presentation template, an email signature.
+
+Each one gets:
+- its own scene in `graphics/scenes/extra/` (or its own folder when it grows), registered in
+  `index.tsx`;
+- research first, like any piece;
+- an entry in `brand.json` under a kit folder that says what it is (`social/`, `stream/`,
+  `print/`, `audio/`);
+- a line in `brandguide.md` (what it is and where it goes);
+- a page in the visual guide when the brand has one.
+
 ## The order (each step ends with the user picking)
 
 The user decides by watching, so build real options, render them, and let them pick. They
 reply like "I like the second, make the logo smaller, the others are bad", then you iterate.
 
-### 0. No logo yet: generate concepts
+### 0. No logo yet: generate concepts · all tiers
 
-When the brand has only a name, generate logo concepts with the image tools the user names
+When the brand has only a name, research first for Standard and Full (an inspo board for the logo,
+the user's picks; see Design research); for Starter, go straight to 2–3 concepts. Generate logo
+concepts with the image tools the user names
 (Midjourney through the Get into zone extension, fal Nano Banana, …; when the extension is
 connected in several Chrome profiles, ask which by each profile's email, never its number), as many as they ask for,
 each a different device. Write them down first in `graphics/explorations/logo-<round>/concepts.md`
@@ -98,7 +236,7 @@ deployed app, no local server needed: `https://mediamake.microfox.app/image-revi
 (the user opens the folder there once); the `revise-image` skill reads and closes their revision.
 The picked image is then read like any logo (step 1).
 
-### 1. Read the logo exactly
+### 1. Read the logo exactly · all tiers
 
 - Look at the image and identify each font. Check the real name on Google Fonts: the user wrote
   "Caligraffitti", but the font is **Calligraffitti**. Fetch
@@ -107,7 +245,7 @@ The picked image is then read like any logo (step 1).
   colours (sample them), and proportions (relative widths, gap, alignment).
 - **Never use the image itself** in the output. Rebuild the logo from the fonts.
 
-### 2. Glyphs and layout
+### 2. Glyphs and layout · all tiers
 
 - `tools/glyphs.py` (fontTools + uharfbuzz): downloads the TTFs, shapes each word (kerning), and
   writes `glyphs.json` with per-glyph SVG paths and boxes. Everything renders as SVG paths, so
@@ -119,7 +257,7 @@ The picked image is then read like any logo (step 1).
   the logo's proportions. Export `INV`/`DEV`-style glyph lists, `BOX` (lockup bounds) and a
   word-space→px helper.
 
-### 3. Explorations, then the logo component
+### 3. Explorations, then the logo component · Standard (3 concepts), Full (5); Starter: the static lockup only
 
 - First round: **5 different logo-animation concepts** (`explorations/`, ~7 s with backgrounds),
   rendered and sent. Each uses one device (traced glowing lines, mirror flip, focus pull, voice
@@ -137,9 +275,10 @@ The picked image is then read like any logo (step 1).
 - Render it as ProRes 4444 with alpha (.mov), VP9 with alpha (.webm) and a preview on black, and
   verify the alpha by compositing over a coloured background with ffmpeg.
 
-### 4. Intros (≤ 5 s)
+### 4. Intros (≤ 5 s) · Standard (1–2), Full
 
-- Propose **5 ideas in the spirit of production-studio idents, but original and simple.** Build
+- Research first (an inspo board of idents and logo reveals in the brand's world, the user's picks),
+  then propose **5 ideas in the spirit of production-studio idents, but original and simple.** Build
   all five, render them, and send them.
 - **The subject is open**: a physical object, something random, or purely abstract (shapes,
   light, particles, fluid, type) are all fine. What matters is that the idea is strong and
@@ -155,7 +294,7 @@ The picked image is then read like any logo (step 1).
   label) or the spin doesn't show. Put atmosphere (smoke) *behind* objects.
 - End every intro on black or a clean fade so it cuts into the video.
 
-### 5. End screens (YouTube, 20 s)
+### 5. End screens (YouTube, 20 s) · Standard (1–2), Full
 
 - Logo + the channel's line (e.g. "New Music Every Monday & Saturday") **together in the top
   section**, and the bottom left **clear for YouTube end-screen elements**.
@@ -221,7 +360,7 @@ Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "So
     near −12 with peaks at 0 dBFS).
 
 
-### 6. YouTube assets
+### 6. YouTube assets · Standard, Full
 
 Profile picture 800×800 (shown as a circle), banner 2560×1440 with everything inside the
 1546×423 safe area (render a guides still), watermark 150×150 transparent. Scene sizes are
@@ -233,7 +372,7 @@ artist name: Queen, The Beatles, Get into Zone) has a word-based logo, and its p
 tagline rather than pure graphics. Ask early where that artwork comes from (the user's covers,
 Midjourney, fal), since it is not drawn from the logo.
 
-### 7. Visual guide (Remotion) + brandguide.md
+### 7. Visual guide (Remotion) + brandguide.md · slides: Standard (5–6 pages), Full; brandguide.md: all tiers
 
 - `scenes/guide/Guide.tsx`: ~10 pages × 5 s (cover, the brand, logo + clear space, usage
   do/don't, colour, type, motion timeline with the live logo, intros, end screens, YouTube kit).
@@ -252,7 +391,7 @@ Midjourney, fal), since it is not drawn from the logo.
 - `brand/colors.json`, `colors.css`, `youtube/channel-description.md`; `brand/svg.ts` exports
   the static logo as a vector SVG (bundled with esbuild by the export, `remotion` external).
 
-### 8. Export
+### 8. Export · all tiers
 
 `brand/brand.json` lists docs, fonts (Google css2 specs), the SVG module (`svg`, plus more SVGs
 from named exports in `vectors`), the favicon set (`favicon`) and assets (`video` /
@@ -290,7 +429,7 @@ SVGs and the favicons are one drawing. Paint overlaps as their own clipped shape
 modes (every renderer agrees), let pieces that meet under another overlap by ~2 px (no hairline
 seams), and compare a render in the source's own frame side by side with the image.
 
-### 9. Thumbnail profile
+### 9. Thumbnail profile · Standard, Full
 
 Thumbnails are not part of the kit: they are made per video (engine in
 `apps/lyrics_videos/thumbnails/`, jobs in `thumbnails/jobs/<job>/`), not as brand scenes. The
@@ -444,3 +583,6 @@ Add entries at the bottom: date · brand · what they said → the rule.
 - 2026-10-27 · Get into Zone · After a rejected banner round ("i dont like any") the user chose "references first": before generating banner art, collect real banners to point at. Each channel page (`https://www.youtube.com/@<handle>`) carries its banner URL (`yt3.googleusercontent.com/…=w…-fcrop64…`, the desktop band; swap the width for `=w2120-`). Fetch 15–20 strong channels in the channel's space (music labels, motivational, anime distributors), curate 6–8 on one numbered board with a line each on what it does, and generate only after the user names the ones to follow. References stay in explorations/, never in the kit.
 - 2026-10-27 · Get into Zone · Banners built to the user's picked references (1 Crunchyroll, 4 Motiversity, 5 Netflix Anime): a manga ink drawing (Midjourney, black on white) prints onto a coloured disc with an SVG `feColorMatrix` (white → the brand colour, ink stays black); `mix-blend-mode` on an SVG `<image>` did not blend in the render, and the drawing must cover the whole disc or its square edges show. A katakana label needs a Japanese face: subset Noto Sans JP to the few glyphs used (5.7 MB → 11 KB) before `loadFonts`, since every brand's fonts load in every render. When the user asks for work "in parallel" on the same brand, give the other session its own folder and a scene list (`scenes/<part>/scenes.tsx` spread into index.tsx) so the two never edit the same files.
 - 2026-10-27 · Get into Zone · "the fist part is good … tagline even smaller and spaced apart, logo even smaller, add more orange elements in the matching design style, of items related to the channel (gym, laptop & entrepreneurship, anime enthusiasts, shounen feeling), think creatively" → a banner can carry the channel's world as small spot illustrations: generate each item as a manga ink drawing on white (Midjourney, one object per prompt, "isolated, clean closed outline"), cut it off its paper by flood-filling the white connected to the border (no AI cutout needed for ink line art), print it in the brand colour by multiplying (white → colour, ink stays black), and give each a thin cream sticker edge (CSS drop-shadows at ±3 px) because its black outline is lost on a black ground. Pick the lightest-filled variants (a mostly black drawing prints mostly black). Add the genre's own type: katakana sound effects (ゴゴゴ, ドン！) set as separate words, never a cramped vertical column. Keep the line clear of items and keep the logo small when the art carries the banner.
+- 2026-10-27 · skill · "a brand need not always have all the assets, some brands are just getting started and a logo, favicon, font and taglines is more than enough. some are more effort, a complete setup is needed. also when creating brands or creating youtube pack, run parallel threads for faster execution." → the Scope section (Starter / Standard / Full, asked before building, tier tags on every step) and the Parallel threads section (the logo first in one thread, then intros, end screens, YouTube art and a second key logo as sessions, each in its own `scenes/<part>/` with a scene list spread into index.tsx; the main session owns brand.json, the guide, brandguide.md and the export).
+- 2026-10-27 · skill · "the brand skill should support extra assets if the user asks for them, always do design research via pinterest or dribbble when creating stuff. take user opinion, create inspo boards and do it in detail if the user mentions the brand is very very important." and "sometimes brands might have double logos like get into zone, beware of that edge case" → the Design research and inspo boards section (research before every piece, a numbered board in checks/, the user's picks before building, depth by importance), Two key logos (key logo 1 and 2, a set each, favicon from the one that reads at 16 px, the picture logo's original at full size) and Extra assets (social, video, print, office pieces built as scenes with brand.json entries).
+- 2026-10-27 · skill · "do high level research and designing only for standard or full, for starter speed is the mantra." → Design research applies to Standard (a board per piece) and Full (in depth); a Starter kit skips research and boards and goes straight to 2–3 logo options, the favicon, fonts, tagline and export, unless the user asks for research.

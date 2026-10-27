@@ -59,8 +59,8 @@ Kits and packs that bundle several outputs
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a complete brand kit from a logo the user gives (an image of a wordmark, plus the font names): the animated logo as a transparent reusable Remotion component, sh… |
-| [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file — thumbnails (through create-thumbnail) and then the title and description (throug… |
+| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo an… |
+| [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio… |
 
 ## revise
 
