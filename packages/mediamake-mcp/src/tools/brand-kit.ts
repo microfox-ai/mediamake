@@ -34,6 +34,9 @@ const EXTRA_MIME: Record<string, string> = {
   avif: 'image/avif',
 };
 
+/** What a kit uploads: images (svg included), video, audio and fonts. Code and other files never are. */
+const KIT_ASSET = /\.(png|jpe?g|webp|gif|avif|svg|ico|mp4|m4v|webm|mov|wav|mp3|m4a|aac|ogg|flac|ttf|otf|woff2?)$/i;
+
 const mimeOf = (path: string) =>
   mimeFromName(path) ?? EXTRA_MIME[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
@@ -76,7 +79,8 @@ interface KitPlan<F extends KitFile> {
 
 /**
  * Sorts an exported kit's files: brandguide.md, colors.json, brand.json and
- * friends fill kit fields, everything else is uploaded as an asset. Shared by
+ * friends fill kit fields; images, video, audio and fonts are uploaded as
+ * assets; everything else (code, html, css, other json) is skipped. Shared by
  * the local tool (files on disk) and the hosted one (files the client lists).
  */
 async function planKit<F extends KitFile>(
@@ -89,6 +93,11 @@ async function planKit<F extends KitFile>(
   const fontFiles: string[] = [];
   for (const f of files) {
     if (only && !only.some(prefix => f.path.startsWith(prefix))) continue;
+    // The brand's source: never uploaded or read, at any depth (the kit root has its own guide and colours).
+    if (f.path.split('/').slice(0, -1).includes('graphics')) {
+      skipped.push({ path: f.path, reason: 'source (graphics/)' });
+      continue;
+    }
     const name = f.path.split('/').pop()!.toLowerCase();
     const role = TEXT_FIELDS[name];
     if (role) {
@@ -106,7 +115,11 @@ async function planKit<F extends KitFile>(
       } catch (error) {
         skipped.push({ path: f.path, reason: error instanceof SyntaxError ? 'not valid JSON' : String((error as Error).message ?? error) });
       }
-      if (role === 'guide' || role === 'manifest') continue;
+      continue;
+    }
+    if (!KIT_ASSET.test(name)) {
+      skipped.push({ path: f.path, reason: 'not an image, video, audio or font file' });
+      continue;
     }
     if (name.endsWith('.mov') && !includeMasters) {
       skipped.push({ path: f.path, reason: 'ProRes master (pass includeMasters)' });
@@ -228,7 +241,7 @@ function registerUploadBrandKit(server: McpServer, client: MediamakeClient) {
     {
       title: 'Upload brand kit',
       description:
-        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/lyrics_videos/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, graphics/ (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
+        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/lyrics_videos/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, every graphics/ folder at any depth (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
       inputSchema: {
         projectId: z.string(),
         folder: z.string().describe('Absolute path of the exported kit folder'),
@@ -314,7 +327,7 @@ function registerHostedUploadBrandKit(server: McpServer, client: MediamakeClient
     {
       title: 'Upload brand kit',
       description:
-        'Upload a brand kit folder (the one `pack-brand-kit` exports, apps/lyrics_videos/brands/<brand>/) to a project. This server cannot read your files, so list them: every file\'s path relative to the kit folder and its size, with `text` for brandguide.md, colors.json, brand.json, youtube/channel-description.md and brand/thumbnail.json (they fill the kit fields), and optionally `base64` for small files (3 MB in all per call). Leave out hidden files and graphics/. Files sent inline are uploaded and saved right away. For every other file the result has a presigned `uploadUrl` and a ready `curl` command (run it from the kit folder); PUT them all, then call finish_brand_kit_upload with the `finish` arguments from the result. Files with the same path replace the stored ones.',
+        'Upload a brand kit folder (the one `pack-brand-kit` exports, apps/lyrics_videos/brands/<brand>/) to a project. This server cannot read your files, so list them: every file\'s path relative to the kit folder and its size, with `text` for brandguide.md, colors.json, brand.json, youtube/channel-description.md and brand/thumbnail.json (they fill the kit fields), and optionally `base64` for small files (3 MB in all per call). Leave out hidden files and every graphics/ folder (the source, at any depth; skipped if sent). Files sent inline are uploaded and saved right away. For every other file the result has a presigned `uploadUrl` and a ready `curl` command (run it from the kit folder); PUT them all, then call finish_brand_kit_upload with the `finish` arguments from the result. Files with the same path replace the stored ones.',
       inputSchema: {
         projectId: z.string(),
         files: z
