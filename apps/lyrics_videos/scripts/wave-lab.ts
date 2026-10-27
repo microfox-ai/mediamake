@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bundle } from '@remotion/bundler';
+import { removeBundle, tempBundle } from './bundle.ts';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { CAPTIONS, FONTS, WAVES } from '../catalog/index.ts';
@@ -333,7 +333,7 @@ const main = async () => {
     ? CATALOG_SHOTS
     : path.join(ROOT, 'out', target, `${target}-storyboard`);
 
-  const serveUrl = await bundle({
+  const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
     publicDir: path.join(ROOT, 'projects'),
     webpackOverride: enableTailwind,
@@ -393,8 +393,8 @@ const main = async () => {
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
-    // the bundle copies the whole public dir (GBs of media): don't leave it in the temp folder
-    fs.rmSync(serveUrl, { recursive: true, force: true });
+    // the bundle links the public dir, so this only removes the bundle itself
+    removeBundle(serveUrl);
   }
 
   const shotSteps = [...new Set(done.map(s => s.step))];

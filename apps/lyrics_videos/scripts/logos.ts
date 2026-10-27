@@ -17,7 +17,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { bundle } from '@remotion/bundler';
+import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
 import { OUT_BRANDS, ROOT, assemblePublic } from './brand-public.ts';
 
@@ -30,7 +30,7 @@ const main = async () => {
     console.error('Usage: npm run logos -w lyrics_videos -- stills|render <id|all> [seconds,...]');
     process.exit(1);
   }
-  const serveUrl = await bundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
   // ANGLE gives headless Chrome a GPU path (some scenes use WebGL)
   const chromiumOptions = { gl: 'angle' as const };
   const all = await getCompositions(serveUrl, { chromiumOptions });
@@ -102,7 +102,7 @@ const main = async () => {
     });
     show(mp4);
   }
-  fs.rmSync(serveUrl, { recursive: true, force: true });
+  removeBundle(serveUrl);
 };
 
 main().catch(err => {

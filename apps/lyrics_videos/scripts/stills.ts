@@ -20,7 +20,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundle } from '@remotion/bundler';
+import { removeBundle, tempBundle } from './bundle.ts';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { renderStill, selectComposition } from '@remotion/renderer';
 import { ManifestSchema } from '../src/kit/manifest.ts';
@@ -75,14 +75,12 @@ const main = async () => {
   for (const t of (extra ?? '').split(',').filter(Boolean))
     points.push({ label: 'at', t: Number(t) });
 
-  const serveUrl = await bundle({
+  const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
     publicDir: path.join(ROOT, 'projects'),
     // same as remotion.config.ts: mediamake presets and atoms use Tailwind classes
     webpackOverride: enableTailwind,
   });
-  // a failed run (browser timeout, render error) must not leave its GBs behind either
-  process.on('exit', () => fs.rmSync(serveUrl, { recursive: true, force: true }));
   const inputProps = { manifest };
   // ANGLE gives headless Chrome a real GPU path (three.js / WebGL scenes need it)
   const chromiumOptions = { gl: 'angle' as const };
@@ -119,8 +117,7 @@ const main = async () => {
     });
     console.log(`✔ ${path.relative(ROOT, output)}`);
   }
-  // the bundle copies the whole public dir (GBs of media): don't leave it in the temp folder
-  fs.rmSync(serveUrl, { recursive: true, force: true });
+  removeBundle(serveUrl);
   if (cuts && points.length) {
     // the contact sheet: every cut in order, its id (and time) burned in, 10 to a row
     const tall = composition.height > composition.width;

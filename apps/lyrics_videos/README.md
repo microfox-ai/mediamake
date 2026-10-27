@@ -49,6 +49,7 @@ npm run stills -w lyrics_videos -- <slug>           # one JPEG per section, for 
 npm run stills -w lyrics_videos -- <slug> 12.5,40 --only   # just these seconds
 npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/<slug>.mp4 (+ <slug>.map.json)
 npm run map -w lyrics_videos -- <slug> --video=<mp4>  # shot map for any other render
+npm run cleanup-out -w lyrics_videos -- scan       # what fills the disk; clean, archive to a hard disk, restore (cleanup-out skill)
 npm run type-check -w lyrics_videos
 ```
 

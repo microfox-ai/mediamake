@@ -43,6 +43,7 @@ export const CATEGORIES = [
   { id: 'revise', prefix: 'revise-', about: 'Review loops with the user' },
   { id: 'analyze', prefix: 'analyze-', about: 'Breaking media down for later edits' },
   { id: 'write', prefix: 'write-', about: 'Text: titles, descriptions, metadata' },
+  { id: 'cleanup', prefix: 'cleanup-', about: 'Housekeeping: disk space, archives and backups' },
   { id: 'skill', suffix: '-skill', about: 'Managing skills themselves' },
   { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference (installed from remotion-dev/skills)' },
   { id: 'other', about: 'Everything else' },
