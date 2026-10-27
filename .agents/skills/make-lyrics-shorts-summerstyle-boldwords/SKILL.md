@@ -1,9 +1,9 @@
 ---
-name: make-lyric-shorts
-description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyric-shorts", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
+name: make-lyrics-shorts-summerstyle-boldwords
+description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
 ---
 
-# make-lyric-shorts
+# make-lyrics-shorts-summerstyle-boldwords
 
 A 15–45 s vertical short of one stretch of a song: the lyrics *are* the picture. Built from the
 reference `projects/eyesofpink/input/inspiration/summer-leaves.mp4` (a Pinterest reel, 20 s), whose
@@ -147,6 +147,16 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    moments, the first cut carries on from there (`in`, with `rate` a little under 1 if the take is
    short) — so the end runs straight back into the start. Nothing on screen at the seam (full-frame
    footage both sides); the engine fades the light leaks out of the seam.
+   **When the song lands each line's last word on the downbeat** (most Suno songs: "bite" on beat 1,
+   the next line's pickup right after), a downbeat seam cuts that word. Put the seam at the *same place
+   in the bar* at both ends instead — just before a pickup (`250 → 314`: both on beat 4), or between a
+   held word and the next line (`220.85 → 284.85`) — and keep the length a multiple of 4 beats (16 for a
+   phrase), so the loop stays on the grid. `scripts/span.py <slug> <b0> <b1>` prints every word with its
+   start–end beats and a `|` at each downbeat; `scripts/setwin.py <slug> <id> <b0> <b1>` sets the window
+   (short.json, history.json) from beats. A long first word (`affidavit`, `ninety-nine`, `confiscate`)
+   sits small over black until the rest is sung: start that screen as words over the footage (`reverse:
+   true`) rather than pulling back `into` it; one held word alone (`zero`, `judge`, `why`, `welcome`)
+   reads best as black words over the whole shot (`['word'], { reverse: { flip: <next screen> } }`).
 9. **Never lose a render.** Renders are kept in `v<N>/` by `render-project`; keep earlier cut lists in
    `shorts/<id>/archive/edl.v<N>.ts.txt`.
 
@@ -156,8 +166,21 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    `mcp__Mediamake__list_transcriptions` (search the song's name) → `get_transcription` with
    `includeWords` and `saveTo: projects/<slug>/input/lyrics.json` (free). Otherwise offer to transcribe
    (ElevenLabs speech-to-text with word timestamps, as in make-waveform-lyric-video step 1 — paid: ask).
-   Check the transcription was made from the same mix (same length).
+   Check the transcription was made from the same mix (same length). **A published song (a YouTube
+   link, a playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and
+   transcribe *that* with ElevenLabs (the user, 2026-10-27: "use elevenlabs for transcribing") — the
+   library's transcription is usually of the Suno take, offset or edited against the upload (Yuta's was
+   18.75 s early, Higuruma's 29.1 s), and Suno's CDN links are signed now. Then respell the ElevenLabs
+   words from the library's text where the two disagree word for word (`difflib` on the word lists: the
+   library lines are the user's corrected ones — "wilts", not "wills").
 2. **Footage**: the user's videos (or shots from a reference video they name), one or more sources.
+   With none given, gather it yourself: **twixtor packs from YouTube** (`ytsearch12:"<character> twixtor
+   clips 4k"`; Wyunye's "Twixtor Clips For Edit 4K60FPS" packs are clean, no watermark; "Manga Animation"
+   packs add a second look but often carry burned-in captions and a disclaimer card) and **Pinterest
+   wallpapers / manga panels** (`uvx gallery-dl --range 1-30 --filter "extension in ('jpg','jpeg','png',
+   'webp')" "https://www.pinterest.com/search/pins/?q=<character> wallpaper"`, no login needed), turned
+   into an art reel: `scripts/artvideo.py` (each picked picture 4 s, contained over a blurred cover of
+   itself, a slow push-in, hard cuts, 2560×1440) — then segregated like any footage.
 3. **A style reference** (optional): a reel whose look they want; this skill's default is the one above.
 
 ## Workflow
@@ -199,6 +222,17 @@ figure where there is no face; leave out title cards and black shots). Draw each
 its twin's box. A shot that moves or hides a second shot (Nezuko's sh0045: a fight, then her close-up
 from 3.4 s) needs the cut's `in` or its own `face`. The short's index.tsx passes the file:
 `defineLyricShort({ …, faces })`.
+
+**Several sources** (2026-10-27, the JJK playlist: 3–5 a song): segregate each into
+`footage/<name>/` and list them in `shorts/footage.json` (`{ sources: [{ id, prefix, source,
+segregation }] }`, a two-letter prefix each: `ya0012` is shot sh0012 of the first). Mark faces per source
+in two passes: `scripts/faces.py <footage/name> lbpcascade_animeface.xml` (OpenCV's anime face cascade,
+nagadomi/lbpcascade_animeface; `uv run --no-project --python 3.12 --with opencv-python-headless==4.10.0.84
+--with numpy`) writes `faces.auto.json` and a `faces_sheet.jpg` of every shot with its box — right on most
+anime close-ups, blind to manga, art and profiles; then put boxes by eye for the shots you cast in
+`footage/faces.manual.json` (prefixed ids) and run `scripts/mergefaces.py <project>`: it writes each
+source's `faces.json` (read by `clips`) and the project's merged `footage/faces.json` (imported by
+index.tsx). The faces sheets double as the casting sheets.
 
 ### 3. Pick stretches — check with the user
 
@@ -263,7 +297,13 @@ and buttons), and no screen sitting half empty for long while a giant last word 
 npm run render-project -w lyrics_videos -- <slug> --short=<id> --crf=18
 ```
 
-→ `out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4` + `.map.json` (~2–3 min for 30 s). Review with
+→ `out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4` + `.map.json` (~2–3 min for 30 s). **Many shorts at
+once: one slim bundle.** `render-project` bundles every time and copies all of `projects/` (21 GB by
+2026-10-27) into `$TMPDIR` — twelve renders can't fit. Instead hard-link only what the shorts load
+(`manifest.json`, the song, `derived/lyricshorts/*.mp4`, `shorts/fonts/`) into a slim folder, bundle once
+(`npx remotion bundle src/index.ts --public-dir=<slim> --out-dir=<bundle>`, ~0.4–1 GB) and render each
+short from it (`npx remotion render <bundle> <slug>-<id>-9x16 <out> --crf=18`, ~45 s–2 min each). Rebuild
+the bundle after any change to a cut list or a clip. Review with
 **`revise-video`**: `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:
@@ -367,6 +407,20 @@ export const edl: LyricShortEdl = {
 - **The dive needs a thick stroke**: rows of thin letters (`i`, `l`, `t`) give a small circle and a
   long zoom; dive into a row with round letters (`o`, `e`, `g`, `b`, `d`).
 
+- **Twixtor shots are short** (0.3–1.5 s each in most packs): `clips` warns "runs past the shot's end".
+  `scripts/fitrate.py <slug> <id> < <clips output>` slows each such cut just enough (`rate`, the 60 fps
+  source stays smooth) and flags any that would need under half speed — swap those for a longer shot
+  (list durations from `segregation.json`). The same shot twice in a short needs a different `in`.
+- **Burned-in text in the footage**: manga-animation packs open on a disclaimer card and caption words
+  over shots; anime episodes carry title cards, name cards and staff credits (Japanese text at the
+  bottom). Skip those shots or crop above the text (`{ x, y, zoom }` by hand). Letterboxed shots (black
+  bars in a 16:9 source) need a hand crop with `zoom ≈ 1.3`.
+- **Pinterest pictures can come in rotated** (EXIF orientation ignored by ffmpeg's image input): check
+  the art reel's faces sheet and drop or re-export the sideways ones.
+- **Transcription respelling**: ElevenLabs and the library's text differ where a word was misheard
+  ("wills"/"wilts", "fire's mind"/"fire's mine"); an equal-length difflib swap fixes most, an unequal
+  one by hand in `input/lyrics.json`, then `analyze --only align` and `prepare-project` again.
+
 ## Timing budget (this machine)
 
 Analysis ~1 min (models cached); footage segregation ~3.5 min for a 3.6-min 4K60 video; `clips` ~1.5 s
@@ -455,3 +509,15 @@ Append dated entries: what the user asked to change and the general rule behind 
   drums before "the fire is awake", ending on the chorus downbeat after the held "relentless"), puts a
   bright face or fire behind every line, and starts thin screens as words over the footage. Rules:
   principles 4 and 8.
+- 2026-10-27 — Renamed from make-lyric-shorts to make-lyrics-shorts-summerstyle-boldwords (the user).
+  First fully autonomous run ("take no input from me"): an AMZ playlist of four Jujutsu Kaisen songs
+  (Yuta "Cursed Love", Maki "Let's Get Started!", Higuruma "Sentence! Strike!", Toji "When a Monkey Breaks
+  the Mold"), three shorts each, 9:16, 30 fps, looping. Songs from the YouTube uploads, words by
+  ElevenLabs on that audio ("use elevenlabs for transcribing", mid-run), respelled from the library's
+  corrected lines. Footage gathered by the run: 2–3 twixtor packs a character from YouTube, a manga-
+  animation pack, and a Pinterest art reel (16–20 wallpapers / panels). Stretches chosen by structure for
+  contrast — the hook, a verse with its own words, the bridge or outro — not the picker's repeats. Learned:
+  the seam rule for songs that land the last word on the downbeat (principle 8b), multi-source footage
+  with cascade-marked faces, fitting short twixtor shots by rate, black words over the footage for a long
+  first word, and one slim bundle for many renders (step 6). Each song's look is its own theme colour
+  (Yuta blue + Rika pink, Maki blood red, Higuruma gold, Toji hollow purple). Awaiting the user's notes.
