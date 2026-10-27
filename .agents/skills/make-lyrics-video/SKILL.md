@@ -195,7 +195,8 @@ Then source the rest:
 - Put sourced files under `input/<kind>/` (e.g. `input/pinterest/`, `input/clips/`, `input/outcrops/`)
   and keep `projects/<slug>/assets.md`: every asset with its ID, source, what it is for and its status
   (candidate / picked / rejected). The extension can disconnect mid-download and skip files silently:
-  check every file exists. When several Chrome profiles are connected, ask which one to use.
+  check every file exists. When several Chrome profiles are connected, ask which one to use by each
+  profile's Google account email, never by its number (the user doesn't know the numbers).
 
 **Research what each line refers to** when the song is about a story, a franchise or a person
 (an anime crew, a film, a life): search for the moments, names and episodes the lyrics allude to,

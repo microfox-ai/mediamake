@@ -100,6 +100,32 @@ Then, as the answers come:
 - If the picked thumbnail's words changed a lot from what the title was written against, re-read
   the title: it should still add something the thumbnail doesn't say.
 
+**End screen (outro) on a finished video.** When the pack is for a finished video, check that it
+ends on the channel's end screen (YouTube's end-screen cards need its last 5–20 s), and offer to add
+one if it doesn't.
+- **Several outros in the brand kit** (`apps/lyrics_videos/brands/<brand>/outros/*.mp4`): don't list
+  them in chat. Let the user pick in a review screen. Make the outros a reviewable image set: one
+  still of each outro at ~8 s, with its MP4 path in the item's note
+  (`npm run image-index -w lyrics_videos -- <folder> --workflow=pack-youtube`). Send the review link
+  (`https://mediamake.microfox.app/image-revision?job=<set>`) plus the MP4s to watch, and read the
+  pick with `revise-image`.
+- **Attach it without re-rendering the video.** Never render the whole video again just to add the
+  outro. Match only the outro to the video (size, fps, pixel format, audio rate and channels), then
+  join the two with ffmpeg's concat demuxer as a stream copy:
+
+```bash
+ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -c:a aac -ar 48000 -ac 2 outro-matched.mp4
+```
+
+```bash
+printf "file '%s'\nfile '%s'\n" "$PWD/video.mp4" "$PWD/outro-matched.mp4" > join.txt && ffmpeg -f concat -safe 0 -i join.txt -c copy final.mp4
+```
+
+  Take the size, fps and audio settings from `ffprobe` of the video. If the stream copy refuses
+  because the codec settings differ, re-encode only the outro again with the video's profile, and
+  still never the video. Check the join point plays cleanly (a still on either side, and the audio
+  level). The result goes in the pack as the video.
+
 When both are settled, assemble the folder (the video clone, the end-screen guide, UPLOAD.md;
 earlier rounds moved into `history/`), update `pack.json` (`thumbnails` with the picked IDs and
 files, `title`, `video`, `status: "ready"`) and tell the user where everything goes in YouTube Studio → Details: Title,
@@ -117,4 +143,5 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-25 · F1 × Hit It (hitixf1) · "can you not point a link that directly opens the finder window" → when the pack is done, reveal it in Finder with the app's reveal_path tool.
 - 2026-10-25 · Breaking Bad × Dangerous (ATOMIC RAP) · "dont open the finder window by yourself, show a link which can help me open finder window on clicking" → replaces the reveal_path rule above: end with an `open -R` bash block the user runs, never open Finder unasked.
 - 2026-10-27 · Nakama! (Anime Music Zone) · `open -R "…Nakama!.mp4"` failed in zsh (`event not found`: `!` is history expansion even in double quotes) → name the pack's video without shell-special characters (`!`, quotes, `$`), keep them only in title.txt, and single-quote paths in `open -R` blocks.
+- 2026-10-27 · Get into Zone (brand kit with eight outros) · "when a brandkit has multiple outros, it is best if claude shows the outros using a revisor to pick from for user choice … when creating the final video attaching outro, no need to render the whole video again, just attaching it at end via ffmpeg or something is fine" → the end-screen step: several outros are picked in the Image Revisions screen (one still each, MP4 path in the note), and the picked outro is joined to the video with ffmpeg (outro matched, concat stream copy), never a full re-render.
 - 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.

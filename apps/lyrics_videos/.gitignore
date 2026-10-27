@@ -11,3 +11,4 @@ assets3d/**/*.blend
 assets3d/**/*.blend1
 assets3d/**/previews/
 assets3d/**/textures/
+__pycache__/
