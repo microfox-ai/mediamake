@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { getClientId } from '@/lib/auth-utils';
 import { createPresignedUpload } from '@/lib/spaces-upload';
-import { assetKindOf, cleanPath, mimeOf } from '@/lib/brand-kit';
+import { assetKindOf, cleanPath, inGraphicsFolder, isKitAsset, mimeOf } from '@/lib/brand-kit';
 import { brandKitAccess } from '@/lib/brand-kit/access';
 
 const MAX_FILES = 200;
@@ -12,7 +12,9 @@ const MAX_FILES = 200;
  * Presigned PUT URLs for a batch of kit files, stored under
  * mediamake/<client>/brand-kits/<projectId>/<folder>/. PUT each file with its
  * Content-Type and `x-amz-acl: public-read`, then save the returned assets with
- * PUT /api/project/brand-kit.
+ * PUT /api/project/brand-kit. Only images, video, audio and fonts get a URL
+ * (isKitAsset); code, other files and anything under a graphics/ folder are
+ * left out.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
     const uploads = await Promise.all(
       files.map(async f => {
         const path = cleanPath(f.path ?? '');
-        if (!path) return null;
+        if (!path || !isKitAsset(path) || inGraphicsFolder(path)) return null;
         const contentType = f.contentType || mimeOf(path);
         const dir = path.split('/').slice(0, -1).join('/').replace(/[^a-zA-Z0-9/_-]/g, '_');
         const presigned = await createPresignedUpload({
