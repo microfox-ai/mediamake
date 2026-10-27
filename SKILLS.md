@@ -21,6 +21,7 @@ A skill is named `<verb>-<thing>`; the verb is its category:
 - `revise-*`: Review loops with the user
 - `analyze-*`: Breaking media down for later edits
 - `write-*`: Text: titles, descriptions, metadata
+- `cleanup-*`: Housekeeping: disk space, archives and backups
 - `*-skill`: Managing skills themselves
 - `remotion-*`: Remotion reference (installed from remotion-dev/skills)
 
@@ -85,6 +86,14 @@ Text: titles, descriptions, metadata
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) fro… |
+
+## cleanup
+
+Housekeeping: disk space, archives and backups
+
+| Skill | Visibility | What it does |
+|---|---|---|
+| [`cleanup-out`](.agents/skills/cleanup-out/SKILL.md) | public | Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol… |
 
 ## skill
 

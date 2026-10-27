@@ -11,6 +11,7 @@
     "stills": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/stills.ts",
     "render-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render.ts",
     "map": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/map.ts",
+    "cleanup-out": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/cleanup-out.ts",
     "type-check": "tsc --noEmit",
     "logos": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/logos.ts",
     "logos-studio": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/brand-public.ts && remotion studio logoGraphics/index.ts --public-dir=out/brands/.public",

@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundle } from '@remotion/bundler';
+import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
@@ -341,8 +341,8 @@ const render = async () => {
   let comps: Awaited<ReturnType<typeof getCompositions>> = [];
   // exposure.json is read when bundling, so a change to it needs a new bundle
   const load = async () => {
-    if (serveUrl) fs.rmSync(serveUrl, { recursive: true, force: true });
-    serveUrl = await bundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
+    if (serveUrl) removeBundle(serveUrl);
+    serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
     comps = (await getCompositions(serveUrl)).filter(c => c.id.startsWith(`${job}-`) && c.defaultProps.job === job);
     const error = comps.find(c => c.id === `${job}-error`);
     if (error) throw new Error(String(error.defaultProps.message));
@@ -378,7 +378,7 @@ const render = async () => {
     await still(`${job}-sheet-small`, path.join(out, `sheet-small.${ext}`));
   }
   writeIndex(spec, variants, ext);
-  fs.rmSync(serveUrl, { recursive: true, force: true });
+  removeBundle(serveUrl);
 };
 
 const exposureFile = () => path.join(jobDir(job), 'exposure.json');
@@ -566,14 +566,14 @@ const keep = () => {
 const canvas = async () => {
   const spec = readSpec(job);
   if (!spec.canvas) throw new Error(`No "canvas" in ${rel(specFile(job))}: add { "src": "input/<9:16 picture>", "cut"?: "cutouts/…" }`);
-  const serveUrl = await bundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
   const composition = (await getCompositions(serveUrl)).find(c => c.id === `${job}-canvas`);
   if (!composition) throw new Error(`No composition ${job}-canvas`);
   const out = path.join(outDir(job), 'canvas', 'remotion.mp4');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const raw = out.replace(/\.mp4$/, '.raw.mp4');
   await renderMedia({ serveUrl, composition, codec: 'h264', crf: 18, imageFormat: 'jpeg', jpegQuality: 95, outputLocation: raw, muted: true });
-  fs.rmSync(serveUrl, { recursive: true, force: true });
+  removeBundle(serveUrl);
   // JPEG frames come out full-range (yuvj420p); players and Spotify expect standard yuv420p
   spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', raw, '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', '-color_range', 'tv', '-movflags', '+faststart', '-an', out]);
   fs.rmSync(raw);

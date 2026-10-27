@@ -21,6 +21,7 @@ export const CATEGORIES: { id: string; prefix?: string; suffix?: string; about: 
   { id: 'revise', prefix: 'revise-', about: 'Review loops' },
   { id: 'analyze', prefix: 'analyze-', about: 'Breaking media down' },
   { id: 'write', prefix: 'write-', about: 'Titles, descriptions, metadata' },
+  { id: 'cleanup', prefix: 'cleanup-', about: 'Disk space, archives, backups' },
   { id: 'skill', suffix: '-skill', about: 'Managing skills' },
   { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference' },
   { id: 'other', about: 'Everything else' },

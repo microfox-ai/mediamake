@@ -22,6 +22,8 @@ interface LocalRenderRequest {
 }
 
 export const POST = async (req: NextRequest) => {
+  // every request bundles anew: removed in `finally` so the temp folder doesn't fill up
+  let bundleLocation: string | undefined;
   try {
     const {
       compositionId,
@@ -58,10 +60,11 @@ export const POST = async (req: NextRequest) => {
     console.log('Render Type:', renderType);
     console.log('Input Props:', inputProps);
 
-    // Create bundle
-    const bundleLocation = await bundle({
+    // Create bundle (public/ linked, not copied: the bundle is thrown away after this render)
+    bundleLocation = await bundle({
       entryPoint: path.resolve('./components/remotion/index.ts'),
       webpackOverride: config => enableTailwind(config),
+      symlinkPublicDir: true,
     });
 
     console.log('Bundle created at:', bundleLocation);
@@ -202,6 +205,8 @@ export const POST = async (req: NextRequest) => {
       },
       { status: 500 },
     );
+  } finally {
+    if (bundleLocation) fs.rmSync(bundleLocation, { recursive: true, force: true });
   }
 };
 

@@ -25,7 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bundle } from '@remotion/bundler';
+import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
 import { buildSync } from 'esbuild';
 import { BRANDS, OUT_BRANDS, ROOT, assemblePublic } from './brand-public.ts';
@@ -98,7 +98,7 @@ const main = async () => {
   const assets = cfg.assets.filter(a => want(a.to));
   const favicon = cfg.favicon && want(`${cfg.favicon.to}/`) ? cfg.favicon : undefined;
   if (!assets.length && !favicon) return;
-  const serveUrl = await bundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
   const chromiumOptions = { gl: 'angle' as const };
   // scenes fetch web fonts while they load; give slow networks time
   const timeoutInMilliseconds = 180000;
@@ -216,7 +216,7 @@ const main = async () => {
     fs.writeFileSync(dest(`${favicon.to}/favicon.html`), `<!-- ${name}: put these files at the site root and these tags in <head> -->\n${tags.join('\n')}\n`);
     done(dest(`${favicon.to}/site.webmanifest`));
   }
-  fs.rmSync(serveUrl, { recursive: true, force: true });
+  removeBundle(serveUrl);
 };
 
 main().catch(err => {
