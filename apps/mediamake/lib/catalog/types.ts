@@ -174,7 +174,7 @@ export type InstallMethod = 'skill' | 'mcpb' | 'app' | 'manual';
 
 export interface InstallSpec {
   method?: InstallMethod;
-  /** File inside the package the method acts on, e.g. `get-into-zone.mcpb`. */
+  /** File inside the package the method acts on, e.g. `browse-hack.mcpb`. */
   entry?: string;
   requires?: InstallRequirement[];
   /** Short note shown to the person before installing. */

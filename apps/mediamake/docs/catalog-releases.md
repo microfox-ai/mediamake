@@ -25,7 +25,7 @@ vault is for apps, MCPs and tutorials.
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
 | Grants, groups, invites, requests, download log | MongoDB `access_grants`, `access_groups`, `access_invites`, `access_requests`, `catalog_downloads` | No |
 
-Item ids look like `mcp/get-into-zone` or `skill/lyric-video`.
+Item ids look like `mcp/browse-hack` or `skill/lyric-video`.
 
 ## Tiers
 
@@ -115,11 +115,11 @@ cd apps/mediamake
 # Release (or re-release with a new version). Reads the bundle's manifest (or a
 # SKILL.md's front matter) and an optional catalog.json next to it. Leaving
 # --stage out keeps the current stage. A skill is always released as public.
-npm run catalog -- release ../../private/mcps/get-into-zone.mcpb --stage private --version 1.0.0
+npm run catalog -- release ../../private/mcps/browse-hack.mcpb --stage private --version 1.0.0
 
 # Share with a few people
-npm run catalog -- grant mcp/get-into-zone --to <clientId> --days 30
-npm run catalog -- invite mcp/get-into-zone --uses 5 --days 30   # prints a /access?code=… link
+npm run catalog -- grant mcp/browse-hack --to <clientId> --days 30
+npm run catalog -- invite mcp/browse-hack --uses 5 --days 30   # prints a /access?code=… link
 
 # Tiers of people
 npm run catalog -- group add private <clientId>                  # private testers: everything but the vault
@@ -127,9 +127,9 @@ npm run catalog -- group add network <clientId> <clientId>       # community: ev
 npm run catalog -- invite --group network --uses 20              # or let them join the community by invite
 
 # Move it along
-npm run catalog -- schedule mcp/get-into-zone --days 30          # community now, public by itself in 30 days
-npm run catalog -- unschedule mcp/get-into-zone                  # keep it with the community, no date
-npm run catalog -- promote mcp/get-into-zone public              # release now
+npm run catalog -- schedule mcp/browse-hack --days 30            # community now, public by itself in 30 days
+npm run catalog -- unschedule mcp/browse-hack                    # keep it with the community, no date
+npm run catalog -- promote mcp/browse-hack public                # release now
 npm run catalog -- vault app/brand-internals                     # never publish (--off to take it out)
 
 # Requests from the "Request access" button
@@ -137,7 +137,7 @@ npm run catalog -- requests
 npm run catalog -- approve <requestId> --days 30
 
 # Take access back
-npm run catalog -- revoke mcp/get-into-zone --to <clientId>
+npm run catalog -- revoke mcp/browse-hack --to <clientId>
 npm run catalog -- list
 ```
 
@@ -167,7 +167,7 @@ the homepage has a **Copy install prompt** button and links to
 `/access?item=<id>`, which shows the prompt too (`listCatalog` returns it as
 `installPrompt`):
 
-> Set up mcp/get-into-zone from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
+> Set up mcp/browse-hack from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
 [`install.md`](../../../install.md) walks Claude through GitHub (account,
 `git`, `gh auth login`), the person's MediaMake API key, and then the plan
@@ -187,10 +187,10 @@ Declare what an item needs in `catalog.json` under `install`:
       {
         "type": "github-release",
         "repo": "microfox-ai/extensions",
-        "asset": "get-into-zone-chrome.zip",
-        "name": "Get into zone Chrome extension",
+        "asset": "browse-hack-chrome.zip",
+        "name": "Browse Hack Chrome extension",
         "kind": "chrome-extension",
-        "guide": "https://github.com/microfox-ai/extensions#install-get-into-zone"
+        "guide": "https://github.com/microfox-ai/extensions#install-browse-hack"
       }
     ],
     "notes": "Shown to the person before installing."

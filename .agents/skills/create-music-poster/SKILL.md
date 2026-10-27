@@ -50,7 +50,7 @@ assumed):
    (only when the song itself is dark: menace, grief, horror, night). It goes in `poster.json` as
    `"mood"` and sets the exposure. Never pick dark just because the picture is dark.
 3. **The picture(s):** theirs (best), a frame from their video, or a concept to generate
-   (Midjourney through Get into zone; fal costs money, ask first).
+   (Midjourney through Browse Hack; fal costs money, ask first).
 4. **Text versions** (always ask): title + artist · title only · none. This only decides the
    *extra* styles: the art with no text is always made (the prime rule). Streaming services show
    the title and artist under the cover anyway.
@@ -79,7 +79,7 @@ Measure it (`sips -g pixelWidth -g pixelHeight`). Then:
 - **Square crop** when the subject fits in a square: frame it with `hero.focus` / `zoom` (look at
   the plain variant: nothing important cut, the subject not jammed against an edge).
 - **Outcrop to 1:1** when a square crop would cut the subject (a wide shot, a tall portrait
-  cropped at the head): the `midjourney-outcrop` skill (Get into zone), or fal (paid: ask first).
+  cropped at the head): the `midjourney-outcrop` skill (Browse Hack), or fal (paid: ask first).
   Put the result in `input/` and use it as the hero.
 - **Resolution: upscale the source once, never the covers.** DistroKid wants 3000×3000 (minimum
   1000) and rejects blurry or pixelated art. `render` warns when a picture is blown up past its
@@ -221,7 +221,7 @@ with what each cost.
   on H3 Max. Check the result is at least 720 px tall; deliver it as is (or scale to 720×1280). Prompt: locked-off camera, subtle motion only (hair, cloth,
   smoke, embers, light flicker), the subject keeps their pose, seamless loop. It returns an
   audio track: strip it (`ffmpeg -i in.mp4 -an -c:v copy fal.mp4`).
-- **Midjourney video**: the Get into zone extension has **no video (Animate) tool yet**. Until it
+- **Midjourney video**: the Browse Hack extension has **no video (Animate) tool yet**. Until it
   does, the user animates the start frame on midjourney.com and drops the MP4 into `input/`;
   trim it to ≤ 8 s, strip audio, crop/scale to 1080×1920 with ffmpeg.
 

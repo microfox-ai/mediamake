@@ -62,10 +62,10 @@ In order of preference:
 - **The user's image.** Measure it (`sips -g pixelWidth -g pixelHeight`). Portrait or square
   pictures: frame them with `hero.focus` / `zoom` / `offset`, or outcrop them to 16:9 with the
   `midjourney-outcrop` skill when the subject would be cut badly.
-- **Frames from the video** (a file, or a YouTube link downloaded with the Get into zone
+- **Frames from the video** (a file, or a YouTube link downloaded with the Browse Hack
   extension): pull candidates with exact seeks (`ffmpeg -ss <t> -i video -frames:v 1`), tile them,
   pick the most expressive face or moment. Thumbnails sell emotion: eyes, a reaction, a peak.
-- **A concept to generate:** Midjourney through Get into zone (`midjourney-style-reference` when
+- **A concept to generate:** Midjourney through Browse Hack (`midjourney-style-reference` when
   they have a look in mind). fal costs money: ask first. Generate at 16:9 with room for words.
 - **No picture:** the `poster` preset (type is the picture).
 

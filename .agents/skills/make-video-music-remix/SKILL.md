@@ -631,7 +631,7 @@ Append dated entries: what the user asked to change and the general rule behind 
   `koOut: 'fall'` drops its letters instead of diving.
 - 2026-10-26 — quicksilverxkingpin chat notes on v11: "remove these shots" meant *replace* them — a section
   turned into a dark typography stage was rejected ("why did you remove all the clips?"). When the footage runs
-  out, ask whether to fetch more clips (get-into-zone `youtube_get_video` → check the real height and HDR, take
+  out, ask whether to fetch more clips (Browse Hack `youtube_get_video` → check the real height and HDR, take
   the SDR video-only stream; `youtube_download`), then add each as a source in remix.json (`segregation` from
   analyze-video's segregate.py, `crop` from `cropdetect`, `matteFps` = its plate's fps) and recast. Reject
   uploads labelled "4K" that are 1080p, HDR-only streams, watermarks and burned-in subtitles (or crop the
