@@ -292,11 +292,11 @@ and then make only what the storyboard needs.
 **Assets — take active guidance from the user.** Before sourcing, tell them what the idea needs and ask
 whether they already have assets or ideas for them (they often have better ones); use theirs first.
 Then source the rest:
-- **Artwork / images:** search Pinterest and download in bulk with the Get into zone extension
-  (broad searches work best); Midjourney (Get into zone, the `midjourney-outcrop` / `-restyle` /
+- **Artwork / images:** search Pinterest and download in bulk with the Browse Hack extension
+  (broad searches work best); Midjourney (Browse Hack, the `midjourney-outcrop` / `-restyle` /
   `-style-reference` skills) to outcrop portraits to the video's aspect or fill gaps, only as needed.
   Show the picks as a labelled contact sheet and let the user choose.
-- **Video:** browse YouTube and download with Get into zone, **only videos under 5 minutes** (check
+- **Video:** browse YouTube and download with Browse Hack, **only videos under 5 minutes** (check
   the length first; long videos bloat the project and the context). For anime, search Twixtor clips
   and anime edits of the character as well as scenes.
 - **3D:** build models in Blender (the Blender connector: generate, import from libraries, or model)

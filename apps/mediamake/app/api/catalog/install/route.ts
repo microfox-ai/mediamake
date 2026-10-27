@@ -5,7 +5,7 @@ import { buildInstallPlan } from '@/lib/catalog/install';
 import { catalogItemsDB } from '@/lib/catalog/store';
 
 /**
- * GET /api/catalog/install?item=mcp/get-into-zone
+ * GET /api/catalog/install?item=mcp/browse-hack
  * Authorization: Bearer <install code from the prompt, or MediaMake API key>
  *
  * The ordered install plan for an item and everything it requires (repos to

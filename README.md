@@ -121,7 +121,7 @@ For lyric videos, see [apps/lyrics_videos/README.md](apps/lyrics_videos/README.m
   and the [September 2026 feature notes](apps/mediamake/docs/features-2026-09/README.md) (canvas
   pipeline, editor collaboration, browser rendering)
 - [packages/remotion/docs](packages/remotion/docs/QUICKSTART.md): the `@microfox/remotion` API
-- Related: the [Get into zone extension and its MCP](https://github.com/microfox-ai/extensions)
+- Related: the [Browse Hack extension and its MCP](https://github.com/microfox-ai/extensions)
 
 ## License
 

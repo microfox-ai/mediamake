@@ -3,7 +3,7 @@
 These are instructions for **Claude** (Claude Code, Claude Desktop or the
 Claude app with a computer it can use). A person pastes a prompt like:
 
-> Set up mcp/get-into-zone from MediaMake (https://your-mediamake-site) with install code mmi_… by following https://github.com/microfox-ai/mediamake/blob/main/install.md
+> Set up mcp/browse-hack from MediaMake (https://your-mediamake-site) with install code mmi_… by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
 and you install that item and everything it needs. Follow the steps in order.
 Work quietly; stop and ask the person **only** where a step says _Ask_, and
