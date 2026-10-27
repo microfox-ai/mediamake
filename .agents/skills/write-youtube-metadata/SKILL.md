@@ -77,6 +77,12 @@ moment). Without a rule: `<Song> · <artist or a short feeling>`, plus `(Lyrics)
 
 Write the one you recommend to `title.txt`, and two alternatives into `metadata.json`.
 
+**Three thumbnails → three titles.** When the video goes out with three thumbnails for YouTube's
+A/B test (Test & Compare), write three titles, one per thumbnail, each adding what its thumbnail
+doesn't say (`titles.txt`: one line per thumbnail, `<thumbnail file> · <title>`; `metadata.json`
+`titlesByThumbnail`). The user's chosen title stays `title.txt` and is paired with the thumbnail it
+suits best. Every title passes the same rules (≤ 100 characters, the point inside ~60).
+
 ## 4. Description
 
 **When the brand has `youtube/description-template.md`, fill that in instead** (its spacing and fixed
@@ -142,3 +148,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-25 · Just Hit It (ATOMIC RAP) · "for youtube title and thumbnail always preview and ask for user suggestions. ask if the lyrics have to be kept in description or if not needed." → step 1 always asks whether the lyrics go in; step 5 always previews the title and description and asks for suggestions; `check --no-lyrics` for a description without lyrics.
 - 2026-10-25 · Breaking Bad x Dangerous (ATOMIC RAP) · The user set the title "Breaking Bad x Dangerous (NEFFEX)" → ATOMIC RAP edit titles: `<footage> x <song> (<artist>)`, with the plain x as the user types it; the description's first line follows the title's spelling.
 - 2026-10-25 · Breaking Bad x Dangerous (ATOMIC RAP) · The user saved their own final description: the title's pair and the story on line 1, then "Media From / Music Track / Music Credits", a fair-use block (Section 107), the schedule line and `#aurafarming #edit` + song, artist, footage, hero (6 tags) → saved as the brand's `youtube/description-template.md`, which replaces step 4's layout for ATOMIC RAP; `check --free` checks only YouTube's limits (≤ 15 hashtags, none repeated) for a layout of the brand's or the user's own.
+- 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → step 3's three titles, one per thumbnail (`titles.txt`, `titlesByThumbnail`).

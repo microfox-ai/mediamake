@@ -94,6 +94,8 @@ Then, as the answers come:
 - **Thumbnail feedback / pick:** handled by `create-thumbnail` (its iterate and review steps). After
   `npm run thumbs -w lyrics_videos -- pick <slug> <IDs>`, copy `out/thumbnails/<slug>/final/*.jpg`
   into the pack's `thumbnails/` (replace what was there; re-copy after every re-pick).
+- **Three thumbnails picked → three titles:** have `write-youtube-metadata` write one title per
+  thumbnail (`titles.txt`), show them with the thumbnails, and list the pairs in UPLOAD.md.
 - **Title / description changes:** edit the pack's files and run its `check` again.
 - If the picked thumbnail's words changed a lot from what the title was written against, re-read
   the title: it should still add something the thumbnail doesn't say.
@@ -114,3 +116,5 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-25 · F1 × Hit It (hitixf1, ATOMIC RAP) · "when done, you should pack it all in a single folder, or you not doing that ?" (the video and the end-screen guide were left outside the pack) → the finished pack holds the video (APFS clone), the end-screen card guide and UPLOAD.md beside the title, description and final thumbnails; earlier rounds go to history/.
 - 2026-10-25 · F1 × Hit It (hitixf1) · "can you not point a link that directly opens the finder window" → when the pack is done, reveal it in Finder with the app's reveal_path tool.
 - 2026-10-25 · Breaking Bad × Dangerous (ATOMIC RAP) · "dont open the finder window by yourself, show a link which can help me open finder window on clicking" → replaces the reveal_path rule above: end with an `open -R` bash block the user runs, never open Finder unasked.
+- 2026-10-27 · Nakama! (Anime Music Zone) · `open -R "…Nakama!.mp4"` failed in zsh (`event not found`: `!` is history expansion even in double quotes) → name the pack's video without shell-special characters (`!`, quotes, `$`), keep them only in title.txt, and single-quote paths in `open -R` blocks.
+- 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.
