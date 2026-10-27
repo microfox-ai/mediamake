@@ -128,3 +128,5 @@ Append dated entries: what the user said → the rule.
 
 - 2026-10-25 · split out of make-lyrics-video step 10 and make-video-music-remix step 10 ("both make videos, and both use the revision page to revise: separate the revising with the revision window into a separate skill, used by all similar video-make skills in future") → this skill; the making skills point here after their render step.
 - 2026-10-26 · quicksilverxkingpin ("are you only rendering changed chunks and replacing them in the video? … write that down in the revision skill: if it's just minor changes, save time by doing that") → step 3's "Minor revisions": render only the changed frame ranges and splice them into the previous cut; full renders only when the changes are global or spread across the video.
+- 2026-10-27 · a revision on a preview clip arrived together with "build the full video now" → when comments are fixed in a bigger render than the one reviewed (a clip → the whole video), say in each reply where the fix is in the new render (its time there), resolve the revision, and give the new render's link.
+

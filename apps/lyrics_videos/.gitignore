@@ -5,3 +5,10 @@ brands/
 thumbnails/jobs/*
 !thumbnails/jobs/.gitkeep
 thumbnails/inspiration/
+
+# 3D prop libraries: the builder scripts are committed, the built .blend files, previews and textures are not
+assets3d/**/*.blend
+assets3d/**/*.blend1
+assets3d/**/previews/
+assets3d/**/textures/
+__pycache__/

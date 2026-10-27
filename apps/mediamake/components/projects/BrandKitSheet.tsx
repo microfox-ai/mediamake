@@ -25,6 +25,7 @@ import {
   mimeOf,
   planKitUpload,
   primaryLogo,
+  skippedFolder,
   type BrandAsset,
   type BrandAssetKind,
   type BrandColor,
@@ -78,6 +79,42 @@ function kitFilesOf(list: FileList) {
 }
 
 type KitFileWithBlob = ReturnType<typeof kitFilesOf>[number];
+
+type IterableDir = FileSystemDirectoryHandle & {
+  values: () => AsyncIterable<FileSystemDirectoryHandle | FileSystemFileHandle>;
+};
+
+type PickerWindow = Window & {
+  showDirectoryPicker?: (options?: { id?: string; mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+};
+
+/**
+ * Files of a kit folder picked with the File System Access API (Chromium only), without opening
+ * the folders a kit never uploads (skippedFolder: graphics/, node_modules/, hidden ones), so a
+ * brand whose source holds thousands of reference frames reads as just its kit. Each of those
+ * folders comes back as one skipped line.
+ */
+async function walkKitFolder(dir: FileSystemDirectoryHandle, prefix = "") {
+  const files: KitFileWithBlob[] = [];
+  const skipped: KitPlan["skipped"] = [];
+  for await (const entry of (dir as IterableDir).values()) {
+    const path = `${prefix}${entry.name}`;
+    if (entry.kind === "directory") {
+      const reason = skippedFolder(entry.name);
+      if (reason) {
+        skipped.push({ path: `${path}/`, reason: `${reason}, not opened` });
+      } else {
+        const sub = await walkKitFolder(entry, `${path}/`);
+        files.push(...sub.files);
+        skipped.push(...sub.skipped);
+      }
+    } else {
+      const file = await (entry as FileSystemFileHandle).getFile();
+      files.push({ path, size: file.size, readText: () => file.text(), file });
+    }
+  }
+  return { files, skipped };
+}
 
 function AssetTile({ asset, onRemove, canEdit }: { asset: BrandAsset; onRemove: () => void; canEdit: boolean }) {
   const name = asset.path.split("/").pop();
@@ -173,11 +210,32 @@ export function BrandKitSheet({
     return data.brandKit as BrandKit;
   };
 
+  const review = async (files: KitFileWithBlob[], skipped: KitPlan["skipped"] = []) => {
+    const result = await planKitUpload(files);
+    setPlan({ ...result, skipped: [...skipped, ...result.skipped], files: result.upload as KitFileWithBlob[] });
+  };
+
   const choose = async (list: FileList | null) => {
     if (!list?.length) return;
-    const files = kitFilesOf(list);
-    const result = await planKitUpload(files);
-    setPlan({ ...result, files: result.upload as KitFileWithBlob[] });
+    await review(kitFilesOf(list));
+  };
+
+  /** Chromium walks the folder itself and leaves graphics/ shut; other browsers get <input webkitdirectory>. */
+  const pickFolder = async () => {
+    const w = window as PickerWindow;
+    if (typeof w.showDirectoryPicker !== "function") return folderInput.current?.click();
+    let dir: FileSystemDirectoryHandle;
+    try {
+      dir = await w.showDirectoryPicker({ id: "mediamake-brand-kit", mode: "read" });
+    } catch {
+      return; // closed the picker
+    }
+    try {
+      const { files, skipped } = await walkKitFolder(dir);
+      await review(files, skipped);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const upload = async () => {
@@ -319,10 +377,10 @@ export function BrandKitSheet({
                   <div className="mr-auto min-w-0">
                     <p className="text-sm font-medium">{kit ? "Update the kit" : "Upload a brand kit"}</p>
                     <p className="text-xs text-muted-foreground">
-                      Pick the folder <code className="rounded bg-muted px-1">pack-brand-kit</code> exported (<code className="rounded bg-muted px-1">brands/&lt;brand&gt;/</code>). Files with the same path are replaced.
+                      Pick the folder <code className="rounded bg-muted px-1">pack-brand-kit</code> exported (<code className="rounded bg-muted px-1">brands/&lt;brand&gt;/</code>); its <code className="rounded bg-muted px-1">graphics/</code> source is left out. Files with the same path are replaced.
                     </p>
                   </div>
-                  <Button size="sm" onClick={() => folderInput.current?.click()} className="gap-1.5">
+                  <Button size="sm" onClick={() => void pickFolder()} className="gap-1.5">
                     <FolderUpIcon className="size-4" /> Folder
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => filesInput.current?.click()} className="gap-1.5">

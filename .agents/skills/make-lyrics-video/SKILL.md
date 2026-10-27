@@ -195,7 +195,8 @@ Then source the rest:
 - Put sourced files under `input/<kind>/` (e.g. `input/pinterest/`, `input/clips/`, `input/outcrops/`)
   and keep `projects/<slug>/assets.md`: every asset with its ID, source, what it is for and its status
   (candidate / picked / rejected). The extension can disconnect mid-download and skip files silently:
-  check every file exists. When several Chrome profiles are connected, ask which one to use.
+  check every file exists. When several Chrome profiles are connected, ask which one to use by each
+  profile's Google account email, never by its number (the user doesn't know the numbers).
 
 **Research what each line refers to** when the song is about a story, a franchise or a person
 (an anime crew, a film, a life): search for the moments, names and episodes the lyrics allude to,
@@ -349,8 +350,60 @@ CSS/SVG gotchas that cost a round each:
 - A floating / drifting page: an SVG `feTurbulence` (very low frequency) → `feOffset` moved slowly
   with time → `feDisplacementMap` (scale ≈ 10) as a CSS `filter: url(#…)` on the page layer gives a
   smooth warp with no jumps (animating the noise seed or frequency jumps).
+- SVG glyph paths drawn with `pathLength` and a stroke can paint a solid box over the word in Chrome
+  (seen with large display lettering): stroke a traced glyph only while it is being traced and draw
+  the finished letter as fill alone. Effects with `filter` + `mix-blend-mode` that straddle the spine
+  paint black while a 3D page or cover turns over them: keep them on one page, or gone before the turn.
+- A `mix-blend-mode: multiply` light over the book, inside a transformed parent, lightens whatever is
+  outside the book (the parent isolates the blend): draw it only where the pages are.
+- `require.context` over `projects/` makes webpack hash every file under it: a symlink there with an
+  absolute target crashes the bundle ("Cannot read properties of undefined (reading 'length')" in
+  webpack's FileSystemInfo). Link footage with a relative symlink, or copy it.
+- Casting a whole song from footage: keep one table of (id, source, from, to) for the colour clips and
+  (id, source, time) for the frames to trace as sketches, then check the first, middle and last frame of
+  every clip on one contact sheet before rendering (shots in clip packs often start a beat late;
+  subtitles can sit at the top of a scene as well as the bottom). Dark, fire and storm frames trace
+  faintly: stretch their levels first, or skip them.
 - A shared SVG style object spread after an explicit prop overrides it (`fill={x} {...line}` with
   `fill: 'none'` in `line` loses every fill). Keep fills out of shared stroke styles; TS2783 flags it.
+- An `<Img>` wider than its parent is capped at the parent's width (`max-width: 100%`), so a background
+  bigger than the frame (a desk under a book the camera pulls back from) is squashed or cut off: set
+  `maxWidth: 'none'`.
+- No empty page: text that flows round on-page animations should know when each one is there. Give
+  every obstacle an `until`, lay the text out once with all of them, then, for each time one goes, fill
+  only the newly freed stretches of line with more text written in on the spot (word by word, line by
+  line); reserve each effect's own shape, not a block round it, and a caption only its own width; let
+  filler text run every page to its foot (users read gaps as "empty pages").
+- Display lettering fonts can hide picture glyphs (the One Piece fonts draw capital O as the skull):
+  check the glyph set before lettering words with them.
+- A multi-view line-art illusion (a cloud of 3D lines that locks into a different drawing from each of
+  several camera angles) works with no 3D engine: trace each drawing to polylines (skeletonize + simplify),
+  place every point along its own camera's ray (`P = C + R·(x/f, −y/f, −1)·depth`, a random depth per
+  stroke drifting a little along it), project per frame in JS to SVG paths. From exactly that camera, with
+  the same focal length, the strokes land on the drawing; anywhere else they scatter. Opposite views
+  mirror each other, so give every view its own axis; and fade the other drawings' lines while one is
+  locked, or the drawing drowns in the rest (preview the views in Python first).
+- Real 3D props without downloads: model them in Blender from Python (lathe profiles, swept tubes,
+  procedural materials), each prop its own collection at real-world size, and render top-down with an
+  orthographic camera in the scene's own pixel units so the render drops into the 2D layout. Put the
+  scale into the mesh (`data.transform`), not the object, so procedural textures and modifiers work in
+  metres; frame previews from mesh vertices (`bound_box` is stale until a depsgraph update); an area
+  light of P watts lights a surface d metres away to about P / (π d²) (a few watts for a desk, not
+  hundreds). Keep reusable props in a shared library (`assets3d/<theme>/`), not in the project.
+- A sound-effect word that "slams" letter by letter at video frame rate reads as flicker; land it whole.
+  Small SVGs (1×1 with overflowing content) under a filtered parent can drop out for a frame: draw
+  overlays in full-frame SVGs.
+- Thick strokes on font outlines drawn in font units under a tiny scale (`scale(k, -k)`, k ≈ 0.07) can
+  blow up into blobs on some frames in Chrome (the halo stroke width is ~2000 font units): convert the
+  outline to pixel coordinates first and stroke in pixels. Check a stamp frame by frame (render the
+  frames as a clip and tile them), not with single stills.
+- Clips cut from an edit or a twixtor pack: find the cut points with ffmpeg scene detection
+  (`select='gt(scene,0.25)',showinfo`) and keep each clip inside one shot, or a face can arrive a beat
+  late (the caption names one crewmate, the picture shows another).
+- An SVG displacement filter that moves every frame (a floating-paper warp) makes fine vector line art
+  shimmer, worst when the camera has pulled back: switch it off for shots meant to lie still. For a
+  hazy, glowing end shot, an overlay with `backdrop-filter: blur(…) brightness(…)` at ~30 % opacity
+  gives an Orton glow of the scene itself.
 
 ## 7. Verify yourself before showing the user
 

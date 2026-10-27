@@ -33,6 +33,13 @@ folder already answers and say what you assumed):
 3. **The channel and its logo(s):** which channel (a brand under `apps/lyrics_videos/brands/`?)
    and **which logos this video needs**: the channel's, plus any franchise / show / game / artist /
    sponsor logos. They can hand over files, or name them and you fetch them (step 4).
+3a. **Watermarks: always ask which channel or channels to put on the thumbnail** (a song can belong
+   to more than one: the channel that posts it and the artist's channel, e.g. Anime Music Zone +
+   Get into Zone). Offer the brands under `apps/lyrics_videos/brands/` as options (multi-select),
+   plus "none". For each one picked, use the brand's logo that reads on any ground: a transparent
+   logo in black or white chosen per picture (dark logo on light corners, light on dark), or a solid
+   cut of a picture logo; never a tile with its own background unless they ask. Two channels go on
+   opposite top corners (never bottom right: YouTube's timestamp).
 4. **The title on the thumbnail: always ask.** Must the video's title (or a set phrase, a name)
    be on the thumbnail, word for word? Options: *the title must be on it* (it becomes the hero
    text) · *title optional* · *never the title* (words that complement it). Never assume: some
@@ -44,8 +51,8 @@ folder already answers and say what you assumed):
 6. **Taste:** moods or colours they want or hate, anything from earlier thumbnails. Point them at
    `thumbnails/inspiration/` (their references) if it exists, and read it yourself.
 
-Questions 4 and 5 are asked even when everything else is already answered (put them in the same
-`AskUserQuestion` call as the rest). Write the answers into `jobs/<job>/brief.md` (`init` makes a
+Questions 3a, 4 and 5 are asked even when everything else is already answered (put them in the
+same `AskUserQuestion` call as the rest). Write the answers into `jobs/<job>/brief.md` (`init` makes a
 template).
 
 ## 2. The picture
@@ -197,6 +204,9 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 - When they pick: `npm run thumbs -w lyrics_videos -- pick <job> B2` (or `A1,B2,D3`). The finals
   land in `out/thumbnails/<job>/final/` as JPEGs under YouTube's 2 MB limit; tell them where, and
   for an A/B test that YouTube picks the winner by watch time.
+- **Three finals → three titles.** When they pick three for the A/B test, the video also gets three
+  YouTube titles, one written for each thumbnail (it adds what that thumbnail doesn't say);
+  `write-youtube-metadata` writes them (its step 3).
 
 ## Brands
 
@@ -233,3 +243,5 @@ Add entries at the bottom: date · job / channel · what they said → the rule.
 - 2026-10-25 · Breaking Bad × Dangerous (ATOMIC RAP) · Round 1 picked at once: A3 (roaring face left, "I AM THE" over DAN[Ge]R on the calm side), B3 (the hat in profile, SAY MY [Na]ME on the dark side), C1 (the hat at sunset, DANGEROUS hollow behind him) → when the user asks for the video's own fonts, build from the edit's type device (here the element boxes) and quotes from the show; a strong face with the words on its calm side, and a hollow word behind a mid shot, beat words over close-ups. A giant word centred behind a close-up loses its middle (a head is ~500 px wide): close-ups get side layouts, only mid shots keep the word behind. `focus` is CSS object-position (slides ≤ the frame's slack); `flip` mirrors about the focus point, so flip only at focus 0.5.
 - 2026-10-26 · Quicksilver × Kingpin (ATOMIC RAP) · "B2, C1 (but put the text to left), also use the STORY NEVER TOLD" → picked the red KINGPIN at a mid shot's shoulder and the close-up with a stacked lyric on its calm side; a variant whose words must swap sides mirrors the picture (`flip` at focus 0.5) rather than squeezing the words onto the face. A lyric the edit made into a big moment (its width-fit column) is a thumbnail candidate: rebuild it on the shot it is sung over, in the edit's colour. Own check: a raised hand crosses a word beside a mid shot as easily as a head does; drop the cutout when the word sits beside the subject.
 - 2026-10-26 · Quicksilver × Kingpin (ATOMIC RAP) · "increase TOLD so it fits the width of the other words" → "no, it is not, check image": `fit: each` inside one text layer is capped by the box height, so a short last line (TOLD) stayed narrower and I said it fit without measuring. For a true width-fit stack, give each line its own text layer and box of the same width (`fit: each`), then compare the lines' left and right edges in the render before saying they match.
+- 2026-10-27 · Nakama! (Anime Music Zone) · Round 1 feedback by ID: "D but title is STRAW HAT LOGS", "C1 but only the logo and all the bounties placed surrounding it", "B3 but put the One Piece logo (download official) at centre bottom and remove the subtitle", "remove the ridge line in the book" → new IDs for each (D4/D5, C4, B4); an official franchise logo comes from Wikipedia/Commons via the API (`prop=imageinfo`), checked on a coloured ground; a composition of the video's own elements (its drawn emblem, its posters) is rebuilt cleanly in Python rather than cropped from a busy frame (cut the drawing by ink and colour, multiply it onto clean paper, paint out a book's spine crease). Engine gotchas: the `side` preset's `width`/`height` are px (a fraction makes the title vanish), photo `fade.size` is a fraction, a raw-`layers` style ignores `params.logos` (add a `logo` layer), and a style-level `patch` fails on variants without that layer; move a subject sideways by extending the picture first (blurred mirror), not with `offset`.
+- 2026-10-27 · Nakama! (Anime Music Zone + Get into Zone) · "in all the finalised thumbnails add logos of both Get into Zone and Anime Music Zone" … "put them each on one side" … "use the transparent logo in black or white colours depending on the image" … "in the thumbnail skill, make sure to ask what channel or channels to attach as watermarks" → intake question 3a (which channels, multi-select, always asked); each channel's logo transparent, black or white per picture (a glass or photo logo gets a solid cut on black first: brands/animemusiczone/graphics/tools/solid_logo.py); two channels on opposite top corners. "if doing 3 thumbnail variations, then give three YouTube titles as well" → three finals get three titles, one per thumbnail.

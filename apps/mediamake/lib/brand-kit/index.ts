@@ -152,17 +152,55 @@ export function mimeOf(path: string): string {
 
 export const isImage = (path: string) => IMAGE.has(ext(path));
 export const isVideo = (path: string) => VIDEO.has(ext(path));
+/**
+ * What a kit uploads as assets: images (svg included), video, audio and the
+ * brand's font files. Code and other files (js, tsx, html, css, json, …) are
+ * never uploaded; the few text files in textRoleOf only fill kit fields.
+ */
+export const isKitAsset = (path: string) => {
+  const e = ext(path);
+  return IMAGE.has(e) || VIDEO.has(e) || AUDIO.has(e) || FONT.has(e);
+};
 
 /**
- * Files in an exported kit that are not uploaded by default: the brand's
- * source (`graphics/`), hidden files, and ProRes masters (`.mov`), which are
- * large and have a `.webm` with alpha next to them.
+ * Folders of an exported kit that are never read: hidden ones, the brand's
+ * source (`graphics/`, which can hold thousands of reference frames) and
+ * dependencies. The app's folder picker doesn't even open them.
+ */
+export function skippedFolder(name: string): string | null {
+  if (name.startsWith('.')) return 'hidden';
+  if (name === 'graphics') return 'source';
+  if (name === 'node_modules') return 'dependency';
+  return null;
+}
+
+/**
+ * True for anything under a `graphics/` folder at any depth (the brand's
+ * source). Never uploaded and never read for kit fields: the exported kit at
+ * the brand root has its own brandguide.md, colors.json and so on.
+ */
+export const inGraphicsFolder = (path: string) => cleanPath(path).split('/').slice(0, -1).includes('graphics');
+
+/** The first skippedFolder a path sits in (e.g. `graphics/`), with its reason. */
+export function skippedFolderOf(path: string): { dir: string; reason: string } | null {
+  const parts = cleanPath(path).split('/').slice(0, -1);
+  for (let i = 0; i < parts.length; i++) {
+    const reason = skippedFolder(parts[i]);
+    if (reason) return { dir: `${parts.slice(0, i + 1).join('/')}/`, reason };
+  }
+  return null;
+}
+
+/**
+ * Files in an exported kit that are not uploaded by default: anything in a
+ * skippedFolder, hidden files, and ProRes masters (`.mov`), which are large
+ * and have a `.webm` with alpha next to them.
  */
 export function skippedByDefault(path: string): string | null {
   const p = cleanPath(path);
+  const folder = skippedFolderOf(p);
+  if (folder) return folder.reason;
   if (p.split('/').some(part => part.startsWith('.'))) return 'hidden';
-  if (p.startsWith('graphics/') || p.includes('/graphics/')) return 'source';
-  if (p.includes('node_modules/')) return 'dependency';
   if (ext(p) === 'mov') return 'ProRes master (the .webm keeps the alpha)';
   return null;
 }
@@ -363,16 +401,25 @@ export interface KitPlan {
 
 /**
  * Reads an exported kit folder (the output of `pack-brand-kit`) into what to
- * upload and the fields to save. Text files fill fields; everything else is
- * an asset. `maxBytes` skips anything larger.
+ * upload and the fields to save. Text files fill fields; only images, video,
+ * audio and fonts are uploaded (isKitAsset). `maxBytes` skips anything larger.
  */
 export async function planKitUpload(files: KitFile[], options: { includeMasters?: boolean; maxBytes?: number } = {}): Promise<KitPlan> {
   const maxBytes = options.maxBytes ?? 250 * 1024 * 1024;
   const plan: KitPlan = { upload: [], skipped: [], patch: {} };
   const fontFiles: string[] = [];
   let manifest: Record<string, unknown> | null = null;
+  // A skipped folder (graphics/ can hold thousands of frames) is one skipped line with its file count.
+  const folders = new Map<string, { reason: string; count: number }>();
   for (const f of files) {
     const path = cleanPath(f.path);
+    const folder = skippedFolderOf(path);
+    if (folder) {
+      const seen = folders.get(folder.dir);
+      if (seen) seen.count++;
+      else folders.set(folder.dir, { reason: folder.reason, count: 1 });
+      continue;
+    }
     const reason = skippedByDefault(path);
     if (reason && !(options.includeMasters && reason.startsWith('ProRes'))) {
       plan.skipped.push({ path, reason });
@@ -393,7 +440,11 @@ export async function planKitUpload(files: KitFile[], options: { includeMasters?
       } catch {
         plan.skipped.push({ path, reason: 'could not be read' });
       }
-      if (role === 'guide' || role === 'manifest') continue;
+      continue;
+    }
+    if (!isKitAsset(path)) {
+      plan.skipped.push({ path, reason: 'not an image, video, audio or font file' });
+      continue;
     }
     if (f.size > maxBytes) {
       plan.skipped.push({ path, reason: `larger than ${Math.round(maxBytes / 1024 / 1024)} MB` });
@@ -401,6 +452,9 @@ export async function planKitUpload(files: KitFile[], options: { includeMasters?
     }
     if (assetKindOf(path) === 'font') fontFiles.push(path);
     plan.upload.push({ ...f, path });
+  }
+  for (const [dir, { reason, count }] of folders) {
+    plan.skipped.unshift({ path: dir, reason: `${reason}, ${count} file${count === 1 ? '' : 's'}` });
   }
   if (manifest) {
     if (typeof manifest.name === 'string') plan.patch.name = manifest.name;
