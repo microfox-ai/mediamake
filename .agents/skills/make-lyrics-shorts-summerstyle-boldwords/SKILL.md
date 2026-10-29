@@ -1,6 +1,6 @@
 ---
 name: make-lyrics-shorts-summerstyle-boldwords
-description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
+description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
 ---
 
 # make-lyrics-shorts-summerstyle-boldwords
@@ -19,6 +19,10 @@ anatomy is the default look:
   was rejected ("the fonts appear stretched, don't do that"). One word may be **turned vertical**
   down a side beside a block of rows (`eyes` up the left beside `of / pink / a soul / of`, `bite`
   beside its last two rows).
+- **The lockup** (2026-10-28). Most lines don't use the mask: the footage plays full frame and the
+  line sits on it — one highlight word big and centred, the small words nested beside its letters (above
+  the x-height next to the letters that rise, below the baseline next to the ones that drop), white with a
+  soft shadow. The mask is kept for a few punch lines a short.
 - **A loop.** The short ends on a bar line at the end of a 4-bar unit and its last beat starts the
   take the short opens on, so it runs straight back into its beginning.
 - **Words as sung.** All rows have their place from the start; each word lights up when it is sung,
@@ -47,7 +51,16 @@ edit; short `s01` = the final chorus into the outro hit.
 **Taste comes from the user.** Keep `projects/<slug>/prefs.md` (intake answers, the look, a dated log
 of every note, numbered as the user wrote it). Read the lessons log at the bottom before planning.
 
-## Principles (v3 after the user's second notes — they will keep refining them)
+## Principles (v4 after the user's notes on the JJK twelve, 2026-10-28 — they will keep refining them)
+
+0. **Two kinds of screens: a few masks, the rest lockups.** "When there are so many lines and the lines are
+   going fast, visually it is hard to concentrate on both text and the visual" — so only the punch lines
+   take the mask (the opener, a repeated word, the dives: 2–4 a short), and every other line is a `cap`
+   lockup over the full-frame footage (see "Lockups over the footage" below). A mask screen that would
+   fill under ~75 % of the height leaves black bands — "must be avoided as much as possible" — so it
+   becomes a lockup (or starts as words over the footage). Pick each lockup's highlight by hand when the
+   automatic one lands on a filler (`yeah`, `get`, `just`, `lost` → `cage`, `rampage`, `blue`, `edge`):
+   the word that carries the line.
 
 1. **One short phrase a screen, sung within ~1–2 s.** Every row has its place from the screen's
    start and stays black until its word is sung, so a long screen *is* a black screen: v7's couplets
@@ -75,7 +88,7 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    inside `flame`, the bamboo muzzle inside `bite` / `keep it shut`, falling inside `fall`, sunlight
    inside `the light`. Put the subject's *face or eyes behind the biggest row* — details read through
    the mask; a dark corner of the frame turns the letters black.
-3b. **Every cut framed on its subject — "placing the clip correctly is important".** The user (s02/s03
+3b. **Every cut framed on its subject, through the whole shot — "placing the clip correctly is important".** The user (s02/s03
    v2): "you are not putting the right clips, or you are not cropping them correctly, so it fits
    correctly". Mark each shot's face box and eye line in `footage/faces.json`; `framing.ts` crops every
    cut without a hand crop on it: the eye line on the upper third, the face centred and a third of the
@@ -107,7 +120,12 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
 5. **Dive where the music opens.** A dive (`exit: 'through'`) into full-frame footage belongs on an
    instrumental hit, a held note or the end; 1–3 per short. A drum fill or a pickup before the first
    word can open full frame and pull back `into` the first stack. Nothing else moves the type.
-6. **Cut on the beat, with an anime editor's transitions.** 2–4 beats a cut while a stack is up; a new
+6. **Cut on the beat, with an anime editor's transitions — and move like one camera.** Every cut gets
+   twixtor on the beat (`ramp` bursts and `bump` punches on 60 fps footage, a slow `push` on art and 30 fps
+   shots) and runs of one camera move made of the crop (`pan` / `tilt`): the same way across a phrase or
+   two, tilting up on rising lines and down on falling ones, the subject's eyes on the same spot at each cut
+   — it reads as one continuous move (the user: "left pan into left pan, the subject aligned — a good match
+   cut"). Nothing moves on the loop seam. 2–4 beats a cut while a stack is up; a new
    shot on each row's key word. Every cut gets a move chosen by the music and the line, like an anime
    shorts editor in CapCut (v9, the user asked for it): `velocity` (the signature — races into the cut,
    eases out of it, with motion trails) and the warp `zoom` on the drum hits, `slash` (a katana wipe
@@ -139,7 +157,8 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    lines kills it (s02 v1–v3 had 13 beats after its first line): move the window past it (the drums a
    breath before the next line). Full-frame footage belongs to a lead-in of a beat or two, held notes
    and the end.
-8b. **Start on the hook, end on a full 4-bar unit, and loop.** The first second already shows a
+8b. **Start on the hook, end on a full 4-bar unit, and loop.** Open on a strong anime shot, not fan art (the
+   user swapped one out: "I just don't like the first artwork"). The first second already shows a
    striking shot or the first word. The end lands on a bar line at the end of a 4-bar unit of its
    section — a short that stops a bar into the outro "stops mid rhythm" (the picker now charges for
    it). Make it loop (`new --loop`: no fade in, a 20 ms fade out): start on a downbeat, end on one,
@@ -193,7 +212,8 @@ latter crop the 9:16 clips); every run checks **three different stretches** with
 building and ends with the shorts they picked (three by default); a re-cut of a stretch is fine unless
 they called it bad; **never AI-upscale** footage unless asked (a tighter crop's lanczos scale is fine).
 
-Ask with `AskUserQuestion` only what else is open: length (15–45 s), the channel (a sign-off or not),
+Ask with `AskUserQuestion` only what else is open: length (15–45 s), the channel (a sign-off or not; a
+brand watermark or not, and which brand — see "A brand's watermark" below),
 palette and fps (30; 60 for smooth slow-motion footage doubles render time). Write `brief.md`, seed
 `prefs.md`. The first run of this skill (eyesofpink) assumed 9:16 and built one stretch to settle the
 style — don't take that as the pattern.
@@ -269,7 +289,29 @@ Make a casting sheet of candidate shots with an x-ruler (`drawgrid=w=48` over 48
 each subject's centre off it. Then write screens and cuts, each cut with *why* as a comment (see the
 reference below).
 
+### A brand's watermark
+
+```bash
+npm run lyric-shorts -w lyrics_videos -- <slug> brand <brand> [--label="Music by"] [--at=top-right] [--width=0.2] [--logo=logo/<file>]
+```
+
+Puts a brand's watermark on every short of the project (user, 2026-10-28: "put a watermark at top right,
+Music by + the Get into Zone logo … this skill should also accept a brand if it wants a watermark on the
+shorts"). It reads the brand's kit profile (`brands/<brand>/thumbnail.json`, from pack-brand-kit), copies its
+**compact mark** (the logo a thumbnail job takes as `mark.png` — for Get into Zone the Frame, never the wide
+Strip: "don't use strip logo, use the frame logo") and its small-label face into `shorts/brand/`, and sets
+`theme.watermark` (`logo`, `label`, `labelFont`, `at`, `width`, `color`). The render draws it still over every
+frame — no shake, no transition, through the loop seam — the label in capitals with wide tracking above the
+mark, flush with the corner, a soft shadow. The slim render folder must carry `shorts/brand/` too.
+
 ### 5. Clips and checks
+
+Tools for the checks (all in `scripts/`, run from `apps/lyrics_videos`): `screens.mjs <slug> <id>` (each
+screen's kind, words, fill and beats), `framed.mjs <slug> <id>` (each cut's clip and its start / middle / end
+clip times — tile those frames to see the subject through the whole shot), `motion.py <video> <footage dir>`
+(each shot's camera motion → motion.json) and `continuity.py` (cuts moving against the one before).
+`rollout.py <project> <id> <screens.json>` upgrades an older cut list to this approach (masks only on punch
+lines, lockups, beat effects, camera runs) — then check its highlights and framing by eye.
 
 ```bash
 npm run lyric-shorts -w lyrics_videos -- <slug> clips s01
@@ -370,6 +412,40 @@ export const edl: LyricShortEdl = {
   footage letters always carry), `appear` (`from` brightness, `ramp` seconds), `grade` (saturate,
   contrast, brightness, a soft-light `tint`), `leaks` (two colours, amount: over full frames, blooming
   as one opens), `grain`.
+
+### Lockups over the footage, and twixtor on the beat (2026-10-28)
+
+- **Not every screen is a mask.** On fast, wordy lines the eye can't follow the words and the picture at once
+  (the user: "only some shots use the mask, the others can come on top of the image"). Keep the mask for the
+  punch lines — a vow, a repeated word, the dive — and set the rest as `cap('<line>', { hi, place, color })`:
+  the footage plays full frame and the line sits on it as a lockup (`lockup.ts`): the highlight word big
+  (`hi`, default the longest-held word that isn't a little one), the words before it nested above the
+  x-height in the widest gap beside the letters that rise, the words after it under the baseline beside the
+  letters that drop — next to the letters, never across them — else above / below the whole word, flush
+  with its edge. White with a soft shadow and a faint scrim; `place` low (default, under the faces), high,
+  mid; `color` tints the highlight (the theme's accent). The small words use `type.small` (the face at 700:
+  `npm run lyric-shorts -- <slug> font Figtree --weight=700`), at least 62 px.
+- **No wide black bands.** A mask screen that fills under ~75 % of the height becomes a lockup (or starts as
+  words over the footage, `reverse: true`).
+- **Twixtor on the beat** (per cut): `ramp` (0..1, a burst of speed as each beat lands gliding into slow
+  motion — the shot's own pace on average, so it needs no more footage; motion trails on the bursts),
+  `bump` (a zoom punch on every beat, 0.04–0.07) and `push` (a slow camera push over the cut, 0.05–0.08).
+  Ramps on 60 fps twixtor shots, bumps on hits and fights, pushes on calm shots and art.
+
+- **The subject stays in the box through the whole shot**, not just its middle frame (`cuts.jpg`): draw each
+  cut's start, middle and end as cropped (`node scripts/framed.mjs <slug> <id>` lists every cut's clip and
+  times; tile three frames each) and re-mark the faces that drift or were marked on the wrong spot (a profile
+  marked on the back of the head; a walk that starts left of where it ends), or swap the shot.
+- **Nested small words grow into their gap**: as wide as the space beside the tall (or dropping) letters, at
+  most half again the band's height and under half the highlight's size (the user: the word before
+  "absolve" "can be a bit bigger, as there is still space until b").
+- **Continuity: runs of one camera move.** Twixtor packs are almost all locked-off shots (`scripts/motion.py`
+  on Yuta's footage: 229 of 237 still) — the motion is the characters'. So make the move with the crop:
+  `pan` / `tilt` per cut (the 9:16 window slides across the 16:9 source, centred on the framed spot, ~0.04–0.07
+  of the width), the same way for every cut of a phrase or two (drift right, tilt up on "rise", tilt down on
+  a falling line), the eyes on the same spot at each cut (framing does that) — one continuous move across
+  the cuts. Follow a shot's own motion where it has one (`motion.json`, `scripts/continuity.py` flags a cut
+  moving against the one before). No move on the loop's last cut or its opening take (the seam).
 
 ## Gotchas
 
@@ -521,3 +597,29 @@ Append dated entries: what the user asked to change and the general rule behind 
   with cascade-marked faces, fitting short twixtor shots by rate, black words over the footage for a long
   first word, and one slim bundle for many renders (step 6). Each song's look is its own theme colour
   (Yuta blue + Rika pink, Maki blood red, Higuruma gold, Toji hollow purple). Awaiting the user's notes.
+- 2026-10-28 — Notes on the JJK twelve (tried first on cursedlove s01, "do not do for everything, lets try only
+  the very first shot"): "when there are so many lines and the lines are going fast, visually it is hard to
+  concentrate on both text and the visual … only some shots use mask, the other can come on top of image …
+  neat typography where there is one highlight word and small words above or below at the correct places
+  where it does not cross the letter … but sits next to it"; "shots that come with huge black bars above and
+  below must be avoided"; "twixtors can speed up and zoom, beat box transition effects or other camera-like
+  effects". → the cap screen (a lockup over the footage, lockup.ts), masks kept for 3 punch screens out of
+  18, no screen under ~75 % fill, and per-cut ramp / bump / push. cursedlove s01 v4 rendered for review.
+- 2026-10-28 — Notes on cursedlove s01 v4 ("much much better"): "some shots are not positioned correctly, the
+  subject is outside the box, either replace them or crop correctly"; the "rise" lockup "done perfectly", but
+  the word before "absolve" "can be a bit bigger, as there is still space until b, same with some other
+  typos"; "use shots that make you feel continuity, like a left pan into a left pan, the subject aligned —
+  a good match cut". → faces checked through each shot (7 re-marked, 1 swapped for the same take running on),
+  nested small words grow into their gap, and crop pans / tilts in runs (motion.py found the packs locked-off).
+  v5 rendered.
+- 2026-10-28 — "roll it out and also update the skill": the s01 approach applied to the other eleven
+  (rollout.py: masks kept on 2–4 punch screens a short, every other line a lockup, beat effects and camera runs
+  on every cut, nothing moving at the seam), weak auto highlights replaced by hand and fillers taught to the
+  picker, every cut's framing checked at its start, middle and end (15 shots swapped: backs of heads, a
+  sword light with no face, an arm in the leaves, the art the user disliked). The approach is now the skill's
+  default (principles 0, 3b, 6, 8b).
+- 2026-10-28 — "put a watermark at top right, Music by + the Get into Zone logo; this skill should also accept a
+  brand if it wants a watermark": the `brand` command and `theme.watermark` (logo + a label in the brand's
+  label face, still over every frame). First pass used the brand's Strip (its thumbnail credit); the user:
+  "don't use strip logo, use the frame logo" → the default is the brand's compact mark (`mark.png` in its
+  thumbnail profile), 20 % of the width.

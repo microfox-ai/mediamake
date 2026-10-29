@@ -21,6 +21,7 @@
  *   npm run lyric-shorts -w lyrics_videos -- <slug> new B [--formats=9x16] [--lead=1] [--loop]   (lead: bars before the first line)
  *   npm run lyric-shorts -w lyrics_videos -- <slug> new 211.3-244.5
  *   npm run lyric-shorts -w lyrics_videos -- <slug> clips s01
+ *   npm run lyric-shorts -w lyrics_videos -- <slug> brand <brand> [--label="Music by"] [--at=top-right]   (a watermark on every short)
  *
  * Footage sources: projects/<slug>/shorts/footage.json { sources: [{ id, prefix, source, segregation }] }
  * (source relative to the project; segregation = the analyze-video output folder). Without it, the
@@ -34,6 +35,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import opentype from 'opentype.js';
 import { aimOf, frameCuts, inkOf, LUMA_BANDS, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
 import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
+import { solveLockup } from '../src/lyricshorts/lockup.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -342,6 +344,42 @@ if (cmd === 'font') {
   process.exit(0);
 }
 
+// ------------------------------------------------------------------ brand
+
+if (cmd === 'brand') {
+  // a brand's watermark on the shorts (user, 2026-10-28: "put a watermark at top right, Music by + the Get into
+  // Zone logo … this skill should also accept a brand if it wants a watermark on the shorts"): copies the brand's
+  // credit logo and its small-label font from its kit (brands/<brand>/thumbnail.json) into shorts/brand/ and sets
+  // theme.watermark. --logo=<file in the kit> picks another logo, --label, --at (top-right · top-left ·
+  // bottom-right · bottom-left), --width (fraction of the frame's width)
+  const brand = what;
+  if (!brand) throw new Error('brand <name> [--logo=logo/<file>] [--label="Music by"] [--at=top-right] [--width=0.2]');
+  const kit = path.join(ROOT, 'brands', brand);
+  if (!fs.existsSync(path.join(kit, 'thumbnail.json'))) throw new Error(`no brands/${brand}/thumbnail.json (pack-brand-kit writes it)`);
+  type Profile = { name: string; logos: { file: string; as?: string }[]; fonts?: { family: string; weight: number; file: string; role?: string }[]; palette?: Record<string, string> };
+  const prof = JSON.parse(fs.readFileSync(path.join(kit, 'thumbnail.json'), 'utf8')) as Profile;
+  // the brand's compact mark (what a thumbnail job copies as mark.png: Get into Zone's Frame — the user,
+  // 2026-10-28: "don't use the strip logo, use the frame logo"), else the artist credit, else the first
+  const logo = opt('logo') ?? (prof.logos.find(l => l.as === 'mark.png') ?? prof.logos.find(l => l.as === 'logo.png') ?? prof.logos[0]).file;
+  const font = (prof.fonts ?? []).find(f => /label/i.test(f.role ?? '')) ?? (prof.fonts ?? []).find(f => /small/i.test(f.role ?? '')) ?? prof.fonts?.[0];
+  const out = path.join(shortsDir, 'brand');
+  fs.mkdirSync(out, { recursive: true });
+  const logoRel = `shorts/brand/logo${path.extname(logo)}`;
+  fs.copyFileSync(path.join(kit, logo), path.join(dir, logoRel));
+  const fontRel = font ? `shorts/brand/label${path.extname(font.file)}` : null;
+  if (font) fs.copyFileSync(path.join(kit, font.file), path.join(dir, fontRel!));
+  const label = opt('label') ?? 'Music by';
+  const entry = `  // the brand's watermark (npm run lyric-shorts -- ${slug} brand ${brand}): ${prof.name}\n  watermark: { brand: '${brand}', logo: '${slug}/${logoRel}', label: ${JSON.stringify(label)}, ${fontRel ? `labelFont: '${slug}/${fontRel}', ` : ''}at: '${opt('at') ?? 'top-right'}', width: ${opt('width') ?? 0.2}, color: '${prof.palette?.ink ?? '#FFFFFF'}' },\n`;
+  const themeFile = path.join(shortsDir, 'theme.ts');
+  let th = fs.readFileSync(themeFile, 'utf8');
+  th = th.replace(/  \/\/ the brand's watermark[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
+  const end = th.lastIndexOf('};');
+  th = th.slice(0, end) + entry + th.slice(end);
+  fs.writeFileSync(themeFile, th);
+  console.log(`✔ ${prof.name}: ${logo} + "${label}"${font ? ` in ${font.family} ${font.weight}` : ''} → shorts/brand/, theme.watermark set`);
+  process.exit(0);
+}
+
 // ------------------------------------------------------------------ clips
 
 if (cmd === 'clips') {
@@ -376,12 +414,21 @@ if (cmd === 'clips') {
   const { THEME } = (await import(pathToFileURL(path.join(shortsDir, 'theme.ts')).href)) as { THEME: { type: TypeStyle } };
   const fontBuf = fs.readFileSync(path.join(ROOT, 'projects', THEME.type.font));
   const font = opentype.parse(fontBuf.buffer.slice(fontBuf.byteOffset, fontBuf.byteOffset + fontBuf.byteLength));
+  const smallBuf = THEME.type.small ? fs.readFileSync(path.join(ROOT, 'projects', THEME.type.small)) : fontBuf;
+  const smallFont = opentype.parse(smallBuf.buffer.slice(smallBuf.byteOffset, smallBuf.byteOffset + smallBuf.byteLength));
   const b = (t: number) => beatAt(m, t).toFixed(1).padStart(6);
   console.log(`${m.title} · ${id} · ${mmss(short.from)}–${mmss(short.to)} (${(short.to - short.from).toFixed(1)} s)\n`);
   console.log('screens');
   const layouts = solveShort(screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack'), font, THEME.type, 1080, 1920);
   for (const s of screens) {
     if (s.kind === 'full') console.log(`  ${b(s.start)}–${b(s.end)}  full frame`);
+    else if (s.kind === 'cap') {
+      // a lockup over the footage: the highlight word, and where the small words went
+      const lk = solveLockup(s, font, smallFont, THEME.type, 1080, 1920);
+      const wait = Math.max(...s.words.map(w => w.show)) - s.start;
+      console.log(`  ${b(s.start)}–${b(s.end)}  over the footage: ${s.words.map((w, i) => (i === s.hi ? w.text.toUpperCase() : w.text)).join(' ')}   (${Math.round(lk.size)} px / ${Math.round(lk.small)} px; small words ${lk.where}; all words in by +${wait.toFixed(1)} s)`);
+      console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
+    }
     else {
       const lay = layouts.get(s.index)!;
       // how the stack meets the frame: letters stretched (only if the theme allows it), then black above
@@ -435,7 +482,18 @@ if (cmd === 'clips') {
     const cy = Math.round(Math.min(h - ch, Math.max(0, c.y * h - ch / 2)));
     const file = path.join(outDir, c.file);
     // at the source's own speed and frame rate (up to 60): speed ramps and slow motion pick frames in the render
-    const vf = [`crop=${cw}:${ch}:${cx}:${cy}`, 'scale=1080:1920:flags=lanczos', `fps=${Math.min(60, srcFps.get(src.id) ?? 30)}`, c.mono ? 'hue=s=0' : '', 'format=yuv420p'].filter(Boolean).join(',');
+    // a camera move made of the crop (pan / tilt): the window travels across the source over the cut's
+    // seconds of clip, centred on the framed position, then holds; clamped to the frame
+    let cropX = String(cx);
+    let cropY = String(cy);
+    if (c.pan || c.tilt) {
+      const ds = Math.max(0.05, clipTime(c, c.end - c.start));
+      const x0 = c.x * w - cw / 2 - (c.pan * w) / 2;
+      const y0 = c.y * h - ch / 2 - (c.tilt * h) / 2;
+      cropX = `min(max(0\\,${x0.toFixed(1)}+${((c.pan * w) / ds).toFixed(2)}*min(t\\,${ds.toFixed(3)}))\\,${w - cw})`;
+      cropY = `min(max(0\\,${y0.toFixed(1)}+${((c.tilt * h) / ds).toFixed(2)}*min(t\\,${ds.toFixed(3)}))\\,${h - ch})`;
+    }
+    const vf = [`crop=${cw}:${ch}:${cropX}:${cropY}`, 'scale=1080:1920:flags=lanczos', `fps=${Math.min(60, srcFps.get(src.id) ?? 30)}`, c.mono ? 'hue=s=0' : '', 'format=yuv420p'].filter(Boolean).join(',');
     if (!fs.existsSync(file)) jobs.push({ file, argv: ['-v', 'error', '-y', '-ss', (shot.start + c.in).toFixed(3), '-i', path.join(dir, src.source), '-t', c.span.toFixed(3), '-vf', vf, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', `${file}.part.mp4`] });
     const trs = [c.tr.kind !== 'cut' ? c.tr.kind + (c.tr.dir ? ` ${c.tr.dir}` : '') : '', c.flash ? 'flash' : '', c.shake ? `shake ${c.shake}` : ''].filter(Boolean).join(' + ') + (whole.includes(i) ? '  (whole frame: the screen changes here)' : '');
     console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
@@ -481,8 +539,8 @@ if (cmd === 'clips') {
   // the Revisions map: one shot per cut, named by the words on screen over it
   const onScreen = (a: number, z: number) =>
     screens
-      .filter(s => s.kind === 'stack' && s.end > a && s.start < z)
-      .flatMap(s => (s.kind === 'stack' ? s.words.filter(w => w.show < z && w.show >= Math.min(a, s.start)).map(w => w.text) : []))
+      .filter(s => s.kind !== 'full' && s.end > a && s.start < z)
+      .flatMap(s => (s.kind !== 'full' ? s.words.filter(w => w.show < z && w.show >= Math.min(a, s.start)).map(w => w.text) : []))
       .join(' ');
   const shotList = cuts.map((c, i) => ({ id: `${id}.${i + 1}`, from: +c.start.toFixed(3), to: +c.end.toFixed(3), label: c.shot, lyric: onScreen(c.start, c.end) || undefined }));
   fs.writeFileSync(path.join(sd, 'shots.json'), `${JSON.stringify(shotList, null, 1)}\n`);

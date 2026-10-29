@@ -76,10 +76,12 @@ export const makeProjectVideo = (
               );
             })}
             {/* frames here are song frames (the window's shift is undone): fade in after `start`, out before `end` */}
-            <Audio
-              src={asset(manifest.audio.src)}
-              volume={win ? f => Math.min(1, fadeIn > 0 ? Math.max(0, (f - start) / fadeIn) : 1, fadeOut > 0 ? Math.max(0, (end - f) / fadeOut) : 1) : undefined}
-            />
+            {project.audio !== false && (
+              <Audio
+                src={asset(manifest.audio.src)}
+                volume={win ? f => Math.min(1, fadeIn > 0 ? Math.max(0, (f - start) / fadeIn) : 1, fadeOut > 0 ? Math.max(0, (end - f) / fadeOut) : 1) : undefined}
+              />
+            )}
       </>
     );
 

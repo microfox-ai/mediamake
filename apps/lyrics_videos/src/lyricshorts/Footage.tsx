@@ -248,6 +248,13 @@ export const FootageAt: React.FC<{ slug: string; cuts: ResolvedCut[]; t: number;
   }
   if (outer) fx = combine(fx, outer);
   fx = { ...fx, scale: fx.scale * (1 + look.pulse * kickAt(kicks, t)) };
+  // twixtor on the beat: a zoom punch on every beat inside the cut, a slow camera push over the cut
+  if (c.bump) {
+    let hit = 0;
+    for (const b of c.beats) if (tau >= b - 0.5 / fps && tau - b < 0.4) hit = Math.max(hit, Math.exp(-Math.max(0, tau - b) / 0.09));
+    fx = { ...fx, scale: fx.scale * (1 + c.bump * hit) };
+  }
+  if (c.push) fx = { ...fx, scale: fx.scale * (1 + c.push * smooth(clamp01(tau / Math.max(0.1, c.end - c.start)))) };
   // the shot before plays on under a slash, iris or dissolve that brings this one in
   const under = only === undefined && i > 0 && !whole.has(i) && OVERLAP[c.tr.kind] && tau < c.tr.in ? i - 1 : -1;
   return (

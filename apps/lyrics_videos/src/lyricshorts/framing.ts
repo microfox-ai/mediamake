@@ -41,7 +41,8 @@ export const cropOn = (box: FaceBox, aspect: number, aim: Aim) => {
 export const aimOf = (c: Pick<ResolvedCut, 'start' | 'end'>, screens: ResolvedScreen[], layouts: Map<number, StackLayout>, W: number, H: number): Aim => {
   const mid = (c.start + c.end) / 2;
   const s = screens.find(x => mid >= x.start && mid < x.end);
-  if (!s || s.kind === 'full') return SEEN_WHOLE;
+  // a full screen and a lockup over the footage show the shot whole
+  if (!s || s.kind !== 'stack') return SEEN_WHOLE;
   const lay = layouts.get(s.index);
   if (!lay || (lay.flip !== undefined && mid < lay.flip)) return SEEN_WHOLE;
   const first = (r: StackLayout['rows'][number]) => Math.min(...r.words.map(w => s.words[w].show));

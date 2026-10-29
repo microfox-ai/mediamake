@@ -9,14 +9,15 @@
  * Each cut's crop is framed on its subject (framing.ts, footage/faces.json).
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { AbsoluteFill, cancelRender, continueRender, delayRender, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, cancelRender, continueRender, delayRender, Img, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import { useSongTime } from '../kit/hooks';
 import type { Font } from 'opentype.js';
 import { layoutShort, loadFont, type RowLayout, type StackLayout, type TypeStyle } from './layout';
 import { entryFx, exitFx, FootageAt, FxLayer, motionOf, surfaceOf, svgMotion, type Fx, type FootageLook } from './Footage';
 import { frameCuts, inkOf, type Faces, type Luma } from './framing';
-import { OVERLAP, resolveShort, type LyricShortEdl, type ResolvedScreen, type ResolvedStack } from './spec';
+import { solveLockup, type Lockup } from './lockup';
+import { OVERLAP, resolveShort, type LyricShortEdl, type ResolvedCap, type ResolvedScreen, type ResolvedStack } from './spec';
 
 export type LyricShortTheme = {
   type: TypeStyle;
@@ -38,6 +39,9 @@ export type LyricShortTheme = {
   leaks?: { colors: [string, string]; amount: number };
   /** film grain over the footage, 0..1 */
   grain?: number;
+  /** a brand's watermark over every frame (npm run lyric-shorts -- <slug> brand <brand>): its logo (a static
+   *  path), a small label above it in the brand's label face, in a corner, `width` of the frame wide */
+  watermark?: { brand?: string; logo: string; label?: string; labelFont?: string; at?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'; width?: number; color?: string; opacity?: number };
   /** transitions: the flash colour (cuts with `flash: true`), the blade light of a slash and an iris
    *  ring, and how far the picture punches out on every kick (0.03 = 3 %) */
   cuts?: { flash?: string; blade?: string; pulse?: number };
@@ -99,6 +103,94 @@ const Grain: React.FC<{ amount: number }> = ({ amount }) => {
   );
 };
 
+/** a lockup over the footage: each word appears as it is sung (the highlight word pops in from a little
+ *  larger), white with a soft shadow, a faint dark scrim behind it so it reads on bright shots */
+const LockupLayer: React.FC<{ cap: ResolvedCap; lockup?: Lockup; t: number; W: number; H: number; motion?: Fx; origin?: [number, number] }> = ({ cap, lockup, t, W, H, motion, origin }) => {
+  if (!lockup) return null;
+  const { box, dy } = lockup;
+  const top = ((box.top + dy) / H) * 100;
+  const bottom = ((box.bottom + dy) / H) * 100;
+  const scrim = clamp01((t - cap.start) / 0.2) * clamp01((cap.end - t) / 0.15);
+  return (
+    <>
+      <AbsoluteFill
+        style={{
+          opacity: scrim,
+          background: `linear-gradient(to bottom, transparent ${Math.max(0, top - 14)}%, rgba(0,0,0,0.38) ${(top + bottom) / 2}%, transparent ${Math.min(100, bottom + 14)}%)`,
+        }}
+      />
+      <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+        <defs>
+          <filter id={`lockup-shadow-${cap.index}`} x="-20%" y="-40%" width="140%" height="180%">
+            <feDropShadow dx="0" dy={H * 0.003} stdDeviation={H * 0.007} floodColor="#000" floodOpacity="0.55" />
+          </filter>
+        </defs>
+        <g transform={motion ? svgMotion(motion, origin ?? [W / 2, H / 2]) : undefined}>
+          <g transform={`translate(0 ${dy.toFixed(1)})`} filter={`url(#lockup-shadow-${cap.index})`}>
+            {lockup.words.map((w, i) => {
+              const show = cap.words[w.word].show;
+              const u = clamp01((t - show) / (w.big ? 0.22 : 0.14));
+              if (u <= 0) return null;
+              const pop = w.big ? 1 + 0.14 * (1 - u) ** 3 : 1;
+              const cx = (w.box.left + w.box.right) / 2;
+              const cy = (w.box.top + w.box.bottom) / 2;
+              return (
+                <path
+                  key={i}
+                  d={w.path}
+                  fill={w.big ? cap.color ?? '#FFFFFF' : '#FFFFFF'}
+                  fillOpacity={(w.big ? 1 : 0.94) * Math.min(1, u * 1.4)}
+                  transform={pop !== 1 ? `translate(${cx} ${cy}) scale(${pop.toFixed(4)}) translate(${-cx} ${-cy})` : undefined}
+                />
+              );
+            })}
+          </g>
+        </g>
+      </svg>
+    </>
+  );
+};
+
+/** the brand's watermark: still over everything (no shake, no transition), a small capital label set from the
+ *  brand's label face as outlines, its logo under it, flush with the corner */
+const Watermark: React.FC<{ mark: NonNullable<LyricShortTheme['watermark']>; font: Font; W: number; H: number }> = ({ mark, font, W, H }) => {
+  const at = mark.at ?? 'top-right';
+  const right = at.endsWith('right');
+  const top = at.startsWith('top');
+  const mx = 0.045 * W;
+  const my = 0.035 * H;
+  const w = (mark.width ?? 0.2) * W;
+  const size = Math.round(0.024 * W);
+  const text = (mark.label ?? '').toUpperCase();
+  // the label glyph by glyph with 0.14 em letter-spacing, right- or left-aligned to the logo
+  const glyphs = font.stringToGlyphs(text);
+  const scale = size / font.unitsPerEm;
+  let pen = 0;
+  const paths: string[] = [];
+  glyphs.forEach((g, i) => {
+    if (i) pen += font.getKerningValue(glyphs[i - 1], g) * scale;
+    paths.push(g.getPath(pen, 0, size).toPathData(2));
+    pen += g.advanceWidth! * scale + 0.14 * size;
+  });
+  const labelW = Math.max(0, pen - 0.14 * size);
+  const capH = size * 0.72;
+  const shadow = 'drop-shadow(0 2px 6px rgba(0,0,0,0.55))';
+  return (
+    <AbsoluteFill style={{ opacity: mark.opacity ?? 0.95, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', [right ? 'right' : 'left']: mx, [top ? 'top' : 'bottom']: my, width: w, display: 'flex', flexDirection: top ? 'column' : 'column-reverse', alignItems: right ? 'flex-end' : 'flex-start', gap: Math.round(0.008 * H) }}>
+        {text ? (
+          <svg width={labelW} height={capH + 2} style={{ overflow: 'visible', filter: shadow }}>
+            <g transform={`translate(0 ${capH})`}>
+              {paths.map((d, i) => <path key={i} d={d} fill={mark.color ?? '#FFFFFF'} />)}
+            </g>
+          </svg>
+        ) : null}
+        <Img src={staticFile(mark.logo)} style={{ width: w, height: 'auto', display: 'block', filter: shadow }} />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 /** the stack's transform at song time t: identity at rest, a dive around a row's thickest stroke */
 const diveOf = (s: ResolvedStack, lay: StackLayout, t: number, W: number, H: number) => {
   let p = 0;
@@ -130,18 +222,30 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
 
   const [handle] = useState(() => delayRender('lyric short: font and layout'));
   const [font, setFont] = useState<Font | null>(null);
+  // the small words of a lockup: a lighter weight of the face when the theme has one
+  const [smallFont, setSmallFont] = useState<Font | null>(null);
+  const [markFont, setMarkFont] = useState<Font | null>(null);
   useEffect(() => {
-    loadFont(staticFile(theme.type.font))
-      .then(f => {
+    const wm = theme.watermark;
+    Promise.all([loadFont(staticFile(theme.type.font)), theme.type.small ? loadFont(staticFile(theme.type.small)) : null, wm?.labelFont ? loadFont(staticFile(wm.labelFont)) : null])
+      .then(([f, s, w]) => {
         setFont(f);
+        setSmallFont(s ?? f);
+        setMarkFont(w ?? s ?? f);
         continueRender(handle);
       })
       .catch(err => cancelRender(err));
-  }, [handle, theme.type.font]);
+  }, [handle, theme.type.font, theme.type.small, theme.watermark]);
   const layouts = useMemo(() => {
     if (!font) return null;
     return layoutShort(resolved.screens.filter((s): s is ResolvedStack => s.kind === 'stack'), font, theme.type, W, H);
   }, [font, resolved, theme, W, H]);
+  const lockups = useMemo(() => {
+    const out = new Map<number, Lockup>();
+    if (!font || !smallFont) return out;
+    for (const s of resolved.screens) if (s.kind === 'cap') out.set(s.index, solveLockup(s, font, smallFont, theme.type, W, H));
+    return out;
+  }, [font, smallFont, resolved, theme, W, H]);
   const cuts = useMemo(() => (layouts ? frameCuts(resolved.cuts, resolved.screens, layouts, faces, W, H, loop) : resolved.cuts), [layouts, resolved, faces, W, H, loop]);
   // the colour of each reversed stack's words: black on bright footage, white on dark
   const inks = useMemo(() => {
@@ -168,9 +272,11 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     const stack = screen?.kind === 'stack' ? screen : null;
     const layout = stack && layouts ? layouts.get(stack.index)! : null;
     const dive = stack && layout ? diveOf(stack, layout, t, W, H) : { p: 0, transform: undefined };
-    const fullOn = screen?.kind === 'full';
+    const capOn = screen?.kind === 'cap' ? screen : null;
+    // a lockup plays over the whole footage, like a full screen
+    const fullOn = screen?.kind === 'full' || !!capOn;
     // leaks bloom as full-frame footage opens (also late in a dive), then settle
-    const leakAmt = theme.leaks ? theme.leaks.amount * (fullOn ? 0.45 + 0.55 * Math.exp(-(t - screen!.start) / 0.9) : dive.p > 0.5 ? (dive.p - 0.5) * 2 : 0) : 0;
+    const leakAmt = theme.leaks ? theme.leaks.amount * (capOn ? 0.3 : fullOn ? 0.45 + 0.55 * Math.exp(-(t - screen!.start) / 0.9) : dive.p > 0.5 ? (dive.p - 0.5) * 2 : 0) : 0;
     const fadeOut = stack?.exit === 'fade' ? clamp01((stack.end - t) / 0.3) : 1;
     // 0: black words over the whole footage, 1: the mask
     const masked = layout?.flip === undefined ? 1 : clamp01((t - layout.flip) / FLIP);
@@ -222,6 +328,7 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
           {fullOn ? null : stack ? drawStack('mask') : <AbsoluteFill style={{ backgroundColor: '#000', mixBlendMode: 'multiply' }} />}
         </AbsoluteFill>
         {drawStack('solid')}
+        {capOn ? <LockupLayer cap={capOn} lockup={lockups.get(capOn.index)} t={t} W={W} H={H} motion={motion} origin={origin} /> : null}
       </AbsoluteFill>
     );
   };
@@ -299,12 +406,13 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     if (tau >= -0.5 / fps && tau < 0.18) flash = Math.max(flash, 0.32 * (1 - Math.max(0, tau) / 0.18) ** 2);
   }
 
-  // nothing until the font is in: the crops (and so the clip files) come from the layout
-  if (!layouts) return <AbsoluteFill style={{ backgroundColor: theme.colors.ground }} />;
+  // nothing until the fonts are in: the crops (and so the clip files) come from the layout
+  if (!layouts || !smallFont) return <AbsoluteFill style={{ backgroundColor: theme.colors.ground }} />;
   return (
     <AbsoluteFill style={{ backgroundColor: theme.colors.ground }}>
       <AbsoluteFill style={sx || sy ? { transform: `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) rotate(${sr.toFixed(2)}deg) scale(1.04)` } : undefined}>{content}</AbsoluteFill>
       {flash > 0.01 ? <AbsoluteFill style={{ backgroundColor: flashColor, opacity: flash, mixBlendMode: 'screen' }} /> : null}
+      {theme.watermark && markFont ? <Watermark mark={theme.watermark} font={markFont} W={W} H={H} /> : null}
     </AbsoluteFill>
   );
 };

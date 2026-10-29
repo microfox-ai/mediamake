@@ -55,7 +55,29 @@ export type StackSpec = {
 /** the footage full frame, no type (after a dive, on an instrumental hit, the ending) */
 export type FullSpec = { kind: 'full'; at: number; end?: number };
 
-export type Screen = StackSpec | FullSpec;
+/**
+ * A line over the whole footage, no mask (user, 2026-10-28: on fast, wordy lines "it is hard to
+ * concentrate on both text and the visual … the others can come on top of the image, with neat
+ * typography where there is one highlight word and small words above or below at the correct places,
+ * where it does not cross the letters but sits next to it"): a lockup — its highlight word big, the words
+ * before it tucked into the space above the x-height beside the tall letters, the words after it into the
+ * space under the baseline beside the descenders (lockup.ts).
+ */
+export type CapSpec = {
+  kind: 'cap';
+  /** the line's words, in the order sung (as for a stack) */
+  find: string | [string, number];
+  /** the highlight word (default: the longest-held word that isn't a little one) */
+  hi?: string;
+  /** where the lockup sits: under the faces (default), over them, or mid-frame */
+  place?: 'low' | 'high' | 'mid';
+  /** the highlight word's colour (default white) */
+  color?: string;
+  at?: number;
+  end?: number;
+};
+
+export type Screen = StackSpec | FullSpec | CapSpec;
 
 export type CutSpec = {
   /** beat the cut starts; it runs to the next cut (the last one to the end of the short) */
@@ -82,6 +104,21 @@ export type CutSpec = {
   flash?: boolean | string;
   /** an impact shake as the cut lands (1 = strong) */
   shake?: number;
+  /** twixtor on the beat (user, 2026-10-28: "some twixtors can speed up and zoom, beat box transition
+   *  effects or other camera-like effects, that makes it feel good with the music"):
+   *  ramp — a burst of speed on every beat gliding into slow motion before the next (0..1; the shot's
+   *  own pace on average, so it needs no more footage); bump — a zoom punch on every beat (0.06 = 6 %);
+   *  push — a slow camera push in over the whole cut (0.08 = 8 %) */
+  ramp?: number;
+  bump?: number;
+  push?: number;
+  /** a camera move made of the crop: the 9:16 window slides across the 16:9 source during the cut, centred
+   *  on the framed position — `pan` across (fraction of the source width; + travels right, so the picture
+   *  slides left), `tilt` down (+) or up (−). Cuts in a row panning the same way, the subject's eyes on the
+   *  same spot at each cut, read as one continuous move (user, 2026-10-28: "if the shot is a left pan and the
+   *  next is also a left pan, and you align the subject, you have a good match cut") */
+  pan?: number;
+  tilt?: number;
 };
 
 /**
@@ -136,6 +173,8 @@ export type LyricShortEdl = { cuts: CutSpec[]; screens: Screen[] };
 export const stack = (find: StackSpec['find'], rowsOrOpts?: RowSpec[] | Omit<StackSpec, 'kind' | 'find'>, opts: Omit<StackSpec, 'kind' | 'find' | 'rows'> = {}): StackSpec =>
   Array.isArray(rowsOrOpts) ? { kind: 'stack', find, rows: rowsOrOpts, ...opts } : { kind: 'stack', find, ...rowsOrOpts };
 export const full = (at: number, opts: Omit<FullSpec, 'kind' | 'at'> = {}): FullSpec => ({ kind: 'full', at, ...opts });
+/** a line over the footage as a lockup: `cap('you call it a curse', { hi: 'curse' })` */
+export const cap = (find: CapSpec['find'], opts: Omit<CapSpec, 'kind' | 'find'> = {}): CapSpec => ({ kind: 'cap', find, ...opts });
 export const cut = (at: number, shot: string, opts: Omit<CutSpec, 'at' | 'shot'> = {}): CutSpec => ({ at, shot, ...opts });
 
 // ------------------------------------------------------------------ resolving against the song
@@ -202,7 +241,8 @@ export type ResolvedStack = {
   ink?: 'black' | 'white';
 };
 export type ResolvedFull = { kind: 'full'; index: number; start: number; end: number };
-export type ResolvedScreen = ResolvedStack | ResolvedFull;
+export type ResolvedCap = { kind: 'cap'; index: number; start: number; end: number; words: ResolvedWord[]; hi: number; place: 'low' | 'high' | 'mid'; color?: string };
+export type ResolvedScreen = ResolvedStack | ResolvedFull | ResolvedCap;
 export type ResolvedCut = {
   at: number;
   shot: string;
@@ -226,6 +266,14 @@ export type ResolvedCut = {
   /** no crop by hand (x, y, zoom): framing.ts frames it on its subject */
   auto: boolean;
   face?: FaceBox;
+  /** twixtor on the beat (CutSpec): ramp strength, zoom punch, camera push; the beats inside the cut,
+   *  seconds from its start */
+  ramp: number;
+  bump: number;
+  push: number;
+  beats: number[];
+  pan: number;
+  tilt: number;
 };
 
 /**
@@ -233,9 +281,30 @@ export type ResolvedCut = {
  * ramps of a velocity way in (V× easing back to 1×) and way out (1× racing up to V×, held past the cut
  * while the next shot covers it). Closed form, so Node (clip extraction) and the render agree.
  */
-export const clipTime = (c: Pick<ResolvedCut, 'rate' | 'tr' | 'next' | 'start' | 'end'>, tau: number) => {
+/** a beat ramp: fast as each beat lands, gliding slow before the next; the same footage on average */
+const rampSeg = (beats: number[], D: number, tau: number) => {
+  const marks = [0, ...beats.filter(b => b > 0.02 && b < D - 0.02), D];
+  for (let i = 0; i + 1 < marks.length; i++) if (tau < marks[i + 1] || i + 2 === marks.length) return { a: marks[i], b: marks[i + 1], first: i === 0 && !beats.some(b => Math.abs(b) <= 0.02) };
+  return { a: 0, b: D, first: true };
+};
+export const rampTime = (ramp: number, beats: number[], D: number, tau: number) => {
+  if (!ramp || tau <= 0 || tau >= D) return tau;
+  const { a, b, first } = rampSeg(beats, D, tau);
+  if (first) return tau; // before the cut's first beat: its own pace
+  const u = (tau - a) / (b - a);
+  return a + (b - a) * ((1 - ramp) * u + ramp * (1 - (1 - u) ** 3));
+};
+export const rampSpeed = (ramp: number, beats: number[], D: number, tau: number) => {
+  if (!ramp || tau <= 0 || tau >= D) return 1;
+  const { a, b, first } = rampSeg(beats, D, tau);
+  if (first) return 1;
+  const u = (tau - a) / (b - a);
+  return 1 - ramp + ramp * 3 * (1 - u) ** 2;
+};
+
+export const clipTime = (c: Pick<ResolvedCut, 'rate' | 'tr' | 'next' | 'start' | 'end'> & Partial<Pick<ResolvedCut, 'ramp' | 'beats'>>, tau: number) => {
   const D = c.end - c.start;
-  let extra = 0;
+  let extra = rampTime(c.ramp ?? 0, c.beats ?? [], D, tau) - tau;
   if (c.tr.kind === 'velocity' && c.tr.in > 0) {
     const u = Math.min(1, Math.max(0, tau / c.tr.in));
     extra += ((c.tr.v - 1) * c.tr.in * (1 - (1 - u) ** 3)) / 3;
@@ -251,9 +320,9 @@ export const clipTime = (c: Pick<ResolvedCut, 'rate' | 'tr' | 'next' | 'start' |
 };
 
 /** how fast the picture runs at `tau` (1 = the cut's own speed): for motion-blur trails */
-export const clipSpeed = (c: Pick<ResolvedCut, 'tr' | 'next' | 'start' | 'end'>, tau: number) => {
+export const clipSpeed = (c: Pick<ResolvedCut, 'tr' | 'next' | 'start' | 'end'> & Partial<Pick<ResolvedCut, 'ramp' | 'beats'>>, tau: number) => {
   const D = c.end - c.start;
-  let m = 1;
+  let m = rampSpeed(c.ramp ?? 0, c.beats ?? [], D, tau);
   if (c.tr.kind === 'velocity' && tau < c.tr.in) m += (c.tr.v - 1) * (1 - tau / c.tr.in) ** 2;
   if (c.next?.kind === 'velocity' && tau > D - c.next.out) m += (c.next.v - 1) * Math.min(1, (tau - (D - c.next.out)) / c.next.out) ** 2;
   return m;
@@ -261,8 +330,9 @@ export const clipSpeed = (c: Pick<ResolvedCut, 'tr' | 'next' | 'start' | 'end'>,
 
 /** a short, stable name for a cut's clip: the same cut always maps to the same file. The clip holds
  *  `span` seconds of the shot from `in` at the source's own speed and frame rate (ramps happen in the render). */
-export const clipFile = (c: { shot: string; in: number; x: number; y: number; zoom: number; mono: boolean }, span: number) => {
-  const key = ['v2', c.shot, c.in.toFixed(3), span.toFixed(3), c.x.toFixed(3), c.y.toFixed(3), c.zoom.toFixed(3), c.mono ? 'm' : ''].join('|');
+export const clipFile = (c: { shot: string; in: number; x: number; y: number; zoom: number; mono: boolean; pan?: number; tilt?: number }, span: number) => {
+  const move = c.pan || c.tilt ? [`p${(c.pan ?? 0).toFixed(3)}`, `t${(c.tilt ?? 0).toFixed(3)}`] : [];
+  const key = ['v2', c.shot, c.in.toFixed(3), span.toFixed(3), c.x.toFixed(3), c.y.toFixed(3), c.zoom.toFixed(3), c.mono ? 'm' : '', ...move].join('|');
   let h = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 0x01000193) >>> 0;
   return `${c.shot}-${h.toString(16).padStart(8, '0')}.mp4`;
@@ -308,6 +378,19 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
       words.push({ text: tok, sung: sung[j].text, start: sung[j].start, end: sung[j].end, show: sung[j].start - lead });
       return words.length - 1;
     };
+    if (s.kind === 'cap') {
+      const phrase = typeof s.find === 'string' ? s.find : s.find[0];
+      for (const tok of phrase.split(/\s+/).filter(Boolean)) take(tok, `"${phrase}"`);
+      const LITTLE = new Set(['a', 'an', 'the', 'i', 'to', 'of', 'in', 'on', 'my', 'it', 'is', 'and', 'for', 'at', 'be', 'me', 'we', 'you', 'your', "i'm", "i'll", 'will', 'with', 'what', 'that', 'there', 'then', 'they', 'yeah', 'get', 'got', 'just', "don't", "you're", "i've", "let's", 'make', 'all', 'so', 'but', 'oh']);
+      let hi = s.hi !== undefined ? words.findIndex(w => norm(w.text) === norm(s.hi!)) : -1;
+      if (s.hi !== undefined && hi < 0) throw new Error(`lyric short: screen ${index}: no "${s.hi}" to highlight`);
+      if (hi < 0) {
+        const held = (w: ResolvedWord) => (LITTLE.has(norm(w.text)) ? 0 : 1) * (w.end - w.start + 0.02 * w.text.length);
+        hi = words.reduce((best, w, i) => (held(w) > held(words[best]) ? i : best), 0);
+      }
+      screens.push({ kind: 'cap', index, start: s.at !== undefined ? beatTime(song, s.at) : words[0].show, end: s.end !== undefined ? beatTime(song, s.end) : NaN, words, hi, place: s.place ?? 'low', color: s.color });
+      return;
+    }
     let rows: ResolvedRow[] | null = null;
     if (s.rows) {
       rows = s.rows.map(r => {
@@ -370,14 +453,17 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
   const cuts: ResolvedCut[] = sorted.map((c, i) => {
     const start = beatTime(song, c.at);
     const end = i + 1 < sorted.length ? beatTime(song, sorted[i + 1].at) : win.to;
-    const base = { shot: c.shot, in: c.in ?? 0, x: c.x ?? 0.5, y: c.y ?? 0.5, zoom: c.zoom ?? 1, mono: !!c.mono };
+    const base = { shot: c.shot, in: c.in ?? 0, x: c.x ?? 0.5, y: c.y ?? 0.5, zoom: c.zoom ?? 1, mono: !!c.mono, pan: c.pan ?? 0, tilt: c.tilt ?? 0 };
     const tr = transitionOf(c.tr);
     const next = i + 1 < sorted.length ? transitionOf(sorted[i + 1].tr) : null;
-    const timing = { rate: c.rate ?? 1, tr, next, start, end };
+    // the beats inside the cut (a ramp bursts and a bump punches on each)
+    const beats: number[] = [];
+    for (let b = Math.ceil(beatAt(song, start) - 1e-3); beatTime(song, b) < end - 1e-3; b++) beats.push(beatTime(song, b) - start);
+    const timing = { rate: c.rate ?? 1, tr, next, start, end, ramp: c.ramp ?? 0, beats };
     const span = clipTime(timing, end - start + CLIP_PAD);
     const flash = c.flash === true ? 'default' : c.flash || null;
     const auto = c.x === undefined && c.y === undefined && c.zoom === undefined;
-    return { ...base, ...timing, at: c.at, flash, shake: c.shake ?? 0, span, file: clipFile(base, span), auto, face: c.face };
+    return { ...base, ...timing, at: c.at, flash, shake: c.shake ?? 0, span, file: clipFile(base, span), auto, face: c.face, bump: c.bump ?? 0, push: c.push ?? 0 };
   });
   cuts.forEach((c, i) => {
     const n = cuts[i + 1];

@@ -112,7 +112,11 @@ fs.writeFileSync(path.join(dir, 'video/anchors.json'), JSON.stringify(anchors));
 
 // 4. resolve (a short: its own cut list, checked over its window only)
 const shortId = opt('short');
-const short: { from: number; to: number; formats: string[] } | null = shortId ? JSON.parse(fs.readFileSync(path.join(dir, 'shorts', shortId, 'short.json'), 'utf8')) : null;
+const short: { from: number; to: number; formats: string[]; mode?: string } | null = shortId ? JSON.parse(fs.readFileSync(path.join(dir, 'shorts', shortId, 'short.json'), 'utf8')) : null;
+if (short?.mode === 'rotate') {
+  console.log(`short ${shortId} is a rotate short: it plays the finished 16:9 render, there is no cut list to check`);
+  process.exit(0);
+}
 const edl = await import(pathToFileURL(path.join(dir, shortId ? `shorts/${shortId}/edl.ts` : 'video/edl.ts')).href);
 const all = resolveAll(manifest, footage, edl.blocks, edl.words, edl.sfx ?? [], new Set(Object.keys(anchors)));
 const inWindow = (x: { from: number; to: number }) => !short || (x.to > short.from + 1e-3 && x.from < short.to - 1e-3);

@@ -1,11 +1,19 @@
 ---
 name: make-video-music-remix-shorts
-description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style — every run picks the three coolest different stretches of the song (energy, the opening hit, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose, cut on the beat with the footage reframed around its subject, stacked splits and widescreen bands where a crop would be soft, words and captions laid out for a phone; reviewed through Revisions (revise-video). Builds on a make-video-music-remix project (ideally a finished long edit, whose casting it starts from). Use when the user says "make shorts / reels / tiktoks of <edit>", "vertical cuts of this song edit", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.
+description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style — every run picks the three coolest different stretches of the song (energy, the opening hit, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose, either as "rotate your phone" shorts (a vertical hook built on the film's own signature, then the finished 16:9 edit as it is, turned 90° to fill the frame; the user's choice for hitixf1) or recast for the vertical frame (the footage reframed around its subject, stacked splits and boxes where a crop would be soft, words and captions laid out for a phone); reviewed through Revisions (revise-video). Builds on a make-video-music-remix project (ideally a finished long edit, whose casting it starts from). Use when the user says "make shorts / reels / tiktoks of <edit>", "vertical cuts of this song edit", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.
 ---
 
 # make-video-music-remix-shorts
 
-Vertical shorts cut from a song edit. Three things change from the long edit:
+Vertical shorts cut from a song edit, in one of two modes:
+
+- **rotate** (`--mode=rotate`): a few seconds of vertical hook built on the film, then the finished
+  16:9 edit as it is, turned 90° so it fills the 9:16 frame (the viewer turns the phone). Nothing is
+  recut, cropped or enlarged. The user's pick for hitixf1 after the recasts (2026-10-28): see "Rotate
+  your phone".
+- **recast** (the default): the edit recast for the vertical frame, with every rule below.
+
+Three things change from the long edit:
 
 - **The stretch:** 30 s–2 min of the song, the coolest parts, three different ones every run.
 - **The frame:** 9:16, 3:4 or 4:5 (the user's choice), with a widescreen picture inside it.
@@ -33,7 +41,70 @@ general rule here.
   own idea: "more edit-like"), the whole wide picture as a band, or 4K sources.
 - **30 s to 2 min** each.
 
-## What makes a short
+## Rotate your phone (mode 'rotate')
+
+The famous hook-shot format: the short opens vertical, tells the viewer to turn the phone, and the
+widescreen video turns sideways to fill the frame. The user asked for it after disliking the vertical
+recasts ("take some inspiration from the famous rotate your phone hook shots, and build a hook that
+matches the film, and then rotate from vertical to horizontal and play the 16:9 edit as is"), then set
+its timing (2026-10-28): "the rotate should happen slowly, text should appear … 3, 2, 1, and then rotate
+along with the video in slow, not fast, users can't rotate fast, and then the video hits hyper mode
+after the rotation, plan music and edit like that".
+
+- **Planned back from a hit.** Each short is built around a real hit in the song (a drop, the drums
+  coming back), H. The countdown and the slow turn ride the build before it, and the turn completes on
+  H, where the edit goes hyper. Pick stretches by their hit: hitixf1's are drop 1 (after the "don't
+  blink / breathe / think, just hit it" chant), verse 3's drums (after the bridge's last line) and drop 2
+  (after the "don't blink" chant and the edit's own start lights). A stretch without a hit (a spoken
+  bridge) can't be a rotate short on its own.
+- **The timeline (beats), the centre countdown** (the user's design, 2026-10-28: "do not play the video,
+  only the audio until the counter's 1, and do the counting at the centre … 5 secs … "Rotate your Phone
+  in 5 secs" at centre in 2 lines, then in smooth animation only 5 remains, transition to 4, at 3 the
+  lights start, at 2 it floats up, at 1 fade in the video, and at 0 start rotation"):
+  - H − 15: the short starts on a black frame with the edit's **sound only** (its build).
+    ROTATE YOUR PHONE / IN 5 SECS sit centred in two lines, fitted to the width. A phone turns from
+    upright onto its side under them, then under the counter, once per count, until 2, where it rises
+    with the counter and fades ("show a phone rotating animation that suggests, until point 2 when it
+    moves to top"). **Only ever upright → on its side** (the viewer is watching upright on Shorts): it
+    holds on its side, fades, and comes back upright — never turning back. The phone and its arrow turn
+    **clockwise** (the user's direction); the band turns the opposite way on screen (counter-clockwise),
+    so in the viewer's hand the picture stays level as they turn and lands upright. Flip one, flip both.
+  - The edit's sound **fades in slowly from silence to full at 0** (the turn), a squared ramp, under
+    the countdown ("fade in the audio slowly until 0").
+  - Halfway into the 5: everything but the 5 drifts away and blurs. The 5 grows from red into the white
+    counter in the middle (it gets 3 beats so the words can be read).
+  - H − 12, 4: the next number rolls in (the old one rises and fades, the new one settles from 1.35×).
+  - H − 10, 3: three start lights appear above the counter, the first lit, with a clunk.
+  - H − 8, 2: the second light. The counter and lights float up and shrink to 0.6×.
+  - H − 6, 1: the third light. The video fades in, in the 16:9 band at the centre (already playing).
+  - H − 4, 0: lights out, the sound is at full, and the band turns 90° counter-clockwise slowly (sine
+    in-out over 4 beats, about 2.4 s) as it grows to fill the frame.
+  - H: the turn lands on the hit. A white flash, a jolt and a soft impact; the edit plays on as is.
+  - `--hook=band` keeps the earlier style: the edit in the band from the start, 3 · 2 · 1 above it,
+    10 beats.
+- **The hook matches the film:** for F1, three start lights over the number and the F1 logo. Other
+  footage needs its own signature (a fight's bell, a heist's countdown, a game's start screen).
+- **The layout (9:16):** everything in the middle (the words, the counter at 20 % of the height, the
+  lights above it) until 2, then the counter and lights float up to about 23 % clear of the band.
+  Nothing goes in the bottom quarter: the platforms' title and buttons cover it.
+- **The edit plays as is:** the finished render (`out/<slug>/<slug>.mp4`, hard-linked as
+  `derived/final-16x9.mp4`), its own mix throughout, faded over the last 0.4 s. A 16:9 frame turned is
+  exactly 9:16: no crop, no enlargement. A short may run past the song into the render's end screen
+  (hitixf1's finale ends on the ATOMIC RAP end screen).
+- **Make:** `npm run shorts -w lyrics_videos -- <slug> make <hit>-<end> --formats=9x16 --mode=rotate`.
+  The range starts *on the hit*, in seconds, snapped to a beat. It writes short.json with
+  `"mode": "rotate"`, `video` and `hook` (`from`, `count`, `turn`, `hit`, `sfx`: clunks, a whoosh
+  through the turn and a soft impact on the hit, only files that exist in derived/sfx; `style`
+  'center'), plus an index.tsx
+  without an edl. The composition plays from `from` with the song muted (`ProjectDefinition.audio:
+  false`), since the render brings its own mix. Scene: `src/remix/RotateShort.tsx`, which also keeps the
+  first version (`hook.lights`: start lights in the band over a silent hook, a 0.6 s turn) for s04–s06.
+- **Check** stills through the count, the turn and the hit (`stills … 0.05,0.7,1.25,1.6,2.0,3.2,4.6,5.8,
+  7.6,9.2 --only --short=<id>`): the words fit the width, the 5 clears "SECS", the band appears only at 1.
+  Then render, and check the hit's peak (`volumedetect`): the edit often has its own impact there. No recast and no mattes: `remix --short` just says so.
+- **Ask which mode** at intake (rotate first for an edit the user already signed off).
+
+## What makes a short (recast)
 
 1. **The first second is the hook.** No slow intro and no black title card. The short starts on a
    downbeat where the drums are in (the picker prefers these), or on a one-bar launch into one. The
@@ -85,8 +156,11 @@ Tools: ffmpeg. Engine (committed): `scripts/shorts.ts` (`npm run shorts`), `src/
 
 One `AskUserQuestion` call:
 
+- **the mode**: rotate your phone (a hook on the film, then the 16:9 edit as it is, turned) or recast
+  for the vertical frame.
 - **the formats** (multiSelect): 9:16 Shorts / Reels / TikTok · 3:4 Instagram grid · 4:5 Instagram
-  feed. This question is asked every run.
+  feed. This question is asked every run. A rotate short is made for 9:16 (a turned 16:9 frame fills
+  it exactly).
 - anything else the request leaves open: which project or edit, the channel's sign-off, anything they
   want in or out.
 
@@ -340,3 +414,33 @@ Append dated entries: what the user asked to change and the general rule behind 
     stacks, a 0.75 box and two unused shots.
   - A panel holding a black last frame, a leftover caption from the bridge, a RACER `pop` card and a
     pixel-sized sign-off were each fixed and are now rules above.
+- 2026-10-28 — hitixf1: "i dont like any of them" (the three vertical recasts) → "take some inspiration
+  from the famous rotate your phone hook shots, and build a hook that matches the film, and then rotate
+  from vertical to horizontal and play the 16:9 edit as is". The rotate mode was built for it, on the same
+  three stretches (s04–s06; s01–s03 kept, noted in history). The hook is the film's own start lights in
+  a band, the band turns into the edit at lights out, and the edit plays untouched. For an edit the user
+  signed off, offer rotate first: it keeps the approved cut and needs no reframing.
+- 2026-10-28 — the first rotate shorts (s04–s06) turned in 0.6 s after a silent start-lights hook: "the
+  rotate should happen slowly … 3, 2, 1 … users can't rotate fast … the video hits hyper mode after the
+  rotation, plan music and edit like that". Rotate shorts are now planned back from a hit: the edit's
+  own build plays in the band under a 3 · 2 · 1 (2 beats each), a 4-beat sine turn lands on the hit, and
+  there is a flash and a jolt there. A stretch without a hit (the bridge) was replaced: the user picked
+  the drop 2 finale running into the end screen. s07–s09.
+- 2026-10-28 — s07–s09 (the count over the playing video, 3 counts): "do not play the video, only the
+  audio until the counter's 1, and do the counting at the centre … 5 secs, 3 secs is too short" plus the
+  full choreography → the centre countdown, now the default (`style: 'center'`): 15 beats before the hit,
+  black with sound only, the words → 5 → 4 → 3 (lights) → 2 (float up) → 1 (video fades in) → 0 (slow
+  turn) → hit. s10–s12. The first try ran ROTATE YOUR PHONE off both edges: the words are fitted to the
+  width now.
+- 2026-10-28 — s10–s12: "show a phone rotating animation, that suggests until point 2 when it moves to
+  top" → the turning phone (27 % of the width) under the words and then the counter, one turn per count
+  starting on the 4, rising and fading with the counter at 2. s10–s12 re-rendered (the previous renders
+  kept in v1/).
+- 2026-10-28 — "the rotation animation is wrong, it should start from vertical and end at horizontal, as
+  the user would be seeing this on shorts": the phone turned onto its side and visibly back, which reads
+  as "turn to upright", and its arrow pointed clockwise. Now each turn is upright → on its side, a hold,
+  a fade, back upright (PhoneTurn); the arrow counter-clockwise. s10–s12 re-rendered (previous in v2/).
+- 2026-10-28 — "now it is rotating in wrong direction" → the phone and arrow turn clockwise, and the band
+  now turns counter-clockwise on screen to match (otherwise a viewer turning clockwise sees the edit
+  upside down). "also fade in the audio slowly until 0" → the edit's sound swells from silence to full at
+  the turn (squared ramp). s10–s12 re-rendered (previous in v3/).

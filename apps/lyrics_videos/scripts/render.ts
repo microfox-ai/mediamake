@@ -70,7 +70,8 @@ if (shortId) {
     console.error(`No short ${shortId}. Run: npm run shorts -w lyrics_videos -- ${slug} make …`);
     process.exit(1);
   }
-  const short = JSON.parse(fs.readFileSync(path.join(shortDir, 'short.json'), 'utf8')) as { from: number; formats: string[] };
+  // a rotate short starts at its hook, before the stretch
+  const short = JSON.parse(fs.readFileSync(path.join(shortDir, 'short.json'), 'utf8')) as { from: number; formats: string[]; hook?: { from: number } };
   const shots = fs.existsSync(path.join(shortDir, 'shots.json')) ? `shorts/${shortId}/shots.json` : 'video/shots.json';
   for (const f of format ? [format] : short.formats) {
     const name = `${slug}-${shortId}-${f}`;
@@ -83,7 +84,7 @@ if (shortId) {
     const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', name, output, ...flags], { cwd: ROOT, stdio: 'inherit' });
     if (r.status !== 0) process.exit(r.status ?? 1);
     try {
-      writeVideoMap(slug, path.join(ROOT, output), frames, { shots, offset: short.from });
+      writeVideoMap(slug, path.join(ROOT, output), frames, { shots, offset: short.hook?.from ?? short.from });
     } catch (err) {
       console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
     }

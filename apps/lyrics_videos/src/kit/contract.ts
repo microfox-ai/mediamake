@@ -46,6 +46,8 @@ export type ProjectDefinition = {
   /** Play only this stretch of the song (seconds): the video starts at `from` and ends at `to`, layers
    *  keep their song times. `fadeIn` / `fadeOut`: seconds of audio fade at the ends (default 0 / 0.4). */
   window?: { from: number; to: number; fadeIn?: number; fadeOut?: number };
+  /** false: the song isn't played under the layers (a layer brings its own sound, e.g. a finished render) */
+  audio?: boolean;
   layers: Layer[];
 };
 

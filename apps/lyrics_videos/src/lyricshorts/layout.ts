@@ -14,6 +14,8 @@ import type { Fill, Mark, ResolvedStack } from './spec';
 export type TypeStyle = {
   /** the face as a TTF/OTF, a static path under projects/ (npm run lyric-shorts -- <slug> font <Family> --weight=900) */
   font: string;
+  /** the small words of a lockup (CapSpec): a lighter weight of the face, a static path like `font` */
+  small?: string;
   /** letter spacing in em (negative = tighter) */
   tracking: number;
   case: 'lower' | 'upper' | 'as-is';

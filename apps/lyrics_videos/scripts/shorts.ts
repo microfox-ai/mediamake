@@ -10,7 +10,16 @@
  *          a re-cut, ranked lower. Writes shorts/picks.json and, in out/<slug>/shorts/picks-<run>/,
  *          an mp3 of each pick and picks.png (the song's waveform, its sections, the picks marked).
  *   make   scaffolds the picks the user approved as shorts/<id>/ (short.json, edl.ts, index.tsx) in
- *          the formats the user chose, and logs them in shorts/history.json.
+ *          the formats the user chose, and logs them in shorts/history.json. --mode=rotate makes a
+ *          "rotate your phone" short instead (no edl.ts), planned back from its hit: the range's start is
+ *          the hit (a drop, the drums coming in). The centre countdown (default): the short starts 15 beats
+ *          before it on a black frame over the edit's sound alone, ROTATE YOUR PHONE / IN 5 SECS whose 5
+ *          becomes the counter, 4, 3 (the start lights appear, a clunk each), 2 (the count floats up),
+ *          1 (the video fades in, in a band), every 2 beats (the 5 gets 3, to read the words); lights out
+ *          4 beats before the hit and the band turns slowly into the finished 16:9 render, landing on the
+ *          hit (linked into derived/final-16x9.mp4 from out/<slug>/<slug>.mp4). --hook=band: the previous
+ *          style (the edit in the band from the start, 3 · 2 · 1 above it). The range may run past the
+ *          song's end into the render's end screen.
  *   mark   records the user's verdict on a stretch — a short (s02), a pick it was shown (B) or any
  *          range (95.2-151.0): bad (never picked again) or liked.
  *   list   the history.
@@ -18,7 +27,7 @@
  * Usage:
  *   npm run shorts -w lyrics_videos -- <slug> pick [--n=3] [--min=30] [--max=120] [--alts=3] [--extra=104.7-150.6,…]
  *          (--extra: stretches you name, on the nearest beats, scored and listed after the alternates)
- *   npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4
+ *   npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4 [--mode=rotate]
  *   npm run shorts -w lyrics_videos -- <slug> make 95.2-151.0 --formats=9x16   (any stretch, seconds; on the nearest beats)
  *   npm run shorts -w lyrics_videos -- <slug> mark s02 bad --note="the verse drags"   (or mark B bad / mark 95.2-151.0 bad)
  *   npm run shorts -w lyrics_videos -- <slug> list
@@ -52,10 +61,15 @@ const m = JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as {
 };
 
 type Status = 'made' | 'bad' | 'liked';
-type HistoryEntry = { id: string; from: number; to: number; fromBeat: number; toBeat: number; sections: string[]; run: number; date: string; status: Status; note?: string; formats?: string[] };
+type HistoryEntry = { id: string; from: number; to: number; fromBeat: number; toBeat: number; sections: string[]; run: number; date: string; status: Status; note?: string; formats?: string[]; mode?: string };
 type History = { shorts: HistoryEntry[] };
 type Pick = { letter: string; from: number; to: number; fromBeat: number; toBeat: number; sections: string[]; score: number; why: string[]; recut?: string };
 const historyFile = path.join(shortsDir, 'history.json');
+/** the finished render's length (a rotate short may run into its end screen, past the song) */
+const finalSeconds = () => {
+  const f = path.join(ROOT, 'out', slug, `${slug}.mp4`);
+  return fs.existsSync(f) ? Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim()) : m.audio.duration;
+};
 const picksFile = path.join(shortsDir, 'picks.json');
 const readHistory = (): History => (fs.existsSync(historyFile) ? JSON.parse(fs.readFileSync(historyFile, 'utf8')) : { shorts: [] });
 const writeHistory = (h: History) => {
@@ -74,6 +88,11 @@ const downbeats = m.beats.downbeats?.length ? m.beats.downbeats : beats.filter((
 // bar k runs downbeats[k] → downbeats[k + 1]; the song's end closes the last one
 const edges = [...downbeats, m.audio.duration].filter((t, k, a) => k === 0 || t > a[k - 1] + 0.2);
 const bars = edges.slice(0, -1).map((t, k) => ({ from: t, to: edges[k + 1] }));
+/** song time of a fractional beat index */
+const beatT = (b: number) => {
+  const i = Math.max(0, Math.min(beats.length - 2, Math.floor(b)));
+  return beats[i] + (b - i) * (beats[i + 1] - beats[i]);
+};
 const beatIndex = (t: number) => beats.reduce((best, b, k) => (Math.abs(b - t) < Math.abs(beats[best] - t) ? k : best), 0);
 const barAt = (t: number) => bars.reduce((best, b, k) => (Math.abs(b.from - t) < Math.abs(bars[best].from - t) ? k : best), 0);
 const sectionsIn = (a: number, b: number) => m.sections.filter(s => s.to > a + 0.5 && s.from < b - 0.5).map(s => s.label);
@@ -327,14 +346,31 @@ if (cmd === 'pick') {
   const picks = fs.existsSync(picksFile) ? (JSON.parse(fs.readFileSync(picksFile, 'utf8')) as { run: number; picks: Pick[] }) : { run: 0, picks: [] };
   const parent = fs.existsSync(path.join(dir, 'video/index.tsx'));
   const parentEdl = fs.existsSync(path.join(dir, 'video/edl.ts'));
+  const mode = opt('mode') === 'rotate' ? 'rotate' : 'recast';
+  if (mode === 'rotate') {
+    // the finished 16:9 edit, served from the project folder (a hard link: no second copy on disk)
+    const src = path.join(ROOT, 'out', slug, `${slug}.mp4`);
+    const dst = path.join(dir, 'derived', 'final-16x9.mp4');
+    if (!fs.existsSync(src)) throw new Error(`no finished render at out/${slug}/${slug}.mp4: render the long edit first`);
+    const same = fs.existsSync(dst) && fs.statSync(dst).ino === fs.statSync(src).ino;
+    if (!same) {
+      fs.rmSync(dst, { force: true });
+      try {
+        fs.linkSync(src, dst);
+      } catch {
+        fs.copyFileSync(src, dst);
+      }
+      console.log(`✔ derived/final-16x9.mp4 ← out/${slug}/${slug}.mp4`);
+    }
+  }
   for (const token of what.split(',')) {
     let p = picks.picks.find(x => x.letter === token.toUpperCase());
     if (!p && /^[\d.]+-[\d.]+$/.test(token)) {
       // a stretch the user named, on the nearest beats, its end on a phrase end
       const [a, b] = token.split('-').map(Number);
       const from = beats[beatIndex(a)];
-      const to = phraseEnd(b >= m.audio.duration - 0.5 ? m.audio.duration : beats[beatIndex(b)]).to;
-      p = { letter: token, from, to, fromBeat: beatIndex(from), toBeat: beatIndex(to), sections: sectionsIn(from, to), score: 0, why: ['named by the user'] };
+      const to = mode === 'rotate' && b > m.audio.duration ? Math.min(b, finalSeconds()) : phraseEnd(b >= m.audio.duration - 0.5 ? m.audio.duration : beats[beatIndex(b)]).to;
+      p = { letter: token, from, to, fromBeat: beatIndex(from), toBeat: beatIndex(Math.min(to, m.audio.duration)), sections: sectionsIn(from, to), score: 0, why: ['named by the user'] };
     }
     if (!p) throw new Error(`no pick "${token}" in shorts/picks.json (run pick first)`);
     const used = new Set(history.shorts.map(h => h.id));
@@ -343,10 +379,30 @@ if (cmd === 'pick') {
     const id = `s${String(k).padStart(2, '0')}`;
     const sd = path.join(shortsDir, id);
     fs.mkdirSync(sd, { recursive: true });
-    const spec = { id, from: p.from, to: p.to, fromBeat: p.fromBeat, toBeat: p.toBeat, formats, sections: p.sections };
+    const spec: Record<string, unknown> = { id, from: p.from, to: p.to, fromBeat: p.fromBeat, toBeat: p.toBeat, formats, sections: p.sections };
+    if (mode === 'rotate') {
+      // planned back from the hit H (the range's start): the edit plays in the band from H − 10 with its
+      // own build, 3 · 2 · 1 on H − 10, H − 8, H − 6 (a clunk each), lights out and the slow turn from
+      // H − 4, landing on H; a whoosh through the turn and an impact on the hit
+      const H = p.fromBeat;
+      const r3 = (b: number) => +beatT(b).toFixed(3);
+      const style = opt('hook') === 'band' ? 'band' : 'center';
+      const count = (style === 'center' ? [H - 15, H - 12, H - 10, H - 8, H - 6] : [H - 10, H - 8, H - 6]).map(r3);
+      const turn = r3(H - 4);
+      const hit = r3(H);
+      const has = (f: string) => fs.existsSync(path.join(dir, 'derived', 'sfx', `${f}.wav`));
+      const sfx = [
+        // a clunk per start light: on every count in the band style, on 3 · 2 · 1 in the centre
+        ...(style === 'center' ? count.slice(-3) : count).map(at => ({ file: 'clunk', at, gain: 0.5 })),
+        { file: 'whoosh', at: +((turn + hit) / 2 - 0.3).toFixed(3), gain: 0.3 },
+        // soft: the edit has its own hit there (hitixf1's drop 2 clipped at 0.28)
+        { file: 'impact', at: hit, gain: 0.15 },
+      ].filter(x => has(x.file));
+      Object.assign(spec, { from: count[0], fromBeat: H - (style === 'center' ? 15 : 10), mode, video: 'derived/final-16x9.mp4', hook: { from: count[0], style, count, turn, hit, sfx } });
+    }
     fs.writeFileSync(path.join(sd, 'short.json'), `${JSON.stringify(spec, null, 1)}\n`);
-    const header = `/**\n * ${m.title} — short ${id}: ${mmss(p.from)}–${mmss(p.to)} of the song (beats ${p.fromBeat}–${p.toBeat}; ${p.sections.join(' · ')}).\n * make-video-music-remix-shorts. Cuts, words and sound effects are in the song's own beats.\n */\n`;
-    fs.writeFileSync(
+    const header = `/**\n * ${m.title} — short ${id}: ${mmss(spec.from as number)}–${mmss(p.to)} of the song (beats ${p.fromBeat}–${p.toBeat}; ${p.sections.join(' · ')}).\n * make-video-music-remix-shorts. Cuts, words and sound effects are in the song's own beats.\n */\n`;
+    if (mode !== 'rotate') fs.writeFileSync(
       path.join(sd, 'edl.ts'),
       parentEdl
         ? `${header}import * as full from '../../video/edl.ts';\n\n// Starts as the full edit's cut list (only beats ${p.fromBeat}–${p.toBeat} play). Recast it for the short:\n// the hook in the first second, punch words for a vertical frame, band()/split where a crop is soft.\nexport const blocks = full.blocks;\nexport const words = full.words;\nexport const sfx = full.sfx;\nexport const gfx = full.gfx;\n`
@@ -355,12 +411,14 @@ if (cmd === 'pick') {
     const remix = JSON.parse(fs.readFileSync(path.join(dir, 'video/remix.json'), 'utf8'));
     fs.writeFileSync(
       path.join(sd, 'index.tsx'),
-      parent
+      mode === 'rotate' && parent
+        ? `${header}import { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport parent from '../../video/index';\nimport short from './short.json';\n\n// a rotate short: the start-lights hook, then the finished 16:9 render turned 90° (short.json "hook")\nexport default defineShorts(parent, short as ShortSpec);\n`
+        : parent
         ? `${header}import { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport parent from '../../video/index';\nimport * as edl from './edl.ts';\nimport short from './short.json';\n\nexport default defineShorts(parent, short as ShortSpec, edl);\n`
         : `${header}import type { Anchors } from '../../../../src/remix/Remix';\nimport type { Footage } from '../../../../src/remix/resolve.ts';\nimport { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport anchors from '../../video/anchors.json';\nimport footage from '../../video/footage.json';\nimport { THEME } from '../../video/theme';\nimport * as edl from './edl.ts';\nimport short from './short.json';\n\nexport default defineShorts(\n  { slug: '${slug}', fps: 30, remix: { footage: footage as unknown as Footage, anchors: anchors as unknown as Anchors, window: [${remix.window[0]}, ${remix.window[1]}], theme: THEME } },\n  short as ShortSpec,\n  edl,\n);\n`,
     );
-    history.shorts.push({ id, from: p.from, to: p.to, fromBeat: p.fromBeat, toBeat: p.toBeat, sections: p.sections, run: picks.run, date: today(), status: 'made', formats });
-    console.log(`✔ shorts/${id}/  ${mmss(p.from)}–${mmss(p.to)}  ${formats.map(f => `${slug}-${id}-${f}`).join(', ')}`);
+    history.shorts.push({ id, from: spec.from as number, to: p.to, fromBeat: spec.fromBeat as number, toBeat: p.toBeat, sections: p.sections, run: picks.run, date: today(), status: 'made', formats, mode });
+    console.log(`✔ shorts/${id}/  ${mode}  ${mmss(spec.from as number)}–${mmss(p.to)}  ${formats.map(f => `${slug}-${id}-${f}`).join(', ')}`);
   }
   writeHistory(history);
 } else if (cmd === 'mark') {
@@ -382,7 +440,7 @@ if (cmd === 'pick') {
   console.log(`✔ ${h.id} ${mmss(h.from)}–${mmss(h.to)} → ${verdict}${verdict === 'bad' ? ' (never picked again)' : ''}`);
 } else if (cmd === 'list') {
   if (!history.shorts.length) console.log('no shorts yet');
-  for (const h of history.shorts) console.log(`${h.id}  ${mmss(h.from)}–${mmss(h.to)}  ${(h.to - h.from).toFixed(1)} s  ${h.status.padEnd(5)}  run ${h.run}  ${h.date}  ${h.sections.join(' · ')}${h.note ? `  — ${h.note}` : ''}`);
+  for (const h of history.shorts) console.log(`${h.id}  ${mmss(h.from)}–${mmss(h.to)}  ${(h.to - h.from).toFixed(1)} s  ${h.status.padEnd(5)}  ${(h.mode ?? 'recast').padEnd(6)}  run ${h.run}  ${h.date}  ${h.sections.join(' · ')}${h.note ? `  — ${h.note}` : ''}`);
 } else {
   throw new Error(`unknown command ${cmd}`);
 }
