@@ -90,7 +90,9 @@ cite them.
 ## 1. Set up the project folder
 
 - Slug: kebab-case, `[a-z0-9-]`, not starting with `_` (underscore folders are ignored by discovery).
-- If the user gave an outside folder, copy its files into `apps/lyrics_videos/projects/<slug>/input/`.
+- If the user gave an outside folder, copy its files into `apps/lyrics_videos/projects/<slug>/input/`:
+  copies, never symlinks, so the project owns its sources and the user can move or delete the
+  originals once it is done (`cp -c` clones a big video at no disk cost on the same disk).
   Never edit or delete files in `input/` after that — it is the user's source of truth.
 - Inputs:
   - **required:** the song (`song.mp3`, `.wav`, `.m4a`, ...). With several formats, point `project.json`
@@ -357,8 +359,12 @@ CSS/SVG gotchas that cost a round each:
 - A `mix-blend-mode: multiply` light over the book, inside a transformed parent, lightens whatever is
   outside the book (the parent isolates the blend): draw it only where the pages are.
 - `require.context` over `projects/` makes webpack hash every file under it: a symlink there with an
-  absolute target crashes the bundle ("Cannot read properties of undefined (reading 'length')" in
-  webpack's FileSystemInfo). Link footage with a relative symlink, or copy it.
+  absolute target, or one whose file is gone (2026-10-30: eyesofpink's footage linked from ~/Downloads,
+  then deleted), crashes the bundle ("Cannot read properties of undefined (reading 'length')" in
+  webpack's FileSystemInfo), and the project that reads the file stays broken. Copy footage into
+  `input/` (`cp -c`), never link it. `prepare-project` and `cleanup-out scan` list any link under
+  `projects/` whose file is gone; never remove one yourself: ask the user to put the file back or let
+  you remove the link.
 - Casting a whole song from footage: keep one table of (id, source, from, to) for the colour clips and
   (id, source, time) for the frames to trace as sketches, then check the first, middle and last frame of
   every clip on one contact sheet before rendering (shots in clip packs often start a beat late;

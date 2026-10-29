@@ -3,7 +3,8 @@
  *
  * Usage (from the repo root; every command only prints what it would do until --yes):
  *   npm run cleanup-out -w lyrics_videos -- scan [--json]
- *       what takes space: rebuildable files, then every production's heavy files by kind
+ *       what takes space: rebuildable files, then every production's heavy files by kind, then any
+ *       symlink under projects/ whose file is gone (listed only, never removed)
  *   npm run cleanup-out -w lyrics_videos -- drives
  *       external disks under /Volumes: free space, file system, writable, holds an archive
  *   npm run cleanup-out -w lyrics_videos -- clean [--yes]
@@ -30,7 +31,7 @@ import path from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
-  DIRS, KINDS, LAYOUT, REPO, fromRepoPath, isHeavy, isProtected, kindOf, productionDirs, productionNames, rebuildableDirs, repoPath,
+  DIRS, KINDS, LAYOUT, REPO, danglingLinks, fromRepoPath, isHeavy, isProtected, kindOf, productionDirs, productionNames, rebuildableDirs, repoPath,
   type Kind,
 } from './paths.ts';
 
@@ -321,9 +322,22 @@ const scan = () => {
   const disk = diskFree(REPO);
   const kits = bytesOf(DIRS.brands);
   const brandRenders = bytesOf(DIRS.brandRenders) - bytesOf(path.join(DIRS.brandRenders, '.public'));
+  const broken = danglingLinks();
 
   if (flags.includes('--json')) {
-    console.log(JSON.stringify({ disk, rebuildable: items.map(i => ({ ...i, abs: undefined, path: i.abs })), productions: rows, kept: { brands: kits, brandRenders } }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          disk,
+          rebuildable: items.map(i => ({ ...i, abs: undefined, path: i.abs })),
+          productions: rows,
+          kept: { brands: kits, brandRenders },
+          brokenLinks: broken.map(l => ({ project: l.project, path: repoPath(l.abs), target: l.target })),
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
   console.log(`Disk: ${size(disk.free)} free of ${size(disk.total)} (${Math.round((1 - disk.free / disk.total) * 100)}% full)\n`);
@@ -344,6 +358,10 @@ const scan = () => {
   console.log(`${pad('total', 34)}${KINDS.map(k => lpad(size(sum(k)), 9)).join('')}${lpad(size(rows.reduce((a, r) => a + r.kept, 0)), 9)}`);
   if (rows.length > shown.length) console.log(`(${rows.length - shown.length} more with images or notes only)`);
   console.log(`\nAlways kept: brands/ ${size(kits)}; out/brands renders ${size(brandRenders)} (archive them only by path, e.g. out/brands/<brand>/renders)`);
+  if (!broken.length) return;
+  console.log(`\nBroken links in projects/ (the file each points at is gone; nothing was removed):`);
+  for (const l of broken) console.log(`  ${pad(l.project, 32)} ${l.link} → ${l.target.replace(os.homedir(), '~')}`);
+  console.log('Put each file back where it points, or remove the link: the project stays broken until then.');
 };
 
 // ---------- archive / restore ----------
