@@ -57,36 +57,38 @@ after the rotation, plan music and edit like that".
   blink / breathe / think, just hit it" chant), verse 3's drums (after the bridge's last line) and drop 2
   (after the "don't blink" chant and the edit's own start lights). A stretch without a hit (a spoken
   bridge) can't be a rotate short on its own.
-- **The timeline (beats), the centre countdown** (the user's design, 2026-10-28: "do not play the video,
-  only the audio until the counter's 1, and do the counting at the centre … 5 secs … "Rotate your Phone
-  in 5 secs" at centre in 2 lines, then in smooth animation only 5 remains, transition to 4, at 3 the
-  lights start, at 2 it floats up, at 1 fade in the video, and at 0 start rotation"):
-  - H − 15: the short starts on a black frame with the edit's **sound only** (its build).
-    ROTATE YOUR PHONE / IN 5 SECS sit centred in two lines, fitted to the width. A phone turns from
-    upright onto its side under them, then under the counter, once per count, until 2, where it rises
-    with the counter and fades ("show a phone rotating animation that suggests, until point 2 when it
-    moves to top"). **Only ever upright → on its side** (the viewer is watching upright on Shorts): it
-    holds on its side, fades, and comes back upright — never turning back. The phone and its arrow turn
-    **clockwise** (the user's direction); the band turns the opposite way on screen (counter-clockwise),
-    so in the viewer's hand the picture stays level as they turn and lands upright. Flip one, flip both.
-  - The edit's sound **fades in slowly from silence to full at 0** (the turn), a squared ramp, under
-    the countdown ("fade in the audio slowly until 0").
-  - Halfway into the 5: everything but the 5 drifts away and blurs. The 5 grows from red into the white
-    counter in the middle (it gets 3 beats so the words can be read).
-  - H − 12, 4: the next number rolls in (the old one rises and fades, the new one settles from 1.35×).
-  - H − 10, 3: three start lights appear above the counter, the first lit, with a clunk.
-  - H − 8, 2: the second light. The counter and lights float up and shrink to 0.6×.
-  - H − 6, 1: the third light. The video fades in, in the 16:9 band at the centre (already playing).
-  - H − 4, 0: lights out, the sound is at full, and the band turns 90° counter-clockwise slowly (sine
-    in-out over 4 beats, about 2.4 s) as it grows to fill the frame.
+- **Nothing moves until 0 (the rule, 2026-10-29).** Viewers turn the phone the instant anything big
+  moves ("user is rotating phone the instant the counter moves away, so only move away the counter when
+  its time"). The counter, lights and phone hold the centre and the video stays hidden until lights
+  out; only the numbers change. A 3-count is enough ("a 3 number countdown might be enough").
+- **The timeline (beats), the centre countdown** (the user's design, refined 2026-10-28/29):
+  - H − 14: the short starts on a black frame with the edit's **sound only** (its build), fading in
+    slowly from silence to full at 0 (a squared ramp: "fade in the audio slowly until 0").
+    ROTATE YOUR PHONE / IN 3 SECS sit centred in two lines, fitted to the width, with the phone hint
+    under them.
+  - H − 10, 3: the words drift away and blur; the 3 grows from red into the white counter in the middle
+    (the morph ends on the beat) and the first of three start lights comes on above it, with a clunk.
+  - H − 8, 2 and H − 6, 1: each next number rolls in (the old one rises and fades, the new one settles
+    from 1.35×), one more light each, a clunk each. Nothing floats; the video stays hidden.
+  - H − 4, 0: lights out. Only now the counter, lights and phone go (0.3 s), the video appears (0.4 s)
+    and turns 90° counter-clockwise slowly (sine in-out over 4 beats, about 2.4 s) as it grows to fill
+    the frame. The sound is at full.
   - H: the turn lands on the hit. A white flash, a jolt and a soft impact; the edit plays on as is.
-  - `--hook=band` keeps the earlier style: the edit in the band from the start, 3 · 2 · 1 above it,
-    10 beats.
+  - In short.json: `hook.style: 'center'`, `stay: true`, `hook.from` (the call) before `count[0]`.
+    The script writes this by default.
+  - `--hook=center5`: the earlier 5-count (IN 5 SECS from H − 15, 5 → 4 → 3 with lights, the count
+    floating up at 2, the video fading in at 1). `--hook=band`: the first countdown (the edit in the band
+    from the start, 3 · 2 · 1 above it, 10 beats).
+- **The phone hint:** a phone under the words, then under the counter, turning once per count until 0
+  ("show a phone rotating animation that suggests…"). **Only ever upright → on its side** (the viewer is
+  watching upright on Shorts): it holds on its side, fades, and comes back upright, never turning back.
+  The phone and its arrow turn **clockwise** (the user's direction); the band turns the opposite way on
+  screen (counter-clockwise), so in the viewer's hand the picture stays level as they turn and lands
+  upright. Flip one, flip both.
 - **The hook matches the film:** for F1, three start lights over the number and the F1 logo. Other
   footage needs its own signature (a fight's bell, a heist's countdown, a game's start screen).
 - **The layout (9:16):** everything in the middle (the words, the counter at 20 % of the height, the
-  lights above it) until 2, then the counter and lights float up to about 23 % clear of the band.
-  Nothing goes in the bottom quarter: the platforms' title and buttons cover it.
+  lights above it, the phone below it) until 0. Nothing goes in the bottom quarter: the platforms' title and buttons cover it.
 - **The edit plays as is:** the finished render (`out/<slug>/<slug>.mp4`, hard-linked as
   `derived/final-16x9.mp4`), its own mix throughout, faded over the last 0.4 s. A 16:9 frame turned is
   exactly 9:16: no crop, no enlargement. A short may run past the song into the render's end screen
@@ -444,3 +446,14 @@ Append dated entries: what the user asked to change and the general rule behind 
   now turns counter-clockwise on screen to match (otherwise a viewer turning clockwise sees the edit
   upside down). "also fade in the audio slowly until 0" → the edit's sound swells from silence to full at
   the turn (squared ramp). s10–s12 re-rendered (previous in v3/).
+- 2026-10-29 — "there is a confusion, so user is rotating phone the instant the counter moves away, so only
+  move away the counter when its time, also a 3 number countdown might be enough": viewers act on the first
+  big movement, so nothing may move but the numbers until 0. Test on s10 only (`hook.stay`, hook.from
+  before count[0]): ROTATE YOUR PHONE / IN 3 SECS (4 beats) → the 3 becomes the counter, first light → 2
+  → 1 (a light each, 2 beats apart) → 0: lights out, the counter goes and the video appears as it turns.
+  The counter, lights and phone hold the centre throughout; the video stays hidden until 0. Shown in
+  Studio, not rendered ("do not render, just give me the Remotion editor link"). The 5-count s10 is kept
+  as shorts/s10/short.v3.json.
+- 2026-10-29 — approved: "just save it into the rules … this is done, no need for rerender" → the 3-count
+  hold is the rule and the script's default (`--hook=center5` keeps the 5-count). hitixf1's shorts closed
+  with s10 tested in Studio, s11/s12 left as their 5-count v3 renders.
