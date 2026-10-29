@@ -37,6 +37,10 @@ export type RotateHook = {
   /** 'band' (default): the edit in the band throughout, the count above it; 'center': the count alone in
    *  the middle over the edit's sound, the video fading in at 1 */
   style?: 'band' | 'center';
+  /** 'center': the counter, lights and phone stay in the middle until 0 and the video only appears at the
+   *  turn — viewers turned the phone the moment the counter floated up at 2. With `from` before count[0],
+   *  the call is up from `from` and its number lands as the counter on count[0] */
+  stay?: boolean;
   turn?: number;
   hit?: number;
   /** first version: beat indices the film's start lights come on in the band, all out on `out` */
@@ -107,13 +111,16 @@ const Lamp: React.FC<{ on: boolean; size: number; red: string }> = ({ on, size, 
  * make room for the band; all goes out at the turn. A phone turns from upright onto its side under the words,
  * then under the counter, once per count, until 2, where it rises with the counter and fades (the user's ask:
  * "show a phone rotating animation that suggests, until point 2 when it moves to top").
+ * `stay`: nothing floats — the counter, lights and phone hold the middle until 0 and go with the turn; with
+ * `words` (the call opening before count[0]) its number becomes the counter by count[0], first light on.
  */
-const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme: RemixTheme; width: number; height: number; text: string }> = ({ song, count, turn, theme, width, height, text }) => {
+const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme: RemixTheme; width: number; height: number; text: string; words?: number; stay?: boolean }> = ({ song, count, turn, theme, width, height, text, words, stay }) => {
   const { fonts, colors } = theme;
   const N = count.length;
   const [t5, t4] = count;
   const tAt = (n: number) => count[N - n]; // when number n lands
-  const m = inOut(clamp01((song - (t5 + (t4 - t5) * 0.5)) / ((t4 - t5) * 0.42)));
+  const morph = words !== undefined ? Math.min(0.8, (t5 - words) * 0.4) : 0;
+  const m = words !== undefined ? inOut(clamp01((song - (t5 - morph)) / morph)) : inOut(clamp01((song - (t5 + (t4 - t5) * 0.5)) / ((t4 - t5) * 0.42)));
   // the words as large as fit across 84 % of the frame (wide-spaced line font)
   const small = Math.min(width * 0.056, (width * 0.84) / Math.max(1, measure(text, fonts.line, 1, 0.2)));
   const big = height * 0.2;
@@ -127,7 +134,7 @@ const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme
   const y1 = height * 0.5 - small * 0.9;
   const y2 = height * 0.5 + small * 0.9;
   // the counter and lights float up at 2 (shrinking), clear of the band that fades in at 1
-  const fl = N >= 2 ? inOut(clamp01((song - tAt(2)) / 0.7)) : 0;
+  const fl = N >= 2 && !stay ? inOut(clamp01((song - tAt(2)) / 0.7)) : 0;
   const gy = height * (0.5 - 0.265 * fl);
   const gs = 1 - 0.4 * fl;
   const gone = clamp01((song - turn) / 0.3);
@@ -145,8 +152,9 @@ const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme
   const phone = width * 0.27;
   const phoneY = (y2 + small * 0.8 + phone * 0.6) * (1 - m) + (gy + (big * 0.55 + phone * 0.55) * gs) * m;
   const phoneOn = 1 - fl;
-  // one turn per count, starting on each count from 4 on
+  // one turn per count, starting on each count from 4 on (from the first counter, after the call)
   const period = N >= 3 ? count[2] - count[1] : 1.2;
+  const phoneFrom = words !== undefined ? count[0] : count[1] ?? count[0];
   return (
     <AbsoluteFill style={{ opacity: 1 - gone }}>
       {m < 1 && (
@@ -177,7 +185,7 @@ const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme
       )}
       {phoneOn > 0.01 && (
         <div style={{ position: 'absolute', left: width / 2, top: phoneY - height * 0.04 * fl, transform: `translate(-50%, -50%) scale(${gs})`, opacity: phoneOn }}>
-          <PhoneTurn t={song - (count[1] ?? count[0])} period={period} color={colors.bone} accent={colors.red} size={phone} />
+          <PhoneTurn t={song - phoneFrom} period={period} color={colors.bone} accent={colors.red} size={phone} />
         </div>
       )}
       {lampsOn > 0 && (
@@ -221,8 +229,8 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
   const jy = Math.cos(song * 67) * 12 * jolt;
   // the hook's words leave as the band starts to turn
   const hookOn = center ? 1 - clamp01((song - turnFrom) / 0.4) : 1 - clamp01((song - turnFrom) / (countdown ? 0.35 : 0.18));
-  // 'center': the video stays hidden (its sound plays) until 1, then fades in
-  const bandOn = center ? clamp01((song - hook.count![hook.count!.length - 1]) / 0.5) : 1;
+  // 'center': the video stays hidden (its sound plays) until 1, then fades in; `stay`: until 0, with the turn
+  const bandOn = !center ? 1 : hook.stay ? clamp01((song - turnFrom) / 0.4) : clamp01((song - hook.count![hook.count!.length - 1]) / 0.5);
   const intro = clamp01((song - hook.from) / 0.1);
   // the countdown: which of 3 · 2 · 1 is up, and how far into its pop
   const counted = countdown ? hook.count!.filter(t => song >= t - 1e-3).length : 0;
@@ -234,7 +242,10 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
       {hookOn > 0 && (
         <AbsoluteFill style={{ opacity: hookOn * intro }}>
           {center ? (
-            <CenterCount song={song} count={hook.count!} turn={turnFrom} theme={theme} width={width} height={height} text={text} />
+            <CenterCount
+              song={song} count={hook.count!} turn={turnFrom} theme={theme} width={width} height={height} text={text}
+              words={hook.from < hook.count![0] - 1e-3 ? hook.from : undefined} stay={hook.stay}
+            />
           ) : countdown ? (
             <>
               {/* above the band: the logo, three start lights filling up, the number; below it: the call and the phone */}

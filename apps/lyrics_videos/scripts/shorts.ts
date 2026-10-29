@@ -12,14 +12,15 @@
  *   make   scaffolds the picks the user approved as shorts/<id>/ (short.json, edl.ts, index.tsx) in
  *          the formats the user chose, and logs them in shorts/history.json. --mode=rotate makes a
  *          "rotate your phone" short instead (no edl.ts), planned back from its hit: the range's start is
- *          the hit (a drop, the drums coming in). The centre countdown (default): the short starts 15 beats
- *          before it on a black frame over the edit's sound alone, ROTATE YOUR PHONE / IN 5 SECS whose 5
- *          becomes the counter, 4, 3 (the start lights appear, a clunk each), 2 (the count floats up),
- *          1 (the video fades in, in a band), every 2 beats (the 5 gets 3, to read the words); lights out
- *          4 beats before the hit and the band turns slowly into the finished 16:9 render, landing on the
- *          hit (linked into derived/final-16x9.mp4 from out/<slug>/<slug>.mp4). --hook=band: the previous
- *          style (the edit in the band from the start, 3 · 2 · 1 above it). The range may run past the
- *          song's end into the render's end screen.
+ *          the hit (a drop, the drums coming in). The centre countdown (default): the short starts 14 beats
+ *          before it on a black frame over the edit's sound alone (fading in), ROTATE YOUR PHONE / IN 3 SECS
+ *          whose 3 becomes the counter 4 beats later, then 2 and 1 every 2 beats (a start light and a clunk
+ *          each); the counter holds the centre and the video stays hidden until lights out, 4 beats before
+ *          the hit, when it appears and turns slowly into the finished 16:9 render, landing on the hit
+ *          (linked into derived/final-16x9.mp4 from out/<slug>/<slug>.mp4). --hook=center5: the earlier
+ *          5-count (the count floats up at 2, the video fades in at 1); --hook=band: the first countdown
+ *          (the edit in the band from the start, 3 · 2 · 1 above it). The range may run past the song's
+ *          end into the render's end screen.
  *   mark   records the user's verdict on a stretch — a short (s02), a pick it was shown (B) or any
  *          range (95.2-151.0): bad (never picked again) or liked.
  *   list   the history.
@@ -381,13 +382,17 @@ if (cmd === 'pick') {
     fs.mkdirSync(sd, { recursive: true });
     const spec: Record<string, unknown> = { id, from: p.from, to: p.to, fromBeat: p.fromBeat, toBeat: p.toBeat, formats, sections: p.sections };
     if (mode === 'rotate') {
-      // planned back from the hit H (the range's start): the edit plays in the band from H − 10 with its
-      // own build, 3 · 2 · 1 on H − 10, H − 8, H − 6 (a clunk each), lights out and the slow turn from
-      // H − 4, landing on H; a whoosh through the turn and an impact on the hit
+      // planned back from the hit H (the range's start): 3 · 2 · 1 on H − 10, H − 8, H − 6 (a clunk each),
+      // lights out and the slow turn from H − 4, landing on H; a whoosh through the turn and an impact on
+      // the hit. The centre style opens on the call at H − 14 and holds everything still until 0 (viewers
+      // turned the phone the moment the count floated up)
       const H = p.fromBeat;
       const r3 = (b: number) => +beatT(b).toFixed(3);
       const style = opt('hook') === 'band' ? 'band' : 'center';
-      const count = (style === 'center' ? [H - 15, H - 12, H - 10, H - 8, H - 6] : [H - 10, H - 8, H - 6]).map(r3);
+      const five = opt('hook') === 'center5';
+      const count = (five ? [H - 15, H - 12, H - 10, H - 8, H - 6] : [H - 10, H - 8, H - 6]).map(r3);
+      const fromBeat = H - (style === 'band' ? 10 : five ? 15 : 14);
+      const from = r3(fromBeat);
       const turn = r3(H - 4);
       const hit = r3(H);
       const has = (f: string) => fs.existsSync(path.join(dir, 'derived', 'sfx', `${f}.wav`));
@@ -398,7 +403,8 @@ if (cmd === 'pick') {
         // soft: the edit has its own hit there (hitixf1's drop 2 clipped at 0.28)
         { file: 'impact', at: hit, gain: 0.15 },
       ].filter(x => has(x.file));
-      Object.assign(spec, { from: count[0], fromBeat: H - (style === 'center' ? 15 : 10), mode, video: 'derived/final-16x9.mp4', hook: { from: count[0], style, count, turn, hit, sfx } });
+      const stay = style === 'center' && !five ? { stay: true } : {};
+      Object.assign(spec, { from, fromBeat, mode, video: 'derived/final-16x9.mp4', hook: { from, style, ...stay, count, turn, hit, sfx } });
     }
     fs.writeFileSync(path.join(sd, 'short.json'), `${JSON.stringify(spec, null, 1)}\n`);
     const header = `/**\n * ${m.title} — short ${id}: ${mmss(spec.from as number)}–${mmss(p.to)} of the song (beats ${p.fromBeat}–${p.toBeat}; ${p.sections.join(' · ')}).\n * make-video-music-remix-shorts. Cuts, words and sound effects are in the song's own beats.\n */\n`;
