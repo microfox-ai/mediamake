@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { deviceFromHeaders } from '@/lib/auth/device';
 import { clientCredentials, corsJson, preflight, readParams } from '@/lib/mcp/http';
 import {
   OAuthError,
@@ -24,12 +25,15 @@ export async function POST(req: NextRequest) {
           client,
           redirectUri: params.redirect_uri,
           codeVerifier: params.code_verifier,
+          device: deviceFromHeaders(req.headers),
         }),
       );
     }
     if (params.grant_type === 'refresh_token') {
       if (!params.refresh_token) throw new OAuthError('invalid_request', 'refresh_token is required');
-      return corsJson(await refreshTokens({ refreshToken: params.refresh_token, client }));
+      return corsJson(
+        await refreshTokens({ refreshToken: params.refresh_token, client, device: deviceFromHeaders(req.headers) }),
+      );
     }
     throw new OAuthError('unsupported_grant_type', 'Use authorization_code or refresh_token');
   } catch (error) {
