@@ -1,9 +1,10 @@
 import { Redis } from '@upstash/redis';
-import { CrudHash } from '@microfox/db-upstash';
+import { CrudHash, ItemNotFoundError } from '@microfox/db-upstash';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import type { ApiKeyInfo } from '@/app/types/db';
+import type { Device } from '@/lib/auth/device';
 
 /**
  * OAuth 2.1 for the hosted MCP endpoint (/mcp), so a user can add Mediamake
@@ -21,6 +22,9 @@ import type { ApiKeyInfo } from '@/app/types/db';
  * unchanged, and disabling the key cuts the connector off too.
  *
  * Tokens are stored by their SHA-256 hash, never in the clear.
+ *
+ * Each sign-in is a session (OAuthSession) that its tokens point to, so the
+ * devices page can list where an account is signed in and sign one out.
  */
 
 export const SCOPE = 'mediamake';
@@ -29,10 +33,12 @@ const REQUEST_TTL_SECONDS = 15 * 60;
 export const ACCESS_TTL_SECONDS = 60 * 60;
 // Each refresh issues a new refresh token for another 30 days, so a client
 // that keeps refreshing stays signed in.
-const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 30;
+export const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 30;
 // A rotated refresh token keeps working this long, for a client that lost the
 // response and retries (a browser extension's worker can stop mid-request).
 const ROTATION_GRACE_SECONDS = 60;
+// A session lasts as long as its newest refresh token.
+const SESSION_TTL_SECONDS = REFRESH_TTL_SECONDS;
 
 export interface OAuthClient {
   id: string;
@@ -58,16 +64,39 @@ export interface AuthorizeRequest {
   expires: number;
 }
 
-interface Grant {
+export interface Grant {
   id: string;
   oauthClientId: string;
   /** The Mediamake user (x-client-id). */
   clientId: string;
+  /** The OAuthSession this token belongs to. Unset on codes, and on tokens from before sessions were tracked. */
+  sessionId?: string;
   /** The API key requests run with. Undefined only under `next dev` with DEV_API_KEY. */
   apiKey?: string;
   scope: string;
   resource?: string;
   expires: number;
+}
+
+/**
+ * One sign-in of an app on a device. Made when the app trades its code for
+ * tokens, carried on every token it refreshes into, and gone when the app
+ * signs out, is revoked on the devices page, or goes 30 days without
+ * refreshing.
+ */
+export interface OAuthSession {
+  id: string;
+  /** The Mediamake user. */
+  clientId: string;
+  oauthClientId: string;
+  /** The app's registered name, e.g. "Browse Hack (Chrome extension)". */
+  clientName: string;
+  /** Unset for sign-ins from before sessions were tracked, which got one on their next refresh. */
+  createdAt?: number;
+  /** Sign-in or last refresh; apps refresh about once an hour while in use. */
+  lastUsedAt: number;
+  /** Where the last sign-in or refresh came from. */
+  device: Device;
 }
 
 interface CodeGrant extends Grant {
@@ -90,6 +119,7 @@ const stores = () => {
     codes: new CrudHash<CodeGrant>(r, 'oauthCodes'),
     access: new CrudHash<Grant>(r, 'oauthAccessTokens'),
     refresh: new CrudHash<Grant>(r, 'oauthRefreshTokens'),
+    oauthSessions: new CrudHash<OAuthSession>(r, 'oauthSessions'),
     apiKeys: new CrudHash<ApiKeyInfo>(r, 'apiKeys'),
     sessions: new CrudHash<any>(r, 'sessions'),
   };
@@ -268,13 +298,46 @@ export function pkceChallenge(verifier: string) {
   return sha256(verifier);
 }
 
-async function issueTokens(grant: Omit<Grant, 'id' | 'expires'>) {
+async function startSession(
+  grant: Pick<Grant, 'clientId' | 'oauthClientId'>,
+  client: OAuthClient,
+  device: Device,
+  createdAt?: number,
+) {
+  const session: OAuthSession = {
+    id: token(16),
+    clientId: grant.clientId,
+    oauthClientId: grant.oauthClientId,
+    clientName: client.clientName,
+    createdAt,
+    lastUsedAt: Date.now(),
+    device,
+  };
+  await stores().oauthSessions.set(session.id, session, { ttl: SESSION_TTL_SECONDS });
+  return session.id;
+}
+
+/** Marks a session used and extends it; false when it was revoked. */
+async function touchSession(id: string, device?: Device) {
+  try {
+    await stores().oauthSessions.update(id, { lastUsedAt: Date.now(), ...(device && { device }) });
+  } catch (error) {
+    if (error instanceof ItemNotFoundError) return false;
+    throw error;
+  }
+  // CrudHash keeps each item at `<prefix>:<id>`; update() leaves its TTL alone.
+  await redis().expire(`oauthSessions:${id}`, SESSION_TTL_SECONDS);
+  return true;
+}
+
+async function issueTokens(grant: Omit<Grant, 'id' | 'expires'> & { sessionId: string }, device?: Device) {
   const { access, refresh } = stores();
   const accessToken = token();
   const refreshToken = token();
   const base = {
     oauthClientId: grant.oauthClientId,
     clientId: grant.clientId,
+    sessionId: grant.sessionId,
     apiKey: grant.apiKey,
     scope: grant.scope,
     resource: grant.resource,
@@ -291,6 +354,13 @@ async function issueTokens(grant: Omit<Grant, 'id' | 'expires'>) {
       { ttl: REFRESH_TTL_SECONDS },
     ),
   ]);
+  // Revoking deletes the session before its tokens. So a refresh racing a
+  // revoke either wrote its tokens in time to be deleted with the rest, or
+  // finds the session gone here and takes them back.
+  if (!(await touchSession(grant.sessionId, device))) {
+    await Promise.all([access.del(sha256(accessToken)), refresh.del(sha256(refreshToken))]);
+    throw new OAuthError('invalid_grant', 'This sign-in was revoked; sign in again');
+  }
   return {
     access_token: accessToken,
     token_type: 'Bearer',
@@ -305,6 +375,7 @@ export async function exchangeCode(input: {
   client: OAuthClient;
   redirectUri?: string;
   codeVerifier?: string;
+  device: Device;
 }) {
   const { codes } = stores();
   const id = sha256(input.code);
@@ -316,32 +387,75 @@ export async function exchangeCode(input: {
     throw new OAuthError('invalid_grant', 'redirect_uri does not match');
   if (!input.codeVerifier || !sameString(pkceChallenge(input.codeVerifier), grant.codeChallenge))
     throw new OAuthError('invalid_grant', 'PKCE verification failed');
-  return issueTokens(grant);
+  const sessionId = await startSession(grant, input.client, input.device, Date.now());
+  return issueTokens({ ...grant, sessionId });
 }
 
-export async function refreshTokens(input: { refreshToken: string; client: OAuthClient }) {
+export async function refreshTokens(input: { refreshToken: string; client: OAuthClient; device: Device }) {
   const { refresh } = stores();
   const id = sha256(input.refreshToken);
   const grant = await refresh.get(id);
   if (!grant || grant.expires < Date.now() || grant.oauthClientId !== input.client.id)
     throw new OAuthError('invalid_grant', 'Refresh token is invalid or expired');
+  // Sign-ins from before sessions were tracked get one now.
+  const sessionId = grant.sessionId ?? (await startSession(grant, input.client, input.device));
   // Rotate: the old refresh token stops working after a short grace period.
   const graceEnds = Date.now() + ROTATION_GRACE_SECONDS * 1000;
   if (grant.expires > graceEnds) {
-    await refresh.set(id, { ...grant, expires: graceEnds }, { ttl: ROTATION_GRACE_SECONDS });
+    await refresh.set(id, { ...grant, sessionId, expires: graceEnds }, { ttl: ROTATION_GRACE_SECONDS });
   }
   const apiKey = await currentApiKey(grant);
   if (apiKey === null) throw new OAuthError('invalid_grant', 'Your Mediamake API key was disabled; sign in again');
-  return issueTokens({ ...grant, apiKey });
+  return issueTokens({ ...grant, sessionId, apiKey }, input.device);
 }
 
+/** RFC 7009. Revoking a refresh token signs the app out, so it ends the token's whole session. */
 export async function revokeToken(value: string, client: OAuthClient) {
   const { access, refresh } = stores();
   const id = sha256(value);
+  const refreshGrant = await refresh.get(id);
+  if (refreshGrant?.oauthClientId === client.id && refreshGrant.sessionId) {
+    const { sessionId } = refreshGrant;
+    return revokeGrants([sessionId], grant => grant.sessionId === sessionId);
+  }
   for (const store of [access, refresh]) {
     const grant = await store.get(id);
     if (grant && grant.oauthClientId === client.id) await store.del(id);
   }
+}
+
+// ---- Sessions (the devices page) ----
+
+/** Every session, and the refresh tokens of sign-ins from before sessions were tracked. */
+export async function listOAuthSessions() {
+  const { oauthSessions, refresh } = stores();
+  const [sessions, grants] = await Promise.all([oauthSessions.list(), refresh.list()]);
+  return {
+    sessions: sessions.filter(Boolean),
+    untracked: grants.filter(g => g && !g.sessionId && g.expires > Date.now()),
+  };
+}
+
+/**
+ * Signs apps out at once: deletes the sessions, then every access and refresh
+ * token that `matches`. The middleware and /mcp look access tokens up on each
+ * request, so the app's next call is rejected, its refresh fails with
+ * invalid_grant, and it shows its sign-in screen. Sessions go first so that a
+ * refresh in flight can't slip new tokens past (see issueTokens).
+ *
+ * Tokens are found by scanning both stores rather than kept on the session:
+ * a session can hold several live access tokens (each refresh issues one and
+ * the older ones run out their hour) and a refresh token in its grace period.
+ */
+export async function revokeGrants(sessionIds: string[], matches: (grant: Grant) => boolean) {
+  const { oauthSessions, access, refresh } = stores();
+  await Promise.all(sessionIds.map(id => oauthSessions.del(id)));
+  await Promise.all(
+    [access, refresh].map(async store => {
+      const grants = await store.list();
+      await Promise.all(grants.filter(g => g && matches(g)).map(g => store.del(g.id)));
+    }),
+  );
 }
 
 /**
