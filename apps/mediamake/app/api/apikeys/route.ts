@@ -11,11 +11,15 @@ import { z } from 'zod';
  * the signed-in client.
  *
  * GET:    everyone sees their own keys; admins see every key.
- * POST:   admin. { clientName, clientId? } creates a key (and the client, if new).
- * PATCH:  admin. { apiKey, clientName?, isValid? } renames, disables or enables a key.
- * DELETE: admin. { apiKey } deletes a key.
+ * POST:   { clientName, clientId? } creates a key. Everyone can add any number
+ *         of keys to their own account (clientName is then the key's label,
+ *         e.g. "Laptop scripts"); admins can also create keys for other
+ *         clients, and new clients.
+ * PATCH:  { apiKey, clientName?, isValid? } renames, disables or enables a key.
+ * DELETE: { apiKey } deletes a key.
+ * PATCH and DELETE work on your own keys, and on every key for admins.
  *
- * A key is also its client's sign-in password, so admins can't disable or
+ * A key is also its client's sign-in password, so no one can disable or
  * delete the last working key of their own account.
  */
 
@@ -32,7 +36,11 @@ async function caller(req: NextRequest) {
   return { clientId, admin: await isAdmin(clientId) };
 }
 
-const forbidden = () => NextResponse.json({ error: 'Only admins can manage API keys' }, { status: 403 });
+const signedOut = () => NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+const forbidden = () =>
+  NextResponse.json({ error: 'Only admins can create keys for other clients' }, { status: 403 });
+// Someone else's key looks the same as a missing one to non-admins.
+const notFound = () => NextResponse.json({ error: 'Key not found' }, { status: 404 });
 const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
 
 function sortKeys(keys: ApiKeyInfo[]) {
@@ -43,7 +51,7 @@ function sortKeys(keys: ApiKeyInfo[]) {
 
 export async function GET(req: NextRequest) {
   const { clientId, admin } = await caller(req);
-  if (!clientId) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+  if (!clientId) return signedOut();
   const all = await store().list();
   const keys = admin ? all : all.filter(k => k?.clientId === clientId);
   return NextResponse.json({ clientId, isAdmin: admin, keys: sortKeys(keys) });
@@ -65,11 +73,12 @@ function clientIdFrom(name: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { admin } = await caller(req);
-  if (!admin) return forbidden();
+  const { clientId, admin } = await caller(req);
+  if (!clientId) return signedOut();
 
   const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return bad(parsed.error.issues[0].message);
+  if (!admin && parsed.data.clientId && parsed.data.clientId !== clientId) return forbidden();
 
   const keys = store();
   const apiKey = randomBytes(16).toString('hex');
@@ -78,7 +87,7 @@ export async function POST(req: NextRequest) {
   const info: ApiKeyInfo = {
     id: apiKey,
     apiKey,
-    clientId: parsed.data.clientId ?? clientIdFrom(parsed.data.clientName),
+    clientId: admin ? (parsed.data.clientId ?? clientIdFrom(parsed.data.clientName)) : clientId,
     clientName: parsed.data.clientName,
     isValid: true,
   };
@@ -102,14 +111,14 @@ const patchSchema = z.object({
 
 export async function PATCH(req: NextRequest) {
   const { clientId, admin } = await caller(req);
-  if (!admin) return forbidden();
+  if (!clientId) return signedOut();
 
   const parsed = patchSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return bad(parsed.error.issues[0].message);
 
   const keys = store();
   const existing = await keys.get(parsed.data.apiKey);
-  if (!existing) return NextResponse.json({ error: 'Key not found' }, { status: 404 });
+  if (!existing || (!admin && existing.clientId !== clientId)) return notFound();
 
   if (parsed.data.isValid === false) {
     const blocked = await guardOwnLastKey(clientId, existing);
@@ -127,14 +136,14 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const { clientId, admin } = await caller(req);
-  if (!admin) return forbidden();
+  if (!clientId) return signedOut();
 
   const { apiKey } = await req.json().catch(() => ({}));
   if (typeof apiKey !== 'string' || !apiKey) return bad('apiKey is required');
 
   const keys = store();
   const existing = await keys.get(apiKey);
-  if (!existing) return NextResponse.json({ error: 'Key not found' }, { status: 404 });
+  if (!existing || (!admin && existing.clientId !== clientId)) return notFound();
 
   const blocked = await guardOwnLastKey(clientId, existing);
   if (blocked) return bad(blocked);

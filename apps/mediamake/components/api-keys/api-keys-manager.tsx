@@ -155,15 +155,13 @@ export function ApiKeysManager() {
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
             {admin
               ? 'Every key on this MediaMake. A key is also its client’s sign-in password, so share it only with that person.'
-              : 'Use your key to sign in, and in tools that talk to MediaMake. Keep it private.'}
+              : 'Sign in, and connect tools to MediaMake, with any of your keys. Make one per app or computer, and disable it when you stop using it. Keep them private.'}
           </p>
         </div>
-        {admin && (
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            New key
-          </Button>
-        )}
+        <Button onClick={() => setCreating(true)}>
+          <Plus className="size-4" />
+          New key
+        </Button>
       </div>
 
       {admin && (data?.keys.length ?? 0) > 5 && (
@@ -196,7 +194,7 @@ export function ApiKeysManager() {
           <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
             <KeyRound className="size-8 text-muted-foreground" />
             <p className="font-medium">{query ? 'No keys match' : 'No API keys yet'}</p>
-            {admin && !query && (
+            {!query && (
               <Button variant="outline" size="sm" className="mt-2" onClick={() => setCreating(true)}>
                 <Plus className="size-4" />
                 Create the first key
@@ -221,6 +219,7 @@ export function ApiKeysManager() {
       </div>
 
       <CreateKeyDialog
+        admin={admin}
         open={creating}
         onOpenChange={setCreating}
         onCreated={async key => {
@@ -230,7 +229,7 @@ export function ApiKeysManager() {
         }}
       />
 
-      <NewKeyDialog apiKey={fresh} onClose={() => setFresh(null)} />
+      <NewKeyDialog apiKey={fresh} mine={fresh?.clientId === data?.clientId} onClose={() => setFresh(null)} />
 
       <AlertDialog open={!!confirm} onOpenChange={open => !open && setConfirm(null)}>
         <AlertDialogContent>
@@ -308,7 +307,7 @@ function KeyRow({
         </Button>
         <CopyButton value={key.apiKey} />
 
-        {admin && (
+        {(admin || mine) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8" aria-label="More actions">
@@ -316,10 +315,12 @@ function KeyRow({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onRotate}>
-                <RefreshCw className="size-4" />
-                Rotate
-              </DropdownMenuItem>
+              {admin && (
+                <DropdownMenuItem onClick={onRotate}>
+                  <RefreshCw className="size-4" />
+                  Rotate
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onToggle}>
                 <Power className="size-4" />
                 {key.isValid ? 'Disable' : 'Enable'}
@@ -358,10 +359,12 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
 }
 
 function CreateKeyDialog({
+  admin,
   open,
   onOpenChange,
   onCreated,
 }: {
+  admin: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (key: ApiKeyInfo) => void;
@@ -400,7 +403,9 @@ function CreateKeyDialog({
           <DialogHeader>
             <DialogTitle>New API key</DialogTitle>
             <DialogDescription>
-              For a new person or app, or a second key for an existing client.
+              {admin
+                ? 'For a new person or app, or a second key for an existing client.'
+                : 'Another key for your account, e.g. for one app or computer. It works like your other keys.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -410,24 +415,26 @@ function CreateKeyDialog({
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Priya, or Render worker"
+              placeholder={admin ? 'e.g. Priya, or Render worker' : 'e.g. Laptop scripts'}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="key-client">
-              Client id <span className="font-normal text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              id="key-client"
-              value={clientId}
-              onChange={e => setClientId(e.target.value)}
-              placeholder="Made from the name if empty"
-              className="font-mono"
-            />
-            <p className="text-xs text-muted-foreground">
-              Use an existing client id to give that client another key. They sign in with the client id and the key.
-            </p>
-          </div>
+          {admin && (
+            <div className="space-y-2">
+              <Label htmlFor="key-client">
+                Client id <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="key-client"
+                value={clientId}
+                onChange={e => setClientId(e.target.value)}
+                placeholder="Made from the name if empty"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Use an existing client id to give that client another key. They sign in with the client id and the key.
+              </p>
+            </div>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -443,14 +450,24 @@ function CreateKeyDialog({
   );
 }
 
-function NewKeyDialog({ apiKey, onClose }: { apiKey: ApiKeyInfo | null; onClose: () => void }) {
+function NewKeyDialog({
+  apiKey,
+  mine,
+  onClose,
+}: {
+  apiKey: ApiKeyInfo | null;
+  mine: boolean;
+  onClose: () => void;
+}) {
   return (
     <Dialog open={!!apiKey} onOpenChange={open => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Key ready</DialogTitle>
           <DialogDescription>
-            Send these to {apiKey?.clientName || 'them'} privately. They sign in with both.
+            {mine
+              ? 'Use it wherever a MediaMake API key is asked for. It also signs you in, with your client id.'
+              : `Send these to ${apiKey?.clientName || 'them'} privately. They sign in with both.`}
           </DialogDescription>
         </DialogHeader>
         {apiKey && (

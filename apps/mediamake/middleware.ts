@@ -9,6 +9,33 @@ const redis = new Redis({
 });
 
 const sessionStore = new CrudHash<any>(redis, 'sessions');
+// OAuth access tokens from /oauth/token, stored by SHA-256 (see lib/mcp/oauth.ts).
+const accessTokenStore = new CrudHash<any>(redis, 'oauthAccessTokens');
+
+// Same as lib/mcp/oauth.ts's sha256 (base64url, no padding), with Web Crypto
+// because middleware runs on the edge runtime.
+async function sha256(value: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
+  return btoa(String.fromCharCode(...digest)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * The user behind an OAuth access token, or null. Signed-in apps (the Browse
+ * Hack extension) call the API with these. A token stands for one of the
+ * user's API keys and stops working when that key is disabled; the app then
+ * refreshes it and gets another working key of the user's.
+ */
+async function oauthCaller(bearer: string, apiKeyStore: CrudHash<ApiKeyInfo>) {
+  const grant = await accessTokenStore.get(await sha256(bearer));
+  if (!grant || !(grant.expires > Date.now())) return null;
+  if (!grant.apiKey) {
+    // `next dev` with DEV_API_KEY issues grants without a key.
+    return process.env.NODE_ENV === 'development' ? { clientId: grant.clientId as string, apiKey: undefined } : null;
+  }
+  const key = await apiKeyStore.get(grant.apiKey);
+  if (!key?.isValid || key.clientId !== grant.clientId) return null;
+  return { clientId: key.clientId, apiKey: key.apiKey };
+}
 
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -105,6 +132,18 @@ export default async function middleware(request: NextRequest) {
     // console.log(`[Middleware] API key clientId: ${apiKeyInfo.clientId}`);
   }
   
+  if (!apiKeyInfo) {
+    const caller = await oauthCaller(bearer, apiKeyStore);
+    if (caller) {
+      // Routes see the same request as with the API key the token stands for.
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-client-id', caller.clientId);
+      if (caller.apiKey) requestHeaders.set('Authorization', `Bearer ${caller.apiKey}`);
+      else requestHeaders.delete('Authorization');
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+  }
+
   if (!apiKeyInfo || !apiKeyInfo.isValid) {
     // console.error(`[Middleware] ❌ REJECTION REASON: ${!apiKeyInfo ? 'API key not found in store' : 'API key found but marked as invalid'}`);
     // console.error(`[Middleware] ❌ Bearer token: ${bearer}`);
