@@ -2,7 +2,7 @@ import React, { useId } from 'react';
 import { AbsoluteFill, Img, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import { asset, useBeat, useEnergy, useEnvelope, useHit, useSongTime } from '../kit/hooks';
-import { gradeCss, hasPictureFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
+import { exposureCss, gradeCss, hasPictureFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
 
 export type CoverBackdropProps = {
   /** A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/. */
@@ -19,6 +19,8 @@ export type CoverBackdropProps = {
   dim?: number;
   /** 0..1, how much the picture kicks on beats. Default 0.4. */
   beatKick?: number;
+  /** What the kick follows: every beat of the grid (default), or the song's kick drum (mediamake's ImageBeat on bass). */
+  kickOn?: 'beat' | 'kick';
   /** Bottom gradient to black, for a waveform strip: true (0.85 at the edge) or its strength 0..1. Default true. */
   fadeBottom?: boolean | number;
   tint?: string;
@@ -63,6 +65,13 @@ export const coverMotion = (
   return { scale, dx: sx, dy: pan + sy, ox, oy };
 };
 
+/** The pulse the cover kicks with (`kickOn`): the beat grid's, or the kick drum's. */
+export const useCoverPulse = (cover?: CoverBackdropProps): number => {
+  const { pulse } = useBeat(7);
+  const kick = useHit('kick', 7);
+  return cover?.kickOn === 'kick' ? Math.min(1, kick) : pulse;
+};
+
 /** Where a point of the unmoved picture (frame px) is on screen under the cover's motion. */
 export const coverPoint = (m: CoverMotion, [x, y]: [number, number]): [number, number] => [
   m.ox + m.scale * (x + m.dx - m.ox),
@@ -79,7 +88,9 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   const t = useSongTime();
   const energy = useEnergy();
   const { pulse } = useBeat(7);
+  const coverPulse = useCoverPulse(props);
   const kickHit = useHit('kick', 10);
+  const snareHit = useHit('snare', 12);
   const low = useEnvelope('low');
   const size = useVideoConfig();
   const filterId = `cover-look-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -87,8 +98,10 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   if (!name) throw new Error(`CoverBackdrop: no picture in ${manifest.slug}/input/`);
   const src = asset(manifest.assets[name] ?? name);
 
-  const m = coverMotion(props, size, t, pulse, energy);
-  const filter = [gradeCss(look), hasPictureFilter(look) && `url(#${filterId})`].filter(Boolean).join(' ');
+  const m = coverMotion(props, size, t, coverPulse, energy);
+  const filter = [gradeCss(look), exposureCss(look, kickHit, pulse), hasPictureFilter(look) && `url(#${filterId})`]
+    .filter(Boolean)
+    .join(' ');
   const picture: React.CSSProperties = {
     width: '100%',
     height: '100%',
@@ -118,7 +131,14 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
       </AbsoluteFill>
       {tint && <AbsoluteFill style={{ backgroundColor: tint, mixBlendMode: 'color' }} />}
       {look && (
-        <PictureTexture look={look} t={t} pulse={pulse} low={low} rayAt={look.rays && coverPoint(m, look.rays.at)} />
+        <PictureTexture
+          look={look}
+          t={t}
+          pulse={pulse}
+          low={low}
+          snare={snareHit}
+          rayAt={look.rays && coverPoint(m, look.rays.at)}
+        />
       )}
       <AbsoluteFill style={{ backgroundColor: `rgba(0,0,0,${Math.max(0, dim - energy * 0.1)})` }} />
       {fadeBottom !== false && fadeBottom !== 0 && (
