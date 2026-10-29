@@ -93,6 +93,37 @@ export const rebuildableDirs = () => [
   path.join(DIRS.brandRenders, '.public'),
 ].filter(d => fs.existsSync(d));
 
+/** A symlink under projects/ whose target is gone: `link` is its path inside the project. */
+export type DanglingLink = { project: string; link: string; abs: string; target: string };
+
+/**
+ * Symlinks under projects/ whose target is missing (footage once linked from ~/Downloads, then
+ * moved or deleted): the project that reads the file breaks. Links are listed, never followed or
+ * removed; putting the file back or removing the link is the user's call.
+ */
+export const danglingLinks = (root = DIRS.projects): DanglingLink[] => {
+  const found: DanglingLink[] = [];
+  const walk = (dir: string) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      // existsSync follows the link, so it is false only when the target is gone
+      else if (e.isSymbolicLink() && !fs.existsSync(abs)) {
+        const [project, ...rest] = path.relative(root, abs).split(path.sep);
+        found.push({ project, link: rest.join('/'), abs, target: path.resolve(dir, fs.readlinkSync(abs)) });
+      }
+    }
+  };
+  walk(root);
+  return found;
+};
+
 /** Shared folders a sweep never touches unless a path names them. */
 export const isProtected = (abs: string) =>
   [DIRS.brands, DIRS.brandRenders].some(d => abs === d || abs.startsWith(d + path.sep));

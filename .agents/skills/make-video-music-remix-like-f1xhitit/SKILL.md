@@ -222,8 +222,9 @@ people), anything they hate. Write `brief.md` and seed `prefs.md`.
 ### 1. Project folder
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json` (`title`, `artist`, `audio`,
-`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). Never edit the
-user's files in `input/`.
+`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). Every file is a
+copy, never a symlink (`cp -c` clones a big download at no disk cost on the same disk), so the user can
+move or delete the originals once the edit is done. Never edit the user's files in `input/`.
 
 ### 2. Study the inspiration — `inspo.md`
 
@@ -234,7 +235,8 @@ pacing (cuts per beat), the transitions, the type, the colour, and what suits th
 
 ### 3. Map the footage
 
-`segregate.py "<footage>" --out projects/<slug>/footage` (each further source into its own folder,
+`segregate.py "projects/<slug>/input/<footage>" --out projects/<slug>/footage` (the copy in `input/`:
+`segregation.json` keeps that path; each further source into its own folder,
 e.g. `footage-lm/`). Read every `sheets/shots_*.jpg` and `scene_*.jpg`; write down:
 
 - **families** of shots (the per-genre lists above) and each shot's **length** (a cut can't be

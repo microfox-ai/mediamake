@@ -29,6 +29,9 @@ Everything runs through `apps/lyrics_videos/scripts/cleanup-out.ts`. Every comma
 
 1. **Scan.** `npm run cleanup-out -w lyrics_videos -- scan`. Show the user the free space, the
    rebuildable total and the biggest productions (final / version / work / source / on disk).
+   If it ends with **broken links** (symlinks under `projects/` whose file is gone), list each with the
+   project it breaks and ask the user: put the file back where it points, or remove the link. Never
+   remove a link, or anything it points at, without their answer.
 2. **Status of each production.** Propose one per production from what you know (memory, the
    production's notes, its last change): **active** (still being worked on or waiting on notes),
    **delivered** (done, not published yet) or **uploaded** (published). Ask the user to confirm or
@@ -100,3 +103,7 @@ Append dated entries: what the user said → the rule.
 - 2026-10-27 · "do not delete apps/mediamake/out, only delete after copying to external disk" → it
   leaves only through `archive mediamake-renders --uploaded` (each copy checked before its local file
   goes); `clean` and anything else never touch it.
+- 2026-10-30 · "I cannot move files once a project is done?" (eyesofpink's footage was a symlink into
+  ~/Downloads; the download was deleted and every bundle crashed) → projects own their sources as copies
+  (the make-* skills copy with `cp -c`, never link), and `scan` lists any link under `projects/` whose
+  file is gone, with its project, removing nothing: the user picks restore or remove.

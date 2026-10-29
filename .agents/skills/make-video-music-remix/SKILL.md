@@ -163,8 +163,9 @@ people), anything they hate. Write `brief.md` and seed `prefs.md`.
 ### 1. Project folder
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json` (`title`, `artist`, `audio`,
-`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). Never edit the
-user's files in `input/`.
+`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). Every file is a
+copy, never a symlink (`cp -c` clones a big download at no disk cost on the same disk), so the user can
+move or delete the originals once the edit is done. Never edit the user's files in `input/`.
 
 ### 2. Study the inspiration — `inspo.md`
 
@@ -175,7 +176,8 @@ pacing (cuts per beat), the transitions, the type, the colour, and what suits th
 
 ### 3. Map the footage
 
-`segregate.py "<footage>" --out projects/<slug>/footage` (each further source into its own folder,
+`segregate.py "projects/<slug>/input/<footage>" --out projects/<slug>/footage` (the copy in `input/`:
+`segregation.json` keeps that path; each further source into its own folder,
 e.g. `footage-lm/`). Read every `sheets/shots_*.jpg` and `scene_*.jpg`; write down:
 
 - **families** of shots (the per-genre lists above) and each shot's **length** (a cut can't be
@@ -636,3 +638,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   analyze-video's segregate.py, `crop` from `cropdetect`, `matteFps` = its plate's fps) and recast. Reject
   uploads labelled "4K" that are 1080p, HDR-only streams, watermarks and burned-in subtitles (or crop the
   watermark corners), and clips whose scene comes before the section's place in the story.
+- 2026-10-30 — A lyric-shorts project's footage was a symlink into ~/Downloads; the download was deleted
+  and every Remotion bundle crashed. The user: "I cannot move files once a project is done?", and agreed
+  that was a bad setup → a project owns its sources: footage goes into `input/` as a copy (`cp -c`), never
+  a link, and is segregated from that copy. `prepare-project` and `cleanup-out scan` list any link under
+  `projects/` whose file is gone; never remove one yourself (ask: put the file back, or remove the link).

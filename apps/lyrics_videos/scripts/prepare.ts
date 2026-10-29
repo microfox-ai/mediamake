@@ -16,10 +16,14 @@
  *   - section boundaries are snapped to the grid: on the downbeat (else beat) at or before
  *     the first word of the section's first line, never cutting the previous line's tail
  *
+ * It first lists every symlink under projects/ whose file is gone (footage belongs in input/ as a
+ * copy, never a link; nothing is removed).
+ *
  * Usage: npm run prepare-project -w lyrics_videos -- <slug>
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ffmpeg from '@ffmpeg-installer/ffmpeg';
@@ -33,6 +37,7 @@ import {
   type Manifest,
   type Section,
 } from '../src/kit/manifest.ts';
+import { danglingLinks } from './paths.ts';
 
 const PROJECTS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -472,6 +477,15 @@ const main = () => {
   const inputDir = path.join(projectDir, 'input');
   if (!fs.existsSync(inputDir))
     throw new Error(`Missing ${path.relative(process.cwd(), inputDir)}/`);
+
+  // Printed first, so they show even when a broken link makes the steps below fail.
+  const broken = danglingLinks();
+  if (broken.length) {
+    console.warn('⚠ broken links in projects/ (the file each points at is gone; nothing was removed):');
+    for (const l of broken)
+      console.warn(`    ${l.project.padEnd(24)} ${l.link} → ${l.target.replace(os.homedir(), '~')}`);
+    console.warn('  Put each file back where it points, or remove the link: the project stays broken until then.\n');
+  }
 
   const warnings: string[] = [];
   const warn = (m: string) => warnings.push(m);

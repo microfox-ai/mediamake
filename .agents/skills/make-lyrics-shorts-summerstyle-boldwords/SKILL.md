@@ -220,8 +220,10 @@ style — don't take that as the pattern.
 
 ### 1. Project, song, words
 
-`projects/<slug>/input/`: the song, `lyrics.json`, `project.json`, `footage/` (symlinks to big videos are
-fine), `inspiration/`. Then make-lyrics-video steps 2–3: `npm run analyze -w lyrics_videos -- <slug>
+`projects/<slug>/input/`: the song, `lyrics.json`, `project.json`, `footage/`, `inspiration/`. Every
+file is a copy, never a symlink: `cp -c <download> input/footage/<name>.mp4` clones a big video at no
+disk cost on the same disk, and the project keeps working when the user moves or deletes the download
+(a link into ~/Downloads broke eyesofpink). Then make-lyrics-video steps 2–3: `npm run analyze -w lyrics_videos -- <slug>
 --plots` (stems, beat grid, CTC word alignment; ~1 min with models cached) and `prepare-project`.
 **Set real sections**: print each bar's drums / bass / other / vocal envelope with its lyric (see the
 eyesofpink session) and write intro / verse / pre-chorus / chorus / break / bridge / build / outro to
@@ -229,8 +231,9 @@ eyesofpink session) and write intro / verse / pre-chorus / chorus / break / brid
 
 ### 2. Map the footage
 
-`uv run --script .claude/skills/analyze-video/scripts/segregate.py "<video>" --out
-projects/<slug>/footage --min-shot 0.1` (a 4K60 AV1 3.6-min edit: ~3.5 min). Read `sheets/shots_*.jpg`;
+`uv run --script .claude/skills/analyze-video/scripts/segregate.py "projects/<slug>/input/footage/<name>.mp4"
+--out projects/<slug>/footage --min-shot 0.1` (a 4K60 AV1 3.6-min edit: ~3.5 min): run it on the copy in
+`input/`, since `segregation.json` keeps the path it was given. Read `sheets/shots_*.jpg`;
 note title cards, burned-in credits, black gaps and **repeated passes** (fan edits often show every
 shot twice, graded then "raw": use one of each pair). Further sources: their own folder and a prefix in
 `shorts/footage.json`.
@@ -623,3 +626,9 @@ Append dated entries: what the user asked to change and the general rule behind 
   label face, still over every frame). First pass used the brand's Strip (its thumbnail credit); the user:
   "don't use strip logo, use the frame logo" → the default is the brand's compact mark (`mark.png` in its
   thumbnail profile), 20 % of the width.
+- 2026-10-30 — eyesofpink's footage was a symlink into ~/Downloads (and its `segregation.json` pointed
+  there too); the download was deleted, the link dangled, and every Remotion bundle crashed. The user:
+  "I cannot move files once a project is done?", and agreed that was a bad setup → a project owns its
+  sources: footage is copied into `input/footage/` (`cp -c`), never linked, and segregated from that copy.
+  `prepare-project` and `cleanup-out scan` list any link under `projects/` whose file is gone; never
+  remove one yourself (ask: put the file back, or remove the link).
