@@ -8,7 +8,8 @@ import type { ApiKeyInfo } from '@/app/types/db';
 /**
  * OAuth 2.1 for the hosted MCP endpoint (/mcp), so a user can add Mediamake
  * to Claude (or any MCP client) by URL and sign in with their Mediamake
- * account instead of pasting an API key.
+ * account instead of pasting an API key. The Browse Hack browser extension
+ * signs in the same way; the middleware accepts its access tokens on /api.
  *
  * - Clients register themselves (RFC 7591) at /oauth/register.
  * - /oauth/authorize signs the user in with the normal /login page, asks them
@@ -26,7 +27,12 @@ export const SCOPE = 'mediamake';
 const CODE_TTL_SECONDS = 10 * 60;
 const REQUEST_TTL_SECONDS = 15 * 60;
 export const ACCESS_TTL_SECONDS = 60 * 60;
+// Each refresh issues a new refresh token for another 30 days, so a client
+// that keeps refreshing stays signed in.
 const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 30;
+// A rotated refresh token keeps working this long, for a client that lost the
+// response and retries (a browser extension's worker can stop mid-request).
+const ROTATION_GRACE_SECONDS = 60;
 
 export interface OAuthClient {
   id: string;
@@ -319,8 +325,11 @@ export async function refreshTokens(input: { refreshToken: string; client: OAuth
   const grant = await refresh.get(id);
   if (!grant || grant.expires < Date.now() || grant.oauthClientId !== input.client.id)
     throw new OAuthError('invalid_grant', 'Refresh token is invalid or expired');
-  // Rotate: the old refresh token stops working.
-  await refresh.del(id);
+  // Rotate: the old refresh token stops working after a short grace period.
+  const graceEnds = Date.now() + ROTATION_GRACE_SECONDS * 1000;
+  if (grant.expires > graceEnds) {
+    await refresh.set(id, { ...grant, expires: graceEnds }, { ttl: ROTATION_GRACE_SECONDS });
+  }
   const apiKey = await currentApiKey(grant);
   if (apiKey === null) throw new OAuthError('invalid_grant', 'Your Mediamake API key was disabled; sign in again');
   return issueTokens({ ...grant, apiKey });
