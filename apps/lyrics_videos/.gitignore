@@ -12,3 +12,6 @@ assets3d/**/*.blend1
 assets3d/**/previews/
 assets3d/**/textures/
 __pycache__/
+
+# stock overlay clips (particles, flashes, light leaks): local media, too big for git
+overlays/
