@@ -65,6 +65,8 @@ export async function listCodeFiles(slug: string): Promise<CodeFile[]> {
   if (!projectDir) return [];
   const out: CodeFile[] = [];
   await walkCode(path.join(LYRICS_ROOT, 'src'), out, new Set());
+  // the waveform catalog (waves, font sets, caption setups): src/mediamake/look.ts imports it
+  await walkCode(path.join(LYRICS_ROOT, 'catalog'), out, new Set());
   await walkCode(projectDir, out, SKIP_DIRS);
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }

@@ -13,3 +13,6 @@ export * from './templates';
 export * from './TrackTitle';
 export * from './VerticalFloatLyrics';
 export * from './WaveformLayer';
+export * from './Subject';
+export * from './StackedLyrics';
+export * from './LogoSting';

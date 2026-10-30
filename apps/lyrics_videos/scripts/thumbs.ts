@@ -204,8 +204,9 @@ const init = () => {
     rules = profile.rules ?? [];
   }
   // the art alone comes first: a text version is only ever an addition to it
-  // treatments are picked from the picture on the first render (thumbnails/look.ts)
-  if (poster) spec.styles = [{ id: 'A', name: 'Art only', idea: 'the picture alone, no text: the base every text version builds on', preset: 'cover', treatments: 'auto' }];
+  // plain: variety comes from crops, placement and ideas (create-music-poster, reworked 2026-10-31);
+  // finishing looks are added by hand later, `look <job>` ranks them ("treatments": "auto" still works)
+  if (poster) spec.styles = [{ id: 'A', name: 'Art only', idea: 'the picture alone, no text: the base every text version builds on', preset: 'cover', treatments: ['plain'] }];
   const file = path.join(dir, KINDS[poster ? 'poster' : 'thumbnail'].spec);
   if (fs.existsSync(file)) warn(`${rel(file)} exists, left as it is`);
   else fs.writeFileSync(file, JSON.stringify(spec, null, 2) + '\n'), done(file);

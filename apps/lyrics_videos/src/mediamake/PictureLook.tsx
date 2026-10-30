@@ -25,6 +25,21 @@ export type PictureLook = {
   /** Glow of the highlights, 0..1; `bloomPulse` adds to it on each beat. */
   bloom?: number;
   bloomPulse?: number;
+  /**
+   * Exposure on the beat: the picture brightens by `kick` on each kick drum and by `beat` on each
+   * beat of the grid (0.3 = +30 % at the hit, then it settles), and `flash` (its peak opacity)
+   * of `flashColor` washes over the frame on each snare.
+   */
+  exposure?: {
+    kick?: number;
+    beat?: number;
+    /** Contrast added with the kick push, so the push reads as light, not haze. */
+    punch?: number;
+    flash?: number;
+    flashColor?: string;
+    /** Default 'screen'. */
+    flashBlend?: React.CSSProperties['mixBlendMode'];
+  };
   /** A colour wash over the picture (multiply, soft-light, color…). */
   wash?: { color: string; blend: React.CSSProperties['mixBlendMode']; opacity: number };
   grain?: number;
@@ -70,6 +85,16 @@ export const gradeCss = (look?: PictureLook) => {
   ]
     .filter(Boolean)
     .join(' ');
+};
+
+/** The exposure push at this frame as a CSS filter (`kick` and `pulse` are the decaying hits). */
+export const exposureCss = (look: PictureLook | undefined, kick: number, pulse: number) => {
+  const e = look?.exposure;
+  if (!e || !(e.kick || e.beat)) return '';
+  const push = (e.kick ?? 0) * Math.min(1, kick) + (e.beat ?? 0) * pulse;
+  if (push < 0.002) return '';
+  const contrast = 1 + (e.punch ?? 0) * push;
+  return `brightness(${(1 + push).toFixed(3)}) contrast(${contrast.toFixed(3)})`;
 };
 
 export const hasPictureFilter = (look?: PictureLook) =>
@@ -170,13 +195,14 @@ export const PictureFilter: React.FC<{ id: string; look: PictureLook; pulse: num
 };
 
 /** Texture over the picture (under the dim and the waves). `rayAt` is the rays' point after the cover's motion. */
-export const PictureTexture: React.FC<{ look: PictureLook; t: number; pulse: number; low: number; rayAt?: [number, number] }> = ({
-  look,
-  t,
-  pulse,
-  low,
-  rayAt,
-}) => {
+export const PictureTexture: React.FC<{
+  look: PictureLook;
+  t: number;
+  pulse: number;
+  low: number;
+  snare?: number;
+  rayAt?: [number, number];
+}> = ({ look, t, pulse, low, snare = 0, rayAt }) => {
   const frame = useCurrentFrame();
   const { width: W, height: H } = useVideoConfig();
   const layers: React.ReactNode[] = [];
@@ -315,6 +341,12 @@ export const PictureTexture: React.FC<{ look: PictureLook; t: number; pulse: num
   if (look.flicker) {
     const f = (hash(frame + 0.5) - 0.5) * 2;
     layers.push(<AbsoluteFill key="flicker" style={{ background: f > 0 ? '#fff' : '#000', opacity: Math.abs(f) * look.flicker * 0.12 }} />);
+  }
+  if (look.exposure?.flash && snare > 0.01) {
+    const { flash, flashColor = '#ffffff', flashBlend = 'screen' } = look.exposure;
+    layers.push(
+      <AbsoluteFill key="flash" style={{ background: flashColor, mixBlendMode: flashBlend, opacity: flash * Math.min(1, snare) }} />,
+    );
   }
   if (look.letterbox) {
     layers.push(

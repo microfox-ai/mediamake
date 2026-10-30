@@ -1,6 +1,6 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), with a big impactful headline, saturated contrast, the channel's logo(s) placed where they strike, and fonts chosen with care; by default 4 styles × 3 variants, each labelled with an ID (A1…D3) so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/lyrics_videos/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.
+description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/lyrics_videos/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.
 metadata:
   depends-on: pack-brand-kit
 ---
@@ -18,8 +18,41 @@ thumbnail (the README is the reference), don't write TSX for a look the layers c
 the labelled sheet rather than single files, and while iterating render only the IDs you changed
 (`render <job> B2,C1`).
 
-**Defaults:** 4 styles × 3 variants = 12 thumbnails (A1–D3). The user can ask for more styles or
-more variants; follow that.
+**Defaults:** a **concept board** first — 6–8 one-variant styles (A1, B1 … H1), each a different
+idea — then **3 variants of each concept the user picks** (A2, A3 …). The user can ask for more or
+fewer; follow that.
+
+## What makes people click (read before designing)
+
+Reworked on 2026-10-31. The user: "the thumbnail skill is comparatively better, but only
+comparatively; the youtube thumbnails I have given as reference or the ones out there in real world
+are much more click baity, attractive, ours is not up to the mark." Side by side, the Devil in the
+Details set was frames of the video with a small word on them; the references (`thumbnails/
+inspiration/`, 13 anime / motivation edits: ENDLESS BLADE, YOU'RE WRONG, RELEASE THE BEAST, ITACHI,
+I CAN, JUST GRIND, MONSTER OF GOD, URAHARA, GOAT, UNSTOPPABLE, ATOMIC, MONSTER) share these, and every
+thumbnail must pass them:
+
+1. **One giant word.** The hero word spans **60–100 % of the frame width** (≥ 770 px of 1280) or is
+   at least a third of its height, in a heavy or striking face. Ours ran 25–35 % and read as a caption.
+2. **A big, lit subject.** The face or figure fills at least half the frame height; the face is lit
+   (a rim of light, glowing eyes, a hard key light) against darkness, close enough that the
+   expression reads at 168 px wide. A mid shot with the face small doesn't sell.
+3. **A simplified background.** Dark, blurred, one flat colour field or one graphic shape (a red moon,
+   lightning, rain). Never the video's interface — its bottom wave, lyric type, busy rings — unless
+   that element *is* the hook. Recompose: plate + cutout, blur or darken the rest.
+4. **One dominant hue and one accent.** A near-monochrome picture (black and white, deep blue, black
+   and red) and one saturated accent (the word, the eyes, a moon). Red word on a red picture has no
+   accent: grade the picture away from the accent first.
+5. **The word and the subject interlock.** The subject in front of part of the word (still readable),
+   or the word across the lower third over the subject's body, or split either side of the head —
+   word and picture are one composition, not a label on a photo.
+6. **Three tiers of type, sparingly.** A small tracked kicker, the giant word, a sub in a contrasting
+   voice (script, serif italic, wide tracked caps). Most references use two tiers; none uses more
+   than three.
+7. **A question in the picture.** A gaze into the lens, a masked or half-hidden face, glowing eyes, a
+   clenched fist, a weapon — something that makes the viewer want the story.
+8. **Readable in the feed.** At 168×94 (phone feed) the word and the face still read; at 360×202
+   (desktop) the kicker may blur.
 
 ## 1. Intake: ask before building
 
@@ -140,10 +173,16 @@ warns about a layer using a font that isn't listed (it would fall back to a syst
 
 ## 6. Styles and variants
 
-**Four styles that are genuinely different ideas** (composition, device, mood), not one layout in
-four colours. Each style gets **three variants** that change the things worth testing: the words,
-the font, the colour or grade, the crop, the logo spot. Give every style a `name` and an `idea`,
-and every variant a short `note`: the sheet prints them.
+**The concept board: 6–8 styles that are genuinely different ideas** (composition, device, mood,
+crop), not one layout in several colours, each passing the click list above. Draw them from the
+reference archetypes: giant word behind the subject (GOAT, URAHARA) · word across the lower third
+over a big figure (MONSTER OF GOD, UNSTOPPABLE) · extreme close-up of the eyes with a side word
+(ENDLESS BLADE) · subject on a flat colour field or one shape (ITACHI's moon) · monochrome with one
+accent (YOU'RE WRONG, JUST GRIND) · energy effects around the subject (RELEASE THE BEAST) · a split
+or mirrored composition. Show the board (step 7), the user picks 2–4, then each picked concept
+gets **three variants** that change the things worth testing: the words, the font, the colour or
+grade, the crop, the logo spot. Give every style a `name` and an `idea`, and every variant a short
+`note`: the sheet prints them.
 
 Build from presets first (README), then `patch` / `add` / `remove`, then raw `layers`, and only
 as a last resort a `custom/` component. Treatments (`"treatment": "film"`, see the README) give a whole
@@ -184,8 +223,14 @@ npm run thumbs -w lyrics_videos -- render <job>
 
 Fix every warning `render` prints. Then **look at `out/thumbnails/<job>/sheet.jpg` and
 `sheet-small.jpg` yourself** before showing anything: the word reads (and isn't eaten by the
-cutout), faces are clear, nothing clips the frame edge, the logo sits in calm space, the four
-styles really differ. Fix and re-render those IDs.
+cutout), faces are clear, nothing clips the frame edge, the logo sits in calm space, the styles
+really differ.
+
+**Benchmark against the references** every round: tile our thumbnails with 4–6 of the user's
+references (`thumbnails/inspiration/`, or ones they sent for this channel) at feed size (168×94 and
+360×202, ffmpeg `xstack`) and read it honestly. Measure the hero word's width (≥ 60 % of the frame)
+and the face's size; check one accent colour. If ours wouldn't be clicked over theirs, rework before
+showing — don't hand the user the comparison to do. Fix and re-render those IDs.
 
 Then send the user `sheet.jpg` (SendUserFile), list the IDs with one line each, and give them the
 `/image-revision?job=<job>` link (the `revise-image` skill). They pick **one
@@ -245,3 +290,4 @@ Add entries at the bottom: date · job / channel · what they said → the rule.
 - 2026-10-26 · Quicksilver × Kingpin (ATOMIC RAP) · "increase TOLD so it fits the width of the other words" → "no, it is not, check image": `fit: each` inside one text layer is capped by the box height, so a short last line (TOLD) stayed narrower and I said it fit without measuring. For a true width-fit stack, give each line its own text layer and box of the same width (`fit: each`), then compare the lines' left and right edges in the render before saying they match.
 - 2026-10-27 · Nakama! (Anime Music Zone) · Round 1 feedback by ID: "D but title is STRAW HAT LOGS", "C1 but only the logo and all the bounties placed surrounding it", "B3 but put the One Piece logo (download official) at centre bottom and remove the subtitle", "remove the ridge line in the book" → new IDs for each (D4/D5, C4, B4); an official franchise logo comes from Wikipedia/Commons via the API (`prop=imageinfo`), checked on a coloured ground; a composition of the video's own elements (its drawn emblem, its posters) is rebuilt cleanly in Python rather than cropped from a busy frame (cut the drawing by ink and colour, multiply it onto clean paper, paint out a book's spine crease). Engine gotchas: the `side` preset's `width`/`height` are px (a fraction makes the title vanish), photo `fade.size` is a fraction, a raw-`layers` style ignores `params.logos` (add a `logo` layer), and a style-level `patch` fails on variants without that layer; move a subject sideways by extending the picture first (blurred mirror), not with `offset`.
 - 2026-10-27 · Nakama! (Anime Music Zone + Get into Zone) · "in all the finalised thumbnails add logos of both Get into Zone and Anime Music Zone" … "put them each on one side" … "use the transparent logo in black or white colours depending on the image" … "in the thumbnail skill, make sure to ask what channel or channels to attach as watermarks" → intake question 3a (which channels, multi-select, always asked); each channel's logo transparent, black or white per picture (a glass or photo logo gets a solid cut on black first: brands/animemusiczone/graphics/tools/solid_logo.py); two channels on opposite top corners. "if doing 3 thumbnail variations, then give three YouTube titles as well" → three finals get three titles, one per thumbnail.
+- 2026-10-30 · Devil in the Details (INVERTED Devils) · Picked D3 (close-up, bone DEVIL on the left) and finished the pack, then (2026-10-31): "the thumbnail skill is comparatively better, but only comparatively, the youtube thumbnails I have given as reference or the ones out there in real world are much more click baity, attractive, ours is not up to the mark" → side by side with the 13 references: ours were frames of the video (ring, wave and all) with a word at 25–35 % of the width, red on red, the face small; theirs: one giant word across 60–100 % of the width, a big lit face, a simplified background, one accent. → "What makes people click" (eight checkable rules), a concept board of 6–8 archetypes first, then 3 variants of each picked concept, and a feed-size benchmark against the references before every round is shown.

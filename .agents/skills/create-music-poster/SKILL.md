@@ -1,203 +1,172 @@
 ---
 name: create-music-poster
-description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It crops the picture to a correct 1:1 square (outcropping with Midjourney or fal when the subject doesn't fit), optionally sets the title and artist, and renders the cover plain plus the treatments that suit the picture, chosen from the image itself (its light, contrast, colour, warmth, skin, neon, highlights, texture and palette) among 13 looks (film, matte, vivid, noir, duotone, riso print, VHS, vintage, dream, night, cinema, neon, pastel) and tuned to it (duotone in the picture's own colours, less vignette or grain where it already has them), as 3000×3000 RGB JPEGs labelled A0, A1…, well exposed for the song's mood (auto-exposure lifts dark pictures and any treatment that darkens them; dark only when the song is), following DistroKid's artwork rules. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options or treatments for a poster job under apps/lyrics_videos/thumbnails/jobs/. Append new user feedback to the log at the bottom.
+description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options for a poster job under apps/lyrics_videos/thumbnails/jobs/. Append new user feedback to the log at the bottom.
 ---
 
 # create-music-poster
 
 Album artwork built with the stills engine in `apps/lyrics_videos/thumbnails/` (the same one
-`create-thumbnail` uses). **Read `thumbnails/README.md` once** ("Posters" and "Treatments"). A poster
-job is `thumbnails/jobs/<job>/poster.json` (`"kind": "poster"`), designed on a 1000×1000 canvas and
-rendered at 3× to **3000×3000**; renders go to `out/posters/<job>/`. Jobs and renders are
-gitignored; commit engine changes only when asked.
+`create-thumbnail` uses). **Read `thumbnails/README.md` once** ("thumbs.json", "Posters",
+"Treatments"). A poster job is `thumbnails/jobs/<job>/poster.json` (`"kind": "poster"`), designed on
+a 1000×1000 canvas and rendered at 3× to **3000×3000** into `out/posters/<job>/`. Jobs and renders
+are gitignored; commit engine changes only when asked.
 
-**PRIME RULE: the art with no text always comes first.** Every poster job has a style with the
-picture alone (no title, no artist, no text at all), plain + its treatments, and it comes first on
-the sheet. Text versions are only ever extra styles on top of it, never instead of it, even when the
-user asks for title + artist. `init --poster` makes it as style A; `render` warns when every cover
-has text. In a job that already showed text styles, add it under the next free letter.
+Reworked on 2026-10-31. The user's verdict on the first version: "all i am seeing is the repeat set
+of variations — vhs, noise etc. — and no crop variations, or placement variations, or some creative
+ideation based on lyrics meaning or musical ambience; the contrast/sharpness/clarity of the image at
+final is getting lost because of these variations … confirm with user what you wish to try by
+showing and not telling … sometimes music poster creation can be simple if it's a small song, do
+not overdo … and if it is simple, you need not even upscale unnecessarily wasting money."
 
-**SECOND RULE: covers are well exposed unless the song is dark.** A cover is seen as a 160 px
-tile on a phone: a dark, muddy one disappears. The subject reads clearly, the highlights reach
-white, the blacks stay black. A dark, low-key cover is only right when the song's mood is dark
-(`"mood": "dark"`), and even then the subject and the highlights must read. `render` handles the
-exposure (levels for the mood on the picture, an extra lift for any treatment that came out
-darker than its plain cover); you still judge the sheet.
+## The rules
 
-**THIRD RULE: the picture picks its effects.** Not every look suits every picture: film fades neon
-to mud, riso crushes a black background, vivid clips colour that is already saturated, a bloom
-needs highlights. A style starts as `"treatments": "auto"`; the first render measures the picture
-and keeps the 4–6 looks that suit it (step 3), tuned to it. You then look at the picture yourself
-and agree or adjust before anyone sees IDs.
+1. **The art with no text always comes first.** Every job has covers with the picture alone; text
+   versions are only ever extra, never instead (even when the user asks for title + artist).
+2. **Size the job to the song.** A small single gets a **quick cover**: 3–5 options straight from
+   the picture (the best crops and one or two ideas), no paid steps, one round. A big release (an
+   album, a lead single, or the user asks to explore) gets the **direction board** below. Ask which,
+   recommended option first, from what the user said about the release.
+3. **Variety comes from the picture and the idea, not from filters.** Explore in this order:
+   crop and framing → placement and scale → a graphic device or idea from the lyrics and the sound →
+   only then, optionally, a finishing look. Never a sheet of one crop in ten filters.
+4. **Show, don't tell.** Before building a direction, show it as a small captioned picture and let
+   the user pick. Captions describe what they see ("tight on her face, black space above for the
+   title"), never jargon alone ("riso", "duotone", "VHS"): the user may not know what the word means.
+5. **Clarity is sacred.** Every cover keeps the plain crop's sharpness, contrast and highlights unless
+   the user picked a soft or lo-fi look on purpose. Measure it (step 5); drop or fix any cover that
+   loses it.
+6. **Well exposed unless the song is dark.** A cover is a 160 px tile on a phone: the subject reads,
+   the highlights reach white, the blacks stay black. `"mood"` (bright / balanced / dark / as-is) sets
+   the exposure; dark only when the song is.
+7. **Pay only when needed, and ask first.** Upscale only when the square crop is under ~1500 px on
+   its side or looks soft at 1:1; outcrop only when the subject doesn't fit a square. Both are offered
+   with a price (fal SeedVR2 ≈ $0.001 per output megapixel) and run only on a yes. A quick cover from
+   a big enough picture costs nothing.
 
-**Defaults:** one style per picture (or layout), each with **plain + the looks picked for its
-picture**: IDs A0 (plain), A1 … in the order picked (best first). Text styles on the same picture
-get the same picks, so the user compares like with like. **No logo** unless the user asks. The
-user can ask for more pictures, layouts, or more or fewer treatments.
+## 1. Intake (one round)
 
-**Keep it cheap**: presets + treatments, not TSX; look at the sheet, not single files; while
-iterating render only the IDs you changed.
+`AskUserQuestion`, recommended option first; skip what's answered and say what you assumed:
 
-## 1. Intake: ask before building
-
-With `AskUserQuestion` (recommended option first; skip what's already answered and say what you
-assumed):
-
-1. **The release:** song title, artist name, single / EP / album, the feeling the cover should
-   leave. Lyrics help (the hook, the imagery).
-2. **Mood (brightness):** propose one from the song and the lyrics, recommended option first:
-   **bright** (uplifting, summer, love, pop) · **balanced** (most songs; the default) · **dark**
-   (only when the song itself is dark: menace, grief, horror, night). It goes in `poster.json` as
-   `"mood"` and sets the exposure. Never pick dark just because the picture is dark.
-3. **The picture(s):** theirs (best), a frame from their video, or a concept to generate
-   (Midjourney through Browse Hack; fal costs money, ask first).
-4. **Text versions** (always ask): title + artist · title only · none. This only decides the
-   *extra* styles: the art with no text is always made (the prime rule). Streaming services show
-   the title and artist under the cover anyway.
-5. **Fonts** (always ask, when there is text): a font or family they want, or a mood. Their
-   choice overrides the brand's fonts. If a font-choosing skill is listed, use it; otherwise the
-   font table in `create-thumbnail` step 5.
-6. **Logo:** none by default. Only when they ask (the brand's files are in the job's `assets/`).
-7. **DistroKid release folder**, if there is one: the cover gets copied there as `cover.jpg`
-   (`distrokid-release-info` reads it).
-8. **Spotify Canvas** (the looping video behind the song in Spotify): none, or which method(s):
-   **Remotion** (free, local) · **Midjourney** (video from the picture) · **a fal video model**
-   (paid). Several can be made to compare. See step 7.
+1. **Scope:** quick cover (recommended for a small single) · explore directions.
+2. **The release:** title, artist, single / EP / album, the feeling the cover should leave, the lyrics
+   (the hook, the images, what the song is about underneath).
+3. **Mood (brightness):** bright · balanced (default) · dark (only when the song is).
+4. **The picture(s):** theirs (best), a frame from their video, or a concept to generate.
+5. **Text versions** (always ask): none (the art alone is always made) · title + artist · title only;
+   and the **font** (theirs override the brand's).
+6. **DistroKid release folder** (the cover goes there as `cover.jpg`), and a **Spotify Canvas** (none
+   by default; see step 7).
 
 ```bash
 npm run thumbs -w lyrics_videos -- init <slug>-cover --poster [--brand=<brand>] [--title="…"] [--mood=bright|balanced|dark]
 ```
 
-`init --poster` writes `poster.json` (style A = `cover` with no text, all treatments; add text
-styles as B, C… after it) and a `brief.md`.
-With `--brand` it copies the brand's fonts, palette and logo files, but sets no logo.
+Write the answers into the job's `brief.md`.
 
 ## 2. The square picture
 
-Measure it (`sips -g pixelWidth -g pixelHeight`). Then:
+Measure it (`sips -g pixelWidth -g pixelHeight`) and look at it (Read). Then:
 
-- **Square crop** when the subject fits in a square: frame it with `hero.focus` / `zoom` (look at
-  the plain variant: nothing important cut, the subject not jammed against an edge).
-- **Outcrop to 1:1** when a square crop would cut the subject (a wide shot, a tall portrait
-  cropped at the head): the `midjourney-outcrop` skill (Browse Hack), or fal (paid: ask first).
-  Put the result in `input/` and use it as the hero.
-- **Resolution: upscale the source once, never the covers.** DistroKid wants 3000×3000 (minimum
-  1000) and rejects blurry or pixelated art. `render` warns when a picture is blown up past its
-  own pixels ("blown up 2.0× … will look soft"). Then upscale **the one source picture** (the
-  prime image every cover and treatment is built from) and point `hero.src` at it; all the
-  variants inherit it. Never upscale renders one by one.
-  - Midjourney images: Midjourney Upscale (`midjourney-iterate`, Upscale Subtle).
-  - Anything else: fal `fal-ai/seedvr/upscale/image` (SeedVR2), `upscale_factor` to reach ≥ 3000 px
-    on the short side of the crop, `output_format: png`. It is faithful (no re-imagined faces) and
-    cheap: **$0.001 per output megapixel**, e.g. 2× of 2000×1506 → 4000×3024 = 12.1 MP ≈ **$0.012**.
-    Paid, so ask first (or follow the user's standing OK); upload the user's original file, not
-    a re-encoded copy. Save it as `input/<name>-4k.png` and note model, size and cost in `brief.md`.
-  - Compare a crop against a plain resize before using it (hair, edges, faces unchanged).
-- **A dark source picture** (night shots, black backgrounds, low-key art) is fine: auto-exposure
-  lifts it (step 5). When the picture is so dark that `render` warns it "stays dark", say so and
-  offer a brighter source (another frame, a re-generation with brighter light) rather than
-  shipping a murky cover.
-- For `cover-behind` (title behind the subject), make a cutout:
+- **Square crops** from the picture: `hero.focus` / `zoom` per variant. Prefer the tallest version
+  of the picture (a 9:16 original over a 16:9 outcrop) when the subject is a figure.
+- **Outcrop to 1:1** only when every square crop cuts the subject (`midjourney-outcrop`, or fal:
+  ask with the price).
+- **Upscale** only per rule 7: the one source picture, never the covers (fal
+  `fal-ai/seedvr/upscale/image`, faithful, `upscale_factor` to reach ≥ 3000 px on the crop's short
+  side; Midjourney images: Upscale Subtle). `render` warns when a picture is blown up past its pixels.
+- **A cutout** (for placement, devices behind the subject, text behind her):
   `npm run thumbs -w lyrics_videos -- cutout <job> input/<file> --model=birefnet-general`
-  (`birefnet-portrait` for people, `isnet-anime` for drawn art). Check `cutouts/<name>.check.jpg`.
+  (`birefnet-portrait` for people, `isnet-anime` for drawn art), or a project's BiRefNet tool with
+  fill polygons for missed parts. Check it at full size: a missed hand or horn looks cut off.
 
-## 3. Layout and treatments
+## 3. Ideas (what to try)
 
-Layouts (presets, square): `cover` (full bleed; optional title + artist at the bottom or top
-over a soft shade), `cover-behind` (the title huge behind the subject), `cover-frame` (a framed
-print, title and artist in the margin). Text params are the same as thumbnails (`words`, `sub`,
-`kicker`, `heroType`, `subType`, `upper: false` for title case); see the README.
+Write 6–9 candidates in `brief.md`, each one line of what it looks like and why it fits *this* song:
 
-Treatments (`thumbnails/treatments.ts`), applied over the whole cover, text included:
+- **Crop and framing:** tight on the face · head and shoulders · waist up · the full figure small in a
+  big field · off-centre with empty space for the title · a detail (hands, an object, the eyes).
+- **Placement and scale:** subject left / right / centre, mirrored (`flip` at focus 0.5), small
+  subject in a vast colour field, cropped by the frame edge on purpose, the cutout over a clean
+  field of one colour from the picture.
+- **From the lyrics' meaning:** the hook's image or object made the subject (e.g. "the fine print":
+  tiny contract text as texture, a signature line, a magnified detail); a phrase as the art
+  (typographic cover, only for text styles); a symbol the song keeps returning to.
+- **From the sound:** the colour story of the music (warm or cold, neon or natural, soft or hard
+  light), its energy (stillness and space for a ballad, tension and tight crops for a hard song).
+- **A graphic device:** one bold shape behind the cutout (a moon, a halo, a ring, a band of colour),
+  a frame, a texture field — built with layers (`add` / raw `layers`), not filters.
+- **A finishing look** (optional, last): a grade or one treatment, only where it serves the song and
+  the picture (step 4).
 
-| treatment | look | suits (what `look` checks) |
-|-----------|------|----------------------------|
-| plain | the composition as it is | always first |
-| film | warm, slightly faded 35 mm | faces, natural colour; not neon or mostly-black pictures |
-| matte | flat and calm, charcoal blacks | harsh contrast; not mostly-black or flat pictures |
-| vivid | rich saturation and contrast | muted colour; not saturated or grey pictures |
-| noir | black and white, hard contrast | strong light and shadow, faces; not pictures whose colours are the point |
-| duotone | the picture's own colours, dark → accent → light | one main colour, clear shapes |
-| riso | posterized colour, halftone, paper | bold shapes, flat (illustration) colour; not mostly black |
-| vhs | red/blue split, scanlines, noise | neon and night colour; not noisy or soft bright pictures |
-| vintage | sepia, dust, paper, dark corners | warm, gentle colour; not neon or cold |
-| dream | highlight bloom, warm light leak | highlights to catch, bright songs |
-| night | cold blue grade, moonlit highlights | cool colour, deep shadows with lit parts, dark songs |
-| cinema | teal shadows, warm skin and highlights | faces, natural colour; not one strong colour |
-| neon | deep blacks, glowing colour | vivid lights on a dark ground |
-| pastel | airy, soft, lifted | light pictures, bright songs; never dark ones |
+Anything that needs a new picture (Midjourney through Browse Hack, fal) is offered with what it
+costs and made only on a yes.
 
-**How the picks are made.** `npm run thumbs -w lyrics_videos -- look <job>` prints, per hero
-picture (as auto-exposure will show it, for the job's mood): what it measured (light, contrast,
-black %, highlights %, saturation, warmth, hue spread and main hue, neon %, skin %, detail, noise,
-edges, palette), then every look with a score and its reasons, ✓ on the picks (score ≥ 0.55,
-4–6, varied: a second look from the same family needs a clearly better score) and the `tune` for
-each. `render` does the same for any `"auto"` style and writes the list and the tunes into
-`poster.json` (and the reasons into `brief.md`), so IDs stay put.
+## 4. Direction board (explore scope) or quick cover
 
-**Then judge it yourself, before the first render the user sees.** Open the source picture
-(Read) and read the ranking. The numbers can't see content or the song: drop a pick that fights
-the song or the subject (VHS on a gentle acoustic ballad, pastel on a horror track), and add one
-the song calls for even if it scored lower; say why in `brief.md`. Do this by writing the list
-yourself (`"treatments": ["plain", …]`, keeping the `tune` entries `look` printed) or by
-`look --write` and editing. Once the user has seen IDs, the list only grows: new looks go at the
-end, with new IDs.
+**Direction board:** render the candidates small and fast, one variant each, plain (no finishing
+look), `"scale": 1` in `poster.json` (1000 px tiles):
 
-`tune` per look (`{ "noir": { "vignette": 0.3 } }`) multiplies that effect's `vignette`, `grain`,
-`tint` or `bloom`, and `duotone` takes the colours (the picture's own: darkest → its most
-characteristic colour → lightest). `"treatment": "noir"` on a variant applies one. `exposure` (e.g. 1.15) lifts the picture under
-any treatment by hand, on top of auto-exposure. A new look that works goes into `treatments.ts`
-(keep it additive; check it on a dark picture: it must not come out much darker than plain).
+```bash
+npm run thumbs -w lyrics_videos -- render <job>          # → out/posters/<job>/sheet.jpg
+```
 
-## 4. DistroKid's artwork rules (check every cover)
+Send the sheet (SendUserFile) with one plain-words line per ID and ask which 1–3 to develop
+(multi-select). Then set `"scale"` back to 3 and develop only those: 2–4 variants each (crop
+nudges, scale, the device's size or colour, text versions if asked), new IDs after the board's.
+
+**Quick cover:** skip the board; render 3–5 finished options at full size directly (the best crops
+and one or two ideas), plain.
+
+**Finishing looks** (`treatments.ts`: film, matte, vivid, noir, duotone, riso, vhs, vintage, dream,
+night, cinema, neon, pastel): only on a developed direction the user liked, only the 1–2 that suit it
+(`look <job>` ranks them against the picture; drop any that fights the song), and shown next to the
+plain cover so the user sees what it adds. `"treatments": ["plain", "<look>"]` on a style makes the
+pair; `tune` adjusts strength (`{ "duotone": { "duotone": [colours from the picture] } }`). Never
+`"treatments": "auto"` as the starting point.
+
+## 5. Check before showing
+
+```bash
+npm run thumbs -w lyrics_videos -- render <job> [IDs]
+```
+
+- Fix every warning `render` prints (blown-up picture, text that breaks DistroKid's rules, every cover
+  with text).
+- **Clarity**: compare each cover with its plain crop at full size — sharpness (Laplacian variance of
+  the luma, e.g. `ffmpeg … -vf "format=gray,convolution=…"` or a numpy one-liner), contrast (luma
+  standard deviation) and highlights (`signalstats` YHIGH). A cover that lost more than ~15 % of any of
+  them goes back unless it is a lo-fi look the user chose.
+- **Tile size**: `sheet-small.jpg` (~160 px tiles): the subject and any title read; nothing muddy.
+- **Variety**: the sheet shows different crops, placements and ideas, not one picture in several
+  filters.
+
+Then send `sheet.jpg`, list the IDs in plain words, and give the review link (`revise-image`):
+`https://mediamake.microfox.app/image-revision?job=<job>` (posters show square with one **Cover** to
+pick).
+
+## DistroKid's artwork rules (check every cover)
 
 - **3000×3000 JPEG, RGB** (the render is exactly that), one image, square. Minimum 1000×1000.
 - **Never on the art**: a website address, QR codes, X/Twitter page names, social media logos
   (X, Instagram, TikTok…) or names, streaming service logos (Spotify, iTunes…), prices,
   references to physical media ("CD", "Compact Disc", vinyl), nudity, gross imagery.
   `render` flags text that looks like any of these.
-- **Not blurry, pixelated, rotated or low quality** (see Resolution above).
+- **Not blurry, pixelated, rotated or low quality** (step 2, and the clarity check in step 5).
 - **Only licensed pictures**: the user's own, generated, or licensed. No unlicensed stock or
   pictures pulled from the web.
 - **Unique per release**: never reuse a cover (or a near copy) from an earlier release; check
   `out/posters/*/final/` for the same picture before delivering.
 
-## 5. Render, check, show
-
-```bash
-npm run thumbs -w lyrics_videos -- render <job>          # → out/posters/<job>/A0.jpg … sheet.jpg, sheet-small.jpg
-```
-
-For an `"auto"` style `render` first prints the `◐` ranking (see step 3) and writes the picks.
-It then prints one `☀` line per picture (mean, bright parts, highlights: before → after,
-with the white point and lift it chose for the mood), re-renders any treatment that came out
-darker than its plain cover (`↻`), then an `exposure` table: every cover's brightness as a % of
-its plain cover, its highlights (≥ 0.9 reads as real highlights) and its lift. Levels and lifts
-live in `jobs/<job>/exposure.json` (derived; never edit by hand: change `"mood"` and re-render).
-`"mood": "as-is"` turns it off.
-
-Fix every warning. Before showing anything: the sheet has the no-text style first, and **no cover
-looks dark or muddy at tile size** (unless the mood is dark, and then the subject still reads).
-If a cover looks dark although the table says it's fine, raise its `exposure` or try `bright`. Look at `sheet.jpg` and `sheet-small.jpg` (tiles at a streaming app's list
-size, ~160 px) yourself: the crop, the text readable small, no treatment washing the picture out,
-nothing from the rules list. Then send `sheet.jpg` (SendUserFile), list the IDs with one line
-each, and give the review link (the `revise-image` skill): `https://mediamake.microfox.app/image-revision?job=<job>`
-(it opens directly on the deployed app; no local server needed). The user opens `apps/lyrics_videos/out` once as a source; posters show
-square, with one **Cover** to pick.
-
 ## 6. Iterate and deliver
 
-- "More options" / "other looks": `look <job>` and offer the next best (unpicked) looks by score;
-  append them to the style's list (new IDs at the end).
-
-- Feedback by ID ("A9 but less glow", "B with the title smaller"): change the style or variant,
-  or add new variants with new IDs; IDs never change once seen. `thumbs keep <job> <ID>` locks one.
-- For a ready revision from `/image-revision` (`out/posters/<job>/<job>.revisions/rev-NNN.md`),
-  follow the `revise-image` skill: crops, keep, fixes, the cover, reply, resolve.
+- Feedback by ID ("B2 but tighter", "C with the title smaller"): change it or add new variants with
+  new IDs; IDs never change once seen. `thumbs keep <job> <ID>` locks one the user likes.
+- A ready revision from `/image-revision` (`out/posters/<job>/<job>.revisions/rev-NNN.md`): follow
+  `revise-image`.
 - The cover: `npm run thumbs -w lyrics_videos -- pick <job> <ID> [--to=<release folder>]` →
-  `out/posters/<job>/final/<job>-<ID>.jpg`, and `cover.jpg` in the release folder (ask before
-  replacing an existing one; `--force` replaces it). Then `distrokid-release-info` takes over.
-- Log what you learned: `brief.md` (this job), the feedback log below (general taste).
+  `out/posters/<job>/final/<job>-<ID>.jpg` and `cover.jpg` in the release folder (ask before replacing
+  one). Then `pack-distrokid` takes over.
+- Log what you learned in `brief.md` (this job) and the feedback log below (general taste).
 
 ## 7. Spotify Canvas (only when asked)
 
@@ -241,3 +210,4 @@ Add entries at the bottom: date · release · what they said → the rule.
 - 2026-10-24 · Inexorable · Delivered A (title + artist) and B (framed, title in the margin) with no text-free version: "you MUST always create variations without any titles … you can create with text, but only if the base version without any text exists" → the prime rule at the top; `init --poster` makes style A with no text; `render` warns when every cover has text. Added C (art only) to the Inexorable job.
 - 2026-10-25 · engine · "the end images do not have good enough exposure, or highlight making them look dark, if that is the vibe of the song fine, otherwise not good" → the second rule; a `mood` per poster (intake question 2: bright / balanced / dark, dark only when the song is); auto-exposure in `thumbnails/exposure.ts` (white point to the brightest channel's 99.5 %, black point kept, a toe-protected mid-tone lift to the mood's target, then a measured lift for any treatment darker than its plain cover); duotone now dark → accent → ink so it keeps highlights; softer vignettes; night no longer darkens. Tested on Kingdom (mean 0.08 → 0.17, highlights 0.86 → 0.96) and Inexorable (0.05 → 0.13 balanced, 0.09 dark), every treatment within ~85 % of plain.
 - 2026-10-25 · engine · "optimise the music poster skill in such a way that it decides what kind of effects to use on the basis of the image itself" → the third rule; `thumbnails/look.ts` measures the exposed picture (light, contrast, black/highlight share, saturation, colourfulness, warmth, hue spread, neon, skin, detail, noise, edges, a 5-colour palette), scores each look with stated reasons and the mood, picks 4–6 varied ones, and tunes them (`tune`: duotone from the picture's palette with the accent at a third so mid-tones stay light, vignette/grain/tint/bloom multipliers); `"treatments": "auto"` from `init --poster`, resolved into a list on the first render; three new looks (cinema, neon, pastel). Tested: dark red anime art → neon, VHS, duotone, night; a portrait → dream, noir, vivid, duotone, film, cinema. Claude still checks the picks against the content and the song.
+- 2026-10-30 · Devil in the Details (INVERTED Devils) · The sheet was two near-identical crops of the video's neon still in neon / duotone / dream / VHS; the user picked A4 (VHS) but then: "the music poster creation skill is also shitty, all i am seeing is the repeat set of variations - vhs, noise etc.. and no crop variations, or placement variations, or some creative ideation based on lyrics meaning or musical ambience, the contrast/sharpness/clarity of the image at final is getting lost because of these variations sometimes … confirm with user what you wish to try by showing and not telling as user might not know some specific words and what that filter or effect means … sometimes music poster creation can be simple if its small song, do not overdo … if it is simple, you need not even upscale unnecessarily wasting money" → reworked (2026-10-31): seven rules, scope first (quick cover vs direction board), ideas in the order crop → placement → lyrics/sound idea → device → optional finish, a captioned 1000 px direction board before developing, a measured clarity check against the plain crop, `"treatments": "auto"` no longer the default, upscale/outcrop only when the crop needs it.

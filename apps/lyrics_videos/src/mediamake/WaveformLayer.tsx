@@ -7,6 +7,7 @@ import {
   type WaveformSpectrumLineDataProps,
 } from '@microfox/remotion';
 import type { SceneProps } from '../kit/contract';
+import { useHit } from '../kit/hooks';
 import { applyContainerLayout, presetTree, runPreset } from './presets';
 import { PresetTree } from './PresetTree';
 import { Visualizer, type VisualizerProps } from './Visualizers';
@@ -91,6 +92,11 @@ type Box = {
   /** Extra CSS transform on the box, e.g. 'rotate(270deg)' for a wave up the side. */
   transform?: string;
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
+  /** A glow round the wave in this colour (`glowBlur` px, default 12), like a neon line. */
+  glow?: string;
+  glowBlur?: number;
+  /** 0..1: the strip stretches up from its base on each kick (0.5 = half again as tall at the hit). */
+  kick?: number;
 };
 
 export type WaveformLayerProps = (
@@ -120,6 +126,11 @@ export type WaveformLayerProps = (
 ) & {
   /** Mirror the whole wave left-right: side bars on the right edge instead of the left. */
   mirrorX?: boolean;
+  /**
+   * With a cutout subject in the look: draw behind her (true) or in front (false). Default: the
+   * visualizers behind, the strips and lines in front.
+   */
+  behind?: boolean;
 };
 
 /**
@@ -129,6 +140,7 @@ export type WaveformLayerProps = (
 export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => {
   const { manifest, section } = props;
   const { width: frameWidth, height: frameHeight } = useVideoConfig();
+  const kickHit = useHit('kick', 9);
   // @microfox/remotion atoms call staticFile() themselves: pass the raw manifest path.
   const audio = { src: manifest.audio.src, start: section.from };
 
@@ -165,6 +177,8 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
   const box = props.box ?? {};
   const width = box.width ?? frameWidth;
   const height = box.height ?? 300;
+  const lift = 1 + (box.kick ?? 0) * Math.min(1, kickHit);
+  const glowBlur = box.glowBlur ?? 12;
   const wrapper: React.CSSProperties = {
     position: 'absolute',
     bottom: box.bottom ?? 0,
@@ -173,7 +187,12 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
     height,
     opacity: box.opacity ?? 1,
     mixBlendMode: box.mixBlendMode,
-    transform: [box.transform, box.flip ? 'scaleY(-1)' : ''].filter(Boolean).join(' ') || undefined,
+    transform:
+      [box.transform, box.flip ? 'scaleY(-1)' : '', lift > 1.001 ? `scaleY(${lift.toFixed(3)})` : '']
+        .filter(Boolean)
+        .join(' ') || undefined,
+    transformOrigin: 'bottom',
+    filter: box.glow ? `drop-shadow(0 0 ${glowBlur}px ${box.glow}) drop-shadow(0 0 ${glowBlur * 2}px ${box.glow})` : undefined,
   };
 
   return (

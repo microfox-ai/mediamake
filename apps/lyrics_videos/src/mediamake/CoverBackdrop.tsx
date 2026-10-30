@@ -1,8 +1,9 @@
 import React, { useId } from 'react';
 import { AbsoluteFill, Img, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
-import { asset, useBeat, useEnergy, useEnvelope, useHit, useSongTime } from '../kit/hooks';
-import { exposureCss, gradeCss, hasPictureFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
+import type { Manifest } from '../kit/manifest';
+import { asset, useBeat, useEnergy, useEnvelope, useHit, useManifest, useSongTime } from '../kit/hooks';
+import { exposureCss, gradeCss, hash, hasPictureFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
 
 export type CoverBackdropProps = {
   /** A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/. */
@@ -29,8 +30,29 @@ export type CoverBackdropProps = {
    * moving in quiet parts, stronger as the energy rises. Default off.
    */
   shake?: false | 'auto' | { amplitude: number; frequency: number };
+  /**
+   * Camera jolts on the hits, like a trap visualizer: on each onset (`on`, from `threshold`) the
+   * frame snaps `amount` px in a direction of its own and a `zoom` in, then settles in a damped
+   * swing, smeared by a directional motion blur (`blur` × its speed in px per frame). The subject
+   * and the visualizers jolt with it. Default off.
+   */
+  jolt?: Jolt;
   /** Stylise the picture: a grade, picture filters and living texture (PictureLook.tsx). */
   look?: PictureLook;
+};
+
+export type Jolt = {
+  amount: number;
+  on?: 'kick' | 'snare';
+  threshold?: number;
+  /** How fast it settles, per second. Default 7. */
+  decay?: number;
+  /** Swings per second while it settles. Default 5. */
+  swing?: number;
+  /** Extra scale at the hit, 0..1 (0.04 = 4 %). */
+  zoom?: number;
+  /** Motion blur per px/frame of speed. Default 0.8. */
+  blur?: number;
 };
 
 export type CoverMotion = { scale: number; dx: number; dy: number; ox: number; oy: number };
@@ -72,6 +94,58 @@ export const useCoverPulse = (cover?: CoverBackdropProps): number => {
   return cover?.kickOn === 'kick' ? Math.min(1, kick) : pulse;
 };
 
+/** The jolt's offset and extra zoom at song time t: the last strong onset's damped swing. */
+const joltAt = (m: Manifest, j: Jolt, t: number) => {
+  const list = m.onsets?.[j.on ?? 'kick'] ?? [];
+  const decay = j.decay ?? 7;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const [ot, s] = list[i];
+    if (ot > t) continue;
+    const age = t - ot;
+    if (age > 6 / decay) break;
+    if (s < (j.threshold ?? 0.7)) continue;
+    const dir = hash(i + 0.37) * Math.PI * 2;
+    const amp = j.amount * Math.min(1, s) * Math.exp(-age * decay) * Math.cos(age * (j.swing ?? 5) * Math.PI * 2);
+    return { dx: Math.cos(dir) * amp, dy: Math.sin(dir) * amp, zoom: (j.zoom ?? 0) * Math.exp(-age * decay * 1.5) };
+  }
+  return { dx: 0, dy: 0, zoom: 0 };
+};
+
+/**
+ * The cover's motion now, jolt included, and the motion blur it leaves ([x, y] px): every layer
+ * that moves with the picture (cover, subject, visualizers) uses this, so they jolt together.
+ */
+export const useCoverMotion = (cover: CoverBackdropProps = {}): { motion: CoverMotion; blur: [number, number] } => {
+  const t = useSongTime();
+  const energy = useEnergy();
+  const pulse = useCoverPulse(cover);
+  const { width, height, fps } = useVideoConfig();
+  const manifest = useManifest();
+  const m = coverMotion(cover, { width, height }, t, pulse, energy);
+  if (!cover.jolt) return { motion: m, blur: [0, 0] };
+  const j = joltAt(manifest, cover.jolt, t);
+  const j0 = joltAt(manifest, cover.jolt, t - 1 / fps);
+  const k = cover.jolt.blur ?? 0.8;
+  return {
+    motion: { ...m, dx: m.dx + j.dx, dy: m.dy + j.dy, scale: m.scale * (1 + j.zoom) },
+    // capped: a long one-axis blur breaks into streaks
+    blur: [Math.min(10, Math.abs(j.dx - j0.dx) * k), Math.min(10, Math.abs(j.dy - j0.dy) * k)],
+  };
+};
+
+/** A directional blur as an SVG filter (`filter: url(#id)`); nothing when it's too small to see. */
+export const MotionBlur: React.FC<{ id: string; blur: [number, number] }> = ({ id, blur: [x, y] }) =>
+  x < 0.3 && y < 0.3 ? null : (
+    <svg width={0} height={0} style={{ position: 'absolute' }}>
+      <defs>
+        <filter id={id} x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation={`${x.toFixed(2)} ${y.toFixed(2)}`} edgeMode="duplicate" />
+        </filter>
+      </defs>
+    </svg>
+  );
+export const motionBlurCss = (id: string, [x, y]: [number, number]) => (x < 0.3 && y < 0.3 ? '' : `url(#${id})`);
+
 /** Where a point of the unmoved picture (frame px) is on screen under the cover's motion. */
 export const coverPoint = (m: CoverMotion, [x, y]: [number, number]): [number, number] => [
   m.ox + m.scale * (x + m.dx - m.ox),
@@ -88,18 +162,23 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   const t = useSongTime();
   const energy = useEnergy();
   const { pulse } = useBeat(7);
-  const coverPulse = useCoverPulse(props);
   const kickHit = useHit('kick', 10);
   const snareHit = useHit('snare', 12);
   const low = useEnvelope('low');
-  const size = useVideoConfig();
-  const filterId = `cover-look-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const filterId = `cover-look-${uid}`;
+  const blurId = `cover-blur-${uid}`;
   const name = image || Object.keys(manifest.assets).find(k => /\.(jpe?g|png|webp|avif)$/i.test(k));
   if (!name) throw new Error(`CoverBackdrop: no picture in ${manifest.slug}/input/`);
   const src = asset(manifest.assets[name] ?? name);
 
-  const m = coverMotion(props, size, t, coverPulse, energy);
-  const filter = [gradeCss(look), exposureCss(look, kickHit, pulse), hasPictureFilter(look) && `url(#${filterId})`]
+  const { motion: m, blur } = useCoverMotion(props);
+  const filter = [
+    gradeCss(look),
+    exposureCss(look, kickHit, pulse),
+    hasPictureFilter(look) && `url(#${filterId})`,
+    motionBlurCss(blurId, blur),
+  ]
     .filter(Boolean)
     .join(' ');
   const picture: React.CSSProperties = {
@@ -126,6 +205,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
         />
       )}
       {look && hasPictureFilter(look) && <PictureFilter id={filterId} look={look} pulse={pulse} kick={kickHit} />}
+      <MotionBlur id={blurId} blur={blur} />
       <AbsoluteFill>
         <Img src={src} style={picture} />
       </AbsoluteFill>
