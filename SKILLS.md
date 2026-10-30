@@ -42,7 +42,7 @@ Media making: videos (the only skills that start with make-)
 | [`make-video-music-remix-like-f1xhitit`](.agents/skills/make-video-music-remix-like-f1xhitit/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
 | [`make-video-music-remix-like-quicksilverxkingpin`](.agents/skills/make-video-music-remix-like-quicksilverxkingpin/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero… |
 | [`make-video-music-remix-shorts`](.agents/skills/make-video-music-remix-shorts/SKILL.md) | public | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
-| [`make-waveform-lyric-video`](.agents/skills/make-waveform-lyric-video/SKILL.md) | public | Make a waveform lyric video in Remotion from just a song (an audio file) and a poster or artwork — the picture looping and kicking on the beat, an audio-reactive wavef… |
+| [`make-waveform-lyric-video`](.agents/skills/make-waveform-lyric-video/SKILL.md) | public | Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate,… |
 
 ## create
 
@@ -51,7 +51,7 @@ Images and artwork
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`create-music-poster`](.agents/skills/create-music-poster/SKILL.md) | public | Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail eng… |
-| [`create-thumbnail`](.agents/skills/create-thumbnail/SKILL.md) | public | Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), with a big imp… |
+| [`create-thumbnail`](.agents/skills/create-thumbnail/SKILL.md) | public | Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be cl… |
 
 ## pack
 

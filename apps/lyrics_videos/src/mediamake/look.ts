@@ -11,6 +11,7 @@ import type { CaptionPresetId } from './CaptionLayer';
 import type { CoverBackdropProps } from './CoverBackdrop';
 import type { OverlayTextProps } from './OverlayText';
 import type { OverlayVideoProps } from './OverlayVideo';
+import type { SubjectProps } from './Subject';
 import type { TrackTitleProps } from './TrackTitle';
 import type { WaveformLayerProps } from './WaveformLayer';
 
@@ -71,6 +72,8 @@ export type LookBase = {
   texts?: (OverlayTextProps & { from: number; to: number })[];
   /** Looping clips over the picture (particles, light leaks). */
   overlays?: OverlayVideoProps[];
+  /** The subject cut out of the picture, over the visualizers (cover.image is then the clean plate). */
+  subject?: SubjectProps;
 };
 
 export type Look = LookBase & {
@@ -86,14 +89,25 @@ export type Ref<T> = string | T;
 
 export type Step = 'looks' | 'waves' | 'fonts' | 'captions';
 
+/**
+ * Step 0: cover settings laid over base.cover, plus overlay clips added to base.overlays, a cutout
+ * subject (replacing base.subject) and the look's own visualizers (`layers`, drawn with the wave).
+ */
+export type PictureStyle = CoverBackdropProps & {
+  overlays?: OverlayVideoProps[];
+  subject?: SubjectProps;
+  layers?: WaveDesign;
+};
+
 /** projects/<slug>/video/storyboard.ts: the candidates of each step, and what the user picked. */
 export type Storyboard = {
   base?: LookBase;
   /**
    * Before the wave: the picture's style (L1, L2, …), cover settings laid over base.cover, usually
-   * a `look` (grade, picture filters, texture: PictureLook.tsx). null = the picture as it is.
+   * a `look` (grade, picture filters, texture: PictureLook.tsx), and its own `overlays`
+   * (particles, flashes). null = the picture as it is.
    */
-  looks?: Record<string, CoverBackdropProps | null>;
+  looks?: Record<string, PictureStyle | null>;
   /** Step 1. Keys are the IDs the user picks by (W1, W2, …). null = no wave. */
   waves?: Record<string, Ref<WaveDesign> | null>;
   /** Step 2 (F1, F2, …). */
@@ -146,8 +160,10 @@ export const storyboardLook = (sb: Storyboard, candidate?: { step: Step; id: str
     if (!table || !(id in table)) throw new Error(`storyboard.ts has no ${step} candidate "${id}"`);
     return table[id];
   };
-  const pictureLook = choose('looks', sb.looks, sb.pick?.look);
+  const { overlays: lookOverlays, subject, layers, ...pictureLook } = choose('looks', sb.looks, sb.pick?.look) ?? {};
+  const overlays = [...(sb.base?.overlays ?? []), ...(lookOverlays ?? [])];
   const wave = choose('waves', sb.waves, sb.pick?.wave);
+  const waves = [...(wave ? [waveRef(wave)].flat() : []), ...(layers ? [layers].flat() : [])];
   const fonts = choose('fonts', sb.fonts, sb.pick?.fonts);
   const captions = choose('captions', sb.captions, sb.pick?.captions);
   const lyricsOff =
@@ -155,7 +171,9 @@ export const storyboardLook = (sb: Storyboard, candidate?: { step: Step; id: str
   return {
     ...sb.base,
     cover: { ...sb.base?.cover, ...pictureLook },
-    wave: wave ? waveRef(wave) : null,
+    ...(overlays.length ? { overlays } : {}),
+    ...(subject ? { subject } : {}),
+    wave: waves.length ? waves : null,
     fonts: fontsRef(fonts ?? DEFAULT_FONTS),
     captions: lyricsOff || captions === null ? null : captionsRef(captions ?? DEFAULT_CAPTIONS),
   };

@@ -9,27 +9,34 @@ import { captionParams, storyboardLook, type Look, type Storyboard } from './loo
 import { OverlayText } from './OverlayText';
 import { OverlayVideo } from './OverlayVideo';
 import { TrackTitle } from './TrackTitle';
+import { Subject } from './Subject';
 import { VISUALIZER_KINDS } from './Visualizers';
-import { WaveformLayer } from './WaveformLayer';
+import { WaveformLayer, type WaveformLayerProps } from './WaveformLayer';
 
 /** The look's layers, bottom to top. Without a `cover`, the picture is the project's first image. */
 export const lookLayers = (look: Look, extra: Layer[] = []): Layer[] => {
   const waves = look.wave ? (Array.isArray(look.wave) ? look.wave : [look.wave]) : [];
-  const { title } = look;
+  const { title, subject } = look;
+  const isVisualizer = (w: WaveformLayerProps) => VISUALIZER_KINDS.includes(w.kind as never);
+  const waveLayer = (props: WaveformLayerProps) =>
+    layer({
+      scene: WaveformLayer,
+      at: 'all',
+      // effects locked to a point of the picture follow the cover's motion
+      props: isVisualizer(props) ? { ...props, cover: look.cover } : props,
+      name: waves.indexOf(props) ? `wave ${waves.indexOf(props) + 1}` : 'wave',
+    });
+  // with a cutout subject, the visualizers go behind her and the strips in front (unless `behind` says)
+  const behind = subject ? waves.filter(w => w.behind ?? isVisualizer(w)) : waves;
+  const front = subject ? waves.filter(w => !(w.behind ?? isVisualizer(w))) : [];
   return [
     layer({ scene: CoverBackdrop, at: 'all', props: look.cover ?? {}, name: 'cover' }),
     ...(look.overlays ?? []).map((props, i) =>
       layer({ scene: OverlayVideo, at: 'all', props, name: `overlay ${i + 1}` }),
     ),
-    ...waves.map((props, i) =>
-      layer({
-        scene: WaveformLayer,
-        at: 'all',
-        // effects locked to a point of the picture follow the cover's motion
-        props: VISUALIZER_KINDS.includes(props.kind as never) ? { ...props, cover: look.cover } : props,
-        name: i ? `wave ${i + 1}` : 'wave',
-      }),
-    ),
+    ...behind.map(waveLayer),
+    ...(subject ? [layer({ scene: Subject, at: 'all', props: { ...subject, cover: look.cover }, name: 'subject' })] : []),
+    ...front.map(waveLayer),
     ...(title
       ? [
           layer({

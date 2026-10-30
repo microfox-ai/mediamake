@@ -10,9 +10,9 @@ import React, { useId, useMemo } from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Waveform, computeSmoothedSpectrum, computeSpectrumLineHeights, useWaveformContext } from '@microfox/remotion';
 import type { Manifest } from '../kit/manifest';
-import { useBeat, useEnergy, useManifest, useSongTime } from '../kit/hooks';
+import { useBeat, useEnergy, useHit, useManifest, useSongTime } from '../kit/hooks';
 import { envelopeAt } from '../kit/timing';
-import { coverMotion, coverPoint, type CoverBackdropProps, type CoverMotion } from './CoverBackdrop';
+import { coverPoint, MotionBlur, motionBlurCss, useCoverMotion, type CoverBackdropProps, type CoverMotion } from './CoverBackdrop';
 import { hash } from './PictureLook';
 
 type Point = [number, number];
@@ -48,6 +48,67 @@ export type HaloProps = {
   spin?: number;
   /** A thin ring at the inner radius that brightens on the beat. */
   ring?: boolean;
+  spectrum?: SpectrumOptions;
+};
+
+/**
+ * A ring that grows horns: the spectrum wrapped round a circle, mirrored left and right with the
+ * bass either side of `facing`, every band a pointed blade with hollow sides — thorns on the ring
+ * when it's quiet, great curved horns on the hits (the trap-visualizer ring, made for a devil).
+ * Echo layers trail a few frames behind, the ring punches on the kick and throws a zoom smear.
+ */
+export type HornsProps = {
+  kind: 'horns';
+  at: Point;
+  /** The base ring's radius, px. */
+  radius: number;
+  /** How far the loudest band reaches out from the ring, px. */
+  length: number;
+  /** Where the bass points, degrees (0 = right, clockwise, -90 = up). Default up. */
+  facing?: number;
+  /** Blades per side, bass first; fewer make fewer, bigger horns. Default 9. */
+  bands?: number;
+  /** >1 hollows each blade's sides and sharpens its tip. Default 1.8. */
+  sharpness?: number;
+  /** >1 keeps quiet bands small and lets the loud ones tower. Default 1.4. */
+  contrast?: number;
+  /** Levels under this stay on the ring (0..1), so only the loudest bands rise. Default 0. */
+  floor?: number;
+  /**
+   * Degrees either side of `facing` kept bare, and the share of a side (0..1) over which the outline
+   * ramps up from there: the bass then stands as two separate horns with a dip between them.
+   * Default 0 and 0.
+   */
+  gap?: number;
+  ramp?: number;
+  /** Degrees a blade's tip bends away from `facing` at full length (horns curling out). Default 14. */
+  curl?: number;
+  /** How much shorter the blades get away from the bass, 0..1 (0.7: the treble reaches 30 %). Default 0.6. */
+  taper?: number;
+  /** How much of its band a blade's base takes, 0..1; less leaves bare ring between thin blades. Default 1. */
+  blade?: number;
+  /**
+   * 'blades': every band its own pointed blade. 'lobes': one smooth outline through the bands, so the
+   * loud ones swell into wide glowing crescents with pointed tips (the trap ring's horns). Default 'blades'.
+   */
+  shape?: 'blades' | 'lobes';
+  /**
+   * The shapes, back to front: each `delay` frames behind the music, `scale` × the reach, with an
+   * optional edge line (`stroke`). `color: 'none'` with a thick stroke draws the outline only: hollow
+   * crescents bulging off the ring (the trap ring's look) instead of filled lobes.
+   */
+  layers?: { color: string; delay?: number; scale?: number; opacity?: number; stroke?: string; strokeWidth?: number }[];
+  /** The thin base ring, and its brightening on the beat. */
+  ring?: string;
+  glow?: string;
+  glowBlur?: number;
+  /** Ghost copies thrown outward on each kick, 0..1 (the motion smear on the hits). */
+  smear?: number;
+  /** Extra scale of the whole ring on the kick, 0..1 (0.1 = 10 %). */
+  punch?: number;
+  /** How much longer the blades leap on the kick (1 = twice as long at the hit). Default 0. */
+  kickReach?: number;
+  spin?: number;
   spectrum?: SpectrumOptions;
 };
 
@@ -145,27 +206,23 @@ export type FlamesProps = {
   spectrum?: SpectrumOptions;
 };
 
-export type VisualizerProps = (HaloProps | YantraProps | SparksProps | RingsProps | BoltProps | FlamesProps) & {
+export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | RingsProps | BoltProps | FlamesProps) & {
   /** The cover's settings (lookVideo passes them), so `at` follows the picture's motion. */
   cover?: CoverBackdropProps;
   opacity?: number;
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
 };
 
-export const VISUALIZER_KINDS = ['halo', 'yantra', 'sparks', 'rings', 'bolt', 'flames'] as const;
+export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'rings', 'bolt', 'flames'] as const;
 
 // ---------- shared ----------
 
-const useCover = (cover: CoverBackdropProps | undefined): CoverMotion => {
-  const size = useVideoConfig();
-  const t = useSongTime();
-  const { pulse } = useBeat(7);
-  const energy = useEnergy();
-  return coverMotion(cover ?? { motion: 'still', beatKick: 0 }, size, t, pulse, energy);
-};
+const useCover = (cover: CoverBackdropProps | undefined) => useCoverMotion(cover ?? { motion: 'still', beatKick: 0 });
 
-const useSpectrum = (count: number, o: SpectrumOptions = {}): number[] => {
-  const { audioData, audioFrame, fps } = useWaveformContext();
+/** The spectrum at this frame, or `delay` frames ago (for echo layers). */
+const useSpectrum = (count: number, o: SpectrumOptions = {}, delay = 0): number[] => {
+  const { audioData, audioFrame: now, fps } = useWaveformContext();
+  const audioFrame = Math.max(0, now - delay);
   return useMemo(() => {
     if (!audioData) return new Array(count).fill(0);
     const spectrum = computeSmoothedSpectrum({
@@ -191,6 +248,11 @@ const useSpectrum = (count: number, o: SpectrumOptions = {}): number[] => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioData, audioFrame, fps, count, o.minFrequency, o.maxFrequency, o.tilt, o.gain, o.noiseFloor, o.sharpness, o.spread, o.smoothing]);
+};
+
+const smooth01 = (x: number) => {
+  const c = Math.max(0, Math.min(1, x));
+  return c * c * (3 - 2 * c);
 };
 
 /** Bands folded so the bass sits in the middle and the treble at both ends. */
@@ -244,6 +306,130 @@ const hitsOf = (m: Manifest, on: string): [number, number][] => {
 };
 
 // ---------- halo ----------
+
+const HornsContent: React.FC<HornsProps & { motion: CoverMotion }> = ({
+  at,
+  radius,
+  length,
+  facing = -90,
+  bands = 9,
+  sharpness = 1.8,
+  contrast = 1.4,
+  floor = 0,
+  gap = 0,
+  ramp = 0,
+  curl = 14,
+  taper = 0.6,
+  blade = 1,
+  shape: form = 'blades',
+  layers = [{ color: '#ff2a2a' }],
+  ring = '#ff5a4a',
+  glow = '#ff1a1a',
+  glowBlur = 10,
+  smear = 0.5,
+  punch = 0.08,
+  kickReach = 0,
+  spin = 0,
+  spectrum,
+  motion,
+}) => {
+  const t = useSongTime();
+  const { pulse } = useBeat(5);
+  const kick = Math.min(1, useHit('kick', 9));
+  const { width: W, height: H } = useVideoConfig();
+  const id = `horns-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  // one spectrum per layer (a stable count, so the hooks keep their order)
+  const spectra = layers.map(l =>
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useSpectrum(bands, { smoothing: 0.55, gain: 14, spread: 0.5, ...spectrum }, l.delay ?? 0),
+  );
+  const [cx, cy] = coverPoint(motion, at);
+  const s = motion.scale * (1 + punch * kick);
+  const r0 = radius * s;
+  const N = 360;
+  const shape = (values: number[], reach: number) => {
+    const pts: string[] = [];
+    for (let j = 0; j < N; j++) {
+      const u = j / N;
+      const side = u < 0.5 ? 1 : -1;
+      const dRaw = Math.min(u, 1 - u) * 2; // 0 at `facing`, 1 opposite: both sides mirrored
+      const g = gap / 180;
+      const d = Math.max(0, (dRaw - g) / (1 - g));
+      const rise = dRaw <= g ? 0 : ramp > 0 ? smooth01(d / ramp) : 1;
+      // band k fills d ∈ [k, k+1) / bands, its blade's tip at the middle: the first pair stands
+      // either side of `facing` like two horns
+      const x = Math.min(bands - 1e-6, d * bands);
+      const k = Math.floor(x);
+      let tooth: number;
+      let level: number;
+      if (form === 'lobes') {
+        // straight between the band centres: one flowing outline whose loud bands end in points
+        // (the contrast curve then hollows the sides, so a lifted band reads as a curved horn)
+        const c = Math.max(0, Math.min(bands - 1, x - 0.5));
+        const a = Math.floor(c);
+        const b = Math.min(bands - 1, a + 1);
+        const w = c - a;
+        tooth = 1;
+        level = (values[a] ?? 0) * (1 - w) + (values[b] ?? 0) * w;
+      } else {
+        tooth = Math.pow(Math.max(0, 1 - Math.abs(x - k - 0.5) * (2 / blade)), sharpness);
+        level = values[k] ?? 0;
+      }
+      const lifted = Math.max(0, (level - floor) / (1 - floor));
+      const e = Math.pow(lifted, contrast) * tooth * rise * (1 - taper * d); // 0..1 of the reach
+      const r = r0 + (3 * tooth + e * length * reach) * s;
+      const ang = ((facing + u * 360 + side * curl * e + t * spin) * Math.PI) / 180;
+      pts.push(`${(cx + Math.cos(ang) * r).toFixed(1)},${(cy + Math.sin(ang) * r).toFixed(1)}`);
+    }
+    // the band between the ring and the outline (evenodd cuts the inside out)
+    const hole = `M${cx + r0},${cy} A${r0},${r0} 0 1 0 ${cx - r0},${cy} A${r0},${r0} 0 1 0 ${cx + r0},${cy} Z`;
+    return `M${pts.join(' L')} Z ${hole}`;
+  };
+  const front = layers.length - 1;
+  const paths = layers.map((l, i) => shape(spectra[i], (l.scale ?? 1) * (1 + kickReach * kick)));
+  const zoomAbout = (f: number) => `translate(${cx} ${cy}) scale(${f}) translate(${-cx} ${-cy})`;
+
+  return (
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+      <defs>
+        {glowFilter(id, glowBlur)}
+        <filter id={`${id}-smear`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation={6} />
+        </filter>
+      </defs>
+      {smear > 0 &&
+        kick > 0.05 &&
+        [3, 2, 1].map(k => (
+          <path
+            key={`smear-${k}`}
+            d={paths[front]}
+            transform={zoomAbout(1 + smear * kick * 0.09 * k)}
+            fill={layers[front].color}
+            fillRule="evenodd"
+            stroke={layers[front].stroke}
+            strokeWidth={layers[front].stroke ? (layers[front].strokeWidth ?? 2) * s : undefined}
+            opacity={(0.4 * kick) / k}
+            filter={`url(#${id}-smear)`}
+          />
+        ))}
+      <g filter={`url(#${id})`}>
+        {paths.map((d, i) => (
+          <path
+            key={i}
+            d={d}
+            fill={layers[i].color}
+            fillRule="evenodd"
+            opacity={layers[i].opacity ?? 1}
+            stroke={layers[i].stroke}
+            strokeWidth={layers[i].stroke ? (layers[i].strokeWidth ?? 2) * s : undefined}
+            strokeLinejoin="round"
+          />
+        ))}
+        <circle cx={cx} cy={cy} r={r0} fill="none" stroke={ring} strokeWidth={(3.5 + 2 * pulse) * s} opacity={0.7 + pulse * 0.3} />
+      </g>
+    </svg>
+  );
+};
 
 const HaloContent: React.FC<HaloProps & { motion: CoverMotion }> = ({
   at,
@@ -649,15 +835,19 @@ const FlamesContent: React.FC<FlamesProps> = ({
 
 // ---------- entry ----------
 
-const needsSpectrum = (kind: VisualizerProps['kind']) => kind === 'halo' || kind === 'yantra' || kind === 'flames';
+const needsSpectrum = (kind: VisualizerProps['kind']) =>
+  kind === 'halo' || kind === 'horns' || kind === 'yantra' || kind === 'flames';
 
 export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; start: number } }> = ({ audio, cover, opacity, mixBlendMode, ...props }) => {
-  const motion = useCover(cover);
+  const { motion, blur } = useCover(cover);
   const { width, height } = useVideoConfig();
+  const blurId = `viz-blur-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const body = (() => {
     switch (props.kind) {
       case 'halo':
         return <HaloContent {...props} motion={motion} />;
+      case 'horns':
+        return <HornsContent {...props} motion={motion} />;
       case 'yantra':
         return <YantraContent {...props} motion={motion} />;
       case 'sparks':
@@ -671,7 +861,8 @@ export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; star
     }
   })();
   return (
-    <AbsoluteFill style={{ opacity, mixBlendMode }}>
+    <AbsoluteFill style={{ opacity, mixBlendMode, filter: motionBlurCss(blurId, blur) || undefined }}>
+      <MotionBlur id={blurId} blur={blur} />
       {needsSpectrum(props.kind) ? (
         <Waveform
           config={{ audioSrc: audio.src, dataOffsetInSeconds: audio.start, numberOfSamples: 32, smoothNormalisation: 0, useFrequencyData: false, width, height }}

@@ -184,7 +184,8 @@ that does, but keep new looks near their plain cover's brightness and check them
 "film", …]` on a style makes one variant per treatment by itself, IDs from 0 when the list starts
 with plain (A0 plain, A1 film, …). They work on thumbnails too.
 
-**Picked from the picture** (`look.ts`). `"treatments": "auto"` (what `init --poster` writes)
+**Picked from the picture** (`look.ts`). `"treatments": "auto"` (set it by hand; `init --poster`
+writes `["plain"]` since 2026-10-31: posters vary by crop, placement and idea first)
 lets the picture choose: `render` (or `look <job> --write`) measures the hero as auto-exposure
 will show it (light, contrast, black and highlight share, saturation, colourfulness, warmth, how
 many hues, neon, skin, detail, noise, how dark the edges already are, its five main colours),

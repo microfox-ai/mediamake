@@ -152,6 +152,9 @@ export class FolderSource implements ProjectSource {
     };
     const src = await dirAt(this.root, ['src']);
     if (src) await walk(src, new Set(), collect('src'));
+    // the waveform catalog (waves, font sets, caption setups): src/mediamake/look.ts imports it
+    const catalog = await dirAt(this.root, ['catalog']);
+    if (catalog) await walk(catalog, new Set(), collect('catalog'));
     const project = await dirAt(this.root, ['projects', slug]);
     if (project) await walk(project, NOT_CODE, collect(`projects/${slug}`));
     return out.sort((a, b) => a.path.localeCompare(b.path));
