@@ -15,7 +15,7 @@ this machine, in CI too. The mediamake app shows it at
 
 A skill is named `<verb>-<thing>`; the verb is its category:
 
-- `make-*`: Media making: videos (the only skills that start with make-)
+- `make-*`: Media making: videos and audio (the only skills that start with make-)
 - `create-*`: Images and artwork
 - `pack-*`: Kits and packs that bundle several outputs
 - `revise-*`: Review loops with the user
@@ -31,10 +31,11 @@ an older version kept as it was. Its frontmatter says `metadata: variant-of: <ba
 
 ## make
 
-Media making: videos (the only skills that start with make-)
+Media making: videos and audio (the only skills that start with make-)
 
 | Skill | Visibility | What it does |
 |---|---|---|
+| [`make-loudness-remaster`](.agents/skills/make-loudness-remaster/SKILL.md) | public | Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make… |
 | [`make-lyrics-shorts-summerstyle-boldwords`](.agents/skills/make-lyrics-shorts-summerstyle-boldwords/SKILL.md) | public | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… |
 | [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
 | [`make-lyrics-video-like-nakama`](.agents/skills/make-lyrics-video-like-nakama/SKILL.md) (variant of `make-lyrics-video`) | public | Variant of make-lyrics-video in the style of the Nakama! lyric video (projects/nakama, Anime Music Zone, finished 2026-10-27): the song as a captain's logbook lying on… |

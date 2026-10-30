@@ -37,7 +37,7 @@ const INDEX = path.join(ROOT, 'SKILLS.md');
 
 /** Category by name prefix: what each verb means. Order is the order in SKILLS.md. */
 export const CATEGORIES = [
-  { id: 'make', prefix: 'make-', about: 'Media making: videos (the only skills that start with make-)' },
+  { id: 'make', prefix: 'make-', about: 'Media making: videos and audio (the only skills that start with make-)' },
   { id: 'create', prefix: 'create-', about: 'Images and artwork' },
   { id: 'pack', prefix: 'pack-', about: 'Kits and packs that bundle several outputs' },
   { id: 'revise', prefix: 'revise-', about: 'Review loops with the user' },
