@@ -120,6 +120,9 @@ export type WaveformLayerProps = (
       container?: Record<string, unknown>;
       /** The editor's layout box around the preset (a timeline node's containerProps). */
       containerProps?: { style?: Record<string, unknown> };
+      /** A glow round the bars (a colour lighter than the ground reads as light), spread in px. */
+      glow?: string;
+      glowBlur?: number;
     }
   /** Halo, yantra, sparks, rings, bolt, flames (Visualizers.tsx). */
   | VisualizerProps
@@ -171,7 +174,14 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
     );
   }
   if (props.kind === 'waveform-audio') {
-    return <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} style={mirror} />;
+    const tree = <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} style={mirror} />;
+    if (!props.glow) return tree;
+    const b = props.glowBlur ?? 8;
+    return (
+      <AbsoluteFill style={{ filter: `drop-shadow(0 0 ${b}px ${props.glow}) drop-shadow(0 0 ${b * 2.5}px ${props.glow})` }}>
+        {tree}
+      </AbsoluteFill>
+    );
   }
 
   const box = props.box ?? {};

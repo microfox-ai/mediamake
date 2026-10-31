@@ -505,7 +505,7 @@ const main = () => {
   const rawLyrics = readJson('lyrics.json');
   if (rawLyrics === undefined)
     throw new Error(
-      'No input/lyrics.json. A timed transcription of the song is required (transcribe it first).',
+      'No input/lyrics.json. A timed transcription of the song is required (transcribe it first; [] for an instrumental).',
     );
   const audioPath = path.join(inputDir, audioFile);
 
@@ -516,8 +516,9 @@ const main = () => {
 
   const analysis = readAnalysis(projectDir);
   let lyrics = normalizeLyrics(analysis.aligned ?? rawLyrics, duration, warn);
-  if (!lyrics.length) throw new Error('input/lyrics.json has no lines.');
-  if (analysis.aligned) {
+  // An empty list is an instrumental: no lines, sections from project.json or one for the song.
+  const instrumental = !lyrics.length;
+  if (analysis.aligned && !instrumental) {
     const given = RawLyricsSchema.parse(rawLyrics);
     if (given.map(l => l.text.trim()).join('\n') !== lyrics.map(l => l.text).join('\n'))
       warn('analysis/lyrics.aligned.json text differs from input/lyrics.json: re-run the analysis');
@@ -530,7 +531,9 @@ const main = () => {
       });
   }
 
-  let sections = projectInput.sections ?? deriveSections(lyrics, duration);
+  let sections =
+    projectInput.sections ??
+    (instrumental ? [{ label: 'song', from: 0, to: round(duration) }] : deriveSections(lyrics, duration));
   const unsnapped = sections;
   const snapNotes: string[] = [];
   let envelopes: Manifest['envelopes'];

@@ -3,13 +3,22 @@ import { AbsoluteFill, Img, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import type { Manifest } from '../kit/manifest';
 import { asset, useBeat, useEnergy, useEnvelope, useHit, useManifest, useSongTime } from '../kit/hooks';
-import { exposureCss, gradeCss, hash, hasPictureFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
+import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
 
 export type CoverBackdropProps = {
   /** A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/. */
   image?: string;
-  /** Slow loop on the picture, like mediamake's zoom-loop / pan-loop image effects. */
-  motion?: 'zoom-loop' | 'pan-loop' | 'still';
+  /**
+   * Slow loop on the picture, like mediamake's zoom-loop / pan-loop image effects; or 'push', one
+   * slow push-in from `push.from` to `push.to` (scales) over `push.seconds`, never pulling back.
+   */
+  motion?: 'zoom-loop' | 'pan-loop' | 'still' | 'push';
+  push?: { from: number; to: number; seconds: number };
+  /**
+   * A few deliberate zooms at chosen moments: in by `amount` (0.05 = 5 %) over `attack` s, then
+   * back out over `release` s. Better a handful than one on every kick.
+   */
+  zooms?: { at: number; amount: number; attack?: number; release?: number }[];
   /** Seconds per loop. Default 20. */
   loopSeconds?: number;
   /** The point the zoom and kick grow from (CSS transform-origin), e.g. '73% 72%' to hold a spark in place. Default the centre. */
@@ -37,6 +46,13 @@ export type CoverBackdropProps = {
    * and the visualizers jolt with it. Default off.
    */
   jolt?: Jolt;
+  /**
+   * The lens losing focus and finding it again, like looking through heat over a desert: each
+   * stretch blurs everything that moves with the picture (cover, subject, visualizers, overlays) up
+   * to `amount` px between `from` and `to`, easing in and out over `ease` s (default 1); the heat
+   * haze swells with it. A `from` before 0 starts the video out of focus.
+   */
+  defocus?: Defocus[];
   /** Stylise the picture: a grade, picture filters and living texture (PictureLook.tsx). */
   look?: PictureLook;
 };
@@ -51,9 +67,27 @@ export type Jolt = {
   swing?: number;
   /** Extra scale at the hit, 0..1 (0.04 = 4 %). */
   zoom?: number;
+  /** Zoom only on onsets at least this strong (the rest just shove): a punch for the hardest hits. */
+  zoomFrom?: number;
+  /** …and at least this many seconds after the last punch (counted from the song's start). */
+  zoomGap?: number;
   /** Motion blur per px/frame of speed. Default 0.8. */
   blur?: number;
 };
+
+export type Defocus = { from: number; to: number; amount: number; ease?: number };
+
+const smooth = (x: number) => {
+  const c = Math.max(0, Math.min(1, x));
+  return c * c * (3 - 2 * c);
+};
+
+/** How far out of focus the lens is at song time t, px of blur. */
+export const defocusAt = (list: Defocus[] | undefined, t: number) =>
+  Math.max(
+    0,
+    ...(list ?? []).map(({ from, to, amount, ease = 1 }) => amount * smooth((t - from) / ease) * smooth((to - t) / ease)),
+  );
 
 export type CoverMotion = { scale: number; dx: number; dy: number; ox: number; oy: number };
 
@@ -62,7 +96,7 @@ export type CoverMotion = { scale: number; dx: number; dy: number; ox: number; o
  * frame px. Effects locked to a point of the picture move with it through `coverPoint`.
  */
 export const coverMotion = (
-  { motion = 'zoom-loop', loopSeconds = 20, origin, beatKick = 0.4, shake = false }: CoverBackdropProps,
+  { motion = 'zoom-loop', loopSeconds = 20, origin, beatKick = 0.4, shake = false, push, zooms }: CoverBackdropProps,
   size: { width: number; height: number },
   t: number,
   pulse: number,
@@ -78,7 +112,16 @@ export const coverMotion = (
   const phase2 = t * shakeFreq * Math.PI * 2;
   const sx = shakeAmp ? wobble(phase2, 1) * shakeAmp * 4 : 0;
   const sy = shakeAmp ? wobble(phase2, 7) * shakeAmp * 4 : 0;
-  const scale = motion === 'zoom-loop' ? 1.04 + swing * 0.14 + kick : motion === 'pan-loop' ? 1.18 + kick : 1 + kick;
+  const pushed = push ? push.from + (push.to - push.from) * Math.min(1, Math.max(0, t / push.seconds)) : 1.06;
+  const moments = (zooms ?? []).reduce((z, { at, amount, attack = 0.3, release = 2.5 }) => {
+    const age = t - at;
+    if (age < 0 || age > attack + release) return z;
+    const k = age < attack ? smooth(age / attack) : 1 - smooth((age - attack) / release);
+    return z + amount * k;
+  }, 0);
+  const base =
+    motion === 'zoom-loop' ? 1.04 + swing * 0.14 : motion === 'pan-loop' ? 1.18 : motion === 'push' ? pushed : 1;
+  const scale = (base + kick) * (1 + moments);
   const pan = motion === 'pan-loop' ? ((swing - 0.5) * 6 * size.height) / 100 : 0;
   const [ox, oy] = (origin ?? '50% 50%').split(/\s+/).map((v, i) => {
     const n = parseFloat(v);
@@ -94,6 +137,18 @@ export const useCoverPulse = (cover?: CoverBackdropProps): number => {
   return cover?.kickOn === 'kick' ? Math.min(1, kick) : pulse;
 };
 
+/** The onsets that get a zoom punch: strong enough, and `zoomGap` after the previous punch. */
+const punches = (list: [number, number][], j: Jolt) => {
+  const kept = new Set<number>();
+  let last = -Infinity;
+  for (const [t, s] of list)
+    if (s >= (j.zoomFrom ?? 0) && t - last >= (j.zoomGap ?? 0)) {
+      kept.add(t);
+      last = t;
+    }
+  return kept;
+};
+
 /** The jolt's offset and extra zoom at song time t: the last strong onset's damped swing. */
 const joltAt = (m: Manifest, j: Jolt, t: number) => {
   const list = m.onsets?.[j.on ?? 'kick'] ?? [];
@@ -106,7 +161,8 @@ const joltAt = (m: Manifest, j: Jolt, t: number) => {
     if (s < (j.threshold ?? 0.7)) continue;
     const dir = hash(i + 0.37) * Math.PI * 2;
     const amp = j.amount * Math.min(1, s) * Math.exp(-age * decay) * Math.cos(age * (j.swing ?? 5) * Math.PI * 2);
-    return { dx: Math.cos(dir) * amp, dy: Math.sin(dir) * amp, zoom: (j.zoom ?? 0) * Math.exp(-age * decay * 1.5) };
+    const punch = s >= (j.zoomFrom ?? 0) && punches(list, j).has(ot) ? (j.zoom ?? 0) : 0;
+    return { dx: Math.cos(dir) * amp, dy: Math.sin(dir) * amp, zoom: punch * Math.exp(-age * decay * 1.5) };
   }
   return { dx: 0, dy: 0, zoom: 0 };
 };
@@ -115,21 +171,25 @@ const joltAt = (m: Manifest, j: Jolt, t: number) => {
  * The cover's motion now, jolt included, and the motion blur it leaves ([x, y] px): every layer
  * that moves with the picture (cover, subject, visualizers) uses this, so they jolt together.
  */
-export const useCoverMotion = (cover: CoverBackdropProps = {}): { motion: CoverMotion; blur: [number, number] } => {
+export const useCoverMotion = (
+  cover: CoverBackdropProps = {},
+): { motion: CoverMotion; blur: [number, number]; defocus: number } => {
   const t = useSongTime();
   const energy = useEnergy();
   const pulse = useCoverPulse(cover);
   const { width, height, fps } = useVideoConfig();
   const manifest = useManifest();
   const m = coverMotion(cover, { width, height }, t, pulse, energy);
-  if (!cover.jolt) return { motion: m, blur: [0, 0] };
+  const d = defocusAt(cover.defocus, t);
+  if (!cover.jolt) return { motion: m, blur: [d, d], defocus: d };
   const j = joltAt(manifest, cover.jolt, t);
   const j0 = joltAt(manifest, cover.jolt, t - 1 / fps);
   const k = cover.jolt.blur ?? 0.8;
   return {
     motion: { ...m, dx: m.dx + j.dx, dy: m.dy + j.dy, scale: m.scale * (1 + j.zoom) },
     // capped: a long one-axis blur breaks into streaks
-    blur: [Math.min(10, Math.abs(j.dx - j0.dx) * k), Math.min(10, Math.abs(j.dy - j0.dy) * k)],
+    blur: [Math.min(10, Math.abs(j.dx - j0.dx) * k) + d, Math.min(10, Math.abs(j.dy - j0.dy) * k) + d],
+    defocus: d,
   };
 };
 
@@ -168,15 +228,20 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const filterId = `cover-look-${uid}`;
   const blurId = `cover-blur-${uid}`;
+  const heatId = `cover-heat-${uid}`;
+  const { width, height } = useVideoConfig();
   const name = image || Object.keys(manifest.assets).find(k => /\.(jpe?g|png|webp|avif)$/i.test(k));
   if (!name) throw new Error(`CoverBackdrop: no picture in ${manifest.slug}/input/`);
   const src = asset(manifest.assets[name] ?? name);
 
-  const { motion: m, blur } = useCoverMotion(props);
+  const { motion: m, blur, defocus } = useCoverMotion(props);
+  // the haze swells while the lens hunts
+  const heat = look?.heat && { ...look.heat, strength: look.heat.strength + defocus * 1.2 };
   const filter = [
     gradeCss(look),
     exposureCss(look, kickHit, pulse),
     hasPictureFilter(look) && `url(#${filterId})`,
+    look?.heat && `url(#${heatId})`,
     motionBlurCss(blurId, blur),
   ]
     .filter(Boolean)
@@ -205,6 +270,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
         />
       )}
       {look && hasPictureFilter(look) && <PictureFilter id={filterId} look={look} pulse={pulse} kick={kickHit} />}
+      {heat && <HeatFilter id={heatId} heat={heat} t={t} width={width} height={height} />}
       <MotionBlur id={blurId} blur={blur} />
       <AbsoluteFill>
         <Img src={src} style={picture} />

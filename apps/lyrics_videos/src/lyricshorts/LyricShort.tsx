@@ -40,8 +40,10 @@ export type LyricShortTheme = {
   /** film grain over the footage, 0..1 */
   grain?: number;
   /** a brand's watermark over every frame (npm run lyric-shorts -- <slug> brand <brand>): its logo (a static
-   *  path), a small label above it in the brand's label face, in a corner, `width` of the frame wide */
-  watermark?: { brand?: string; logo: string; label?: string; labelFont?: string; at?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'; width?: number; color?: string; opacity?: number };
+   *  path), a small label above it in the brand's label face, in a corner, `width` of the frame wide. An artist
+   *  with no logo (npm run lyric-shorts -- <slug> credit <name>) gets its `name` set in capitals in the logo's
+   *  place, in `nameFont` (default the shorts' face) */
+  watermark?: { brand?: string; logo?: string; name?: string; nameFont?: string; label?: string; labelFont?: string; at?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'; width?: number; color?: string; opacity?: number };
   /** transitions: the flash colour (cuts with `flash: true`), the blade light of a slash and an iris
    *  ring, and how far the picture punches out on every kick (0.03 = 3 %) */
   cuts?: { flash?: string; blade?: string; pulse?: number };
@@ -151,18 +153,9 @@ const LockupLayer: React.FC<{ cap: ResolvedCap; lockup?: Lockup; t: number; W: n
   );
 };
 
-/** the brand's watermark: still over everything (no shake, no transition), a small capital label set from the
- *  brand's label face as outlines, its logo under it, flush with the corner */
-const Watermark: React.FC<{ mark: NonNullable<LyricShortTheme['watermark']>; font: Font; W: number; H: number }> = ({ mark, font, W, H }) => {
-  const at = mark.at ?? 'top-right';
-  const right = at.endsWith('right');
-  const top = at.startsWith('top');
-  const mx = 0.045 * W;
-  const my = 0.035 * H;
-  const w = (mark.width ?? 0.2) * W;
-  const size = Math.round(0.024 * W);
-  const text = (mark.label ?? '').toUpperCase();
-  // the label glyph by glyph with 0.14 em letter-spacing, right- or left-aligned to the logo
+/** a line of capitals as outlines, glyph by glyph with `tracking` em letter-spacing: its paths (baseline at 0)
+ *  and its width */
+const trackedLine = (font: Font, text: string, size: number, tracking: number) => {
   const glyphs = font.stringToGlyphs(text);
   const scale = size / font.unitsPerEm;
   let pen = 0;
@@ -170,22 +163,48 @@ const Watermark: React.FC<{ mark: NonNullable<LyricShortTheme['watermark']>; fon
   glyphs.forEach((g, i) => {
     if (i) pen += font.getKerningValue(glyphs[i - 1], g) * scale;
     paths.push(g.getPath(pen, 0, size).toPathData(2));
-    pen += g.advanceWidth! * scale + 0.14 * size;
+    pen += g.advanceWidth! * scale + tracking * size;
   });
-  const labelW = Math.max(0, pen - 0.14 * size);
+  return { paths, width: Math.max(0, pen - tracking * size) };
+};
+
+/** the brand's watermark: still over everything (no shake, no transition), a small capital label set from the
+ *  brand's label face as outlines, its logo (or the artist's name, `width` wide) under it, flush with the corner */
+const Watermark: React.FC<{ mark: NonNullable<LyricShortTheme['watermark']>; font: Font; nameFont: Font; W: number; H: number }> = ({ mark, font, nameFont, W, H }) => {
+  const at = mark.at ?? 'top-right';
+  const right = at.endsWith('right');
+  const top = at.startsWith('top');
+  const mx = 0.045 * W;
+  const my = 0.035 * H;
+  const w = (mark.width ?? 0.2) * W;
+  const size = Math.round(0.024 * W);
+  const label = trackedLine(font, (mark.label ?? '').toUpperCase(), size, 0.14);
   const capH = size * 0.72;
+  // the name in the logo's place: capitals tracked a little, sized so the line runs the mark's width
+  const name = mark.name ? trackedLine(nameFont, mark.name.toUpperCase(), 100, 0.08) : null;
+  const nameSize = name ? (100 * w) / name.width : 0;
+  const nameLine = name && nameSize ? trackedLine(nameFont, mark.name!.toUpperCase(), nameSize, 0.08) : null;
+  const nameCap = nameSize * 0.72;
   const shadow = 'drop-shadow(0 2px 6px rgba(0,0,0,0.55))';
+  const color = mark.color ?? '#FFFFFF';
   return (
     <AbsoluteFill style={{ opacity: mark.opacity ?? 0.95, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', [right ? 'right' : 'left']: mx, [top ? 'top' : 'bottom']: my, width: w, display: 'flex', flexDirection: top ? 'column' : 'column-reverse', alignItems: right ? 'flex-end' : 'flex-start', gap: Math.round(0.008 * H) }}>
-        {text ? (
-          <svg width={labelW} height={capH + 2} style={{ overflow: 'visible', filter: shadow }}>
+        {label.paths.length ? (
+          <svg width={label.width} height={capH + 2} style={{ overflow: 'visible', filter: shadow }}>
             <g transform={`translate(0 ${capH})`}>
-              {paths.map((d, i) => <path key={i} d={d} fill={mark.color ?? '#FFFFFF'} />)}
+              {label.paths.map((d, i) => <path key={i} d={d} fill={color} />)}
             </g>
           </svg>
         ) : null}
-        <Img src={staticFile(mark.logo)} style={{ width: w, height: 'auto', display: 'block', filter: shadow }} />
+        {mark.logo ? <Img src={staticFile(mark.logo)} style={{ width: w, height: 'auto', display: 'block', filter: shadow }} /> : null}
+        {nameLine ? (
+          <svg width={nameLine.width} height={nameCap + 2} style={{ overflow: 'visible', filter: shadow }}>
+            <g transform={`translate(0 ${nameCap})`}>
+              {nameLine.paths.map((d, i) => <path key={i} d={d} fill={color} />)}
+            </g>
+          </svg>
+        ) : null}
       </div>
     </AbsoluteFill>
   );
@@ -225,13 +244,20 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
   // the small words of a lockup: a lighter weight of the face when the theme has one
   const [smallFont, setSmallFont] = useState<Font | null>(null);
   const [markFont, setMarkFont] = useState<Font | null>(null);
+  const [nameFont, setNameFont] = useState<Font | null>(null);
   useEffect(() => {
     const wm = theme.watermark;
-    Promise.all([loadFont(staticFile(theme.type.font)), theme.type.small ? loadFont(staticFile(theme.type.small)) : null, wm?.labelFont ? loadFont(staticFile(wm.labelFont)) : null])
-      .then(([f, s, w]) => {
+    Promise.all([
+      loadFont(staticFile(theme.type.font)),
+      theme.type.small ? loadFont(staticFile(theme.type.small)) : null,
+      wm?.labelFont ? loadFont(staticFile(wm.labelFont)) : null,
+      wm?.nameFont ? loadFont(staticFile(wm.nameFont)) : null,
+    ])
+      .then(([f, s, w, n]) => {
         setFont(f);
         setSmallFont(s ?? f);
         setMarkFont(w ?? s ?? f);
+        setNameFont(n ?? f);
         continueRender(handle);
       })
       .catch(err => cancelRender(err));
@@ -412,7 +438,7 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     <AbsoluteFill style={{ backgroundColor: theme.colors.ground }}>
       <AbsoluteFill style={sx || sy ? { transform: `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) rotate(${sr.toFixed(2)}deg) scale(1.04)` } : undefined}>{content}</AbsoluteFill>
       {flash > 0.01 ? <AbsoluteFill style={{ backgroundColor: flashColor, opacity: flash, mixBlendMode: 'screen' }} /> : null}
-      {theme.watermark && markFont ? <Watermark mark={theme.watermark} font={markFont} W={W} H={H} /> : null}
+      {theme.watermark && markFont && nameFont ? <Watermark mark={theme.watermark} font={markFont} nameFont={nameFont} W={W} H={H} /> : null}
     </AbsoluteFill>
   );
 };

@@ -29,13 +29,18 @@ export const lookLayers = (look: Look, extra: Layer[] = []): Layer[] => {
   // with a cutout subject, the visualizers go behind her and the strips in front (unless `behind` says)
   const behind = subject ? waves.filter(w => w.behind ?? isVisualizer(w)) : waves;
   const front = subject ? waves.filter(w => !(w.behind ?? isVisualizer(w))) : [];
+  // overlays keep their names (overlay N, by place in the list) wherever they sit
+  const overlays = (look.overlays ?? []).map((props, i) => ({
+    props,
+    layer: layer({ scene: OverlayVideo, at: 'all', props: { ...props, cover: look.cover }, name: `overlay ${i + 1}` }),
+  }));
   return [
     layer({ scene: CoverBackdrop, at: 'all', props: look.cover ?? {}, name: 'cover' }),
-    ...(look.overlays ?? []).map((props, i) =>
-      layer({ scene: OverlayVideo, at: 'all', props, name: `overlay ${i + 1}` }),
-    ),
+    ...overlays.filter(o => !(subject && o.props.front)).map(o => o.layer),
     ...behind.map(waveLayer),
     ...(subject ? [layer({ scene: Subject, at: 'all', props: { ...subject, cover: look.cover }, name: 'subject' })] : []),
+    // overlays marked `front` go over the subject (with no subject, they stay in order)
+    ...overlays.filter(o => subject && o.props.front).map(o => o.layer),
     ...front.map(waveLayer),
     ...(title
       ? [
