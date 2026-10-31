@@ -307,6 +307,16 @@ Strip: "don't use strip logo, use the frame logo") and its small-label face into
 frame — no shake, no transition, through the loop seam — the label in capitals with wide tracking above the
 mark, flush with the corner, a soft shadow. The slim render folder must carry `shorts/brand/` too.
 
+**An artist with no logo** (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not available"):
+
+```bash
+npm run lyric-shorts -w lyrics_videos -- <slug> credit "<Artist>" [--label="Music by"] [--at=top-right] [--width=0.2]
+```
+
+sets `theme.watermark` with a `name` instead of a `logo`: the label above, the artist's name in capitals
+(tracked a little, set in the shorts' own face, `type.font`, as outlines) running the mark's width in the
+logo's place. Fonts come from the theme, so it needs no brand kit.
+
 ### 5. Clips and checks
 
 Tools for the checks (all in `scripts/`, run from `apps/lyrics_videos`): `screens.mjs <slug> <id>` (each
@@ -632,3 +642,22 @@ Append dated entries: what the user asked to change and the general rule behind 
   sources: footage is copied into `input/footage/` (`cp -c`), never linked, and segregated from that copy.
   `prepare-project` and `cleanup-out scan` list any link under `projects/` whose file is gone; never
   remove one yourself (ask: put the file back, or remove the link).
+- 2026-10-31 — "Ace in the Deck" by Virelia (a One Piece / Ace tribute, for anime sounds like), from a YouTube
+  link: "generate 3 shorts, for logo watermark 'Music by - Virelia' since logo is not available" → the `credit`
+  command (a text credit, MUSIC BY over VIRELIA). Learned on the way: the lyric video's on-screen lines are a
+  free check of the transcription (frames at each line's middle, cropped to the text: one fix, "soul" not
+  "scroll"); One Piece faces mostly escape the anime cascade (31 of 254 shots) — mark the cast by eye; Oreki's
+  and UlkioraaaTwixtor's Ace packs are the same clips (use one); hand-set rows of 3-letter words (`one / ace /
+  in the deck`) fill under half the frame — the solver's giant `in` is what fills it; a highlight colour of the
+  footage's own hue (orange on fire) disappears — keep highlights white on such shots; a mask over a shot whose
+  top is dark hair dims the top rows — put a shot bright across the frame behind a stack. Shown in Studio, then
+  rendered on the user's word: "preview first rule only applies for simpler mechanics video, for videos like this,
+  the render keeps stucking" — these shorts render for review.
+- 2026-10-31 — notes on Ace in the Deck v1: "all three have incorrect shots, the twixtors look bad as well, use them
+  minimally, and read lyrics understand context, and find the right pins you need"; "song is about different parts
+  of one piece story". v1 cast twixtor packs by mood (a fierce face for a fierce line) — but a story song names its
+  scenes (the brothers' sake cups, the kid noble, the old man, the mark on his back) and packs of one character's
+  fights can't show them. Rule: read the lyrics as the story first (write each short's line → scene map in
+  prefs.md), then search Pinterest per scene (one query a scene, `input/pins/<NN-scene>/`), pick the pins that show
+  it, and make them the footage (an art reel at 3414x1920: `artvideo.py … 3414x1920`); twixtor clips only as a rare
+  accent where motion is the point.

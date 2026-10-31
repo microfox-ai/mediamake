@@ -47,8 +47,8 @@ export const ManifestSchema = z.object({
     src: z.string(),
     duration: z.number(),
   }),
-  // Required: every project is built on a timed transcription of the song.
-  lyrics: z.array(LyricLineSchema).min(1),
+  // Every project is built on a timed transcription of the song; empty for an instrumental.
+  lyrics: z.array(LyricLineSchema),
   sections: z.array(SectionSchema),
   beats: z.object({
     bpm: z.number().nullable(),

@@ -12,7 +12,7 @@ import type { SceneProps } from '../kit/contract';
 import type { Manifest } from '../kit/manifest';
 import { asset, useBeat, useHit, useSongTime } from '../kit/hooks';
 import { MotionBlur, motionBlurCss, useCoverMotion, type CoverBackdropProps } from './CoverBackdrop';
-import { exposureCss, gradeCss, hasPictureFilter, PictureFilter, type PictureLook } from './PictureLook';
+import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilter, type PictureLook } from './PictureLook';
 
 type Hits = 'kick' | 'snare' | 'beat' | 'downbeat';
 
@@ -22,7 +22,7 @@ export type SubjectProps = {
   /** How much more she zooms and kicks than the background, 0..1 (0.3 = 30 % more): parallax. */
   depth?: number;
   /** Her own grade, exposure and picture filters (duotone, curves, bloom…): the cover's look styles the background only. */
-  look?: Pick<PictureLook, 'grade' | 'exposure' | 'duotone' | 'curves' | 'posterize' | 'chroma' | 'chromaKick' | 'sharpen' | 'bloom' | 'bloomPulse'>;
+  look?: Pick<PictureLook, 'grade' | 'exposure' | 'duotone' | 'curves' | 'posterize' | 'chroma' | 'chromaKick' | 'sharpen' | 'bloom' | 'bloomPulse' | 'heat'>;
   /**
    * A colour laid over her only, e.g. the world's light in soft-light, so a cutout in its own colours
    * sits in a graded scene.
@@ -63,6 +63,16 @@ export type SubjectProps = {
   blur?: number;
   /** Where the echoes grow from: a point of the unmoved picture, frame px. Default the frame centre. */
   center?: [number, number];
+  /**
+   * She trembles like she's powering up: a small fast jitter (`frequency` changes a second), its
+   * amplitude in px read off [song second, px] keys, so it can rise through the song.
+   */
+  tremor?: { keys: [number, number][]; frequency?: number };
+  /**
+   * From `from` on, ki crackling round the silhouette: a jagged line a little outside her edge that
+   * redraws every couple of frames, with a glow, flickering and flaring on the kicks.
+   */
+  aura?: { from: number; color: string; glow?: string; width?: number; jag?: number; strength?: number };
   /** The cover's settings (lookVideo passes them), so she moves with the picture. */
   cover?: CoverBackdropProps;
 };
@@ -74,8 +84,34 @@ const hexA = (c: string, a: number) => {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 };
 
+/** Linear between [t, value] keys, held past the ends. */
+const keyed = (keys: [number, number][], t: number) => {
+  if (!keys.length) return 0;
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1] = keys[i];
+    const [t0, v0] = keys[i - 1];
+    if (t <= t1) return v0 + ((v1 - v0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+  }
+  return keys[keys.length - 1][1];
+};
+
+/** The tremor's offset at song time t: smoothed random steps at `frequency`, scaled by the keys. */
+const tremorAt = (tremor: NonNullable<SubjectProps['tremor']>, t: number): [number, number] => {
+  const a = keyed(tremor.keys, t);
+  const phase = t * (tremor.frequency ?? 14);
+  const i = Math.floor(phase);
+  const f = phase - i;
+  const e = f * f * (3 - 2 * f);
+  const step = (k: number, seed: number) => hash(k * 1.37 + seed) * 2 - 1;
+  return [
+    a * (step(i, 0.1) + (step(i + 1, 0.1) - step(i, 0.1)) * e),
+    a * (step(i, 7.3) + (step(i + 1, 7.3) - step(i, 7.3)) * e),
+  ];
+};
+
 /** The hits of a kind as [time, strength], from the manifest's onsets or beat grid. */
-const hitsOf = (m: Manifest, on: Hits): [number, number][] => {
+export const hitsOf = (m: Manifest, on: Hits | string): [number, number][] => {
   if (on === 'beat') return m.beats.list.map(b => [b.t, 1]);
   if (on === 'downbeat') return (m.beats.downbeats ?? []).map(t => [t, 1]);
   return m.onsets?.[on] ?? [];
@@ -106,6 +142,8 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   grain,
   blur: blurShare = 1,
   center,
+  tremor,
+  aura,
   cover = {},
 }) => {
   const t = useSongTime();
@@ -118,15 +156,19 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   const frameNo = useCurrentFrame();
   const lookId = `subject-look-${uid}`;
   const blurId = `subject-blur-${uid}`;
+  const heatId = `subject-heat-${uid}`;
   const src = asset(manifest.assets[image] ?? image);
 
-  const { motion: m, blur: camBlur } = useCoverMotion(cover);
-  const blur: [number, number] = [camBlur[0] * blurShare, camBlur[1] * blurShare];
+  const { motion: m, blur: camBlur, defocus } = useCoverMotion(cover);
+  // a share of the jolt's smear (she stays crisper than the world), but all of the lens's defocus
+  const blur: [number, number] = [(camBlur[0] - defocus) * blurShare + defocus, (camBlur[1] - defocus) * blurShare + defocus];
+  const heat = look?.heat && { ...look.heat, strength: look.heat.strength + defocus * 1.2 };
   const scale = 1 + (m.scale - 1) * (1 + depth);
+  const [tx, ty] = tremor ? tremorAt(tremor, t) : [0, 0];
   const frame: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    transform: `scale(${scale}) translate(${m.dx * (1 + depth)}px, ${m.dy * (1 + depth)}px)`,
+    transform: `scale(${scale}) translate(${m.dx * (1 + depth) + tx}px, ${m.dy * (1 + depth) + ty}px)`,
     transformOrigin: cover.origin,
   };
   const fill: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'cover' };
@@ -153,6 +195,7 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
     gradeCss(look),
     exposureCss(look, kickHit, pulse),
     hasPictureFilter(look) && `url(#${lookId})`,
+    look?.heat && `url(#${heatId})`,
     rimCss,
     motionBlurCss(blurId, blur),
   ]
@@ -202,6 +245,43 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
     );
   })();
 
+  const auraId = `subject-aura-${uid}`;
+  const auraOn = aura ? Math.min(1, Math.max(0, (t - aura.from) / 0.6)) : 0;
+  const auraEl =
+    aura && auraOn > 0 ? (
+      <>
+        <svg width={0} height={0} style={{ position: 'absolute' }}>
+          <defs>
+            <filter id={auraId} x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
+              <feMorphology in="SourceAlpha" operator="dilate" radius={aura.width ?? 6} result="grown" />
+              <feMorphology in="SourceAlpha" operator="dilate" radius={Math.max(1, (aura.width ?? 6) - 2)} result="inner" />
+              <feComposite in="grown" in2="inner" operator="out" result="ring" />
+              <feTurbulence type="turbulence" baseFrequency="0.035" numOctaves={2} seed={Math.floor(frameNo / 2)} result="noise" />
+              <feDisplacementMap in="ring" in2="noise" scale={aura.jag ?? 14} xChannelSelector="R" yChannelSelector="G" result="jagged" />
+              <feFlood floodColor={aura.color} result="ink" />
+              <feComposite in="ink" in2="jagged" operator="in" result="line" />
+              <feFlood floodColor={aura.glow ?? aura.color} result="glowInk" />
+              <feComposite in="glowInk" in2="jagged" operator="in" result="glowLine" />
+              <feGaussianBlur in="glowLine" stdDeviation={7} result="glow" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="glow" />
+                <feMergeNode in="line" />
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+        <div
+          style={{
+            ...frame,
+            opacity: auraOn * Math.min(1, (aura.strength ?? 0.85) * (0.7 + 0.3 * hash(Math.floor(frameNo / 2) * 1.9)) + 0.25 * kickHit),
+          }}
+        >
+          <Img src={src} style={{ ...fill, filter: `url(#${auraId})` }} />
+        </div>
+      </>
+    ) : null;
+
   const outlineEl = outline ? (
     <>
       <svg width={0} height={0} style={{ position: 'absolute' }}>
@@ -229,6 +309,7 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   return (
     <AbsoluteFill style={{ overflow: 'hidden' }}>
       {look && hasPictureFilter(look) && <PictureFilter id={lookId} look={look} pulse={pulse} kick={kickHit} />}
+      {heat && <HeatFilter id={heatId} heat={heat} t={t} width={size.width} height={size.height} />}
       <MotionBlur id={blurId} blur={blur} />
       {echoes}
       <div style={frame}>
@@ -250,6 +331,7 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
       ) : null}
       {sweepEl}
       {outlineEl}
+      {auraEl}
     </AbsoluteFill>
   );
 };

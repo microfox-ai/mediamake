@@ -78,6 +78,12 @@ export type StackedLyricsProps = {
    * font … having spacing makes it readable"). Default 0.06 and 0.09. */
   tracking?: { caps: number; hero: number };
   /**
+   * Space round the hero row (× the caps size) and between caps rows (× the row size). Default 0.3
+   * and 0.22: tight for a leaning condensed stack; an upright, wide-tracked serif stack needs more air
+   * (Cadence, 2026-10-31: the hero's pop touched the row under it).
+   */
+  leading?: { hero?: number; rows?: number };
+  /**
    * From this song second (or the start of this section label) on, no stacks: each line alone at the
    * centre bottom (baseline `y`) in the hero face, `color`, its words lighting as they are sung; the word
    * matching `hero` set at `heroSize`, the rest at `size`. 2026-10-30: "put all in rock salt, divide
@@ -245,8 +251,9 @@ const layoutLine = (ts: Typesetter, line: LyricLine, index: number, p: StackedLy
   // line spacing so the third line does not intersect with the highlight word, just enough"); the
   // whole stack leans together, so the rows stay parallel
   const gapAfter = (a: Row, b: Row, newPart: boolean) => {
-    if (a.face === 'hero' || b.face === 'hero') return 0.3 * p.size.caps;
-    return (newPart ? 0.5 : 0.22) * Math.min(a.size, b.size);
+    if (a.face === 'hero' || b.face === 'hero') return (p.leading?.hero ?? 0.3) * p.size.caps;
+    const rows = p.leading?.rows ?? 0.22;
+    return (newPart ? Math.max(0.5, rows) : rows) * Math.min(a.size, b.size);
   };
   let y = 0;
   rows.forEach((r, i) => {

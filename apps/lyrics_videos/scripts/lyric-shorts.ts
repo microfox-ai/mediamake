@@ -22,6 +22,7 @@
  *   npm run lyric-shorts -w lyrics_videos -- <slug> new 211.3-244.5
  *   npm run lyric-shorts -w lyrics_videos -- <slug> clips s01
  *   npm run lyric-shorts -w lyrics_videos -- <slug> brand <brand> [--label="Music by"] [--at=top-right]   (a watermark on every short)
+ *   npm run lyric-shorts -w lyrics_videos -- <slug> credit "<artist>" [--label="Music by"]              (an artist credit, no logo)
  *
  * Footage sources: projects/<slug>/shorts/footage.json { sources: [{ id, prefix, source, segregation }] }
  * (source relative to the project; segregation = the analyze-video output folder). Without it, the
@@ -372,11 +373,30 @@ if (cmd === 'brand') {
   const entry = `  // the brand's watermark (npm run lyric-shorts -- ${slug} brand ${brand}): ${prof.name}\n  watermark: { brand: '${brand}', logo: '${slug}/${logoRel}', label: ${JSON.stringify(label)}, ${fontRel ? `labelFont: '${slug}/${fontRel}', ` : ''}at: '${opt('at') ?? 'top-right'}', width: ${opt('width') ?? 0.2}, color: '${prof.palette?.ink ?? '#FFFFFF'}' },\n`;
   const themeFile = path.join(shortsDir, 'theme.ts');
   let th = fs.readFileSync(themeFile, 'utf8');
-  th = th.replace(/  \/\/ the brand's watermark[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
+  th = th.replace(/  \/\/ the (brand's watermark|artist's credit)[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
   const end = th.lastIndexOf('};');
   th = th.slice(0, end) + entry + th.slice(end);
   fs.writeFileSync(themeFile, th);
   console.log(`✔ ${prof.name}: ${logo} + "${label}"${font ? ` in ${font.family} ${font.weight}` : ''} → shorts/brand/, theme.watermark set`);
+  process.exit(0);
+}
+
+if (cmd === 'credit') {
+  // an artist's credit with no logo (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not
+  // available"): the label above the artist's name in capitals, set in the shorts' own faces (the label in
+  // type.small, the name in type.font), still over every frame like a brand's watermark
+  const name = what;
+  if (!name) throw new Error('credit <artist name> [--label="Music by"] [--at=top-right] [--width=0.2] [--color=#FFFFFF]');
+  const label = opt('label') ?? 'Music by';
+  const themeFile = path.join(shortsDir, 'theme.ts');
+  let th = fs.readFileSync(themeFile, 'utf8');
+  const small = th.match(/small:\s*'([^']+)'/)?.[1];
+  const entry = `  // the artist's credit, no logo (npm run lyric-shorts -- ${slug} credit ${JSON.stringify(name)})\n  watermark: { name: ${JSON.stringify(name)}, label: ${JSON.stringify(label)}, ${small ? `labelFont: '${small}', ` : ''}at: '${opt('at') ?? 'top-right'}', width: ${opt('width') ?? 0.2}, color: '${opt('color') ?? '#FFFFFF'}' },\n`;
+  th = th.replace(/  \/\/ the (brand's watermark|artist's credit)[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
+  const end = th.lastIndexOf('};');
+  th = th.slice(0, end) + entry + th.slice(end);
+  fs.writeFileSync(themeFile, th);
+  console.log(`✔ "${label}" + ${name.toUpperCase()} → theme.watermark set`);
   process.exit(0);
 }
 

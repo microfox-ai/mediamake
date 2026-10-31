@@ -75,7 +75,8 @@ win.
 3. Optional, ask for them: **the written lyrics** (they set the line breaks), **a reference**
    (video or image), the **channel** (a brand under `brands/`).
 
-An instrumental can't go through prepare yet (it requires lyrics): say so.
+An instrumental (no text on screen) goes through prepare with `input/lyrics.json` = `[]`: one
+"song" section, no lines; write the real sections into the video map yourself after the render.
 
 ## 0. Intake (one short round)
 
@@ -421,3 +422,28 @@ Append dated entries: what the user said → the rule.
   extremely designed type after an inspiration board; written lines unless the idea re-cuts them;
   silence silent, end-screen sound asked at intake; the Remotion editor as the preview, renders only
   on request; ask before paying); new steps 3 (the idea) and 4 (the picture, as the idea needs).
+- 2026-10-31 · Genki Dama OST (AMZ, instrumental, a near-white Goku picture, the user's own mediamake
+  waveform preset pasted as JSON, their FX clips bright-on-black) → what landed (projects/genkidama-ost,
+  prefs.md has every note): the preset used as is (`waveform-audio`, its own values), recoloured and
+  made taller only on request; on a light picture `screen` hides black-ground clips, so overlays are
+  luma-keyed (OverlayVideo `key`), placed in boxes with `feather`, played on hits (`hits`, `cut` for
+  a 3-frame inverted impact frame in `difference`), windowed (`when`, also on visualizers), and
+  glows must be lighter than the ground ("the gathering lines have shadow … not shadows, but an
+  exposure like glow"). New parts: PictureLook `heat` (haze rising from the bottom), cover
+  `defocus` (the lens hunting through heat at a few quiet moments, "keep it focused for majority"),
+  Subject `tremor` (power-up jitter rising through the sections), Visualizers `gather` (energy
+  streaming into a point and dissolving into an `orb` that grows over the song, `upward`). Zoom
+  jumps: keep them rare and small (jolt on the top quarter of kicks, zoom ≤ 1 %, beatKick ≤ 0.25);
+  "the last zoom was too loud for the playing music". When the user picks "the second", count the
+  reel's clips (L0 came first): it meant L1, not L2.
+- 2026-10-31 · Genki Dama, later rounds → zooms: "at most 4 times through the entire video" (no
+  zoom loop, no kick pulse; cover `motion: 'push'` + a few `zooms`); a zoom on the key moment
+  "looks stupid" and colour flash-cuts of other pictures weren't wanted either — the key moment
+  carries through what starts there (an aura on the subject, bolts, a background change). Bars that
+  look cropped are hitting their container's ceiling (capped at half its height): grow the container,
+  keep amplitude ≤ 1. The user wanted the bars, not a new smooth wave, once tried both ("finalise
+  the bar waveform"), and behind the subject. Background images from Pinterest (Browse Hack bulk
+  download, one search per tab): drop off-topic and dark-ground ones, grey + multiply at ~0.2 on a
+  light picture, OverlayVideo `images` at ~4 frames each ("marvel titles speed"), looping, with a
+  long fade-out (`when` with fade lengths).
+

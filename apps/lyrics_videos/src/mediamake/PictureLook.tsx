@@ -59,6 +59,12 @@ export type PictureLook = {
   scanlines?: number;
   /** Black bars top and bottom, px. */
   letterbox?: number;
+  /**
+   * Heat haze: hot air rising through the picture, a displacement by noise drifting up (`rise` px a
+   * second) up to `strength` px, strongest at the bottom and gone above `top` (0..1 of the height).
+   * `size` scales the ripples (1 = wide, flat bands).
+   */
+  heat?: { strength: number; size?: number; rise?: number; top?: number };
 };
 
 const hex = (c: string) => {
@@ -188,6 +194,63 @@ export const PictureFilter: React.FC<{ id: string; look: PictureLook; pulse: num
       <defs>
         <filter id={id} x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
           {steps}
+        </filter>
+      </defs>
+    </svg>
+  );
+};
+
+const HEAT_PERIOD = 240;
+
+/**
+ * The heat haze as an SVG filter (`filter: url(#id)`) on a full-frame element. The noise scrolls up
+ * in two phases a period apart, crossfaded so it never jumps, and a vertical ramp fades the
+ * displacement out towards `top`.
+ */
+export const HeatFilter: React.FC<{
+  id: string;
+  heat: NonNullable<PictureLook['heat']>;
+  t: number;
+  width: number;
+  height: number;
+}> = ({ id, heat, t, width, height }) => {
+  const { strength, size = 1, rise = 60, top = 0.35 } = heat;
+  const P = HEAT_PERIOD;
+  const p = (t * rise) % P;
+  // power-preserving crossfade: the mix keeps its contrast through the period
+  const a = Math.cos((p / P) * (Math.PI / 2));
+  const b = Math.sin((p / P) * (Math.PI / 2));
+  const ramp = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><defs>` +
+      `<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="${top}" stop-color="#000"/>` +
+      `<stop offset="1" stop-color="#fff"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`,
+  )}`;
+  return (
+    <svg width={0} height={0} style={{ position: 'absolute' }}>
+      <defs>
+        <filter
+          id={id}
+          filterUnits="userSpaceOnUse"
+          x={-50}
+          y={-P}
+          width={width + 100}
+          height={height + 2 * P}
+          colorInterpolationFilters="sRGB"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency={`${(0.006 / size).toFixed(5)} ${(0.024 / size).toFixed(5)}`}
+            numOctaves={2}
+            seed={7}
+            result="noise0"
+          />
+          <feColorMatrix in="noise0" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1" result="noise" />
+          <feOffset in="noise" dy={-p} result="na" />
+          <feOffset in="noise" dy={P - p} result="nb" />
+          <feComposite in="na" in2="nb" operator="arithmetic" k1={0} k2={a} k3={b} k4={0.5 * (1 - a - b)} result="flow" />
+          <feImage href={ramp} x={0} y={0} width={width} height={height} preserveAspectRatio="none" result="ramp" />
+          <feComposite in="flow" in2="ramp" operator="arithmetic" k1={1} k2={0} k3={-0.5} k4={0.5} result="map" />
+          <feDisplacementMap in="SourceGraphic" in2="map" scale={strength * 2} xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </defs>
     </svg>
