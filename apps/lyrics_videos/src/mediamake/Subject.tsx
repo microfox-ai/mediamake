@@ -11,7 +11,7 @@ import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import type { Manifest } from '../kit/manifest';
 import { asset, useBeat, useHit, useSongTime } from '../kit/hooks';
-import { MotionBlur, motionBlurCss, useCoverMotion, type CoverBackdropProps } from './CoverBackdrop';
+import { MotionBlur, motionBlurCss, useCoverMotion, useDance, type CoverBackdropProps } from './CoverBackdrop';
 import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilter, type PictureLook } from './PictureLook';
 
 type Hits = 'kick' | 'snare' | 'beat' | 'downbeat';
@@ -73,6 +73,18 @@ export type SubjectProps = {
    * redraws every couple of frames, with a glow, flickering and flaring on the kicks.
    */
   aura?: { from: number; color: string; glow?: string; width?: number; jag?: number; strength?: number };
+  /**
+   * Whether she takes the cover's liquid warp (dance.liquid) or only its bounce and sway. Default
+   * true. Cadence, 2026-10-31: the warp chewed her hair edges into jagged strands with dark halos
+   * ("some quality loss … making it look weak"), so she stays crisp while the world ripples.
+   */
+  liquid?: boolean;
+  /**
+   * A light flaring at a point of her (an eye, a jewel) on the peak hits: a glow and a fine four-point
+   * star that bloom on each onset of `on` at or above `threshold` (at least `minGap` s apart) and fade
+   * over `life` s. Cadence, 2026-10-31: "make her eye shine red, at peak beats".
+   */
+  flare?: { at: [number, number]; color: string; size?: number; on?: Hits; threshold?: number; minGap?: number; life?: number };
   /** The cover's settings (lookVideo passes them), so she moves with the picture. */
   cover?: CoverBackdropProps;
 };
@@ -144,6 +156,8 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   center,
   tremor,
   aura,
+  liquid = true,
+  flare,
   cover = {},
 }) => {
   const t = useSongTime();
@@ -160,6 +174,7 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   const src = asset(manifest.assets[image] ?? image);
 
   const { motion: m, blur: camBlur, defocus } = useCoverMotion(cover);
+  const dance = useDance(cover);
   // a share of the jolt's smear (she stays crisper than the world), but all of the lens's defocus
   const blur: [number, number] = [(camBlur[0] - defocus) * blurShare + defocus, (camBlur[1] - defocus) * blurShare + defocus];
   const heat = look?.heat && { ...look.heat, strength: look.heat.strength + defocus * 1.2 };
@@ -282,6 +297,53 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
       </>
     ) : null;
 
+  // the flare: the last peak hit's glow and star, on her (inside her frame, so it moves with her)
+  const flareEl = (() => {
+    if (!flare) return null;
+    const life = flare.life ?? 0.6;
+    const peaks: number[] = [];
+    for (const [ht, s] of hitsOf(manifest, flare.on ?? 'kick'))
+      if (s >= (flare.threshold ?? 0.97) && (!peaks.length || ht - peaks[peaks.length - 1] >= (flare.minGap ?? 1))) peaks.push(ht);
+    let i = peaks.length - 1;
+    while (i >= 0 && peaks[i] > t) i--;
+    const age = i >= 0 ? t - peaks[i] : Infinity;
+    if (age > life) return null;
+    const e = Math.min(1, age / 0.04) * Math.pow(1 - age / life, 1.6);
+    const [fx, fy] = flare.at;
+    const r = (flare.size ?? 60) * (0.7 + 0.3 * e);
+    const fid = `subject-flare-${uid}`;
+    return (
+      <div style={{ ...frame, mixBlendMode: 'screen', pointerEvents: 'none' }}>
+        <svg width={size.width} height={size.height} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+          <defs>
+            <radialGradient id={fid}>
+              <stop offset="0%" stopColor="#ffffff" stopOpacity={0.95} />
+              <stop offset="18%" stopColor={flare.color} stopOpacity={0.9} />
+              <stop offset="100%" stopColor={flare.color} stopOpacity={0} />
+            </radialGradient>
+            {/* the streaks fade out towards their tips (a hard line read as a laser) */}
+            <linearGradient id={`${fid}-h`} gradientUnits="userSpaceOnUse" x1={fx - r * 1.9} y1={fy} x2={fx + r * 1.9} y2={fy}>
+              <stop offset="0" stopColor={flare.color} stopOpacity={0} />
+              <stop offset="0.5" stopColor="#ffd9d0" stopOpacity={0.9} />
+              <stop offset="1" stopColor={flare.color} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id={`${fid}-v`} gradientUnits="userSpaceOnUse" x1={fx} y1={fy - r * 0.9} x2={fx} y2={fy + r * 0.9}>
+              <stop offset="0" stopColor={flare.color} stopOpacity={0} />
+              <stop offset="0.5" stopColor="#ffd9d0" stopOpacity={0.6} />
+              <stop offset="1" stopColor={flare.color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <g opacity={e}>
+            <circle cx={fx} cy={fy} r={r} fill={`url(#${fid})`} />
+            <line x1={fx - r * 1.9} y1={fy} x2={fx + r * 1.9} y2={fy} stroke={`url(#${fid}-h)`} strokeWidth={1.6} strokeLinecap="round" />
+            <line x1={fx} y1={fy - r * 0.9} x2={fx} y2={fy + r * 0.9} stroke={`url(#${fid}-v)`} strokeWidth={1.1} strokeLinecap="round" />
+            <circle cx={fx} cy={fy} r={3.2} fill="#fff4f0" />
+          </g>
+        </svg>
+      </div>
+    );
+  })();
+
   const outlineEl = outline ? (
     <>
       <svg width={0} height={0} style={{ position: 'absolute' }}>
@@ -311,6 +373,9 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
       {look && hasPictureFilter(look) && <PictureFilter id={lookId} look={look} pulse={pulse} kick={kickHit} />}
       {heat && <HeatFilter id={heatId} heat={heat} t={t} width={size.width} height={size.height} />}
       <MotionBlur id={blurId} blur={blur} />
+      {liquid && dance.node}
+      {/* she dances with the poster: the same bounce, sway and liquid warp as the cover */}
+      <div style={{ position: 'absolute', inset: 0, transform: dance.transform, transformOrigin: dance.origin, filter: (liquid && dance.filter) || undefined }}>
       {echoes}
       <div style={frame}>
         <Img src={src} style={{ ...fill, filter: filter || undefined }} />
@@ -332,6 +397,8 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
       {sweepEl}
       {outlineEl}
       {auraEl}
+      {flareEl}
+      </div>
     </AbsoluteFill>
   );
 };
