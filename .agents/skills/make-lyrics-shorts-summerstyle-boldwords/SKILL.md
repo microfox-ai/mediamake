@@ -41,9 +41,9 @@ opentype.js; `solveStack` tries every way to break a phrase into rows, with or w
 word, and keeps the one that fills the frame best with the biggest letters, then centres it; one SVG
 path per word; the dive point = centre of the row's thickest stroke), `LyricShort.tsx` (the scene: footage → tint → leaks → grain → the mask
 multiplied over it; solid letters on top), `define.ts` (`defineLyricShort`); the script
-`scripts/lyric-shorts.ts` (`npm run lyric-shorts`: pick, new, font, clips, render). Shorts are discovered
-through the shared shorts path (`Root.tsx`, `stills --short`) that make-video-music-remix-shorts set up —
-keep using it, don't fork it — and rendered with `lyric-shorts render` (step 6).
+`scripts/lyric-shorts.ts` (`npm run lyric-shorts`: pick, new, font, clips). Shorts are discovered and
+rendered through the shared shorts path (`Root.tsx`, `render-project --short`, `stills --short`) that
+make-video-music-remix-shorts set up — keep using it, don't fork it.
 
 Worked example: `projects/eyesofpink` ("Eyes of Pink", a Nezuko song, ~136 BPM) × a Nezuko twixtor
 edit; short `s01` = the final chorus into the outro hit.
@@ -176,7 +176,7 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    sits small over black until the rest is sung: start that screen as words over the footage (`reverse:
    true`) rather than pulling back `into` it; one held word alone (`zero`, `judge`, `why`, `welcome`)
    reads best as black words over the whole shot (`['word'], { reverse: { flip: <next screen> } }`).
-9. **Never lose a render.** Renders are kept in `v<N>/` by `lyric-shorts render`; keep earlier cut lists in
+9. **Never lose a render.** Renders are kept in `v<N>/` by `render-project`; keep earlier cut lists in
    `shorts/<id>/archive/edl.v<N>.ts.txt`.
 
 ## What it needs
@@ -305,7 +305,7 @@ shorts"). It reads the brand's kit profile (`brands/<brand>/thumbnail.json`, fro
 Strip: "don't use strip logo, use the frame logo") and its small-label face into `shorts/brand/`, and sets
 `theme.watermark` (`logo`, `label`, `labelFont`, `at`, `width`, `color`). The render draws it still over every
 frame — no shake, no transition, through the loop seam — the label in capitals with wide tracking above the
-mark, flush with the corner, a soft shadow.
+mark, flush with the corner, a soft shadow. The slim render folder must carry `shorts/brand/` too.
 
 **An artist with no logo** (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not available"):
 
@@ -362,7 +362,13 @@ a black shot under a white lockup isn't dark to the scan. `--frames=a-b` renders
 `--format=9x16` one format. Run one render at a time on this machine (the Mac overheats, and two
 overlapping renders crashed one, 2026-11-02); run it again after any change to a cut list or a clip. No
 slim folder, no `tools/bundle.ts` / `render.sh` in the project any more: this command replaces them.
-`render-project --short` works too but bundles per short and doesn't scan. Review with
+`render-project --short` works too but bundles per short and doesn't scan. **Why the CLI bundle died at
+~63 %** (2026-11-01/02, five projects): Tailwind makes `projects/` (and `thumbnails/`, `assets3d/`,
+`analysis/`) context dependencies of `src/index.css`, and in production webpack hashed them by reading every
+file whole — 20+ GB of footage until macOS killed it. `remotion.config.ts` and `scripts/bundle.ts` now
+snapshot by timestamp (`scripts/snapshots.ts`); if a bundle dies silently again, look for a webpack override
+that skips `timestampSnapshots`. Bundles link the public folder; only `npx remotion bundle` copies all of
+`projects/` — don't use it, and don't copy bundle or render scripts into a project. Review with
 **`revise-video`**: `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:
@@ -471,16 +477,8 @@ export const edl: LyricShortEdl = {
 - **Long held words fool the alignment**: in "Eyes of Pink" chorus 1, `Eyes` landed 4 s early after
   the held `relentless`. Check the words of the chosen stretch in the `new` header against the
   spectrogram (`analysis/zoom.py`) before casting; fix in `analysis/fixes.json`.
-- **The render bundles src/ and this project alone** (`ONLY_PROJECT`, set by `lyric-shorts render`,
-  `render-project` and `stills`): another session's half-finished edit in src/ can still break it. If the
-  bundle fails outside src/lyricshorts, wait and run it again.
-- **Why the CLI bundle died at ~63 %** (render-project and `npx remotion bundle`, five projects,
-  2026-11-01/02): Tailwind registers `projects/` (and `thumbnails/`, `assets3d/`, `analysis/`) as a context
-  dependency of `src/index.css`, and in production webpack hashes such a folder by reading every file in it
-  whole — 20+ GB of footage until macOS killed the process (measured: 3 GB of clips no code imports, read
-  whole, +2 GB of memory). `remotion.config.ts` and `scripts/bundle.ts` now snapshot by timestamp
-  (`scripts/snapshots.ts`): they only stat the files. If a bundle dies silently again, look for a webpack
-  override that skips `timestampSnapshots`. Don't copy bundle or render scripts into a project.
+- **The render bundles every project** (src/index.ts): another session's half-finished edit can break
+  it. If the bundle fails outside src/lyricshorts, wait or render from a copied entry.
 - **AV1 4K60 sources** decode fine with ffmpeg's libdav1d; clips are cut once and cached by their
   parameters, so re-runs are seconds.
 - **Never draw the stack as text.** Covering the frame with one stroke of an ultra-black face takes
@@ -492,9 +490,8 @@ export const edl: LyricShortEdl = {
   whole composite (words + shot) was scaled ~1.4× as one layer — fully black frames. Whole-frame
   transitions split their motion (to the footage and to the words' SVG `<g>` separately) from their
   surface (blur, wipe, fade on a wrapper). And zoom a composite about its lit words, not the frame's
-  centre (a top row alone is pushed out of frame). `lyric-shorts render` scans every render for black
-  frames (YMAX < 40, the watermark's side cropped off — its logo stays lit over a black frame); by hand:
-  `ffmpeg -i <mp4> -vf crop=iw*0.7:ih:0:0,signalstats,metadata=print:key=lavfi.signalstats.YMAX:file=- -f null -`.
+  centre (a top row alone is pushed out of frame). Scan every render for black frames: `ffmpeg -i
+  <mp4> -vf signalstats,metadata=print:key=lavfi.signalstats.YMAX:file=- -f null -` (YMAX < 40).
 - **Time in frames, not seconds.** Screen windows, transition windows, the active cut and a word's
   first lit frame are compared in frames (`round(t × fps)`): a cut or word a hundredth of a second
   after a frame otherwise showed the new screen a frame early or left a black frame.
@@ -502,10 +499,8 @@ export const edl: LyricShortEdl = {
   font and the layout. LyricShort draws nothing until the layout is in (else the first render pass
   asks for the unframed clip, a 404 that fails the render); the `clips` script and the render share
   `frameCuts`, so they always agree.
-- **Bundles link the public folder, never copy it** (`lyric-shorts render`, render-project, stills); only
-  `npx remotion bundle` copies all of `projects/` (20+ GB) into its out dir — don't use it. Before
-  2026-10-27 every render and stills run left a ~12 GB copy in $TMPDIR (the disk filled up on 2026-10-26).
-  If a bundle fails with ENOSPC, ask the user to clear the old ones
+- **Every render and stills run leaves a ~12 GB bundle in $TMPDIR** (the public folder copied): the disk
+  filled up (130 GB) on 2026-10-26. If a bundle fails with ENOSPC, ask the user to clear the old ones
   (`find "$TMPDIR" -maxdepth 1 \( -name 'remotion-webpack-bundle-*' -o -name 'remotion-v4.0.*-assets*' \)
   -mmin +60 -exec rm -rf {} +`); never delete them unasked.
 - **The dive needs a thick stroke**: rows of thin letters (`i`, `l`, `t`) give a small circle and a
@@ -528,8 +523,7 @@ export const edl: LyricShortEdl = {
 ## Timing budget (this machine)
 
 Analysis ~1 min (models cached); footage segregation ~3.5 min for a 3.6-min 4K60 video; `clips` ~1.5 s
-a clip (4K AV1); 20 half-scale stills ~2.5 min; `lyric-shorts render`: bundle a few seconds, a 30-s short at
-1080×1920 30 fps ~1 min (nakama s01: 56 s at concurrency 3). Check
+a clip (4K AV1); 20 half-scale stills ~2.5 min; a 30-s render at 1080×1920 30 fps ~1.5 min. Check
 the dives on a frame sheet of the render (every 2nd frame across each dive), not on stills.
 
 ## Lessons log
@@ -677,10 +671,3 @@ Append dated entries: what the user asked to change and the general rule behind 
   prefs.md), then search Pinterest per scene (one query a scene, `input/pins/<NN-scene>/`), pick the pins that show
   it, and make them the footage (an art reel at 3414x1920: `artvideo.py … 3414x1920`); twixtor clips only as a rare
   accent where motion is the point.
-- 2026-11-02 — Rendering made reliable after the One Piece forty: `render-project --short` and `npx remotion bundle`
-  died silently at ~63 % of bundling on five projects (SIGKILLed even with ONLY_PROJECT), so every session copied
-  its own Node-API bundle + render script into the project (nakama's `tools/bundle.ts` + `render.sh`,
-  redhairsrequiem's `render-shorts.ts`, …). The cause was webpack hashing all of `projects/` (Tailwind's context
-  dependency, read whole in production), not the public folder; `remotion.config.ts` and `scripts/bundle.ts` now
-  snapshot by timestamp. Rule: render with `npm run lyric-shorts -- <slug> render <id…> | all` (one bundle, one
-  short at a time, v<N>/ kept, the map and the dark-frame scan built in); never copy render tooling into a project.
