@@ -15,7 +15,7 @@ import { useSongTime } from '../kit/hooks';
 import type { Font } from 'opentype.js';
 import { layoutShort, loadFont, type RowLayout, type StackLayout, type TypeStyle } from './layout';
 import { entryFx, exitFx, FootageAt, FxLayer, motionOf, surfaceOf, svgMotion, type Fx, type FootageLook } from './Footage';
-import { frameCuts, inkOf, type Faces, type Luma } from './framing';
+import { frameCuts, inkOf, placeCaps, type Faces, type Luma } from './framing';
 import { solveLockup, type Lockup } from './lockup';
 import { OVERLAP, resolveShort, type LyricShortEdl, type ResolvedCap, type ResolvedScreen, type ResolvedStack } from './spec';
 
@@ -266,13 +266,16 @@ export const LyricShort: React.FC<SceneProps<LyricShortProps>> = ({ manifest, sl
     if (!font) return null;
     return layoutShort(resolved.screens.filter((s): s is ResolvedStack => s.kind === 'stack'), font, theme.type, W, H);
   }, [font, resolved, theme, W, H]);
-  const lockups = useMemo(() => {
-    const out = new Map<number, Lockup>();
-    if (!font || !smallFont) return out;
-    for (const s of resolved.screens) if (s.kind === 'cap') out.set(s.index, solveLockup(s, font, smallFont, theme.type, W, H));
-    return out;
-  }, [font, smallFont, resolved, theme, W, H]);
-  const cuts = useMemo(() => (layouts ? frameCuts(resolved.cuts, resolved.screens, layouts, faces, W, H, loop) : resolved.cuts), [layouts, resolved, faces, W, H, loop]);
+  // each lockup where its text keeps the faces under it clear, and its cuts framed clear of it (placeCaps)
+  const { lockups, caps } = useMemo(() => {
+    const solved = new Map<number, Lockup>();
+    if (!font || !smallFont) return { lockups: solved, caps: undefined };
+    for (const s of resolved.screens) if (s.kind === 'cap') solved.set(s.index, solveLockup(s, font, smallFont, theme.type, W, H));
+    const placed = placeCaps(resolved.cuts, resolved.screens, solved, faces, W, H);
+    for (const [i, p] of placed) solved.set(i, { ...solved.get(i)!, dy: p.dy });
+    return { lockups: solved, caps: placed };
+  }, [font, smallFont, resolved, theme, faces, W, H]);
+  const cuts = useMemo(() => (layouts ? frameCuts(resolved.cuts, resolved.screens, layouts, faces, W, H, loop, caps) : resolved.cuts), [layouts, resolved, faces, W, H, loop, caps]);
   // the colour of each reversed stack's words: black on bright footage, white on dark
   const inks = useMemo(() => {
     const out = new Map<number, 'black' | 'white'>();

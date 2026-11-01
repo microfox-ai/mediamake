@@ -69,7 +69,8 @@ export type CapSpec = {
   find: string | [string, number];
   /** the highlight word (default: the longest-held word that isn't a little one) */
   hi?: string;
-  /** where the lockup sits: under the faces (default), over them, or mid-frame */
+  /** where the lockup sits: under the faces, over them, or mid-frame. Unset, the engine picks the one that
+   *  keeps the marked subjects of the cuts under it clear of the text (framing.ts placeCaps) */
   place?: 'low' | 'high' | 'mid';
   /** the highlight word's colour (default white) */
   color?: string;
@@ -241,7 +242,7 @@ export type ResolvedStack = {
   ink?: 'black' | 'white';
 };
 export type ResolvedFull = { kind: 'full'; index: number; start: number; end: number };
-export type ResolvedCap = { kind: 'cap'; index: number; start: number; end: number; words: ResolvedWord[]; hi: number; place: 'low' | 'high' | 'mid'; color?: string };
+export type ResolvedCap = { kind: 'cap'; index: number; start: number; end: number; words: ResolvedWord[]; hi: number; place: 'low' | 'high' | 'mid' | 'auto'; color?: string };
 export type ResolvedScreen = ResolvedStack | ResolvedFull | ResolvedCap;
 export type ResolvedCut = {
   at: number;
@@ -388,7 +389,7 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
         const held = (w: ResolvedWord) => (LITTLE.has(norm(w.text)) ? 0 : 1) * (w.end - w.start + 0.02 * w.text.length);
         hi = words.reduce((best, w, i) => (held(w) > held(words[best]) ? i : best), 0);
       }
-      screens.push({ kind: 'cap', index, start: s.at !== undefined ? beatTime(song, s.at) : words[0].show, end: s.end !== undefined ? beatTime(song, s.end) : NaN, words, hi, place: s.place ?? 'low', color: s.color });
+      screens.push({ kind: 'cap', index, start: s.at !== undefined ? beatTime(song, s.at) : words[0].show, end: s.end !== undefined ? beatTime(song, s.end) : NaN, words, hi, place: s.place ?? 'auto', color: s.color });
       return;
     }
     let rows: ResolvedRow[] | null = null;

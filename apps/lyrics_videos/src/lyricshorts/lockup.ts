@@ -164,11 +164,17 @@ export const solveLockup = (cap: ResolvedCap, font: Font, small: Font, st: Pick<
     top: Math.min(...words.map(w => w.box.top)),
     bottom: Math.max(...words.map(w => w.box.bottom)),
   };
-  // under the faces (framing puts the eye line on the upper third), over them, or mid-frame; clear of the
-  // Shorts caption and buttons at the bottom
-  const centre = { low: 0.68, mid: 0.5, high: 0.24 }[cap.place] * H;
+  // 'auto' sits low until framing.ts placeCaps has looked at the faces under it
+  return { words, box, dy: dyAt(box, cap.place === 'auto' ? 'low' : cap.place, H), size: S, small: s0, where: where.join(', ') || 'alone' };
+};
+
+export type Place = 'low' | 'mid' | 'high';
+
+/** how far a lockup moves down to sit `place`: under the faces (framing puts the eye line on the upper third),
+ *  over them, or mid-frame; clear of the Shorts caption and buttons at the bottom */
+export const dyAt = (box: LockupBox, place: Place, H: number) => {
+  const centre = { low: 0.68, mid: 0.5, high: 0.24 }[place] * H;
   let dy = centre - (box.top + box.bottom) / 2;
   dy = Math.min(dy, 0.82 * H - box.bottom);
-  dy = Math.max(dy, 0.08 * H - box.top);
-  return { words, box, dy, size: S, small: s0, where: where.join(', ') || 'alone' };
+  return Math.max(dy, 0.08 * H - box.top);
 };
