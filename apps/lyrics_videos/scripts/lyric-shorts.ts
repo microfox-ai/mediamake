@@ -39,9 +39,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import opentype from 'opentype.js';
-import { aimOf, frameCuts, inkOf, LUMA_BANDS, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
+import { aimOf, frameCuts, inkOf, LUMA_BANDS, placeCaps, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
 import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
-import { solveLockup } from '../src/lyricshorts/lockup.ts';
+import { solveLockup, type Lockup } from '../src/lyricshorts/lockup.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -445,11 +445,13 @@ if (cmd === 'clips') {
   console.log(`${m.title} · ${id} · ${mmss(short.from)}–${mmss(short.to)} (${(short.to - short.from).toFixed(1)} s)\n`);
   console.log('screens');
   const layouts = solveShort(screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack'), font, THEME.type, 1080, 1920);
+  const lockups = new Map<number, Lockup>();
   for (const s of screens) {
     if (s.kind === 'full') console.log(`  ${b(s.start)}–${b(s.end)}  full frame`);
     else if (s.kind === 'cap') {
       // a lockup over the footage: the highlight word, and where the small words went
       const lk = solveLockup(s, font, smallFont, THEME.type, 1080, 1920);
+      lockups.set(s.index, lk);
       const wait = Math.max(...s.words.map(w => w.show)) - s.start;
       console.log(`  ${b(s.start)}–${b(s.end)}  over the footage: ${s.words.map((w, i) => (i === s.hi ? w.text.toUpperCase() : w.text)).join(' ')}   (${Math.round(lk.size)} px / ${Math.round(lk.small)} px; small words ${lk.where}; all words in by +${wait.toFixed(1)} s)`);
       console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
@@ -462,15 +464,18 @@ if (cmd === 'clips') {
       const sy = Math.min(s1, Math.max(s0, lay.stretch));
       const rest = lay.stretch / sy;
       const fit = `${sy !== 1 ? `letters ×${sy.toFixed(2)} tall, ` : ''}${rest >= 1 ? `fills ${Math.round(100 / rest)} % of the height` : `shrunk to ${Math.round(100 * rest)} %`}`;
-      // words over the whole footage until the flip leave no bands: only the masked part counts
-      const off = (rest > 1.45 || rest < 0.8) && (lay.flip === undefined || lay.flip < s.end);
+      // a mask that fills under ~75 % of the height leaves black bands: a lockup reads better (2026-10-28)
+      const off = (rest > 1 / 0.75 || rest < 0.8) && (lay.flip === undefined || lay.flip < s.end);
       // a row stays black until its word is sung: a screen whose words take long to arrive reads as a
       // black screen (the user on v7's 6–10-word screens: "seeing black screen for a lot of time")
       const wait = Math.max(...s.words.map(w => w.show)) - s.start;
       // black words over the footage until the flip: the wait isn't black
       const slow = wait > 2.2 && lay.flip === undefined;
       console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${lay.flip !== undefined ? `  ◐ black words, the mask from ${b(lay.flip).trim()}` : ''}${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow ? '  ⚠' : ''}`);
-      if (off) warnings.push(`screen ${s.index} (${lay.label}) ${rest > 1 ? 'leaves very wide black bands above and below' : 'is too tall and shrinks a lot'}: regroup its words`);
+      if (off) warnings.push(`screen ${s.index} (${lay.label}) ${rest > 1 ? `fills only ${Math.round(100 / rest)} % as a mask: make it a lockup (cap) or fold a neighbouring clause in` : 'is too tall and shrinks a lot: regroup its words'}`);
+      // the user, 2026-11-02: "the black text on the screen is looking ugly, instead either go with mask or … 1
+      // highlight word and fitting text above and/or bottom"
+      if (lay.flip !== undefined) warnings.push(`screen ${s.index} (${lay.label}) starts as words over the footage (reverse): the user rejected them — a mask that fills, or a lockup (cap)`);
       if (slow) warnings.push(`screen ${s.index} (${lay.label}) waits ${wait.toFixed(1)} s for its last word: its lower rows sit black that long — split it`);
       console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
     }
@@ -484,7 +489,20 @@ if (cmd === 'clips') {
     faces.aspect = doc.aspect;
     for (const [shot, box] of Object.entries(doc.shots)) faces.shots[src.prefix === 'sh' ? shot : shot.replace(/^sh/, src.prefix)] = box;
   }
-  const cuts = frameCuts(resolvedCuts, screens, layouts, faces, 1080, 1920, short.loop);
+  // each lockup where its text keeps the faces under it clear; the cuts under it framed clear of the text
+  const caps = placeCaps(resolvedCuts, screens, lockups, faces, 1080, 1920);
+  const cuts = frameCuts(resolvedCuts, screens, layouts, faces, 1080, 1920, short.loop, caps);
+  if (caps.size) {
+    console.log('\nlockups (place · how much of the faces under it the text covers)');
+    for (const s of screens) {
+      const p = s.kind === 'cap' ? caps.get(s.index) : undefined;
+      if (s.kind !== 'cap' || !p) continue;
+      console.log(`  ${b(s.start)}  ${s.words[s.hi].text.toUpperCase().padEnd(14)} ${p.place.padEnd(4)}${s.place === 'auto' ? '' : ' (by hand)'}  ${Math.round(p.cover * 100)} %${p.worst ? `  (most: ${p.worst.shot} ${Math.round(p.worst.cover * 100)} %)` : ''}`);
+      // a face under the text is the one thing a lockup mustn't do (user, 2026-11-02)
+      if (p.worst && p.worst.cover > 0.15)
+        warnings.push(`the lockup "${s.words[s.hi].text}" (${b(s.start).trim()}) covers ${Math.round(p.worst.cover * 100)} % of ${p.worst.shot}'s face: set its place by hand, crop the cut by hand (y / zoom) or pick another shot`);
+    }
+  }
   console.log('\ncuts');
   const outDir = path.join(dir, 'derived', 'lyricshorts');
   fs.mkdirSync(outDir, { recursive: true });
@@ -521,7 +539,7 @@ if (cmd === 'clips') {
     const vf = [`crop=${cw}:${ch}:${cropX}:${cropY}`, 'scale=1080:1920:flags=lanczos', `fps=${Math.min(60, srcFps.get(src.id) ?? 30)}`, c.mono ? 'hue=s=0' : '', 'format=yuv420p'].filter(Boolean).join(',');
     if (!fs.existsSync(file)) jobs.push({ file, argv: ['-v', 'error', '-y', '-ss', (shot.start + c.in).toFixed(3), '-i', path.join(dir, src.source), '-t', c.span.toFixed(3), '-vf', vf, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', `${file}.part.mp4`] });
     const trs = [c.tr.kind !== 'cut' ? c.tr.kind + (c.tr.dir ? ` ${c.tr.dir}` : '') : '', c.flash ? 'flash' : '', c.shake ? `shake ${c.shake}` : ''].filter(Boolean).join(' + ') + (whole.includes(i) ? '  (whole frame: the screen changes here)' : '');
-    console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
+    console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920, caps, c.face ?? faces.shots[c.shot] ?? undefined).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
   }
   // decoding 4K AV1 is heavy: a few at a time
   const parallel = Math.max(1, Math.min(4, Math.floor(os.cpus().length / 3)));

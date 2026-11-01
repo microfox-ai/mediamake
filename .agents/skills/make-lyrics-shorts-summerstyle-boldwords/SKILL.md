@@ -41,8 +41,8 @@ opentype.js; `solveStack` tries every way to break a phrase into rows, with or w
 word, and keeps the one that fills the frame best with the biggest letters, then centres it; one SVG
 path per word; the dive point = centre of the row's thickest stroke), `LyricShort.tsx` (the scene: footage → tint → leaks → grain → the mask
 multiplied over it; solid letters on top), `define.ts` (`defineLyricShort`); the script
-`scripts/lyric-shorts.ts` (`npm run lyric-shorts`: pick, new, font, clips). Shorts are discovered and
-rendered through the shared shorts path (`Root.tsx`, `render-project --short`, `stills --short`) that
+`scripts/lyric-shorts.ts` (`npm run lyric-shorts`: pick, new, font, clips, render). Shorts are discovered
+through the shared shorts path (`Root.tsx`, `stills --short`) and rendered with `lyric-shorts render`, the path
 make-video-music-remix-shorts set up — keep using it, don't fork it.
 
 Worked example: `projects/eyesofpink` ("Eyes of Pink", a Nezuko song, ~136 BPM) × a Nezuko twixtor
@@ -58,9 +58,23 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    take the mask (the opener, a repeated word, the dives: 2–4 a short), and every other line is a `cap`
    lockup over the full-frame footage (see "Lockups over the footage" below). A mask screen that would
    fill under ~75 % of the height leaves black bands — "must be avoided as much as possible" — so it
-   becomes a lockup (or starts as words over the footage). Pick each lockup's highlight by hand when the
-   automatic one lands on a filler (`yeah`, `get`, `just`, `lost` → `cage`, `rampage`, `blue`, `edge`):
-   the word that carries the line.
+   becomes a lockup. Pick each lockup's highlight by hand when the automatic one lands on a filler
+   (`yeah`, `get`, `just`, `lost` → `cage`, `rampage`, `blue`, `edge`): the word that carries the line.
+   **Only these two — never words set over the footage in black (or white) as a stack** (the user,
+   2026-11-02: "the black text on the screen is looking ugly, instead either go with mask or … 1 highlight
+   word and fitting text above and/or bottom"). No `reverse` screens, no `type.reverse` in the theme;
+   `clips` warns on any.
+0b. **The text never sits on the subject's face** (the user, 2026-11-02: "sometimes the text placement is
+   messing up the image behind it, overlaying text on important character, if it's semi important it's
+   fine, but if it's important, either change position or recrop the background image so as to keep the
+   subject clear of the text"). The important part is the head of each cut's marked subject (faces.json:
+   the box's top down to a little under the eye line); the rest of the body and the background may take
+   the text. Leave `place` unset: the engine puts each lockup low, high, mid, or right under / over the
+   head — wherever it covers least of the heads under it — and frames every auto-cropped cut under a
+   lockup with the head in the part of the frame the text leaves free (`placeCaps`, `framing.ts`). A shot
+   cropped at its source's full height can't move up or down, so there the text moves. `clips` prints each
+   lockup's place and how much of a head it covers, and warns past 15 %: then pick a wider shot for that
+   line, make the line a mask (a big face suits the letters), or crop the cut by hand.
 
 1. **One short phrase a screen, sung within ~1–2 s.** Every row has its place from the screen's
    start and stays black until its word is sung, so a long screen *is* a black screen: v7's couplets
@@ -92,26 +106,20 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    v2): "you are not putting the right clips, or you are not cropping them correctly, so it fits
    correctly". Mark each shot's face box and eye line in `footage/faces.json`; `framing.ts` crops every
    cut without a hand crop on it: the eye line on the upper third, the face centred and a third of the
-   frame tall where the footage shows whole (full screens, black words), the eyes on the biggest lit row
-   and the face a little taller than it under the mask; an iris opens on the framed eyes. **Cast shots
+   frame tall where the footage shows whole (full screens), the head in the part the text leaves free
+   under a lockup (0b), the eyes on the biggest lit row and the face a little taller than it under the
+   mask; an iris opens on the framed eyes. Leave crops automatic unless a shot needs a hand crop (text in
+   the picture, letterbox): the engine can only move the subject clear of the text on automatic cuts. **Cast shots
    whose subject fits a 9:16 crop** (about a third of a 16:9 frame's width): a face close-up wider than
    that shows a cheek; a profile at the very top of the frame loses its eyes. Where the subject is not
    her face (the flames, a night sky, a body lying down, "small" in the frame), give the cut its own
    `face`. Check `cuts.jpg` every time: it is the crop the render uses.
-3c. **Long lines: black words over the footage first, then the mask.** The user: "when there are too
-   many words, you can show it in reverse like text is black … when the line is reaching midpoint, since
-   most of the screen becomes filled, you can transit to mask style again". Theme `type.reverse`
-   (`minWords` 4, `lit` 0.5): such a screen starts with the whole footage showing and each word landing
-   in black, and flips to the mask (a soft flash) as the word lands that lights half the stack's ink —
-   if that leaves at least `minHold` s of black words; a screen opening on a giant first word stays
-   masked. `stack(…, { reverse: true | false | { flip: beat } })` overrides it; `true` also suits a line
-   of long words that fills under half the frame (the bands become footage until the flip). **Black on
-   bright footage, white on dark** (the user: "sometimes white text is also fine, depends on what is
-   visible on the video"): `clips` measures every clip's brightness in 16 bands down the frame
-   (`shorts/<id>/luma.json`, imported by index.tsx), and each reversed screen takes the ink of the bands
-   behind the rows it shows as words (`inkOf`; under `reverse.white`, 100, white). A whole-frame mean
-   misleads: a bright window behind one row, dark hair behind another. `clips` prints each screen's ink
-   and its bands; `reverse: { ink: 'white' }` sets it by hand.
+3c. **Long lines are lockups, not black words.** Until 2026-11-02 a long screen started as black (or white)
+   words over the whole footage and flipped to the mask at half lit (`type.reverse`, `reverse: …`); the
+   user called the black text ugly. A line too long for a mask that fills is a lockup; a long line that
+   must be a punch is split into a lockup and a short mask for its last words (`you just out-thought` +
+   `them all`), or joined with the next short line into one stack that fills (75–91 %). The engine still
+   reads `reverse` for older cut lists; new ones never use it.
 4. **Bright footage in the letters.** Dark shots make dim letters (the `floor` tint helps a little).
    s02 v3 (rejected next to s01 and s03: "s02 not good, learn from s01 and s03") put dark blue demon and
    night shots behind most of its words; s03 (liked) has a bright, warm face behind every line. Even a
@@ -173,10 +181,10 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    phrase), so the loop stays on the grid. `scripts/span.py <slug> <b0> <b1>` prints every word with its
    start–end beats and a `|` at each downbeat; `scripts/setwin.py <slug> <id> <b0> <b1>` sets the window
    (short.json, history.json) from beats. A long first word (`affidavit`, `ninety-nine`, `confiscate`)
-   sits small over black until the rest is sung: start that screen as words over the footage (`reverse:
-   true`) rather than pulling back `into` it; one held word alone (`zero`, `judge`, `why`, `welcome`)
-   reads best as black words over the whole shot (`['word'], { reverse: { flip: <next screen> } }`).
-9. **Never lose a render.** Renders are kept in `v<N>/` by `render-project`; keep earlier cut lists in
+   sits small over black until the rest is sung: make that line a lockup rather than pulling back `into`
+   it; one held word alone (`zero`, `judge`, `why`, `welcome`) is a lockup of one word (`cap('word')`) or,
+   if it is short and bold, a one-row mask.
+9. **Never lose a render.** Renders are kept in `v<N>/` by `lyric-shorts render`; keep earlier cut lists in
    `shorts/<id>/archive/edl.v<N>.ts.txt`.
 
 ## What it needs
@@ -305,7 +313,7 @@ shorts"). It reads the brand's kit profile (`brands/<brand>/thumbnail.json`, fro
 Strip: "don't use strip logo, use the frame logo") and its small-label face into `shorts/brand/`, and sets
 `theme.watermark` (`logo`, `label`, `labelFont`, `at`, `width`, `color`). The render draws it still over every
 frame — no shake, no transition, through the loop seam — the label in capitals with wide tracking above the
-mark, flush with the corner, a soft shadow. The slim render folder must carry `shorts/brand/` too.
+mark, flush with the corner, a soft shadow.
 
 **An artist with no logo** (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not available"):
 
@@ -445,11 +453,12 @@ export const edl: LyricShortEdl = {
   (`hi`, default the longest-held word that isn't a little one), the words before it nested above the
   x-height in the widest gap beside the letters that rise, the words after it under the baseline beside the
   letters that drop — next to the letters, never across them — else above / below the whole word, flush
-  with its edge. White with a soft shadow and a faint scrim; `place` low (default, under the faces), high,
-  mid; `color` tints the highlight (the theme's accent). The small words use `type.small` (the face at 700:
+  with its edge. White with a soft shadow and a faint scrim; `place` unset lets the engine keep the heads
+  under it clear (0b), or set it by hand: low (under the faces), high, mid; `color` tints the highlight (the
+  theme's accent). The small words use `type.small` (the face at 700:
   `npm run lyric-shorts -- <slug> font Figtree --weight=700`), at least 62 px.
-- **No wide black bands.** A mask screen that fills under ~75 % of the height becomes a lockup (or starts as
-  words over the footage, `reverse: true`).
+- **No wide black bands.** A mask screen that fills under ~75 % of the height becomes a lockup (`clips` warns
+  with the fill).
 - **Twixtor on the beat** (per cut): `ramp` (0..1, a burst of speed as each beat lands gliding into slow
   motion — the shot's own pace on average, so it needs no more footage; motion trails on the bursts),
   `bump` (a zoom punch on every beat, 0.04–0.07) and `push` (a slow camera push over the cut, 0.05–0.08).
@@ -477,8 +486,8 @@ export const edl: LyricShortEdl = {
 - **Long held words fool the alignment**: in "Eyes of Pink" chorus 1, `Eyes` landed 4 s early after
   the held `relentless`. Check the words of the chosen stretch in the `new` header against the
   spectrogram (`analysis/zoom.py`) before casting; fix in `analysis/fixes.json`.
-- **The render bundles every project** (src/index.ts): another session's half-finished edit can break
-  it. If the bundle fails outside src/lyricshorts, wait or render from a copied entry.
+- **The render bundles src/ and this project alone** (ONLY_PROJECT): another session's half-finished edit
+  in src/ can still break it. If the bundle fails outside src/lyricshorts, wait or render from a copied entry.
 - **AV1 4K60 sources** decode fine with ffmpeg's libdav1d; clips are cut once and cached by their
   parameters, so re-runs are seconds.
 - **Never draw the stack as text.** Covering the frame with one stroke of an ultra-black face takes
@@ -499,8 +508,9 @@ export const edl: LyricShortEdl = {
   font and the layout. LyricShort draws nothing until the layout is in (else the first render pass
   asks for the unframed clip, a 404 that fails the render); the `clips` script and the render share
   `frameCuts`, so they always agree.
-- **Every render and stills run leaves a ~12 GB bundle in $TMPDIR** (the public folder copied): the disk
-  filled up (130 GB) on 2026-10-26. If a bundle fails with ENOSPC, ask the user to clear the old ones
+- **`npx remotion bundle` copies the whole public folder** (~12 GB into $TMPDIR; the disk filled up, 130 GB, on
+  2026-10-26): never use it — `lyric-shorts render` and `stills` link the public folder instead. If a bundle
+  still fails with ENOSPC, ask the user to clear the old ones
   (`find "$TMPDIR" -maxdepth 1 \( -name 'remotion-webpack-bundle-*' -o -name 'remotion-v4.0.*-assets*' \)
   -mmin +60 -exec rm -rf {} +`); never delete them unasked.
 - **The dive needs a thick stroke**: rows of thin letters (`i`, `l`, `t`) give a small circle and a
@@ -518,12 +528,68 @@ export const edl: LyricShortEdl = {
   the art reel's faces sheet and drop or re-export the sideways ones.
 - **Transcription respelling**: ElevenLabs and the library's text differ where a word was misheard
   ("wills"/"wilts", "fire's mind"/"fire's mine"); an equal-length difflib swap fixes most, an unequal
-  one by hand in `input/lyrics.json`, then `analyze --only align` and `prepare-project` again.
+  one by hand in `input/lyrics.json`, then `analyze --only align` and `prepare-project` again. An ad-lib
+  right after a word ("haki, (you pause)") can pull the next line's alignment beats early: drop the ad-lib
+  and keep those lines at their ElevenLabs times (`fixes.json`: `"<line>": "input"`).
+- **The beat grid can lock onto the wrong tempo**: when every sung line lasts a whole number of tracked
+  beats that isn't 4 (Drums of Liberation: 3), check a kick/snare profile by beat position (mod 3 / mod 4)
+  and fix it with `tempo_range` in `analysis/config.json`, then `prepare-project` again.
+- **Check a mask's fill before you make it one.** Three short words stack to 55–65 % (`give me a future`,
+  `take this crown`), two long ones to 27–31 % (`nothing happened`, `avast nakama`), a lone long word to
+  ~14 %. Fold a neighbouring short clause in (`to keep his captain whole`: 87 %; two short lines joined into
+  one stack reach 75–91 %: `i am the tremor the quake`, `i forgive you for what you've done`), or set the
+  line as a lockup. `clips` prints the fill and warns under 75 %.
+  A dive that starts before its word is sung hides the word: start it (end − beats) after the word lights.
+- **The dark-frame scan is fooled by anything always bright**: the watermark keeps every frame's YMAX above
+  40, and so do white lockup words over a black shot. Scan with the watermark corner cropped
+  (`crop=iw*0.7:ih:0:0,signalstats`; `lyric-shorts render` scans that way) and still look at one frame of every screen; check the first frames
+  of any shot cut from its start (`in: 0`) for a fade from black.
+- **Black frames from the cut list**: a window that opens before its first word needs a `full(<start>)`
+  screen; a cut that opens a mask before its first word lands (with a zoom transition) leaves a black frame
+  — cut on the word. A repeated line inside one window needs `[phrase, nth]` on the later screen, or both
+  resolve to the first.
+- **`bump` on a mask cut pushes the width-fit rows past the frame's edge** (an "h", a "my" cut off): masks
+  take `push`; `bump` stays on lockups and full frames.
+- **White on white**: white lockups vanish on white or beige art (manga pages, bubbles, a pale wall) — a
+  coloured highlight, `place: 'high'` over a dark part, or another shot.
+- **The loop take carries the last mask and its dive**: a take whose lower half is a black cape or a dark
+  ground turns them near-black. Pick a loop take bright across the frame.
+- **1080p twixtor packs can't take the framing's mask zoom** (1.25× on top of the 9:16 crop is a 2.2×
+  upscale): hand-crop them at zoom 1. A pack can carry a faint channel watermark across the middle
+  ("Clips in Description") — a 9:16 crop of the middle shows it: skip those shots. Packs and the episode
+  uploads share takes (the same shot at another speed or grade): one of each twin a short.
+- **Pins in the art reel** (2026-11-02, ten One Piece songs): a landscape pin under ~1000 px tall goes soft in
+  a 9:16 crop (a third of its width, upscaled 3–4×) — prefer portrait or big pins for the lines, and give
+  small pins tall subject boxes so the framing keeps them at 1×. A portrait pin fills the crop at its full
+  width: centre it (any `x` offset shows the blurred cover) and zoom the narrower ones (`zoom ≈ 0.5625 /
+  aspect`). Landscape art turned sideways for phones is common in "crew" searches: rotate it back. Pins with
+  burned-in subtitles, an artist's signature or a generator mark in a corner: replace them. A 4-s pin holds
+  only ~7 beats at 100 BPM and `clips` doesn't warn for pins as it does for twixtor shots — count the beats
+  when a pin runs through a dive and its full-frame tail. A big `pan` (0.25–0.3) across a landscape pin
+  makes a reveal inside one cut.
+- **The story's own scene beats a pin** when the line names a moment the anime shows (Zoro's "nothing
+  happened", Arlong Park falling, the Enies Lobby flag): search YouTube for "<character> <moment> 4k scene" /
+  "<A> vs <B> twixtor" and official clips (subtitled: crop above) before building that moment from fan art.
+  Check frames through the whole range: a scene can tilt along a body and never show the face. Minor
+  characters (Squard) barely exist on Pinterest — go to the episode clip. Crunchyroll clips: TOEI mark top
+  left, subtitles at the bottom (one line: `zoom 1.2, y 0.38`; two lines: 1.3), a 10-s end card to skip.
+  Twixtor packs often end in 3-s canon clips — real story moments to cast. Near-duplicates across sources (a
+  pin that is a still of a twixtor shot, two pins of one frame): check `cuts.jpg` for the same picture twice.
+- **Pinterest through the Browse Hack extension with several sessions on one Chrome profile**: the
+  extension's downloads queue up and trickle in for minutes, so one bulk session split into searches by
+  download time fails. One search per folder: `pinterest_bulk_stop` → navigate the tab to
+  `in.pinterest.com/search/pins/?q=…` (the www → in redirect can leave a navigation silently undone) →
+  `pinterest_bulk_start` with that search's own folder → wait until `pinterest_bulk_status` shows `queued 0`
+  → stop. The first few files can still belong to the search before: pick pins by what they show. Exact
+  alternative: read the page's pin hashes in your own tab (JS over `img[src*=pinimg]`) and fetch the
+  originals from `i.pinimg.com`. A `browser_batch` that times out keeps driving the tab in the background;
+  keep batches to ~6 searches.
+- **macOS `seq -s, 0 33` ends with a comma** (artvideo.py's `int()` fails on it): build index lists another way.
 
 ## Timing budget (this machine)
 
 Analysis ~1 min (models cached); footage segregation ~3.5 min for a 3.6-min 4K60 video; `clips` ~1.5 s
-a clip (4K AV1); 20 half-scale stills ~2.5 min; a 30-s render at 1080×1920 30 fps ~1.5 min. Check
+a clip (4K AV1); 20 half-scale stills ~2.5 min; a 30-s short renders in ~1 min (concurrency 3; the bundle a few seconds). Check
 the dives on a frame sheet of the render (every 2nd frame across each dive), not on stills.
 
 ## Lessons log
@@ -671,3 +737,25 @@ Append dated entries: what the user asked to change and the general rule behind 
   prefs.md), then search Pinterest per scene (one query a scene, `input/pins/<NN-scene>/`), pick the pins that show
   it, and make them the footage (an art reel at 3414x1920: `artvideo.py … 3414x1920`); twixtor clips only as a rare
   accent where motion is the point.
+- 2026-11-02 — The AMZ One Piece playlist (PLCNQnF1wdkTc4WnHxFzG6VzGxMBxS9qmR): ten songs × 4 shorts, fully automatic
+  ("use free.themoondevs for downloading twixtors/pins … do everything in auto"). Audio and descriptions from the
+  uploads; ElevenLabs Scribe on the vocal stem, re-cut into lines and respelled from the description's written lyrics
+  (`projects/_onepiece-shorts/recut.py`: 92–100 % of words matched). Each song cast from its story — one Pinterest
+  search a scene through the free.themoondevs Chrome profile, the story's own anime scenes where YouTube had them,
+  twixtor packs for the moves. The user asked mid-run to split the work ("do things simultaneously … multiple
+  threads"), so each song got its own session over a shared kit (`projects/_onepiece-shorts/README.md`); then the Mac
+  overheated with ten at once ("work on 2 threads at a time, system is overheating") — run at most two song sessions
+  at a time, heavy steps one at a time inside each. Watermarks follow each description's credit (Get into Zone Frame;
+  a typed MUSIC BY / SUPERMEL on Bonney's and To Nami's — "this is music by SuperMel, for now just type it").
+  Profanity on screen as `f*ckin'`. The Gotchas above (mask fill, the dark-frame
+  scan, pins in the reel, Pinterest with shared Chrome) came out of this run.
+- 2026-11-02 — Notes on the One Piece forty: "the black text on the screen is looking ugly, instead either go with mask or
+  the current other variations of 1 highlight word and fitting text above and/or bottom" → no reversed screens any more
+  (principles 0, 3c): a line is a mask that fills or a lockup; `clips` warns on any `reverse` and on masks under 75 %.
+  "Sometimes the text placement is messing up the image behind it, overlaying text on important character … if it's
+  important, either change position or recrop the background image so as to keep the subject clear of the text" →
+  principle 0b: lockups place themselves (low, high, mid, right under / over a head) where they cover least of the
+  heads of the marked subjects under them, and auto-cropped cuts under a lockup put the head in the free part of the
+  frame (`placeCaps` and `clearOf` in framing.ts; the render and `clips` share them). Tried on Red Hair's Requiem s04:
+  "heart" moved off Luffy's eyes to the top, "fleets" off the ships; the faces it can't clear (a close-up filling the
+  frame, a hand-set place or crop) are warned with the shot to swap.
