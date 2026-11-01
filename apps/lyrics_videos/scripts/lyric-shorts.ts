@@ -15,12 +15,17 @@
  *          at the cut's x, at the short's fps) into derived/lyricshorts/, writes shorts/<id>/shots.json
  *          for the Revisions map, prints the timeline and the warnings, and draws
  *          out/<slug>/shorts/<id>/cuts.jpg (each cut's middle frame as it will be framed).
+ *   render bundles the project once (alone, public dir linked, snapshots by timestamp) and renders the shorts one
+ *          at a time → out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4 (the previous render kept in v<N>/), each with
+ *          its Revisions map and a count of dark frames (watermark corner cropped). --frames=a-b renders a clip into
+ *          clips/ instead. Use it, not render-project, for lyric shorts.
  *
  * Usage:
  *   npm run lyric-shorts -w lyrics_videos -- <slug> pick [--n=3] [--min=15] [--max=45]
  *   npm run lyric-shorts -w lyrics_videos -- <slug> new B [--formats=9x16] [--lead=1] [--loop]   (lead: bars before the first line)
  *   npm run lyric-shorts -w lyrics_videos -- <slug> new 211.3-244.5
  *   npm run lyric-shorts -w lyrics_videos -- <slug> clips s01
+ *   npm run lyric-shorts -w lyrics_videos -- <slug> render s01 [s02 …] | all [--concurrency=3] [--crf=18] [--format=9x16] [--frames=a-b]
  *   npm run lyric-shorts -w lyrics_videos -- <slug> brand <brand> [--label="Music by"] [--at=top-right]   (a watermark on every short)
  *   npm run lyric-shorts -w lyrics_videos -- <slug> credit "<artist>" [--label="Music by"]              (an artist credit, no logo)
  *
@@ -44,7 +49,7 @@ const args = process.argv.slice(2);
 const [slug, cmd, what] = args.filter(a => !a.startsWith('--'));
 const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 if (!slug || !cmd) {
-  console.error('usage: npm run lyric-shorts -w lyrics_videos -- <slug> pick | new <letter | from-to> | clips <id>');
+  console.error('usage: npm run lyric-shorts -w lyrics_videos -- <slug> pick | new <letter | from-to> | clips <id> | render <id …> | all');
   process.exit(1);
 }
 const dir = path.join(ROOT, 'projects', slug);
@@ -582,6 +587,108 @@ if (cmd === 'clips') {
   }
   console.log(`\n✔ derived/lyricshorts/ (${cuts.length} clips) · shorts/${id}/shots.json · out/${slug}/shorts/${id}/cuts.jpg`);
   process.exit(0);
+}
+
+// ------------------------------------------------------------------ render
+
+if (cmd === 'render') {
+  // one bundle, then the shorts one at a time (user, 2026-11-02: the Mac overheats with many heavy jobs): this project
+  // alone (ONLY_PROJECT), the public dir linked, never copied (tempBundle), snapshots by timestamp — hashing read all
+  // of projects/ and killed the CLI bundle at ~63 % (scripts/snapshots.ts). Each short renders to <name>.part.mp4; only
+  // a finished render replaces <name>.mp4, the previous one kept in v<N>/ (render-project's rule). Then its Revisions
+  // map and a scan for dark frames.
+  const { renderMedia, selectComposition } = await import('@remotion/renderer');
+  const { enableTailwind } = await import('@remotion/tailwind-v4');
+  const { removeBundle, tempBundle } = await import('./bundle.ts');
+  const { keepPrevious, parseFramesFlag, writeVideoMap } = await import('./map.ts');
+  const isLyricShort = (id: string) => fs.existsSync(path.join(shortsDir, id, 'index.tsx')) && fs.readFileSync(path.join(shortsDir, id, 'index.tsx'), 'utf8').includes('defineLyricShort');
+  const asked = args.filter(a => !a.startsWith('--')).slice(2);
+  if (!asked.length) throw new Error('render <id …> | all [--format=9x16] [--frames=a-b] [--concurrency=3] [--crf=18]');
+  const ids = asked.includes('all') ? fs.readdirSync(shortsDir).filter(d => /^[^_.]/.test(d) && isLyricShort(d)).sort() : asked;
+  // everything a short needs before anything renders: its cut clips (`clips` writes luma.json with one entry per clip)
+  for (const id of ids) {
+    if (!isLyricShort(id)) throw new Error(`no lyric short ${id} (shorts/${id}/index.tsx with defineLyricShort)`);
+    const lumaFile = path.join(shortsDir, id, 'luma.json');
+    if (!fs.existsSync(lumaFile)) throw new Error(`${id} has no clips yet. Run: npm run lyric-shorts -w lyrics_videos -- ${slug} clips ${id}`);
+    const missing = Object.keys(JSON.parse(fs.readFileSync(lumaFile, 'utf8'))).filter(f => !fs.existsSync(path.join(dir, 'derived', 'lyricshorts', f)));
+    if (missing.length) throw new Error(`${id}: ${missing.length} clips missing from derived/lyricshorts/ (${missing.slice(0, 3).join(', ')}…). Run: npm run lyric-shorts -w lyrics_videos -- ${slug} clips ${id}`);
+  }
+  const concurrency = Number(opt('concurrency') ?? 3);
+  const crf = Number(opt('crf') ?? 18);
+  const frames = parseFramesFlag(args);
+  // the watermark's corner is cropped off the dark-frame scan: its logo stays lit over a black frame
+  const mark = fs.readFileSync(path.join(shortsDir, 'theme.ts'), 'utf8').match(/\n\s*watermark:\s*\{[^\n]*/)?.[0];
+  const crop = !mark ? '' : /at:\s*'[a-z]+-left'/.test(mark) ? 'crop=iw*0.7:ih:iw*0.3:0,' : 'crop=iw*0.7:ih:0:0,';
+  /** spans of frames with nothing lit (YMAX < 40), in the video's own seconds */
+  const darkSpans = (file: string, fps: number) => {
+    const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-vf', `${crop}signalstats,metadata=print:key=lavfi.signalstats.YMAX:file=-`, '-an', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 256 << 20 });
+    const dark = [...raw.matchAll(/frame:(\d+)[^\n]*\n[^\n]*YMAX=([\d.]+)/g)].filter(x => Number(x[2]) < 40).map(x => Number(x[1]));
+    const spans: [number, number][] = [];
+    for (const f of dark) spans.length && f === spans[spans.length - 1][1] + 1 ? (spans[spans.length - 1][1] = f) : spans.push([f, f]);
+    return { count: dark.length, spans: spans.map(([a, z]) => `${(a / fps).toFixed(2)}${z > a ? `–${((z + 1) / fps).toFixed(2)}` : ''} s`) };
+  };
+
+  process.env.ONLY_PROJECT = slug;
+  const t0 = Date.now();
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'src/index.ts'), publicDir: path.join(ROOT, 'projects'), webpackOverride: enableTailwind });
+  console.log(`bundled ${slug} in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  // as remotion.config.ts sets for the CLI (the Node API doesn't read it): ANGLE for WebGL, a long delayRender
+  const chromiumOptions = { gl: 'angle' as const };
+  const timeoutInMilliseconds = 100000;
+  const done: string[] = [];
+  const failed: string[] = [];
+  try {
+    for (const id of ids) {
+      const short = JSON.parse(fs.readFileSync(path.join(shortsDir, id, 'short.json'), 'utf8')) as { from: number; formats: string[] };
+      for (const f of opt('format') ? [opt('format')!] : short.formats) {
+        const name = `${slug}-${id}-${f}`;
+        const outDir = path.join(ROOT, 'out', slug, 'shorts', id);
+        const output = frames ? path.join(outDir, 'clips', `${name}-${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}.mp4`) : path.join(outDir, `${name}.mp4`);
+        const part = output.replace(/\.mp4$/, '.part.mp4');
+        fs.mkdirSync(path.dirname(output), { recursive: true });
+        const t = Date.now();
+        let fps = 30;
+        // a Chrome that times out starting or a font fetch that fails passes on a second try (2026-11-01)
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const composition = await selectComposition({ serveUrl, id: name, chromiumOptions, timeoutInMilliseconds });
+            fps = composition.fps;
+            let shown = -10;
+            await renderMedia({
+              serveUrl, composition, codec: 'h264', crf, imageFormat: 'jpeg', concurrency, chromiumOptions, timeoutInMilliseconds, outputLocation: part,
+              frameRange: frames ? [frames.from, Math.min(frames.to, composition.durationInFrames - 1)] : null,
+              onProgress: ({ progress }) => {
+                const p = Math.floor(progress * 100);
+                if (p >= shown + 10) console.log(`  ${name} ${(shown = p - (p % 10))} %`);
+              },
+            });
+            break;
+          } catch (err) {
+            fs.rmSync(part, { force: true });
+            console.warn(`  ✗ ${name}, try ${attempt}: ${err instanceof Error ? err.message.split('\n')[0] : err}`);
+            if (attempt === 2) failed.push(name);
+          }
+        }
+        if (!fs.existsSync(part)) continue;
+        if (!frames) keepPrevious(outDir, name);
+        fs.renameSync(part, output);
+        console.log(`✔ ${path.relative(ROOT, output)} in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+        try {
+          const shots = fs.existsSync(path.join(shortsDir, id, 'shots.json')) ? `shorts/${id}/shots.json` : 'video/shots.json';
+          writeVideoMap(slug, output, frames, { shots, offset: short.from });
+        } catch (err) {
+          console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
+        }
+        const dark = darkSpans(output, fps);
+        console.log(`  dark frames (YMAX < 40${crop ? ', watermark corner cropped' : ''}): ${dark.count}${dark.count ? ` at ${dark.spans.slice(0, 8).join(', ')}${dark.spans.length > 8 ? ' …' : ''}` : ''}`);
+        done.push(`${path.relative(ROOT, output)}${dark.count ? ` (${dark.count} dark frames)` : ''}`);
+      }
+    }
+  } finally {
+    removeBundle(serveUrl);
+  }
+  console.log(`\n${done.length} rendered${done.length ? `:\n  ${done.join('\n  ')}` : ''}${failed.length ? `\n${failed.length} failed: ${failed.join(', ')}` : ''}`);
+  process.exit(failed.length ? 1 : 0);
 }
 
 console.error(`unknown command ${cmd}`);
