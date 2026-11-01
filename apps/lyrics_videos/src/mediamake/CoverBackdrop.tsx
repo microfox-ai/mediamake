@@ -55,6 +55,40 @@ export type CoverBackdropProps = {
   defocus?: Defocus[];
   /** Stylise the picture: a grade, picture filters and living texture (PictureLook.tsx). */
   look?: PictureLook;
+  /**
+   * The poster dancing like an anime edit: a liquid warp, a spring bounce on the kicks, a sway from
+   * bar to bar. Cover, subject and visualizers all read it from the cover, so they move as one.
+   */
+  dance?: Dance;
+};
+
+/**
+ * Cadence, 2026-10-31: "the music visualiser effects are plain and dull, give it a liquid feel as if
+ * the poster is dancing like in anime edits".
+ */
+export type Dance = {
+  /**
+   * The picture rippling like liquid: displaced `amount` px at rest, more on the hits; waves about
+   * `size` px across, the shape morphing to a new one every `every` beats (eased, so it surges on the
+   * beat and settles).
+   */
+  liquid?: { amount: number; kick?: number; snare?: number; size?: number; every?: number; octaves?: number };
+  /** Squash and stretch on strong kicks, springing back (0.03 = 3 % taller). */
+  bounce?: number;
+  /** Degrees the poster leans, swinging to the other side on each downbeat. Keep it ≤ 1 (the zoom loop's overscan). */
+  sway?: number;
+  /**
+   * A camera punch on the downbeats inside `when` (song-second windows): the whole poster snaps in by
+   * `zoom` (0.02 = 2 %) and eases back. Cadence, 2026-10-31: "come up with a more suitable dynamic
+   * camera fx / morph fx / impacts" (after the thin shockwave circles looked bad).
+   */
+  pulse?: { zoom: number; when?: [number, number][] };
+  /**
+   * A shockwave rolling out through the picture from `at` (unmoved frame px) on the downbeats inside
+   * `when` (or at the given song seconds): a ring of distortion `amount` px strong, no line drawn,
+   * growing at `speed` px/s and fading over `life` s.
+   */
+  ripple?: { at: [number, number]; amount: number; on?: number[]; when?: [number, number][]; speed?: number; life?: number };
 };
 
 export type Jolt = {
@@ -193,6 +227,235 @@ export const useCoverMotion = (
   };
 };
 
+/** Index of the last time ≤ t in a sorted list, or -1. */
+const lastAt = (times: number[], t: number) => {
+  let lo = 0;
+  let hi = times.length - 1;
+  let at = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (times[mid] <= t) {
+      at = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return at;
+};
+
+/**
+ * A smooth noise field as a small PNG (data URL) for the liquid warp: red and green each two octaves
+ * of value noise, `cells` grid cells across. Made once per seed and cached; an feImage scales it up,
+ * far cheaper than an feTurbulence at full size in every layer on every frame (that made a 6-still
+ * run take over 10 minutes).
+ */
+const liquidMaps = new Map<string, string>();
+const liquidMap = (seed: number, cells: number): string => {
+  const key = `${seed}|${cells}`;
+  const hit = liquidMaps.get(key);
+  if (hit) return hit;
+  if (typeof document === 'undefined') return '';
+  const w = 384;
+  const h = 216;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const img = ctx.createImageData(w, h);
+  const field = (salt: number, n: number) => {
+    const gw = Math.ceil(n) + 2;
+    const gh = Math.ceil((n * h) / w) + 2;
+    const g = Array.from({ length: gw * gh }, (_, i) => hash(seed * 131.7 + salt * 17.3 + i * 0.731));
+    const s = (x: number) => x * x * (3 - 2 * x);
+    return (x: number, y: number) => {
+      const fx = (x / w) * n;
+      const fy = (y / w) * n;
+      const ix = Math.floor(fx);
+      const iy = Math.floor(fy);
+      const tx = s(fx - ix);
+      const ty = s(fy - iy);
+      const at = (a: number, b: number) => g[Math.min(gh - 1, b) * gw + Math.min(gw - 1, a)];
+      const top = at(ix, iy) + (at(ix + 1, iy) - at(ix, iy)) * tx;
+      const bot = at(ix, iy + 1) + (at(ix + 1, iy + 1) - at(ix, iy + 1)) * tx;
+      return top + (bot - top) * ty;
+    };
+  };
+  const r1 = field(1, cells);
+  const r2 = field(2, cells * 2);
+  const g1 = field(3, cells);
+  const g2 = field(4, cells * 2);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const r = (r1(x, y) * 0.7 + r2(x, y) * 0.3 - 0.5) * 1.6 + 0.5;
+      const gg = (g1(x, y) * 0.7 + g2(x, y) * 0.3 - 0.5) * 1.6 + 0.5;
+      img.data[i] = Math.round(Math.min(1, Math.max(0, r)) * 255);
+      img.data[i + 1] = Math.round(Math.min(1, Math.max(0, gg)) * 255);
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  ctx.putImageData(img, 0, 0);
+  const url = canvas.toDataURL('image/png');
+  liquidMaps.set(key, url);
+  return url;
+};
+
+/**
+ * A shockwave ring as a displacement map (data URL): mid-grey everywhere but a band near the edge,
+ * where red and green push the picture outward then pull it back (compression, then rarefaction).
+ * Placed per frame at the ring's size, so the band rolls outward.
+ */
+let rippleUrl = '';
+const rippleMap = (): string => {
+  if (rippleUrl || typeof document === 'undefined') return rippleUrl;
+  const n = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = n;
+  canvas.height = n;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const img = ctx.createImageData(n, n);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const dx = (x + 0.5) / (n / 2) - 1;
+      const dy = (y + 0.5) / (n / 2) - 1;
+      const r = Math.hypot(dx, dy);
+      const u = (r - 0.68) / 0.3;
+      const m = u > 0 && u < 1 ? Math.sin(2 * Math.PI * u) * Math.sin(Math.PI * u) : 0;
+      const i = (y * n + x) * 4;
+      img.data[i] = Math.round(127.5 + 127.5 * m * (r ? dx / r : 0));
+      img.data[i + 1] = Math.round(127.5 + 127.5 * m * (r ? dy / r : 0));
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  ctx.putImageData(img, 0, 0);
+  rippleUrl = canvas.toDataURL('image/png');
+  return rippleUrl;
+};
+
+/** The last downbeat (or given time) ≤ t inside the windows, or undefined. */
+const lastHit = (times: number[], t: number, when?: [number, number][]) => {
+  for (let i = lastAt(times, t); i >= 0; i--) {
+    const h = times[i];
+    if (!when || when.some(([a, b]) => h >= a && h <= b)) return h;
+    if (t - h > 4) return undefined;
+  }
+  return undefined;
+};
+
+/**
+ * The poster's dance now (cover.dance): a CSS transform about the cover's origin and a liquid-warp
+ * filter, the same in every layer that moves with the picture. Put `node` in the layer, `transform`
+ * (with `transformOrigin: origin`) and `filter` on a wrapper round everything that moves with it.
+ */
+export const useDance = (cover: CoverBackdropProps = {}, use: { warp?: boolean; ripple?: boolean } = {}) => {
+  const t = useSongTime();
+  const m = useManifest();
+  const kick = Math.min(1, useHit('kick', 8));
+  const snare = Math.min(1, useHit('snare', 10));
+  const id = `liquid-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const { motion } = useCoverMotion(cover);
+  const d = cover.dance;
+  if (!d) return { transform: undefined, origin: cover.origin, filter: '', node: null };
+  const parts: string[] = [];
+  if (d.sway) {
+    // lean to one side each bar, swinging over with a little overshoot on the downbeat
+    const downs = m.beats.downbeats ?? [];
+    const i = lastAt(downs, t);
+    const side = i % 2 ? 1 : -1;
+    const k = i < 0 ? 1 : Math.min(1, (t - downs[i]) / 0.45);
+    const e = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
+    parts.push(`rotate(${(-side * d.sway + 2 * side * d.sway * e).toFixed(3)}deg)`);
+  }
+  if (d.bounce) {
+    const list = (m.onsets?.kick ?? []).filter(([, s]) => s >= 0.8);
+    const i = lastAt(
+      list.map(([o]) => o),
+      t,
+    );
+    if (i >= 0) {
+      const age = t - list[i][0];
+      const s = d.bounce * Math.min(1, list[i][1]) * Math.exp(-age * 7) * Math.cos(age * Math.PI * 2 * 3.2);
+      if (Math.abs(s) > 1e-4) parts.push(`scale(${(1 - s * 0.6).toFixed(4)}, ${(1 + s).toFixed(4)})`);
+    }
+  }
+  if (d.pulse) {
+    // a camera punch on each downbeat in its windows: snap in, ease back
+    const h = lastHit(m.beats.downbeats ?? [], t, d.pulse.when);
+    if (h !== undefined) {
+      const age = t - h;
+      const env = age < 0.04 ? age / 0.04 : Math.exp(-(age - 0.04) * 7);
+      if (env > 0.002) parts.unshift(`scale(${(1 + d.pulse.zoom * env).toFixed(4)})`);
+    }
+  }
+  const W = 1920;
+  const H = 1080;
+  const region = { x: -W * 0.1, y: -H * 0.1, width: W * 1.2, height: H * 1.2 };
+  // the liquid warp: two noise fields crossfading into a new shape every few beats
+  let liquid: { a: number; b: number; step: number; cells: number; scale: number } | undefined;
+  if (d.liquid && use.warp !== false) {
+    const { amount, kick: onKick = 0, snare: onSnare = 0, size = 260, every = 2 } = d.liquid;
+    const beats = m.beats.list.map(b => b.t);
+    const i = Math.max(0, lastAt(beats, t));
+    const step = Math.floor(i / every);
+    const from = beats[step * every] ?? 0;
+    const to = beats[step * every + every] ?? from + (60 / (m.beats.bpm || 120)) * every;
+    // surge into the new shape right after the beat, then settle
+    const k = 1 - Math.pow(1 - Math.min(1, Math.max(0, (t - from) / Math.max(0.05, (to - from) * 0.6))), 3);
+    liquid = { a: Math.cos((k * Math.PI) / 2), b: Math.sin((k * Math.PI) / 2), step, cells: 1920 / size, scale: amount + onKick * kick + onSnare * snare };
+  }
+  // the shockwave: a ring of distortion rolling out from its point
+  let ripple: { x: number; y: number; r: number; amount: number } | undefined;
+  if (d.ripple && use.ripple !== false) {
+    const { at, amount, on, when, speed = 1500, life = 0.9 } = d.ripple;
+    const h = lastHit(on ?? m.beats.downbeats ?? [], t, on ? undefined : when);
+    if (h !== undefined && t - h < life) {
+      const age = t - h;
+      const [x, y] = coverPoint(motion, at);
+      ripple = { x, y, r: 40 + speed * age, amount: amount * Math.pow(1 - age / life, 1.5) };
+    }
+  }
+  let node: React.ReactNode = null;
+  let filter = '';
+  if (liquid || ripple) {
+    const scale = liquid ? liquid.scale : ripple!.amount;
+    // the ripple's share of the displacement, in map units
+    const kr = ripple ? ripple.amount / Math.max(1, scale) : 0;
+    const half = ripple ? ripple.r / 0.83 : 0;
+    node = (
+      <svg width={0} height={0} style={{ position: 'absolute' }}>
+        <defs>
+          <filter id={id} filterUnits="userSpaceOnUse" {...region} colorInterpolationFilters="sRGB">
+            {liquid && (
+              <>
+                <feImage href={liquidMap(liquid.step + 1, liquid.cells)} {...region} preserveAspectRatio="none" result="a" />
+                <feImage href={liquidMap(liquid.step + 2, liquid.cells)} {...region} preserveAspectRatio="none" result="b" />
+                {/* power-preserving crossfade, so the warp keeps its strength through the morph */}
+                <feComposite in="a" in2="b" operator="arithmetic" k1={0} k2={liquid.a} k3={liquid.b} k4={0.5 * (1 - liquid.a - liquid.b)} result="map0" />
+              </>
+            )}
+            {ripple && (
+              <>
+                <feFlood floodColor="rgb(128,128,128)" {...region} result="grey" />
+                <feImage href={rippleMap()} x={ripple.x - half} y={ripple.y - half} width={2 * half} height={2 * half} preserveAspectRatio="none" result="ring" />
+                <feComposite in="ring" in2="grey" operator="over" result="ringMap" />
+              </>
+            )}
+            {liquid && ripple ? (
+              <feComposite in="map0" in2="ringMap" operator="arithmetic" k1={0} k2={1} k3={kr} k4={-0.5 * kr} result="map" />
+            ) : (
+              <feComposite in={liquid ? 'map0' : 'ringMap'} in2={liquid ? 'map0' : 'ringMap'} operator="arithmetic" k1={0} k2={1} k3={0} k4={0} result="map" />
+            )}
+            <feDisplacementMap in="SourceGraphic" in2="map" scale={scale.toFixed(2)} xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
+    );
+    filter = `url(#${id})`;
+  }
+  return { transform: parts.length ? parts.join(' ') : undefined, origin: cover.origin, filter, node };
+};
+
 /** A directional blur as an SVG filter (`filter: url(#id)`); nothing when it's too small to see. */
 export const MotionBlur: React.FC<{ id: string; blur: [number, number] }> = ({ id, blur: [x, y] }) =>
   x < 0.3 && y < 0.3 ? null : (
@@ -235,6 +498,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   const src = asset(manifest.assets[name] ?? name);
 
   const { motion: m, blur, defocus } = useCoverMotion(props);
+  const dance = useDance(props);
   // the haze swells while the lens hunts
   const heat = look?.heat && { ...look.heat, strength: look.heat.strength + defocus * 1.2 };
   const filter = [
@@ -272,7 +536,14 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
       {look && hasPictureFilter(look) && <PictureFilter id={filterId} look={look} pulse={pulse} kick={kickHit} />}
       {heat && <HeatFilter id={heatId} heat={heat} t={t} width={width} height={height} />}
       <MotionBlur id={blurId} blur={blur} />
-      <AbsoluteFill>
+      {dance.node}
+      {/* under the warp, a slightly bigger copy fills what it pulls in from past the picture's edge */}
+      {dance.filter && (
+        <AbsoluteFill style={{ transform: dance.transform, transformOrigin: dance.origin }}>
+          <Img src={src} style={{ ...picture, transform: `scale(${m.scale * 1.08}) translate(${m.dx}px, ${m.dy}px)` }} />
+        </AbsoluteFill>
+      )}
+      <AbsoluteFill style={{ transform: dance.transform, transformOrigin: dance.origin, filter: dance.filter || undefined }}>
         <Img src={src} style={picture} />
       </AbsoluteFill>
       {tint && <AbsoluteFill style={{ backgroundColor: tint, mixBlendMode: 'color' }} />}

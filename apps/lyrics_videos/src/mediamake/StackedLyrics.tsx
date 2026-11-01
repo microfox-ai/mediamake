@@ -19,7 +19,7 @@ export type LyricFont = { family: string; file: string; case?: 'upper' | 'lower'
 
 const loaded = new Map<string, Promise<void>>();
 // a plain identifier: SVG's font-family can't read an unquoted name with punctuation in it
-const localFamily = (f: LyricFont) => `lyrics-${f.family.replace(/[^A-Za-z0-9]+/g, '-')}`;
+export const localFamily = (f: LyricFont) => `lyrics-${f.family.replace(/[^A-Za-z0-9]+/g, '-')}`;
 const loadFont = (f: LyricFont): Promise<void> => {
   const key = `${f.family}|${f.file}`;
   let p = loaded.get(key);
@@ -37,7 +37,7 @@ const loadFont = (f: LyricFont): Promise<void> => {
   return p;
 };
 const both = new Map<string, Promise<unknown>>();
-const loadBoth = (a: LyricFont, b: LyricFont) => {
+export const loadBoth = (a: LyricFont, b: LyricFont) => {
   const key = `${a.file}|${b.file}`;
   if (!both.has(key)) both.set(key, Promise.all([loadFont(a), loadFont(b)]));
   return both.get(key)!;
@@ -78,11 +78,23 @@ export type StackedLyricsProps = {
    * font … having spacing makes it readable"). Default 0.06 and 0.09. */
   tracking?: { caps: number; hero: number };
   /**
+   * Extra space between the caps' words, em. Default 0. Wide tracking makes a word space look like a
+   * letter gap, and each word's pop closes it (Cadence, 2026-10-31: "YOUTHINKTHIS IS A").
+   */
+  wordSpace?: number;
+  /**
    * Space round the hero row (× the caps size) and between caps rows (× the row size). Default 0.3
    * and 0.22: tight for a leaning condensed stack; an upright, wide-tracked serif stack needs more air
    * (Cadence, 2026-10-31: the hero's pop touched the row under it).
    */
   leading?: { hero?: number; rows?: number };
+  /**
+   * How much the hero's strokes are thickened, × its size. Default 0.025 (a marker scrawl outweighing
+   * the caps); a high-contrast serif keeps its hairlines near 0.
+   */
+  heroStroke?: number;
+  /** A band of light sweeping across the hero word as it lights (a title card catching the light). */
+  glint?: { color?: string; width?: number; duration?: number; delay?: number };
   /**
    * From this song second (or the start of this section label) on, no stacks: each line alone at the
    * centre bottom (baseline `y`) in the hero face, `color`, its words lighting as they are sung; the word
@@ -130,7 +142,7 @@ const REF = 200;
 const DEFAULT_TRACKING = { caps: 0.06, hero: 0.09 };
 
 /** Measuring and setting text in the two faces, once the fonts are loaded. */
-const typesetter = (fonts: Fonts, tracking: { caps: number; hero: number }) => {
+const typesetter = (fonts: Fonts, tracking: { caps: number; hero: number }, wordSpace = 0) => {
   let ctx: CanvasRenderingContext2D | null = null;
   const metrics = (face: Face, text: string) => {
     if (!ctx && typeof document !== 'undefined') ctx = document.createElement('canvas').getContext('2d');
@@ -146,7 +158,7 @@ const typesetter = (fonts: Fonts, tracking: { caps: number; hero: number }) => {
     const c = fonts[face].case ?? (face === 'caps' ? 'upper' : 'lower');
     return c === 'upper' ? t.toUpperCase() : c === 'lower' ? t.toLowerCase() : t;
   };
-  return { metrics, shown, tracking, family: (face: Face) => localFamily(fonts[face]) };
+  return { metrics, shown, tracking, wordSpace, family: (face: Face) => localFamily(fonts[face]) };
 };
 type Typesetter = ReturnType<typeof typesetter>;
 
@@ -158,7 +170,7 @@ const setRow = (ts: Typesetter, face: Face, words: number[], all: Word[], width:
   // the letters are tracked open (tracking em after every letter, as SVG letter-spacing draws it),
   // and a condensed caps face's own space is tight: open it a little so words never touch
   const track = REF * ts.tracking[face];
-  const space = metrics(face, 'a a').width - metrics(face, 'aa').width + (face === 'caps' ? REF * 0.12 : 0);
+  const space = metrics(face, 'a a').width - metrics(face, 'aa').width + (face === 'caps' ? REF * (0.12 + ts.wordSpace) : 0);
   const wordWidths = texts.map(t => metrics(face, t).width + track * [...t].length);
   const natural = wordWidths.reduce((a, b) => a + b, 0) + space * (texts.length - 1);
   const size = Math.min(max, (width / natural) * REF);
@@ -230,6 +242,12 @@ const layoutLine = (ts: Typesetter, line: LyricLine, index: number, p: StackedLy
         if (run.length && tiny(run) && !heroRun.length) {
           heroRun.push(...run);
           run = [];
+        } else if (run.length > 1 && !heroRun.length) {
+          // a tiny word the wrap would leave alone on the row above the hero joins it instead
+          // (Cadence, 2026-10-31: "you think this is / a / curse")
+          const wrapped = wrapRows(ts, run, words, width, p.size.caps);
+          const last = wrapped[wrapped.length - 1];
+          if (last.words.length === 1 && tiny(last.words)) heroRun.push(run.pop()!);
         }
         flush();
         heroRun.push(i);
@@ -291,15 +309,15 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
  * stretch.
  */
 export const StackedLyrics: React.FC<SceneProps<StackedLyricsProps>> = props => {
-  const { manifest, fonts, colors, lead = 0.35, hold = 0.7, heroTilt = -5, power } = props;
+  const { manifest, fonts, colors, lead = 0.35, hold = 0.7, heroTilt = -5, power, heroStroke = 0.025, glint } = props;
   const t = useSongTime();
   const kick = Math.min(1, useHit('kick', 9));
   const { width: W, height: H } = useVideoConfig();
   const ready = useFontsReady(loadBoth(fonts.caps, fonts.hero));
   const ts = useMemo(
-    () => typesetter(fonts, props.tracking ?? DEFAULT_TRACKING),
+    () => typesetter(fonts, props.tracking ?? DEFAULT_TRACKING, props.wordSpace),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fonts.caps.file, fonts.hero.file, props.tracking?.caps, props.tracking?.hero],
+    [fonts.caps.file, fonts.hero.file, props.tracking?.caps, props.tracking?.hero, props.wordSpace],
   );
   const { metrics, shown } = ts;
   const lines = manifest.lyrics;
@@ -410,8 +428,8 @@ export const StackedLyrics: React.FC<SceneProps<StackedLyricsProps>> = props => 
                             {...common}
                             fill={isHero ? heroFill : colors.sung}
                             // the marker strokes thickened, so the scrawl outweighs the caps
-                            stroke={isHero ? heroFill : undefined}
-                            strokeWidth={isHero ? r.size * 0.025 : undefined}
+                            stroke={isHero && heroStroke > 0 ? heroFill : undefined}
+                            strokeWidth={isHero && heroStroke > 0 ? r.size * heroStroke : undefined}
                             strokeLinejoin="round"
                             opacity={lit}
                             // no glow (2026-10-30: "the glow on the highlight is bad"): a soft dark shadow only
@@ -419,6 +437,27 @@ export const StackedLyrics: React.FC<SceneProps<StackedLyricsProps>> = props => 
                           >
                             {r.texts[k]}
                           </text>
+                          {isHero &&
+                            glint &&
+                            (() => {
+                              const g = (t - w.start - (glint.delay ?? 0.05)) / (glint.duration ?? 0.7);
+                              if (g <= 0 || g >= 1) return null;
+                              const band = (glint.width ?? 0.35) * wordW;
+                              const c = x - band + Easing.inOut(Easing.cubic)(g) * (wordW + 2 * band);
+                              const id = `glint-${s.line}-${ri}-${k}`;
+                              return (
+                                <>
+                                  <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={c - band} y1={r.baseline} x2={c + band} y2={r.baseline - r.ascent * 0.8}>
+                                    <stop offset="0" stopColor={glint.color ?? '#ffffff'} stopOpacity={0} />
+                                    <stop offset="0.5" stopColor={glint.color ?? '#ffffff'} stopOpacity={1} />
+                                    <stop offset="1" stopColor={glint.color ?? '#ffffff'} stopOpacity={0} />
+                                  </linearGradient>
+                                  <text {...common} fill={`url(#${id})`} opacity={lit * Math.sin(Math.PI * g)}>
+                                    {r.texts[k]}
+                                  </text>
+                                </>
+                              );
+                            })()}
                         </g>
                       );
                     })}

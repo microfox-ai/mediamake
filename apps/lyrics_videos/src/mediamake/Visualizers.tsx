@@ -12,7 +12,7 @@ import { Waveform, computeSmoothedSpectrum, computeSpectrumLineHeights, useWavef
 import type { Manifest } from '../kit/manifest';
 import { useBeat, useEnergy, useHit, useManifest, useSongTime } from '../kit/hooks';
 import { envelopeAt } from '../kit/timing';
-import { coverPoint, MotionBlur, motionBlurCss, useCoverMotion, type CoverBackdropProps, type CoverMotion } from './CoverBackdrop';
+import { coverPoint, MotionBlur, motionBlurCss, useCoverMotion, useDance, type CoverBackdropProps, type CoverMotion } from './CoverBackdrop';
 import { hash } from './PictureLook';
 
 type Point = [number, number];
@@ -191,11 +191,23 @@ export type GatherProps = {
   jitter?: number;
   /**
    * A glow at `at` the motes dissolve into, swelling with the music and the kicks; `grow` is how
-   * much bigger it has become by the end of the song (1 = twice the size), growing steadily;
-   * `upward` lifts its centre as it grows, by that share of the growth (true = 0.55, which keeps its
-   * visible lower edge where it starts), and the motes stream into its centre wherever that is.
+   * much bigger it has become by the end of the song (1 = twice the size), growing steadily, or
+   * slowly then faster with `growCurve` > 1 (the song's progress to that power); `upward` lifts its
+   * centre as it grows, by that share of the growth (true = 0.55, which keeps its visible lower edge
+   * where it starts); `sitOn` instead keeps the lower edge of its white core (`nucleus`, a share of
+   * the radius, default 0.25) on that height of the picture, swelling and all, so it rests on what
+   * holds it. The motes stream into its centre wherever that is.
    */
-  orb?: { color: string; radius: number; core?: string; grow?: number; upward?: boolean | number };
+  orb?: {
+    color: string;
+    radius: number;
+    core?: string;
+    grow?: number;
+    growCurve?: number;
+    upward?: boolean | number;
+    nucleus?: number;
+    sitOn?: number;
+  };
 };
 
 /**
@@ -312,6 +324,8 @@ export type EclipseProps = {
     path: [number, number][];
     /** Its radius at totality, × the sun's. Default 1.03. */
     cover?: number;
+    /** Blur on the sun's and moon's edges, px. Default 1.6; a real eclipse's moon is crisp (≈ 0.5). */
+    edge?: number;
   };
   corona?: {
     color?: string;
@@ -337,16 +351,31 @@ export type EclipseProps = {
   smear?: number;
 };
 
-export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps) & {
+/**
+ * Darkness gathering at a point: a radial gradient, `strength` opaque out to `inner` of the radius and
+ * fading to nothing at `radius`, moving with the picture. Above the background clips, under the
+ * visualizers it is listed before and the subject: the world's texture fills out away from her.
+ * Cadence, 2026-11-01: "use a black radial gradient from the center, making the background lines feel
+ * more fleshed out away from the character and circle, then it will feel natural".
+ */
+export type ShadeProps = { kind: 'shade'; at: Point; radius: number; color?: string; strength?: number; inner?: number };
+
+export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps | ShadeProps) & {
   /** The cover's settings (lookVideo passes them), so `at` follows the picture's motion. */
   cover?: CoverBackdropProps;
   opacity?: number;
   mixBlendMode?: React.CSSProperties['mixBlendMode'];
   /** Song seconds it shows in, as [from, to] pairs (half-second fades). Default all of it. */
   when?: [number, number][];
+  /**
+   * Which parts of the cover's dance this layer takes: 'all' (default), 'ripple' (the moves and the
+   * shockwaves, no liquid warp) or 'motion' (the moves only). Cadence, 2026-11-01: the warp made the
+   * eclipse's black moon wobble and look blurry ("feels artificial").
+   */
+  dance?: 'all' | 'ripple' | 'motion';
 };
 
-export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse'] as const;
+export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse', 'shade'] as const;
 
 // ---------- shared ----------
 
@@ -796,10 +825,18 @@ const Gather: React.FC<GatherProps & { motion: CoverMotion }> = ({
   const t0 = t - frame / fps;
   const kicks = m.onsets?.kick ?? [];
   const [ex, ey0] = coverPoint(motion, at);
-  // the orb grows steadily over the song; growing upward, its centre rises as it grows
-  const grown = orb ? 1 + (orb.grow ?? 0) * Math.min(1, Math.max(0, t / m.audio.duration)) : 1;
+  // the orb grows over the song; growing upward, its centre rises as it grows, or it sits its core
+  // on a height of the picture
+  const progress = Math.min(1, Math.max(0, t / m.audio.duration));
+  const grown = orb ? 1 + (orb.grow ?? 0) * Math.pow(progress, orb.growCurve ?? 1) : 1;
+  const env = envelopeAt(m, 'rms', t);
+  const orbR = orb ? orb.radius * grown * (0.75 + 0.35 * env + 0.3 * Math.min(1, kickHit)) * motion.scale : 0;
+  const nucleus = orb?.nucleus ?? 0.25;
   const lift = orb?.upward === true ? 0.55 : orb?.upward || 0;
-  const ey = ey0 - (orb ? orb.radius * (grown - 1) * lift * motion.scale : 0);
+  const ey =
+    orb?.sitOn !== undefined
+      ? coverPoint(motion, [at[0], orb.sitOn])[1] - nucleus * orbR
+      : ey0 - (orb ? orb.radius * (grown - 1) * lift * motion.scale : 0);
   const fx = from?.x ?? [0, W];
   const fy = from?.y ?? [H / 3, H + 40];
   const [w0, w1] = Array.isArray(size) ? size : [size * 0.6, size];
@@ -841,8 +878,6 @@ const Gather: React.FC<GatherProps & { motion: CoverMotion }> = ({
   }
   const glowId = `gather-glow-${uid}`;
   const haloId = `gather-halo-${uid}`;
-  const env = envelopeAt(m, 'rms', t);
-  const orbR = orb ? orb.radius * grown * (0.75 + 0.35 * env + 0.3 * Math.min(1, kickHit)) * motion.scale : 0;
   return (
     <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
       <defs>
@@ -853,7 +888,8 @@ const Gather: React.FC<GatherProps & { motion: CoverMotion }> = ({
         {orb && (
           <radialGradient id={`${uid}-orb`}>
             <stop offset="0" stopColor={orb.core ?? '#ffffff'} stopOpacity={1} />
-            <stop offset="0.25" stopColor={orb.core ?? '#ffffff'} stopOpacity={0.9} />
+            <stop offset={nucleus * 0.75} stopColor={orb.core ?? '#ffffff'} stopOpacity={1} />
+            <stop offset={nucleus} stopColor={orb.core ?? '#ffffff'} stopOpacity={0.9} />
             <stop offset="0.55" stopColor={orb.color} stopOpacity={0.45} />
             <stop offset="1" stopColor={orb.color} stopOpacity={0} />
           </radialGradient>
@@ -1201,6 +1237,28 @@ const FlamesContent: React.FC<FlamesProps> = ({
 
 // ---------- entry ----------
 
+// ---------- shade ----------
+
+const Shade: React.FC<ShadeProps & { motion: CoverMotion }> = ({ at, radius, color = '#000000', strength = 0.9, inner = 0.3, motion }) => {
+  const { width: W, height: H } = useVideoConfig();
+  const id = `shade-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const [cx, cy] = coverPoint(motion, at);
+  const r = radius * motion.scale;
+  return (
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+      <defs>
+        <radialGradient id={id} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
+          <stop offset={0} stopColor={color} stopOpacity={strength} />
+          <stop offset={inner} stopColor={color} stopOpacity={strength} />
+          <stop offset={inner + (1 - inner) * 0.45} stopColor={color} stopOpacity={strength * 0.45} />
+          <stop offset={1} stopColor={color} stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      <rect x={0} y={0} width={W} height={H} fill={`url(#${id})`} />
+    </svg>
+  );
+};
+
 // ---------- eclipse ----------
 
 /** Coverage at song time t on a [time, 0..1] path, eased between keys and held past the ends. */
@@ -1311,7 +1369,7 @@ const EclipseContent: React.FC<EclipseProps & { motion: CoverMotion }> = ({
     .filter(Boolean) as { x: number; y: number; e: number; size: number; color: string; flash: number }[];
 
   return (
-    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
       <defs>
         <radialGradient id={`${id}-halo`}>
           <stop offset="0%" stopColor={glow} stopOpacity={1} />
@@ -1326,7 +1384,7 @@ const EclipseContent: React.FC<EclipseProps & { motion: CoverMotion }> = ({
           <feGaussianBlur stdDeviation={(corona.blur ?? 7) * s} />
         </filter>
         <filter id={`${id}-edge`} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation={1.6 * s} />
+          <feGaussianBlur stdDeviation={(moon.edge ?? 1.6) * s} />
         </filter>
         {glowFilter(`${id}-glow`, 4 * s)}
         <filter id={`${id}-smear`} x="-50%" y="-50%" width="200%" height="200%">
@@ -1400,8 +1458,18 @@ const EclipseContent: React.FC<EclipseProps & { motion: CoverMotion }> = ({
 const needsSpectrum = (kind: VisualizerProps['kind']) =>
   kind === 'halo' || kind === 'horns' || kind === 'yantra' || kind === 'flames' || kind === 'arc' || kind === 'eclipse';
 
-export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; start: number } }> = ({ audio, cover, opacity = 1, mixBlendMode, when, ...props }) => {
+export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; start: number } }> = ({
+  audio,
+  cover,
+  opacity = 1,
+  mixBlendMode,
+  when,
+  dance: takes = 'all',
+  ...props
+}) => {
   const { motion, blur } = useCover(cover);
+  // the visualizers dance with the poster (the cover's bounce, sway and liquid warp)
+  const dance = useDance(cover, { warp: takes === 'all', ripple: takes !== 'motion' });
   const t = useSongTime();
   const shown = when ? Math.max(0, ...when.map(([a, b]) => Math.min(1, (t - a) / 0.5 + 1, (b - t) / 0.5 + 1))) : 1;
   const { width, height } = useVideoConfig();
@@ -1428,11 +1496,22 @@ export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; star
         return <ArcContent {...props} />;
       case 'eclipse':
         return <EclipseContent {...props} motion={motion} />;
+      case 'shade':
+        return <Shade {...props} motion={motion} />;
     }
   })();
   return (
-    <AbsoluteFill style={{ opacity: opacity * shown, mixBlendMode, filter: motionBlurCss(blurId, blur) || undefined }}>
+    <AbsoluteFill
+      style={{
+        opacity: opacity * shown,
+        mixBlendMode,
+        filter: [dance.filter, motionBlurCss(blurId, blur)].filter(Boolean).join(' ') || undefined,
+        transform: dance.transform,
+        transformOrigin: dance.origin,
+      }}
+    >
       <MotionBlur id={blurId} blur={blur} />
+      {dance.node}
       {needsSpectrum(props.kind) ? (
         <Waveform
           config={{ audioSrc: audio.src, dataOffsetInSeconds: audio.start, numberOfSamples: 32, smoothNormalisation: 0, useFrequencyData: false, width, height }}
