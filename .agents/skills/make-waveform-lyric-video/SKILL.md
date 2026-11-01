@@ -447,3 +447,13 @@ Append dated entries: what the user said → the rule.
   light picture, OverlayVideo `images` at ~4 frames each ("marvel titles speed"), looping, with a
   long fade-out (`when` with fade lengths).
 
+- 2026-10-31 · Cadence (INVERTED Devils, an eye-patch warrior before an eclipse crescent): "take inspo
+  from devil in the details camera effects" → a channel's next video starts from the camera of its last
+  approved one (beatKick, `cover.jolt`, subject depth/blur, a punch and zoom smear on the main
+  visualizer). When the picture's own feature is the idea (the eclipse), take it out of the plate and
+  redraw it as a visualizer so it can change over the song (`eclipse`: the moon closing on a time path,
+  a corona that grows as the sun hides, diamond rings placed where the subject doesn't cover them). The
+  type direction came from a 4-direction Pinterest board (picked "Engraved decree": wide-tracked serif
+  caps); an upright, wide-tracked serif stack needed StackedLyrics `leading`, `heroStroke` ≈ 0 (keep the
+  hairlines), `wordSpace` and a `glint`; the centre bottom over a bright prop (a medallion) swallowed
+  unsung words, so side columns only.

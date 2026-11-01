@@ -59,7 +59,9 @@ for target in targets:
         threshold, ceiling, previous = CEILING - (target - L0), CEILING, None
         for attempt in range(10):
             set_limiter(threshold, ceiling, release)
-            temp = scratch / f"try{target:g}-r{release}-{attempt}.wav"
+            # no dot in the name: REAPER reads "try-8.5-…" as "try-8" with an extension
+            tag = f"{target:g}".replace(".", "p")
+            temp = scratch / f"try{tag}-r{release}-{attempt}.wav"
             temp.unlink(missing_ok=True)     # a temp left by an interrupted run
             render(temp, rate)
             L, T = lufs(temp), true_peak(temp)
@@ -80,7 +82,9 @@ for target in targets:
         print(f"{target:g}: no render kept its true peak at -1.0 dBTP or lower, skipped")
         continue
     L, T, threshold, ceiling, release, temp = best
-    final = out / f"{title} - original {round(L)} LUFS.wav"
+    # a half step keeps its .5 (round() alone would name -8.5 after -8 and clash with it)
+    label = f"{round(L)}" if abs(L - round(L)) < 0.25 else f"{round(L * 2) / 2:g}"
+    final = out / f"{title} - original {label} LUFS.wav"
     if final.exists():
         print(f"{final.name} already there, kept")
     else:

@@ -120,3 +120,9 @@ User feedback, newest last. Add an entry whenever the user corrects or confirms 
   volume". → The method of this skill: the original mix, gain + one limiter, a ladder to pick from.
 - 2026-10-31: picked -9 for Honored One. Demon + Inexorable "remaster both the same way"; asked
   for -8 too ("I need even more volume"), then picked -9 for both. Made into this skill.
+- 2026-10-31 (Genki Dama, a cinematic OST already at -13 LUFS with 3.6 dB headroom): the gain-only
+  copy alone reached -9.4, so -11/-10 were pointless; the ladder went -9, -8.5, -8, -7.5 instead
+  (ReaLimit stopped at -7.7 on it). Fixed in ladder.py: REAPER read a temp name with a dot
+  ("try-8.5-…") as "try-8" plus an extension, and round() named -8.5 after -8 → temp names use
+  "8p5", half steps keep their ".5". When a song arrives louder than usual (gain alone gets past
+  -10), offer half steps in the loud range.
