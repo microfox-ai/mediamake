@@ -7,7 +7,7 @@
  * `luma`: shorts/<id>/luma.json, each clip's brightness (written by `clips`: white words on dark shots).
  *
  * One composition per format in short.json, '<slug>-<id>-9x16', playing only the short's window of the
- * song (Root.tsx discovers shorts/<id>/index.tsx; `npm run render-project -- <slug> --short=<id>`).
+ * song (Root.tsx discovers shorts/<id>/index.tsx; `npm run lyric-shorts -- <slug> render <id>`).
  */
 import type { ProjectDefinition } from '../kit/contract';
 import type { Faces, Luma } from './framing';

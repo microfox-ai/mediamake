@@ -77,6 +77,8 @@ const main = async () => {
   for (const t of (extra ?? '').split(',').filter(Boolean))
     points.push({ label: 'at', t: Number(t) });
 
+  // bundle this project alone (other projects' Google font loads made stills time out)
+  process.env.ONLY_PROJECT ??= slug;
   const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
     publicDir: path.join(ROOT, 'projects'),

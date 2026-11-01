@@ -12,7 +12,8 @@
  *
  * Shorts (make-video-music-remix-shorts): --short=<id> renders projects/<slug>/shorts/<id> in every
  * format its short.json lists (or --format=9x16) → out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4,
- * kept in v<N>/ the same way, with a map in the short's own time.
+ * kept in v<N>/ the same way, with a map in the short's own time. Lyric shorts
+ * (make-lyrics-shorts-summerstyle-boldwords) have their own: npm run lyric-shorts -- <slug> render <id | all>.
  *
  * To render through mediamake's /api/remotion/render or Lambda instead, pass the manifest
  * as inputProps ({ manifest }) with asset paths rewritten to public URLs.
@@ -21,7 +22,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFramesFlag, writeVideoMap } from './map.ts';
+import { keepPrevious, parseFramesFlag, writeVideoMap } from './map.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, ...rest] = process.argv.slice(2);
@@ -39,27 +40,6 @@ if (!fs.existsSync(path.join(ROOT, 'projects', slug, 'manifest.json'))) {
   );
   process.exit(1);
 }
-
-/** copy the current render (video, map, revisions) into <dir>/v<N>/ before it is replaced */
-const keepPrevious = (dir: string, name = slug) => {
-  const video = path.join(dir, `${name}.mp4`);
-  if (!fs.existsSync(video)) return;
-  const size = fs.statSync(video).size;
-  const versions = fs.readdirSync(dir).filter(d => /^v\d+$/.test(d)).map(d => Number(d.slice(1)));
-  const same = versions.find(n => {
-    const kept = path.join(dir, `v${n}`, `${name}.mp4`);
-    return fs.existsSync(kept) && fs.statSync(kept).size === size;
-  });
-  const into = path.join(dir, `v${same ?? Math.max(0, ...versions) + 1}`);
-  fs.mkdirSync(into, { recursive: true });
-  if (same === undefined) {
-    for (const f of [`${name}.mp4`, `${name}.map.json`]) if (fs.existsSync(path.join(dir, f))) fs.copyFileSync(path.join(dir, f), path.join(into, f));
-  }
-  // the review notes belong to that cut: bring the kept copy up to date
-  const revisions = path.join(dir, `${name}.revisions`);
-  if (fs.existsSync(revisions)) fs.cpSync(revisions, path.join(into, `${name}.revisions`), { recursive: true });
-  console.log(`${same === undefined ? 'Kept' : 'Already kept'} the previous render in ${path.relative(ROOT, into)}/`);
-};
 
 const frames = parseFramesFlag(flags);
 const clip = frames || flags.includes('--frames');
@@ -81,7 +61,11 @@ if (shortId) {
       : path.join(dir, `${name}.mp4`);
     if (!clip) keepPrevious(path.join(ROOT, dir), name);
     fs.mkdirSync(path.join(ROOT, path.dirname(output)), { recursive: true });
-    const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', name, output, ...flags], { cwd: ROOT, stdio: 'inherit' });
+    const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', name, output, ...flags], {
+      cwd: ROOT,
+      stdio: 'inherit',
+      env: { ...process.env, ONLY_PROJECT: slug },
+    });
     if (r.status !== 0) process.exit(r.status ?? 1);
     try {
       writeVideoMap(slug, path.join(ROOT, output), frames, { shots, offset: short.hook?.from ?? short.from });
@@ -95,7 +79,7 @@ if (shortId) {
 const output = clip
   ? path.join('out', slug, 'clips', `${slug}-${frames ? `${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}` : 'clip'}.mp4`)
   : path.join('out', slug, `${slug}.mp4`);
-if (!clip) keepPrevious(path.join(ROOT, 'out', slug));
+if (!clip) keepPrevious(path.join(ROOT, 'out', slug), slug);
 fs.mkdirSync(path.join(ROOT, path.dirname(output)), { recursive: true });
 const result = spawnSync(
   'npx',
@@ -103,6 +87,8 @@ const result = spawnSync(
   {
     cwd: ROOT,
     stdio: 'inherit',
+    // bundle this project alone (other projects' Google font loads made renders time out)
+    env: { ...process.env, ONLY_PROJECT: slug },
   },
 );
 if (result.status === 0) {

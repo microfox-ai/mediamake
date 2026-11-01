@@ -349,16 +349,26 @@ and buttons), and no screen sitting half empty for long while a giant last word 
 ### 6. Render and review
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --short=<id> --crf=18
+npm run lyric-shorts -w lyrics_videos -- <slug> render s01        # or: render s01 s03 · render all
 ```
 
-→ `out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4` + `.map.json` (~2–3 min for 30 s). **Many shorts at
-once: one slim bundle.** `render-project` bundles every time and copies all of `projects/` (21 GB by
-2026-10-27) into `$TMPDIR` — twelve renders can't fit. Instead hard-link only what the shorts load
-(`manifest.json`, the song, `derived/lyricshorts/*.mp4`, `shorts/fonts/`) into a slim folder, bundle once
-(`npx remotion bundle src/index.ts --public-dir=<slim> --out-dir=<bundle>`, ~0.4–1 GB) and render each
-short from it (`npx remotion render <bundle> <slug>-<id>-9x16 <out> --crf=18`, ~45 s–2 min each). Rebuild
-the bundle after any change to a cut list or a clip. Review with
+Bundles the project once (this project alone, the public folder linked — nothing copied into `$TMPDIR`,
+a few seconds), then renders the shorts one after another at `--concurrency=3 --crf=18` (~1 min for 30 s) →
+`out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4` + `.map.json`. Each render goes to `<name>.part.mp4` first;
+only a finished one replaces the short, and the one it replaces is kept in `v<N>/`. A failed try (Chrome
+timing out at start, a font fetch) is retried once. After each it prints the dark frames (YMAX < 40, the
+watermark's side cropped off) with their times: 0 is the goal, and still look at a frame of every screen —
+a black shot under a white lockup isn't dark to the scan. `--frames=a-b` renders a clip into `clips/`,
+`--format=9x16` one format. Run one render at a time on this machine (the Mac overheats, and two
+overlapping renders crashed one, 2026-11-02); run it again after any change to a cut list or a clip. No
+slim folder, no `tools/bundle.ts` / `render.sh` in the project any more: this command replaces them.
+`render-project --short` works too but bundles per short and doesn't scan. **Why the CLI bundle died at
+~63 %** (2026-11-01/02, five projects): Tailwind makes `projects/` (and `thumbnails/`, `assets3d/`,
+`analysis/`) context dependencies of `src/index.css`, and in production webpack hashed them by reading every
+file whole — 20+ GB of footage until macOS killed it. `remotion.config.ts` and `scripts/bundle.ts` now
+snapshot by timestamp (`scripts/snapshots.ts`); if a bundle dies silently again, look for a webpack override
+that skips `timestampSnapshots`. Bundles link the public folder; only `npx remotion bundle` copies all of
+`projects/` — don't use it, and don't copy bundle or render scripts into a project. Review with
 **`revise-video`**: `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:

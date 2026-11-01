@@ -205,6 +205,28 @@ export function writeVideoMap(slug: string, videoPath: string, frames?: { from: 
   return out;
 }
 
+/** copy the current render <dir>/<name>.mp4 (video, map, revisions) into <dir>/v<N>/ before it is replaced: the next
+ * free number, or the version that already holds an identical copy (render-project, lyric-shorts render) */
+export const keepPrevious = (dir: string, name: string) => {
+  const video = path.join(dir, `${name}.mp4`);
+  if (!fs.existsSync(video)) return;
+  const size = fs.statSync(video).size;
+  const versions = fs.readdirSync(dir).filter(d => /^v\d+$/.test(d)).map(d => Number(d.slice(1)));
+  const same = versions.find(n => {
+    const kept = path.join(dir, `v${n}`, `${name}.mp4`);
+    return fs.existsSync(kept) && fs.statSync(kept).size === size;
+  });
+  const into = path.join(dir, `v${same ?? Math.max(0, ...versions) + 1}`);
+  fs.mkdirSync(into, { recursive: true });
+  if (same === undefined) {
+    for (const f of [`${name}.mp4`, `${name}.map.json`]) if (fs.existsSync(path.join(dir, f))) fs.copyFileSync(path.join(dir, f), path.join(into, f));
+  }
+  // the review notes belong to that cut: bring the kept copy up to date
+  const revisions = path.join(dir, `${name}.revisions`);
+  if (fs.existsSync(revisions)) fs.cpSync(revisions, path.join(into, `${name}.revisions`), { recursive: true });
+  console.log(`${same === undefined ? 'Kept' : 'Already kept'} the previous render in ${path.relative(ROOT, into)}/`);
+};
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);

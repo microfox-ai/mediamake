@@ -7,6 +7,8 @@
  */
 import fs from 'node:fs';
 import { bundle, type BundleOptions } from '@remotion/bundler';
+import { onlyProject } from './only-project.ts';
+import { timestampSnapshots } from './snapshots.ts';
 
 const live = new Set<string>();
 
@@ -29,22 +31,6 @@ const hook = () => {
   }
 };
 
-// Snapshots by timestamp, not content hash: Root.tsx's require.context reads all of projects/, and
-// webpack's hash of a folder holding a dangling symlink (footage linked from Downloads, then
-// deleted) is undefined, which crashes the bundle (2026-10-30).
-const TIMESTAMPS = { timestamp: true, hash: false };
-const timestampSnapshots: NonNullable<BundleOptions['webpackOverride']> = config => ({
-  ...config,
-  snapshot: {
-    ...config.snapshot,
-    module: TIMESTAMPS,
-    resolve: TIMESTAMPS,
-    contextModule: TIMESTAMPS,
-    buildDependencies: TIMESTAMPS,
-    resolveBuildDependencies: TIMESTAMPS,
-  },
-});
-
 /** bundle() with the public dir linked (not copied), removed when the process ends. */
 export const tempBundle = async (options: BundleOptions) => {
   hook();
@@ -52,7 +38,12 @@ export const tempBundle = async (options: BundleOptions) => {
   const dir = await bundle({
     symlinkPublicDir: true,
     ...options,
-    webpackOverride: async config => timestampSnapshots(override ? await override(config) : config),
+    webpackOverride: async config => {
+      // snapshots by timestamp: hashing read all of projects/ (scripts/snapshots.ts)
+      const own = timestampSnapshots(override ? await override(config) : config);
+      // ONLY_PROJECT=<slug> bundles that project alone (scripts/only-project.ts)
+      return process.env.ONLY_PROJECT ? onlyProject(own, process.env.ONLY_PROJECT) : own;
+    },
   });
   live.add(dir);
   return dir;
