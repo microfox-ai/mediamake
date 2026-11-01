@@ -353,7 +353,7 @@ npm run lyric-shorts -w lyrics_videos -- <slug> render s01        # or: render s
 ```
 
 Bundles the project once (this project alone, the public folder linked — nothing copied into `$TMPDIR`,
-~6 s), then renders the shorts one after another at `--concurrency=3 --crf=18` (~1 min for 30 s) →
+a few seconds), then renders the shorts one after another at `--concurrency=3 --crf=18` (~1 min for 30 s) →
 `out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4` + `.map.json`. Each render goes to `<name>.part.mp4` first;
 only a finished one replaces the short, and the one it replaces is kept in `v<N>/`. A failed try (Chrome
 timing out at start, a font fetch) is retried once. After each it prints the dark frames (YMAX < 40, the
@@ -479,7 +479,7 @@ export const edl: LyricShortEdl = {
   dependency of `src/index.css`, and in production webpack hashes such a folder by reading every file in it
   whole — 20+ GB of footage until macOS killed the process (measured: 3 GB of clips no code imports, read
   whole, +2 GB of memory). `remotion.config.ts` and `scripts/bundle.ts` now snapshot by timestamp
-  (`scripts/snapshots.ts`): ~5 s, nothing read. If a bundle dies silently again, look for a webpack
+  (`scripts/snapshots.ts`): they only stat the files. If a bundle dies silently again, look for a webpack
   override that skips `timestampSnapshots`. Don't copy bundle or render scripts into a project.
 - **AV1 4K60 sources** decode fine with ffmpeg's libdav1d; clips are cut once and cached by their
   parameters, so re-runs are seconds.
@@ -528,7 +528,7 @@ export const edl: LyricShortEdl = {
 ## Timing budget (this machine)
 
 Analysis ~1 min (models cached); footage segregation ~3.5 min for a 3.6-min 4K60 video; `clips` ~1.5 s
-a clip (4K AV1); 20 half-scale stills ~2.5 min; `lyric-shorts render`: bundle ~6 s, a 30-s short at
+a clip (4K AV1); 20 half-scale stills ~2.5 min; `lyric-shorts render`: bundle a few seconds, a 30-s short at
 1080×1920 30 fps ~1 min (nakama s01: 56 s at concurrency 3). Check
 the dives on a frame sheet of the render (every 2nd frame across each dive), not on stills.
 
