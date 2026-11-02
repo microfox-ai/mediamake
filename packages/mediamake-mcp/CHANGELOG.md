@@ -1,5 +1,12 @@
 # @microfox/mediamake-mcp
 
+## 0.2.1
+
+### Patch Changes
+
+- 4f1c262: Changes from PR #480: project-thread-h9hvnz
+- 02c532c: Changes from PR #477: catalog-archive-and-mcp-tools
+
 ## 0.2.0
 
 ### Minor Changes
