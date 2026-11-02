@@ -219,6 +219,10 @@ Ask with `AskUserQuestion` only what the request leaves open, and say what you a
 may sign off the outro), how much text, footage that is off-limits (spoilers, burned-in graphics,
 people), anything they hate. Write `brief.md` and seed `prefs.md`.
 
+Ask too whether to pitch 3–4 looks of the first hook first, as 8 s clips side by side in one grid,
+or to build the whole edit (`revise-video` › Previews or the whole video): the whole edit by default
+under a minute or when they gave an edit to follow, previews when the style is open.
+
 ### 1. Project folder
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json` (`title`, `artist`, `audio`,
@@ -346,18 +350,25 @@ no stutter, no burned-in graphics, every sound on its picture.
 ### 10. Render and review
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --crf=18   # → out/<slug>/<slug>.mp4 + .map.json (background, ~10 min for 3.5 min at 1080p30)
-npm run render-project -w lyrics_videos -- <slug> --frames=900-960 --scale=0.5   # a clip → out/<slug>/clips/
+npm run render-project -w lyrics_videos -- <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
+npm run render-project -w lyrics_videos -- <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
+npm run render-project -w lyrics_videos -- <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
+npm run preflight -w lyrics_videos -- <slug>                         # before every link: black or frozen frames, sound
 ```
+
+Every review round is a half-size review render; the full-size master renders once, after sign-off
+(`revise-video` step 1). Run preflight after every render the user will watch and fix or answer what
+it finds before the link (step 2): a cut that drops a frame shows as black, a source that stopped
+playing as a freeze.
 
 Before a full render replaces the main file, the script copies the previous video, its map and its
 `.revisions/` into `out/<slug>/v<N>/` (skipped when an identical copy is kept); clips never touch
 the main file. Copy the archived cut list in beside it. An audio-only fix doesn't need a new
 picture: render the audio and mux it onto the video (`-c:v copy`).
 
-Review with the **`revise-video`** skill (the `/remotion-revision` link, reading and closing the
-user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
-every comment in `prefs.md` and the general rule in the lessons log here. After the final render,
+Review with the **`revise-video`** skill (preflight, the `/remotion-revision` link, the background
+watcher, reading and closing the user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
+every comment in `prefs.md` and the general rule in the lessons log here. After the master render,
 offer thumbnails (`create-thumbnail`), the YouTube pack (`pack-youtube`) and vertical shorts of the
 song's best stretches (`make-video-music-remix-shorts`, which starts from this edit's casting).
 

@@ -48,7 +48,12 @@ npm run studio -w lyrics_videos                     # preview every project
 npm run stills -w lyrics_videos -- <slug>           # one JPEG per section, for a quick check
 npm run stills -w lyrics_videos -- <slug> 12.5,40 --only   # just these seconds
 npm run render-project -w lyrics_videos -- <slug>   # full MP4 into out/<slug>/<slug>.mp4 (+ <slug>.map.json)
+npm run render-project -w lyrics_videos -- <slug> --proxy   # the same at half size: a review render
 npm run map -w lyrics_videos -- <slug> --video=<mp4>  # shot map for any other render
+npm run preflight -w lyrics_videos -- <slug>        # machine checks before the user reviews a render
+npm run wait-revision -w lyrics_videos -- <slug>    # wait until a revision is set to "Ready for Claude"
+npm run look-grid -w lyrics_videos -- <a.mp4> <b.mp4> …   # 2–4 look previews side by side, labelled
+npm run loop-stats -w lyrics_videos                 # rounds, notes and renders per video, from the review files
 npm run cleanup-out -w lyrics_videos -- scan       # what fills the disk; clean, archive to a hard disk, restore (cleanup-out skill)
 npm run type-check -w lyrics_videos
 ```
@@ -69,15 +74,40 @@ comments with shot IDs, and saves the comments in `<slug>.revisions/` next to th
 npm run render-project -w lyrics_videos -- <slug>
 
 # a slice, to check motion. --frames is frame numbers at the project's fps
-# (0-299 is the first 10s at 30fps). --scale=0.5 renders at half resolution.
-npm run render-project -w lyrics_videos -- <slug> --frames=0-299 --scale=0.5
+# (0-299 is the first 10s at 30fps). --proxy renders at half resolution (--scale=0.5).
+npm run render-project -w lyrics_videos -- <slug> --frames=0-299 --proxy
+
+# a review render: the whole song at half size into the same file (same review link and map);
+# render the master without --proxy once the user signs off
+npm run render-project -w lyrics_videos -- <slug> --proxy
+
+# a look preview: { "look": "B" } as input props, into out/<slug>/looks/B.mp4
+npm run render-project -w lyrics_videos -- <slug> --look=B --frames=0-239 --proxy
 
 # higher quality (lower CRF; Remotion's default is 18)
 npm run render-project -w lyrics_videos -- <slug> --crf=16
 ```
 
 Other flags pass through too (`--concurrency`, `--image-format=png`).
-The full list is at https://www.remotion.dev/docs/cli/render.
+The full list is at https://www.remotion.dev/docs/cli/render. Every render is logged in
+`out/<slug>/.renders.jsonl` (when, which file, scale, seconds).
+
+## Review loop
+
+The `revise-video` skill drives it; these scripts are its parts.
+
+- **`preflight <slug>`** checks a render before the user sees it: black and frozen frames, a missing
+  or short sound track, dropouts, clipping, a quiet master, and with `--source=<picture>` a render
+  darker or duller than the user's picture. Findings become machine notes ("Preflight · …") that open
+  the video's next revision in `<slug>.revisions/`; a rerun closes what is gone, and
+  `--intended=<id> --why="…"` answers one that is meant. `--video=<mp4>` for any other render.
+- **`wait-revision <slug>`** exits when the user sets a revision under `out/<slug>/` to "Ready for
+  Claude" and prints its open notes. Claude runs it in the background after giving the review link.
+- **`look-grid`** puts 2–4 look previews of the same stretch into one grid video, each tile labelled
+  with its look ID, so the user picks by name in the Revisions screen. `wave-lab … --clip` makes one
+  too.
+- **`loop-stats [slug …]`** reads every `.revisions/` folder, the kept `v<N>/` versions and the render
+  log: rounds and notes per video, and render minutes per production.
 
 To render through mediamake's render API or Lambda, pass `inputProps = { manifest }`
 with asset paths rewritten to public URLs.

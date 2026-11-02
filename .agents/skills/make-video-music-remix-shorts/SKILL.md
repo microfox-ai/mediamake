@@ -165,6 +165,8 @@ One `AskUserQuestion` call:
   it exactly).
 - anything else the request leaves open: which project or edit, the channel's sign-off, anything they
   want in or out.
+- no look previews for a short under a minute: build it whole (`revise-video` › Previews or the
+  whole video). For one of a minute or more, ask whether to see looks of its hook first.
 
 Then read `prefs.md` and the shorts so far (`npm run shorts -w lyrics_videos -- <slug> list`).
 
@@ -316,7 +318,12 @@ npm run render-project -w lyrics_videos -- <slug> --short=<id>     # every forma
 
 → `out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4` plus its `.map.json` (the short's shots in its own
 time). Earlier renders are kept in `v<N>/` beside it, as with the long edit. Render the three shorts one
-after another in the background, not in parallel.
+after another in the background, not in parallel. Shorts render at full size (no `--proxy`); a rotate
+short plays the long edit's master, so `shorts make --mode=rotate` refuses a half-size review render of
+it. Before the links, run preflight on each short
+(`npm run preflight -w lyrics_videos -- <slug> --video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`) and
+fix or answer what it finds; after them, start the watcher (`npm run wait-revision -w lyrics_videos --
+<slug>` covers every short), as `revise-video` describes.
 
 Review with **`revise-video`**, one link per short and format:
 `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` (if it doesn't open, the user

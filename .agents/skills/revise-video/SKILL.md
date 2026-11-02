@@ -1,6 +1,6 @@
 ---
 name: revise-video
-description: Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read their revision files (point comments with stills, range comments across shots) under out/<slug>/<slug>.revisions/, fix each comment in the project, reply and resolve, and log the lessons. Shared by every video-making skill (make-lyrics-video, make-video-music-remix, their variants, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /image-revision). Append new user feedback to the log at the bottom.
+description: Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/, fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /image-revision). Append new user feedback to the log at the bottom.
 metadata:
   category: revise
 ---
@@ -8,14 +8,20 @@ metadata:
 # revise-video
 
 The review loop for every rendered video in `apps/lyrics_videos`. The making skill builds and
-renders; this skill takes the user's notes back from the **Remotion Revisions** screen, fixes them
-in the project, and closes the loop. The making skill's own rules (its principles, its
-`prefs.md`, its render command) still apply to every fix.
+renders; this skill renders for review, checks the render before the user sees it, takes the user's
+notes back from the **Remotion Revisions** screen, fixes them in the project, and closes the loop.
+The making skill's own rules (its principles, its `prefs.md`, its render command) still apply to
+every fix.
+
+The loop, in order: render for review at half size (1) → preflight (2) → the link (3) → wait for a
+ready revision in the background (4) → read it (5) → act on it (6) → log what you learned (7). The
+full-size master renders once, after the user signs off.
 
 ## What a video-making skill must provide
 
-Any skill that hands its renders to this one (today `make-lyrics-video` and
-`make-video-music-remix`; a new `make-*` video skill adds itself to the list in its own file):
+Any skill that hands its renders to this one (today `make-lyrics-video`, `make-video-music-remix`,
+`make-waveform-lyric-video`, their variants and shorts; a new `make-*` video skill adds itself to the
+list in its own file):
 
 - The render at **`out/<slug>/<slug>.mp4`** and, beside it, **`out/<slug>/<slug>.map.json`**: fps,
   size, sections and every shot with a stable ID and its time range in the video's own time.
@@ -28,17 +34,85 @@ Any skill that hands its renders to this one (today `make-lyrics-video` and
 - **Stable shot IDs** across renders, so notes from one revision stay comparable with the next.
 - A project **`prefs.md`** for style lessons, and a lessons/feedback log in the making skill for
   general ones.
+- At intake, the **previews or whole video** question below.
 
-## 1. Give the user the review link (after every render they will watch)
+## Previews or the whole video (asked at intake)
+
+Look previews settle the direction before the full build: 3–4 complete looks (whole treatments, never
+menus of parts) of the same stretch, usually the first hook, as 8-second clips shown side by side in
+one grid video. A rejected direction then costs four short clips instead of a full build and render.
+Whether to make them is the user's call, so every making skill asks in its intake round:
+
+- **Under a minute** (a short, a hook-length video): build the whole video and don't ask. Make
+  previews only when the user asks for them.
+- **A minute or longer:** ask "Pitch 3–4 looks first as 8 s clips, or build the whole video?". Put
+  previews first when the direction is open (no reference, a style new to this user) and the whole
+  video first when it is settled (a reference to match, a variant skill's fixed style, a project like
+  an earlier one). The making skill may say which it recommends.
+
+To make them, build each look on the same stretch with the project reading the look from its props
+(`getInputProps().look`), render each one at half size, then put them in one labelled grid:
+
+```bash
+npm run render-project -w lyrics_videos -- <slug> --look=A --frames=<a>-<b> --proxy   # → out/<slug>/looks/A.mp4
+npm run look-grid -w lyrics_videos -- out/<slug>/looks/A.mp4 out/<slug>/looks/B.mp4 out/<slug>/looks/C.mp4 out/<slug>/looks/D.mp4
+```
+
+`look-grid` labels each tile with its look ID (two side by side, three or four in a 2×2), keeps the
+first clip's sound and shot map, and prints the grid's review link. The user names a pick, or a mix
+("B with the rings from D"), by the label on screen. A skill with its own preview command
+(`wave-lab <slug> looks --clip=6`) makes the same grid. Then build the whole video on the pick.
+
+## 1. Render for review at half size
+
+A render the user will review is a **review render**. `--proxy` renders at half size (960×540 for a
+1080p video; `--proxy=0.75` when fine detail matters) into the same file, so the review link and the
+map stay the same; each round paints a quarter of the pixels and takes roughly a third of the time:
+
+```bash
+npm run render-project -w lyrics_videos -- <slug> --proxy     # review render
+npm run render-project -w lyrics_videos -- <slug>             # the master, once the user signs off
+```
+
+Every review round uses review renders. Render the **master** once, when the user signs off ("final",
+"render it", "looks good"), and say which of the two you are rendering. Thumbnails, the upload pack,
+rotate shorts and anything that gets uploaded come only from the master (`shorts make --mode=rotate`
+refuses a review render). When the user asks for full size during review, render full size. Shorts
+render at full size (`lyric-shorts render` has no proxy; they are short).
+
+## 2. Preflight before the link
+
+Machines check, the user judges: the user should never be the one who finds a black frame. After
+every render the user will watch:
+
+```bash
+npm run preflight -w lyrics_videos -- <slug>     # --video=<mp4> for a short, a clip or a grid; --source=<their picture>
+```
+
+It checks black and frozen frames, a missing or short sound track, dropouts, clipping and a quiet
+master, and with `--source` a picture darker or duller than the user's (pass it whenever the video
+shows the user's picture or footage). What it finds becomes machine notes (`Preflight · black: …`) at
+the top of the video's next revision, where the user will see them beside their own notes.
+
+- Fix each finding, re-render, and run preflight again: it closes what is gone and pins the
+  revision to the new render.
+- A finding that is meant (a black beat, an impact freeze): answer it with
+  `npm run preflight -w lyrics_videos -- <slug> --intended=c02 --why="a black beat before the drop"`.
+  The note closes with that reply and later runs on this video skip it.
+- Give the link only when no machine note is open, and say in one line what preflight caught.
+- Fades from or to black of up to 1 s at either end and a still end card of up to 2 s are printed
+  but not noted. Loudness per section is printed for reference: songs change level on purpose.
+
+## 3. Give the user the review link
 
 ```
 https://mediamake.microfox.app/remotion-revision?folder=<slug>&video=<slug>.mp4
 ```
 
-It opens on the deployed app; while mediamake runs locally,
+Preflight prints it. It opens on the deployed app; while mediamake runs locally,
 `http://localhost:3002/remotion-revision?folder=<slug>&video=<slug>.mp4` (the port in
 `.claude/launch.json`). The old `/revisions` path still redirects. For a kept cut, point `folder`
-at it (`<slug>/v5`).
+at it (`<slug>/v5`). Say whether it is a half-size review render.
 
 The screen loads the video and its map, shows the shots on a timeline (⌘←/→ jumps shot to shot) and
 saves comments **next to the video**. Browsers can't open a local folder from a link: the first
@@ -47,13 +121,31 @@ in one click. Better: they add `apps/lyrics_videos/out` once as a **source** (So
 project folder in it (and its `v<N>/` folders) is then listed on each visit and new renders appear
 on their own. You can open the link in the user's Chrome for them, but they make the folder pick.
 
-## 2. Read the revision
+## 4. Wait for the revision in the background
+
+Right after giving the link, start the watcher as a background command (Bash
+`run_in_background: true`, with the longest timeout your shell allows, up to 2 hours):
+
+```bash
+npm run wait-revision -w lyrics_videos -- <slug>     # --video=<mp4> to watch one video only
+```
+
+It watches every `.revisions/` folder under `out/<slug>/` (not the kept `v<N>/` copies) and exits
+when the user sets a revision to **Ready for Claude**, printing the revision with its open notes.
+Then read it (step 5) and act on it (step 6) without waiting for a message: the user doesn't need
+to paste anything. If it
+stops without one (exit 3, after 110 minutes), start it once more; after that, wait for the user's
+message. It only helps while this session is open; otherwise the user pastes the message the screen
+copies for them. Never poll in the foreground.
+
+## 5. Read the revision
 
 ```
 out/<slug>/<slug>.revisions/
   rev-001.json      source of truth: title, status (draft | ready | resolved), comments
   rev-001.md        the same as Markdown, regenerated on every save (read this first)
   rev-001/          one JPEG per point comment: c01_h1.3_f000372.jpg (comment, shot, frame)
+  preflight.json    effects marked intended (preflight --intended), skipped by later runs
 ```
 
 - **Point comments** carry `time`, `frame`, the `shot` they were made on and a `snapshot` still
@@ -62,24 +154,31 @@ out/<slug>/<slug>.revisions/
   stills. Extract what you need with the ffmpeg line the `.md` gives (run from `out/<slug>/`), or
   exact seeks (`ffmpeg -ss <t> -i <video> -frames:v 1`); a frame sheet
   (`select='between(n\,a\,b)'`, `tile=8x6`) for motion.
+- **Machine notes** start with `Preflight ·` and carry `source: "preflight"` and the `check` that
+  found them. They are yours to close before the user looks (step 2); one still open in a ready
+  revision is a defect the user saw too. One the user ticked off (`done` with no `reply`) is their
+  call: record it with `--intended=rev-002/c02 --why="the user closed it"` so later runs skip it.
 - Look up each shot ID in the project (the cut list, `video/shots.json`, the scene's cues) before
   changing anything: the ID is the bridge from the note to the code.
 
-## 3. Act on it
+## 6. Act on it
 
-- Act on revisions whose status is `ready` (the user may also just say "rev-002 is ready"), and on
-  any comment without a `reply`: users add new comments to an older revision file too.
+- Act on revisions whose status is `ready` (the watcher, or the user saying "rev-002 is ready"),
+  and on any comment without a `reply`: users add new comments to an older revision file too.
 - Fix each comment the way the making skill works (its principles and its `prefs.md`), check the
-  fix the way it checks (stills, frame sheets, exact seeks), then re-render the way it renders.
+  fix the way it checks (stills, frame sheets, exact seeks), then re-render as a review render
+  (step 1) and run preflight (step 2).
 - In the JSON set each comment's `status` to `"done"` and add a short `reply` (what changed, or why
   not); set the revision's `status` to `"resolved"` when all are done (don't forget this last
-  step). Edit only those fields: the open page picks the change up when it regains focus and
-  rewrites the `.md` on its next save. Don't rename, delete or reformat revision files.
+  step: the watcher reports a ready revision at once). Edit only those fields: the open page picks
+  the change up when it regains focus and rewrites the `.md` on its next save. Don't rename, delete
+  or reformat revision files.
 - Copy the updated JSON into the kept `v<N>/` copy of that revision, so the archived cut carries its
   answered notes too. Copy, don't move.
 - A revision records the render's size and modified time. After you re-render, the screen warns
   that older revisions point at the previous cut, and the user starts a new revision for the new
-  render. Give them the link again.
+  render (or preflight opens one with its machine notes). Give them the link again and restart the
+  watcher.
 
 ### Minor revisions: re-render only what changed
 
@@ -96,8 +195,9 @@ only the frames they change and splice them into the previous cut.
   transitions on either side (a cut's entry and the previous cut's exit, up to ~12 frames) and by any
   word that runs over its edge, then snap outward to the previous render's keyframes
   (`ffprobe -select_streams v -skip_frame nokey -show_entries frame=pts_time -of csv=p=0 prev.mp4`).
-- **Render the ranges** muted, with the same settings as the full render, so the pieces join without
-  re-encoding: `npx remotion render <bundle> <composition> partN.mp4 --frames=a-b --muted --crf=18`.
+- **Render the ranges** muted, with the same settings as the full render (the same `--scale` for a
+  review render), so the pieces join without re-encoding:
+  `npx remotion render <bundle> <composition> partN.mp4 --frames=a-b --muted --crf=18`.
 - **Take the unchanged parts** from the previous render at those keyframes
   (`ffmpeg -ss <t0> -to <t1> -i prev.mp4 -map 0:v -c copy keepN.mp4`), join old and new pieces in
   order with the concat demuxer (`-f concat -safe 0 -i list.txt -c copy`), and mux the audio: the
@@ -112,15 +212,20 @@ only the frames they change and splice them into the previous cut.
 - **Check** the decoded frame count against the composition's (`ffprobe -count_frames …
   nb_read_frames`), that frame timestamps run 0…N−1 without a step back, that the frames either side of
   every splice match their sources (PSNR `inf`), the changed spots, and the audio level against the
-  previous cut. Then keep the
-  previous version, rebuild the map and answer the revision as usual.
+  previous cut. Then keep the previous version, rebuild the map, run preflight (a bad splice shows
+  as a black or frozen frame) and answer the revision as usual.
 
-## 4. Log what you learned
+## 7. Log what you learned
 
 Every comment teaches something. Style-specific lessons (this look, this footage, this song) go in
 the project's `prefs.md`, dated and numbered as the user wrote them; general ones (true for any
 project) go in the making skill's lessons/feedback log; lessons about the review loop itself go in
 the log below.
+
+**How the loop is going:** `npm run loop-stats -w lyrics_videos -- [slug …] [--since=<date>]` prints,
+per video, the rounds, the user's notes per round (point / range, how many done), machine notes and
+kept versions, and per production the logged renders (master / review / clip or look) and their
+minutes. Run it when the user asks how reviewing is going, or before and after a change to the loop.
 
 ## Feedback log
 
@@ -129,4 +234,4 @@ Append dated entries: what the user said → the rule.
 - 2026-10-25 · split out of make-lyrics-video step 10 and make-video-music-remix step 10 ("both make videos, and both use the revision page to revise: separate the revising with the revision window into a separate skill, used by all similar video-make skills in future") → this skill; the making skills point here after their render step.
 - 2026-10-26 · quicksilverxkingpin ("are you only rendering changed chunks and replacing them in the video? … write that down in the revision skill: if it's just minor changes, save time by doing that") → step 3's "Minor revisions": render only the changed frame ranges and splice them into the previous cut; full renders only when the changes are global or spread across the video.
 - 2026-10-27 · a revision on a preview clip arrived together with "build the full video now" → when comments are fixed in a bigger render than the one reviewed (a clip → the whole video), say in each reply where the fix is in the new render (its time there), resolve the revision, and give the new render's link.
-
+- 2026-11-02 · the video-revision plan, Phase 0 ("8-second clip gen first is optional, depends on skill (so ask the user whether to create previews or gen whole, by default gen whole for generating videos under 1 minute)"; "the rest is fine") → Previews or the whole video, asked at intake by every making skill (the whole video by default under a minute; previews as one labelled grid, `--look` + `look-grid`); review renders at half size with the master once after sign-off (step 1); preflight before the link (step 2); the background watcher instead of a pasted message (step 4); `loop-stats` to measure the loop (step 7).

@@ -89,6 +89,11 @@ An instrumental (no text on screen) goes through prepare with `input/lyrics.json
    (ends before the first line); the channel's end screen (which one, or pick later) **and whether
    it keeps its sound** (asked now, never at the end); a title card or not.
 4. **Transcription OK** (paid, ~$0.03 / 3 min), and whether they have the written lyrics.
+5. **Looks first or the whole video** (`revise-video` › Previews or the whole video): for a song of
+   a minute or more, ask whether to see 2–4 complete looks of the hook first, as clips side by side
+   in one grid (step 5), or to build the picked idea straight into the whole video and look at it in
+   the Remotion editor (step 7). Recommend looks when the idea is open, the whole video when a
+   reference sets the target. Under a minute, build the whole video and don't ask.
 
 Write the answers to `brief.md`, start `prefs.md`.
 
@@ -153,18 +158,21 @@ reference frame, an inspiration board. The user picks or mixes one; record it in
 
 ## 5. The look
 
-Build the picked idea as 2–4 **complete looks** (rule 3), each a `looks` entry in
-`video/storyboard.ts`, built from the parts below, and shoot them as clips:
+**When the user chose looks first** (intake 5), build the picked idea as 2–4 **complete looks**
+(rule 3), each a `looks` entry in `video/storyboard.ts`, built from the parts below, and shoot them
+as clips. **When they chose the whole video**, build it as one look from the same parts and go on to
+the lyrics (step 6) and the editor preview (step 7), where the user judges it in the whole song.
 
 ```bash
-npm run wave-lab -w lyrics_videos -- <slug> looks --only=L1,L2 --clip=6     # stills + 6 s clips + a reel
+npm run wave-lab -w lyrics_videos -- <slug> looks --only=L1,L2 --clip=6     # stills + 6 s clips + a reel + a grid of 2–4
 ```
 
 Pick the shoot moment (`at.looks`) just after a strong kick and snare in the hook so hit-driven
 effects show. Before showing: pull 3–4 frames of each clip around a kick (with a reference, put its
 frames in the same sheet), measure brightness against the source (rule 6), and fix what's off. Send
-the reel and the sheet; the user picks, mixes ("rings from the first, sparks from the second"), or
-redirects. New rounds get new IDs; nothing seen is renumbered.
+the grid (`grid-L1-L2….mp4` beside the reel: the looks side by side, each labelled with its ID, with
+its review link from `revise-video`) and the sheet; the user picks, mixes ("rings from L1, sparks from
+L2"), or redirects. New rounds get new IDs; nothing seen is renumbered.
 
 **The parts** (all in `src/mediamake`; a look is cover settings + `subject` + `layers` + `overlays`):
 
@@ -234,7 +242,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   in the browser pane; prefer local, the deployed editor lags behind engine changes. Say which
   timeline mark to jump to. The user's moves save to `video/edits.json` and every render applies them.
 - **Clips and renders only when asked** (rule 10): `npm run render-project -w lyrics_videos -- <slug>
-  --frames=<a>-<b>` (≈ 1 min for 24 s).
+  --frames=<a>-<b> --proxy` (half size, faster than the ≈ 1 min for 24 s at full size).
 
 ## 8. Render and deliver (only when asked)
 
@@ -242,15 +250,21 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
    alpha) into `input/brand/` and layer the engine's `LogoSting` over the intro (e.g.
    `at: { from: 0.2, to: 4.2 }`, `box` half size over the subject's body), so it has faded before
    the first line's entrance (its start − 0.35 s). Check stills before, during and after.
-2. **Render**: `npm run render-project -w lyrics_videos -- <slug>` (≈ 10 min for 3 min, in the
-   background; retry once on a font timeout). The previous render moves to `v<N>/` by itself.
+2. **Render**: a render the user asked for to review is a half-size review render
+   (`npm run render-project -w lyrics_videos -- <slug> --proxy`); the master is
+   `npm run render-project -w lyrics_videos -- <slug>` (≈ 10 min for 3 min, in the background; retry
+   once on a font timeout), once they sign off (`revise-video` step 1). The previous render moves to
+   `v<N>/` by itself. The end screen, the cover and the packs come from the master.
 3. **End screen**: keep the raw render in `v<N>/` first, then join the channel's end screen with
    ffmpeg (60 → 30 fps, CRF 15, the concat filter) as the user chose at intake — with its sound at
    its own level (never lifted), or silent (the INVERTED Devils end screens are silent at the source)
    — and add an `end screen` section to the map.
 4. **Check the file**: duration, loudness of the song part unchanged (`ebur128`), frames across the
-   song (intro logo, verse, chorus, interlude empty, outro, end card). Give the `open -R` block and
-   the Revisions link (`revise-video`).
+   song (intro logo, verse, chorus, interlude empty, outro, end card), and
+   `npm run preflight -w lyrics_videos -- <slug> --source=projects/<slug>/input/<picture>` (black or
+   frozen frames, the sound, and rule 6 over the whole video: a render darker or duller than the
+   picture). Fix or answer what it finds, then give the `open -R` block and the Revisions link
+   (`revise-video`).
 5. **Then, when asked** (in parallel sessions when the user says so): the cover (`create-music-poster`),
    thumbnails (`create-thumbnail`), then `pack-distrokid` and `pack-youtube`.
 
@@ -260,7 +274,8 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   `layers` + `overlays`), `waves`, `fonts`, `captions`, `pick`, `at`. `video/index.tsx`:
   `storyboardVideo('<slug>', storyboard, [extra layers])`.
 - `wave-lab <slug> looks|waves|fonts|captions|final [--only=…] [--at=s] [--clip=6]` → labelled stills,
-  clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/image-revision`.
+  clips, a reel and (for 2–4 clips) a grid in `out/<slug>/<slug>-storyboard/`; the stills are
+  reviewable in `/image-revision`, the grid in `/remotion-revision`.
 - `stills <slug> <s,s,…> --only [--scale=1]`: the folder is cleared on every run — copy the files
   out between batches; batches of ≤ 6 avoid font timeouts.
 - The catalog (`catalog/`, shots in `out/waveform-catalog/`): waves, font sets and caption setups

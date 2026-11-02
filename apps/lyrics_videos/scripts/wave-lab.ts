@@ -22,6 +22,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { removeBundle, tempBundle } from './bundle.ts';
+import { lookGrid } from './look-grid.ts';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { CAPTIONS, FONTS, WAVES } from '../catalog/index.ts';
@@ -411,6 +412,16 @@ const main = async () => {
       const reel = path.join(dir, `reel-${done.filter(s => s.step === step).map(s => s.id).join('-')}.mp4`);
       ffmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', reel]);
       console.log(`✔ ${path.relative(ROOT, reel)}`);
+      // two to four looks side by side, labelled with their IDs, so a pick is named by what is on screen
+      if (clips.length >= 2 && clips.length <= 4) {
+        const ids = done.filter(s => s.step === step).map(s => s.id);
+        try {
+          const grid = lookGrid(clips, { labels: ids, out: path.join(dir, `grid-${ids.join('-')}.mp4`) });
+          console.log(`✔ ${path.relative(ROOT, grid)}`);
+        } catch (err) {
+          console.warn(`No grid (the reel still has every look): ${err instanceof Error ? err.message : err}`);
+        }
+      }
     }
   }
   writeIndex(outRoot, {
