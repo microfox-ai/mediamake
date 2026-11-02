@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { HOSTED_MCP_LOCKED, canUseHostedMcp } from '@/lib/mcp/access';
 import { SCOPE, apiKeyForClient, getClient, saveAuthorizeRequest, sessionClientId } from '@/lib/mcp/oauth';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,14 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
       <Message title="No working API key">
         Your Mediamake account ({viewer.clientId}) has no enabled API key, and the connector runs with one. Ask an admin to
         enable or create a key for you, then try again.
+      </Message>
+    );
+  }
+
+  if (!(await canUseHostedMcp(viewer.clientId))) {
+    return (
+      <Message title="Not open to you yet">
+        {HOSTED_MCP_LOCKED} You are signed in as {viewer.clientId}.
       </Message>
     );
   }

@@ -15,6 +15,8 @@ The quickest way, for the team (admins and private testers): paste "Set up mcp/m
 - **Claude Code**: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`, then `/mcp` in a session to sign in. Or skip the sign-in with a key: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp --header "Authorization: Bearer <api key>"`.
 - **Any other MCP client** that speaks Streamable HTTP and OAuth works the same way.
 
+Who may connect follows the `mcp/mediamake` catalog item: while it is in development that is admins and private testers (anyone in the `private` group, no grant needed) plus anyone granted it; everyone else is told so on the consent screen and gets a 403 from `/mcp`.
+
 The connector acts as your account: it calls the API with one of your API keys, so your tier (public, community, private, admin) and access grants apply exactly as they do with the `.mcpb`. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
 
 It has the same tools, adapted for a server that can't see your files:

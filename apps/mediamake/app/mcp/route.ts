@@ -2,6 +2,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { MediamakeClient, createServer } from '@microfox/mediamake-mcp/server';
 import { NextRequest } from 'next/server';
 import { CORS_HEADERS, preflight } from '@/lib/mcp/http';
+import { HOSTED_MCP_LOCKED, canUseHostedMcp } from '@/lib/mcp/access';
 import { SCOPE, publicOrigin, resolveMcpCaller } from '@/lib/mcp/oauth';
 
 /**
@@ -14,7 +15,8 @@ import { SCOPE, publicOrigin, resolveMcpCaller } from '@/lib/mcp/oauth';
  * apply exactly as they do for the .mcpb.
  *
  * Outside the middleware matcher (/api/*): this route authenticates itself,
- * with an OAuth access token from /oauth/token or a plain API key.
+ * with an OAuth access token from /oauth/token or a plain API key. Who may
+ * use it follows the `mcp/mediamake` catalog item (lib/mcp/access).
  */
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +43,12 @@ async function handle(req: NextRequest) {
   if (!bearer) return unauthorized(req, 'Sign in to Mediamake to use this connector');
   const caller = await resolveMcpCaller(bearer);
   if (!caller) return unauthorized(req, 'The token is invalid or expired');
+  if (!(await canUseHostedMcp(caller.clientId))) {
+    return Response.json(
+      { error: 'access_denied', error_description: HOSTED_MCP_LOCKED },
+      { status: 403, headers: CORS_HEADERS },
+    );
+  }
 
   const client = new MediamakeClient({
     // Self-calls go to the deployment's own URL unless pointed elsewhere.
