@@ -37,7 +37,27 @@ type CommentBase = {
   check?: string;
 };
 export type ShotRef = { id: string; label?: string; section?: string; from: number; to: number };
-export type PointComment = CommentBase & { kind: 'point'; time: number; frame: number; shot: ShotRef | null; snapshot?: string };
+/** What a mark's colour asks for: red fix or remove, green add here, yellow move (an arrow shows where). */
+export type MarkColor = 'red' | 'green' | 'yellow';
+export type MarkTool = 'pen' | 'brush' | 'arrow' | 'box' | 'circle';
+/**
+ * A mark drawn on the frame. Points are fractions of the frame (x across, y down, 0–1). pen and
+ * brush: every point of the stroke; arrow: tail, then head; box and circle: two opposite corners.
+ */
+export type Mark = { tool: MarkTool; color: MarkColor; points: [number, number][] };
+export type Spot = { x: number; y: number };
+export type PointComment = CommentBase & {
+  kind: 'point';
+  time: number;
+  frame: number;
+  shot: ShotRef | null;
+  /** the frame as a JPEG, marks and spot drawn in (relative to the revisions folder) */
+  snapshot?: string;
+  drawing?: Mark[];
+  spot?: Spot;
+  /** a 2× crop of the frame around the spot (relative to the revisions folder) */
+  zoom?: string;
+};
 export type RangeComment = CommentBase & {
   kind: 'range';
   from: number;
@@ -163,11 +183,38 @@ function shotsLabel(c: RevisionComment): string {
   return c.shots.length === 1 ? c.shots[0] : `${c.shots[0]} → ${c.shots[c.shots.length - 1]}`;
 }
 
-/** One line per comment, for a terminal: "c03 · h1.3 · 0:12.40 — make the logo bigger" */
+const MARK_NOUN: Record<MarkTool, string> = { pen: 'line', brush: 'brush stroke', arrow: 'arrow', box: 'box', circle: 'circle' };
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const span = (values: number[]) => {
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  return pct(lo) === pct(hi) ? pct(lo) : `${pct(lo)}–${pct(hi)}`;
+};
+
+/** "red circle over 40%–55% across, 20%–35% down", as the screen writes it (lib/revisions/marks.ts). */
+export function describeMark(mark: Mark): string {
+  const name = `${mark.color ?? 'red'} ${MARK_NOUN[mark.tool] ?? mark.tool}`;
+  const pts = mark.points;
+  if (mark.tool === 'arrow' && pts.length >= 2) {
+    const [a, b] = [pts[0], pts[pts.length - 1]];
+    return `${name} from ${pct(a[0])} across, ${pct(a[1])} down to ${pct(b[0])} across, ${pct(b[1])} down`;
+  }
+  return `${name} over ${span(pts.map(p => p[0]))} across, ${span(pts.map(p => p[1]))} down`;
+}
+
+export const describeSpot = (spot: Spot) => `${pct(spot.x)} across, ${pct(spot.y)} down`;
+
+const hasMarks = (c: RevisionComment) => c.kind === 'point' && (!!c.drawing?.length || !!c.spot);
+
+/** One line per comment, for a terminal: "c03 · h1.3 · 0:12.40 — make the logo bigger [2 marks, spot]" */
 export function commentLine(c: RevisionComment, max = 160): string {
   const when = c.kind === 'point' ? formatTime(c.time) : `${formatTime(c.from)}–${formatTime(c.to)}`;
   const text = c.text.replace(/\s+/g, ' ').trim();
-  return `${c.id} · ${shotsLabel(c)} · ${when} — ${text.length > max ? `${text.slice(0, max - 1)}…` : text}`;
+  const marks =
+    c.kind === 'point' && hasMarks(c)
+      ? ` [${[c.drawing?.length ? `${c.drawing.length} mark${c.drawing.length === 1 ? '' : 's'}` : '', c.spot ? 'spot' : ''].filter(Boolean).join(', ')}]`
+      : '';
+  return `${c.id} · ${shotsLabel(c)} · ${when} — ${text.length > max ? `${text.slice(0, max - 1)}…` : text}${marks}`;
 }
 
 /**
@@ -210,13 +257,23 @@ export function revisionToMarkdown(revision: Revision, revisionsDir: string): st
       `\`${revision.id}.json\` is the source of truth; to close a comment set its \`status\` to \`"done"\` and add a \`reply\` there. ` +
       `Range comments have no stills: run the ffmpeg line from the video's folder to extract frames.`,
   );
+  if (comments.some(hasMarks)) {
+    lines.push('');
+    lines.push(
+      `Marks are drawn into the stills. Their colour says what to do: red fix or remove, green add here, ` +
+        `yellow move (an arrow shows where). Positions are fractions of the frame, so they hold at any render size; ` +
+        `a spot's zoomed crop shows the frame around it at 2×.`,
+    );
+  }
   for (const c of comments) {
     lines.push('');
     if (c.kind === 'point') {
       lines.push(`## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`, '', quote(c.text), '');
       if (c.shot) lines.push(`- Shot: \`${c.shot.id}\`${c.shot.label ? ` ${c.shot.label}` : ''} (${c.shot.from.toFixed(2)}–${c.shot.to.toFixed(2)} s)`);
       lines.push(`- Time: ${c.time.toFixed(3)} s, frame ${c.frame}`);
-      if (c.snapshot) lines.push(`- Still: \`${revisionsDir}/${c.snapshot}\``);
+      if (c.snapshot) lines.push(`- Still: \`${revisionsDir}/${c.snapshot}\`${hasMarks(c) ? ' (marks drawn in)' : ''}`);
+      if (c.drawing?.length) lines.push(`- Marks: ${c.drawing.map(describeMark).join('; ')}`);
+      if (c.spot) lines.push(`- Spot: ${describeSpot(c.spot)}${c.zoom ? `; zoomed crop \`${revisionsDir}/${c.zoom}\`` : ''}`);
     } else {
       lines.push(
         `## ${c.id} · ${shotsLabel(c)} · f${c.fromFrame}–f${c.toFrame} (${formatTime(c.from)}–${formatTime(c.to)}) — ${c.status}`,

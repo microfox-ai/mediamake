@@ -3,18 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  BrushIcon,
   CameraIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
   CircleIcon,
   ClipboardCopyIcon,
+  CrosshairIcon,
+  EraserIcon,
   MoreHorizontalIcon,
+  MoveUpRightIcon,
   PencilIcon,
+  PencilLineIcon,
   PlusIcon,
   ScissorsIcon,
+  SquareIcon,
   Trash2Icon,
   TriangleAlertIcon,
+  Undo2Icon,
   XIcon,
+  ZoomInIcon,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,13 +45,23 @@ import {
   isStaleRevision,
   STATUS_LABEL,
 } from '@/lib/revisions/revision-file';
+import { MARK_COLORS, MARK_TOOLS } from '@/lib/revisions/marks';
 import type {
+  MarkColor,
+  MarkTool,
   Revision,
   RevisionComment,
   RevisionStatus,
 } from '@/lib/revisions/types';
-import { selectActiveRevision, selectFps, useRevisionsStore } from './store';
+import {
+  selectActiveRevision,
+  selectFps,
+  sketchIsEmpty,
+  useRevisionsStore,
+  type MarkupTool,
+} from './store';
 import { Hint, useKeys } from './keyboard';
+import { FIT_WIDTH } from './fit-width';
 
 function RevisionTabs() {
   const video = useRevisionsStore(s => s.video);
@@ -308,13 +327,60 @@ function RevisionHeader({ revision }: { revision: Revision }) {
   );
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 function AnchorChip() {
   const selection = useRevisionsStore(s => s.selection);
   const map = useRevisionsStore(s => s.map);
   const currentTime = useRevisionsStore(s => s.currentTime);
   const fps = useRevisionsStore(selectFps);
   const setSelection = useRevisionsStore(s => s.setSelection);
+  const sketch = useRevisionsStore(s => s.sketch);
+  const seek = useRevisionsStore(s => s.seek);
+  const pause = useRevisionsStore(s => s.pause);
+  const clearSketch = useRevisionsStore(s => s.clearSketch);
 
+  // marks make the comment one on the frame they were drawn on
+  if (sketch && !sketchIsEmpty(sketch)) {
+    const shot = shotAt(map, sketch.time);
+    const here = frameAt(currentTime, fps) === sketch.frame;
+    return (
+      <div className="flex items-center gap-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] text-amber-900 dark:text-amber-200">
+        <PencilLineIcon className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate tabular-nums">
+          {shot && (
+            <span className="font-mono font-semibold">{shot.id} · </span>
+          )}
+          f{sketch.frame} ·{' '}
+          {[
+            sketch.marks.length ? plural(sketch.marks.length, 'mark') : '',
+            sketch.spot ? 'spot (saves a 2× crop)' : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+        {!here && (
+          <Hint label="Back to the frame the marks are on">
+            <button
+              type="button"
+              onClick={() => {
+                pause();
+                seek(sketch.time);
+              }}
+              className="shrink-0 underline underline-offset-2"
+            >
+              Go to
+            </button>
+          </Hint>
+        )}
+        <Hint label="Discard the marks">
+          <button type="button" onClick={clearSketch} className="ml-auto">
+            <XIcon className="size-3" />
+          </button>
+        </Hint>
+      </div>
+    );
+  }
   if (selection) {
     const shots = shotsInRange(map, selection.from, selection.to, fps);
     return (
@@ -355,9 +421,138 @@ function AnchorChip() {
   );
 }
 
+const TOOL_ICONS: Record<MarkupTool, LucideIcon> = {
+  pen: PencilLineIcon,
+  brush: BrushIcon,
+  arrow: MoveUpRightIcon,
+  box: SquareIcon,
+  circle: CircleIcon,
+  spot: CrosshairIcon,
+};
+
+const TOOL_HINTS: Record<MarkupTool, string> = {
+  pen: 'Pencil: draw freehand',
+  brush: 'Brush: a wide see-through stroke, to paint over an area',
+  arrow: 'Arrow: drag from a thing to where it should go',
+  box: 'Box: drag over an area',
+  circle: 'Circle: drag around something',
+  spot: 'Spot: click the exact spot; a 2× crop around it is saved too',
+};
+
+const TOOLS: MarkupTool[] = [
+  ...(Object.keys(MARK_TOOLS) as MarkTool[]),
+  'spot',
+];
+
+/** Drawing tools, colours and the magnifier, above the comment box. */
+function MarkupBar() {
+  const tool = useRevisionsStore(s => s.tool);
+  const markColor = useRevisionsStore(s => s.markColor);
+  const loupe = useRevisionsStore(s => s.loupe);
+  const hasMarks = useRevisionsStore(s => !sketchIsEmpty(s.sketch));
+  const setTool = useRevisionsStore(s => s.setTool);
+  const setMarkColor = useRevisionsStore(s => s.setMarkColor);
+  const undoMark = useRevisionsStore(s => s.undoMark);
+  const clearSketch = useRevisionsStore(s => s.clearSketch);
+  const toggleLoupe = useRevisionsStore(s => s.toggleLoupe);
+
+  const button =
+    'flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+  const on =
+    'bg-foreground text-background hover:bg-foreground hover:text-background';
+  return (
+    <div className="flex flex-wrap items-center">
+      {TOOLS.map(t => {
+        const Icon = TOOL_ICONS[t];
+        return (
+          <Hint
+            key={t}
+            label={tool === t ? 'Stop drawing (the marks stay)' : TOOL_HINTS[t]}
+            keys={t === 'spot' ? 'S' : MARK_TOOLS[t].key}
+          >
+            <button
+              type="button"
+              aria-pressed={tool === t}
+              className={cn(button, tool === t && on)}
+              onClick={() => setTool(tool === t ? null : t)}
+            >
+              <Icon className="size-3.5" />
+            </button>
+          </Hint>
+        );
+      })}
+      <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+      {(Object.keys(MARK_COLORS) as MarkColor[]).map(c => (
+        <Hint
+          key={c}
+          label={`${MARK_COLORS[c].label}: ${MARK_COLORS[c].meaning}`}
+          keys={MARK_COLORS[c].key}
+        >
+          <button
+            type="button"
+            aria-pressed={markColor === c}
+            className={button}
+            onClick={() => setMarkColor(c)}
+          >
+            <span
+              className={cn(
+                'size-3.5 rounded-full border border-black/25',
+                markColor === c &&
+                  'ring-2 ring-foreground ring-offset-1 ring-offset-background',
+              )}
+              style={{ background: MARK_COLORS[c].hex }}
+            />
+          </button>
+        </Hint>
+      ))}
+      <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+      <Hint label="Undo the last mark" keys="Mod Z">
+        <button
+          type="button"
+          disabled={!hasMarks}
+          className={button}
+          onClick={undoMark}
+        >
+          <Undo2Icon className="size-3.5" />
+        </button>
+      </Hint>
+      <Hint label="Clear the marks">
+        <button
+          type="button"
+          disabled={!hasMarks}
+          className={button}
+          onClick={clearSketch}
+        >
+          <EraserIcon className="size-3.5" />
+        </button>
+      </Hint>
+      <Hint
+        label={
+          loupe
+            ? 'Hide the magnifier'
+            : 'Magnifier: zoom in under the pointer, click to pin the spot'
+        }
+        keys="Z"
+      >
+        <button
+          type="button"
+          aria-pressed={loupe}
+          className={cn(button, 'ml-auto', loupe && on)}
+          onClick={toggleLoupe}
+        >
+          <ZoomInIcon className="size-3.5" />
+        </button>
+      </Hint>
+    </div>
+  );
+}
+
 function Composer() {
   const video = useRevisionsStore(s => s.video);
   const selection = useRevisionsStore(s => s.selection);
+  const sketch = useRevisionsStore(s =>
+    sketchIsEmpty(s.sketch) ? null : s.sketch,
+  );
   const composerFocusToken = useRevisionsStore(s => s.composerFocusToken);
   const addComment = useRevisionsStore(s => s.addComment);
   const pause = useRevisionsStore(s => s.pause);
@@ -384,6 +579,7 @@ function Composer() {
   if (!video) return null;
   return (
     <div className="shrink-0 space-y-1.5 border-b p-2">
+      <MarkupBar />
       <AnchorChip />
       <Textarea
         ref={ref}
@@ -397,9 +593,13 @@ function Composer() {
           }
         }}
         placeholder={
-          selection
-            ? 'What should change in this range?'
-            : 'What should change in this frame?'
+          sketch
+            ? sketch.marks.length
+              ? 'What should change where you drew?'
+              : 'What should change at this spot?'
+            : selection
+              ? 'What should change in this range?'
+              : 'What should change in this frame?'
         }
         className="min-h-16 resize-none text-sm"
       />
@@ -409,9 +609,11 @@ function Composer() {
         </span>
         <Hint
           label={
-            selection
-              ? 'Add a comment on the selected range'
-              : 'Add a comment on this frame (saves a still)'
+            sketch
+              ? `Add a comment on f${sketch.frame} (saves a still with the marks${sketch.spot ? ' and a 2× crop of the spot' : ''})`
+              : selection
+                ? 'Add a comment on the selected range'
+                : 'Add a comment on this frame (saves a still)'
           }
           keys="Mod ↵"
         >
@@ -477,6 +679,16 @@ function CommentCard({
   const still = useStillUrl(
     comment.kind === 'point' ? comment.snapshot : undefined,
   );
+  const zoom = useStillUrl(comment.kind === 'point' ? comment.zoom : undefined);
+  const marks =
+    comment.kind === 'point'
+      ? [
+          comment.drawing?.length ? plural(comment.drawing.length, 'mark') : '',
+          comment.spot ? 'a spot' : '',
+        ]
+          .filter(Boolean)
+          .join(' and ')
+      : '';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.text);
   const ref = useRef<HTMLDivElement>(null);
@@ -527,6 +739,11 @@ function CommentCard({
         <span className="min-w-0 truncate font-mono text-[11px] tabular-nums">
           {where}
         </span>
+        {marks && (
+          <Hint label={`${marks} drawn on the frame`}>
+            <PencilLineIcon className="size-3 shrink-0 text-amber-600" />
+          </Hint>
+        )}
         <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
           {comment.id}
         </span>
@@ -608,13 +825,29 @@ function CommentCard({
           {comment.text}
         </p>
       )}
-      {still && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={still}
-          alt={`Still of ${comment.id}`}
-          className="mt-1.5 w-full rounded border object-contain"
-        />
+      {(still || zoom) && (
+        <div
+          className={cn('mt-1.5 grid gap-1', still && zoom && 'grid-cols-2')}
+        >
+          {still && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={still}
+              alt={`Still of ${comment.id}`}
+              className="w-full rounded border object-contain"
+            />
+          )}
+          {zoom && (
+            <Hint label="2× around the spot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={zoom}
+                alt={`Spot of ${comment.id}, 2×`}
+                className="w-full rounded border object-contain"
+              />
+            </Hint>
+          )}
+        </div>
       )}
       {comment.reply && (
         <div className="mt-1.5 rounded bg-muted px-2 py-1 text-[11px]">
@@ -649,7 +882,7 @@ function CommentList({ revision }: { revision: Revision }) {
           open only
         </label>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className={cn('min-h-0 flex-1', FIT_WIDTH)}>
         <div className="space-y-1.5 px-2 pb-3">
           {comments.length === 0 && (
             <div className="py-6 text-center text-xs text-muted-foreground">

@@ -1,5 +1,11 @@
 import { formatTime, padFrame } from './frames';
 import {
+  describeMark,
+  describeSpot,
+  sanitizeMarks,
+  sanitizeSpot,
+} from './marks';
+import {
   REVISION_SCHEMA,
   type Revision,
   type RevisionComment,
@@ -80,13 +86,22 @@ export function normalizeRevision(raw: unknown, id: string): Revision {
             (c): c is RevisionComment =>
               !!c && typeof c === 'object' && typeof c.id === 'string',
           )
-          .map(
-            c =>
-              ({
-                ...c,
-                status: c.status === 'done' ? 'done' : 'open',
-              }) as RevisionComment,
-          )
+          .map(c => {
+            const comment = {
+              ...c,
+              status: c.status === 'done' ? 'done' : 'open',
+            } as RevisionComment;
+            if (comment.kind !== 'point') return comment;
+            // marks and spots that can't be drawn are dropped (people and Claude edit these files)
+            const { drawing, spot, ...rest } = comment;
+            const marks = sanitizeMarks(drawing);
+            const at = sanitizeSpot(spot);
+            return {
+              ...rest,
+              ...(marks ? { drawing: marks } : {}),
+              ...(at ? { spot: at } : {}),
+            };
+          })
       : [],
   };
 }
@@ -99,6 +114,10 @@ export function snapshotFileName(
   const shot = (shotId ?? 'noshot').replace(/[^\w.-]+/g, '-');
   return `${commentId}_${shot}_f${padFrame(frame)}.jpg`;
 }
+
+/** The 2× crop around a comment's spot, beside its still: "c01_h1.3_f000372_zoom.jpg". */
+export const zoomFileName = (stillName: string) =>
+  stillName.replace(/\.jpg$/, '_zoom.jpg');
 
 /** True when the video on disk is not the render this revision was written against. */
 export function isStaleRevision(
@@ -169,6 +188,14 @@ export function revisionToMarkdown(
       `Stills of point comments are in \`${opts.revisionsDir}/${revision.id}/\`. Range comments have no stills: ` +
       `run the ffmpeg line from the video's folder to extract frames.`,
   );
+  if (comments.some(c => c.kind === 'point' && (c.drawing?.length || c.spot))) {
+    lines.push('');
+    lines.push(
+      `Marks are drawn into the stills. Their colour says what to do: red fix or remove, green add here, ` +
+        `yellow move (an arrow shows where). Positions are fractions of the frame, so they hold at any render size; ` +
+        `a spot's zoomed crop shows the frame around it at 2×.`,
+    );
+  }
 
   for (const c of comments) {
     lines.push('');
@@ -186,7 +213,15 @@ export function revisionToMarkdown(
       }
       lines.push(`- Time: ${c.time.toFixed(3)} s, frame ${c.frame}`);
       if (c.snapshot)
-        lines.push(`- Still: \`${opts.revisionsDir}/${c.snapshot}\``);
+        lines.push(
+          `- Still: \`${opts.revisionsDir}/${c.snapshot}\`${c.drawing?.length || c.spot ? ' (marks drawn in)' : ''}`,
+        );
+      if (c.drawing?.length)
+        lines.push(`- Marks: ${c.drawing.map(describeMark).join('; ')}`);
+      if (c.spot)
+        lines.push(
+          `- Spot: ${describeSpot(c.spot)}${c.zoom ? `; zoomed crop \`${opts.revisionsDir}/${c.zoom}\`` : ''}`,
+        );
     } else {
       lines.push(
         `## ${c.id} · ${shotsLabel(c)} · f${c.fromFrame}–f${c.toFrame} (${formatTime(c.from)}–${formatTime(c.to)}) — ${c.status}`,

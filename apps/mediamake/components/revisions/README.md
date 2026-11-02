@@ -28,7 +28,8 @@ out/my-song/
     rev-001.json             the revision (source of truth)
     rev-001.md               the same, written for reading (regenerated on every save)
     rev-001/                 snapshots for point comments
-      c01_h1.3_f000372.jpg
+      c01_h1.3_f000372.jpg       the frame, with any marks and the spot drawn in
+      c01_h1.3_f000372_zoom.jpg  2× crop around the spot (only when the comment has one)
 ```
 
 ### `<video>.map.json`
@@ -88,6 +89,27 @@ seconds of the video. Shot IDs must stay stable between renders (split a shot as
       "frame": 372,
       "shot": { "id": "h1.3", "label": "…" },
       "snapshot": "rev-001/c01_h1.3_f000372.jpg",
+      // optional: marks drawn on the frame (fractions of the frame, x across, y down)
+      "drawing": [
+        {
+          "tool": "circle",
+          "color": "red",
+          "points": [
+            [0.41, 0.2],
+            [0.55, 0.36],
+          ],
+        },
+        {
+          "tool": "arrow",
+          "color": "yellow",
+          "points": [
+            [0.48, 0.3],
+            [0.7, 0.3],
+          ],
+        },
+      ],
+      "spot": { "x": 0.52, "y": 0.31 }, // optional: the exact spot
+      "zoom": "rev-001/c01_h1.3_f000372_zoom.jpg", // 2× crop around the spot
       "status": "open",
     }, // open | done
     {
@@ -104,6 +126,12 @@ seconds of the video. Shot IDs must stay stable between renders (split a shot as
   ],
 }
 ```
+
+Marks: `tool` is `pen` or `brush` (every point of the stroke), `arrow` (tail, then head), `box` or
+`circle` (two opposite corners). `color` says what the mark asks for: `red` fix or remove, `green`
+add here, `yellow` move (an arrow shows where). The still has the marks and the spot drawn in, so
+Claude can look at it directly; the zoom crop is clean apart from a ring on the spot. The `.md`
+describes each mark in words ("red circle over 41–55% across, 20–36% down").
 
 Claude may set a comment's `status` to `done` and add a `reply`. The page re-reads revisions when
 its window regains focus and every 5 s while visible, so those edits show up without a reload
@@ -144,7 +172,7 @@ can grant folder access, so the first open of a folder is always the user's pick
 | Shift + click / drag                                      | extend the selection from the playhead                                                        |
 | drag a selection edge                                     | adjust it                                                                                     |
 | `I` / `O`                                                 | set selection in / out at the playhead                                                        |
-| `Esc`                                                     | clear the selection                                                                           |
+| `Esc`                                                     | stop drawing, then close the magnifier, then clear the selection                              |
 | `⌘/Ctrl ←` `→`                                            | previous / next shot (comment pins when there is no map); works anywhere, text boxes included |
 | `⌘/Ctrl ⇧ ←` `→`                                          | previous / next section                                                                       |
 | `Space`                                                   | play / pause (loops the selection when loop is on)                                            |
@@ -157,6 +185,12 @@ can grant folder access, so the first open of a folder is always the user's pick
 | `-` `=` `0`                                               | zoom the timeline out / in / to fit                                                           |
 | `?`                                                       | list every shortcut                                                                           |
 | `←` `→` / `⇧←` `⇧→`                                       | one frame / one second                                                                        |
+| `D`                                                       | draw on the frame (pauses; `D` again stops, the marks stay for the next comment)              |
+| `P` `B` `A` `R` `E`                                       | pencil, brush, arrow, box, circle (the same key again stops drawing)                          |
+| `S`                                                       | spot: click the exact spot; the comment saves a 2× crop around it                             |
+| `1` `2` `3`                                               | red (fix or remove), green (add here), yellow (move)                                          |
+| `⌘/Ctrl Z`                                                | undo the last mark (outside text boxes)                                                       |
+| `Z`                                                       | magnifier: 3× under the pointer; with no tool on, a click pins the spot                       |
 | `C` or `Enter`                                            | write a comment                                                                               |
 | `⌘/Ctrl Enter`                                            | add the comment                                                                               |
 | `⌘S`                                                      | save now                                                                                      |
@@ -164,6 +198,16 @@ can grant folder access, so the first open of a folder is always the user's pick
 Point comments anchor to the playhead when added (the video pauses while typing, so what you see is
 what is attached) and save a JPEG of that frame. Range comments save no stills; the `.md` lists an
 `ffmpeg` command per range so Claude can extract the frames it needs.
+
+### Drawing and the spot
+
+The tools sit above the comment box (and `D` / the pencil in the transport). Picking one pauses the
+video and clears the range selection: marks belong to one frame, so the next comment becomes a point
+comment on the frame they were drawn on, even if the playhead moved since (the chip above the box
+says which frame, with **Go to**). Drawing on another frame starts over there (a toast offers Undo).
+Marks of the highlighted comment show on its frame whenever no tool is on; waiting marks show faded
+on other frames and hide while the video plays. The magnifier works with or without a tool and
+draws the marks too. Picking a colour with no tool on brings back the last tool.
 
 ## Known limits
 
@@ -183,4 +227,6 @@ what is attached) and save a JPEG of that frame. Range comments save no stills; 
 - `components/revisions/store.ts` — zustand store: folder, video, map, playback, selection,
   revisions and autosave.
 - `components/revisions/*Panel.tsx`, `VideoStage.tsx`, `RevisionTimeline.tsx` — the UI.
+- `lib/revisions/marks.ts` — how marks look, are drawn (the overlay and the saved still share it)
+  and read in the `.md`; `components/revisions/MarkupLayer.tsx` — drawing and the magnifier.
 - `apps/lyrics_videos/scripts/map.ts` writes the map after `render-project`.

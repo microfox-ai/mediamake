@@ -7,13 +7,25 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { handlesFromDrop } from '@/lib/local-media/file-access';
-import { useRevisionsStore } from './store';
+import { MARK_TOOLS } from '@/lib/revisions/marks';
+import type { MarkTool } from '@/lib/revisions/types';
+import { useRevisionsStore, type MarkupTool } from './store';
 import { isTextField } from './keyboard';
 import { RevisionsHeader } from './RevisionsHeader';
 import { FilesPanel } from './FilesPanel';
 import { VideoStage, toggleStageFullscreen } from './VideoStage';
 import { RevisionTimeline } from './RevisionTimeline';
 import { RevisionPanel } from './RevisionPanel';
+
+const TOOL_KEYS: Record<string, MarkupTool> = {
+  ...Object.fromEntries(
+    (Object.keys(MARK_TOOLS) as MarkTool[]).map(t => [
+      MARK_TOOLS[t].key.toLowerCase(),
+      t,
+    ]),
+  ),
+  s: 'spot',
+};
 
 /**
  * Window-wide shortcuts. ⌘/Ctrl + arrows jump between shots and ⌥/Ctrl/⌘ +
@@ -54,6 +66,19 @@ function useShortcuts() {
       }
       if (!inText && !mod && e.key === '?') {
         store.setShortcutsOpen(!store.shortcutsOpen);
+        return;
+      }
+      // undo the last mark drawn on the frame (text boxes keep their own undo)
+      if (
+        mod &&
+        !inText &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'z' &&
+        store.sketch
+      ) {
+        e.preventDefault();
+        store.undoMark();
         return;
       }
       if (inText || mod || e.altKey || !store.video) {
@@ -117,7 +142,24 @@ function useShortcuts() {
           void store.newRevision();
           break;
         case 'Escape':
-          store.setSelection(null);
+          if (store.tool) store.setTool(null);
+          else if (store.loupe) store.toggleLoupe();
+          else store.setSelection(null);
+          break;
+        case 'd':
+        case 'D':
+          store.toggleDrawing();
+          break;
+        case 'z':
+        case 'Z':
+          store.toggleLoupe();
+          break;
+        case '1':
+        case '2':
+        case '3':
+          store.setMarkColor(
+            (['red', 'green', 'yellow'] as const)[Number(e.key) - 1],
+          );
           break;
         case 'c':
         case 'C':
@@ -125,6 +167,11 @@ function useShortcuts() {
           e.preventDefault();
           store.requestComposerFocus();
           break;
+        default: {
+          // P B A R E S: the drawing tools and the spot (again to stop)
+          const tool = TOOL_KEYS[e.key.toLowerCase()];
+          if (tool) store.setTool(store.tool === tool ? null : tool);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
