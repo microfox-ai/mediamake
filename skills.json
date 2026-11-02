@@ -37,6 +37,11 @@
       "about": "Housekeeping: disk space, archives and backups"
     },
     {
+      "id": "update",
+      "prefix": "update-",
+      "about": "Keeping what MediaMake installed up to date"
+    },
+    {
       "id": "skill",
       "suffix": "-skill",
       "about": "Managing skills themselves"
@@ -372,6 +377,15 @@
       "category": "revise",
       "location": "committed",
       "path": ".agents/skills/revise-video"
+    },
+    {
+      "name": "update-mediamake-items",
+      "title": "Update mediamake items",
+      "summary": "Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes…",
+      "description": "Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes in between, without asking for an install code again. Use when the user says \"update browse hack\", \"update <an MCP or skill from MediaMake>\", \"update everything from MediaMake\", \"check for updates\", \"what version of <item> do I have\", \"is <item> up to date\", or pastes an \"Update <item> from MediaMake\" prompt.",
+      "category": "update",
+      "location": "committed",
+      "path": ".agents/skills/update-mediamake-items"
     },
     {
       "name": "write-youtube-metadata",

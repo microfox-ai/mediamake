@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Implementation } from '@modelcontextprotocol/sdk/types.js';
 import { MediamakeClient, configFromEnv } from './client.js';
 import { registerBrandKitTools } from './tools/brand-kit.js';
+import { registerCatalogTools } from './tools/catalog.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerPresetTools } from './tools/presets.js';
 import { registerProjectTools } from './tools/projects.js';
@@ -59,5 +60,6 @@ export function createServer(
   registerTranscriptionTools(server, client, options);
   registerWorkerTools(server, client);
   registerRenderTools(server, client, options);
+  registerCatalogTools(server, client);
   return server;
 }

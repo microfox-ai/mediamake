@@ -68,6 +68,7 @@ The category comes from the name's verb (`metadata.category` in the frontmatter 
 | `revise-` | review loops (`revise-video`) |
 | `analyze-` | breaking media down |
 | `write-` | text and metadata |
+| `update-` | keeping what MediaMake installed up to date (`update-mediamake-items`) |
 | `*-skill` | managing skills (`publish-skill`, `fork-skill`) |
 | `remotion-` | Remotion reference |
 

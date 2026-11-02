@@ -77,6 +77,7 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
 | Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
+| Catalog                | `catalog_versions` (live version numbers and release notes of skills, MCPs and apps)                                                                                                        |
 
 There are no delete tools on purpose.
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getEntitlements, getViewer } from '@/lib/access';
 import { installPromptFor, toCard, toEntry, type CatalogEntry } from '@/lib/catalog';
+import { releasesOf, type Release } from '@/lib/catalog/releases';
 import { accessRequestsDB, catalogItemsDB } from '@/lib/catalog/store';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,13 +24,17 @@ export default async function AccessPage({
   const loginHref = `/login?redirectTo=${encodeURIComponent(here)}`;
 
   let item: CatalogEntry | null = null;
+  let releases: Release[] = [];
   let pending = false;
   if (itemId) {
     const record = await catalogItemsDB.get(itemId).catch(() => null);
     if (record) {
       const entry = toEntry(await getEntitlements(viewer), toCard(record));
       // Locked items are hidden: answer as if they don't exist.
-      if (entry.access !== 'locked') item = entry;
+      if (entry.access !== 'locked') {
+        item = entry;
+        releases = releasesOf(record.versions, 20);
+      }
       if (item?.access === 'locked' && viewer.clientId) {
         pending = (await accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => [])).includes(record.id);
       }
@@ -67,7 +72,11 @@ export default async function AccessPage({
                 {item.visibility !== 'public' && (
                   <Badge variant="secondary">{item.visibility === 'network' ? 'Community' : 'Private'}</Badge>
                 )}
-                {item.version && <span className="text-xs text-muted-foreground">v{item.version}</span>}
+                {item.version && (
+                  <span className="font-mono text-xs text-muted-foreground" title="Latest release">
+                    v{item.version}
+                  </span>
+                )}
               </div>
               <CardTitle className="text-2xl">{item.title}</CardTitle>
               {item.summary && <CardDescription>{item.summary}</CardDescription>}
@@ -82,6 +91,33 @@ export default async function AccessPage({
                 installPrompt={item.version ? installPromptFor(item.id) : undefined}
                 loginHref={loginHref}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {item && releases.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Release notes</CardTitle>
+              <CardDescription>
+                Installed copies update to the latest version: say &ldquo;update {item.title}&rdquo; to Claude.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              {releases.map((release, i) => (
+                <section key={release.version} className="flex flex-col gap-1.5">
+                  <h3 className="flex items-baseline gap-2 text-sm font-semibold">
+                    <span className="font-mono">v{release.version}</span>
+                    {i === 0 && <Badge variant="secondary">Latest</Badge>}
+                    <time dateTime={release.publishedAt} className="text-xs font-normal text-muted-foreground">
+                      {new Date(release.publishedAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </time>
+                  </h3>
+                  <p className="whitespace-pre-line text-sm text-muted-foreground">
+                    {release.notes ?? 'No notes for this release.'}
+                  </p>
+                </section>
+              ))}
             </CardContent>
           </Card>
         )}

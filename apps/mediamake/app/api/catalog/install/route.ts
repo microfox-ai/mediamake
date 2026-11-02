@@ -3,15 +3,17 @@ import { getEntitlements, resolveViewer, type Viewer } from '@/lib/access';
 import { clientIdForInstallCode, isInstallCode } from '@/lib/catalog/install-code';
 import { buildInstallPlan } from '@/lib/catalog/install';
 import { catalogItemsDB } from '@/lib/catalog/store';
+import { isUpdateToken, readUpdateToken } from '@/lib/catalog/update-token';
 
 /**
  * GET /api/catalog/install?item=mcp/browse-hack
- * Authorization: Bearer <install code from the prompt, or MediaMake API key>
+ * Authorization: Bearer <install code from the prompt, update token, or MediaMake API key>
  *
  * The ordered install plan for an item and everything it requires (repos to
  * clone, GitHub release files, other catalog items), with 30-minute package
  * links. This is what the public install.md has Claude call. Items open to
- * everyone need no Authorization at all.
+ * everyone need no Authorization at all. An update token (saved after an
+ * install, see lib/catalog/update-token) works for the items it covers.
  */
 export async function GET(req: NextRequest) {
   const itemId = req.nextUrl.searchParams.get('item');
@@ -28,6 +30,19 @@ export async function GET(req: NextRequest) {
       );
     }
     viewer = { clientId };
+  } else if (isUpdateToken(bearer)) {
+    const token = await readUpdateToken(bearer);
+    if (!token?.items.includes(itemId)) {
+      return NextResponse.json(
+        {
+          error: token
+            ? `This update token wasn't made for ${itemId}. Copy its install prompt from MediaMake; installing it adds the item to the token.`
+            : 'This update token has lapsed. Copy the install prompt again from MediaMake.',
+        },
+        { status: 401 },
+      );
+    }
+    viewer = { clientId: token.clientId };
   } else {
     viewer = await resolveViewer(req);
   }
