@@ -37,11 +37,11 @@ back the page reads `meta.json` alone and reloads only if `generatedAt` changed.
 ### The export (`lib/library/types.ts`)
 
 - `meta.json`: `{ schema, generatedAt, counts: { items, productions, channels, skills }, root? }`
-- `channels.json`: `[{ id, name, folder, logo?, productions: [slug] }]`
+- `channels.json`: `[{ id, name, folder, projectId?, logo?, productions: [slug] }]` (`projectId`: the cloud project its team shares, `media channel link`)
 - `productions.json`: `[{ slug, title, artist?, channel?, song?, status: active|delivered|uploaded, skills: [], deliverFolder?, thumbnail?, updatedAt, uses, deliveries: [{ what, path, at, status }] }]`
 - `skills.json`: `[{ ...the registry entry, runs, lastRun?, productions: [slug], bestOutput?, drift? }]`
 - `media-<kind>.json` for footage, overlays, images, art, music, sfx, references, fonts, 3d,
-  unsorted: `[{ id, path, kind, subject?, title, tags, bytes, width?, height?, duration?, fps?, hasAudio?, rating?, notes?, source?: { tool, ref, url, title }, uses: [slug], thumb?, preview?, guess?, status: online|cold|missing, dupes?: [path] }]`
+  unsorted: `[{ id, path, kind, subject?, title, tags, bytes, width?, height?, duration?, fps?, hasAudio?, rating?, notes?, source?: { tool, ref, url, pageUrl?, title, prompt?, model?, excludeStyles?, instrumental?, relation? }, lyrics?, related?: [{ relation, id }], uses: [slug], thumb?, preview?, guess?, status: online|cold|missing|remote, remote?: { channel, file }, shared?: [{ channel, uploaded }], dupes?: [path] }]`
 - `runs.json`: `[{ skill, session, at, production?, verdict? }]`
 
 Optional fields the page uses when they are there: `meta.root` (the library's absolute path, so
@@ -51,6 +51,11 @@ paths can be copied whole and shown in Finder), `preview` (a short muted loop or
 `drift` as `node tools/skills.mjs diff --all --json` prints it. `rating` is 1–5 (a number or its
 string); the `_unsorted` kind is read as `unsorted`. A missing file is empty, a broken one is
 listed in a toast, and the rest still shows.
+
+A song shows its styles (`source.prompt`), lyrics, what it was made from (`related`) and plays
+(its `preview` is the song itself or a small m4a). A teammate's item (`status: remote`, from
+`media sync pull`) says which channel it came through and how to bring its file here. A footage,
+image, art, overlay or reference item of a linked channel has **Share with team**.
 
 ## What it writes
 
@@ -69,6 +74,7 @@ applies. It never writes into a skill folder or a production.
 | `sort` | item id | `kind` (not `unsorted`), `subject?`, `tags?`: inbox triage |
 | `set-channel` | production slug | `channel`: a channel id or `null` |
 | `set-thumbnail` | production slug | `item`: the library item whose picture it takes |
+| `share`, `unshare` | item id | `channel?`: the user's OK for the channel's team to have the file (`media sync push` uploads it), or taking it back |
 
 Until an export newer than an edit arrives, the edit shows as waiting (dashed) and the header
 counts it.

@@ -199,6 +199,36 @@ const thirdPartyIds = () => {
   }
 };
 
+/**
+ * A skill folder as its SKILL.md describes it, the shape `checks` takes. `where` is what only the
+ * skills folders say (allSkills knows it); the media CLI reads the variants it shares this way.
+ */
+export const skillAt = (name, dir, where = {}) => {
+  const fm = frontmatter(path.join(dir, 'SKILL.md'));
+  const variantOf = fm.metadata['variant-of'];
+  const { mcps, errors: mcpErrors } = mcpTable(path.join(dir, 'SKILL.md'));
+  return {
+    name,
+    dir,
+    /** false: a real folder in .claude/skills, not moved to .agents/skills yet */
+    moved: where.moved,
+    linked: where.linked,
+    category: categoryOf(name, fm.metadata),
+    title: fm.metadata.title,
+    variantOf,
+    variantRef: variantOf ? variantRefOf(name, variantOf, fm.metadata) : undefined,
+    forkedFrom: fm.metadata['forked-from'],
+    forked: fm.metadata.forked,
+    dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
+    mcps,
+    mcpErrors,
+    upstream: where.upstream,
+    version: fm.version ?? fm.metadata.version,
+    description: fm.description ?? '',
+    frontName: fm.name,
+  };
+};
+
 /** Every skill in .claude/skills (and public ones not linked yet). */
 export const allSkills = () => {
   const names = new Set([...(fs.existsSync(CLAUDE) ? fs.readdirSync(CLAUDE) : []), ...(fs.existsSync(AGENTS) ? fs.readdirSync(AGENTS) : [])]);
@@ -212,29 +242,7 @@ export const allSkills = () => {
     if (!isLink && !isDir && !fs.existsSync(path.join(pub, 'SKILL.md'))) continue;
     const dir = isDir ? link : pub;
     if (!fs.existsSync(path.join(dir, 'SKILL.md'))) continue;
-    const fm = frontmatter(path.join(dir, 'SKILL.md'));
-    const variantOf = fm.metadata['variant-of'];
-    const { mcps, errors: mcpErrors } = mcpTable(path.join(dir, 'SKILL.md'));
-    skills.push({
-      name,
-      dir,
-      /** false: a real folder in .claude/skills, not moved to .agents/skills yet */
-      moved: !isDir,
-      linked: isLink || isDir,
-      category: categoryOf(name, fm.metadata),
-      title: fm.metadata.title,
-      variantOf,
-      variantRef: variantOf ? variantRefOf(name, variantOf, fm.metadata) : undefined,
-      forkedFrom: fm.metadata['forked-from'],
-      forked: fm.metadata.forked,
-      dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
-      mcps,
-      mcpErrors,
-      upstream: upstreams.get(name),
-      version: fm.version ?? fm.metadata.version,
-      description: fm.description ?? '',
-      frontName: fm.name,
-    });
+    skills.push(skillAt(name, dir, { moved: !isDir, linked: isLink || isDir, upstream: upstreams.get(name) }));
   }
   return skills;
 };

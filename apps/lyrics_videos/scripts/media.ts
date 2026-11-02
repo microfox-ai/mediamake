@@ -215,7 +215,9 @@ const SYMBOL: Record<Step['action'], string> = { push: '↑', pull: '↓', same:
 /** What a sync would do or did, for one channel: a line per part, then the steps worth naming. */
 const printReport = (r: ChannelReport) => {
   const p = r.status.project;
-  console.log(`${r.channel} → ${p.name} (${p.role}) · files ${size(r.status.usedBytes)} of ${size(r.status.limitBytes)}`);
+  const c = r.status.counts;
+  console.log(`${r.channel} → ${p.name} (${p.role}) · files ${r.status.usedBytes ? size(r.status.usedBytes) : '0 MB'} of ${size(r.status.limitBytes)}`);
+  console.log(`  on the cloud: ${c.production} productions, ${c.skill} skill variants, ${c.media} media items (${c.files} with files)`);
   for (const part of PARTS) {
     const steps = r.steps.filter(st => st.part === part);
     if (!steps.length) continue;

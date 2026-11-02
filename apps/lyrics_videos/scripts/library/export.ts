@@ -58,15 +58,20 @@ const productionPicture = (lib: Lib, slug: string, deliverFolder?: string) => {
   return undefined;
 };
 
-/** A song the page can play, in thumbs/ (made once): a clone of it, else a 96 kbps m4a. */
-const audioPreview = (lib: Lib, it: Item) => {
+/**
+ * A song the page can play, in thumbs/ (made once). An mp3, m4a or ogg is cloned (no extra space);
+ * anything else (a WAV master) becomes a 96 kbps m4a, a few a run so an export never stalls, and so a
+ * clone never keeps a big master's space after cleanup moves it to a disk.
+ */
+const audioPreview = (lib: Lib, it: Item, budget: { encodes: number }) => {
   if (it.kind !== 'music' || it.status !== 'online' || it.ext === '.zip') return undefined;
   const src = absOf(lib, it.path);
-  const plays = /^\.(mp3|m4a|wav|ogg)$/.test(it.ext);
-  const dest = path.join(lib.thumbs, `${it.id}${plays ? it.ext : '.m4a'}`);
+  const small = /^\.(mp3|m4a|ogg)$/.test(it.ext);
+  const dest = path.join(lib.thumbs, `${it.id}${small ? it.ext : '.m4a'}`);
   if (fs.existsSync(dest)) return dest;
   if (!fs.existsSync(src)) return undefined;
-  if (plays && cloneOnly(src, dest)) return dest;
+  if (small && cloneOnly(src, dest)) return dest;
+  if (budget.encodes-- <= 0) return undefined;
   try {
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', src, '-vn', '-c:a', 'aac', '-b:a', '96k', dest], { stdio: 'pipe', timeout: 120_000 });
     return dest;
@@ -175,6 +180,7 @@ export const exportLibrary = (lib: Lib) => {
 
   // ---- media, one file per kind
   const counts: Record<string, number> = {};
+  const budget = { encodes: 10 };
   for (const kind of [...KINDS, '_unsorted'] as const) {
     const items = lib.db.prepare('SELECT * FROM items WHERE kind = ? ORDER BY subject, path').all(kind) as Item[];
     counts[kind] = items.length;
@@ -189,7 +195,7 @@ export const exportLibrary = (lib: Lib) => {
       const remote = it.status === 'remote' ? (lib.db.prepare('SELECT channel, url FROM remote WHERE item_id = ?').get(it.id) as { channel: string; url: string | null } | undefined) : undefined;
       const shared = (lib.db.prepare('SELECT channel, uploaded_at FROM shares WHERE item_id = ?').all(it.id) as { channel: string; uploaded_at: string | null }[]).map(r => ({ channel: r.channel, uploaded: !!r.uploaded_at }));
       const related = (lib.db.prepare('SELECT relation, parent_id AS id FROM relations WHERE item_id = ? AND parent_id IS NOT NULL').all(it.id) as { relation: string; id: string }[]).map(r => ({ ...r }));
-      const preview = audioPreview(lib, it);
+      const preview = audioPreview(lib, it, budget);
       const guess = it.kind === '_unsorted' ? tags.find(t => t.startsWith('kind:'))?.slice(5) : undefined;
       const notes = (lib.db.prepare('SELECT text FROM notes WHERE item_id = ? ORDER BY at').all(it.id) as { text: string }[]).map(r => r.text);
       const dupes = (lib.db.prepare('SELECT path FROM locations WHERE item_id = ? AND path != ?').all(it.id, it.path) as { path: string }[]).map(r => absOf(lib, r.path));

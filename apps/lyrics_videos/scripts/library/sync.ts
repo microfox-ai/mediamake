@@ -34,7 +34,7 @@ import {
   type PushResult,
   type SyncItem,
 } from '../../../mediamake/lib/channel-sync/index.ts';
-import { TEXT_FILE, checks, frontmatter } from '../../../../tools/skills.mjs';
+import { TEXT_FILE, checks, skillAt } from '../../../../tools/skills.mjs';
 import type { Source } from './classify.ts';
 import { CloudError, type Cloud } from './cloud.ts';
 import { KINDS, getItem, n, reindex, tagsOf, tx, type Item } from './db.ts';
@@ -42,7 +42,7 @@ import { ingest } from './ingest.ts';
 import { absOf, addSource, addTags, knownHash, sourcesOf, type Lib } from './lib.ts';
 import { indexProduction, listProductions } from './production.ts';
 import { channelClause, sharesOf } from './share.ts';
-import { lock, now, readJson, sha256File, sha256Text, size, slug, writeJson } from './sys.ts';
+import { lock, now, readJson, sha256File, sha256Text, size, writeJson } from './sys.ts';
 
 export const PARTS = ['brand', 'skills', 'productions', 'media', 'music'] as const;
 export type Part = (typeof PARTS)[number];
@@ -295,20 +295,16 @@ const runAll = async (todo: { step: Step; run: () => Promise<void> }[]) => {
 
 // ---------- skill variants ----------
 
-type LocalSkill = { name: string; dir: string; committed: boolean; variantOf?: string; variantRef?: string; frontName?: string };
+type LocalSkill = ReturnType<typeof skillAt> & { committed: boolean };
 
-/** The skills in .claude/skills: a link into .agents/skills is committed, a real folder isn't yet. */
+/** The skills in .claude/skills, read as skills.mjs reads them: a link into .agents/skills is committed, a real folder isn't yet. */
 const localSkills = (lib: Lib): LocalSkill[] =>
   (fs.existsSync(lib.skills) ? fs.readdirSync(lib.skills) : []).flatMap(name => {
     const at = path.join(lib.skills, name);
     try {
       const committed = fs.lstatSync(at).isSymbolicLink();
       const dir = fs.realpathSync(at);
-      if (!fs.existsSync(path.join(dir, 'SKILL.md'))) return [];
-      const fm = frontmatter(path.join(dir, 'SKILL.md'));
-      const variantOf = fm.metadata['variant-of'];
-      const variantRef = fm.metadata['variant-ref'] ?? (variantOf && name.startsWith(`${variantOf}-`) ? name.slice(variantOf.length + 1).replace(/^like-/, '') : undefined);
-      return [{ name, dir, committed, variantOf, variantRef, frontName: fm.name }];
+      return fs.existsSync(path.join(dir, 'SKILL.md')) ? [{ ...skillAt(name, dir), committed }] : [];
     } catch {
       return [];
     }
@@ -335,8 +331,8 @@ const checkFiles = (name: string, files: { path: string; text: string }[]) => {
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       fs.writeFileSync(abs, f.text);
     }
-    const front = files.some(f => f.path === 'SKILL.md') ? frontmatter(path.join(tmp, 'SKILL.md')).name : undefined;
-    return checks({ name, frontName: front, dir: tmp, dependsOn: [] }).problems.map(p => p.replace(/^.*?media-skill-[^/]+\//, ''));
+    if (!files.some(f => f.path === 'SKILL.md')) return ['no SKILL.md'];
+    return checks(skillAt(name, tmp)).problems.map(p => p.replace(/^.*?media-skill-[^/]+\//, ''));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -394,7 +390,7 @@ const skillsPush = async (ctx: Ctx): Promise<Plan> => {
   for (const s of shared) {
     const files = skillFiles(s.dir).sort((a, b) => a.path.localeCompare(b.path));
     const bytes = files.reduce((t, f) => t + f.text.length, 0);
-    const problems = checks({ name: s.name, frontName: s.frontName, dir: s.dir, dependsOn: [] }).problems;
+    const problems = checks(s).problems;
     if (problems.length) {
       steps.push(step('skills', 'push', 'skip', s.name, { detail: `${problems[0]}${problems.length > 1 ? ` (+${problems.length - 1} more)` : ''}: fix it first (node tools/skills.mjs check)` }));
       continue;
@@ -761,81 +757,116 @@ const fileInbox = async (lib: Lib, tool: string) => {
 
 // ---------- music (keeper Suno takes) ----------
 
-type Generation = Record<string, unknown>;
+/** A take as GET /api/generations has it (apps/mediamake/lib/generations), the fields read here. */
+type Generation = {
+  id: string;
+  tool: string;
+  ref: string;
+  kind?: string;
+  parentRef?: string | null;
+  sourceItem?: string | null;
+  batchId?: string | null;
+  title?: string;
+  styles?: string;
+  excludeStyles?: string;
+  lyrics?: string;
+  instrumental?: boolean;
+  model?: string;
+  settings?: Record<string, unknown>;
+  workspace?: { id?: string; name?: string } | null;
+  status?: string;
+  audioUrl?: string | null;
+  credits?: number | null;
+  /** SHA-256 of its library item, once someone filed it */
+  libraryItem?: string | null;
+  url?: string | null;
+  createdAt?: string;
+};
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
-/** A keeper take as Browse Hack's suno_download would have saved it (the sidecar's shape exactly). */
-const sunoSidecar = (g: Generation, ref: string, url: string, channel: string) => ({
+/** Every keeper on the project, page by page. */
+const keepers = async (ctx: Ctx) => {
+  const out: Generation[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await ctx.cloud.get<{ items?: Generation[]; nextCursor?: string | null }>('/api/generations', { projectId: ctx.projectId, rating: 'keeper', limit: '200', cursor });
+    out.push(...(page.items ?? []));
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor && out.length < 10_000);
+  return out;
+};
+
+/** A keeper as Browse Hack's suno_download saves a take (its sidecar's shape). */
+const sunoSidecar = (g: Generation, channel: string) => ({
   schema: 'mediamake.source/v1',
   tool: 'suno',
-  ref,
-  url,
-  pageUrl: str(g.pageUrl) ?? `https://suno.com/song/${ref}`,
+  ref: g.ref,
+  url: g.audioUrl,
+  pageUrl: str(g.url) ?? `https://suno.com/song/${g.ref}`,
   title: str(g.title),
-  author: str(g.author),
-  prompt: str(g.prompt) ?? str(g.styles),
+  prompt: str(g.styles),
   model: str(g.model),
-  price: typeof g.price === 'number' ? g.price : undefined,
+  price: typeof g.credits === 'number' ? g.credits : undefined,
   downloadedAt: now(),
   lyrics: str(g.lyrics),
   excludeStyles: str(g.excludeStyles),
-  instrumental: typeof g.instrumental === 'boolean' ? g.instrumental : undefined,
-  settings: g.settings && typeof g.settings === 'object' ? g.settings : undefined,
+  instrumental: g.instrumental || undefined,
+  settings: g.settings && Object.keys(g.settings).length ? g.settings : undefined,
   parentRef: str(g.parentRef),
-  relation: str(g.relation),
+  relation: g.kind && g.kind !== 'create' ? g.kind : undefined,
   sourceItem: str(g.sourceItem),
-  workspace: g.workspace && typeof g.workspace === 'object' ? g.workspace : undefined,
+  workspace: g.workspace ?? undefined,
   channel,
 });
 
 const musicPull = async (ctx: Ctx): Promise<Plan> => {
-  let res: unknown;
+  let list: Generation[];
   try {
-    res = await ctx.cloud.get('/api/generations', { projectId: ctx.projectId, rating: 'keeper' });
+    list = await keepers(ctx);
   } catch (err) {
     // a server without the route answers Next's page, not JSON
     if (err instanceof CloudError && err.status === 404 && !err.json) return { steps: [step('music', 'pull', 'pending', 'keepers', { detail: "/api/generations isn't on this server yet" })], notes: [] };
     throw err;
   }
-  const list = (Array.isArray(res) ? res : ((res as { generations?: unknown[]; items?: unknown[] })?.generations ?? (res as { items?: unknown[] })?.items ?? [])) as Generation[];
   const steps: Step[] = [];
   const todo: { step: Step; run: () => Promise<void> }[] = [];
   for (const g of list) {
-    const ref = str(g.ref) ?? str(g.clipId) ?? str(g.sunoId) ?? str(g.id);
-    const url = str(g.audioUrl) ?? str(g.url) ?? str((g.file as { url?: unknown } | undefined)?.url);
-    if (!ref || !url) continue;
-    const sha = str(g.sha256) ?? str((g.metadata as { sha256?: unknown } | undefined)?.sha256);
+    if ((g.tool ?? 'suno') !== 'suno' || !str(g.ref)) continue;
     const title = (str(g.title) ?? 'Untitled').replace(/[/:\\\n\r]+/g, ' ').slice(0, 120);
-    const have = ctx.lib.db.prepare("SELECT 1 FROM sources s JOIN items i ON i.id = s.item_id WHERE s.tool = 'suno' AND s.ref = ? AND i.status != 'remote'").get(ref) || (sha && getItem(ctx.lib.db, sha.toLowerCase())?.status === 'online');
+    const key = `${title} [${g.ref.slice(0, 8)}]`;
+    const have =
+      ctx.lib.db.prepare("SELECT 1 FROM sources s JOIN items i ON i.id = s.item_id WHERE s.tool = 'suno' AND s.ref = ? AND i.status != 'remote'").get(g.ref) ||
+      (g.libraryItem && ['online', 'cold'].includes(getItem(ctx.lib.db, g.libraryItem.toLowerCase())?.status ?? ''));
     if (have) {
-      steps.push(step('music', 'pull', 'same', `${title} [${ref.slice(0, 8)}]`, { bulk: true }));
+      steps.push(step('music', 'pull', 'same', key, { bulk: true }));
       continue;
     }
-    const ext = path.extname(new URL(url).pathname).toLowerCase();
-    const dest = path.join(ctx.lib.cfg.inbox, 'suno', ctx.channel, slug(str(g.set) ?? '') || 'keepers', `${title} [${ref.slice(0, 8)}]${['.mp3', '.wav', '.m4a', '.flac'].includes(ext) ? ext : '.mp3'}`);
-    const s = step('music', 'pull', 'pull', `${title} [${ref.slice(0, 8)}]`, { detail: 'keeper' });
+    if (!g.audioUrl || !/^https?:\/\//.test(g.audioUrl)) {
+      steps.push(step('music', 'pull', 'skip', key, { detail: g.status && g.status !== 'complete' ? `still ${g.status} on Suno` : 'no audio on MediaMake yet' }));
+      continue;
+    }
+    const ext = path.extname(new URL(g.audioUrl).pathname).toLowerCase();
+    const dest = path.join(ctx.lib.cfg.inbox, 'suno', ctx.channel, 'keepers', `${key}${['.mp3', '.wav', '.m4a', '.flac'].includes(ext) ? ext : '.mp3'}`);
+    const s = step('music', 'pull', 'pull', key, { detail: 'keeper' });
     steps.push(s);
     todo.push({
       step: s,
       run: async () => {
-        await ctx.cloud.download(url, dest);
-        if (sha && (await sha256File(dest)) !== sha.toLowerCase()) {
-          fs.rmSync(dest, { force: true });
-          throw new Error("the download didn't match its SHA-256");
-        }
-        writeJson(`${dest}.source.json`, sunoSidecar(g, ref, url, ctx.channel));
+        await ctx.cloud.download(g.audioUrl!, dest);
+        writeJson(`${dest}.source.json`, sunoSidecar(g, ctx.channel));
       },
     });
   }
   return {
     steps,
-    notes: [],
+    notes: list.length ? [] : ['music: no keeper takes on the project yet (rate takes keeper on the Projects page)'],
     apply: async () => {
       await runAll(todo);
       if (todo.some(t => t.step.action === 'done')) await fileInbox(ctx.lib, 'suno');
     },
   };
 };
+
 const musicPush = async (): Promise<Plan> => ({ steps: [], notes: ['music: keepers come from Suno takes rated on MediaMake (pull only)'] });
 
 // ---------- one channel ----------

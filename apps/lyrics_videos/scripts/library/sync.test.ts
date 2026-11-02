@@ -102,7 +102,10 @@ const handle = async (req: http.IncomingMessage, res: http.ServerResponse) => {
       res.writeHead(404, { 'Content-Type': 'text/html' });
       return res.end('<!DOCTYPE html><h1>404</h1>');
     }
-    return send(200, { generations: server.generations.filter(g => (g as { rating?: string }).rating === u.searchParams.get('rating')) });
+    // as apps/mediamake/app/api/generations: { items, nextCursor }, a page at a time (one take a page here)
+    const kept = server.generations.filter(g => (g as { rating?: string }).rating === u.searchParams.get('rating'));
+    const at = Number(u.searchParams.get('cursor') ?? 0);
+    return send(200, { items: kept.slice(at, at + 1), nextCursor: at + 1 < kept.length ? String(at + 1) : null });
   }
   if (projectId !== PROJECT) return send(404, { error: 'Project not found' });
   const write = req.method !== 'GET' && req.method !== 'HEAD';
@@ -200,6 +203,9 @@ const handle = async (req: http.IncomingMessage, res: http.ServerResponse) => {
   }
   return send(404, { error: `no route ${req.method} ${u.pathname}` });
 };
+
+/** The kit the server keeps now (a call, so an assert on an earlier value doesn't narrow it). */
+const cloudKit = (): BrandKit | null => server.kit;
 
 const http_ = http.createServer((req, res) => void handle(req, res).catch(err => (res.writeHead(500), res.end(String(err)))));
 
@@ -315,10 +321,11 @@ describe('brand kit', () => {
     assert.equal(server.kit, null, 'a dry run changes nothing');
     const r = await sync(macs.mine, 'push', ['brand']);
     assert.deepEqual(keys(r.steps, 'done'), ['fields', 'intros/intro.mp4', 'logo/logo.png']);
-    assert.equal(server.kit?.name, 'Anime Music Zone');
-    assert.deepEqual(server.kit?.colors.map(c => c.hex), ['#d4af37', '#000000']);
-    assert.equal(server.kit?.assets.find(a => a.path === 'logo/logo.png')?.sha256, await sha256File(path.join(kit, 'logo', 'logo.png')));
-    assert.ok(!server.kit?.assets.some(a => a.path.includes('graphics')));
+    const saved = cloudKit();
+    assert.equal(saved?.name, 'Anime Music Zone');
+    assert.deepEqual(saved?.colors.map(c => c.hex), ['#d4af37', '#000000']);
+    assert.equal(saved?.assets.find(a => a.path === 'logo/logo.png')?.sha256, await sha256File(path.join(kit, 'logo', 'logo.png')));
+    assert.ok(!saved?.assets.some(a => a.path.includes('graphics')));
     const uploads = server.uploads;
     const again = await sync(macs.mine, 'push', ['brand']);
     assert.equal(of(again.steps, 'push').length + of(again.steps, 'done').length, 0);
@@ -519,6 +526,8 @@ describe('media', () => {
   });
 });
 
+const zoroId = () => (find(macs.mine.lib, 'zoro twixtor')[0]?.id ?? '');
+
 describe('viewers and music', () => {
   test('a viewer pulls but never pushes', async () => {
     const v = macs.viewer;
@@ -537,17 +546,44 @@ describe('viewers and music', () => {
     const pending = await sync(m, 'pull', ['music']);
     assert.deepEqual(pending.steps.map(s => s.action), ['pending']);
     server.storage.set('keeper.mp3', fs.readFileSync(path.join(fixtures, 'keeper.mp3')));
+    const take = (id: string, ref: string, extra: object) => ({ id, projectId: PROJECT, tool: 'suno', ref, kind: 'create', title: id, styles: '', lyrics: '', status: 'complete', audioUrl: null, url: `https://suno.com/song/${ref}`, libraryItem: null, ...extra });
     server.generations = [
-      { id: 'g1', ref: '5e5e5e5e-1111-4222-8333-444455556666', audioUrl: `${base}/storage/keeper.mp3`, title: 'Gojo - Honored One', set: 'honored-one', prompt: 'gregorian chant, choir', lyrics: 'Throughout heaven and earth', rating: 'keeper', model: 'v4.5' },
-      { id: 'g2', ref: '6f6f6f6f-1111-4222-8333-444455556666', audioUrl: `${base}/storage/nope.mp3`, title: 'Not kept', rating: 'meh' },
+      take('g1', '5e5e5e5e-1111-4222-8333-444455556666', {
+        kind: 'cover',
+        parentRef: '4d4d4d4d-1111-4222-8333-444455556666',
+        title: 'Gojo - Honored One',
+        styles: 'gregorian chant, choir',
+        excludeStyles: 'metal',
+        lyrics: 'Throughout heaven and earth',
+        model: 'v4.5',
+        credits: 10,
+        settings: { weirdness: 40 },
+        audioUrl: `${base}/storage/keeper.mp3`,
+        rating: 'keeper',
+      }),
+      take('g2', '6f6f6f6f-1111-4222-8333-444455556666', { title: 'Not kept', audioUrl: `${base}/storage/nope.mp3`, rating: 'maybe' }),
+      take('g3', '7a7a7a7a-1111-4222-8333-444455556666', { title: 'Still cooking', status: 'generating', rating: 'keeper' }),
+      take('g4', '8b8b8b8b-1111-4222-8333-444455556666', { title: 'Filed already', audioUrl: `${base}/storage/nope.mp3`, libraryItem: zoroId(), rating: 'keeper' }),
     ];
     const r = await sync(m, 'pull', ['music']);
-    assert.deepEqual(r.steps.map(s => [s.action, s.key]), [['done', 'Gojo - Honored One [5e5e5e5e]']]);
+    assert.deepEqual(
+      r.steps.map(s => [s.action, s.key]),
+      [
+        ['done', 'Gojo - Honored One [5e5e5e5e]'],
+        ['skip', 'Still cooking [7a7a7a7a]'],
+        ['same', 'Filed already [8b8b8b8b]'],
+      ],
+      'every page read; a take not finished waits; one the library has (its libraryItem) is skipped',
+    );
     const [song] = find(m.lib, 'throughout heaven', { kind: 'music', channel: 'animemusiczone' });
     assert.ok(song, 'filed with its lyrics, under the channel');
     assert.equal(song.path, path.join('music', 'animemusiczone', 'gojo-honored-one', 'Gojo - Honored One [5e5e5e5e].mp3'));
     assert.ok(fs.existsSync(path.join(m.lib.root, `${song.path}.lyrics.txt`)));
-    assert.deepEqual((await sync(m, 'pull', ['music'])).steps.map(s => s.action), ['same']);
+    const [src] = sourcesOf(m.lib, song.id);
+    assert.equal(src.prompt, 'gregorian chant, choir', 'its styles are the prompt, as suno_download writes it');
+    assert.equal(src.relation, 'cover');
+    assert.equal(src.price, 10);
+    assert.deepEqual((await sync(m, 'pull', ['music'])).steps.map(s => s.action), ['same', 'skip', 'same'], 'content-addressed: pulled once');
   });
 
   test('status runs both ways and changes nothing', async () => {
