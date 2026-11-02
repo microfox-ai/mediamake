@@ -31,10 +31,12 @@ import {
   ExternalLinkIcon,
   PencilIcon,
   PaletteIcon,
+  MusicIcon,
 } from "lucide-react";
 import { useSession } from "@/components/session-provider";
 import { ShareProjectDialog } from "@/components/editor_main/dialogs/ShareProjectDialog";
 import { BrandKitSheet } from "@/components/projects/BrandKitSheet";
+import { GenerationsSheet } from "@/components/projects/GenerationsSheet";
 import type { BrandKitSummary } from "@/lib/brand-kit";
 
 interface Project {
@@ -60,6 +62,7 @@ export default function ProjectsPage() {
   const [tab, setTab] = React.useState<Tab>("all");
   const [shareTarget, setShareTarget] = React.useState<Project | null>(null);
   const [brandTarget, setBrandTarget] = React.useState<Project | null>(null);
+  const [generationsTarget, setGenerationsTarget] = React.useState<Project | null>(null);
 
   const fetch_ = React.useCallback(async () => {
     setLoading(true);
@@ -113,7 +116,7 @@ export default function ProjectsPage() {
                   <FolderIcon className="h-5 w-5" /> Projects
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Your channels and brands: each holds its brand kit, its timelines and who has access.
+                  Your channels and brands: each holds its brand kit, its song takes, its timelines and who has access.
                 </p>
               </div>
               <Button
@@ -264,6 +267,15 @@ export default function ProjectsPage() {
                             >
                               <PaletteIcon className="h-3.5 w-3.5" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              title="Generations"
+                              onClick={(e) => { e.stopPropagation(); setGenerationsTarget(p); }}
+                            >
+                              <MusicIcon className="h-3.5 w-3.5" />
+                            </Button>
                             {isOwned && (
                               <Button
                                 variant="ghost"
@@ -301,6 +313,16 @@ export default function ProjectsPage() {
                 projectName={brandTarget.displayName}
                 clientId={session?.clientId}
                 onSaved={fetch_}
+              />
+            )}
+
+            {generationsTarget && (
+              <GenerationsSheet
+                open={!!generationsTarget}
+                onOpenChange={(v) => { if (!v) setGenerationsTarget(null); }}
+                projectId={generationsTarget.id}
+                projectName={generationsTarget.displayName}
+                clientId={session?.clientId}
               />
             )}
 

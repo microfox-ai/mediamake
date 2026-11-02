@@ -72,6 +72,7 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Projects and timelines | `list_projects`, `get_project`, `create_project`, `list_timelines`, `get_timeline`, `survey_timelines`, `create_timeline`, `update_timeline`, `list_legacy_timelines`, `get_legacy_timeline` |
 | Brand kits             | `get_brand_kit`, `upload_brand_kit`, `update_brand_kit` (community access or above)                                                                                                       |
+| Generations            | `list_generations`, `rate_generation` (song takes made with Suno; community access or above)                                                                                                |
 | Presets                | `list_presets`, `get_preset`, `add_preset_to_timeline`                                                                                                                                       |
 | Media                  | `list_media`, `search_media`, `get_media`, `upload_media`                                                                                                                                    |
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
@@ -94,6 +95,10 @@ Saved timelines exist in three shapes, and every timeline this server returns sa
 ### Brand kits
 
 A project is a channel or brand, and its brand kit (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, colours, brand guide, thumbnail profile) lives on it. `upload_brand_kit` takes the folder `pack-brand-kit` exports (`apps/lyrics_videos/brands/<brand>/`) and uploads it in one call (`dryRun` lists it first); `get_brand_kit` is what to read before making anything for that brand. Brand kits need community access or above: public accounts keep their kits locally.
+
+### Generations
+
+Every song take made for a channel with Suno (songs, covers, extends, remasters) is saved on its project: Browse Hack records each one as it is made, with its styles, lyrics, model, settings, audio and parent take. `list_generations` reads them newest first and filters by rating (`keeper`, `maybe`, `reject`, `unrated`), model, kind, parent take or words in the title, styles and lyrics (a suno.com/song link finds that take and the ones made from it). `rate_generation` sets the rating, adds a note, and records the productions a take was used in (`usedIn`) or the media library item it was filed as (`libraryItem`). Reading needs anyone the project is shared with; rating needs its owner or an editor. The routes are in [apps/mediamake/docs/generations.md](../../apps/mediamake/docs/generations.md).
 
 ### Lyric videos
 

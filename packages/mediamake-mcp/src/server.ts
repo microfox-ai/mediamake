@@ -3,6 +3,7 @@ import type { Implementation } from '@modelcontextprotocol/sdk/types.js';
 import { MediamakeClient, configFromEnv } from './client.js';
 import { registerBrandKitTools } from './tools/brand-kit.js';
 import { registerCatalogTools } from './tools/catalog.js';
+import { registerGenerationTools } from './tools/generations.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerPresetTools } from './tools/presets.js';
 import { registerProjectTools } from './tools/projects.js';
@@ -25,6 +26,7 @@ const INSTRUCTIONS = `Mediamake turns JSON into Remotion videos.
 A project holds timelines. A timeline is a list of preset instances (a full/scene preset such as base-scene, then tracks such as sub-vertical-float captions or waveform, then effects) plus defaultData.references (captions, audio, images) that preset inputs point at.
 Timelines come in three formats: "tree" (current, has a nodes instance tree), "flat" (older, presets only) and "legacy-preset-data" (oldest, deprecated). Learn from tree timelines first.
 Typical flows: transcribe a song -> create_timeline / add_preset_to_timeline -> render_presets or render. Use survey_timelines and get_timeline to see how existing videos are built before making new ones.
+A project is a channel or brand: get_brand_kit has its look, list_generations its song takes made with Suno (rated keeper, maybe or reject with rate_generation).
 Workers (run_worker) and renders cost money; confirm with the user before large batches.`;
 
 const HOSTED_NOTE = `
@@ -55,6 +57,7 @@ export function createServer(
   );
   registerProjectTools(server, client);
   registerBrandKitTools(server, client, options);
+  registerGenerationTools(server, client);
   registerPresetTools(server, client);
   registerMediaTools(server, client, options);
   registerTranscriptionTools(server, client, options);

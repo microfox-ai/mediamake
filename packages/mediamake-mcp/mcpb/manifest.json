@@ -55,6 +55,14 @@
       "description": "Change a project's brand kit fields."
     },
     {
+      "name": "list_generations",
+      "description": "List a project's song takes made with Suno, newest first, with their rating, notes and links."
+    },
+    {
+      "name": "rate_generation",
+      "description": "Rate a song take keeper, maybe or reject, add a note, or record where it was used."
+    },
+    {
       "name": "list_timelines",
       "description": "List timelines (id, name, dates)."
     },
