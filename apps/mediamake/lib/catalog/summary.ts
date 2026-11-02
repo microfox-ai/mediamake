@@ -46,6 +46,7 @@ export function originOf(item: CatalogItemRecord): string {
   if (item.madeBy) return `${item.madeBy.repo ? 'Open source' : 'Hosted'} · ${item.madeBy.name}`;
   if (item.versions.length) return `Our package · v${item.versions[item.versions.length - 1].version}`;
   if (item.install?.source?.type === 'github-skill') return 'Skill in the repo';
+  if (item.install?.source?.type === 'mcp-server') return item.install.source.remote ? 'Our hosted connector' : 'Our MCP server';
   if (item.href) return 'Page in the app';
   return 'Nothing released yet';
 }

@@ -9,6 +9,8 @@ It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, auth
 
 ## Add by URL (hosted connector)
 
+The quickest way, for the team (admins and private testers): paste "Set up mcp/mediamake from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md" into Claude, or copy that prompt from the MediaMake MCP's card. By hand:
+
 - **Claude (claude.ai and Claude Desktop)**: Settings → Connectors → Add custom connector, URL `https://<your-mediamake-host>/mcp`. Claude opens the Mediamake sign-in page; log in with your client ID and key, then press Allow.
 - **Claude Code**: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`, then `/mcp` in a session to sign in. Or skip the sign-in with a key: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp --header "Authorization: Bearer <api key>"`.
 - **Any other MCP client** that speaks Streamable HTTP and OAuth works the same way.

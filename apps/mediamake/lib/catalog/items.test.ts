@@ -90,6 +90,26 @@ describe('registry skills', () => {
     assert.equal(plan.choices[1].unavailable, UNAVAILABLE);
   });
 
+  it('installs the MediaMake MCP as its hosted connector, for the team', async () => {
+    const mcp = staticRecord('mcp/mediamake')!;
+    assert.equal(mcp.visibility, 'private');
+    assert.ok(isInstallable(mcp));
+    const source = mcp.install?.source;
+    assert.equal(source?.type, 'mcp-server');
+    if (source?.type === 'mcp-server') assert.match(source.remote!.url, /\/mcp$/);
+    // the shorts skill offers it: installable for those who can open it, unavailable to the rest
+    const plan = (canOpen: (id: string) => boolean) =>
+      planInstall('skill/make-lyrics-shorts-summerstyle-boldwords', {
+        getRecord: async id => staticRecord(id),
+        canOpen: record => canOpen(record.id),
+        downloadUrl: async key => key,
+      });
+    const team = await plan(() => true);
+    assert.ok(team.ok && team.choices.find(c => c.id === 'mcp/mediamake')?.available);
+    const others = await plan(id => id !== 'mcp/mediamake');
+    assert.ok(others.ok && others.choices.find(c => c.id === 'mcp/mediamake')?.available === false);
+  });
+
   it('every static record has a card id, and installable ones a source', () => {
     for (const record of getStaticRecords()) {
       assert.ok(parseCatalogItemId(record.id), record.id);

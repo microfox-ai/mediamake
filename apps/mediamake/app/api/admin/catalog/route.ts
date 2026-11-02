@@ -356,7 +356,8 @@ export async function POST(req: NextRequest) {
       const subject = subjectFrom(body);
       if (!subject) return bad('clientId or groupId is required');
       if (!body.itemId) return bad("itemId is required ('*' for every item)");
-      if (body.itemId !== '*' && !(await catalogItemsDB.get(body.itemId))) {
+      // a stored item, or one the repo defines (a card such as the MediaMake MCP)
+      if (body.itemId !== '*' && !staticRecord(body.itemId) && !(await catalogItemsDB.get(body.itemId))) {
         return NextResponse.json({ error: `Unknown item ${body.itemId}` }, { status: 404 });
       }
       const grant = await accessGrantsDB.create({
@@ -402,7 +403,9 @@ export async function POST(req: NextRequest) {
       const itemIds = (body.itemIds as string[] | undefined) ?? [];
       if (!itemIds.length && !body.groupId) return bad('itemIds or groupId is required');
       for (const id of itemIds) {
-        if (id !== '*' && !(await catalogItemsDB.get(id))) return NextResponse.json({ error: `Unknown item ${id}` }, { status: 404 });
+        if (id !== '*' && !staticRecord(id) && !(await catalogItemsDB.get(id))) {
+          return NextResponse.json({ error: `Unknown item ${id}` }, { status: 404 });
+        }
       }
       const invite = await accessInvitesDB.create({
         itemIds,
