@@ -155,7 +155,9 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_archive` | Archive items, or bring them back (`archived: false`), with a note. |
 | `catalog_set_stage` | Move one of our apps, MCPs or tutorials to development, community (optionally with a gate), public or the vault, taking it out of the vault first when needed. Skills and items made by others refuse: archive them instead. |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
-| `catalog_invite` | An invite link that opens gated items for the people it is sent to. |
+| `catalog_invite` | An invite link that opens gated items for the people it is sent to, or (with `group`) makes them private testers or community members. |
+| `catalog_people` | The private testers, the community and everyone else with a key, plus tier invite links and pending requests. |
+| `catalog_set_tier` | Make people private testers, community or public, by client id or the name on their key. |
 | `catalog_versions` | Live versions and release notes (anyone, for updates). |
 
 ## Tiers

@@ -12,6 +12,17 @@ const ITEM_ID = z
   .describe('Catalog item id, e.g. "skill/pack-brand-kit" or "mcp/browse-hack"');
 const KIND = z.enum(['skill', 'mcp', 'app', 'tutorial']);
 const TIER = z.enum(['vault', 'development', 'community', 'public']);
+/** A person's tier; the community is stored as the `network` access group. */
+const PEOPLE_TIER = z.enum(['private', 'community', 'public']);
+const GROUP_OF = { private: 'private', community: 'network' } as const;
+
+/** What catalog_people and catalog_set_tier read from GET /api/admin/catalog. */
+type AdminPeople = {
+  people: { clientId: string; name: string; activeKeys: number }[];
+  groups: { groupId: string; members: string[] }[];
+  invites: { code: string; groupId?: string; uses: number; maxUses: number; expiresAt?: string; disabledAt?: string }[];
+  requests: { clientId: string; itemId: string; message?: string }[];
+};
 
 /** A value an MCP server needs from the person (an env variable, or a header of a hosted one). */
 const MCP_SETTING = z.object({
@@ -235,11 +246,12 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
   server.registerTool(
     'catalog_invite',
     {
-      title: 'Invite people to catalog items (admins)',
+      title: 'Invite people to catalog items or a tier (admins)',
       description:
-        'Admins only. Make an invite link that opens gated items (our apps and MCPs in development or community) for whoever redeems it while signed in; send it to the people the user names. uses is how many people it works for, grantDays how long their access lasts (leave out for no limit), expiresInDays how long the link itself stays valid.',
+        "Admins only. Make an invite link for whoever redeems it while signed in (new people sign up first); send it to the people the user names. With group, it makes them private testers (everything in development, with no per-item grants) or community members: the easy way to add people who have no MediaMake account yet. With items, it opens just those gated items. uses is how many people it works for, grantDays how long item access lasts (leave out for no limit), expiresInDays how long the link itself stays valid.",
       inputSchema: {
-        items: z.array(ITEM_ID).min(1).max(20),
+        items: z.array(ITEM_ID).min(1).max(20).optional(),
+        group: PEOPLE_TIER.exclude(['public']).optional().describe('Make whoever redeems it a private tester or a community member'),
         uses: z.number().int().min(1).max(100).default(1),
         grantDays: z.number().int().min(1).max(365).optional(),
         expiresInDays: z.number().int().min(1).max(365).optional(),
@@ -247,10 +259,12 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
       },
       annotations: WRITE,
     },
-    safe(async ({ items, uses, grantDays, expiresInDays, note }) => {
+    safe(async ({ items, group, uses, grantDays, expiresInDays, note }) => {
+      if (!items?.length && !group) throw new Error('Give items, a group (private or community), or both');
       const { invite } = await client.post<{ invite: { code: string; maxUses: number; expiresAt?: string } }>('/api/admin/catalog', {
         type: 'create_invite',
-        itemIds: items,
+        itemIds: items ?? [],
+        ...(group && { groupId: GROUP_OF[group] }),
         maxUses: uses,
         grantDays,
         expiresInDays,
@@ -260,7 +274,82 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
         link: client.url('/access', { code: invite.code }),
         uses: invite.maxUses,
         ...(invite.expiresAt && { expiresAt: invite.expiresAt }),
-        items: items.map(id => ({ id, page: page(id) })),
+        ...(group && { makesThem: group === 'private' ? 'private testers' : 'community members' }),
+        ...(items && { items: items.map(id => ({ id, page: page(id) })) }),
+        people: client.url('/core/releases', { tab: 'people' }),
+      });
+    }),
+  );
+
+  /** The admin dashboard's data: everything about people in one call. */
+  const people = () => client.get<AdminPeople>('/api/admin/catalog');
+
+  server.registerTool(
+    'catalog_people',
+    {
+      title: 'Private testers and community (admins)',
+      description:
+        "Admins only. Who is in each person tier: private testers (open everything in development, every MCP included, with no per-item grants), the community (community items before they go public), and everyone else with an API key (public). Also the live invite links into a tier and the pending access requests. Use it before catalog_set_tier to find people by name.",
+      inputSchema: {},
+      annotations: READ,
+    },
+    safe(async () => {
+      const data = await people();
+      const name = (clientId: string) => data.people.find(p => p.clientId === clientId)?.name ?? clientId;
+      const members = (groupId: string) =>
+        (data.groups.find(g => g.groupId === groupId)?.members ?? []).map(clientId => ({ clientId, name: name(clientId) }));
+      const tiered = new Set([...members(GROUP_OF.private), ...members(GROUP_OF.community)].map(p => p.clientId));
+      const now = new Date().toISOString();
+      return json({
+        private: members(GROUP_OF.private),
+        community: members(GROUP_OF.community),
+        public: data.people.filter(p => !tiered.has(p.clientId)).map(p => ({ clientId: p.clientId, name: p.name })),
+        tierInvites: data.invites
+          .filter(i => i.groupId && !i.disabledAt && i.uses < i.maxUses && (!i.expiresAt || i.expiresAt > now))
+          .map(i => ({
+            tier: i.groupId === GROUP_OF.private ? 'private' : i.groupId === GROUP_OF.community ? 'community' : i.groupId,
+            link: client.url('/access', { code: i.code }),
+            used: `${i.uses}/${i.maxUses}`,
+            ...(i.expiresAt && { expiresAt: i.expiresAt }),
+          })),
+        pendingRequests: data.requests.map(r => ({ who: name(r.clientId), item: r.itemId, ...(r.message && { message: r.message }) })),
+        page: client.url('/core/releases', { tab: 'people' }),
+      });
+    }),
+  );
+
+  server.registerTool(
+    'catalog_set_tier',
+    {
+      title: 'Make people private testers or community (admins)',
+      description:
+        "Admins only. Put people in a tier: private (private testers: every MCP, app and tutorial in development opens to them at once, and every one released later, with no per-item grants), community, or public (takes them out of both). Each person is in one tier, so this moves them. Name them by client id or by the name on their API key (catalog_people lists them). Someone without a MediaMake account yet: make an invite link with catalog_invite and group instead.",
+      inputSchema: {
+        people: z.array(z.string().min(1)).min(1).max(50).describe('Client ids or names'),
+        tier: PEOPLE_TIER,
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ people: who, tier }) => {
+      const data = await people();
+      const resolved: { clientId: string; name: string }[] = [];
+      const problems: string[] = [];
+      for (const typed of who.map(w => w.trim())) {
+        const byId = data.people.find(p => p.clientId === typed);
+        const byName = data.people.filter(p => p.name.toLowerCase() === typed.toLowerCase());
+        if (byId) resolved.push(byId);
+        else if (byName.length === 1) resolved.push(byName[0]);
+        else if (byName.length > 1) problems.push(`"${typed}" matches ${byName.map(p => p.clientId).join(', ')}: use the client id`);
+        else problems.push(`No one with an API key is called "${typed}": check catalog_people, or invite them with catalog_invite and group "${tier === 'public' ? 'community' : tier}"`);
+      }
+      if (problems.length) throw new Error(problems.join('\n'));
+      for (const person of resolved) {
+        await client.post('/api/admin/catalog', { type: 'set_tier', clientId: person.clientId, tier });
+      }
+      return json({
+        tier,
+        people: resolved.map(p => ({ clientId: p.clientId, name: p.name })),
+        page: client.url('/core/releases', { tab: 'people' }),
       });
     }),
   );

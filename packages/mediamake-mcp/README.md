@@ -83,7 +83,7 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
 | Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
 | Catalog                | `catalog_versions` (live version numbers and release notes of skills, MCPs and apps)                                                                                                        |
-| Catalog, admins only   | `catalog_items`, `catalog_item`, `catalog_archive`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite` (see "Managing the catalog")                                         |
+| Catalog, admins only   | `catalog_items`, `catalog_item`, `catalog_archive`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite`, `catalog_people`, `catalog_set_tier` (see "Managing the catalog")                                         |
 
 There are no delete tools on purpose.
 
@@ -94,7 +94,10 @@ Admins run MediaMake's releases from Claude with the catalog tools; for anyone e
 and whether it is archived; `catalog_item` shows one in full. `catalog_archive` takes unused items off
 the homepage (they stay public and installable by their link), `catalog_set_stage` moves our apps,
 MCPs and tutorials between development, community, public and the vault, `catalog_add_third_party`
-lists an open-source or hosted MCP or skill made by others, and `catalog_invite` makes an invite link.
+lists an open-source or hosted MCP or skill made by others, and `catalog_invite` makes an invite link
+(to items, or into a tier). People: `catalog_people` shows the private testers and the community, and
+`catalog_set_tier` moves people between private, community and public by client id or name. A private
+tester opens every MCP, app and tutorial in development with no per-item grants.
 Every answer carries the release page of each item (`/core/releases/<kind>/<slug>`) to give the user.
 See [catalog-releases.md](../../apps/mediamake/docs/catalog-releases.md).
 

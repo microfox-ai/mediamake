@@ -30,5 +30,6 @@ what it is, who can open it, where it lives, what installing it does, and what n
   `…/core/releases/<kind>/<slug>#v<version>`.
 - With the MediaMake MCP connected, manage releases through its tools: `catalog_items` to see what is
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
-  stay public and installable), `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite`.
+  stay public and installable), `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite`, and for people `catalog_people`
+  and `catalog_set_tier` (private testers get every MCP in development, no per-item grants).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
