@@ -62,6 +62,15 @@
       "path": ".agents/skills/analyze-video"
     },
     {
+      "name": "cleanup-downloads",
+      "title": "Cleanup downloads",
+      "summary": "Sort the media lying around the Mac — loose files at the top of ~/Downloads and of the channel folders (twixtor packs, Suno mixes, Midjourney images, stock clips), the…",
+      "description": "Sort the media lying around the Mac — loose files at the top of ~/Downloads and of the channel folders (twixtor packs, Suno mixes, Midjourney images, stock clips), the app's hash-named overlays — into the shared media library (~/Downloads/_LIBRARY), after the user has reviewed every move in /file-revision, leaving folders (boards, batches, kits) whole; set exact copies aside instead of keeping them twice; turn duplicate copies into APFS clones to get disk space back without deleting anything; and tag what the library couldn't place. Every step is a dry run first and every sort can be undone. Use when the user says \"clean up my downloads\", \"sort my downloads\", \"organise the media\", \"where is all my footage\", \"set up the library\", \"/cleanup-downloads\", or after a big batch left Downloads messy. Not for freeing space on renders and project folders (cleanup-out).",
+      "category": "cleanup",
+      "location": "committed",
+      "path": ".agents/skills/cleanup-downloads"
+    },
+    {
       "name": "cleanup-out",
       "title": "Cleanup out",
       "summary": "Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol…",
