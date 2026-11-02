@@ -283,6 +283,60 @@ describe('catalog admin tools', () => {
     expect(out.link).toBe('http://mm.test/access?code=abc123');
   });
 
+  it('makes an invite link into a tier, and needs items or a group', async () => {
+    const calls = stubApi(() => ({ invite: { code: 'grp1', maxUses: 10 } }));
+    const { out } = await call('catalog_invite', { group: 'community', uses: 10 });
+    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: [], groupId: 'network', maxUses: 10 });
+    expect(out.makesThem).toBe('community members');
+    expect((await call('catalog_invite', {})).isError).toBe(true);
+  });
+
+  const PEOPLE = {
+    people: [
+      { clientId: 'c1', name: 'Raj', activeKeys: 1 },
+      { clientId: 'c2', name: 'Mia', activeKeys: 1 },
+      { clientId: 'c3', name: 'Ana', activeKeys: 1 },
+      { clientId: 'c4', name: 'Ana', activeKeys: 1 },
+    ],
+    groups: [
+      { groupId: 'private', members: ['c1'] },
+      { groupId: 'network', members: ['c2'] },
+    ],
+    invites: [
+      { code: 'live', groupId: 'private', uses: 1, maxUses: 5 },
+      { code: 'off', groupId: 'network', uses: 0, maxUses: 5, disabledAt: '2026-01-01T00:00:00.000Z' },
+    ],
+    requests: [{ clientId: 'c3', itemId: 'mcp/x' }],
+  };
+
+  it('lists people by tier with live tier invites', async () => {
+    stubApi(() => PEOPLE);
+    const { out } = await call('catalog_people', {});
+    expect(out.private).toEqual([{ clientId: 'c1', name: 'Raj' }]);
+    expect(out.community).toEqual([{ clientId: 'c2', name: 'Mia' }]);
+    expect(out.public.map((p: any) => p.clientId)).toEqual(['c3', 'c4']);
+    expect(out.tierInvites).toEqual([{ tier: 'private', link: 'http://mm.test/access?code=live', used: '1/5' }]);
+    expect(out.pendingRequests).toEqual([{ who: 'Ana', item: 'mcp/x' }]);
+  });
+
+  it('sets tiers by client id or name, and refuses unknown or ambiguous names', async () => {
+    const calls = stubApi(() => PEOPLE);
+    const { out } = await call('catalog_set_tier', { people: ['mia', 'c3'], tier: 'private' });
+    expect(calls.filter(c => c.method === 'POST').map(c => c.body)).toEqual([
+      { type: 'set_tier', clientId: 'c2', tier: 'private' },
+      { type: 'set_tier', clientId: 'c3', tier: 'private' },
+    ]);
+    expect(out.people).toEqual([{ clientId: 'c2', name: 'Mia' }, { clientId: 'c3', name: 'Ana' }]);
+
+    vi.unstubAllGlobals();
+    const none = stubApi(() => PEOPLE);
+    const bad = await call('catalog_set_tier', { people: ['Ana', 'Zed'], tier: 'community' });
+    expect(bad.isError).toBe(true);
+    expect(bad.out).toContain('c3, c4');
+    expect(bad.out).toContain('catalog_invite');
+    expect(none.filter(c => c.method === 'POST')).toHaveLength(0);
+  });
+
   it('rejects an id that is not a catalog id', async () => {
     stubApi(() => ({}));
     const result: any = await (await connect(false)).callTool({ name: 'catalog_archive', arguments: { items: ['pack-brand-kit'] } });

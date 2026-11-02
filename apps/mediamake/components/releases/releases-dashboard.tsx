@@ -58,6 +58,12 @@ export function ReleasesDashboard() {
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<CatalogKind | 'all'>('all');
+  // ?tab=people links straight to a tab (the MCP's people tools answer with it)
+  const [tab, setTab] = useState('items');
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab');
+    if (wanted && ['items', 'board', 'timeline', 'people'].includes(wanted)) setTab(wanted);
+  }, []);
   const [tier, setTier] = useState<ReleaseTier | 'all'>('all');
   const [scheduling, setScheduling] = useState<CatalogItemRecord | null>(null);
   const [accessFor, setAccessFor] = useState<CatalogItemRecord | null>(null);
@@ -242,7 +248,7 @@ export function ReleasesDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="items" className="gap-4">
+      <Tabs value={tab} onValueChange={setTab} className="gap-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <TabsList>
             <TabsTrigger value="items">Items</TabsTrigger>

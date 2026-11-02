@@ -200,7 +200,15 @@
     },
     {
       "name": "catalog_invite",
-      "description": "Admins: make an invite link that opens gated catalog items for the people it is sent to."
+      "description": "Admins: make an invite link that opens gated catalog items, or makes whoever redeems it a private tester or community member."
+    },
+    {
+      "name": "catalog_people",
+      "description": "Admins: who the private testers and community members are, with tier invite links and pending requests."
+    },
+    {
+      "name": "catalog_set_tier",
+      "description": "Admins: make people private testers, community members, or public, by client id or name."
     }
   ],
   "keywords": [

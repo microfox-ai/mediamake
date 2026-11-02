@@ -1,10 +1,17 @@
 'use client';
 
-import { Check, Crown, FlaskConical, Globe, Users, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { Check, Copy, Crown, FlaskConical, Globe, Link2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
+import { siteUrl } from '@/lib/catalog/install-prompt';
 import { cn } from '@/lib/utils';
 import { PersonPicker } from './person-picker';
-import { COMMUNITY_GROUP, PRIVATE_GROUP, formatDate, personName, type AdminCatalog } from './model';
+import { COMMUNITY_GROUP, PRIVATE_GROUP, adminCall, formatDate, personName, tierOf, type AdminCatalog } from './model';
+
+type Run = (label: string, body: Record<string, unknown>) => Promise<boolean>;
 
 /**
  * The people side of the tiers: private testers and the community are
@@ -26,6 +33,15 @@ export function PeoplePanel({
     i => !i.disabledAt && i.uses < i.maxUses && (!i.expiresAt || i.expiresAt > new Date().toISOString()),
   );
 
+  // What each tier opens with no per-item grants: our gated items (skills and items made by others are open to all)
+  const opens = useMemo(() => {
+    const gated = [...data.items, ...data.cards].filter(item => !isAlwaysPublic(item) && !item.archivedAt);
+    return {
+      private: gated.filter(item => tierOf(item) !== 'vault'),
+      community: gated.filter(item => ['community', 'public'].includes(tierOf(item))),
+    };
+  }, [data]);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -40,9 +56,11 @@ export function PeoplePanel({
           groupId={PRIVATE_GROUP}
           icon={<FlaskConical className="size-4" />}
           title="Private testers"
-          body="Everything in development and ready, except the vault, plus cloud projects. Can't release."
+          tier="private"
+          body="Everything in development and ready, except the vault, plus cloud projects. Adding someone opens every MCP in development at once, with no per-item grants. Can't release."
           tone="bg-amber-500/10 text-amber-700 dark:text-amber-300"
           members={privateMembers}
+          opens={opens.private}
           run={run}
         />
         <GroupCard
@@ -50,9 +68,11 @@ export function PeoplePanel({
           groupId={COMMUNITY_GROUP}
           icon={<Users className="size-4" />}
           title="Community"
+          tier="community"
           body="Production-ready items before they go public, and cloud projects through the MediaMake MCP."
           tone="bg-violet-500/10 text-violet-700 dark:text-violet-300"
           members={communityMembers}
+          opens={opens.community}
           run={run}
         />
         <TierCard
@@ -142,24 +162,32 @@ function TierCard({ icon, title, body, tone }: { icon: React.ReactNode; title: s
   );
 }
 
+/**
+ * One person tier. Adding and removing go through set_tier, so a person is in
+ * one tier at a time (adding a community member here moves them up, not into both).
+ */
 function GroupCard({
   data,
   groupId,
+  tier,
   icon,
   title,
   body,
   tone,
   members,
+  opens,
   run,
 }: {
   data: AdminCatalog;
   groupId: string;
+  tier: 'private' | 'community';
   icon: React.ReactNode;
   title: string;
   body: string;
   tone: string;
   members: string[];
-  run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
+  opens: CatalogItemRecord[];
+  run: Run;
 }) {
   return (
     <section className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
@@ -180,7 +208,7 @@ function GroupCard({
                 type="button"
                 aria-label={`Remove ${clientId}`}
                 className="text-muted-foreground opacity-0 transition group-hover:opacity-100"
-                onClick={() => run(`Removed from ${title.toLowerCase()}`, { type: 'group_remove', groupId, clientIds: [clientId] })}
+                onClick={() => run(`Removed from ${title.toLowerCase()}`, { type: 'set_tier', clientId, tier: 'public' })}
               >
                 <X className="size-3.5" />
               </button>
@@ -188,15 +216,84 @@ function GroupCard({
           ))}
         </ul>
       )}
-      <div className="mt-auto">
+      {opens.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Opens now</p>
+          <div className="flex flex-wrap gap-1">
+            {opens.slice(0, 8).map(item => (
+              <span key={item.id} className="rounded-md bg-muted px-1.5 py-0.5 text-[11px]" title={item.id}>
+                {item.title}
+              </span>
+            ))}
+            {opens.length > 8 && <span className="px-1 py-0.5 text-[11px] text-muted-foreground">+{opens.length - 8} more</span>}
+          </div>
+        </div>
+      )}
+      <div className="mt-auto flex flex-col gap-2">
         <PersonPicker
           people={data.people}
           exclude={members}
           action="Add"
-          onPick={clientId => run(`Added to ${title.toLowerCase()}`, { type: 'group_add', groupId, clientIds: [clientId], name: title })}
+          onPick={clientId => run(`Added to ${title.toLowerCase()}`, { type: 'set_tier', clientId, tier })}
         />
+        <TierInvite groupId={groupId} title={title} />
       </div>
     </section>
+  );
+}
+
+/**
+ * An invite link into the tier, for people without a MediaMake account yet:
+ * they sign up, open it, and are in. Works for 10 people for 30 days.
+ */
+function TierInvite({ groupId, title }: { groupId: string; title: string }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success('Invite link copied');
+    } catch {
+      toast.message('Copy the link from the box');
+    }
+  };
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const { invite } = await adminCall<{ invite: { code: string } }>({
+        type: 'create_invite',
+        groupId,
+        maxUses: 10,
+        expiresInDays: 30,
+        note: `Invite to ${title.toLowerCase()}`,
+      });
+      const url = `${siteUrl() ?? window.location.origin}/access?code=${invite.code}`;
+      setLink(url);
+      await copy(url);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!link) {
+    return (
+      <Button size="sm" variant="ghost" className="h-8 justify-start text-muted-foreground" disabled={busy} onClick={create}>
+        <Link2 className="size-3.5" />
+        Invite link for people without an account
+      </Button>
+    );
+  }
+  return (
+    <div className="flex gap-1.5">
+      <Input readOnly value={link} className="h-8 font-mono text-xs" onFocus={e => e.currentTarget.select()} />
+      <Button size="icon" variant="outline" className="size-8 shrink-0" aria-label="Copy invite link" onClick={() => copy(link)}>
+        <Copy className="size-3.5" />
+      </Button>
+    </div>
   );
 }
 
@@ -221,20 +318,28 @@ function KeyHolders({
   communityMembers: string[];
   run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
 }) {
+  const [query, setQuery] = useState('');
   if (!data.people.length) return null;
+  const q = query.trim().toLowerCase();
+  const shown = q ? data.people.filter(p => p.name.toLowerCase().includes(q) || p.clientId.toLowerCase().includes(q)) : data.people;
   const tierOf = (clientId: string) =>
     privateMembers.includes(clientId) ? 'private' : communityMembers.includes(clientId) ? 'community' : 'public';
 
   return (
     <section className="rounded-2xl border bg-card">
-      <header className="border-b px-5 py-4">
-        <h3 className="text-sm font-semibold">API key holders</h3>
-        <p className="text-xs text-muted-foreground">
-          A key signs people in and unlocks the MediaMake MCP. What it opens depends on the tier you give them here.
-        </p>
+      <header className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">API key holders</h3>
+          <p className="text-xs text-muted-foreground">
+            A key only signs people in. What they can open, the MediaMake MCP included, depends on the tier you give them here.
+          </p>
+        </div>
+        {data.people.length > 8 && (
+          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a person" className="h-8 sm:w-48" />
+        )}
       </header>
       <ul className="divide-y">
-        {data.people.map(person => {
+        {shown.map(person => {
           const current = tierOf(person.clientId);
           return (
             <li key={person.clientId} className="flex items-center justify-between gap-3 px-5 py-2.5">

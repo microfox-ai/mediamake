@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveViewer } from '@/lib/access';
 import { accessGrantsDB, accessGroupsDB, accessInvitesDB } from '@/lib/catalog/store';
+import { NETWORK_GROUP, PRIVATE_GROUP } from '@/lib/catalog/types';
 
 /**
  * POST /api/catalog/redeem  { code }
@@ -31,7 +32,17 @@ export async function POST(req: NextRequest) {
       note: invite.note,
     });
   }
-  if (invite.groupId) await accessGroupsDB.addMembers(invite.groupId, [viewer.clientId]);
+  // A person is in one tier: a private-tester invite moves them up out of the
+  // community, and a community invite leaves a private tester where they are.
+  if (invite.groupId === PRIVATE_GROUP) {
+    await accessGroupsDB.addMembers(PRIVATE_GROUP, [viewer.clientId], 'Private testers');
+    await accessGroupsDB.removeMembers(NETWORK_GROUP, [viewer.clientId]);
+  } else if (invite.groupId === NETWORK_GROUP) {
+    const groups = await accessGroupsDB.groupsOf(viewer.clientId);
+    if (!groups.includes(PRIVATE_GROUP)) await accessGroupsDB.addMembers(NETWORK_GROUP, [viewer.clientId], 'Community');
+  } else if (invite.groupId) {
+    await accessGroupsDB.addMembers(invite.groupId, [viewer.clientId]);
+  }
 
   return NextResponse.json({ success: true, itemIds: invite.itemIds, groupId: invite.groupId, expiresAt });
 }
