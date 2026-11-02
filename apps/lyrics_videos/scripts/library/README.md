@@ -65,6 +65,7 @@ Where these are on a machine, and which folder each channel delivers to, is in `
 | A production | `projects/<slug>/mediamake.json` (mediamake.production/v2) | channel, artist, song, skills, status, deliverFolder |
 | A delivery | `<CHANNEL>/<slug>/delivery.json` (mediamake.delivery/v1) | what came from where, hashes, final → uploaded |
 | The Library page | `.catalog/export/*.json` + `.catalog/thumbs/` (mediamake.library-export/v1) | Rewritten after every change; page edits come back as `.catalog/requests/*.json`, applied by `media apply-requests` |
+| A backup | staging `<deliverRoot>/_BACKUP/<CHANNEL>/<what>/` (clones), the disk's `MediaMake Backup/` | `.catalog/backup/manifest.jsonl` and the disk's own `manifest.jsonl`: one line per staged, copied or restored file with its SHA-256 (restore-backup skill) |
 
 ## Safety
 
@@ -76,5 +77,7 @@ Where these are on a machine, and which folder each channel delivers to, is in `
 - `brands/` and `apps/mediamake/out` are never replaced.
 - Personal captures (phone, WhatsApp, screen recordings), non-media files and the folders in
   `exclude` are never touched.
+- Backups copy, never move: every copy to a disk and every restore is read back and checked against
+  its SHA-256, a restore never overwrites a file, and the originals stay until the user says otherwise.
 
 Tests: `npm run test:library -w lyrics_videos`.

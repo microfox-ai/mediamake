@@ -338,6 +338,15 @@
       "version": "4.0.537"
     },
     {
+      "name": "restore-backup",
+      "title": "Restore backup",
+      "summary": "Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVE…",
+      "description": "Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVERTED-DEVILS…) — reading the backup's manifest (it works with the disk unplugged, so it can tell which disk to connect), copying the chosen files back and checking each against its SHA-256. Also makes backups: stage files by channel as clones, then copy them to the disk when it's connected. Use when the user says \"restore <x> from the backup\", \"get back the <song> render\", \"what's on the backup disk\", \"is <x> backed up\", \"back up the renders\", \"copy the backup to the hard disk\", \"/restore-backup\", or wants a file that was moved off the Mac after a backup. Not for project folders archived by cleanup-out (its own archive and restore).",
+      "category": "cleanup",
+      "location": "committed",
+      "path": ".agents/skills/restore-backup"
+    },
+    {
       "name": "revise-image",
       "title": "Revise image",
       "summary": "Review and revise a set of images with the user through mediamake's File Revisions screen (/file-revision) — make the set reviewable (index.json), give them the review…",

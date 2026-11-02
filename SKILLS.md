@@ -98,6 +98,7 @@ Housekeeping: disk space, archives and backups
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`cleanup-out`](.agents/skills/cleanup-out/SKILL.md) | public | Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol… |
+| [`restore-backup`](.agents/skills/restore-backup/SKILL.md) | public | Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVE… |
 
 ## skill
 

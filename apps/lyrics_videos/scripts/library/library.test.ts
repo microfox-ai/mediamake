@@ -1,7 +1,7 @@
 /**
  * The media library end to end on a throwaway Downloads folder: classification, filing the inbox
  * (with and without provenance), repeat downloads, reuse with cached analyses, clone-dedupe,
- * versioned delivery, rebuilding the catalog from .media.json, the export.
+ * versioned delivery, rebuilding the catalog from .media.json, backups and restores, the export.
  *
  *   npm run test:library -w lyrics_videos
  */
@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
+import { DISK_FOLDER, backupRoot, copyToDisk, listBackup, restore, stage } from './backup.ts';
 import { classify, destOf } from './classify.ts';
 import { saveConfig } from './config.ts';
 import { getItem } from './db.ts';
@@ -332,6 +333,42 @@ describe('library', () => {
     assert.ok(fs.existsSync(sanji) && fs.existsSync(copy));
     const row = lib.db.prepare('SELECT role FROM locations WHERE path = ?').get(sanji);
     assert.equal(row?.role, 'downloads');
+  });
+
+  test('backups: staged as clones by channel, copied to a disk with every file checked, listed and restored', async () => {
+    const render = put('v2.mp4', path.join(downloads, 'gojo-1765863553018.mp4'));
+    await scan(lib, ['downloads']);
+    const staged = path.join(backupRoot(lib), 'AMZ', 'renders', path.basename(render));
+    assert.equal((await stage(lib, [render], { channel: 'animemusiczone', as: 'renders' })).done, 0, 'a dry run stages nothing');
+    assert.ok(!fs.existsSync(staged));
+    assert.equal((await stage(lib, [render], { channel: 'AMZ', as: 'renders', yes: true })).done, 1, 'a channel by its id or its folder');
+    assert.equal(await sha256File(staged), await sha256File(render));
+    assert.equal((await stage(lib, [render], { channel: 'AMZ', as: 'renders', yes: true })).done, 0, 'staged once');
+    await scan(lib, ['downloads']);
+    assert.ok(!lib.db.prepare('SELECT 1 FROM locations WHERE path LIKE ?').get('%/_BACKUP/%'), 'the staging folder is not catalogued');
+
+    const disk = path.join(tmp, 'Volumes', 'T7');
+    fs.mkdirSync(disk, { recursive: true });
+    assert.equal((await copyToDisk(lib, disk, { yes: true })).done, 1);
+    const copy = path.join(disk, DISK_FOLDER, 'AMZ', 'renders', path.basename(render));
+    assert.equal(await sha256File(copy), await sha256File(render));
+    assert.equal((await copyToDisk(lib, disk, { yes: true })).done, 0, 'copied once');
+    const listed = listBackup(lib, ['gojo']);
+    assert.equal(listed.length, 1);
+    assert.deepEqual(listed[0].disks, ['T7']);
+
+    // the original and the clone gone: the disk brings it back where it was
+    fs.rmSync(staged);
+    fs.rmSync(render);
+    assert.equal((await restore(lib, ['gojo'], { from: disk, yes: true })).done, 1);
+    assert.equal(await sha256File(render), await sha256File(copy));
+    // a copy that no longer matches its hash is refused
+    fs.writeFileSync(copy, 'not the video');
+    fs.rmSync(render);
+    const bad = await restore(lib, ['gojo'], { from: disk, yes: true });
+    assert.equal(bad.done, 0);
+    assert.equal(bad.bad.length, 1);
+    assert.ok(!fs.existsSync(render));
   });
 
   test('the export the Library page reads', () => {
