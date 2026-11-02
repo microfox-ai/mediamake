@@ -10,6 +10,7 @@ import {
   MaximizeIcon,
   MinimizeIcon,
   PauseIcon,
+  PencilLineIcon,
   PlayIcon,
   RefreshCwIcon,
   Repeat2Icon,
@@ -18,6 +19,7 @@ import {
   TriangleAlertIcon,
   Volume2Icon,
   VolumeXIcon,
+  ZoomInIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -31,6 +33,7 @@ import {
   useRevisionsStore,
 } from './store';
 import { Hint } from './keyboard';
+import { MarkupLayer } from './MarkupLayer';
 
 /** Trackpad scroll distance per frame, and per second with ⇧. */
 const WHEEL_PX_PER_FRAME = 12;
@@ -247,6 +250,10 @@ function Transport() {
   const muted = useRevisionsStore(s => s.muted);
   const setRate = useRevisionsStore(s => s.setRate);
   const toggleMute = useRevisionsStore(s => s.toggleMute);
+  const drawing = useRevisionsStore(s => !!s.tool && s.tool !== 'spot');
+  const toggleDrawing = useRevisionsStore(s => s.toggleDrawing);
+  const loupe = useRevisionsStore(s => s.loupe);
+  const toggleLoupe = useRevisionsStore(s => s.toggleLoupe);
   const fullscreen = useStageFullscreen();
 
   // A new video element starts at 1× and unmuted.
@@ -316,6 +323,39 @@ function Transport() {
         </span>
       </Hint>
       <div className="ml-auto flex items-center gap-1">
+        <Hint
+          label={
+            drawing
+              ? 'Stop drawing (the marks stay for the next comment)'
+              : 'Draw on the frame: circle, point at or cross out what to change'
+          }
+          keys="D"
+        >
+          <Button
+            variant="ghost"
+            className={cn(iconButton, drawing && 'bg-white/15 text-amber-300')}
+            onClick={toggleDrawing}
+          >
+            <PencilLineIcon className="size-4" />
+          </Button>
+        </Hint>
+        <Hint
+          label={
+            loupe
+              ? 'Hide the magnifier'
+              : 'Magnifier: zoom in under the pointer, click to pin the spot'
+          }
+          keys="Z"
+        >
+          <Button
+            variant="ghost"
+            className={cn(iconButton, loupe && 'bg-white/15 text-amber-300')}
+            onClick={toggleLoupe}
+          >
+            <ZoomInIcon className="size-4" />
+          </Button>
+        </Hint>
+        <span className="mx-1 h-5 w-px bg-white/15" />
         <Hint
           label={
             selection ? 'Loop the selection' : 'Loop (select a range first)'
@@ -525,6 +565,7 @@ export function VideoStage() {
               className="h-full w-full object-contain"
               onClick={() => useRevisionsStore.getState().togglePlay()}
             />
+            <MarkupLayer />
             <ShotOverlay />
           </>
         ) : (

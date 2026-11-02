@@ -64,13 +64,40 @@ export interface ShotRef {
   to: number;
 }
 
+/** What a mark's colour asks for: red fix or remove, green add here, yellow move (an arrow shows where). */
+export type MarkColor = 'red' | 'green' | 'yellow';
+export type MarkTool = 'pen' | 'brush' | 'arrow' | 'box' | 'circle';
+
+/**
+ * One mark drawn on a frame. Points are fractions of the frame (x across, y
+ * down, 0–1), so a mark fits any render size. pen and brush: every point of
+ * the stroke; arrow: tail, then head; box and circle: two opposite corners.
+ */
+export interface Mark {
+  tool: MarkTool;
+  color: MarkColor;
+  points: [number, number][];
+}
+
+/** A spot on the frame, as fractions (x across, y down, 0–1). */
+export interface Spot {
+  x: number;
+  y: number;
+}
+
 export interface PointComment extends CommentBase {
   kind: 'point';
   time: number;
   frame: number;
   shot: ShotRef | null;
-  /** Path relative to the revisions folder, e.g. "rev-001/c01_h1.3_f000372.jpg". */
+  /** Path relative to the revisions folder, e.g. "rev-001/c01_h1.3_f000372.jpg". Marks and the spot are drawn in. */
   snapshot?: string;
+  /** Marks drawn on the frame. */
+  drawing?: Mark[];
+  /** The spot the comment points at. */
+  spot?: Spot;
+  /** A 2× crop of the still around the spot, relative to the revisions folder. */
+  zoom?: string;
 }
 
 export interface RangeComment extends CommentBase {

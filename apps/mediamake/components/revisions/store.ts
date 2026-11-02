@@ -60,11 +60,17 @@ import {
   revisionIdFromFile,
   revisionToMarkdown,
   snapshotFileName,
+  zoomFileName,
 } from '@/lib/revisions/revision-file';
+import { grabFrame, spotCrop, toJpeg, withMarks } from '@/lib/revisions/marks';
 import type {
+  Mark,
+  MarkColor,
+  MarkTool,
   Revision,
   RevisionComment,
   RevisionVideoInfo,
+  Spot,
   TimeRange,
   VideoMap,
 } from '@/lib/revisions/types';
@@ -109,6 +115,22 @@ export type PendingAccess =
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
+/** A drawing tool, or the spot pin. */
+export type MarkupTool = MarkTool | 'spot';
+
+/** Marks waiting for the next comment, on the frame they were drawn on. */
+export interface Sketch {
+  frame: number;
+  time: number;
+  marks: Mark[];
+  spot: Spot | null;
+  /** The spot was set after the last mark, so undo takes it first. */
+  spotLast?: boolean;
+}
+
+export const sketchIsEmpty = (sketch: Sketch | null) =>
+  !sketch || (sketch.marks.length === 0 && !sketch.spot);
+
 export interface SourceState extends SourceEntry {
   status: 'needs-permission' | 'scanning' | 'ready' | 'missing' | 'error';
   folders: SourceFolder[];
@@ -151,6 +173,15 @@ interface RevisionsState {
   saveState: SaveState;
   highlightCommentId: string | null;
   composerFocusToken: number;
+
+  /** The drawing tool in use; null when clicks on the video play and pause it. */
+  tool: MarkupTool | null;
+  /** The drawing tool D and the colours bring back. */
+  lastTool: MarkTool;
+  markColor: MarkColor;
+  sketch: Sketch | null;
+  /** The magnifier that follows the pointer over the video. */
+  loupe: boolean;
 
   init: () => Promise<void>;
   openFolderPicker: () => Promise<void>;
@@ -216,6 +247,15 @@ interface RevisionsState {
   deleteComment: (commentId: string) => void;
   focusComment: (commentId: string) => void;
   requestComposerFocus: () => void;
+
+  setTool: (tool: MarkupTool | null) => void;
+  toggleDrawing: () => void;
+  setMarkColor: (color: MarkColor) => void;
+  addMark: (mark: Mark) => void;
+  setSpot: (spot: Spot) => void;
+  undoMark: () => void;
+  clearSketch: () => void;
+  toggleLoupe: () => void;
 }
 
 export const selectFps = (
@@ -264,14 +304,20 @@ function seekSettled(el: HTMLVideoElement): Promise<void> {
   });
 }
 
-async function captureFrame(el: HTMLVideoElement): Promise<Blob | null> {
+/** The frame on screen as JPEGs: the still (marks drawn in) and, with a spot, its 2× crop. */
+async function captureFrame(
+  el: HTMLVideoElement,
+  marks: readonly Mark[] = [],
+  spot: Spot | null = null,
+): Promise<{ still: Blob | null; zoom: Blob | null }> {
   await seekSettled(el);
-  if (!el.videoWidth || !el.videoHeight) return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = el.videoWidth;
-  canvas.height = el.videoHeight;
-  canvas.getContext('2d')?.drawImage(el, 0, 0, canvas.width, canvas.height);
-  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  const frame = grabFrame(el);
+  if (!frame) return { still: null, zoom: null };
+  const [still, zoom] = await Promise.all([
+    toJpeg(marks.length || spot ? withMarks(frame, marks, spot) : frame),
+    spot ? toJpeg(spotCrop(frame, spot)) : Promise.resolve(null),
+  ]);
+  return { still, zoom };
 }
 
 const byNumber = (a: string, b: string) =>
@@ -296,6 +342,29 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     const { folder, video } = get();
     if (!folder || !video) return null;
     return getSubdir(folder.handle, revisionsDirName(video.name), create);
+  };
+
+  /**
+   * The sketch on the frame on screen. Drawing on another frame starts a new
+   * one: marks belong to the picture they were drawn over.
+   */
+  const sketchHere = (): Sketch => {
+    const s = get();
+    const fps = selectFps(s);
+    const time = videoEl?.currentTime ?? s.currentTime;
+    const frame = frameAt(time, fps);
+    if (s.sketch && s.sketch.frame === frame) return s.sketch;
+    const dropped = sketchIsEmpty(s.sketch) ? null : s.sketch;
+    if (dropped) {
+      toast(
+        `Drawing on f${frame} now; the marks on f${dropped.frame} were dropped`,
+        {
+          duration: 5000,
+          action: { label: 'Undo', onClick: () => set({ sketch: dropped }) },
+        },
+      );
+    }
+    return { frame, time, marks: [], spot: null };
   };
 
   const loadRevisions = async (token: number) => {
@@ -413,6 +482,11 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     saveState: 'idle',
     highlightCommentId: null,
     composerFocusToken: 0,
+    tool: null,
+    lastTool: 'pen',
+    markColor: 'red',
+    sketch: null,
+    loupe: false,
 
     init: async () => {
       const support = getFolderSupport();
@@ -603,6 +677,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         if (prev) URL.revokeObjectURL(prev.url);
         set({
           video: null,
+          sketch: null,
+          tool: null,
           map: null,
           mapFile: null,
           revisions: {},
@@ -785,6 +861,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         dirty: {},
         saveState: 'idle',
         highlightCommentId: null,
+        sketch: null,
       });
       updateUrl(folder.name, name);
       void remember(folder.handle, name, map?.source?.path);
@@ -1061,11 +1138,13 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
 
       const fps = selectFps(get());
       const { map, selection } = get();
+      // marks make it a comment on the frame they were drawn on
+      const sketch = sketchIsEmpty(get().sketch) ? null : get().sketch;
       const id = nextCommentId(revision.comments);
       const createdAt = new Date().toISOString();
       let comment: RevisionComment;
 
-      if (selection) {
+      if (selection && !sketch) {
         const { first, last } = rangeFrames(selection, fps);
         comment = {
           kind: 'range',
@@ -1083,18 +1162,31 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         };
       } else {
         videoEl?.pause();
-        const time = videoEl?.currentTime ?? get().currentTime;
-        const frame = frameAt(time, fps);
+        if (
+          sketch &&
+          videoEl &&
+          frameAt(videoEl.currentTime, fps) !== sketch.frame
+        )
+          get().seek(sketch.time);
+        const time = sketch?.time ?? videoEl?.currentTime ?? get().currentTime;
+        const frame = sketch?.frame ?? frameAt(time, fps);
         const shot = shotAt(map, time);
         let snapshot: string | undefined;
+        let zoom: string | undefined;
         try {
-          const blob = videoEl ? await captureFrame(videoEl) : null;
-          const dir = blob ? await revisionsDir(true) : null;
+          const shots = videoEl
+            ? await captureFrame(videoEl, sketch?.marks, sketch?.spot)
+            : null;
+          const dir = shots?.still ? await revisionsDir(true) : null;
           const stills = dir ? await getSubdir(dir, revisionId, true) : null;
-          if (blob && stills) {
+          if (shots?.still && stills) {
             const fileName = snapshotFileName(id, shot?.id, frame);
-            await writeFileIn(stills, fileName, blob);
+            await writeFileIn(stills, fileName, shots.still);
             snapshot = `${revisionId}/${fileName}`;
+            if (shots.zoom) {
+              await writeFileIn(stills, zoomFileName(fileName), shots.zoom);
+              zoom = `${revisionId}/${zoomFileName(fileName)}`;
+            }
           }
         } catch (err) {
           toast.error(`Comment saved without a still: ${errorMessage(err)}`, {
@@ -1119,6 +1211,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
               }
             : null,
           snapshot,
+          ...(sketch?.marks.length ? { drawing: sketch.marks } : {}),
+          ...(sketch?.spot ? { spot: sketch.spot } : {}),
+          ...(zoom ? { zoom } : {}),
         };
       }
 
@@ -1130,7 +1225,10 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         map: r.comments.length === 0 ? get().mapFile : r.map,
         comments: [...r.comments, comment],
       }));
-      set({ highlightCommentId: id });
+      set({
+        highlightCommentId: id,
+        ...(sketch ? { sketch: null, tool: null } : {}),
+      });
       return true;
     },
 
@@ -1161,15 +1259,18 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
 
       let undone = false;
       const removeStill = async () => {
-        if (undone || comment.kind !== 'point' || !comment.snapshot) return;
-        const [sub, file] = comment.snapshot.split('/');
-        const dir = await revisionsDir(false).catch(() => null);
-        const stills =
-          dir && sub
-            ? await getSubdir(dir, sub, false).catch(() => null)
-            : null;
-        if (stills && file)
-          await removeFileIn(stills, file).catch(() => undefined);
+        if (undone || comment.kind !== 'point') return;
+        for (const path of [comment.snapshot, comment.zoom]) {
+          if (!path) continue;
+          const [sub, file] = path.split('/');
+          const dir = await revisionsDir(false).catch(() => null);
+          const stills =
+            dir && sub
+              ? await getSubdir(dir, sub, false).catch(() => null)
+              : null;
+          if (stills && file)
+            await removeFileIn(stills, file).catch(() => undefined);
+        }
       };
       toast(`Deleted ${comment.id}`, {
         duration: 5000,
@@ -1202,10 +1303,58 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         get().setSelection({ from: comment.from, to: comment.to });
         get().seek(comment.from);
       }
-      set({ highlightCommentId: commentId });
+      // reviewing a comment, not drawing: its own marks show on its frame
+      set({ highlightCommentId: commentId, tool: null });
     },
 
     requestComposerFocus: () =>
       set(s => ({ composerFocusToken: s.composerFocusToken + 1 })),
+
+    setTool: tool => {
+      if (tool) {
+        // marks go on a still frame, and make the next comment a frame comment
+        videoEl?.pause();
+        if (get().selection) get().setSelection(null);
+      }
+      set({ tool, ...(tool && tool !== 'spot' ? { lastTool: tool } : {}) });
+    },
+
+    toggleDrawing: () => {
+      const { tool, lastTool } = get();
+      get().setTool(tool && tool !== 'spot' ? null : lastTool);
+    },
+
+    setMarkColor: markColor => {
+      set({ markColor });
+      // picking a colour means drawing: bring the last drawing tool back
+      const { tool, lastTool } = get();
+      if (!tool || tool === 'spot') get().setTool(lastTool);
+    },
+
+    addMark: mark => {
+      const sketch = sketchHere();
+      set({
+        sketch: { ...sketch, marks: [...sketch.marks, mark], spotLast: false },
+      });
+    },
+
+    setSpot: spot => {
+      const sketch = sketchHere();
+      set({ sketch: { ...sketch, spot, spotLast: true } });
+    },
+
+    undoMark: () => {
+      const { sketch } = get();
+      if (!sketch) return;
+      const next =
+        sketch.spot && (sketch.spotLast || !sketch.marks.length)
+          ? { ...sketch, spot: null, spotLast: false }
+          : { ...sketch, marks: sketch.marks.slice(0, -1) };
+      set({ sketch: sketchIsEmpty(next) ? null : next });
+    },
+
+    clearSketch: () => set({ sketch: null }),
+
+    toggleLoupe: () => set(s => ({ loupe: !s.loupe })),
   };
 });

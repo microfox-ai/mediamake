@@ -115,11 +115,13 @@ Preflight prints it. It opens on the deployed app; while mediamake runs locally,
 at it (`<slug>/v5`). Say whether it is a half-size review render.
 
 The screen loads the video and its map, shows the shots on a timeline (⌘←/→ jumps shot to shot) and
-saves comments **next to the video**. Browsers can't open a local folder from a link: the first
-time, the user picks `out/<slug>/` and allows editing; after that the link (or History) reopens it
-in one click. Better: they add `apps/lyrics_videos/out` once as a **source** (Sources → +); every
-project folder in it (and its `v<N>/` folders) is then listed on each visit and new renders appear
-on their own. You can open the link in the user's Chrome for them, but they make the folder pick.
+saves comments **next to the video**. On a paused frame the user can draw (pencil, brush, arrow, box,
+circle; red fix, green add, yellow move) and pin the exact spot, with a magnifier for small detail;
+the comment keeps the marks and a 2× crop of the spot. Browsers can't open a local folder from a
+link: the first time, the user picks `out/<slug>/` and allows editing; after that the link (or
+History) reopens it in one click. Better: they add `apps/lyrics_videos/out` once as a **source**
+(Sources → +); every project folder in it (and its `v<N>/` folders) is then listed on each visit
+and new renders appear on their own. You can open the link in the user's Chrome for them, but they make the folder pick.
 
 ## 4. Wait for the revision in the background
 
@@ -144,12 +146,23 @@ copies for them. Never poll in the foreground.
 out/<slug>/<slug>.revisions/
   rev-001.json      source of truth: title, status (draft | ready | resolved), comments
   rev-001.md        the same as Markdown, regenerated on every save (read this first)
-  rev-001/          one JPEG per point comment: c01_h1.3_f000372.jpg (comment, shot, frame)
+  rev-001/          one JPEG per point comment: c01_h1.3_f000372.jpg (comment, shot, frame),
+                    plus c01_h1.3_f000372_zoom.jpg when the comment pins a spot
   preflight.json    effects marked intended (preflight --intended), skipped by later runs
 ```
 
 - **Point comments** carry `time`, `frame`, the `shot` they were made on and a `snapshot` still
   (path relative to `<slug>.revisions/`). Open the still with the Read tool before acting.
+- **Marks and spots.** A point comment can carry `drawing` (marks the user drew on that frame) and
+  a `spot` with a `zoom` crop. The still has them drawn in, so reading it shows what was circled or
+  crossed out; the `.md` also says each mark in words. The colour is the ask: red fix or remove,
+  green add here, yellow move (an arrow runs from the thing to where it goes). `pen` and `brush`
+  are freehand (the brush is a wide see-through stroke over an area), `arrow` is tail then head,
+  `box` and `circle` are two opposite corners of an area. Points are fractions of the frame (x
+  across, y down), so they hold at review and full size: multiply by the project's width and height
+  to find the element in the scene. The `zoom` JPEG is the frame around the spot at 2× with only a
+  ring on it: open it for detail a half-size render hides. The text says what to do; the marks say
+  where.
 - **Range comments** carry `from`/`to` (seconds and frames) and every shot they touch, but no
   stills. Extract what you need with the ffmpeg line the `.md` gives (run from `out/<slug>/`), or
   exact seeks (`ffmpeg -ss <t> -i <video> -frames:v 1`); a frame sheet
