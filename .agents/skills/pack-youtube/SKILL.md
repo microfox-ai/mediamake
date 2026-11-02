@@ -1,6 +1,6 @@
 ---
 name: pack-youtube
-description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/lyrics_videos/out/youtube/<slug>/, ready to paste into YouTube Studio. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.
+description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/lyrics_videos/out/youtube/<slug>/, ready to paste into YouTube Studio, with an info.json that Browse Hack's youtube_fill_uploads uses to switch to the channel and fill Studio's upload form. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", "upload it to YouTube", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.
 ---
 
 # pack-youtube
@@ -18,6 +18,7 @@ out/youtube/<slug>/
   <Title>.mp4   the video to upload, when there is one (an APFS clone, `cp -c`, of the final render)
   end-screen-card-guide.jpg   the channel end screen's card slots, when the video ends on one
   UPLOAD.md     what goes where in YouTube Studio, one table
+  info.json     the upload form for Browse Hack's youtube_fill_uploads: channel, files, settings (step 5)
   title.txt  description.txt  lyrics.txt  metadata.json   (from write-youtube-metadata)
   thumbnails/   the picked finals only (1, or 3 for YouTube's A/B test)
   input/        lyrics.json, the audio file (copies; the originals stay where they are)
@@ -26,7 +27,7 @@ out/youtube/<slug>/
 ```
 
 **The finished pack is one folder with everything the upload needs:** the video, the title, the
-description, the thumbnails, the end-screen guide and UPLOAD.md. Nothing the user uploads lives
+description, the thumbnails, the end-screen guide, UPLOAD.md and info.json. Nothing the user uploads lives
 anywhere else. When it is done, give the user a one-click way to open it: a `bash` block with
 `open -R "<absolute path to the video>"` (the app adds a Run button; Finder opens with it
 selected). Never open Finder yourself.
@@ -148,13 +149,91 @@ When both are settled, assemble the folder (the video clone, the end-screen guid
 earlier rounds moved into `history/`), update `pack.json` (`thumbnails` with the picked IDs and
 files, `title`, `video`, `status: "ready"`) and tell the user where everything goes in YouTube Studio → Details: Title,
 Description, Thumbnail (one file, or Test & Compare with the three; YouTube picks the winner by
-watch time). The audio and lyrics in `input/` are for reference; this skill uploads nothing.
+watch time). The audio and lyrics in `input/` are for reference. Write `info.json` (step 5) in the
+same pass.
 
 Once the user approves the pack, deliver it to the channel's folder (the user copied packs there by
 hand before): `npm run media -w lyrics_videos -- deliver <slug> --what=youtube,video` (a dry run),
 then `--yes`. It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
 and an older delivery moves to `previous/v<N>/`. Give the `open -R` line. When the user says it's
 published: `media deliver <slug> --uploaded`.
+
+## 5. info.json and the upload (Browse Hack)
+
+Every finished pack carries `info.json`: YouTube Studio's upload form as data. Browse Hack's
+`youtube_fill_uploads` (its MCP) reads it, switches the Chrome profile's YouTube to the channel,
+picks the video, fills the form and stops on the Visibility step for the user to click Save,
+Publish or Schedule. Every field and its default:
+https://github.com/microfox-ai/extensions/blob/main/mcp/README.md#infojson-for-youtube-uploads.
+
+**The channel's handle.** info.json names the channel by its `@handle`, kept in the brand kit at
+`brands/<brand>/youtube/channel.json`:
+
+```json
+{ "handle": "@anime-music-zone", "chromeProfile": "<the Google account email>",
+  "upload": { "playlists": ["OST Tracks"], "alteredContent": true, "category": "Music", "language": "en" } }
+```
+
+When the brand has no `channel.json`, call `youtube_list_channels` (Browse Hack asks which Chrome
+profile first; name profiles by email), ask the user which channel is the brand's, and save
+`channel.json` so the next pack doesn't ask. `upload` holds the answers below that stay the same for
+the channel; `chromeProfile` is the profile to suggest first when Browse Hack asks.
+
+**Ask once the pack is assembled**, in one `AskUserQuestion` (recommended option first; skip what
+`channel.json`'s `upload` already answers and say what you took from it):
+
+1. **When it goes out:** private draft (recommended until the user says otherwise) · unlisted ·
+   public now · scheduled (date and time in Studio's time zone; the schedule in
+   `channel-description.md` suggests the day).
+2. **Playlists:** the channel's usual ones, others they name, or none.
+3. **AI use** (Studio's "altered or synthetic content", which covers AI-made music that's the focus
+   of the video): yes for Suno or other AI songs, no for the user's own recordings. Ask the first
+   time for each channel and save the answer in `channel.json`; never decide it yourself.
+4. **Made for Kids:** no, unless the user says the channel is for kids.
+
+Then write `<pack>/info.json`:
+
+```json
+{
+  "channel": "@anime-music-zone",
+  "video": "Goten Theme.mp4",
+  "titleFile": "title.txt",
+  "descriptionFile": "description.txt",
+  "thumbnail": "thumbnails/goten-theme-A.jpg",
+  "playlists": ["OST Tracks"],
+  "madeForKids": false,
+  "alteredContent": true,
+  "category": "Music",
+  "language": "en",
+  "tags": ["goten theme", "dragon ball", "gregorian chant", "anime ost"],
+  "visibility": "scheduled",
+  "scheduleAt": "2026-11-09T18:30"
+}
+```
+
+- Every path is relative to the pack, so the delivered copy (`Downloads/<CHANNEL>/<slug>/youtube/`,
+  which holds the video clone too) uploads the same way.
+- `titleFile` and `descriptionFile` point at the pack's own files, so a later edit to them is what
+  goes up. With three thumbnails (A/B test), name the first in `thumbnail` and tell the user to add
+  the other two under Thumbnail → A/B testing: Browse Hack sets one.
+- `tags`: the hashtags' words without `#`, plus the song, artist and film or anime names, 500
+  characters at most in all. `language`: the lyrics' language code (`te` for a Telugu song, `ja`
+  for Japanese).
+- Leave out what the user didn't choose: YouTube's defaults stay. No video yet (a pack made before
+  the render): leave `video` out and add it when the video lands in the pack.
+
+Check that it parses and that every file it names is in the pack
+(`python3 -c 'import json,sys; json.load(open(sys.argv[1]))' <pack>/info.json`), list it in
+`pack.json`, and add one line to UPLOAD.md: "Upload with Browse Hack: youtube_fill_uploads on this
+folder".
+
+**Upload only when the user asks** ("upload it", "fill the YouTube upload"). Call
+`youtube_fill_uploads` with the pack folder (or the delivered `youtube/` folder). Picking the video
+starts the upload, so a private draft exists on the channel from then on. Report what it `filled`
+and every line of `warnings` (a thumbnail on a channel that isn't phone-verified, a playlist that
+doesn't exist, a schedule it couldn't set), then tell the user to review the tab and click Save,
+Publish or Schedule themselves; never press it for them. After they publish:
+`media deliver <slug> --uploaded`.
 
 ## Feedback log
 
@@ -170,3 +249,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-27 · Get into Zone (brand kit with eight outros) · "when a brandkit has multiple outros, it is best if claude shows the outros using a revisor to pick from for user choice … when creating the final video attaching outro, no need to render the whole video again, just attaching it at end via ffmpeg or something is fine" → the end-screen step: several outros are picked in the Image Revisions screen (one still each, MP4 path in the note), and the picked outro is joined to the video with ffmpeg (outro matched, concat stream copy), never a full re-render.
 - 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.
 - 2026-10-27 · skill · "when creating brands or creating youtube pack, run parallel threads for faster execution" → the Parallel threads section: thumbnails in their own session, the description here at the same time, the title after the thumbnail's words, the outro review and ffmpeg join and the video check in subagents; this session owns and assembles the pack.
+- 2026-11-02 · skill · "create a tool in the extension that will enable to switch accounts ( channels ) auto fill the entire vidoe upload deatils from an info.json, and also update the pack-yotube-kit sill in medimake repo to create this info.json" → step 5: every pack carries info.json for Browse Hack's youtube_fill_uploads (it switches the channel, fills Studio's form and stops before Save); the channel's handle and standing upload answers live in brands/<brand>/youtube/channel.json.
