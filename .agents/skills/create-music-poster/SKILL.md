@@ -74,6 +74,10 @@ Measure it (`sips -g pixelWidth -g pixelHeight`) and look at it (Read). Then:
 - **Upscale** only per rule 7: the one source picture, never the covers (fal
   `fal-ai/seedvr/upscale/image`, faithful, `upscale_factor` to reach ≥ 3000 px on the crop's short
   side; Midjourney images: Upscale Subtle). `render` warns when a picture is blown up past its pixels.
+  Paid once, kept for good:
+  - Before asking to pay, check `npm run media -w lyrics_videos -- cache get <picture> upscale --params=<model>`.
+  - After it runs, `media cache put <picture> upscale <result> --params=<model> --tool=fal`.
+  - The same applies to outcrops (`outcrop`) and cutouts (`cutout`).
 - **A cutout** (for placement, devices behind the subject, text behind her):
   `npm run thumbs -w lyrics_videos -- cutout <job> input/<file> --model=birefnet-general`
   (`birefnet-portrait` for people, `isnet-anime` for drawn art), or a project's BiRefNet tool with
@@ -165,7 +169,8 @@ pick).
   `revise-image`.
 - The cover: `npm run thumbs -w lyrics_videos -- pick <job> <ID> [--to=<release folder>]` →
   `out/posters/<job>/final/<job>-<ID>.jpg` and `cover.jpg` in the release folder (ask before replacing
-  one). Then `pack-distrokid` takes over.
+  one). Then `pack-distrokid` takes over. The picked cover is also delivered to the channel's folder:
+  `npm run media -w lyrics_videos -- deliver <slug> --what=poster` (a dry run, then `--yes`).
 - Log what you learned in `brief.md` (this job) and the feedback log below (general taste).
 
 ## 7. Spotify Canvas (only when asked)

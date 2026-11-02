@@ -1,0 +1,194 @@
+{
+  "_about": "Subjects for the media library: franchises → characters (aliases matched as whole words in titles, queries, prompts, file and folder names; a trailing * means the alias only counts next to its franchise or another of its characters), overlay types, sound-effect categories and footage/image types (tags). Add to it as new subjects come up.",
+  "franchises": {
+    "one-piece": {
+      "aliases": ["one piece", "onepiece", "straw hat", "straw hats", "strawhat", "strawhats", "grand line", "wano", "marineford", "enies lobby", "alabasta", "thriller bark", "egghead"],
+      "characters": {
+        "luffy": ["luffy", "monkey d luffy", "gear 5", "gear5", "gear fifth", "gear 4", "joyboy", "sun god nika", "drums of liberation", "king of the pirates"],
+        "zoro": ["zoro", "roronoa", "zorojuro", "king of hell", "santoryu", "enma", "wado", "kitetsu", "ultimate stoicism"],
+        "sanji": ["sanji", "vinsmoke", "black leg"],
+        "nami": ["nami", "clima tact"],
+        "robin": ["nico robin", "robin*"],
+        "usopp": ["usopp", "sogeking"],
+        "chopper": ["chopper", "tony tony"],
+        "franky": ["franky"],
+        "brook": ["brook*", "soul king"],
+        "jinbe": ["jinbe", "jinbei"],
+        "ace": ["portgas", "fire fist", "ace in the deck", "ace*"],
+        "shanks": ["shanks", "red hair", "red haired", "redhair"],
+        "whitebeard": ["whitebeard", "white beard", "newgate", "edward newgate"],
+        "roger": ["gol d roger", "gold roger", "roger*"],
+        "mihawk": ["mihawk", "hawk eyes"],
+        "kuma": ["bartholomew kuma", "kuma*"],
+        "bonney": ["bonney", "jewelry bonney"],
+        "kaido": ["kaido", "kaidou"],
+        "big-mom": ["big mom", "linlin"],
+        "law": ["trafalgar", "law*"],
+        "kid": ["eustass", "kid*"],
+        "garp": ["garp"],
+        "buggy": ["buggy"],
+        "doflamingo": ["doflamingo", "joker*"],
+        "lucci": ["rob lucci", "lucci"],
+        "kuina": ["kuina"],
+        "yamato": ["yamato"],
+        "hancock": ["boa hancock", "hancock"],
+        "blackbeard": ["blackbeard", "teach*"],
+        "crocodile": ["crocodile*"],
+        "arlong": ["arlong"]
+      }
+    },
+    "jjk": {
+      "aliases": ["jujutsu kaisen", "jujutsu", "jjk", "shibuya incident", "culling game"],
+      "characters": {
+        "gojo": ["gojo", "satoru", "honored one", "hollow purple", "six eyes"],
+        "yuta": ["yuta", "okkotsu", "rika*", "cursed love"],
+        "maki": ["maki", "zenin maki", "lets get started"],
+        "toji": ["toji", "fushiguro toji", "monkey breaks the mold"],
+        "higuruma": ["higuruma", "sentence strike"],
+        "sukuna": ["sukuna", "ryomen"],
+        "itadori": ["itadori", "yuji"],
+        "megumi": ["megumi"],
+        "nobara": ["nobara"],
+        "geto": ["geto", "suguru"],
+        "nanami": ["nanami"],
+        "todo": ["todo*", "aoi todo"]
+      }
+    },
+    "dragon-ball": {
+      "aliases": ["dragon ball", "dragonball", "dbz", "dbs", "dbgt", "dragon ball z", "dragon ball super", "saiyan", "super saiyan"],
+      "characters": {
+        "goku": ["goku", "kakarot", "son goku", "ultra instinct", "genki dama", "spirit bomb", "kamehameha"],
+        "vegeta": ["vegeta", "prince of saiyans"],
+        "gohan": ["gohan", "beast gohan"],
+        "goten": ["goten"],
+        "trunks": ["trunks"],
+        "broly": ["broly"],
+        "frieza": ["frieza", "freeza"],
+        "piccolo": ["piccolo"],
+        "cell": ["perfect cell", "cell*"],
+        "android-17": ["android 17", "android17"],
+        "android-18": ["android 18", "android18"],
+        "whis": ["whis"],
+        "beerus": ["beerus"],
+        "jiren": ["jiren"],
+        "black-goku": ["goku black", "black goku", "zamasu"]
+      }
+    },
+    "naruto": {
+      "aliases": ["naruto", "boruto", "shippuden", "konoha", "akatsuki", "uchiha"],
+      "characters": {
+        "naruto": ["naruto uzumaki", "uzumaki", "naruto*"],
+        "itachi": ["itachi", "sharingan", "inexorable", "tsukuyomi", "genjutsu"],
+        "sasuke": ["sasuke"],
+        "madara": ["madara"],
+        "kakashi": ["kakashi"],
+        "pain": ["nagato", "pain*"],
+        "jiraiya": ["jiraiya"],
+        "obito": ["obito"],
+        "minato": ["minato"]
+      }
+    },
+    "demon-slayer": {
+      "aliases": ["demon slayer", "kimetsu", "kimetsu no yaiba", "hashira"],
+      "characters": {
+        "nezuko": ["nezuko", "eyes of pink"],
+        "tanjiro": ["tanjiro"],
+        "zenitsu": ["zenitsu"],
+        "inosuke": ["inosuke"],
+        "rengoku": ["rengoku"],
+        "muzan": ["muzan"],
+        "akaza": ["akaza"]
+      }
+    },
+    "bleach": {
+      "aliases": ["bleach", "espada", "soul reaper", "hollow*"],
+      "characters": {
+        "ulquiorra": ["ulquiorra", "ulkiora", "ulquiora"],
+        "ichigo": ["ichigo"],
+        "aizen": ["aizen"],
+        "byakuya": ["byakuya"]
+      }
+    },
+    "black-clover": { "aliases": ["black clover"], "characters": { "asta": ["asta"], "yuno": ["yuno"] } },
+    "attack-on-titan": { "aliases": ["attack on titan", "shingeki", "aot"], "characters": { "eren": ["eren"], "levi": ["levi"], "mikasa": ["mikasa"] } },
+    "chainsaw-man": { "aliases": ["chainsaw man", "csm"], "characters": { "denji": ["denji"], "makima": ["makima"], "power": ["power*"] } },
+    "death-note": { "aliases": ["death note", "kira"], "characters": { "light": ["light yagami", "yagami"], "ryuk": ["ryuk"], "l": ["l lawliet", "lawliet"] } },
+    "solo-leveling": { "aliases": ["solo leveling"], "characters": { "jinwoo": ["jinwoo", "sung jinwoo", "sung jin woo"] } },
+    "marvel": {
+      "aliases": ["marvel", "x men", "x-men", "avengers", "mcu"],
+      "characters": {
+        "quicksilver": ["quicksilver"],
+        "deadpool": ["deadpool"],
+        "wolverine": ["wolverine", "logan*"],
+        "magneto": ["magneto"],
+        "apocalypse": ["apocalypse*"],
+        "spider-man": ["spider man", "spiderman", "spider-man"]
+      }
+    },
+    "breaking-bad": {
+      "aliases": ["breaking bad", "better call saul"],
+      "characters": {
+        "walter-white": ["walter white", "heisenberg", "walter*", "walt*"],
+        "jesse": ["jesse pinkman", "pinkman", "jesse*"],
+        "saul": ["saul goodman", "saul*"],
+        "gus": ["gus fring", "gustavo"],
+        "hector": ["hector salamanca", "hector*"]
+      }
+    },
+    "f1": { "aliases": ["f1", "formula 1", "formula one", "grand prix"], "characters": { "f1-the-movie": ["f1 the movie", "brad pitt", "sonny hayes"] } },
+    "devotional": {
+      "aliases": ["devotional", "stotram", "bhajan", "aarti", "mantra"],
+      "characters": {
+        "durga": ["durga", "mahishasura", "mardini", "bhargavi", "devi*"],
+        "shiva": ["shiva", "mahadev", "shankar*", "akhilanda"],
+        "hanuman": ["hanuman", "bajrang"],
+        "krishna": ["krishna"],
+        "rama": ["shri ram", "rama*"],
+        "ganesha": ["ganesha", "ganpati", "ganesh"]
+      }
+    }
+  },
+  "overlays": {
+    "particles": ["particle", "particles", "dust", "sparkle", "sparkles", "glitter", "ember", "embers", "snow", "stars", "magic dust"],
+    "light-leaks": ["light leak", "light leaks", "leak", "leaks", "lens flare", "flare", "flares", "bokeh", "light rays", "god rays", "glow", "aurora"],
+    "fire": ["fire", "flame", "flames", "inferno", "sparks", "burning"],
+    "smoke": ["smoke", "fog", "mist", "haze", "steam", "clouds"],
+    "glitch": ["glitch", "vhs", "static", "noise", "datamosh", "chroma", "rgb split", "old tv", "crt"],
+    "film": ["film grain", "grain", "scratches", "film burn", "burn", "old film", "super 8", "8mm", "16mm"],
+    "lightning": ["lightning", "thunder", "electric", "electricity", "bolt"],
+    "shapes": ["lines", "geometric", "abstract", "network", "grid", "tunnel", "shapes"],
+    "water": ["rain", "water", "drops", "ripple", "underwater"],
+    "transitions": ["transition", "transitions", "swipe", "wipe"]
+  },
+  "sfx": {
+    "whoosh": ["whoosh", "swoosh", "swish", "woosh", "flyby", "fly by", "pass by"],
+    "impact": ["impact", "hit", "punch", "slam", "boom", "thud", "smash", "kick", "crash", "bass drop"],
+    "riser": ["riser", "rise", "build up", "buildup", "uplifter", "swell", "tension"],
+    "weapon": ["katana", "sword", "blade", "snikt", "gun", "gunshot", "reload", "wheelgun", "slash"],
+    "ambience": ["ambience", "ambient", "crowd", "wind", "room tone", "city", "crackle"],
+    "ui": ["click", "pop", "ding", "beep", "notification", "tick", "type"],
+    "body": ["heartbeat", "heart beat", "breath", "footsteps", "scream", "growl"],
+    "camera": ["shutter", "camera", "flash"],
+    "magic": ["magic", "spell", "aura", "power up", "energy", "charge", "shine", "sparkle"],
+    "bed": ["bed", "drone", "pad", "hum", "sting", "stinger"]
+  },
+  "types": {
+    "twixtor": ["twixtor"],
+    "amv": ["amv", "asmv"],
+    "edit": ["edit", "edits", "velocity"],
+    "raw": ["raw", "raw clips", "no cc", "nocc", "no sound", "clean"],
+    "clip": ["clip", "clips", "scene", "movie clip", "fight scene"],
+    "manga": ["manga", "panel", "panels"],
+    "wallpaper": ["wallpaper", "wallpapers"],
+    "trailer": ["trailer"],
+    "visualizer": ["visualizer", "visualiser"],
+    "stems": ["stems", "stem"],
+    "master": ["master", "mastered", "remaster", "remastered", "lufs"],
+    "instrumental": ["instrumental", "ost", "soundtrack", "score", "bgm"],
+    "logo": ["logo"],
+    "poster": ["poster", "artwork", "cover art"],
+    "outcrop": ["outcrop", "outpaint", "zoom out"],
+    "upscale": ["upscale", "upscaled"],
+    "cutout": ["cutout", "background removal", "no bg", "transparent"]
+  }
+}

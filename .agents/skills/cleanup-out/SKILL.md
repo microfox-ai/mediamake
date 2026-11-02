@@ -87,6 +87,13 @@ re-render, `version` to compare an old cut).
   before → after free space, not du.
 - **Previous revisions are never deleted** without a checked copy on the disk. That's this skill's
   only exception to keeping every version locally.
+- **The media library** (`~/Downloads/_LIBRARY`, `apps/lyrics_videos/scripts/library/`, layout 2) is
+  outside the repo and never swept here.
+  - Projects' inputs are clones of library files and delivered outputs are clones of finals, so
+    archiving a project's copy frees nothing while the other copy stays. Say so when it matters.
+  - After an archive run, `media scan` marks items whose last copy went to the disk as cold, with
+    the disk's name (from this ledger's hashes). They stay searchable.
+  - Duplicates across the Mac are `media dedupe`'s job (it turns them into clones), not this skill's.
 - **Why the temp folder filled up**: `bundle()` used to copy the whole `projects/` folder (20+ GB)
   into the temp folder, and a stopped run left the copy behind. Scripts now call `tempBundle()` from
   `apps/lyrics_videos/scripts/bundle.ts`, which links the public folder and removes the bundle
