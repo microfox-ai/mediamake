@@ -1,0 +1,156 @@
+[
+  {
+    "id": "c1",
+    "from": 0,
+    "to": 3.6,
+    "label": "cold open: the finished world, 'This… was a blank page.'",
+    "section": "cold"
+  },
+  {
+    "id": "c2",
+    "from": 3.6,
+    "to": 7.2,
+    "label": "blank page, a pause, '…before we figured it out, that is.'",
+    "section": "cold"
+  },
+  {
+    "id": "o1",
+    "from": 7.2,
+    "to": 21.2,
+    "label": "series opener (approved)",
+    "section": "opener"
+  },
+  {
+    "id": "s1",
+    "from": 21.2,
+    "to": 26.3,
+    "label": "'one of the many open-source skills. Free, and easy to use.' — the skills spiral, pack-brand-kit comes forward",
+    "section": "skills"
+  },
+  {
+    "id": "r1",
+    "from": 26.3,
+    "to": 28.87,
+    "label": "'Copy the prompt.' — the MediaMake card, ⌘C, the prompt peels off",
+    "section": "ritual"
+  },
+  {
+    "id": "r2",
+    "from": 28.87,
+    "to": 31.27,
+    "label": "'Paste it into Claude.' — terminal + desktop app, install steps",
+    "section": "ritual"
+  },
+  {
+    "id": "r3",
+    "from": 31.27,
+    "to": 36.9,
+    "label": "'Then name it: tell it what you want to make. That's the whole setup.' — the ask typed",
+    "section": "ritual"
+  },
+  {
+    "id": "l1",
+    "from": 36.9,
+    "to": 46.0,
+    "label": "'First, it goes looking… You pick what you love.' — 3D fly-through, the cards swarm into four columns",
+    "section": "look"
+  },
+  {
+    "id": "d1",
+    "from": 46.0,
+    "to": 49.5,
+    "label": "Draw. — round 1",
+    "section": "draw"
+  },
+  {
+    "id": "d2",
+    "from": 49.5,
+    "to": 52.8,
+    "label": "Again. — round 2",
+    "section": "draw"
+  },
+  {
+    "id": "d3",
+    "from": 52.8,
+    "to": 56.4,
+    "label": "Again. — round 3",
+    "section": "draw"
+  },
+  {
+    "id": "d4",
+    "from": 56.4,
+    "to": 60.1,
+    "label": "Again. — round 4",
+    "section": "draw"
+  },
+  {
+    "id": "t1",
+    "from": 60.1,
+    "to": 63.5,
+    "label": "'Until you find it.' — 3D wok bubbling, the spark rises — '…there it is.'",
+    "section": "there"
+  },
+  {
+    "id": "t2",
+    "from": 63.5,
+    "to": 66.5,
+    "label": "the logo ignites",
+    "section": "there"
+  },
+  {
+    "id": "a1",
+    "from": 66.5,
+    "to": 71.1,
+    "label": "Motion. — intros orbit",
+    "section": "alive"
+  },
+  {
+    "id": "a2",
+    "from": 71.1,
+    "to": 74.4,
+    "label": "Sound. — theme waveform",
+    "section": "alive"
+  },
+  {
+    "id": "a3",
+    "from": 74.4,
+    "to": 76.3,
+    "label": "Voice. — voice waveform",
+    "section": "alive"
+  },
+  {
+    "id": "a4",
+    "from": 76.3,
+    "to": 79.8,
+    "label": "'A complete brand setup, with everything you need.' — whip strip of the kit",
+    "section": "alive"
+  },
+  {
+    "id": "p1",
+    "from": 79.8,
+    "to": 97.28,
+    "label": "the shelf: twelve brands — 'Then we kept cooking… One skill.'",
+    "section": "pantry"
+  },
+  {
+    "id": "p2",
+    "from": 97.28,
+    "to": 101.9,
+    "label": "all twelve at once — 'Every end screen.' 'Every one of these… started with a name.'",
+    "section": "pantry"
+  },
+  {
+    "id": "j1",
+    "from": 101.9,
+    "to": 110.7,
+    "label": "'Now, it can be your idea, your name. Just start.' — the page, every logo round it, sparks on the last hit",
+    "section": "just"
+  },
+  {
+    "id": "e1",
+    "from": 110.7,
+    "to": 130.7,
+    "label": "end card: 'What do you wish to make next?'",
+    "section": "end"
+  }
+]
