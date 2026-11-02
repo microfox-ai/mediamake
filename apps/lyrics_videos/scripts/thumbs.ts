@@ -465,7 +465,7 @@ type Index = { schema?: string; job: string; kind?: string; workflow?: string; s
 
 const indexFile = () => path.join(outDir(job), 'index.json');
 
-/** The image-set contract /image-revision reads (see scripts/image-index.ts): the renders by ID, who made them and from what. */
+/** The image-set contract /file-revision reads (see scripts/image-index.ts): the renders by ID, who made them and from what. */
 const writeIndex = (spec: JobSpec, variants: ResolvedVariant[], ext: string) => {
   const old = fs.existsSync(indexFile()) ? (JSON.parse(fs.readFileSync(indexFile(), 'utf8')) as Index) : undefined;
   const index: Index = {
@@ -475,7 +475,7 @@ const writeIndex = (spec: JobSpec, variants: ResolvedVariant[], ext: string) => 
     workflow: jobKind(spec) === 'poster' ? 'create-music-poster' : 'create-thumbnail',
     source: path.relative(path.resolve(ROOT, '../..'), specFile(job)),
     location: path.relative(path.resolve(ROOT, '../..'), outDir(job)),
-    // absolute, so /image-revision can show the folder in Finder (dev server) or copy the path
+    // absolute, so /file-revision can show the folder in Finder (dev server) or copy the path
     path: outDir(job),
     sourcePath: specFile(job),
     title: spec.title,

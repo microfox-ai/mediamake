@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Renamed to /image-revision; old links (and their ?job=) keep working. */
+/** Renamed to /image-revision, now /file-revision; old links (and their ?job=) keep working. */
 export default async function ThumbnailRevisionRedirect({
   searchParams,
 }: {
@@ -12,5 +12,5 @@ export default async function ThumbnailRevisionRedirect({
       params.append(key, v);
   }
   const query = params.toString();
-  redirect(`/image-revision${query ? `?${query}` : ''}`);
+  redirect(`/file-revision${query ? `?${query}` : ''}`);
 }

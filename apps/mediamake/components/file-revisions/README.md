@@ -1,29 +1,33 @@
-# Image revisions
+# File revisions
 
-A review screen for **any set of images** on this computer, at `/image-revision` (`/thumbnail-revision`
-redirects there): thumbnails, music posters, generated images from an MCP server, a download,
-anything in a folder. The sibling of `/remotion-revision` (videos, `components/revisions/`). The
-user selects images (several at once), picks finals, keeps, drops and comments, zooms in to catch
-small mistakes, and submits a revision file that lands **next to the images**, where Claude reads
-it. Nothing is uploaded; everything goes through the File System Access API (Chromium only). The
+A review screen for **any set of files** on this computer, at `/file-revision` (`/image-revision` and
+`/thumbnail-revision` redirect there): thumbnails, music posters, generated images from an MCP
+server, outros, the library sweep's videos and songs, a download, anything in a folder. Videos and
+audio play in the zoom view. The sibling of `/remotion-revision` (a Remotion render's frame-by-frame
+review, `components/revisions/`). The user selects files (several at once), picks finals, keeps,
+drops and comments, zooms in to catch small mistakes, and submits a revision file that lands
+**next to the files**, where Claude reads it. The schema names (`mediamake.image-set/v1`,
+`mediamake.image-revision/v1`) keep "image" so every existing set and revision still reads. Nothing is uploaded; everything goes through the File System Access API (Chromium only). The
 page is public (`app/(public)/`): no sign-in, no API calls.
 
 ```
-┌ header: set title · set · N images · save state ───────────────────────────────┐
+┌ header: set title · set · N files · save state ────────────────────────────────┐
 │ sets panel     │ grid: one row per group, tiles with IDs     │ revision tabs [+]│
-│  open / sources│  (click = select several, ⇧ range,          │ submit to Claude │
+│  open / sources│  (click, ⌘ click, ⇧ range, drag a box,      │ submit to Claude │
 │  recent        │   double-click = zoom, small-size toggle)   │ selection actions│
 │                │                                             │ comments         │
 └────────────────┴─────────────────────────────────────────────┴──────────────────┘
 zoom view (full window): magnifier · click to pin a comment · small-size copy · filmstrip
+                         a video or song: player bar (play, time, scrubber with the comments, mute)
 ```
 
 ## Making any workflow reviewable (the contract)
 
-A set is a folder of images. To review it here:
+A set is a folder of images, videos or audio. To review it here:
 
-1. **Nothing at all**: open the folder. Its images are listed by file name (the ID is the name
-   without the extension). Good for a one-off folder from an MCP server or a download.
+1. **Nothing at all**: open the folder. Its files are listed by file name (the ID is the name
+   without the extension); an image named like a video or song (`clip.jpg` beside `clip.mp4`) is
+   its still. Good for a one-off folder from an MCP server or a download.
 2. **Better: write `<folder>/index.json`**, the image-set contract below. Then the folder is listed
    from a source on every visit, images are grouped and labelled, and the revision tells Claude
    which workflow made them and where their sources live, so it can act on the comments. Any
@@ -48,6 +52,8 @@ A set is a folder of images. To review it here:
   "pick": { "max": 1, "label": "Cover" }, // optional: how many finals, and what one is called
   "groups": [
     { "id": "A", "name": "Art only", "idea": "…", "items": [{ "id": "A0", "file": "A0.jpg", "note": "plain" }] },
+    // a video or song: `file` may be it, or its still with the file to play as `media`
+    { "id": "O", "name": "Outros", "items": [{ "id": "O1", "file": "O1.jpg", "media": "O1.mp4" }] },
   ],
   "picked": ["A3"], // what the workflow delivered as final
   "kept": ["A0"], // what the workflow locked
@@ -56,7 +62,8 @@ A set is a folder of images. To review it here:
 
 `styles` / `variants` are read the same as `groups` / `items` (the stills engine's names). Item
 files may be in subfolders (`batch-2/x.png`). IDs must stay stable between rounds: comments refer
-to them.
+to them. Browsers only read the folder they were given, so a video or song to play must be inside
+it: clone it in (`cp -c`, no extra space on APFS) rather than pointing elsewhere.
 
 ## Files the page writes
 
@@ -85,6 +92,7 @@ to them.
       "images": ["F1"],
       "text": "The script e looks clipped",
       "pin": { "image": "F1", "x": 0.6, "y": 0.84, "size": [1280, 720] }, // fractions of the image; its pixel size
+      // on a video or song the pin also has "t": seconds in; a video's crop is the frame it was paused on
       "snapshot": "rev-001/c02_F1.jpg",
       "status": "done",
       "reply": "Gave the script line more room; re-rendered F1.", // written by Claude
@@ -102,15 +110,19 @@ version). Editing a resolved revision starts a new one.
 
 ## Flow
 
-1. **Open images**: pick any folder of images, or `apps/lyrics_videos/out`, which is kept as a
+1. **Open a folder**: pick any folder of images, videos or audio, or `apps/lyrics_videos/out`, which is kept as a
    **source**: every set in it (folders with an `index.json`) is listed on each visit (one
    "Reconnect" click per visit unless Chrome's "Allow on every visit" was chosen). Recent sets are
    remembered in IndexedDB.
-2. Select images, then **Final** (F), **Keep** (K), **Drop** (D) or a comment (C, ⌘Enter). The
-   first action creates `rev-001`; everything autosaves.
+2. Select files the way Finder does (click one, ⌘/Ctrl click to add or remove, ⇧ click a range,
+   drag a box over tiles, ⇧ or ⌘ while dragging adds; a click on empty space clears), then
+   **Final** (F), **Keep** (K), **Drop** (D) or a comment (C, ⌘Enter). The first action creates
+   `rev-001`; everything autosaves.
 3. **Zoom** (Space, or double-click a tile): the selection (or everything) one at a time, a
    magnifier under the pointer, a small-size copy (YouTube's feed for thumbnails, a streaming
-   list for posters), ← → to move. Click the picture to pin a comment to that spot.
+   list for posters), ← → to move. Click the picture to pin a comment to that spot. A video or
+   song plays here (Space, ⇧ ← → 5 s, M mute); clicking the picture pauses it and pins the comment
+   to that spot and time, and the comments show on the scrubber (click one to go back to it).
 4. **Submit to Claude**: status `ready`, and the message to send is copied.
 5. **Show in Finder**: on every tile (hover), in the zoom view and in the header (the set's folder,
    and what it's made from when the index names it). Browsers can't open Finder or see real paths,
@@ -119,14 +131,14 @@ version). Editing a resolved revision starts a new one.
    deployed app) it copies the path instead; **Copy path** buttons do that directly. A folder
    without an index.json has no known path: the name is copied, with a hint to run `image-index`.
 
-Deep link for Claude: `/image-revision?job=<set>` opens the set when a source lists it (or asks
+Deep link for Claude: `/file-revision?job=<set>` opens the set when a source lists it (or asks
 for one click). Browsers never expose absolute paths, so the first open is the user's pick.
 
 ## Code
 
-- `lib/image-revisions/`: types (the two contracts), `sets.ts` (index reading, folders without one, source scans), revision files + markdown + pin crops, history.
-- `components/image-revisions/store.ts`: zustand store (set, images, selection, zoom, revisions, autosave).
-- `SetsPanel.tsx`, `ImageGrid.tsx`, `ZoomView.tsx`, `RevisionPanel.tsx`, `ImageRevisionsWorkspace.tsx`: the UI.
-- `lib/image-revisions/reveal.ts` + `app/api/dev-reveal/route.ts`: Show in Finder / Copy path (the route is exempt from API auth in `middleware.ts`, like `dev-lyrics`).
+- `lib/file-revisions/`: types (the two contracts), `sets.ts` (index reading, folders without one, source scans), revision files + markdown + pin crops, history.
+- `components/file-revisions/store.ts`: zustand store (set, files and what they play, selection, zoom, revisions, autosave).
+- `SetsPanel.tsx`, `FileGrid.tsx` (tiles, box selection), `ZoomView.tsx` (magnifier, player), `RevisionPanel.tsx`, `FileRevisionsWorkspace.tsx`: the UI.
+- `lib/file-revisions/reveal.ts` + `app/api/dev-reveal/route.ts`: Show in Finder / Copy path (the route is exempt from API auth in `middleware.ts`, like `dev-lyrics`).
 - Folder IO, `Hint` and shortcut helpers are shared with `/remotion-revision` (`lib/revisions/fs.ts`, `components/revisions/keyboard.tsx`).
-- `apps/lyrics_videos/scripts/image-index.ts` writes the contract for any folder; `scripts/thumbs.ts` writes it for thumbnails and posters.
+- `apps/lyrics_videos/scripts/image-index.ts` writes the contract for any folder; `scripts/thumbs.ts` writes it for thumbnails and posters; the library sweep (`scripts/library/sweep.ts`, `media sweep --review=<id>` to rebuild) for its moves, with a clone of each video and song.

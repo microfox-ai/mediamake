@@ -187,7 +187,7 @@ set `floor` / `gain` from the numbers, not by eye.
 **Inspiration first** (rule 7): the user's references, or a search — Pinterest through Browse Hack
 (`pinterest_*` tools, the user's chosen profile), YouTube lyric videos of the genre, kinetic
 typography work — collected into a small labelled board in `out/<slug>/<slug>-type-inspo/` (an
-image set for `/image-revision`). Show it, ask what they like, then design. The caption presets
+image set for `/file-revision`). Show it, ask what they like, then design. The caption presets
 (`catalog/captions.ts`, `npm run wave-lab -- catalog captions`) are part of that inspiration, not the
 answer.
 
@@ -260,7 +260,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   `layers` + `overlays`), `waves`, `fonts`, `captions`, `pick`, `at`. `video/index.tsx`:
   `storyboardVideo('<slug>', storyboard, [extra layers])`.
 - `wave-lab <slug> looks|waves|fonts|captions|final [--only=…] [--at=s] [--clip=6]` → labelled stills,
-  clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/image-revision`.
+  clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/file-revision`.
 - `stills <slug> <s,s,…> --only [--scale=1]`: the folder is cleared on every run — copy the files
   out between batches; batches of ≤ 6 avoid font timeouts.
 - The catalog (`catalog/`, shots in `out/waveform-catalog/`): waves, font sets and caption setups

@@ -233,7 +233,7 @@ and the face's size; check one accent colour. If ours wouldn't be clicked over t
 showing — don't hand the user the comparison to do. Fix and re-render those IDs.
 
 Then send the user `sheet.jpg` (SendUserFile), list the IDs with one line each, and give them the
-`/image-revision?job=<job>` link (the `revise-image` skill). They pick **one
+`/file-revision?job=<job>` link (the `revise-image` skill). They pick **one
 final** or **three for an A/B test** (YouTube Studio → Details → Thumbnail → Test & Compare takes
 up to three) and comment there, or give feedback by ID in chat; both work.
 
@@ -263,9 +263,9 @@ and Subhodayam have one. For a new brand (from `pack-brand-kit`), write it from 
 `brandguide.md` ("Thumbnails and titles") and `colors.json`, then make a first job with
 `--brand=<brand>` to check it.
 
-## Review in /image-revision
+## Review in /file-revision
 
-Follow the **`revise-image`** skill: it gives the user the `/image-revision?job=<job>` link, reads
+Follow the **`revise-image`** skill: it gives the user the `/file-revision?job=<job>` link, reads
 their revision (finals, keeps, drops, pinned comments) and closes it with `thumbs keep`, re-renders
 and `thumbs pick`. Fix each comment the way this skill works (IDs never change once seen).
 

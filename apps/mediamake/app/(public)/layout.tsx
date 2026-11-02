@@ -3,7 +3,7 @@ import '../globals.css';
 
 /**
  * Pages that work without signing in. The revision screens (/remotion-revision,
- * /image-revision) only touch folders on the viewer's own computer, so they
+ * /file-revision) only touch folders on the viewer's own computer, so they
  * need no session or API access. Each page sets its own title.
  */
 export const metadata: Metadata = {

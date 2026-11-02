@@ -5,7 +5,7 @@ One page, `/library`, over everything a channel's work is made of: **channels â†
 approved output, runs, variants and how far they drifted) and **media** (search, facets, inbox
 triage, duplicates). It replaces `/skill-library`, which redirects here (`?view=skills`).
 
-It is a public page like `/image-revision`: no sign-in, no API calls, nothing uploaded. It reads a
+It is a public page like `/file-revision`: no sign-in, no API calls, nothing uploaded. It reads a
 folder on this computer with the File System Access API (Chromium only).
 
 ```
@@ -107,4 +107,4 @@ Deep links: `/library?view=channels|productions|skills|media`, `&channel=<id>`,
 - `lib/skills/registry.ts`: `skills.json` for `/skills` and `/library` (server, build time).
 - `app/api/dev-library/[...path]/route.ts`: the dev server's read-only copy.
 - `components/library/`: the zustand store and the UI. Folder helpers come from
-  `lib/revisions/fs.ts`, Show in Finder from `lib/image-revisions/reveal.ts`.
+  `lib/revisions/fs.ts`, Show in Finder from `lib/file-revisions/reveal.ts`.

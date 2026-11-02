@@ -1,19 +1,21 @@
 ---
 name: revise-image
-description: Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the review link, read their revision files (finals, keeps, drops, comments pinned to spots with zoomed crops) under <folder>/<set>.revisions/, act on them the way the skill that made the images works (re-render, keep, pick finals), reply and resolve, and log the lessons. Shared by every image skill (thumbnails, posters, logo concepts, Midjourney / fal sets, any create-* skill to come). Use after a round of images the user will look at, or when the user says "rev-002 is ready", "check my image revision / comments", "act on the revisions", "/revise-image <set>", or asks to fix notes left in the Image Revisions screen. Not for videos. Append new user feedback to the log at the bottom.
+description: Review and revise a set of images with the user through mediamake's File Revisions screen (/file-revision) — make the set reviewable (index.json), give them the review link, read their revision files (finals, keeps, drops, comments pinned to spots with zoomed crops) under <folder>/<set>.revisions/, act on them the way the skill that made the images works (re-render, keep, pick finals), reply and resolve, and log the lessons. Shared by every image skill (thumbnails, posters, logo concepts, Midjourney / fal sets, any create-* skill to come). Use after a round of images the user will look at, or when the user says "rev-002 is ready", "check my image revision / comments", "act on the revisions", "/revise-image <set>", or asks to fix notes left in the File Revisions screen. A set may also hold videos and songs (they play in the zoom view); a Remotion render's own review is revise-video. Append new user feedback to the log at the bottom.
 ---
 
 # revise-image
 
 The review loop for any set of images on this machine. The making skill builds and renders; this
-skill takes the user's picks and notes back from the **Image Revisions** screen and closes the
+skill takes the user's picks and notes back from the **File Revisions** screen and closes the
 loop. The making skill's own rules (IDs never change once seen, its prime rules, its `brief.md`)
 still apply to every fix. The screen itself is documented in
-`apps/mediamake/components/image-revisions/README.md`.
+`apps/mediamake/components/file-revisions/README.md`.
 
 ## What an image skill must provide
 
-- **A folder of images with stable IDs** (the file name without its extension is enough).
+- **A folder of images with stable IDs** (the file name without its extension is enough). Videos
+  and audio files may be in it too: they play in the zoom view, and an image of the same name
+  (`clip.jpg` beside `clip.mp4`) is the still on their tile (`media` in index.json).
 - **`<folder>/index.json`** (`mediamake.image-set/v1`): who made the set (`workflow`: the skill's
   name), its source (`source`, `sourcePath`), its groups and IDs, and what is already picked or
   kept. The stills engine writes it on every render (`thumbs render`); any other folder gets it
@@ -26,16 +28,18 @@ still apply to every fix. The screen itself is documented in
 ## 1. Give the user the review link (after every round they will look at)
 
 ```
-https://mediamake.microfox.app/image-revision?job=<set>
+https://mediamake.microfox.app/file-revision?job=<set>
 ```
 
 It opens on the deployed app, no local server needed; while mediamake runs locally,
-`http://localhost:3002/image-revision?job=<set>`. (`/thumbnail-revision` still redirects.)
+`http://localhost:3002/file-revision?job=<set>`. (`/thumbnail-revision` still redirects.)
 
 The first time, the user opens `apps/lyrics_videos/out` there (kept as a source: every thumbnail
-and poster set is listed after that) or the set's own folder. There they select images (⇧ for a
-range), pick finals (a thumbnail: 1, or up to 3 for YouTube's A/B test; a poster: one **Cover**),
-keep, drop and comment, zoom in and pin comments to small mistakes, then **Submit to Claude**.
+and poster set is listed after that) or the set's own folder. There they select files (click; ⌘
+click adds; ⇧ click a range; or drag a box), pick finals (a thumbnail: 1, or up to 3 for YouTube's A/B test; a poster: one **Cover**),
+keep, drop and comment, zoom in and pin comments to small mistakes (on a video or song the comment
+also keeps the time, `pin.t` in seconds, and a video's crop is the frame it was paused on), then
+**Submit to Claude**.
 Send the sheet (SendUserFile) with the link and one line per ID.
 
 ## 2. Read the revision

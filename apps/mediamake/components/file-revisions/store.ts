@@ -24,19 +24,20 @@ import {
   rememberJob,
   removeSource,
   type RecentJob,
-} from '@/lib/image-revisions/history';
-import { readIndex, scanSets, type SourceSet } from '@/lib/image-revisions/sets';
+} from '@/lib/file-revisions/history';
+import { fileKind, readIndex, scanSets, type FileKind, type SourceSet } from '@/lib/file-revisions/sets';
 import {
   createRevision,
   nextCommentId,
   nextRevisionId,
   normalizeRevision,
   pinSnapshot,
+  pixelSize,
   revisionIdFromFile,
   revisionsDirName,
   revisionToMarkdown,
   snapshotFileName,
-} from '@/lib/image-revisions/revision-file';
+} from '@/lib/file-revisions/revision-file';
 import {
   formatOf,
   type ImageAction,
@@ -44,11 +45,11 @@ import {
   type ImageSetIndex,
   type ImagePin,
   type ImageRevision,
-} from '@/lib/image-revisions/types';
+} from '@/lib/file-revisions/types';
 
 /*
- * State for the image revisions screen: the open image set (a folder such as
- * out/thumbnails/<job>/, out/posters/<job>/ or any folder of images), its images as object URLs, the selection, the
+ * State for the file revisions screen: the open set (a folder such as
+ * out/thumbnails/<job>/, out/posters/<job>/ or any folder of images, videos or audio), its files as object URLs, the selection, the
  * zoom view and the revisions saved beside the renders.
  */
 
@@ -71,9 +72,36 @@ export interface OpenJob {
 
 export interface Render {
   url: string;
+  /** what `url` is: an image, or a video or audio file with no still */
+  kind: FileKind;
   lastModified: number;
   /** pixel size, read when the set doesn't give one (mixed shapes) */
   size?: [number, number];
+  /** the video or audio to play in the zoom view, when `url` is its still */
+  media?: { url: string; kind: 'video' | 'audio'; lastModified: number };
+}
+
+/** What plays in the zoom view: the item's media, or the file itself when it is a video or audio file. */
+export const playable = (r: Render | undefined) =>
+  r?.media ?? (r && r.kind !== 'image' ? { url: r.url, kind: r.kind as 'video' | 'audio', lastModified: r.lastModified } : null);
+
+/** A video's frame size, from its metadata (null when it can't be read in a few seconds). */
+function videoSize(url: string): Promise<[number, number] | null> {
+  return new Promise(resolve => {
+    const video = document.createElement('video');
+    const done = (size: [number, number] | null) => {
+      clearTimeout(timer);
+      video.removeAttribute('src');
+      video.load();
+      resolve(size);
+    };
+    const timer = setTimeout(() => done(null), 4000);
+    video.preload = 'metadata';
+    video.muted = true;
+    video.onloadedmetadata = () => done(video.videoWidth ? [video.videoWidth, video.videoHeight] : null);
+    video.onerror = () => done(null);
+    video.src = url;
+  });
 }
 
 /** A file inside the set's folder, by its relative path (sub/folder/file.png works too). */
@@ -84,7 +112,7 @@ async function fileAt(dir: FileSystemDirectoryHandle, path: string): Promise<Fil
   return here ? readFileIn(here, parts[parts.length - 1]).catch(() => null) : null;
 }
 
-interface ImageRevisionsState {
+interface FileRevisionsState {
   support: Support;
   sources: SourceState[];
   recent: RecentJob[];
@@ -116,7 +144,10 @@ interface ImageRevisionsState {
   rescanSources: () => Promise<void>;
   refresh: () => Promise<void>;
 
-  click: (id: string, mods: { shift?: boolean; only?: boolean }) => void;
+  /** Like Finder: a click selects that one, ⌘/Ctrl adds or removes it, ⇧ selects the range from the last click (⌘⇧ adds it). */
+  click: (id: string, mods?: { shift?: boolean; toggle?: boolean }) => void;
+  /** Box selection: these, or these added to `base`. */
+  setSelection: (ids: string[], base?: string[]) => void;
   selectAll: () => void;
   clearSelection: () => void;
   openZoom: (at?: string) => void;
@@ -131,7 +162,7 @@ interface ImageRevisionsState {
   setStatus: (status: RevisionStatus) => void;
   renameRevision: (title: string) => void;
   toggleAction: (action: ImageAction, ids?: string[]) => Promise<void>;
-  addComment: (text: string, opts?: { ids?: string[]; pin?: ImagePin; image?: HTMLImageElement }) => Promise<boolean>;
+  addComment: (text: string, opts?: { ids?: string[]; pin?: ImagePin; image?: HTMLImageElement | HTMLVideoElement }) => Promise<boolean>;
   updateComment: (id: string, patch: Partial<Pick<ImageComment, 'text' | 'status'>>) => void;
   deleteComment: (id: string) => Promise<void>;
   saveRevision: (id: string) => Promise<void>;
@@ -149,7 +180,7 @@ function errorMessage(err: unknown): string {
 export const allIds = (index: ImageSetIndex | null | undefined): string[] =>
   (index?.styles ?? []).flatMap(s => s.variants.map(v => v.id));
 
-export const selectActiveRevision = (s: ImageRevisionsState) =>
+export const selectActiveRevision = (s: FileRevisionsState) =>
   s.activeRevisionId ? (s.revisions[s.activeRevisionId] ?? null) : null;
 
 function updateUrl(job: string | null) {
@@ -160,7 +191,7 @@ function updateUrl(job: string | null) {
   window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
 }
 
-export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => {
+export const useFileRevisionsStore = create<FileRevisionsState>((set, get) => {
   const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const saveChains = new Map<string, Promise<void>>();
   const diskModified: Record<string, number> = {};
@@ -174,29 +205,43 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
 
   const renderTimes = () => Object.fromEntries(Object.entries(get().renders).map(([id, r]) => [id, r.lastModified]));
 
-  /** Object URLs for every render, re-read only when the file changed. */
+  /** Object URLs for every render (and the video or audio it plays), re-read only when a file changed. */
   const loadRenders = async (job: OpenJob) => {
     const old = get().renders;
     const next: Record<string, Render> = {};
     for (const style of job.index.styles) {
       for (const v of style.variants) {
-        const file = await fileAt(job.handle, v.file);
-        if (!file) continue;
+        const kind = fileKind(v.file);
+        const file = kind && (await fileAt(job.handle, v.file));
+        if (!kind || !file) continue;
+        const mediaKind = v.media ? fileKind(v.media) : null;
+        const media = mediaKind && mediaKind !== 'image' ? await fileAt(job.handle, v.media!) : null;
         const prev = old[v.id];
-        if (prev && prev.lastModified === file.lastModified) {
+        if (prev && prev.lastModified === file.lastModified && prev.media?.lastModified === media?.lastModified) {
           next[v.id] = prev;
           continue;
         }
+        const url = URL.createObjectURL(file);
         let size: [number, number] | undefined;
-        if (!job.index.size) {
+        if (!job.index.size && kind === 'image') {
           const bitmap = await createImageBitmap(file).catch(() => null);
           if (bitmap) size = [bitmap.width, bitmap.height];
           bitmap?.close();
-        }
-        next[v.id] = { url: URL.createObjectURL(file), lastModified: file.lastModified, size };
+        } else if (!job.index.size && kind === 'video') size = (await videoSize(url)) ?? undefined;
+        next[v.id] = {
+          url,
+          kind,
+          lastModified: file.lastModified,
+          size,
+          ...(media ? { media: { url: URL.createObjectURL(media), kind: mediaKind as 'video' | 'audio', lastModified: media.lastModified } } : {}),
+        };
       }
     }
-    for (const [id, r] of Object.entries(old)) if (next[id] !== r) URL.revokeObjectURL(r.url);
+    for (const [id, r] of Object.entries(old))
+      if (next[id] !== r) {
+        URL.revokeObjectURL(r.url);
+        if (r.media) URL.revokeObjectURL(r.media.url);
+      }
     return next;
   };
 
@@ -318,14 +363,14 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
         if (!jobs.length) {
           // any other folder of images opens as it is
           if (await readIndex(handle, { fromFiles: true })) return get().openJob(handle);
-          toast.error(`No images in ${handle.name}: pick a folder of images, or apps/lyrics_videos/out`, { duration: 6000 });
+          toast.error(`Nothing to review in ${handle.name}: pick a folder of images, videos or audio, or apps/lyrics_videos/out`, { duration: 6000 });
           return;
         }
         const entry = await addSource(handle);
         set(s => ({
           sources: [...s.sources.filter(x => x.id !== entry.id), { ...entry, status: 'ready', jobs }],
         }));
-        toast.success(`${handle.name} holds ${jobs.length} image set${jobs.length === 1 ? '' : 's'}: added as a source`);
+        toast.success(`${handle.name} holds ${jobs.length} set${jobs.length === 1 ? '' : 's'}: added as a source`);
         if (jobs.length === 1) await get().openJob(jobs[0].handle);
       } catch (err) {
         if (!isAbortError(err)) toast.error(errorMessage(err));
@@ -340,12 +385,15 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
       await get().flushSaves();
       const index = await readIndex(handle, { fromFiles: true });
       if (!index) {
-        toast.error(`${handle.name} has no images (and no index.json)`);
+        toast.error(`${handle.name} has no images, videos or audio (and no index.json)`);
         return;
       }
       const token = ++loadToken;
       const job: OpenJob = { name: handle.name, handle, index };
-      for (const r of Object.values(get().renders)) URL.revokeObjectURL(r.url);
+      for (const r of Object.values(get().renders)) {
+        URL.revokeObjectURL(r.url);
+        if (r.media) URL.revokeObjectURL(r.media.url);
+      }
       for (const k of Object.keys(diskModified)) delete diskModified[k];
       set({ job, renders: {}, revisions: {}, revisionIds: [], activeRevisionId: null, dirty: {}, selection: [], anchor: null, zoom: null, pendingJob: null, saveState: 'idle' });
       updateUrl(job.name);
@@ -369,7 +417,7 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
         const entry = await addSource(handle);
         const source = await scanSource({ ...entry, status: 'scanning', jobs: [] });
         set(s => ({ sources: [...s.sources.filter(x => x.id !== entry.id), source] }));
-        if (!source.jobs.length) toast.message(`No image sets (folders with an index.json) in ${handle.name} yet`);
+        if (!source.jobs.length) toast.message(`No sets (folders with an index.json) in ${handle.name} yet`);
       } catch (err) {
         if (!isAbortError(err)) toast.error(errorMessage(err));
       }
@@ -408,20 +456,26 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
       await loadRevisions(token, true);
     },
 
-    click: (id, { shift, only }) => {
+    click: (id, { shift, toggle } = {}) => {
       const { selection, anchor, job } = get();
-      if (only) {
-        set({ selection: [id], anchor: id });
-        return;
-      }
       if (shift && anchor) {
         const ids = allIds(job?.index);
         const [a, b] = [ids.indexOf(anchor), ids.indexOf(id)].sort((x, y) => x - y);
-        const range = ids.slice(a, b + 1);
-        set({ selection: [...new Set([...selection, ...range])] });
+        const range = a < 0 ? [id] : ids.slice(a, b + 1);
+        set({ selection: toggle ? [...new Set([...selection, ...range])] : range });
         return;
       }
-      set({ selection: selection.includes(id) ? selection.filter(x => x !== id) : [...selection, id], anchor: id });
+      if (toggle) {
+        set({ selection: selection.includes(id) ? selection.filter(x => x !== id) : [...selection, id], anchor: id });
+        return;
+      }
+      set({ selection: [id], anchor: id });
+    },
+    setSelection: (ids, base = []) => {
+      const next = [...new Set([...base, ...ids])];
+      const current = get().selection;
+      if (next.length === current.length && next.every((x, i) => x === current[i])) return;
+      set({ selection: next, anchor: ids[ids.length - 1] ?? get().anchor });
     },
     selectAll: () => set(s => ({ selection: allIds(s.job?.index) })),
     clearSelection: () => set({ selection: [], anchor: null }),
@@ -474,7 +528,7 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
     toggleAction: async (action, ids) => {
       const target = ids ?? get().selection;
       if (!target.length) {
-        toast.message('Select images first');
+        toast.message('Select files first');
         return;
       }
       const id = await editable();
@@ -500,7 +554,7 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
       const images = opts.pin ? [opts.pin.image] : (opts.ids ?? get().selection);
       if (!text) return false;
       if (!images.length) {
-        toast.message('Select the images the comment is about');
+        toast.message('Select the files the comment is about');
         return false;
       }
       const revisionId = await editable();
@@ -512,7 +566,7 @@ export const useImageRevisionsStore = create<ImageRevisionsState>((set, get) => 
         text,
         createdAt: new Date().toISOString(),
         status: 'open',
-        ...(opts.pin ? { pin: { ...opts.pin, ...(opts.image ? { size: [opts.image.naturalWidth, opts.image.naturalHeight] as [number, number] } : {}) } } : {}),
+        ...(opts.pin ? { pin: { ...opts.pin, ...(opts.image ? { size: pixelSize(opts.image) } : {}) } } : {}),
       };
       if (opts.pin && opts.image) {
         try {

@@ -122,11 +122,11 @@ Then, as the answers come:
 ends on the channel's end screen (YouTube's end-screen cards need its last 5–20 s), and offer to add
 one if it doesn't.
 - **Several outros in the brand kit** (`apps/lyrics_videos/brands/<brand>/outros/*.mp4`): don't list
-  them in chat. Let the user pick in a review screen. Make the outros a reviewable image set: one
-  still of each outro at ~8 s, with its MP4 path in the item's note
+  them in chat. Let the user pick in a review screen. Make the outros a reviewable set: a clone
+  of each outro MP4 (`cp -c`) with a still of it at ~8 s of the same name (`outro-a.mp4` +
+  `outro-a.jpg`), so each plays in the zoom view
   (`npm run image-index -w lyrics_videos -- <folder> --workflow=pack-youtube`). Send the review link
-  (`https://mediamake.microfox.app/image-revision?job=<set>`) plus the MP4s to watch, and read the
-  pick with `revise-image`.
+  (`https://mediamake.microfox.app/file-revision?job=<set>`) and read the pick with `revise-image`.
 - **Attach it without re-rendering the video.** Never render the whole video again just to add the
   outro. Match only the outro to the video (size, fps, pixel format, audio rate and channels), then
   join the two with ffmpeg's concat demuxer as a stream copy:
