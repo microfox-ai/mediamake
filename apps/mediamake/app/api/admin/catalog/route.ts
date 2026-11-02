@@ -149,7 +149,9 @@ function daysFromNow(days?: number) {
  *                             (moves a person between the private and network groups)
  *  { type: 'remove_item',     itemId }
  *  { type: 'create_upload',   itemId, version }             → { uploadUrl, storageKey }
- *  { type: 'publish_version', itemId, version, storageKey, sha256, bytes, notes? }
+ *  { type: 'publish_version', itemId, version, storageKey, sha256, bytes, notes }
+ *                             (notes: the release notes, required; shown on the item's page and by
+ *                             GET /api/catalog/versions)
  *  { type: 'grant',           itemId | '*', clientId | groupId, days?, note? }
  *  { type: 'revoke',          grantId } | { type: 'revoke', itemId | '*', clientId | groupId }
  *  { type: 'group_add',       groupId, clientIds: string[], name? }
@@ -253,13 +255,16 @@ export async function POST(req: NextRequest) {
       if (!version.success) return bad(version.error.issues[0].message);
       if (body.storageKey !== packageKey(body.itemId, version.data)) return bad('storageKey does not match item and version');
       if (!/^[a-f0-9]{64}$/.test(body.sha256 ?? '')) return bad('sha256 must be a hex digest');
+      const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
+      if (!notes) return bad('notes is required: say what changed in this release');
+      if (notes.length > 4000) return bad('notes must be 4000 characters or fewer');
       try {
         const item = await catalogItemsDB.addVersion(body.itemId, {
           version: version.data,
           storageKey: body.storageKey,
           sha256: body.sha256,
           bytes: Number(body.bytes) || 0,
-          notes: body.notes,
+          notes,
           publishedAt: new Date().toISOString(),
           publishedBy: adminId,
         });

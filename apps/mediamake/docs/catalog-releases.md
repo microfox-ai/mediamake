@@ -115,7 +115,8 @@ cd apps/mediamake
 # Release (or re-release with a new version). Reads the bundle's manifest (or a
 # SKILL.md's front matter) and an optional catalog.json next to it. Leaving
 # --stage out keeps the current stage. A skill is always released as public.
-npm run catalog -- release ../../private/mcps/browse-hack.mcpb --stage private --version 1.0.0
+# Release notes are required (see below).
+npm run catalog -- release ../../private/mcps/browse-hack.mcpb --stage private --version 1.0.0 --notes "What changed"
 
 # Share with a few people
 npm run catalog -- grant mcp/browse-hack --to <clientId> --days 30
@@ -159,6 +160,24 @@ npm run catalog -- list
 ```
 
 Versions are immutable: releasing the same version twice is refused, so bump it.
+
+### Release notes
+
+Every release carries notes saying what changed; `publish_version` refuses
+one without them. `release` takes them from `--notes "…"`, `--notes-file
+notes.md`, or the section for that version in a `CHANGELOG.md`: inside a
+skill or app folder, or beside an `.mcpb` (`<name>.CHANGELOG.md` or
+`CHANGELOG.md`). Headings like `## 1.2.0`, `## v1.2.0` and
+`## [1.2.0] - 2026-11-02` all work.
+
+The live version and the notes show on the item's card and its page
+(`/access?item=<id>`, newest first), in `GET /api/catalog/versions`, and in
+what installed items report when they update (Browse Hack's `get_status`
+and `update_browse_hack` tools).
+
+Browse Hack's MCP (`mcp/browse-hack`, in microfox-ai/extensions) is released
+by that repo's CI on every merge to main that changes `mcp/`, with the notes
+from `mcp/CHANGELOG.md`; see its `.github/workflows/release-browse-hack-mcp.yml`.
 
 ## One-prompt installs
 
@@ -208,6 +227,32 @@ Declare what an item needs in `catalog.json` under `install`:
   `--manifest`) for the title, summary and `install` block, and a
   `name.INSTALL.md` for its setup steps.
 
+## Updates
+
+The end of an install (install.md step 5) leaves two files on the person's
+machine: `~/.mediamake/installed.json` (what was installed, which version,
+where) and an **update token** in `~/.mediamake/config.json` (`updateToken`,
+traded for the install code with `POST /api/catalog/update-token`). The token
+stands for the person and the items installed with it plus their
+dependencies, works only for `GET /api/catalog/versions` and
+`GET /api/catalog/install` on those items, is stored hashed in Redis
+(`lib/catalog/update-token.ts`), renews with use and lapses after a year
+unused. Access is still checked on every call, so revoking a grant stops
+updates as well. Installing another item with an install code adds it to the
+same token.
+
+With it:
+
+- "update <item>" in Claude follows install.md's **Update an installed
+  item**: compare installed versions with `/api/catalog/versions`, show the
+  release notes in between, reinstall what's behind. The
+  `update-mediamake-items` skill (installed by step 5 for Claude Code) points
+  Claude there.
+- MCPs can update themselves. Browse Hack's server polls `versions` every
+  few hours, installs a newer `.mcpb` into `~/.mediamake/mcp/browse-hack`
+  (checked against the plan's sha256), and updates its Chrome extension from
+  GitHub Releases. `"autoUpdate": false` in the config turns that off.
+
 ## For the app
 
 ```ts
@@ -236,7 +281,9 @@ session cookie or Bearer key themselves):
 | --- | --- |
 | `GET /api/catalog?kind=skill` | Catalog as the caller sees it |
 | `GET /api/catalog/download?item=<id>[&version=][&redirect=1]` | 5-minute signed link, logged; 404 when locked |
-| `GET /api/catalog/install?item=<id>` (Bearer API key) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
+| `GET /api/catalog/install?item=<id>` (Bearer install code, update token or API key) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
+| `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token, install code or API key) | Live version of each item and its releases with notes, newest first; no links, not logged |
+| `POST /api/catalog/update-token { token? }` (Bearer install code) | Trades an install code for an update token (or adds the item to `token`) |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
 | `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish` |

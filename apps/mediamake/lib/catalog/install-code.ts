@@ -10,7 +10,7 @@ import { randomBytes } from 'crypto';
 export const INSTALL_CODE_PREFIX = 'mmi_';
 export const INSTALL_CODE_SECONDS = 2 * 60 * 60;
 
-interface InstallCode {
+export interface InstallCode {
   clientId: string;
   itemId: string;
   createdAt: string;
@@ -36,9 +36,14 @@ export async function createInstallCode(clientId: string, itemId: string) {
   return { code, expiresAt: new Date(Date.now() + INSTALL_CODE_SECONDS * 1000).toISOString() };
 }
 
+/** A live install code's person and item, or null. */
+export async function readInstallCode(code: string): Promise<InstallCode | null> {
+  if (!isInstallCode(code)) return null;
+  return redis().get<InstallCode>(keyFor(code));
+}
+
 /** The person an install code stands for, if it is live and was made for `itemId`. */
 export async function clientIdForInstallCode(code: string, itemId: string): Promise<string | null> {
-  if (!isInstallCode(code)) return null;
-  const record = await redis().get<InstallCode>(keyFor(code));
+  const record = await readInstallCode(code);
   return record && record.itemId === itemId ? record.clientId : null;
 }

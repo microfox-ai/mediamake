@@ -12,8 +12,13 @@
  *   MEDIAMAKE_URL        e.g. https://mediamake.example.com (default http://localhost:3000)
  *   MEDIAMAKE_ADMIN_KEY  an API key whose client has isAdmin=true
  *
+ * Every release needs release notes: --notes, --notes-file, or the
+ * "## <version>" section of a CHANGELOG.md in the folder (beside an .mcpb:
+ * <name>.CHANGELOG.md or CHANGELOG.md). They show on the item's page and in
+ * GET /api/catalog/versions, which installed items check for updates.
+ *
  * Usage: npm run catalog -- <command> [...]
- *   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
+ *   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
  *   promote <itemId> <private|network|public>
  *   schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
  *   unschedule <itemId>
@@ -34,7 +39,8 @@ import { createHash } from 'crypto';
 import { execFileSync } from 'child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
-import { basename, extname, isAbsolute, join, resolve } from 'path';
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'path';
+import { notesFromChangelog } from '../lib/catalog/releases';
 
 config({ path: resolve(process.cwd(), '.env.local') });
 config({ path: resolve(process.cwd(), '.env') });
@@ -43,7 +49,8 @@ const BASE_URL = (process.env.MEDIAMAKE_URL || 'http://localhost:3000').replace(
 const ADMIN_KEY = process.env.MEDIAMAKE_ADMIN_KEY || process.env.DEV_API_KEY || '';
 
 const USAGE = `Usage: npm run catalog -- <command> [...]
-  release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..."]
+  release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
+           (release notes are required: --notes, --notes-file, or a "## <version>" section in CHANGELOG.md)
   promote <itemId> <private|network|public>
   schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
   unschedule <itemId>
@@ -170,6 +177,7 @@ async function release(pathArg: string | undefined, flags: Flags) {
   const slug = flag(flags, 'slug') ?? manifest.slug ?? front.name ?? basename(source, '.mcpb');
   const version = flag(flags, 'version') ?? manifest.version ?? front.version;
   if (!version) fail('No version; pass --version 1.0.0 or set "version" in catalog.json, SKILL.md or the .mcpb');
+  const notes = releaseNotes(source, dir, isBundle, version, flags);
   const requested = flag(flags, 'stage') ?? manifest.visibility;
   if (kind === 'skill' && requested && requested !== 'public') {
     console.warn(`⚠ Skills are always public; releasing ${slug} as public, not ${requested}`);
@@ -228,12 +236,26 @@ async function release(pathArg: string | undefined, flags: Flags) {
     });
     if (!put.ok) fail(`Upload failed: ${put.status} ${await put.text()}`);
 
-    await admin({ type: 'publish_version', itemId, version, storageKey, sha256, bytes: bytes.length, notes: flag(flags, 'notes') });
+    await admin({ type: 'publish_version', itemId, version, storageKey, sha256, bytes: bytes.length, notes });
     console.log(`✅ ${itemId}@${version} published (${(bytes.length / 1024).toFixed(1)} KB, sha256 ${sha256.slice(0, 12)}…)`);
     console.log(`   Share access: npm run catalog -- invite ${itemId} --uses 5`);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+/** The release notes: --notes, --notes-file, or this version's section of a CHANGELOG.md. */
+function releaseNotes(source: string, dir: string, isBundle: boolean, version: string, flags: Flags): string {
+  const given = flag(flags, 'notes') ?? (flag(flags, 'notes-file') ? readFileSync(userPath(flag(flags, 'notes-file')!), 'utf8') : undefined);
+  if (given?.trim()) return given.trim();
+  const changelogs = isBundle
+    ? [source.replace(/\.mcpb$/, '.CHANGELOG.md'), join(dirname(source), 'CHANGELOG.md')]
+    : [join(dir, 'CHANGELOG.md')];
+  for (const file of changelogs) {
+    const notes = existsSync(file) ? notesFromChangelog(readFileSync(file, 'utf8'), version) : undefined;
+    if (notes) return notes;
+  }
+  fail(`Release notes are required: pass --notes "…" or add a "## ${version}" section to ${changelogs.join(' or ')}`);
 }
 
 function subject(flags: Flags) {

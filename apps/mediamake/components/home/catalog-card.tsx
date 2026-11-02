@@ -39,6 +39,11 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
       <div className="flex items-center gap-2">
         <Badge variant="outline">{kindLabel[card.kind]}</Badge>
         <Badge variant="secondary">{statusLabel[card.status]}</Badge>
+        {!locked && card.version && (
+          <span className="font-mono text-xs text-muted-foreground" title="Latest release">
+            v{card.version}
+          </span>
+        )}
         {card.access !== 'open' && (
           <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
             {locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}

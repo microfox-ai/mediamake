@@ -104,3 +104,42 @@ describe('hosted upload_brand_kit', () => {
     expect(calls.some(c => c.method === 'PUT' && c.url.startsWith('https://store.test/put/logo/logo.svg'))).toBe(true);
   });
 });
+
+describe('catalog_versions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks for the live versions and release notes of the items named', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (input: string) => {
+      urls.push(String(input));
+      return Response.json({
+        items: [{ id: 'mcp/browse-hack', version: '0.8.0', releases: [{ version: '0.8.0', notes: 'Updates itself' }] }],
+        missing: [],
+      });
+    });
+    const result: any = await (await connect(false)).callTool({
+      name: 'catalog_versions',
+      arguments: { items: ['mcp/browse-hack', 'skill/x'], notes: 3 },
+    });
+    expect(urls).toEqual(['http://mm.test/api/catalog/versions?items=mcp%2Fbrowse-hack%2Cskill%2Fx&notes=3']);
+    expect(JSON.parse(result.content[0].text).items[0].version).toBe('0.8.0');
+  });
+
+  it('lists every item with its version when none are named', async () => {
+    vi.stubGlobal('fetch', async () =>
+      Response.json({
+        items: [
+          { id: 'mcp/browse-hack', kind: 'mcp', title: 'Browse Hack', version: '0.8.0', status: 'beta', summary: 'long' },
+          { id: 'skill/x', kind: 'skill', title: 'X', status: 'live' },
+        ],
+      }),
+    );
+    const result: any = await (await connect(true)).callTool({ name: 'catalog_versions', arguments: {} });
+    expect(JSON.parse(result.content[0].text).items).toEqual([
+      { id: 'mcp/browse-hack', kind: 'mcp', title: 'Browse Hack', version: '0.8.0', status: 'beta' },
+      { id: 'skill/x', kind: 'skill', title: 'X', version: null, status: 'live' },
+    ]);
+  });
+});
