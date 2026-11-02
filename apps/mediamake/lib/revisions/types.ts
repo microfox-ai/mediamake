@@ -111,7 +111,12 @@ export interface RangeComment extends CommentBase {
   shots: string[];
 }
 
-export type RevisionComment = PointComment | RangeComment;
+/** A note on the whole video (pacing, mood, a rule for every place): no time, listed first for Claude. */
+export interface GeneralComment extends CommentBase {
+  kind: 'general';
+}
+
+export type RevisionComment = PointComment | RangeComment | GeneralComment;
 
 export interface RevisionVideoInfo {
   file: string;
@@ -131,6 +136,8 @@ export interface Revision {
   video: RevisionVideoInfo;
   /** Map file the shot ids came from, if any. */
   map: string | null;
+  /** Set when the notes were left on the project playing live, not on a render. */
+  live?: { project: string };
   createdAt: string;
   updatedAt: string;
   comments: RevisionComment[];

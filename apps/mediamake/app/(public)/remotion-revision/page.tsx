@@ -1,12 +1,11 @@
-import type { Metadata } from 'next';
-import { RevisionsWorkspace } from '@/components/revisions/RevisionsWorkspace';
+import { redirect } from 'next/navigation';
+import { queryOf, type SearchParams } from '@/lib/revisions/redirect';
 
-export const metadata: Metadata = {
-  title: 'Remotion Revisions · MediaMake',
-  description:
-    'Review local renders shot by shot and leave revision notes beside the video',
-};
-
-export default function RemotionRevisionPage() {
-  return <RevisionsWorkspace />;
+/** Renamed to /video-revision; old links (and their ?folder=&video=) keep working. */
+export default async function RemotionRevisionRedirect({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  redirect(`/video-revision${await queryOf(searchParams)}`);
 }

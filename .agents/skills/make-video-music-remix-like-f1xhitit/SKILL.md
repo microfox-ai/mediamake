@@ -366,7 +366,7 @@ Before a full render replaces the main file, the script copies the previous vide
 the main file. Copy the archived cut list in beside it. An audio-only fix doesn't need a new
 picture: render the audio and mux it onto the video (`-c:v copy`).
 
-Review with the **`revise-video`** skill (preflight, the `/remotion-revision` link, the background
+Review with the **`revise-video`** skill (preflight, the `/video-revision` link, the background
 watcher, reading and closing the user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
 every comment in `prefs.md` and the general rule in the lessons log here. After the master render,
 offer thumbnails (`create-thumbnail`) and the YouTube pack (`pack-youtube`).

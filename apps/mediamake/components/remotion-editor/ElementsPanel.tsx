@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { LayersIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { player, useEditor } from './store';
+import { player, selectSettledEdits, useEditor } from './store';
 
 const fmt = (s: number) => {
   const m = Math.floor(s / 60);
@@ -63,7 +63,7 @@ export function ElementsPanel() {
   const compiled = useEditor(s => s.compiled);
   const manifest = useEditor(s => s.manifest);
   const layerKeys = useEditor(s => s.layerKeys);
-  const edits = useEditor(s => s.edits);
+  const edits = useEditor(selectSettledEdits);
   const onScreen = useEditor(s => s.onScreen);
   const selectedId = useEditor(s => s.selectedId);
   const select = useEditor(s => s.select);

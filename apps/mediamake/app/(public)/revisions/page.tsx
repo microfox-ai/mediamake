@@ -1,16 +1,11 @@
 import { redirect } from 'next/navigation';
+import { queryOf, type SearchParams } from '@/lib/revisions/redirect';
 
-/** Renamed to /remotion-revision; old links (and their ?folder=&video=) keep working. */
+/** Renamed to /remotion-revision, now /video-revision; old links (and their ?folder=&video=) keep working. */
 export default async function RevisionsRedirect({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: SearchParams;
 }) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(await searchParams)) {
-    for (const v of Array.isArray(value) ? value : value ? [value] : [])
-      params.append(key, v);
-  }
-  const query = params.toString();
-  redirect(`/remotion-revision${query ? `?${query}` : ''}`);
+  redirect(`/video-revision${await queryOf(searchParams)}`);
 }

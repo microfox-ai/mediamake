@@ -41,9 +41,10 @@ const SHORTCUTS: [string, string][] = [
   ['Z', 'Magnifier (a click pins the spot)'],
   [
     'Esc',
-    'Stop drawing / close the magnifier / clear the selection / leave a text box',
+    'Stop drawing / close the magnifier / back from General / clear the selection / leave a text box',
   ],
   ['C or Enter', 'Write a comment'],
+  ['G', 'Write a general comment: the whole video, no time'],
   ['Mod Enter', 'Add the comment'],
   ['N', 'New revision'],
   ['M', 'Mute / unmute'],
@@ -142,7 +143,7 @@ export function RevisionsHeader() {
           </Link>
         </Button>
       </Hint>
-      <span className="text-sm font-semibold">Revisions</span>
+      <span className="shrink-0 text-sm font-semibold">Video Revision</span>
       {folder && (
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           {folder.name}

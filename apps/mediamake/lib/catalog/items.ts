@@ -54,6 +54,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     releasedAt: '2026-10-20',
   },
   {
+    // the id stays: it keys the stored item and its grants
     id: 'app/remotion-revision',
     kind: 'app',
     title: 'Video Revisions',
@@ -61,7 +62,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     visibility: 'public',
     openToAll: true,
     status: 'beta',
-    href: '/remotion-revision',
+    href: '/video-revision',
     tags: ['review', 'video'],
     releasedAt: '2026-10-22',
   },

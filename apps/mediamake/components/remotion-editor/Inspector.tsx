@@ -113,11 +113,13 @@ const roundTo = (n: number, places = 1) => Math.round(n * 10 ** places) / 10 ** 
 function TransformSection({ id, info }: { id: string; info: SelectedInfo | null }) {
   const edit: ElementEdit = useEditor(s => s.edits.elements[id]) ?? {};
   const change = useEditor(s => s.change);
-  const frame = useEditor(s => s.frame);
-  const fps = useEditor(s => s.compiled?.project.fps ?? 30);
-  const meta = { label: info?.label, at: frame / fps };
+  // the playhead is read when an edit is made: subscribing to it re-rendered this every frame
+  const meta = () => {
+    const s = useEditor.getState();
+    return { label: info?.label, at: s.frame / (s.compiled?.project.fps ?? 30) };
+  };
   const set = (patch: Partial<ElementEdit>, key: string) =>
-    change(e => setElementEdit(e, id, patch, meta), { coalesce: `${id}:${key}` });
+    change(e => setElementEdit(e, id, patch, meta()), { coalesce: `${id}:${key}` });
   const moved = edit.x || edit.y || (edit.scale ?? 1) !== 1 || edit.rotate;
 
   return (
@@ -183,7 +185,7 @@ function TransformSection({ id, info }: { id: string; info: SelectedInfo | null 
           value={edit.font}
           valueFormat="fontFamily"
           placeholder="Scene's font"
-          onChange={font => change(e => setElementEdit(e, id, { font }, meta))}
+          onChange={font => change(e => setElementEdit(e, id, { font }, meta()))}
         />
       </Section>
     </>

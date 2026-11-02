@@ -38,7 +38,7 @@ const apps: AppCard[] = [
   {
     title: 'Video Revisions',
     summary: 'Watch a render, leave comments on frames and ranges, and track each revision.',
-    href: '/remotion-revision',
+    href: '/video-revision',
     icon: Clapperboard,
     tags: ['review', 'video'],
   },

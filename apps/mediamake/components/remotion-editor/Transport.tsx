@@ -4,27 +4,56 @@ import { useRef } from 'react';
 import { PauseIcon, PlayIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
-import { player, useEditor } from './store';
+import { player, selectSettledEdits, useEditor } from './store';
 
 const fmt = (s: number) => {
   const m = Math.floor(s / 60);
   return `${m}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
 };
 
+/** The time, frame and current lyric: the only part that changes every frame. */
+function Readout() {
+  const frame = useEditor(s => s.frame);
+  const duration = useEditor(s => s.durationInFrames);
+  const fps = useEditor(s => s.compiled?.project.fps ?? 30);
+  const manifest = useEditor(s => s.manifest);
+  const t = frame / fps;
+  const line = manifest?.lyrics.find(l => t >= l.start && t <= l.end + 0.3);
+  return (
+    <>
+      <span className="text-xs tabular-nums">
+        {fmt(t)} <span className="text-muted-foreground">/ {fmt(duration / fps)}</span>
+      </span>
+      <span className="text-[11px] text-muted-foreground tabular-nums">frame {frame}</span>
+      <span className="ml-3 min-w-0 flex-1 truncate text-xs italic text-muted-foreground">
+        {line?.text}
+      </span>
+    </>
+  );
+}
+
+function Playhead() {
+  const frame = useEditor(s => s.frame);
+  const duration = useEditor(s => s.durationInFrames);
+  return (
+    <div
+      className="pointer-events-none absolute inset-y-0 w-px bg-red-500"
+      style={{ left: `${(frame / Math.max(1, duration - 1)) * 100}%` }}
+    />
+  );
+}
+
 /** Play controls, the current lyric, and a scrubber with the song's sections and edit markers. */
 export function Transport() {
-  const frame = useEditor(s => s.frame);
   const playing = useEditor(s => s.playing);
   const duration = useEditor(s => s.durationInFrames);
   const fps = useEditor(s => s.compiled?.project.fps ?? 30);
   const manifest = useEditor(s => s.manifest);
-  const elements = useEditor(s => s.edits.elements);
+  const elements = useEditor(s => selectSettledEdits(s).elements);
   const selectedId = useEditor(s => s.selectedId);
   const barRef = useRef<HTMLDivElement>(null);
 
-  const t = frame / fps;
   const total = duration / fps;
-  const line = manifest?.lyrics.find(l => t >= l.start && t <= l.end + 0.3);
 
   const seekAt = (clientX: number) => {
     const bar = barRef.current;
@@ -48,13 +77,7 @@ export function Transport() {
             {playing ? <PauseIcon className="size-4" /> : <PlayIcon className="size-4" />}
           </Button>
         </Hint>
-        <span className="text-xs tabular-nums">
-          {fmt(t)} <span className="text-muted-foreground">/ {fmt(total)}</span>
-        </span>
-        <span className="text-[11px] text-muted-foreground tabular-nums">frame {frame}</span>
-        <span className="ml-3 min-w-0 flex-1 truncate text-xs italic text-muted-foreground">
-          {line?.text}
-        </span>
+        <Readout />
       </div>
       <div
         ref={barRef}
@@ -87,10 +110,7 @@ export function Transport() {
             />
           ),
         )}
-        <div
-          className="pointer-events-none absolute inset-y-0 w-px bg-red-500"
-          style={{ left: `${(frame / Math.max(1, duration - 1)) * 100}%` }}
-        />
+        <Playhead />
       </div>
     </div>
   );

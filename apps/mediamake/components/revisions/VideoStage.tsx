@@ -7,6 +7,7 @@ import {
   FileVideoIcon,
   FolderOpenIcon,
   FolderTreeIcon,
+  LoaderIcon,
   MaximizeIcon,
   MinimizeIcon,
   PauseIcon,
@@ -33,6 +34,7 @@ import {
   useRevisionsStore,
 } from './store';
 import { Hint } from './keyboard';
+import { LivePlayer } from './LivePlayer';
 import { MarkupLayer } from './MarkupLayer';
 
 /** Trackpad scroll distance per frame, and per second with ⇧. */
@@ -412,6 +414,8 @@ function Transport() {
 
 export function VideoStage() {
   const video = useRevisionsStore(s => s.video);
+  const live = useRevisionsStore(s => s.live);
+  const liveProgress = useRevisionsStore(s => s.liveProgress);
   const videoChangedOnDisk = useRevisionsStore(s => s.videoChangedOnDisk);
   const openVideo = useRevisionsStore(s => s.openVideo);
   const ref = useRef<HTMLVideoElement>(null);
@@ -552,24 +556,36 @@ export function VideoStage() {
       >
         {video ? (
           <>
-            <video
-              // A callback ref registers before any effect (Transport's included) runs.
-              ref={el => {
-                ref.current = el;
-                registerVideoElement(el);
-              }}
-              key={video.url}
-              src={video.url}
-              playsInline
-              preload="auto"
-              className="h-full w-full object-contain"
-              onClick={() => useRevisionsStore.getState().togglePlay()}
-            />
+            {live ? (
+              <LivePlayer live={live} />
+            ) : (
+              <video
+                // A callback ref registers before any effect (Transport's included) runs.
+                ref={el => {
+                  ref.current = el;
+                  registerVideoElement(el);
+                }}
+                key={video.url}
+                src={video.url}
+                playsInline
+                preload="auto"
+                className="h-full w-full object-contain"
+                onClick={() => useRevisionsStore.getState().togglePlay()}
+              />
+            )}
             <MarkupLayer />
             <ShotOverlay />
           </>
         ) : (
           <EmptyState />
+        )}
+        {liveProgress && (
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
+            <span className="flex items-center gap-2 rounded-full bg-black/75 px-3 py-1 text-xs text-white">
+              <LoaderIcon className="size-3.5 animate-spin" />
+              {liveProgress}
+            </span>
+          </div>
         )}
       </div>
       {video && <Transport />}

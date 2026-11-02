@@ -63,6 +63,24 @@ import {
   zoomFileName,
 } from '@/lib/revisions/revision-file';
 import { grabFrame, spotCrop, toJpeg, withMarks } from '@/lib/revisions/marks';
+import {
+  LIVE_VIDEO,
+  liveChangedOnDisk,
+  loadLiveProject,
+  type LiveProject,
+} from '@/lib/revisions/live';
+import {
+  FolderSource,
+  findLyricsRoot,
+  pickDirectory,
+} from '@/lib/remotion-editor/folder-source';
+import {
+  loadFolders,
+  rememberFolder,
+  type FolderEntry,
+} from '@/lib/remotion-editor/folder-history';
+import type { ProjectEntry } from '@/lib/remotion-editor/types';
+import { LiveMedia, type StageMedia } from './live-media';
 import type {
   Mark,
   MarkColor,
@@ -84,22 +102,24 @@ import type {
 const AUTOSAVE_MS = 700;
 const DEFAULT_FPS = 30;
 
-let videoEl: HTMLVideoElement | null = null;
+let videoEl: StageMedia | null = null;
 let loadToken = 0;
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const saveChains = new Map<string, Promise<void>>();
 
-export function registerVideoElement(el: HTMLVideoElement | null) {
+export function registerVideoElement(el: StageMedia | null) {
   videoEl = el;
 }
 
-export function getVideoElement(): HTMLVideoElement | null {
+export function getVideoElement(): StageMedia | null {
   return videoEl;
 }
 
 export interface OpenVideo {
   name: string;
-  handle: FileSystemFileHandle;
+  /** none for a project reviewed live */
+  handle?: FileSystemFileHandle;
+  /** a blob: URL, or a key naming the live project */
   url: string;
   size: number;
   lastModified: number;
@@ -130,6 +150,14 @@ export interface Sketch {
 
 export const sketchIsEmpty = (sketch: Sketch | null) =>
   !sketch || (sketch.marks.length === 0 && !sketch.spot);
+
+/** The lyrics_videos folder live projects come from (shared with /remotion-editor's list). */
+export interface LiveFolder {
+  /** what the user picked (the folder itself, the repo, or the folder holding lyrics_videos/) */
+  handle: FileSystemDirectoryHandle;
+  source: FolderSource;
+  projects: ProjectEntry[];
+}
 
 export interface SourceState extends SourceEntry {
   status: 'needs-permission' | 'scanning' | 'ready' | 'missing' | 'error';
@@ -182,6 +210,18 @@ interface RevisionsState {
   sketch: Sketch | null;
   /** The magnifier that follows the pointer over the video. */
   loupe: boolean;
+  /** The next comment is about the whole video: no time, listed first. */
+  general: boolean;
+
+  /** The project playing live (no render), when one is open. */
+  live: LiveProject | null;
+  liveFolder: LiveFolder | null;
+  /** lyrics_videos folders opened before, here or in /remotion-editor */
+  liveFolders: FolderEntry[];
+  /** a known folder that needs a click before Chrome lets us in */
+  livePending: FolderEntry | null;
+  /** what opening a live project is doing ("Compiling…") */
+  liveProgress: string | null;
 
   init: () => Promise<void>;
   openFolderPicker: () => Promise<void>;
@@ -256,6 +296,14 @@ interface RevisionsState {
   undoMark: () => void;
   clearSketch: () => void;
   toggleLoupe: () => void;
+  setGeneral: (general: boolean) => void;
+
+  /** Opens the folder picker for the lyrics_videos folder (needs a click). */
+  pickLiveFolder: () => Promise<void>;
+  connectLiveFolder: (handle: FileSystemDirectoryHandle) => Promise<boolean>;
+  openLive: (slug: string) => Promise<void>;
+  /** Compiles the live project again when its code or edits changed on disk. */
+  reloadLive: (force?: boolean) => Promise<void>;
 }
 
 export const selectFps = (
@@ -273,8 +321,14 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function updateUrl(folder: string | null, video: string | null) {
+function updateUrl(
+  folder: string | null,
+  video: string | null,
+  live: string | null = null,
+) {
   const params = new URLSearchParams(window.location.search);
+  if (live) params.set('live', live);
+  else params.delete('live');
   if (folder) params.set('folder', folder);
   else params.delete('folder');
   if (video) params.set('video', video);
@@ -288,7 +342,7 @@ function updateUrl(folder: string | null, video: string | null) {
 }
 
 /** Resolves once a pending seek has landed, so the element shows the frame currentTime names. */
-function seekSettled(el: HTMLVideoElement): Promise<void> {
+function seekSettled(el: StageMedia): Promise<void> {
   if (!el.seeking && el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)
     return Promise.resolve();
   return new Promise(resolve => {
@@ -304,14 +358,19 @@ function seekSettled(el: HTMLVideoElement): Promise<void> {
   });
 }
 
-/** The frame on screen as JPEGs: the still (marks drawn in) and, with a spot, its 2× crop. */
+/**
+ * The frame on screen as JPEGs: the still (marks drawn in) and, with a spot, its 2× crop. A live
+ * project renders `frameNumber` in the browser (a Player shows DOM, not pixels).
+ */
 async function captureFrame(
-  el: HTMLVideoElement,
+  el: StageMedia,
   marks: readonly Mark[] = [],
   spot: Spot | null = null,
+  frameNumber?: number,
 ): Promise<{ still: Blob | null; zoom: Blob | null }> {
   await seekSettled(el);
-  const frame = grabFrame(el);
+  const frame =
+    el instanceof LiveMedia ? await el.grab(frameNumber) : grabFrame(el);
   if (!frame) return { still: null, zoom: null };
   const [still, zoom] = await Promise.all([
     toJpeg(marks.length || spot ? withMarks(frame, marks, spot) : frame),
@@ -342,6 +401,53 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     const { folder, video } = get();
     if (!folder || !video) return null;
     return getSubdir(folder.handle, revisionsDirName(video.name), create);
+  };
+
+  /** Renders a live comment's frame and adds the still (and the spot's crop) to the comment. */
+  const attachStill = async (
+    el: LiveMedia,
+    revisionId: string,
+    commentId: string,
+    shotId: string | undefined,
+    frame: number,
+    sketch: Sketch | null,
+  ) => {
+    const dir = await revisionsDir(true).catch(() => null);
+    const url = get().video?.url;
+    const has = () =>
+      get().video?.url === url &&
+      !!get().revisions[revisionId]?.comments.some(c => c.id === commentId);
+    try {
+      const shots = await captureFrame(el, sketch?.marks, sketch?.spot, frame);
+      // the comment was deleted, or another project or video opened, meanwhile
+      if (!shots.still || !dir || !has()) return;
+      const stills = await getSubdir(dir, revisionId, true);
+      if (!stills) return;
+      const fileName = snapshotFileName(commentId, shotId, frame);
+      await writeFileIn(stills, fileName, shots.still);
+      if (shots.zoom)
+        await writeFileIn(stills, zoomFileName(fileName), shots.zoom);
+      if (!has()) return;
+      get().updateRevision(revisionId, r => ({
+        ...r,
+        comments: r.comments.map(c =>
+          c.id === commentId && c.kind === 'point'
+            ? {
+                ...c,
+                snapshot: `${revisionId}/${fileName}`,
+                ...(shots.zoom
+                  ? { zoom: `${revisionId}/${zoomFileName(fileName)}` }
+                  : {}),
+              }
+            : c,
+        ),
+      }));
+    } catch (err) {
+      toast.error(
+        `The still of ${commentId} didn't render: ${errorMessage(err)}. The notes give Claude a command to render it.`,
+        { duration: 6000 },
+      );
+    }
   };
 
   /**
@@ -436,6 +542,27 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     return true;
   };
 
+  /**
+   * The lyrics_videos folder from last time (here or in /remotion-editor) lists its projects when
+   * Chrome kept the grant; `?live=<slug>` opens that project. True when it opened one.
+   */
+  const initLive = async (): Promise<boolean> => {
+    const liveFolders = await loadFolders().catch(() => [] as FolderEntry[]);
+    set({ liveFolders });
+    const wanted = new URLSearchParams(window.location.search).get('live');
+    const last = liveFolders[0];
+    if (!last) return false;
+    if ((await queryReadWrite(last.handle)) !== 'granted') {
+      if (wanted) set({ livePending: last });
+      return false;
+    }
+    if (!(await get().connectLiveFolder(last.handle))) return false;
+    if (!wanted || !get().liveFolder?.projects.some(p => p.slug === wanted))
+      return false;
+    await get().openLive(wanted);
+    return true;
+  };
+
   /** History is a convenience: failures never block opening. */
   const remember = async (
     handle: FileSystemDirectoryHandle,
@@ -487,11 +614,18 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     markColor: 'red',
     sketch: null,
     loupe: false,
+    general: false,
+    live: null,
+    liveFolder: null,
+    liveFolders: [],
+    livePending: null,
+    liveProgress: null,
 
     init: async () => {
       const support = getFolderSupport();
       set({ support });
       if (!support.supported) return;
+      if (await initLive()) return;
       const [recent, sources] = await Promise.all([
         loadRecent().catch(() => [] as RecentEntry[]),
         loadSources().catch(() => [] as SourceEntry[]),
@@ -676,6 +810,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         const prev = get().video;
         if (prev) URL.revokeObjectURL(prev.url);
         set({
+          live: null,
           video: null,
           sketch: null,
           tool: null,
@@ -835,6 +970,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const prev = get().video;
       if (prev) URL.revokeObjectURL(prev.url);
       set({
+        live: null,
         video: {
           name,
           handle: entry.handle,
@@ -871,6 +1007,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     refreshFromDisk: async () => {
       const { folder, video } = get();
       if (!folder || !video) return;
+      // Claude fixed notes in the code: play the new version
+      if (get().live) void get().reloadLive();
       try {
         const listing = await listFolder(folder.handle);
         const entry = listing.videos.find(v => v.name === video.name);
@@ -960,7 +1098,11 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       if (targets.length === 0) {
         // No map: walk the active revision's comments instead.
         const revision = selectActiveRevision(s);
-        targets = dedupe((revision?.comments ?? []).map(commentSortKey));
+        targets = dedupe(
+          (revision?.comments ?? [])
+            .filter(c => c.kind !== 'general')
+            .map(commentSortKey),
+        );
       }
       const current = videoEl?.currentTime ?? s.currentTime;
       const playing = videoEl ? !videoEl.paused : false;
@@ -998,7 +1140,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         duration || Infinity,
         frameBoundary(Math.max(range.from, range.to), fps),
       );
-      set({ selection: to - from >= 1 / fps - 1e-6 ? { from, to } : null });
+      const selection = to - from >= 1 / fps - 1e-6 ? { from, to } : null;
+      // a range is a comment on that stretch, not on the whole video
+      set({ selection, ...(selection ? { general: false } : {}) });
     },
 
     setIn: () => {
@@ -1022,7 +1166,13 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const info = videoInfo();
       if (!info) return null;
       const id = nextRevisionId(get().revisionIds);
-      const revision = createRevision(id, info, get().mapFile);
+      const live = get().live;
+      const revision = createRevision(
+        id,
+        info,
+        get().mapFile,
+        live ? { project: live.slug } : undefined,
+      );
       set(s => ({
         revisions: { ...s.revisions, [id]: revision },
         revisionIds: [...s.revisionIds, id],
@@ -1144,7 +1294,10 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const createdAt = new Date().toISOString();
       let comment: RevisionComment;
 
-      if (selection && !sketch) {
+      if (get().general) {
+        // marks and a selected range stay for the next comment
+        comment = { kind: 'general', id, text, createdAt, status: 'open' };
+      } else if (selection && !sketch) {
         const { first, last } = rangeFrames(selection, fps);
         comment = {
           kind: 'range',
@@ -1173,10 +1326,14 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         const shot = shotAt(map, time);
         let snapshot: string | undefined;
         let zoom: string | undefined;
+        // a live frame renders by its number, which takes a few seconds: the comment goes in now
+        // and its still follows, so the next comment can be typed meanwhile
+        const later = videoEl instanceof LiveMedia ? videoEl : null;
         try {
-          const shots = videoEl
-            ? await captureFrame(videoEl, sketch?.marks, sketch?.spot)
-            : null;
+          const shots =
+            videoEl && !later
+              ? await captureFrame(videoEl, sketch?.marks, sketch?.spot, frame)
+              : null;
           const dir = shots?.still ? await revisionsDir(true) : null;
           const stills = dir ? await getSubdir(dir, revisionId, true) : null;
           if (shots?.still && stills) {
@@ -1193,6 +1350,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
             duration: 6000,
           });
         }
+        if (later)
+          void attachStill(later, revisionId, id, shot?.id, frame, sketch);
         comment = {
           kind: 'point',
           id,
@@ -1227,7 +1386,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       }));
       set({
         highlightCommentId: id,
-        ...(sketch ? { sketch: null, tool: null } : {}),
+        ...(sketch && comment.kind === 'point'
+          ? { sketch: null, tool: null }
+          : {}),
       });
       return true;
     },
@@ -1296,7 +1457,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       if (!comment) return;
       const fps = selectFps(get());
       videoEl?.pause();
-      if (comment.kind === 'point') {
+      if (comment.kind === 'general') {
+        // nowhere to go: it is about the whole video
+      } else if (comment.kind === 'point') {
         get().setSelection(null);
         get().seek(timeOfFrame(comment.frame, fps));
       } else {
@@ -1304,7 +1467,11 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         get().seek(comment.from);
       }
       // reviewing a comment, not drawing: its own marks show on its frame
-      set({ highlightCommentId: commentId, tool: null });
+      set({
+        highlightCommentId: commentId,
+        tool: null,
+        ...(comment.kind !== 'general' ? { general: false } : {}),
+      });
     },
 
     requestComposerFocus: () =>
@@ -1316,7 +1483,12 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         videoEl?.pause();
         if (get().selection) get().setSelection(null);
       }
-      set({ tool, ...(tool && tool !== 'spot' ? { lastTool: tool } : {}) });
+      set({
+        tool,
+        ...(tool && tool !== 'spot' ? { lastTool: tool } : {}),
+        // marks belong to a frame
+        ...(tool ? { general: false } : {}),
+      });
     },
 
     toggleDrawing: () => {
@@ -1356,5 +1528,162 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     clearSketch: () => set({ sketch: null }),
 
     toggleLoupe: () => set(s => ({ loupe: !s.loupe })),
+
+    setGeneral: general => set({ general }),
+
+    pickLiveFolder: async () => {
+      try {
+        await get().connectLiveFolder(await pickDirectory());
+      } catch (err) {
+        if (!isAbortError(err))
+          toast.error(`Could not open the folder: ${errorMessage(err)}`, {
+            duration: 6000,
+          });
+      }
+    },
+
+    connectLiveFolder: async handle => {
+      const permission = await requestReadWrite(handle);
+      if (permission !== 'granted') {
+        const known = get().liveFolders.find(f => f.handle === handle);
+        set({
+          livePending: known ?? {
+            id: '',
+            name: handle.name,
+            handle,
+            openedAt: Date.now(),
+          },
+        });
+        if (permission === 'denied')
+          toast.error(
+            'Edit access is needed: revisions are saved in out/<project>/live.revisions/',
+            { duration: 6000 },
+          );
+        return false;
+      }
+      const root = await findLyricsRoot(handle).catch(() => null);
+      if (!root) {
+        toast.error(
+          `"${handle.name}" has no projects/ and src/kit/. Pick apps/lyrics_videos (or the repo).`,
+          { duration: 8000 },
+        );
+        return false;
+      }
+      const prev = get().liveFolder;
+      if (prev && prev.handle !== handle && get().live?.source !== prev.source)
+        prev.source.dispose();
+      const source = new FolderSource(root, handle);
+      set({ livePending: null, liveProgress: 'Listing projects…' });
+      try {
+        const projects = await source.listProjects();
+        set({ liveFolder: { handle, source, projects }, liveProgress: null });
+      } catch (err) {
+        set({ liveProgress: null });
+        toast.error(`Could not list the projects: ${errorMessage(err)}`, {
+          duration: 6000,
+        });
+        return false;
+      }
+      await rememberFolder(handle).catch(() => null);
+      set({ liveFolders: await loadFolders().catch(() => get().liveFolders) });
+      return true;
+    },
+
+    openLive: async slug => {
+      const liveFolder = get().liveFolder;
+      if (!liveFolder) return;
+      await get().flushSaves();
+      const token = ++loadToken;
+      videoEl?.pause();
+      set({ liveProgress: `Opening ${slug}…` });
+      let live: LiveProject;
+      try {
+        live = await loadLiveProject(liveFolder.source, slug, progress => {
+          if (token === loadToken) set({ liveProgress: progress });
+        });
+      } catch (err) {
+        if (token === loadToken) set({ liveProgress: null });
+        toast.error(`Could not open ${slug} live: ${errorMessage(err)}`, {
+          duration: 8000,
+        });
+        return;
+      }
+      if (token !== loadToken) return;
+      const listing = await listFolder(live.outDir).catch(() => null);
+      const prev = get().video;
+      if (prev?.url.startsWith('blob:')) URL.revokeObjectURL(prev.url);
+      set({
+        live,
+        liveProgress: null,
+        folder: { handle: live.outDir, name: slug },
+        listing,
+        openedFrom: null,
+        pending: null,
+        wanted: null,
+        video: {
+          name: LIVE_VIDEO,
+          url: `live:${slug}:${token}`,
+          size: 0,
+          lastModified: live.codeTime,
+          duration: live.durationInFrames / live.fps,
+          width: live.width,
+          height: live.height,
+        },
+        videoChangedOnDisk: false,
+        map: live.map,
+        mapFile: live.mapSource,
+        mapError: null,
+        fpsOverride: null,
+        detectedFps: null,
+        currentTime: 0,
+        playing: false,
+        selection: null,
+        revisions: {},
+        revisionIds: [],
+        openRevisionIds: [],
+        activeRevisionId: null,
+        diskModified: {},
+        dirty: {},
+        saveState: 'idle',
+        highlightCommentId: null,
+        sketch: null,
+      });
+      updateUrl(null, null, slug);
+      await loadRevisions(token);
+    },
+
+    reloadLive: async (force = false) => {
+      const { live, liveFolder } = get();
+      if (!live || !liveFolder) return;
+      if (!force && !(await liveChangedOnDisk(live))) return;
+      const token = loadToken;
+      let next: LiveProject;
+      try {
+        next = await loadLiveProject(liveFolder.source, live.slug);
+      } catch (err) {
+        // the version that compiled keeps playing
+        toast.error(`${live.slug} didn't compile: ${errorMessage(err)}`, {
+          duration: 8000,
+        });
+        return;
+      }
+      if (token !== loadToken || get().live?.slug !== live.slug) return;
+      const time = get().currentTime;
+      set(s => ({
+        live: next,
+        map: next.map,
+        mapFile: next.mapSource,
+        video: s.video
+          ? {
+              ...s.video,
+              lastModified: next.codeTime,
+              duration: next.durationInFrames / next.fps,
+            }
+          : s.video,
+      }));
+      // the Player remounts with the new code: put the playhead back
+      requestAnimationFrame(() => get().seek(time));
+      toast(`Reloaded ${live.slug}: the code changed`, { duration: 3000 });
+    },
   };
 });

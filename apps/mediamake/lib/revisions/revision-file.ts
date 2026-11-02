@@ -45,6 +45,7 @@ export function createRevision(
   id: string,
   video: RevisionVideoInfo,
   map: string | null,
+  live?: { project: string },
 ): Revision {
   const now = new Date().toISOString();
   return {
@@ -54,6 +55,7 @@ export function createRevision(
     status: 'draft',
     video,
     map,
+    ...(live ? { live } : {}),
     createdAt: now,
     updatedAt: now,
     comments: [],
@@ -78,6 +80,9 @@ export function normalizeRevision(raw: unknown, id: string): Revision {
       fps: 30,
     }) as RevisionVideoInfo,
     map: typeof r.map === 'string' ? r.map : null,
+    ...(r.live && typeof r.live.project === 'string'
+      ? { live: { project: r.live.project } }
+      : {}),
     createdAt: r.createdAt ?? now,
     updatedAt: r.updatedAt ?? now,
     comments: Array.isArray(r.comments)
@@ -131,17 +136,24 @@ export function isStaleRevision(
   );
 }
 
+/** Seconds into the video; general notes sort before everything. */
 export function commentSortKey(c: RevisionComment): number {
+  if (c.kind === 'general') return -1;
   return c.kind === 'point' ? c.time : c.from;
 }
 
 function shotsLabel(c: RevisionComment): string {
+  if (c.kind === 'general') return 'the whole video';
   if (c.kind === 'point') return c.shot?.id ?? 'no shot';
   if (c.shots.length === 0) return 'no shot';
   return c.shots.length === 1
     ? c.shots[0]
     : `${c.shots[0]} → ${c.shots[c.shots.length - 1]}`;
 }
+
+/** The lyric kit's stills script for these seconds of a live-reviewed project, at full size. */
+const stillsLine = (project: string, seconds: number[]) =>
+  `\`npm run stills -w lyrics_videos -- ${project} ${seconds.map(t => t.toFixed(2)).join(',')} --only --scale=1\``;
 
 function quote(text: string): string {
   return text
@@ -169,13 +181,32 @@ export function revisionToMarkdown(
     `# ${revision.title} (${revision.id}) — ${STATUS_LABEL[revision.status]}`,
   );
   lines.push('');
-  lines.push(
-    `Video: \`${video.file}\` · ${video.fps} fps · ${formatTime(video.duration)}` +
-      (video.width && video.height ? ` · ${video.width}×${video.height}` : '') +
-      ` · modified ${new Date(video.lastModified).toISOString()}`,
-  );
+  const live = revision.live?.project;
+  if (live) {
+    lines.push(
+      `Live review of the project \`${live}\` (\`projects/${live}/\`), not of a render: the composition ` +
+        `played in the browser from its code and \`video/edits.json\` · ${video.fps} fps · ${formatTime(video.duration)}` +
+        (video.width && video.height
+          ? ` · ${video.width}×${video.height}`
+          : '') +
+        ` · code as of ${new Date(video.lastModified).toISOString()}`,
+    );
+  } else {
+    lines.push(
+      `Video: \`${video.file}\` · ${video.fps} fps · ${formatTime(video.duration)}` +
+        (video.width && video.height
+          ? ` · ${video.width}×${video.height}`
+          : '') +
+        ` · modified ${new Date(video.lastModified).toISOString()}`,
+    );
+  }
   if (opts.sourcePath) lines.push(`Path: \`${opts.sourcePath}\``);
-  lines.push(`Shot map: ${revision.map ? `\`${revision.map}\`` : 'none'}`);
+  lines.push(
+    `Shot map: ${revision.map ? `\`${revision.map}\`` : 'none'}` +
+      (live && revision.map?.endsWith('manifest.json')
+        ? ' (one shot per lyric line, as a render of it gets)'
+        : ''),
+  );
   lines.push(`Updated: ${revision.updatedAt}`);
   lines.push('');
   lines.push(
@@ -183,10 +214,14 @@ export function revisionToMarkdown(
   );
   lines.push('');
   lines.push(
-    `Written by the mediamake Revisions screen. \`${revision.id}.json\` is the source of truth; ` +
+    `Written by the mediamake Video Revision screen. \`${revision.id}.json\` is the source of truth; ` +
       `to close a comment set its \`status\` to \`"done"\` and add a \`reply\` there. ` +
-      `Stills of point comments are in \`${opts.revisionsDir}/${revision.id}/\`. Range comments have no stills: ` +
-      `run the ffmpeg line from the video's folder to extract frames.`,
+      `Stills of point comments are in \`${opts.revisionsDir}/${revision.id}/\`. ` +
+      (live
+        ? `They were rendered in the browser, which can miss some effects (radial gradients, some filters ` +
+          `and blend modes): when the look matters, or a comment has no still, render its frames with the ` +
+          `\`Render:\` line under it (run in the repo). Range comments have only that line.`
+        : `Range comments have no stills: run the ffmpeg line from the video's folder to extract frames.`),
   );
   if (comments.some(c => c.kind === 'point' && (c.drawing?.length || c.spot))) {
     lines.push('');
@@ -197,9 +232,21 @@ export function revisionToMarkdown(
     );
   }
 
+  if (comments.some(c => c.kind === 'general')) {
+    lines.push('');
+    lines.push(
+      `General comments come first: they are about the whole video (pacing, mood, a change for every place ` +
+        `it applies), so act on them everywhere, not at one time.`,
+    );
+  }
+
   for (const c of comments) {
     lines.push('');
-    if (c.kind === 'point') {
+    if (c.kind === 'general') {
+      lines.push(`## ${c.id} · General — ${c.status}`);
+      lines.push('');
+      lines.push(quote(c.text));
+    } else if (c.kind === 'point') {
       lines.push(
         `## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`,
       );
@@ -216,6 +263,7 @@ export function revisionToMarkdown(
         lines.push(
           `- Still: \`${opts.revisionsDir}/${c.snapshot}\`${c.drawing?.length || c.spot ? ' (marks drawn in)' : ''}`,
         );
+      if (live) lines.push(`- Render: ${stillsLine(live, [c.time])}`);
       if (c.drawing?.length)
         lines.push(`- Marks: ${c.drawing.map(describeMark).join('; ')}`);
       if (c.spot)
@@ -236,9 +284,18 @@ export function revisionToMarkdown(
       );
       const duration = Math.max(c.to - c.from, 1 / (video.fps || 30));
       const rate = Math.min(8, Math.max(1, Math.round(8 / duration)));
-      lines.push(
-        `- Frames: \`ffmpeg -ss ${c.from.toFixed(3)} -i "${video.file}" -t ${duration.toFixed(3)} -vf fps=${rate} -q:v 3 "${opts.revisionsDir}/${revision.id}/${c.id}_range_%02d.jpg"\``,
-      );
+      if (live) {
+        const n = Math.min(6, Math.max(2, Math.round(duration * 2)));
+        const times = Array.from(
+          { length: n },
+          (_, i) => c.from + (duration * (i + 0.5)) / n,
+        );
+        lines.push(`- Render: ${stillsLine(live, times)}`);
+      } else {
+        lines.push(
+          `- Frames: \`ffmpeg -ss ${c.from.toFixed(3)} -i "${video.file}" -t ${duration.toFixed(3)} -vf fps=${rate} -q:v 3 "${opts.revisionsDir}/${revision.id}/${c.id}_range_%02d.jpg"\``,
+        );
+      }
     }
     if (c.reply) {
       lines.push('');

@@ -628,7 +628,7 @@ unclear whether they want a new concept or a new look, ask in one line before re
 
 ## 10. Review revisions (after every render the user will watch)
 
-Follow the **`revise-video`** skill: it runs preflight, gives the user the `/remotion-revision` link
+Follow the **`revise-video`** skill: it runs preflight, gives the user the `/video-revision` link
 for the render, waits in the background for a revision marked ready, reads their revision files in
 `out/<slug>/<slug>.revisions/`, and closes each comment. Fix every
 comment the way this skill works; log style lessons in `prefs.md` and general ones in this skill

@@ -66,11 +66,22 @@ export type ProjectDefinition = {
   }[];
 };
 
+/** Element edits the video applies without re-rendering its scenes (src/kit/edits.tsx). */
+export type LiveElementEdits = {
+  get: () => Record<string, ElementEdit>;
+  set: (elements: Record<string, ElementEdit>) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
 /** The kit functions the editor calls, from the compiled src/kit. */
 export type KitApi = {
-  makeProjectVideo: (
-    project: ProjectDefinition,
-  ) => React.ComponentType<{ manifest: LyricManifest | null; edits?: Edits | null }>;
+  makeProjectVideo: (project: ProjectDefinition) => React.ComponentType<{
+    manifest: LyricManifest | null;
+    edits?: Edits | null;
+    liveEdits?: LiveElementEdits | null;
+  }>;
+  /** missing in kits from before live edits: those re-render the video on every change */
+  createLiveElementEdits?: (initial?: Record<string, ElementEdit>) => LiveElementEdits;
   layerKeys: (layers: ProjectDefinition['layers']) => string[];
   applyPropEdits: <P>(props: P, patch?: Record<string, unknown>) => P;
   getPath: (obj: unknown, path: string) => unknown;

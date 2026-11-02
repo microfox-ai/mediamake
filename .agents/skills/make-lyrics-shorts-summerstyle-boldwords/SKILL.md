@@ -408,7 +408,7 @@ that skips `timestampSnapshots`. Bundles link the public folder; only `npx remot
 run preflight on each short (`npm run preflight -w lyrics_videos -- <slug>
 --video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`: frozen frames and the sound, which the dark-frame
 scan doesn't cover) and fix or answer what it finds. Review with
-**`revise-video`**: `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
+**`revise-video`**: `/video-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time), then start the watcher
 (`npm run wait-revision -w lyrics_videos -- <slug>` covers every short). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:

@@ -13,7 +13,9 @@ import {
   HistoryIcon,
   LoaderIcon,
   MessageSquareTextIcon,
+  PlayCircleIcon,
   PlusIcon,
+  RadioIcon,
   RefreshCwIcon,
   XIcon,
 } from 'lucide-react';
@@ -98,6 +100,9 @@ function IconAction({
 function CurrentVideoFiles() {
   const mapFile = useRevisionsStore(s => s.mapFile);
   const mapError = useRevisionsStore(s => s.mapError);
+  const liveShots = useRevisionsStore(s =>
+    s.live ? (s.map?.shots.length ?? 0) : null,
+  );
   const revisionIds = useRevisionsStore(s => s.revisionIds);
   const revisions = useRevisionsStore(s => s.revisions);
   const activeRevisionId = useRevisionsStore(s => s.activeRevisionId);
@@ -105,28 +110,42 @@ function CurrentVideoFiles() {
 
   return (
     <div className="ml-4 border-l pl-2">
-      <Hint
-        label={
-          mapError ??
-          (mapFile
-            ? 'Shot map for this video'
-            : 'No map beside this video: shots and IDs are off')
-        }
-        side="right"
-      >
-        <div
-          className={cn(
-            'flex items-center gap-1.5 py-0.5 text-xs',
-            mapFile ? 'text-foreground' : 'text-muted-foreground',
-          )}
+      {liveShots !== null ? (
+        <Hint
+          label={`Shots from ${mapFile ?? 'the project'}: the ids a render of it gets. Notes go in out/<project>/live.revisions/`}
+          side="right"
         >
-          <FileJsonIcon className="size-3.5 shrink-0" />
-          <MiddleTruncate
-            text={mapFile ?? (mapError ? 'map unreadable' : 'no map.json')}
-            tail={18}
-          />
-        </div>
-      </Hint>
+          <div className="flex items-center gap-1.5 py-0.5 text-xs">
+            <FileJsonIcon className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {liveShots} shots · live.revisions/
+            </span>
+          </div>
+        </Hint>
+      ) : (
+        <Hint
+          label={
+            mapError ??
+            (mapFile
+              ? 'Shot map for this video'
+              : 'No map beside this video: shots and IDs are off')
+          }
+          side="right"
+        >
+          <div
+            className={cn(
+              'flex items-center gap-1.5 py-0.5 text-xs',
+              mapFile ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            <FileJsonIcon className="size-3.5 shrink-0" />
+            <MiddleTruncate
+              text={mapFile ?? (mapError ? 'map unreadable' : 'no map.json')}
+              tail={18}
+            />
+          </div>
+        </Hint>
+      )}
       {revisionIds.map(id => {
         const revision = revisions[id];
         return (
@@ -432,6 +451,119 @@ function SourceTree({ source }: { source: SourceState }) {
   );
 }
 
+/** Lyric projects to review live, from the lyrics_videos folder (no render needed). */
+function LiveSection() {
+  const support = useRevisionsStore(s => s.support);
+  const liveFolder = useRevisionsStore(s => s.liveFolder);
+  const livePending = useRevisionsStore(s => s.livePending);
+  const knownFolder = useRevisionsStore(s => s.liveFolders[0] ?? null);
+  const live = useRevisionsStore(s => s.live);
+  const liveProgress = useRevisionsStore(s => s.liveProgress);
+  const pickLiveFolder = useRevisionsStore(s => s.pickLiveFolder);
+  const connectLiveFolder = useRevisionsStore(s => s.connectLiveFolder);
+  const openLive = useRevisionsStore(s => s.openLive);
+  const reloadLive = useRevisionsStore(s => s.reloadLive);
+  const disabled = !support?.supported;
+  const reconnect = livePending ?? knownFolder;
+
+  return (
+    <div className="pb-2">
+      <SectionTitle
+        action={
+          <span className="flex items-center gap-0.5">
+            {live && (
+              <IconAction
+                label="Reload the project (code changes also load when this window regains focus)"
+                onClick={() => void reloadLive(true)}
+              >
+                <RefreshCwIcon className="size-3" />
+              </IconAction>
+            )}
+            <IconAction
+              label="Pick the lyrics_videos folder (or the repo)"
+              onClick={() => void pickLiveFolder()}
+            >
+              <FolderOpenIcon className="size-3.5" />
+            </IconAction>
+          </span>
+        }
+      >
+        <Hint
+          label="Play a lyric project from its code and leave notes on it, before any render"
+          side="right"
+        >
+          <span className="flex items-center gap-1">
+            <RadioIcon className="size-3.5" /> Live projects
+          </span>
+        </Hint>
+      </SectionTitle>
+      {!liveFolder ? (
+        <div className="px-3">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-auto w-full whitespace-normal py-1.5 text-[11px]"
+            disabled={disabled || !!liveProgress}
+            onClick={() =>
+              void (reconnect
+                ? connectLiveFolder(reconnect.handle)
+                : pickLiveFolder())
+            }
+          >
+            {liveProgress ??
+              (reconnect
+                ? `Reconnect ${reconnect.name} to review its projects live`
+                : 'Review a project before rendering it: pick lyrics_videos')}
+          </Button>
+        </div>
+      ) : liveFolder.projects.length === 0 ? (
+        <div className="px-3 text-xs text-muted-foreground">
+          No projects in {liveFolder.source.label}.
+        </div>
+      ) : (
+        liveFolder.projects.map(p => {
+          const active = live?.slug === p.slug;
+          return (
+            <div key={p.slug} className="px-1.5">
+              <Hint
+                label={`projects/${p.slug} · notes go in out/${p.slug}/live.revisions/`}
+                side="right"
+              >
+                <button
+                  type="button"
+                  disabled={!!liveProgress}
+                  onClick={() => !active && void openLive(p.slug)}
+                  className={cn(
+                    'flex w-full items-start gap-1.5 rounded px-1.5 py-1 text-left hover:bg-muted',
+                    active && 'bg-muted',
+                  )}
+                >
+                  <PlayCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        'block truncate text-xs',
+                        active && 'font-medium',
+                      )}
+                    >
+                      {p.title ?? p.slug}
+                    </span>
+                    <span className="block truncate text-[10px] text-muted-foreground">
+                      {p.slug} · code{' '}
+                      {formatDistanceToNow(p.modified, { addSuffix: true })}
+                    </span>
+                  </span>
+                </button>
+              </Hint>
+              {active && <CurrentVideoFiles />}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 export function FilesPanel() {
   const support = useRevisionsStore(s => s.support);
   const folder = useRevisionsStore(s => s.folder);
@@ -476,6 +608,7 @@ export function FilesPanel() {
         </Hint>
       </div>
       <ScrollArea className={cn('min-h-0 flex-1', FIT_WIDTH)}>
+        <LiveSection />
         <SectionTitle
           action={
             <IconAction

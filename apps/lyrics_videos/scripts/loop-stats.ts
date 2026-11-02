@@ -6,17 +6,18 @@
  *
  * Usage: npm run loop-stats -w lyrics_videos -- [slug …] [--since=2026-10-01] [--json]
  *
- * Per video: rounds (revisions with notes from the user), the user's notes (point / range, how many
+ * Per video: rounds (revisions with notes from the user), the user's notes (point / range / general, how many
  * done), machine notes from preflight, kept versions (each one a full render that was replaced) and
  * the days from the first note to the last. Per production: logged renders (master / half-size
- * review / clip or look) and their minutes. Render minutes count from the first logged render (the
+ * review / clip or look) and their minutes. Notes left on a project reviewed live (live.revisions/) show as
+ * "<slug>/live (no render)". Render minutes count from the first logged render (the
  * log is new).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readRenders, type RenderEntry } from './render-log.ts';
-import { REVISIONS_SUFFIX, isMachineNote, readRevisions, type Revision } from './revision-files.ts';
+import { LIVE_VIDEO, REVISIONS_SUFFIX, isMachineNote, readRevisions, type Revision } from './revision-files.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'out');
@@ -42,6 +43,7 @@ type VideoStats = {
   notes: number;
   point: number;
   range: number;
+  general: number;
   done: number;
   machine: number;
   versions: number;
@@ -93,13 +95,15 @@ function statsFor(project: string, dir: string, name: string): VideoStats {
   const stamps = userNotes.map(c => c.createdAt).filter(Boolean).sort();
   return {
     project,
-    video: path.relative(OUT, path.join(dir, `${name}.mp4`)).split(path.sep).join('/'),
+    // live.revisions/: notes on the project playing live, before a render
+    video: path.relative(OUT, path.join(dir, name === LIVE_VIDEO ? `${name} (no render)` : `${name}.mp4`)).split(path.sep).join('/'),
     rounds: revisions.filter(r => r.comments.some(c => !isMachineNote(c))).length,
     revisions: revisions.length,
     resolved: revisions.filter(r => r.status === 'resolved').length,
     notes: userNotes.length,
     point: userNotes.filter(c => c.kind === 'point').length,
     range: userNotes.filter(c => c.kind === 'range').length,
+    general: userNotes.filter(c => c.kind === 'general').length,
     done: userNotes.filter(c => c.status === 'done').length,
     machine: revisions.flatMap(r => r.comments.filter(isMachineNote)).length,
     versions,
@@ -132,7 +136,7 @@ for (const project of projects) {
 }
 rows.sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }));
 
-const sum = (key: 'rounds' | 'notes' | 'point' | 'range' | 'done' | 'machine' | 'versions' | 'revisions') => rows.reduce((t, r) => t + r[key], 0);
+const sum = (key: 'rounds' | 'notes' | 'point' | 'range' | 'general' | 'done' | 'machine' | 'versions' | 'revisions') => rows.reduce((t, r) => t + r[key], 0);
 const totals = {
   videos: rows.length,
   reviewed: rows.filter(r => r.rounds).length,
@@ -140,6 +144,7 @@ const totals = {
   notes: sum('notes'),
   point: sum('point'),
   range: sum('range'),
+  general: sum('general'),
   done: sum('done'),
   machine: sum('machine'),
   versions: sum('versions'),
@@ -164,13 +169,13 @@ const span = (r: VideoStats) => {
   const days = Math.round((new Date(r.last).getTime() - new Date(r.first).getTime()) / 86_400_000);
   return `${day(r.first)} → ${day(r.last)} (${days} d)`;
 };
-const header = ['video', 'rounds', 'notes', 'per round', 'point/range', 'done', 'machine', 'versions', 'first → last note'];
+const header = ['video', 'rounds', 'notes', 'per round', 'point/range/general', 'done', 'machine', 'versions', 'first → last note'];
 const table = rows.map(r => [
   r.video,
   String(r.rounds),
   String(r.notes),
   r.rounds ? (r.notes / r.rounds).toFixed(1) : '',
-  `${r.point}/${r.range}`,
+  `${r.point}/${r.range}/${r.general}`,
   r.notes ? `${Math.round((r.done / r.notes) * 100)}%` : '',
   String(r.machine),
   String(r.versions),
@@ -196,7 +201,7 @@ const n = (count: number, word: string) => `${count} ${word}${count === 1 ? '' :
 console.log(
   `\n${n(totals.videos, 'video')}, ${totals.reviewed} reviewed in the Revisions screen: ${n(totals.rounds, 'round')} ` +
     `(${totals.roundsPerReviewedVideo} per reviewed video), ${n(totals.notes, 'note')} (${totals.notesPerRound} per round, ` +
-    `${totals.point} point / ${totals.range} range), ${n(totals.machine, 'machine note')}, ${n(totals.versions, 'kept version')} ` +
+    `${totals.point} point / ${totals.range} range / ${totals.general} general), ${n(totals.machine, 'machine note')}, ${n(totals.versions, 'kept version')} ` +
     `(${totals.versionsPerVideo} per video)${totals.renderMinutes ? `, ${totals.renderMinutes} render minutes logged` : ''}.` +
     `${since ? ` Since ${opt('since')}.` : ''}`,
 );

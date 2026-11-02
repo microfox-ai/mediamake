@@ -30,7 +30,7 @@ The review loop for rendered videos comes first (live review, self-serve edits, 
 
 - MediaMake workers for video: Veo, Kling (image to video, 5 to 15 s), Runway, Luma, MiniMax, Pika and Wan; for images: Flux, Nano Banana, Ideogram, Stability and Magnific upscaling; and a cost-usage worker.
 - `/file-revision` (formerly `/image-revision`) for keyframe sets, and since it plays videos in its zoom view, for picking among draft takes too (`mediamake.image-set/v1`, `mediamake.image-revision/v1`).
-- `/remotion-revision` for the cut, with shot maps (`mediamake.video-map/v1`) and revisions (`mediamake.revision/v1`).
+- `/video-revision` for the cut, with shot maps (`mediamake.video-map/v1`) and revisions (`mediamake.revision/v1`).
 
 The new part is the shot-and-take review on top: a set revision that maps each shot to its chosen take (`takes`), using the same set file as the other kinds of multiple outputs (alternatives, deliverables, takes).
 

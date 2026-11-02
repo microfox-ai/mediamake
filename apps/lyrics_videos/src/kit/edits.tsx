@@ -11,7 +11,14 @@
  * Every layer can be moved as a whole (`layer:<key>`) without touching its scene.
  */
 import type React from 'react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   continueRender,
   delayRender,
@@ -230,16 +237,59 @@ const useEditFonts = (elements?: Record<string, ElementEdit>) => {
 };
 
 /**
+ * Element edits that change without re-rendering the video. The editor passes one to the project
+ * video (`liveEdits`) and sets it on every pointer move of a drag: only the EditsApplier re-renders,
+ * not the scenes (a 3D scene re-rendering per move is what made dragging lag). Renders never pass
+ * one; they read `edits.elements`.
+ */
+export type LiveElementEdits = {
+  get: () => Record<string, ElementEdit>;
+  set: (elements: Record<string, ElementEdit>) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+export const createLiveElementEdits = (
+  initial: Record<string, ElementEdit> = {},
+): LiveElementEdits => {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    set: next => {
+      if (next === current) return;
+      current = next;
+      listeners.forEach(l => l());
+    },
+    subscribe: listener => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+};
+
+const noSubscription = () => () => undefined;
+const nothingLive = () => undefined;
+
+/**
  * Applies element edits to everything inside its parent, after every frame. The project video
  * mounts one as the last child of its root. It finds that root through its own hidden marker: on
  * the first commit (every frame of a still or a render tab) a parent's ref isn't attached yet when
- * a child's layout effect runs.
+ * a child's layout effect runs. With `live`, its edits win over `elements`.
  */
-export const EditsApplier: React.FC<{ elements?: Record<string, ElementEdit> }> = ({
-  elements,
-}) => {
+export const EditsApplier: React.FC<{
+  elements?: Record<string, ElementEdit>;
+  live?: LiveElementEdits | null;
+}> = ({ elements: fromProps, live }) => {
   const frame = useCurrentFrame();
   const marker = useRef<HTMLDivElement>(null);
+  const fromLive = useSyncExternalStore(
+    live?.subscribe ?? noSubscription,
+    live?.get ?? nothingLive,
+    live?.get ?? nothingLive,
+  );
+  const elements = live ? fromLive : fromProps;
+  const latest = useRef(elements);
+  latest.current = elements;
   useLayoutEffect(() => {
     const root = marker.current?.parentElement;
     if (root) applyElementEdits(root, elements);
@@ -248,10 +298,10 @@ export const EditsApplier: React.FC<{ elements?: Record<string, ElementEdit> }> 
     const root = marker.current?.parentElement;
     if (!root) return;
     // scenes that mount elements in a later commit (after measuring) get their edits too
-    const observer = new MutationObserver(() => applyElementEdits(root, elements));
+    const observer = new MutationObserver(() => applyElementEdits(root, latest.current));
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [elements]);
+  }, []);
   useEditFonts(elements);
   return <div ref={marker} style={{ display: 'none' }} />;
 };
