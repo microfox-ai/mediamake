@@ -232,7 +232,7 @@ stricter prompt that names the exact letters) rather than sending it. Make the f
 (`npm run image-index -w lyrics_videos -- <folder> --groups=subfolders --workflow=pack-brand-kit`,
 then name each group and note flawed images in index.json), tile contact sheets into `checks/`,
 send them with the review link, and let the user pick. The review page opens directly on the
-deployed app, no local server needed: `https://mediamake.microfox.app/image-revision?job=<set>`
+deployed app, no local server needed: `https://mediamake.microfox.app/file-revision?job=<set>`
 (the user opens the folder there once); the `revise-image` skill reads and closes their revision.
 The picked image is then read like any logo (step 1).
 

@@ -11,7 +11,7 @@ The review loop for rendered videos comes first (live review, self-serve edits, 
 ## The pipeline: approve everything cheap before paying for motion
 
 1. **Script and shot list**, each character and location named once.
-2. **Keyframes**: several stills per shot, reviewed as an image set. This works today in `/image-revision`.
+2. **Keyframes**: several stills per shot, reviewed as an image set. This works today in `/file-revision`.
 3. **Animatic**: the approved keyframes timed to the voice-over and the music, reviewed live. It settles pacing for free.
 4. **Draft motion**: the cheapest model that shows the movement, short clips from each approved keyframe.
 5. **Pick takes per shot.** The cut plays at once in the player because it is only clips. Trimming, retiming and reordering are free browser edits.
@@ -29,7 +29,7 @@ The review loop for rendered videos comes first (live review, self-serve edits, 
 ## What already exists
 
 - MediaMake workers for video: Veo, Kling (image to video, 5 to 15 s), Runway, Luma, MiniMax, Pika and Wan; for images: Flux, Nano Banana, Ideogram, Stability and Magnific upscaling; and a cost-usage worker.
-- `/image-revision` for keyframe sets (`mediamake.image-set/v1`, `mediamake.image-revision/v1`).
+- `/file-revision` (formerly `/image-revision`) for keyframe sets, and since it plays videos in its zoom view, for picking among draft takes too (`mediamake.image-set/v1`, `mediamake.image-revision/v1`).
 - `/remotion-revision` for the cut, with shot maps (`mediamake.video-map/v1`) and revisions (`mediamake.revision/v1`).
 
 The new part is the shot-and-take review on top: a set revision that maps each shot to its chosen take (`takes`), using the same set file as the other kinds of multiple outputs (alternatives, deliverables, takes).

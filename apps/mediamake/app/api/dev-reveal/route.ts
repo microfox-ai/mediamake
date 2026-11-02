@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Shows a file or folder in the OS file manager (Finder on macOS), for the public
- * /image-revision page. Development only: the dev server runs on the user's own
+ * /file-revision page. Development only: the dev server runs on the user's own
  * computer, so this is "the computer reveals its own file". It only reveals
  * (never opens or runs anything), and only existing paths under the home folder.
  */

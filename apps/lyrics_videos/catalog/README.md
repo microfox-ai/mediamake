@@ -10,7 +10,7 @@ per storyboard step, and a screenshot of every entry shot on this machine:
 | 3 · Caption setups | `captions.ts` (`CAPTIONS`) | `waveform-catalog/captions/` |
 
 `out/waveform-catalog/README.md` is a gallery of them all, the folder is an image set for
-mediamake's `/image-revision` (its `index.json`), and each step folder has a `sheet.jpg`. When the
+mediamake's `/file-revision` (its `index.json`), and each step folder has a `sheet.jpg`. When the
 folder is missing (a fresh checkout), shoot the catalog first.
 
 The entries were learned from the user's mediamake timelines (a read-only export of 2026-10-24:

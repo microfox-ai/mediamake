@@ -206,11 +206,11 @@ subject drifting for depth, embers, pulsing light, grain; every motion periodic,
 `npm run thumbs -w lyrics_videos -- canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`
 (H.264 yuv420p, silent). The `create-music-poster` skill covers the fal and Midjourney versions.
 
-## Review: /image-revision
+## Review: /file-revision
 
-The user reviews a job in mediamake's **Image Revisions** screen
-(`/image-revision?job=<job>`, the review screen for any image set; code and both file formats in
-`apps/mediamake/components/image-revisions/README.md`). It opens `out/thumbnails/<job>/`
+The user reviews a job in mediamake's **File Revisions** screen
+(`/file-revision?job=<job>`, the review screen for any image set; code and both file formats in
+`apps/mediamake/components/file-revisions/README.md`). It opens `out/thumbnails/<job>/`
 through `index.json`, lets them select thumbnails and pick finals (1, or up to 3 for an A/B
 test), keep, drop or comment, zoom in with a magnifier, and pin comments to a spot. It saves
 beside the renders:

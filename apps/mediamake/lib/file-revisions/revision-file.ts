@@ -1,3 +1,4 @@
+import { fileKind } from './sets';
 import {
   IMAGE_REVISION_SCHEMA,
   formatOf,
@@ -67,7 +68,9 @@ export function normalizeRevision(raw: unknown, id: string): ImageRevision {
         images: strings(c.images ?? thumbs),
         text: String(c.text ?? ''),
         status: c.status === 'done' ? 'done' : 'open',
-        ...(pin && image ? { pin: { image, x: Number(pin.x ?? 0), y: Number(pin.y ?? 0), ...(pin.size ? { size: pin.size } : {}) } } : {}),
+        ...(pin && image
+          ? { pin: { image, x: Number(pin.x ?? 0), y: Number(pin.y ?? 0), ...(pin.size ? { size: pin.size } : {}), ...(typeof pin.t === 'number' ? { t: pin.t } : {}) } }
+          : {}),
       };
     }),
   };
@@ -96,7 +99,7 @@ const howTo = (index: ImageSetIndex | null, job: string) => {
   const thumbs = ['create-thumbnail', 'create-music-poster', 'make-thumbnail', 'make-music-poster'];
   if ((workflow && thumbs.includes(workflow)) || (!workflow && formatOf(index).thumbnail))
     return `Finals → \`npm run thumbs -w lyrics_videos -- pick ${job} <IDs>\`${index?.kind === 'poster' ? ' (add `--to=<release folder>` to copy the cover there as cover.jpg)' : ''}; keep → \`thumbs keep\`. Fix each comment as a change to that variant or as a new variant (IDs never change once seen) and re-render those IDs.`;
-  return 'Act on finals, keeps and drops, and fix each comment, the way the workflow that made these images works (re-generate or edit those images, keeping their IDs).';
+  return 'Act on finals, keeps and drops, and fix each comment, the way the workflow that made these files works (re-generate or edit those files, keeping their IDs).';
 };
 
 /** What Claude reads first. Regenerated on every save. */
@@ -113,7 +116,7 @@ export function revisionToMarkdown(
   );
   const describe = (id: string) => {
     const v = variants.get(id);
-    return v ? `**${id}** (${v.style}${v.note ? `: ${v.note}` : ''}; \`${v.file}\`)` : `**${id}**`;
+    return v ? `**${id}** (${v.style}${v.note ? `: ${v.note}` : ''}; \`${v.media ?? v.file}\`)` : `**${id}**`;
   };
   const lines: string[] = [
     `# ${revision.title} · ${format.noun} for ${index?.title ?? revision.job}`,
@@ -154,11 +157,16 @@ export function revisionToMarkdown(
     if (c.images.length) lines.push(`- About: ${c.images.map(describe).join('; ')}`);
     if (c.pin) {
       const size = c.pin.size ?? index?.size;
-      lines.push(
-        `- Spot on ${c.pin.image}: ` +
-          (size ? `x ${Math.round(c.pin.x * size[0])}, y ${Math.round(c.pin.y * size[1])} px of ${size[0]}×${size[1]} ` : '') +
-          `(${Math.round(c.pin.x * 100)}% across, ${Math.round(c.pin.y * 100)}% down)`,
-      );
+      const v = variants.get(c.pin.image);
+      const kind = v && fileKind(v.media ?? v.file);
+      if (c.pin.t !== undefined) lines.push(`- At ${clock(c.pin.t)} into the ${kind === 'audio' ? 'audio' : 'video'} (${c.pin.t.toFixed(2)} s)`);
+      // a spot on an audio file's still says nothing
+      if (kind !== 'audio')
+        lines.push(
+          `- Spot on ${c.pin.image}: ` +
+            (size ? `x ${Math.round(c.pin.x * size[0])}, y ${Math.round(c.pin.y * size[1])} px of ${size[0]}×${size[1]} ` : '') +
+            `(${Math.round(c.pin.x * 100)}% across, ${Math.round(c.pin.y * 100)}% down)`,
+        );
     }
     if (c.snapshot) lines.push(`- Zoomed crop: \`${opts.revisionsDir}/${c.snapshot}\``);
     if (c.reply) lines.push(`- Reply: ${c.reply}`);
@@ -167,16 +175,27 @@ export function revisionToMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/** 75.4 → "1:15.4": a time in a video or audio file. */
+export function clock(t: number): string {
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
+}
+
+/** The pixel size of an image, or of a video's frame. */
+export const pixelSize = (el: HTMLImageElement | HTMLVideoElement): [number, number] =>
+  el instanceof HTMLVideoElement ? [el.videoWidth, el.videoHeight] : [el.naturalWidth, el.naturalHeight];
+
 /**
  * A crop around a pinned spot at 2× (half the image's width and height), with a
- * ring on the spot, so Claude sees exactly what the comment is about.
+ * ring on the spot, so Claude sees exactly what the comment is about. A video
+ * gives the frame it is paused on.
  */
 export async function pinSnapshot(
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLVideoElement,
   pin: { x: number; y: number },
 ): Promise<Blob> {
-  const iw = image.naturalWidth;
-  const ih = image.naturalHeight;
+  const [iw, ih] = pixelSize(image);
   const cw = Math.round(iw / 2);
   const ch = Math.round(ih / 2);
   const px = pin.x * iw;

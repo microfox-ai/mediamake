@@ -171,8 +171,8 @@ Pick the shoot moment (`at.looks`) just after a strong kick and snare in the hoo
 effects show. Before showing: pull 3–4 frames of each clip around a kick (with a reference, put its
 frames in the same sheet), measure brightness against the source (rule 6), and fix what's off. Send
 the grid (`grid-L1-L2….mp4` beside the reel: the looks side by side, each labelled with its ID, with
-its review link from `revise-video`) and the sheet; the user picks, mixes ("rings from L1, sparks from
-L2"), or redirects. New rounds get new IDs; nothing seen is renumbered.
+the review link wave-lab prints) and the sheet; the user picks, mixes ("rings from L1, sparks from
+L2"), or redirects. In `/file-revision` the storyboard set plays each look's clip too. New rounds get new IDs; nothing seen is renumbered.
 
 **The parts** (all in `src/mediamake`; a look is cover settings + `subject` + `layers` + `overlays`):
 
@@ -195,7 +195,7 @@ set `floor` / `gain` from the numbers, not by eye.
 **Inspiration first** (rule 7): the user's references, or a search — Pinterest through Browse Hack
 (`pinterest_*` tools, the user's chosen profile), YouTube lyric videos of the genre, kinetic
 typography work — collected into a small labelled board in `out/<slug>/<slug>-type-inspo/` (an
-image set for `/image-revision`). Show it, ask what they like, then design. The caption presets
+image set for `/file-revision`). Show it, ask what they like, then design. The caption presets
 (`catalog/captions.ts`, `npm run wave-lab -- catalog captions`) are part of that inspiration, not the
 answer.
 
@@ -274,8 +274,8 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   `layers` + `overlays`), `waves`, `fonts`, `captions`, `pick`, `at`. `video/index.tsx`:
   `storyboardVideo('<slug>', storyboard, [extra layers])`.
 - `wave-lab <slug> looks|waves|fonts|captions|final [--only=…] [--at=s] [--clip=6]` → labelled stills,
-  clips, a reel and (for 2–4 clips) a grid in `out/<slug>/<slug>-storyboard/`; the stills are
-  reviewable in `/image-revision`, the grid in `/remotion-revision`.
+  clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/file-revision` (a still plays
+  its clip in the zoom view); for 2–4 clips also a labelled grid, printed with its `/remotion-revision` link.
 - `stills <slug> <s,s,…> --only [--scale=1]`: the folder is cleared on every run — copy the files
   out between batches; batches of ≤ 6 avoid font timeouts.
 - The catalog (`catalog/`, shots in `out/waveform-catalog/`): waves, font sets and caption setups

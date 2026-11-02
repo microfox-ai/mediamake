@@ -1,7 +1,7 @@
 /**
  * wave-lab: shoots waveform lyric video looks as labelled stills — the catalog's entries on the demo
  * song and picture, or a project's storyboard candidates on its own — and makes each set reviewable
- * in mediamake's /image-revision (index.json) with a contact sheet per step.
+ * in mediamake's /file-revision (index.json) with a contact sheet per step.
  *
  * Usage:
  *   npm run wave-lab -w lyrics_videos -- catalog [waves|fonts|captions] [--only=id,id]
@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { removeBundle, tempBundle } from './bundle.ts';
 import { lookGrid } from './look-grid.ts';
+import { reviewLink } from './revision-files.ts';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { CAPTIONS, FONTS, WAVES } from '../catalog/index.ts';
@@ -246,12 +247,12 @@ const contactSheet = (files: string[], out: string) => {
   ffmpeg([...files.flatMap(f => ['-i', f]), '-filter_complex', `${scaled};${stack}`, '-q:v', '4', out]);
 };
 
-const writeIndex = (dir: string, o: { job: string; title: string; groups: { id: string; name: string; items: { id: string; file: string; note: string }[] }[] }) => {
+const writeIndex = (dir: string, o: { job: string; title: string; groups: { id: string; name: string; items: { id: string; file: string; media?: string; note: string }[] }[] }) => {
   const file = path.join(dir, 'index.json');
   const old = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
   const groups = o.groups.map(g => {
     const before = (old.groups ?? []).find((x: { id: string }) => x.id === g.id)?.items ?? [];
-    const items = new Map<string, { id: string; file: string; note: string }>(before.map((i: { id: string; file: string; note: string }) => [i.id, i]));
+    const items = new Map<string, { id: string; file: string; media?: string; note: string }>(before.map((i: { id: string; file: string; media?: string; note: string }) => [i.id, i]));
     for (const i of g.items) items.set(i.id, i);
     return { ...g, items: [...items.values()].filter(i => fs.existsSync(path.join(dir, i.file))) };
   });
@@ -263,7 +264,7 @@ const writeIndex = (dir: string, o: { job: string; title: string; groups: { id: 
     title: o.title,
     workflow: 'make-waveform-lyric-video',
     location: path.relative(REPO, dir),
-    // absolute, so /image-revision can show the folder in Finder (dev server) or copy the path
+    // absolute, so /file-revision can show the folder in Finder (dev server) or copy the path
     path: dir,
     pick: { max: 1, label: 'pick' },
     groups: [...(old.groups ?? []).filter((g: { id: string }) => !groups.some(n => n.id === g.id)), ...groups],
@@ -417,7 +418,7 @@ const main = async () => {
         const ids = done.filter(s => s.step === step).map(s => s.id);
         try {
           const grid = lookGrid(clips, { labels: ids, out: path.join(dir, `grid-${ids.join('-')}.mp4`) });
-          console.log(`✔ ${path.relative(ROOT, grid)}`);
+          console.log(`✔ ${path.relative(ROOT, grid)}  ${reviewLink(grid)}`);
         } catch (err) {
           console.warn(`No grid (the reel still has every look): ${err instanceof Error ? err.message : err}`);
         }
@@ -430,7 +431,15 @@ const main = async () => {
     groups: shotSteps.map(step => ({
       id: step,
       name: step,
-      items: done.filter(s => s.step === step).map(s => ({ id: `${step}/${s.id}`, file: `${step}/${s.id}.jpg`, note: s.note })),
+      items: done
+        .filter(s => s.step === step)
+        .map(s => ({
+          id: `${step}/${s.id}`,
+          file: `${step}/${s.id}.jpg`,
+          // a look shot with --clip plays its clip in /file-revision's zoom view
+          ...(fs.existsSync(path.join(outRoot, step, `${s.id}.mp4`)) ? { media: `${step}/${s.id}.mp4` } : {}),
+          note: s.note,
+        })),
     })),
   });
   console.log(`✔ ${path.relative(ROOT, path.join(outRoot, 'index.json'))}`);

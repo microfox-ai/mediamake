@@ -1,21 +1,24 @@
 /*
- * File formats for the image revisions screen (/image-revision). See
- * components/image-revisions/README.md. An image set is any folder of images,
- * described by an index.json (written by the workflow that made the images:
- * apps/lyrics_videos/scripts/thumbs.ts, scripts/image-index.ts for any other
- * folder) or, without one, read straight from the folder. Revisions are
- * written by this page, beside the images.
+ * File formats for the file revisions screen (/file-revision). See
+ * components/file-revisions/README.md. A set is any folder of images, videos
+ * or audio, described by an index.json (written by the workflow that made the
+ * files: apps/lyrics_videos/scripts/thumbs.ts, scripts/image-index.ts for any
+ * other folder) or, without one, read straight from the folder. Revisions are
+ * written by this page, beside the files. The schema names keep "image" so
+ * existing sets and revisions still read.
  */
 import type { CommentStatus, RevisionStatus } from '@/lib/revisions/types';
 
 export const IMAGE_SET_SCHEMA = 'mediamake.image-set/v1';
 export const IMAGE_REVISION_SCHEMA = 'mediamake.image-revision/v1';
 
-/** One image of a set: `id` is how the user and Claude refer to it (A1, B3, hero-2…). */
+/** One file of a set: `id` is how the user and Claude refer to it (A1, B3, hero-2…). */
 export interface ImageItem {
   id: string;
-  /** Path relative to the set's folder. */
+  /** Path relative to the set's folder: an image, or a video or audio file. */
   file: string;
+  /** A video or audio file to play in the zoom view when `file` is its still (relative to the set's folder). */
+  media?: string;
   note?: string;
 }
 
@@ -70,6 +73,8 @@ export interface ImagePin {
   y: number;
   /** the image's pixel size when pinned, so the spot can be given in pixels */
   size?: [number, number];
+  /** seconds into the video or audio when pinned */
+  t?: number;
 }
 
 export interface ImageComment {
@@ -129,6 +134,6 @@ export function formatOf(index: ImageSetIndex | null | undefined) {
     small: poster ? 160 : thumbnail ? 246 : 200,
     smallLabel: poster ? 'List size' : thumbnail ? 'Feed size' : 'Small',
     smallHint: poster ? "How it reads in a streaming app's list" : thumbnail ? "How it reads in YouTube's feed" : 'How it reads small',
-    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : 'images',
+    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : 'files',
   };
 }

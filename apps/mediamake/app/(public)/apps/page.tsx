@@ -43,9 +43,9 @@ const apps: AppCard[] = [
     tags: ['review', 'video'],
   },
   {
-    title: 'Image Revisions',
-    summary: 'Review thumbnails, posters and image sets: pick finals, keep, drop and pin comments.',
-    href: '/image-revision',
+    title: 'File Revisions',
+    summary: 'Review thumbnails, posters, image sets and videos: pick finals, keep, drop and pin comments.',
+    href: '/file-revision',
     icon: Images,
     tags: ['review', 'images'],
   },
