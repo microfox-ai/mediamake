@@ -224,7 +224,8 @@ Ask with `AskUserQuestion` only what else is open: length (15–45 s), the chann
 brand watermark or not, and which brand — see "A brand's watermark" below),
 palette and fps (30; 60 for smooth slow-motion footage doubles render time). Write `brief.md`, seed
 `prefs.md`. The first run of this skill (eyesofpink) assumed 9:16 and built one stretch to settle the
-style — don't take that as the pattern.
+style — don't take that as the pattern. Shorts are under a minute, so build them whole, with no look
+previews unless the user asks for them (`revise-video` › Previews or the whole video).
 
 ### 1. Project, song, words
 
@@ -376,9 +377,13 @@ slim folder, no `tools/bundle.ts` / `render.sh` in the project any more: this co
 file whole — 20+ GB of footage until macOS killed it. `remotion.config.ts` and `scripts/bundle.ts` now
 snapshot by timestamp (`scripts/snapshots.ts`); if a bundle dies silently again, look for a webpack override
 that skips `timestampSnapshots`. Bundles link the public folder; only `npx remotion bundle` copies all of
-`projects/` — don't use it, and don't copy bundle or render scripts into a project. Review with
+`projects/` — don't use it, and don't copy bundle or render scripts into a project. Before the links,
+run preflight on each short (`npm run preflight -w lyrics_videos -- <slug>
+--video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`: frozen frames and the sound, which the dark-frame
+scan doesn't cover) and fix or answer what it finds. Review with
 **`revise-video`**: `/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
-mediamake (the user picks `out/<slug>/shorts/<id>/` the first time). Log every note in `prefs.md`, the
+mediamake (the user picks `out/<slug>/shorts/<id>/` the first time), then start the watcher
+(`npm run wait-revision -w lyrics_videos -- <slug>` covers every short). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:
 `npm run shorts -w lyrics_videos -- <slug> mark <id> liked|bad`.
 

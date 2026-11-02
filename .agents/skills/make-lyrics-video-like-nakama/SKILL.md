@@ -191,7 +191,12 @@ already answers it, and say what you assumed. Ask in two or three short rounds:
    vs. what you should source; energy curve (where the song should hit hardest: hook, chorus, a
    highlight line); any must-have set pieces or effects, and anything they hate.
 5. **Delivery:** size and aspect (16:9 YouTube / 9:16 Shorts / 1:1), fps, credits or a channel name
-   to show, and how they want to review (stills per shot, a preview of the hook first).
+   to show, and how they want to review (stills per shot, the live preview, renders).
+6. **Previews or the whole video** (`revise-video` › Previews or the whole video): for a song of a
+   minute or more, ask whether to pitch 3–4 looks of the hook first, as 8 s clips side by side in
+   one grid, or to build the whole video. This variant's style is settled, so recommend the whole
+   video unless the user wants to compare treatments of the log. Under a minute, build the whole
+   video and don't ask.
 
 Write the answers into `projects/<slug>/brief.md` (theme, mood, palette as hex, fonts with roles,
 devices wanted/banned, picture rules, energy map, delivery) and start `projects/<slug>/prefs.md` from
@@ -323,6 +328,9 @@ ID in `assets.md`) for every shot. See `projects/sample-pulse/storyboard.md`.
 Show it to the user and **wait for approval** before writing scene code. Iterating here is cheap.
 If the user wants to judge a key part first (usually the hook/chorus), build only that part to a
 previewable standard, show it in Studio together with the storyboard, and continue only once they like it.
+When they chose previews at intake (step 0), build the hook in 3–4 looks of the chosen idea (the scene
+reads `getInputProps().look`), render each at half size with `--look=<id> --frames=<hook> --proxy`
+and show them as one grid (`look-grid`, see `revise-video`) before the full build.
 
 Plan with the grid, not with seconds: big changes on downbeats, hits on kicks/snares, phrases of 2/4
 bars, motion that eases *into* the next downbeat.
@@ -529,7 +537,7 @@ npm run type-check -w lyrics_videos
 npm run stills -w lyrics_videos -- <slug>            # one frame per section mid-point
 npm run stills -w lyrics_videos -- <slug> 12.5,40.2  # extra moments, in seconds
 npm run stills -w lyrics_videos -- <slug> 12.5,40.2 --only   # only those moments
-npm run render-project -w lyrics_videos -- <slug> --frames=2940-3360 --scale=0.5   # short clip → out/<slug>/clips/
+npm run render-project -w lyrics_videos -- <slug> --frames=2940-3360 --proxy   # short half-size clip → out/<slug>/clips/
 ```
 
 `npm run stills` renders at half scale (960×540) and clears the stills folder on every run, so pass
@@ -559,12 +567,17 @@ edits; after re-running prepare, reload the page to refetch the manifest.
 ## 9. Render — only when the user asks
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug>        # → apps/lyrics_videos/out/<slug>/<slug>.mp4
+npm run render-project -w lyrics_videos -- <slug> --proxy   # review render, half size → apps/lyrics_videos/out/<slug>/<slug>.mp4
+npm run render-project -w lyrics_videos -- <slug>           # the master, once the user signs off
+npm run preflight -w lyrics_videos -- <slug>                # after every render the user will watch
 ```
 
-Extra `remotion render` flags pass through (e.g. `--crf=18`, `--frames=0-299` for a test clip).
-Full renders take minutes (≈ 20 min for 4 min at 1080p60): run them in the background and keep the
-Mac awake. After the render, check the changed shots in the final file with exact ffmpeg seeks.
+A render for review is a half-size **review render** (`--proxy`); the full-size **master** renders
+once, after the user signs off (`revise-video` step 1). Extra `remotion render` flags pass through
+(e.g. `--crf=18`, `--frames=0-299` for a test clip). Full renders take minutes (≈ 20 min for 4 min
+at 1080p60; a half-size review render takes roughly a third of that): run them in the background and keep the Mac
+awake. After the render, check the changed shots in the file with exact ffmpeg seeks, then run
+preflight and fix or answer what it finds before giving the link (`revise-video` step 2).
 
 **Mind the disk with the Remotion CLI.** Every `npx remotion render` / `still` copies the whole
 public dir (`projects/`, many GB) into a temp bundle (`$(getconf DARWIN_USER_TEMP_DIR)remotion-webpack-bundle-*`)
@@ -593,8 +606,9 @@ Every render also writes **`out/<slug>/<slug>.map.json`** beside the MP4 (the Re
 needs it, see `revise-video`): fps, size, sections and
 every shot from `video/shots.json` with its ID and time range in the video's own time (a
 `--frames` clip is shifted to start at 0). Check the printed line says `from video/shots.json`.
-After the final render, offer thumbnails: the `create-thumbnail` skill, with the strongest frames
-of the render (exact seeks) or the project's key art as the picture and the hook line as words.
+After the master render, offer thumbnails: the `create-thumbnail` skill, with the strongest frames
+of the master (exact seeks; never a half-size review render) or the project's key art as the picture
+and the hook line as words.
 
 When an MP4 is renamed, moved, or made some other way (another output name, ffmpeg concat), write
 its map yourself:
@@ -614,8 +628,9 @@ unclear whether they want a new concept or a new look, ask in one line before re
 
 ## 10. Review revisions (after every render the user will watch)
 
-Follow the **`revise-video`** skill: it gives the user the `/remotion-revision` link for the render,
-reads their revision files in `out/<slug>/<slug>.revisions/`, and closes each comment. Fix every
+Follow the **`revise-video`** skill: it runs preflight, gives the user the `/remotion-revision` link
+for the render, waits in the background for a revision marked ready, reads their revision files in
+`out/<slug>/<slug>.revisions/`, and closes each comment. Fix every
 comment the way this skill works; log style lessons in `prefs.md` and general ones in this skill
 (see the top of this file).
 

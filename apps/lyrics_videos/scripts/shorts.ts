@@ -37,6 +37,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lastRender } from './render-log.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -353,6 +354,12 @@ if (cmd === 'pick') {
     const src = path.join(ROOT, 'out', slug, `${slug}.mp4`);
     const dst = path.join(dir, 'derived', 'final-16x9.mp4');
     if (!fs.existsSync(src)) throw new Error(`no finished render at out/${slug}/${slug}.mp4: render the long edit first`);
+    const last = lastRender(src);
+    if (last && last.scale < 1)
+      throw new Error(
+        `out/${slug}/${slug}.mp4 is a ${Math.round(last.scale * 100)}% review render: a rotate short plays the master. ` +
+          `Render it first: npm run render-project -w lyrics_videos -- ${slug}`,
+      );
     const same = fs.existsSync(dst) && fs.statSync(dst).ino === fs.statSync(src).ino;
     if (!same) {
       fs.rmSync(dst, { force: true });

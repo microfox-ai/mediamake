@@ -109,6 +109,13 @@ Claude may set a comment's `status` to `done` and add a `reply`. The page re-rea
 its window regains focus and every 5 s while visible, so those edits show up without a reload
 (a revision with unsaved edits in the page keeps the page's version).
 
+Comments keep any extra field when the page saves them. Machine notes written by
+`apps/lyrics_videos/scripts/preflight.ts` (checks run on a render before the user sees it) are
+ordinary range comments with `source: "preflight"`, the `check` that found them (`black`, `freeze`,
+`silence`, …) and text starting with `Preflight ·`. They open the video's next revision, so the
+user's own comments land beside them. `preflight.json` in the same folder (effects marked intended)
+is not a revision and is ignored.
+
 ## Flow
 
 1. **Open** a folder (one picker + Chrome's "allow edits" prompt), a video (file picker, then the
