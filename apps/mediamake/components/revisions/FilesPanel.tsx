@@ -21,8 +21,32 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { STATUS_LABEL } from '@/lib/revisions/revision-file';
+import type { SourceFolder } from '@/lib/revisions/fs';
 import { useRevisionsStore, type SourceState } from './store';
 import { Hint } from './keyboard';
+import { FIT_WIDTH } from './fit-width';
+
+/**
+ * A name cut in the middle when it doesn't fit, so its end stays readable:
+ * renders of one song differ at the end (-v3, -half.mp4, .map.json).
+ */
+function MiddleTruncate({
+  text,
+  tail = 14,
+  className,
+}: {
+  text: string;
+  tail?: number;
+  className?: string;
+}) {
+  const cut = Math.max(0, text.length - tail);
+  return (
+    <span className={cn('flex min-w-0', className)}>
+      <span className="truncate">{text.slice(0, cut)}</span>
+      <span className="shrink-0 whitespace-pre">{text.slice(cut)}</span>
+    </span>
+  );
+}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -80,7 +104,7 @@ function CurrentVideoFiles() {
   const openRevision = useRevisionsStore(s => s.openRevision);
 
   return (
-    <div className="ml-5 border-l pl-2">
+    <div className="ml-4 border-l pl-2">
       <Hint
         label={
           mapError ??
@@ -97,9 +121,10 @@ function CurrentVideoFiles() {
           )}
         >
           <FileJsonIcon className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {mapFile ?? (mapError ? 'map unreadable' : 'no map.json')}
-          </span>
+          <MiddleTruncate
+            text={mapFile ?? (mapError ? 'map unreadable' : 'no map.json')}
+            tail={18}
+          />
         </div>
       </Hint>
       {revisionIds.map(id => {
@@ -153,14 +178,90 @@ function VideoRow({
       )}
     >
       <FileVideoIcon className="mt-0.5 size-3.5 shrink-0" />
-      <span className="min-w-0">
-        <span className={cn('block truncate text-xs', active && 'font-medium')}>
-          {name}
-        </span>
-        <span className="block text-[10px] text-muted-foreground">
+      <span className="min-w-0 flex-1">
+        <MiddleTruncate
+          text={name}
+          tail={16}
+          className={cn('text-xs', active && 'font-medium')}
+        />
+        <span className="block truncate text-[10px] text-muted-foreground">
           {formatSize(size)} ·{' '}
           {formatDistanceToNow(lastModified, { addSuffix: true })}
         </span>
+      </span>
+    </button>
+  );
+}
+
+interface ProjectGroup {
+  /** The project folder's path in the source ("" for videos at the top). */
+  path: string;
+  /** Its own videos, when it has any. */
+  folder: SourceFolder | null;
+  /** Folders inside it with videos (kept cuts: v1, v2…), by their path inside it. */
+  nested: { name: string; folder: SourceFolder }[];
+  total: number;
+}
+
+/** "my-song", "my-song/v1", "my-song/v2" → one project with two kept cuts under it. */
+function groupFolders(folders: SourceFolder[]): ProjectGroup[] {
+  const groups = new Map<string, ProjectGroup>();
+  for (const folder of folders) {
+    const [head, ...rest] = folder.path.split('/');
+    const group = groups.get(head) ?? {
+      path: head,
+      folder: null,
+      nested: [],
+      total: 0,
+    };
+    if (rest.length) group.nested.push({ name: rest.join('/'), folder });
+    else group.folder = folder;
+    group.total += folder.videos.length;
+    groups.set(head, group);
+  }
+  return [...groups.values()];
+}
+
+function FolderRow({
+  label,
+  count,
+  open,
+  current,
+  title,
+  onToggle,
+}: {
+  label: string;
+  count: number;
+  open: boolean;
+  current: boolean;
+  title: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={title}
+      className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs hover:bg-muted"
+    >
+      {open ? (
+        <ChevronDownIcon className="size-3 shrink-0" />
+      ) : (
+        <ChevronRightIcon className="size-3 shrink-0" />
+      )}
+      <FolderIcon
+        className={cn(
+          'size-3.5 shrink-0',
+          current ? 'text-foreground' : 'text-muted-foreground',
+        )}
+      />
+      <MiddleTruncate
+        text={label}
+        tail={12}
+        className={cn('flex-1', current && 'font-medium')}
+      />
+      <span className="shrink-0 pl-1 text-[10px] tabular-nums text-muted-foreground">
+        {count}
       </span>
     </button>
   );
@@ -174,18 +275,46 @@ function SourceTree({ source }: { source: SourceState }) {
   const removeSource = useRevisionsStore(s => s.removeSource);
   const openSourceVideo = useRevisionsStore(s => s.openSourceVideo);
   const [collapsed, setCollapsed] = useState(false);
-  // Folders start closed, except the one being reviewed.
-  const [openPaths, setOpenPaths] = useState<Set<string>>(new Set());
+  // Folders start closed, except the one being reviewed (and its project),
+  // which stays open until it is closed by hand.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<Set<string>>(new Set());
   const currentPath =
     openedFrom?.sourceId === source.id ? openedFrom.path : null;
   const total = source.folders.reduce((n, f) => n + f.videos.length, 0);
+  const groups = groupFolders(source.folders);
 
-  const togglePath = (path: string) =>
-    setOpenPaths(prev => {
+  const holdsCurrent = (path: string) =>
+    currentPath !== null &&
+    (currentPath === path || currentPath.startsWith(`${path}/`));
+  const isOpen = (path: string) =>
+    holdsCurrent(path) ? !closed.has(path) : opened.has(path);
+  const toggle = (path: string) => {
+    const flip = (prev: Set<string>) => {
       const next = new Set(prev);
-      if (next.has(path) || path === currentPath) next.delete(path);
+      if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
+    };
+    if (holdsCurrent(path)) setClosed(flip);
+    else setOpened(flip);
+  };
+
+  const videoRows = (folder: SourceFolder) =>
+    folder.videos.map(v => {
+      const active = folder.path === currentPath && v.name === videoName;
+      return (
+        <div key={v.name}>
+          <VideoRow
+            name={v.name}
+            size={v.size}
+            lastModified={v.lastModified}
+            active={active}
+            onOpen={() => void openSourceVideo(source.id, folder.path, v.name)}
+          />
+          {active && <CurrentVideoFiles />}
+        </div>
+      );
     });
 
   return (
@@ -228,7 +357,7 @@ function SourceTree({ source }: { source: SourceState }) {
         </div>
       </div>
       {!collapsed && (
-        <div className="ml-3">
+        <div className="ml-2">
           {source.status === 'needs-permission' && (
             <Hint
               label="Chrome asks once per visit unless you choose “Allow on every visit”"
@@ -259,55 +388,36 @@ function SourceTree({ source }: { source: SourceState }) {
               No videos found.
             </div>
           )}
-          {source.folders.map(folder => {
-            const isCurrent = folder.path === currentPath;
-            const open = isCurrent || openPaths.has(folder.path);
+          {groups.map(group => {
+            const open = isOpen(group.path);
             return (
-              <div key={folder.path}>
-                <button
-                  type="button"
-                  onClick={() => togglePath(folder.path)}
-                  title={folder.path || source.name}
-                  className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs hover:bg-muted"
-                >
-                  {open ? (
-                    <ChevronDownIcon className="size-3 shrink-0" />
-                  ) : (
-                    <ChevronRightIcon className="size-3 shrink-0" />
-                  )}
-                  <FolderIcon
-                    className={cn(
-                      'size-3.5 shrink-0',
-                      isCurrent ? 'text-foreground' : 'text-muted-foreground',
-                    )}
-                  />
-                  <span className={cn('truncate', isCurrent && 'font-medium')}>
-                    {folder.path || '(top level)'}
-                  </span>
-                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                    {folder.videos.length}
-                  </span>
-                </button>
+              <div key={group.path}>
+                <FolderRow
+                  label={group.path || '(top level)'}
+                  count={group.total}
+                  open={open}
+                  current={holdsCurrent(group.path)}
+                  title={group.path || source.name}
+                  onToggle={() => toggle(group.path)}
+                />
                 {open && (
                   <div className="ml-3">
-                    {folder.videos.map(v => {
-                      const active = isCurrent && v.name === videoName;
+                    {group.folder && videoRows(group.folder)}
+                    {group.nested.map(({ name, folder }) => {
+                      const nestedOpen = isOpen(folder.path);
                       return (
-                        <div key={v.name}>
-                          <VideoRow
-                            name={v.name}
-                            size={v.size}
-                            lastModified={v.lastModified}
-                            active={active}
-                            onOpen={() =>
-                              void openSourceVideo(
-                                source.id,
-                                folder.path,
-                                v.name,
-                              )
-                            }
+                        <div key={folder.path}>
+                          <FolderRow
+                            label={name}
+                            count={folder.videos.length}
+                            open={nestedOpen}
+                            current={folder.path === currentPath}
+                            title={folder.path}
+                            onToggle={() => toggle(folder.path)}
                           />
-                          {active && <CurrentVideoFiles />}
+                          {nestedOpen && (
+                            <div className="ml-3">{videoRows(folder)}</div>
+                          )}
                         </div>
                       );
                     })}
@@ -365,7 +475,7 @@ export function FilesPanel() {
           </Button>
         </Hint>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className={cn('min-h-0 flex-1', FIT_WIDTH)}>
         <SectionTitle
           action={
             <IconAction
@@ -469,10 +579,12 @@ export function FilesPanel() {
                   )}
                 >
                   <FolderIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs">
-                      {entry.video ?? entry.folderName}
-                    </span>
+                  <span className="min-w-0 flex-1">
+                    <MiddleTruncate
+                      text={entry.video ?? entry.folderName}
+                      tail={16}
+                      className="text-xs"
+                    />
                     <span className="block truncate text-[10px] text-muted-foreground">
                       {entry.folderName} ·{' '}
                       {formatDistanceToNow(entry.openedAt, { addSuffix: true })}

@@ -61,6 +61,7 @@ import {
   type MarkupTool,
 } from './store';
 import { Hint, useKeys } from './keyboard';
+import { FIT_WIDTH } from './fit-width';
 
 function RevisionTabs() {
   const video = useRevisionsStore(s => s.video);
@@ -881,7 +882,7 @@ function CommentList({ revision }: { revision: Revision }) {
           open only
         </label>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className={cn('min-h-0 flex-1', FIT_WIDTH)}>
         <div className="space-y-1.5 px-2 pb-3">
           {comments.length === 0 && (
             <div className="py-6 text-center text-xs text-muted-foreground">
