@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { siteUrl } from '@/lib/catalog/install-prompt';
 import { cn } from '@/lib/utils';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { PersonPicker } from './person-picker';
@@ -68,7 +69,7 @@ export function ItemAccessSheet({
         maxUses: Number(uses) || 1,
         grantDays: Number(days) || undefined,
       });
-      setInvite(`${window.location.origin}/access?code=${created.code}`);
+      setInvite(`${siteUrl() ?? window.location.origin}/access?code=${created.code}`);
     } catch (e) {
       toast.error((e as Error).message);
     }

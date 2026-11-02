@@ -6,6 +6,7 @@ import { Check, Copy, Crown, FlaskConical, Globe, Link2, Users, X } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
+import { siteUrl } from '@/lib/catalog/install-prompt';
 import { cn } from '@/lib/utils';
 import { PersonPicker } from './person-picker';
 import { COMMUNITY_GROUP, PRIVATE_GROUP, adminCall, formatDate, personName, tierOf, type AdminCatalog } from './model';
@@ -268,7 +269,7 @@ function TierInvite({ groupId, title }: { groupId: string; title: string }) {
         expiresInDays: 30,
         note: `Invite to ${title.toLowerCase()}`,
       });
-      const url = `${window.location.origin}/access?code=${invite.code}`;
+      const url = `${siteUrl() ?? window.location.origin}/access?code=${invite.code}`;
       setLink(url);
       await copy(url);
     } catch (e) {

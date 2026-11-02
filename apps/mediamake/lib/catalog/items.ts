@@ -1,6 +1,6 @@
 import { registry } from '@/lib/skills/registry';
 import type { RegistrySkill } from '@/lib/library/types';
-import { siteUrl } from './install-prompt';
+import { CANONICAL_SITE, siteUrl } from './install-prompt';
 import thirdPartyJson from './third-party.json';
 import {
   parseCatalogItemId,
@@ -15,7 +15,7 @@ import {
 } from './types';
 
 /** This site, for the install specs that point back at it (the hosted MediaMake MCP). */
-const MEDIAMAKE_SITE = siteUrl() ?? 'https://mediamake.microfox.app';
+const MEDIAMAKE_SITE = siteUrl() ?? CANONICAL_SITE;
 
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose

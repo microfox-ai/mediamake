@@ -1,9 +1,28 @@
 /** Where the public installer instructions live. */
 export const INSTALL_GUIDE_URL = 'https://github.com/microfox-ai/mediamake/blob/main/install.md';
 
-/** Base URL of this MediaMake site, for prompts people paste elsewhere. */
+/** MediaMake's own domain: what install prompts and the hosted MCP's card point people at. */
+export const CANONICAL_SITE = 'https://mediamake.microfox.app';
+
+/**
+ * The site people are sent to: MEDIAMAKE_PUBLIC_URL when set, else
+ * NEXT_PUBLIC_APP_URL. Production's *.vercel.app address is never handed out
+ * (it is only the deployment's own name): the canonical domain is used instead.
+ * Preview deployments keep their own address.
+ */
 export function siteUrl(): string | undefined {
-  return (process.env.MEDIAMAKE_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL)?.replace(/\/$/, '') || undefined;
+  const configured = (process.env.MEDIAMAKE_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL)?.trim().replace(/\/+$/, '');
+  if (!configured) return undefined;
+  if (process.env.VERCEL_ENV !== 'preview' && isVercelAppUrl(configured)) return CANONICAL_SITE;
+  return configured;
+}
+
+function isVercelAppUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
 }
 
 /** The one-line prompt that has Claude install an item and its dependencies. */
