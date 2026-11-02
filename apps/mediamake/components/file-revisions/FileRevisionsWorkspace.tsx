@@ -3,22 +3,23 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeftIcon, CheckIcon, CopyIcon, FileCogIcon, FolderOpenIcon, FolderSearchIcon, KeyboardIcon, LoaderIcon, TriangleAlertIcon } from 'lucide-react';
-import { absolutePath, copyPath, revealOrCopy } from '@/lib/image-revisions/reveal';
+import { absolutePath, copyPath, revealOrCopy } from '@/lib/file-revisions/reveal';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Hint, isTextField, useKeys } from '@/components/revisions/keyboard';
 import { SetsPanel } from './SetsPanel';
 import { RevisionPanel } from './RevisionPanel';
-import { ImageGrid } from './ImageGrid';
+import { FileGrid } from './FileGrid';
 import { ZoomView } from './ZoomView';
-import { formatOf } from '@/lib/image-revisions/types';
-import { useImageRevisionsStore } from './store';
+import { formatOf } from '@/lib/file-revisions/types';
+import { useFileRevisionsStore } from './store';
 
 const SHORTCUTS: [string, string][] = [
-  ['Click', 'Select / unselect (several at once)'],
-  ['⇧ click', 'Select a range'],
-  ['⌥ click', 'Select only that one'],
+  ['Click', 'Select only that one'],
+  ['Mod click', 'Add / remove it'],
+  ['⇧ click', 'Select a range (Mod ⇧ adds it)'],
+  ['Drag', 'Select with a box (⇧ or Mod adds)'],
   ['Double-click', 'Zoom in on it'],
   ['Mod A / Esc', 'Select all / none'],
   ['Space or Z', 'Zoom in on the selection'],
@@ -27,8 +28,10 @@ const SHORTCUTS: [string, string][] = [
   ['Mod Enter', 'Add the comment'],
   ['N', 'New revision'],
   ['Mod S', 'Save now'],
-  ['In zoom: ← →', 'Previous / next image'],
-  ['In zoom: click', 'Pin a comment to that spot'],
+  ['In zoom: ← →', 'Previous / next file'],
+  ['In zoom: click', 'Pin a comment to that spot (and time)'],
+  ['In zoom: Space / M', 'Play or pause / mute a video or audio'],
+  ['In zoom: ⇧ ← →', '5 s back / ahead'],
   ['In zoom: L / V', 'Magnifier / feed-size preview'],
   ['?', 'Show these shortcuts'],
 ];
@@ -40,7 +43,7 @@ function ShortcutKeys({ keys }: { keys: string }) {
 function useShortcuts() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const store = useImageRevisionsStore.getState();
+      const store = useFileRevisionsStore.getState();
       if (store.zoom) return; // the zoom view has its own keys
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 's') {
@@ -105,8 +108,8 @@ function useShortcuts() {
 }
 
 function SaveIndicator() {
-  const saveState = useImageRevisionsStore(s => s.saveState);
-  const anyDirty = useImageRevisionsStore(s => Object.values(s.dirty).some(Boolean));
+  const saveState = useFileRevisionsStore(s => s.saveState);
+  const anyDirty = useFileRevisionsStore(s => Object.values(s.dirty).some(Boolean));
   if (saveState === 'error')
     return (
       <span className="flex items-center gap-1 text-xs text-destructive">
@@ -129,11 +132,11 @@ function SaveIndicator() {
 }
 
 function Header() {
-  const job = useImageRevisionsStore(s => s.job);
-  const renders = useImageRevisionsStore(s => Object.keys(s.renders).length);
-  const pickJob = useImageRevisionsStore(s => s.pickJob);
-  const shortcutsOpen = useImageRevisionsStore(s => s.shortcutsOpen);
-  const setShortcutsOpen = useImageRevisionsStore(s => s.setShortcutsOpen);
+  const job = useFileRevisionsStore(s => s.job);
+  const renders = useFileRevisionsStore(s => Object.keys(s.renders).length);
+  const pickJob = useFileRevisionsStore(s => s.pickJob);
+  const shortcutsOpen = useFileRevisionsStore(s => s.shortcutsOpen);
+  const setShortcutsOpen = useFileRevisionsStore(s => s.setShortcutsOpen);
   return (
     <header className="flex h-9 shrink-0 items-center gap-3 border-b px-2">
       <Hint label="Back to projects" side="bottom">
@@ -143,7 +146,7 @@ function Header() {
           </Link>
         </Button>
       </Hint>
-      <span className="text-sm font-semibold">Image Revisions</span>
+      <span className="text-sm font-semibold">File Revisions</span>
       {job && (
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           {job.index.title && <span className="text-foreground">{job.index.title} · </span>}
@@ -151,7 +154,7 @@ function Header() {
         </span>
       )}
       <div className="ml-auto flex items-center gap-3">
-        <Hint label="Video renders are reviewed here" side="bottom">
+        <Hint label="Remotion renders are reviewed here, with comments on frames and ranges" side="bottom">
           <Link href="/remotion-revision" className="text-xs text-muted-foreground hover:text-foreground">
             Remotion revisions
           </Link>
@@ -212,11 +215,11 @@ function Header() {
   );
 }
 
-export function ImageRevisionsWorkspace() {
-  const init = useImageRevisionsStore(s => s.init);
-  const refresh = useImageRevisionsStore(s => s.refresh);
-  const rescanSources = useImageRevisionsStore(s => s.rescanSources);
-  const flushSaves = useImageRevisionsStore(s => s.flushSaves);
+export function FileRevisionsWorkspace() {
+  const init = useFileRevisionsStore(s => s.init);
+  const refresh = useFileRevisionsStore(s => s.refresh);
+  const rescanSources = useFileRevisionsStore(s => s.rescanSources);
+  const flushSaves = useFileRevisionsStore(s => s.flushSaves);
 
   useShortcuts();
 
@@ -248,7 +251,7 @@ export function ImageRevisionsWorkspace() {
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (Object.values(useImageRevisionsStore.getState().dirty).some(Boolean)) {
+      if (Object.values(useFileRevisionsStore.getState().dirty).some(Boolean)) {
         void flushSaves();
         e.preventDefault();
       }
@@ -266,7 +269,7 @@ export function ImageRevisionsWorkspace() {
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize={60} minSize={35}>
-          <ImageGrid />
+          <FileGrid />
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize={24} minSize={18} maxSize={40}>

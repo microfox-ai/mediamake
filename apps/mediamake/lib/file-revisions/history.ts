@@ -20,17 +20,17 @@ export interface SourceEntry {
   addedAt: number;
 }
 
-interface ImageRevisionsDB extends DBSchema {
+interface FileRevisionsDB extends DBSchema {
   recent: { key: string; value: RecentJob };
   sources: { key: string; value: SourceEntry };
 }
 
 const MAX_RECENT = 30;
-let dbPromise: Promise<IDBPDatabase<ImageRevisionsDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<FileRevisionsDB>> | null = null;
 
 function getDb() {
-  // the name predates /image-revision; kept so sources added on /thumbnail-revision survive
-  dbPromise ??= openDB<ImageRevisionsDB>('mediamake-thumbnail-revisions', 1, {
+  // the name predates /image-revision and /file-revision; kept so sources added on /thumbnail-revision survive
+  dbPromise ??= openDB<FileRevisionsDB>('mediamake-thumbnail-revisions', 1, {
     upgrade(db) {
       db.createObjectStore('recent', { keyPath: 'id' });
       db.createObjectStore('sources', { keyPath: 'id' });

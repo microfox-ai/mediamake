@@ -141,7 +141,7 @@ npm run thumbs -w lyrics_videos -- render <job> [IDs]
   filters.
 
 Then send `sheet.jpg`, list the IDs in plain words, and give the review link (`revise-image`):
-`https://mediamake.microfox.app/image-revision?job=<job>` (posters show square with one **Cover** to
+`https://mediamake.microfox.app/file-revision?job=<job>` (posters show square with one **Cover** to
 pick).
 
 ## DistroKid's artwork rules (check every cover)
@@ -161,7 +161,7 @@ pick).
 
 - Feedback by ID ("B2 but tighter", "C with the title smaller"): change it or add new variants with
   new IDs; IDs never change once seen. `thumbs keep <job> <ID>` locks one the user likes.
-- A ready revision from `/image-revision` (`out/posters/<job>/<job>.revisions/rev-NNN.md`): follow
+- A ready revision from `/file-revision` (`out/posters/<job>/<job>.revisions/rev-NNN.md`): follow
   `revise-image`.
 - The cover: `npm run thumbs -w lyrics_videos -- pick <job> <ID> [--to=<release folder>]` →
   `out/posters/<job>/final/<job>-<ID>.jpg` and `cover.jpg` in the release folder (ask before replacing

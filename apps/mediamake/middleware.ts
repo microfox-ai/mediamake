@@ -176,7 +176,7 @@ export const config = {
    * - session (the session API route)
    * - dev-session (development-only auto login)
    * - dev-lyrics (development-only file access for the public /remotion-editor page)
-   * - dev-reveal (development-only "Show in Finder" for the public /image-revision page)
+   * - dev-reveal (development-only "Show in Finder" for the public /file-revision page)
    * - dev-library (development-only media library export for the public /library page)
    * - catalog (product catalog: browsable signed out; the routes resolve the
    *   viewer themselves and never trust x-client-id, see lib/access)

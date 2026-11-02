@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { useImageRevisionsStore } from './store';
+import { useFileRevisionsStore } from './store';
 
 function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -55,24 +55,24 @@ function JobRow({ name, title, active, onOpen, extra }: { name: string; title?: 
 }
 
 export function SetsPanel() {
-  const job = useImageRevisionsStore(s => s.job);
-  const sources = useImageRevisionsStore(s => s.sources);
-  const recent = useImageRevisionsStore(s => s.recent);
-  const pickJob = useImageRevisionsStore(s => s.pickJob);
-  const openJob = useImageRevisionsStore(s => s.openJob);
-  const openRecent = useImageRevisionsStore(s => s.openRecent);
-  const forget = useImageRevisionsStore(s => s.forgetRecent);
-  const addSource = useImageRevisionsStore(s => s.addSource);
-  const reconnectSource = useImageRevisionsStore(s => s.reconnectSource);
-  const removeSource = useImageRevisionsStore(s => s.removeSource);
-  const rescanSources = useImageRevisionsStore(s => s.rescanSources);
+  const job = useFileRevisionsStore(s => s.job);
+  const sources = useFileRevisionsStore(s => s.sources);
+  const recent = useFileRevisionsStore(s => s.recent);
+  const pickJob = useFileRevisionsStore(s => s.pickJob);
+  const openJob = useFileRevisionsStore(s => s.openJob);
+  const openRecent = useFileRevisionsStore(s => s.openRecent);
+  const forget = useFileRevisionsStore(s => s.forgetRecent);
+  const addSource = useFileRevisionsStore(s => s.addSource);
+  const reconnectSource = useFileRevisionsStore(s => s.reconnectSource);
+  const removeSource = useFileRevisionsStore(s => s.removeSource);
+  const rescanSources = useFileRevisionsStore(s => s.rescanSources);
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-2">
-        <Hint label="Pick any folder of images, or apps/lyrics_videos/out to list every thumbnail and poster set">
+        <Hint label="Pick any folder of images, videos or audio, or apps/lyrics_videos/out to list every thumbnail and poster set">
           <Button size="sm" className="w-full" onClick={() => void pickJob()}>
-            <FolderOpenIcon className="size-4" /> Open images
+            <FolderOpenIcon className="size-4" /> Open a folder
           </Button>
         </Hint>
       </div>
@@ -93,7 +93,7 @@ export function SetsPanel() {
         </SectionTitle>
         {!sources.length && (
           <p className="px-3 pb-2 text-xs text-muted-foreground">
-            Add <code>apps/lyrics_videos/out</code> once: every image set in it (folders with an index.json) is listed on each visit.
+            Add <code>apps/lyrics_videos/out</code> once: every set in it (folders with an index.json) is listed on each visit.
           </p>
         )}
         {sources.map(source => (

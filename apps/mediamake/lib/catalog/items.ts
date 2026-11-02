@@ -47,14 +47,15 @@ export const catalogItems: CatalogItem[] = [
     releasedAt: '2026-10-22',
   },
   {
+    // the id stays: it keys the stored item and its grants
     id: 'app/image-revision',
     kind: 'app',
-    title: 'Image Revisions',
-    summary: 'Pick finals, keep, drop and comment on any set of local images, saved beside them for Claude.',
+    title: 'File Revisions',
+    summary: 'Pick finals, keep, drop and comment on any set of local files (images and videos), saved beside them for Claude.',
     visibility: 'public',
     openToAll: true,
     status: 'beta',
-    href: '/image-revision',
+    href: '/file-revision',
     tags: ['review', 'images'],
     releasedAt: '2026-10-22',
   },

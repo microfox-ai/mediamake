@@ -8,20 +8,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { STATUS_LABEL, staleImages } from '@/lib/image-revisions/revision-file';
-import { formatOf, type ImageAction } from '@/lib/image-revisions/types';
-import { allIds, selectActiveRevision, useImageRevisionsStore } from './store';
+import { STATUS_LABEL, staleImages } from '@/lib/file-revisions/revision-file';
+import { formatOf, type ImageAction } from '@/lib/file-revisions/types';
+import { allIds, selectActiveRevision, useFileRevisionsStore } from './store';
 
 const QUICK = ['More like this', 'Try other fonts', 'Make the words bigger', 'Move the logo', 'Different words'];
 
 function IdChip({ id }: { id: string }) {
-  const click = useImageRevisionsStore(s => s.click);
-  const openZoom = useImageRevisionsStore(s => s.openZoom);
+  const click = useFileRevisionsStore(s => s.click);
+  const openZoom = useFileRevisionsStore(s => s.openZoom);
   return (
     <Hint label={`Select ${id} (double-click to zoom)`}>
       <button
         type="button"
-        onClick={() => click(id, { only: true })}
+        onClick={() => click(id)}
         onDoubleClick={() => openZoom(id)}
         className="rounded bg-amber-400 px-1.5 text-[11px] font-extrabold text-black hover:bg-amber-300"
       >
@@ -44,11 +44,11 @@ function IdList({ ids, empty }: { ids: string[]; empty: string }) {
 }
 
 function RevisionTabs() {
-  const revisionIds = useImageRevisionsStore(s => s.revisionIds);
-  const revisions = useImageRevisionsStore(s => s.revisions);
-  const activeRevisionId = useImageRevisionsStore(s => s.activeRevisionId);
-  const openRevision = useImageRevisionsStore(s => s.openRevision);
-  const newRevision = useImageRevisionsStore(s => s.newRevision);
+  const revisionIds = useFileRevisionsStore(s => s.revisionIds);
+  const revisions = useFileRevisionsStore(s => s.revisions);
+  const activeRevisionId = useFileRevisionsStore(s => s.activeRevisionId);
+  const openRevision = useFileRevisionsStore(s => s.openRevision);
+  const newRevision = useFileRevisionsStore(s => s.newRevision);
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b px-2">
       {revisionIds.map(id => (
@@ -73,11 +73,11 @@ function RevisionTabs() {
 }
 
 function SubmitBox() {
-  const revision = useImageRevisionsStore(selectActiveRevision);
-  const job = useImageRevisionsStore(s => s.job);
-  const renders = useImageRevisionsStore(s => s.renders);
-  const setStatus = useImageRevisionsStore(s => s.setStatus);
-  const flushSaves = useImageRevisionsStore(s => s.flushSaves);
+  const revision = useFileRevisionsStore(selectActiveRevision);
+  const job = useFileRevisionsStore(s => s.job);
+  const renders = useFileRevisionsStore(s => s.renders);
+  const setStatus = useFileRevisionsStore(s => s.setStatus);
+  const flushSaves = useFileRevisionsStore(s => s.flushSaves);
   if (!revision || !job) return null;
   const stale = staleImages(revision, Object.fromEntries(Object.entries(renders).map(([id, r]) => [id, r.lastModified])));
   // browsers don't expose paths: the set's index.json says where it lives, when its workflow wrote one
@@ -134,13 +134,13 @@ function SubmitBox() {
 }
 
 function SelectionActions() {
-  const selection = useImageRevisionsStore(s => s.selection);
-  const index = useImageRevisionsStore(s => s.job?.index);
-  const revision = useImageRevisionsStore(selectActiveRevision);
-  const toggleAction = useImageRevisionsStore(s => s.toggleAction);
-  const addComment = useImageRevisionsStore(s => s.addComment);
-  const openZoom = useImageRevisionsStore(s => s.openZoom);
-  const composerFocus = useImageRevisionsStore(s => s.composerFocus);
+  const selection = useFileRevisionsStore(s => s.selection);
+  const index = useFileRevisionsStore(s => s.job?.index);
+  const revision = useFileRevisionsStore(selectActiveRevision);
+  const toggleAction = useFileRevisionsStore(s => s.toggleAction);
+  const addComment = useFileRevisionsStore(s => s.addComment);
+  const openZoom = useFileRevisionsStore(s => s.openZoom);
+  const composerFocus = useFileRevisionsStore(s => s.composerFocus);
   const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -172,7 +172,7 @@ function SelectionActions() {
           </Hint>
         )}
       </div>
-      <IdList ids={ordered} empty="Click images to select them (several at once)." />
+      <IdList ids={ordered} empty="Click files to select them (⌘ click or drag a box for several)." />
       <div className="flex gap-1.5">
         {action('final', format.finalLabel, 'F', <StarIcon className="size-3.5" />, format.poster ? 'The cover to upload (one)' : `Select for upload: 1 final, or up to ${format.maxFinal} for YouTube's A/B test`)}
         {action('keep', 'Keep', 'K', <LockIcon className="size-3.5" />, 'Keep exactly as it is')}
@@ -188,7 +188,7 @@ function SelectionActions() {
             void submit();
           }
         }}
-        placeholder={ordered.length ? `Comment on ${ordered.join(', ')}…` : 'Select images, then comment…'}
+        placeholder={ordered.length ? `Comment on ${ordered.join(', ')}…` : 'Select files, then comment…'}
         className="min-h-20 text-sm"
       />
       <div className="flex flex-wrap gap-1">
@@ -209,10 +209,10 @@ function SelectionActions() {
 }
 
 function Comments() {
-  const revision = useImageRevisionsStore(selectActiveRevision);
-  const index = useImageRevisionsStore(s => s.job?.index);
-  const updateComment = useImageRevisionsStore(s => s.updateComment);
-  const deleteComment = useImageRevisionsStore(s => s.deleteComment);
+  const revision = useFileRevisionsStore(selectActiveRevision);
+  const index = useFileRevisionsStore(s => s.job?.index);
+  const updateComment = useFileRevisionsStore(s => s.updateComment);
+  const deleteComment = useFileRevisionsStore(s => s.deleteComment);
   if (!revision) return null;
   return (
     <div className="space-y-3 p-3">
@@ -264,7 +264,7 @@ function Comments() {
 }
 
 export function RevisionPanel() {
-  const job = useImageRevisionsStore(s => s.job);
+  const job = useFileRevisionsStore(s => s.job);
   if (!job) return <div className="p-4 text-xs text-muted-foreground">Revisions appear here once a job is open.</div>;
   return (
     <div className="flex h-full flex-col">

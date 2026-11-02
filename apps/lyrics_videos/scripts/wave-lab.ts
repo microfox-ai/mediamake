@@ -1,7 +1,7 @@
 /**
  * wave-lab: shoots waveform lyric video looks as labelled stills — the catalog's entries on the demo
  * song and picture, or a project's storyboard candidates on its own — and makes each set reviewable
- * in mediamake's /image-revision (index.json) with a contact sheet per step.
+ * in mediamake's /file-revision (index.json) with a contact sheet per step.
  *
  * Usage:
  *   npm run wave-lab -w lyrics_videos -- catalog [waves|fonts|captions] [--only=id,id]
@@ -262,7 +262,7 @@ const writeIndex = (dir: string, o: { job: string; title: string; groups: { id: 
     title: o.title,
     workflow: 'make-waveform-lyric-video',
     location: path.relative(REPO, dir),
-    // absolute, so /image-revision can show the folder in Finder (dev server) or copy the path
+    // absolute, so /file-revision can show the folder in Finder (dev server) or copy the path
     path: dir,
     pick: { max: 1, label: 'pick' },
     groups: [...(old.groups ?? []).filter((g: { id: string }) => !groups.some(n => n.id === g.id)), ...groups],

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { revealOrCopy } from '@/lib/image-revisions/reveal';
+import { revealOrCopy } from '@/lib/file-revisions/reveal';
 import { drifted, qualityOf } from '@/lib/library/filter';
 import { productionThumb, ratingOf, skillThumb } from '@/lib/library/model';
 import type { MediaItem, Production, Skill } from '@/lib/library/types';
