@@ -21,6 +21,11 @@ session has it (`get_status` shows the versions too) and report what it says: th
 this session runs, the one installed for the next session, the extension version in each Chrome
 profile (named by its Google account email), and the release notes of what was installed.
 
+A Chrome profile that runs Browse Hack from a build in a git checkout (a developer's own copy) is
+never overwritten. When it's behind, its profile entry says so and lists `update.commands` (pull,
+then rebuild). Show them to the person and run them only if they agree; then call
+`update_browse_hack` again, which reloads Chrome on the new build.
+
 ## Anything else (or Browse Hack without its tools)
 
 Fetch and follow the **Update an installed item** section of
