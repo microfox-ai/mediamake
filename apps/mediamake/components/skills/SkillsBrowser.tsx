@@ -1,17 +1,18 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ExternalLinkIcon, GitForkIcon, SearchIcon, SparklesIcon } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLinkIcon, GitForkIcon, LibraryIcon, SearchIcon, SparklesIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import type { SkillRow, SkillsIndex } from '@/lib/skills/skills-md';
+import type { RegistrySkill, SkillsRegistry } from '@/lib/library/types';
 
 const REPO = 'https://github.com/microfox-ai/mediamake/blob/main';
 
-function SkillCard({ skill }: { skill: SkillRow }) {
-  const href = skill.file ? `${REPO}/${skill.file}` : undefined;
+function SkillCard({ skill }: { skill: RegistrySkill }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+    // the catalog's skill cards link to /skills#<name>
+    <div id={skill.name} className="flex scroll-mt-6 flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground target:ring-2 target:ring-primary">
       <div className="flex flex-wrap items-center gap-2">
         <code className="font-mono text-sm font-semibold">{skill.name}</code>
         {skill.variantOf && (
@@ -21,33 +22,36 @@ function SkillCard({ skill }: { skill: SkillRow }) {
         )}
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">{skill.summary}</p>
-      {href && (
-        <a href={href} target="_blank" rel="noreferrer" className="mt-auto inline-flex w-fit items-center gap-1 text-xs font-medium text-primary hover:underline">
+      <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1">
+        <a href={`${REPO}/${skill.path}/SKILL.md`} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-xs font-medium text-primary hover:underline">
           SKILL.md on GitHub <ExternalLinkIcon className="size-3" />
         </a>
-      )}
+        <Link href={`/library?view=skills&skill=${encodeURIComponent(skill.name)}`} className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+          Runs and outputs <LibraryIcon className="size-3" />
+        </Link>
+      </div>
     </div>
   );
 }
 
-export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
+export function SkillsBrowser({ registry, naming }: { registry: SkillsRegistry | null; naming: { pattern: string; about: string }[] }) {
   const [query, setQuery] = useState('');
 
-  const all = useMemo(() => index?.categories.flatMap(c => c.skills) ?? [], [index]);
+  const all = registry?.skills ?? [];
   const categories = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (index?.categories ?? [])
+    return (registry?.categories ?? [])
       .map(c => ({
         ...c,
-        skills: c.skills.filter(s => !q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q)),
+        skills: (registry?.skills ?? []).filter(s => s.category === c.id && (!q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q))),
       }))
       .filter(c => c.skills.length);
-  }, [index, query]);
+  }, [registry, query]);
 
-  if (!index)
+  if (!registry)
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted-foreground">
-        No SKILLS.md found. Run <code className="font-mono">node tools/skills.mjs index</code> at the repo root.
+        No skills.json found. Run <code className="font-mono">node tools/skills.mjs index</code> at the repo root.
       </main>
     );
 
@@ -62,10 +66,11 @@ export function SkillsBrowser({ index }: { index: SkillsIndex | null }) {
             The Claude Code skills in this repo, all {all.length} of them <strong className="text-foreground">public</strong>: their files are
             committed in <code className="mx-1 font-mono text-xs">.agents/skills/</code> and load for anyone who opens the repo.
             The <code className="font-mono text-xs">publish-skill</code> skill adds a new one, <code className="font-mono text-xs">fork-skill</code> makes a variant.
+            The <Link href="/library?view=skills" className="font-medium text-foreground hover:underline">Library</Link> shows what each one made.
           </p>
-          {index.naming.length > 0 && (
+          {naming.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
-              {index.naming.map(n => (
+              {naming.map(n => (
                 <span key={n.pattern} title={n.about} className="rounded-md border px-2 py-1 text-xs text-muted-foreground">
                   <code className="font-mono text-foreground">{n.pattern}</code> {n.about.split(':')[0]}
                 </span>

@@ -21,6 +21,8 @@ export interface Person {
 /** GET /api/admin/catalog */
 export interface AdminCatalog {
   items: CatalogItemRecord[];
+  /** The repo's skills (skills.json) not stored as items: always public, nothing to release. */
+  skills: CatalogItemRecord[];
   grants: AccessGrant[];
   groups: AccessGroup[];
   invites: AccessInvite[];

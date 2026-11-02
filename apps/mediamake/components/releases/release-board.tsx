@@ -53,17 +53,24 @@ export function ReleaseBoard({
   tiers,
   now,
   onAction,
+  collapseSkills,
+  onShowSkills,
 }: {
   data: AdminCatalog;
   items: CatalogItemRecord[];
   tiers: ReleaseTier[];
   now: number;
   onAction: (item: CatalogItemRecord, action: ItemAction) => void;
+  /** Show the skills as one card, so the repo's skills don't bury the apps and MCPs. */
+  collapseSkills?: boolean;
+  onShowSkills?: () => void;
 }) {
   return (
     <div className={cn('grid gap-4', tiers.length > 1 ? 'md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1')}>
       {tiers.map(tier => {
-        const column = items.filter(item => tierOf(item, now) === tier);
+        const all = items.filter(item => tierOf(item, now) === tier);
+        const skills = collapseSkills ? all.filter(item => item.kind === 'skill') : [];
+        const column = skills.length ? all.filter(item => item.kind !== 'skill') : all;
         return (
           <section key={tier} className="flex min-h-48 flex-col gap-3 rounded-2xl bg-muted/40 p-3">
             <header className="flex items-center justify-between px-1">
@@ -71,13 +78,14 @@ export function ReleaseBoard({
                 <span className={cn('size-2 rounded-full', TIER_META[tier].dot)} />
                 {TIER_META[tier].label}
               </span>
-              <span className="text-xs tabular-nums text-muted-foreground">{column.length}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{all.length}</span>
             </header>
             <div className={cn('flex flex-col gap-3', tiers.length === 1 && 'sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4')}>
+              {skills.length > 0 && <SkillsCard count={skills.length} onShow={onShowSkills} />}
               {column.map(item => (
                 <ItemCard key={item.id} data={data} item={item} now={now} onAction={onAction} />
               ))}
-              {!column.length && (
+              {!all.length && (
                 <p className="rounded-xl border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">Nothing here</p>
               )}
             </div>
@@ -85,6 +93,21 @@ export function ReleaseBoard({
         );
       })}
     </div>
+  );
+}
+
+/** The skills in a column, as one card: they are always public, so there is nothing to move. */
+function SkillsCard({ count, onShow }: { count: number; onShow?: () => void }) {
+  return (
+    <button type="button" onClick={onShow} className="flex items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-xs transition hover:shadow-sm">
+      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TIER_META.public.soft)}>
+        <Wand2 className="size-5 opacity-70" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{count} skills</span>
+        <span className="block text-xs text-muted-foreground">Always public, from the repo&apos;s skills.json. Show them</span>
+      </span>
+    </button>
   );
 }
 

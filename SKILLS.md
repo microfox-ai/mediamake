@@ -6,10 +6,11 @@ opens the repo in Claude Code. Apps and MCPs are the ones that go through gated 
 (see [catalog-releases.md](apps/mediamake/docs/catalog-releases.md)). The `publish-skill` skill
 adds a new skill and checks it for keys and private paths; `fork-skill` makes a variant.
 
-Regenerate this file with `node tools/skills.mjs index` (add and fork do it themselves);
-`node tools/skills.mjs check` fails when it is out of date or a skill holds a key or a path on
-this machine, in CI too. The mediamake app shows it at
-[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy.
+Regenerate this file and the registry, [`skills.json`](skills.json), with `node tools/skills.mjs index`
+(add and fork do it themselves); `node tools/skills.mjs check` fails when either is out of date or
+a skill holds a key or a path on this machine, in CI too. The mediamake app shows the registry at
+[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy, and in the Library
+(`/library`) with each skill's runs and outputs.
 
 ## Naming
 
@@ -27,7 +28,9 @@ A skill is named `<verb>-<thing>`; the verb is its category:
 
 A **variant** keeps its base skill's name and adds what it is modelled on: `<base>-like-<ref>`
 (e.g. `make-video-music-remix-like-f1xhitit`, the style of one finished edit), or `<base>-v<N>` for
-an older version kept as it was. Its frontmatter says `metadata: variant-of: <base>`.
+an older version kept as it was. Its frontmatter says `metadata: variant-of: <base>`, and
+`forked-from: <base>@<commit>` when `fork` made it: `node tools/skills.mjs diff <variant>` shows
+what the variant changed and what the base changed since.
 
 ## make
 

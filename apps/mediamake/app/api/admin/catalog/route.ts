@@ -13,6 +13,7 @@ import {
   catalogItemsDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
+import { skillRecords } from '@/lib/catalog/items';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import {
   CATALOG_KINDS,
@@ -53,8 +54,9 @@ async function listPeople() {
 /**
  * GET /api/admin/catalog
  * Everything an admin needs to manage releases: items (with versions),
- * live grants, groups, invites, pending access requests, the people who
- * hold API keys, and whether public releases are open site-wide.
+ * the repo's skills from skills.json that aren't stored as items, live
+ * grants, groups, invites, pending access requests, the people who hold
+ * API keys, and whether public releases are open site-wide.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -73,6 +75,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     items,
+    skills: skillRecords(items),
     grants,
     groups,
     invites,

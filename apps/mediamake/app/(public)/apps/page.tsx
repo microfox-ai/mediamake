@@ -50,11 +50,11 @@ const apps: AppCard[] = [
     tags: ['review', 'images'],
   },
   {
-    title: 'Skill Library',
-    summary: 'Browse the skills on your computer with thumbnails, their variants, and the projects that used them.',
-    href: '/skill-library',
+    title: 'Library',
+    summary: 'Channels, productions, skills and media in one place: what each skill made and what each production used.',
+    href: '/library',
     icon: Layers,
-    tags: ['skills', 'variants'],
+    tags: ['skills', 'media'],
   },
   {
     title: 'Access & invites',
