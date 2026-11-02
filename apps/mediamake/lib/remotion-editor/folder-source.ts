@@ -1,11 +1,12 @@
 import { getSubdir, readFileIn, writeFileIn } from '@/lib/revisions/fs';
-import type { ProjectSource } from './source';
-import type { CodeFile, ProjectEntry } from './types';
+import { swapPathFor, type ProjectSource } from './source';
+import { mediaKindOf, type CodeFile, type MediaFile, type ProjectEntry } from './types';
 
 /*
  * Lyric projects from a folder the user picks (File System Access API, Chromium only), the way
  * /revisions opens folders. Works on the deployed site: files are read in the browser and nothing
- * is uploaded. The only write is a project's video/edits.json.
+ * is uploaded. The only writes are a project's video/edits.json and files the user swaps in
+ * (input/swaps/).
  */
 
 type IterableDir = FileSystemDirectoryHandle & {
@@ -100,6 +101,8 @@ export class FolderSource implements ProjectSource {
   readonly label: string;
   /** projects/-relative path → blob URL, for the open project */
   private assets = new Map<string, string>();
+  /** the images, clips and sounds among them */
+  private media: MediaFile[] = [];
   private warned = new Set<string>();
 
   constructor(
@@ -202,17 +205,46 @@ export class FolderSource implements ProjectSource {
    */
   async prepare(slug: string, onProgress?: (message: string) => void): Promise<void> {
     const next = new Map<string, string>();
+    const media: MediaFile[] = [];
     const project = await dirAt(this.root, ['projects', slug]);
     if (project) {
       await walk(project, NOT_ASSETS, async (path, handle) => {
-        next.set(`${slug}/${path}`, URL.createObjectURL(await handle.getFile()));
+        const file = await handle.getFile();
+        const key = `${slug}/${path}`;
+        next.set(key, URL.createObjectURL(file));
+        const kind = mediaKindOf(path);
+        if (kind) media.push({ path: key, kind, size: file.size });
         if (next.size % 100 === 0) onProgress?.(`Reading files… ${next.size}`);
       });
     }
     const previous = this.assets;
     this.assets = next;
+    this.media = media.sort((a, b) => a.path.localeCompare(b.path));
     this.warned.clear();
     setTimeout(() => previous.forEach(url => URL.revokeObjectURL(url)), 10_000);
+  }
+
+  async listMedia(slug: string): Promise<MediaFile[]> {
+    return this.media.filter(m => m.path.startsWith(`${slug}/`));
+  }
+
+  async writeSwap(slug: string, file: File): Promise<string> {
+    let path = swapPathFor(slug, file.name);
+    const { dirs, name } = splitPath(`projects/${path}`);
+    let dir: FileSystemDirectoryHandle | null = this.root;
+    for (const part of dirs) dir = dir && (await getSubdir(dir, part, true));
+    if (!dir) throw new Error(`Could not create ${dirs.join('/')}`);
+    // never over another file: a second swap in the same second gets -2, -3…
+    let finalName = name;
+    for (let n = 2; await readFileIn(dir, finalName); n++) {
+      finalName = name.replace(/(\.[^.]*)?$/, `-${n}$1`);
+    }
+    path = `${path.slice(0, path.length - name.length)}${finalName}`;
+    await writeFileIn(dir, finalName, file);
+    this.assets.set(path, URL.createObjectURL(file));
+    const kind = mediaKindOf(path);
+    if (kind) this.media = [...this.media, { path, kind, size: file.size }];
+    return path;
   }
 
   dispose(): void {

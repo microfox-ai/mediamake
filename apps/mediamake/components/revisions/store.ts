@@ -1683,7 +1683,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       }));
       // the Player remounts with the new code: put the playhead back
       requestAnimationFrame(() => get().seek(time));
-      toast(`Reloaded ${live.slug}: the code changed`, { duration: 3000 });
+      toast(`Reloaded ${live.slug}: it changed on disk`, { duration: 3000 });
     },
   };
 });

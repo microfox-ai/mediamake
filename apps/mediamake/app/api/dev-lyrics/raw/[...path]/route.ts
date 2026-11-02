@@ -8,6 +8,7 @@ import {
   isDevFilesEnabled,
   notFound,
   resolveLyricsPath,
+  SWAP_PATH,
 } from '@/lib/remotion-editor/server/lyrics-fs';
 
 export const dynamic = 'force-dynamic';
@@ -72,10 +73,14 @@ export function HEAD(request: Request, { params }: Params) {
   return serve(request, params, true);
 }
 
-/** Writes projects/<slug>/video/edits.json, the only file the editor may change. */
+/**
+ * Writes projects/<slug>/video/edits.json, the only file the editor changes, or saves a new file the
+ * user swaps in under projects/<slug>/input/swaps/ (never over another).
+ */
 export async function PUT(request: Request, { params }: Params) {
   if (!isDevFilesEnabled()) return notFound();
   const rel = await relFrom(params);
+  if (SWAP_PATH.test(rel)) return saveSwap(request, rel);
   const abs = EDITS_PATH.test(rel) ? resolveLyricsPath(rel) : null;
   if (!abs) {
     return Response.json({ message: 'Only video/edits.json can be written' }, { status: 403 });
@@ -93,6 +98,23 @@ export async function PUT(request: Request, { params }: Params) {
   // write beside, then rename, so a render never reads half a file
   const tmp = `${abs}.${process.pid}.tmp`;
   await fs.writeFile(tmp, text.endsWith('\n') ? text : `${text}\n`, 'utf8');
+  await fs.rename(tmp, abs);
+  const stat = await fs.stat(abs);
+  return Response.json({ ok: true, mtime: stat.mtimeMs });
+}
+
+async function saveSwap(request: Request, rel: string) {
+  const abs = resolveLyricsPath(rel);
+  const projectDir = abs && path.resolve(abs, '../../..');
+  if (!abs || !projectDir || !(await fs.stat(projectDir).catch(() => null))?.isDirectory()) {
+    return notFound();
+  }
+  if (await fs.stat(abs).catch(() => null)) {
+    return Response.json({ message: `${rel} exists already` }, { status: 409 });
+  }
+  await fs.mkdir(path.dirname(abs), { recursive: true });
+  const tmp = `${abs}.${process.pid}.tmp`;
+  await fs.writeFile(tmp, Buffer.from(await request.arrayBuffer()));
   await fs.rename(tmp, abs);
   const stat = await fs.stat(abs);
   return Response.json({ ok: true, mtime: stat.mtimeMs });

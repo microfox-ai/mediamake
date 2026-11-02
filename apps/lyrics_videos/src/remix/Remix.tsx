@@ -22,7 +22,8 @@
  * video/anchors.json (the subject's centre/area/box per matte frame), derived/logo.png.
  */
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Easing, Freeze, interpolate, OffthreadVideo, random, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Easing, Freeze, interpolate, OffthreadVideo, random, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
+import { asset } from '../kit/hooks';
 import { Audio } from '@remotion/media';
 import type { SceneProps } from '../kit/contract';
 import { envelopeAt, hitAt } from '../kit/timing';
@@ -216,7 +217,7 @@ const Frame: React.FC<{ src: string; t: number; transparent?: boolean; exact?: b
     </Sequence>
   );
 };
-const plateSrc = (ctx: Ctx, source: string) => staticFile(`${ctx.slug}/${ctx.footage.sources[source].plate}`);
+const plateSrc = (ctx: Ctx, source: string) => asset(`${ctx.slug}/${ctx.footage.sources[source].plate}`);
 /** slow motion plays from the shot's 60 fps interpolated clip (scripts/remix.ts step 6), at a time
  *  snapped a quarter frame past one of its frames, so no frame shows twice */
 const SLOW_FPS = 60;
@@ -224,9 +225,9 @@ const slowClip = (ctx: Ctx, cut: ResolvedCut, srcT: number) => {
   const clip = cut.rate < 1 ? ctx.footage.slow?.[cut.src] : undefined;
   if (!clip) return null;
   const t = srcT - ctx.footage.shots[cut.src][0];
-  return { src: staticFile(`${ctx.slug}/${clip}`), t: (Math.round(t * SLOW_FPS) + 0.25) / SLOW_FPS };
+  return { src: asset(`${ctx.slug}/${clip}`), t: (Math.round(t * SLOW_FPS) + 0.25) / SLOW_FPS };
 };
-const matteSrc = (ctx: Ctx, key: string) => staticFile(`${ctx.slug}/derived/shotmattes/${key}.webm`);
+const matteSrc = (ctx: Ctx, key: string) => asset(`${ctx.slug}/derived/shotmattes/${key}.webm`);
 /** the wide picture (plate or cutout) cropped to the view's part, inside an element the window's size:
  *  an image wider than its window would shift the warp and blur filters' pixel space and get clipped */
 const placed = (v: View): React.CSSProperties =>
@@ -1984,7 +1985,7 @@ export const Remix: React.FC<SceneProps<RemixProps>> = ({ manifest, slug, blocks
       <Bars ctx={ctx} song={song} />
       {r.sfx.map((s, k) => (
         <Sequence key={k} from={Math.round(s.at * fps)} name={`sfx ${s.file}`} layout="none">
-          <Audio src={staticFile(`${slug}/derived/sfx/${s.file}.wav`)} volume={s.gain} />
+          <Audio src={asset(`${slug}/derived/sfx/${s.file}.wav`)} volume={s.gain} />
         </Sequence>
       ))}
     </AbsoluteFill>

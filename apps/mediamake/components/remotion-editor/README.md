@@ -1,9 +1,12 @@
 # Remotion editor
 
 A screen at `/remotion-editor` that opens a lyric video from `apps/lyrics_videos` as live Remotion
-(not a render) and lets the user move, scale, rotate, re-font and retype what is on screen. Edits
-are saved beside the project as `projects/<slug>/video/edits.json`, and the lyric kit applies them
-in every render (Studio, stills, `render-project`). The page is public (`app/(public)/`), like
+(not a render) and lets the user move, scale, rotate, re-font and retype what is on screen, turn a
+scene's knobs, and swap its pictures, clips and sounds for other files. Edits are saved beside the
+project as `projects/<slug>/video/edits.json`, and the lyric kit applies them in every render
+(Studio, stills, `render-project`). Live review (`/video-revision?live=<slug>`) links here with
+"Tweak it yourself" (`?source=folder` opens the folder it plays) and replays the change when its
+window regains focus. The page is public (`app/(public)/`), like
 `/revisions`, and works on the deployed site: there the user picks the folder.
 
 ## Where projects come from
@@ -21,9 +24,10 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
 
 ```
 ┌ header: project · source · compile state · reload · undo/redo · save state ─┐
-│ on screen now   │ Player + selection overlay          │ inspector:          │
-│ layers          │ (drag, corner scale, top-dot rotate)│ position, font,     │
-│ edited          │                                     │ content fields      │
+│ Elements:       │ Player + selection overlay          │ inspector:          │
+│ on screen now,  │ (drag, corner scale, top-dot rotate)│ position, font,     │
+│ layers, edited  │                                     │ content fields,     │
+│ Assets: files   │                                     │ the layer's knobs   │
 ├─────────────────┴─────────────────────────────────────┴─────────────────────┤
 │ transport: play, time, current lyric · scrubber with sections and edit marks│
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -34,7 +38,10 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
 1. **Files.** A `ProjectSource` (`lib/remotion-editor/source.ts`) lists projects and files, reads
    code, writes `edits.json` and turns `staticFile()` paths into URLs. The dev-lyrics routes behind
    the repo source 404 outside `next dev`, stay inside the lyrics folder, skip `node_modules` and
-   dotfiles, and write nothing but `video/edits.json`; the folder source writes only that file too.
+   dotfiles, and write nothing but `video/edits.json` and new files under `input/swaps/` (never
+   over one that exists); the folder source writes the same two. `listMedia` lists the project's
+   pictures, clips and sounds (`GET /api/dev-lyrics/media?slug=`; the folder source lists what
+   `prepare` mapped).
 2. **Compile in the browser.** `lib/remotion-editor/compile.ts` walks the import graph from
    `projects/<slug>/video/index.tsx` and the kit, turns each file into CommonJS with sucrase, and
    runs it with a small `require`. Packages (React, Remotion, three, fonts…) come from this app
@@ -57,7 +64,17 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
    the applier re-renders, not the scenes (a 3D scene re-rendering per move is what made drags
    lag). `inputProps` change only for `props` edits. A kit from before the channel gets everything
    through `inputProps`, as it used to.
-6. **Save.** Changes autosave 0.6 s after the last one (never mid-drag); ⌘S saves now. The page
+6. **Knobs.** A scene declares what a person would tweak with the kit's `withKnobs(scene, knobs)`
+   (`src/kit/knobs.ts`): number ranges, colours, menus, switches, text and file pickers, keyed by a
+   props path. The inspector shows the selected layer's knobs (`Knobs.tsx`), or for a scene without
+   any its top-level numbers, switches, colours and short texts; a change is a `props` edit.
+7. **Swap files.** The Assets panel (`AssetsPanel.tsx`) lists the project's pictures, clips and
+   sounds, the ones on screen first (read from the Player's `img`, `video`, `audio` and background
+   URLs). Replacing one (a file, a drop, or another file of the project) saves the new file as
+   `input/swaps/<YYYYMMDD-HHMMSS>-<name>` and records `assets: { "<old path>": "<new path>" }`. The
+   kit applies it in `asset()` (`setAssetSwaps`) and on the manifest (`swapManifestAssets`), so a
+   scene sees it only when it loads files through `asset()` or the manifest, not `staticFile()`.
+8. **Save.** Changes autosave 0.6 s after the last one (never mid-drag); ⌘S saves now. The page
    checks the disk every 2 s: changed code recompiles in place (the last good version keeps
    playing on a compile error), and an `edits.json` changed by someone else is reloaded when the
    page has no unsaved edits.
@@ -68,8 +85,10 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
 - `ConnectPanel.tsx`: choose / reopen a folder, or use the repo
 - `Stage.tsx`: Player, overlay, gestures; `dom.ts`: measuring and hit-testing marked elements
 - `Inspector.tsx`: position, font and content fields (types and choices are read from the props)
+- `Knobs.tsx`: a layer's knobs in the inspector; `AssetsPanel.tsx`: swapping files
 - `ElementsPanel.tsx`, `Transport.tsx`, `EditorHeader.tsx`, `RemotionEditorWorkspace.tsx`
-- `apps/lyrics_videos/src/kit/edits.tsx`: `editable()`, `EditsApplier`, `applyPropEdits`, file format
+- `apps/lyrics_videos/src/kit/edits.tsx`: `editable()`, `EditsApplier`, `applyPropEdits`, file format;
+  `src/kit/knobs.ts`: `withKnobs`; `src/kit/hooks.ts`: `asset()` and the swaps
 
 ## Limits
 
@@ -79,6 +98,8 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
 - `@microfox/remotion` atoms take blob: and data: URLs as they are (`utils/mediaSrc.ts`); before
   that they sent them through `staticFile()`.
 - Only what scenes mark can be picked individually; anything else moves with its whole layer.
+- A swap reaches only scenes that load files through `asset()` or the manifest; fonts loaded with
+  `staticFile()` can't be swapped. Swapped files stay in `input/swaps/` until the swap is baked.
 - A font swap doesn't re-run canvas text measurement in scenes that measure text; letters drawn
   from glyph outlines (traced words) take their shape from the cue's `font`, not a font family.
 - `props` paths index cue arrays: adding or removing cues in code can move an edit onto another

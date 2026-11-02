@@ -20,13 +20,43 @@ export type Edits = {
   elements: Record<string, ElementEdit>;
   /** layer key → props path → value */
   props: Record<string, Record<string, unknown>>;
+  /** files swapped for others: the path the project names → the replacement ("slug/input/swaps/x.png") */
+  assets: Record<string, string>;
 };
 
 export const emptyEdits = (): Edits => ({
   schema: EDITS_SCHEMA,
   elements: {},
   props: {},
+  assets: {},
 });
+
+/** An image, clip or sound in a project, by the path staticFile() takes ("slug/input/cover.jpg"). */
+export type MediaFile = {
+  path: string;
+  kind: 'image' | 'video' | 'audio';
+  size: number;
+};
+
+const MEDIA_KINDS: [RegExp, MediaFile['kind']][] = [
+  [/\.(png|jpe?g|webp|gif|avif|svg)$/i, 'image'],
+  [/\.(mp4|webm|mov|m4v)$/i, 'video'],
+  [/\.(mp3|wav|m4a|aac|ogg|oga|flac)$/i, 'audio'],
+];
+
+export const mediaKindOf = (path: string): MediaFile['kind'] | null =>
+  MEDIA_KINDS.find(([re]) => re.test(path))?.[1] ?? null;
+
+/** A scene's knobs (apps/lyrics_videos/src/kit/knobs.ts): props a person tweaks, with how to show them. */
+export type Knob = { label?: string; hint?: string } & (
+  | { type: 'number'; min?: number; max?: number; step?: number; unit?: string; default?: number }
+  | { type: 'color'; default?: string }
+  | { type: 'select'; options: readonly string[]; default?: string }
+  | { type: 'toggle'; default?: boolean }
+  | { type: 'text'; multiline?: boolean; default?: string }
+  | { type: 'asset'; accept: MediaFile['kind']; default?: string }
+);
+export type Knobs = Record<string, Knob>;
 
 export type ProjectEntry = {
   slug: string;
@@ -86,6 +116,8 @@ export type KitApi = {
   applyPropEdits: <P>(props: P, patch?: Record<string, unknown>) => P;
   getPath: (obj: unknown, path: string) => unknown;
   parseEdits: (raw: unknown) => Edits;
+  /** missing in kits from before knobs */
+  knobsOf?: (scene: unknown) => Knobs | null;
   resolveAt: (
     at: ProjectDefinition['layers'][number]['at'],
     manifest: LyricManifest,

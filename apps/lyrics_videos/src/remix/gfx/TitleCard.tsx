@@ -8,7 +8,8 @@
  * (colors.red).
  */
 import React from 'react';
-import { AbsoluteFill, Easing, interpolate, random, staticFile } from 'remotion';
+import { AbsoluteFill, Easing, interpolate, random } from 'remotion';
+import { asset } from '../../kit/hooks';
 import type { Manifest } from '../../kit/manifest';
 import type { TitleCard as Cfg } from '../edl.ts';
 import { measure } from '../measure';
@@ -31,7 +32,7 @@ export const TitleCard: React.FC<{ slug: string; manifest: Manifest; theme: Them
   const dark = `color-mix(in srgb, ${colors.red} 60%, black)`;
   const light = `color-mix(in srgb, ${colors.red} 72%, white)`;
   const glow = (a: number) => `color-mix(in srgb, ${colors.red} ${Math.round(a * 100)}%, transparent)`;
-  const logo = staticFile(`${slug}/${cfg.logo}`);
+  const logo = asset(`${slug}/${cfg.logo}`);
   const family = fonts.title ?? fonts.punch;
   const ratio = 387 / 1280;
 

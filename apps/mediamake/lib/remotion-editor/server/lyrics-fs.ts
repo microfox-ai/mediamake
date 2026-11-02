@@ -149,3 +149,42 @@ export const contentTypeFor = (file: string) =>
 
 /** Only a project's own edits file may be written. */
 export const EDITS_PATH = /^projects\/([^/]+)\/video\/edits\.json$/;
+/** Files the user swaps in from the editor: new files in a project's input/swaps/, never over another. */
+export const SWAP_PATH = /^projects\/([^/]+)\/input\/swaps\/[^/]+\.(png|jpe?g|webp|gif|avif|svg|mp4|webm|mov|m4v|mp3|wav|m4a|aac|ogg|oga|flac)$/i;
+
+const MEDIA_KINDS: [RegExp, 'image' | 'video' | 'audio'][] = [
+  [/\.(png|jpe?g|webp|gif|avif|svg)$/i, 'image'],
+  [/\.(mp4|webm|mov|m4v)$/i, 'video'],
+  [/\.(mp3|wav|m4a|aac|ogg|oga|flac)$/i, 'audio'],
+];
+
+/** Folders no scene reads from (as the folder source skips them). */
+const NOT_ASSETS = new Set(['analysis', 'archive', 'handoff', 'tools', 'out']);
+
+export type MediaFile = { path: string; kind: 'image' | 'video' | 'audio'; size: number };
+
+/** The images, clips and sounds under projects/<slug>/, by the path staticFile() takes. */
+export async function listMediaFiles(slug: string): Promise<MediaFile[]> {
+  const projectDir = resolveLyricsPath(`projects/${slug}`);
+  if (!projectDir) return [];
+  const out: MediaFile[] = [];
+  const walk = async (dir: string): Promise<void> => {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    await Promise.all(
+      entries.map(async e => {
+        if (e.name.startsWith('.') || e.name === 'node_modules') return;
+        const abs = path.join(dir, e.name);
+        if (e.isDirectory()) {
+          if (!NOT_ASSETS.has(e.name)) await walk(abs);
+          return;
+        }
+        const kind = MEDIA_KINDS.find(([re]) => re.test(e.name))?.[1];
+        if (!kind || !e.isFile()) return;
+        const stat = await fs.stat(abs);
+        out.push({ path: path.relative(path.join(LYRICS_ROOT, 'projects'), abs).split(path.sep).join('/'), kind, size: stat.size });
+      }),
+    );
+  };
+  await walk(projectDir);
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}

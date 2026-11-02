@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AbsoluteFill, cancelRender, continueRender, delayRender, Img, interpolate, random, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
-import { useSongTime } from '../kit/hooks';
+import { useSongTime, asset } from '../kit/hooks';
 import type { Font } from 'opentype.js';
 import { layoutShort, loadFont, type RowLayout, type StackLayout, type TypeStyle } from './layout';
 import { entryFx, exitFx, FootageAt, FxLayer, motionOf, surfaceOf, svgMotion, type Fx, type FootageLook } from './Footage';
@@ -197,7 +197,7 @@ const Watermark: React.FC<{ mark: NonNullable<LyricShortTheme['watermark']>; fon
             </g>
           </svg>
         ) : null}
-        {mark.logo ? <Img src={staticFile(mark.logo)} style={{ width: w, height: 'auto', display: 'block', filter: shadow }} /> : null}
+        {mark.logo ? <Img src={asset(mark.logo)} style={{ width: w, height: 'auto', display: 'block', filter: shadow }} /> : null}
         {nameLine ? (
           <svg width={nameLine.width} height={nameCap + 2} style={{ overflow: 'visible', filter: shadow }}>
             <g transform={`translate(0 ${nameCap})`}>

@@ -1,4 +1,4 @@
-import { EDITS_SCHEMA, type Edits, type ElementEdit } from './types';
+import { EDITS_SCHEMA, type Edits, type ElementEdit, type LyricManifest } from './types';
 
 /* Pure updates on an edits document. Every function returns a new document. */
 
@@ -80,7 +80,27 @@ export const resetPropFields = (
 
 export const countEdits = (edits: Edits) =>
   Object.keys(edits.elements).length +
-  Object.values(edits.props).reduce((n, p) => n + Object.keys(p).length, 0);
+  Object.values(edits.props).reduce((n, p) => n + Object.keys(p).length, 0) +
+  Object.keys(edits.assets ?? {}).length;
+
+/** The manifest with swapped files in place of the ones it names, as the kit's swapManifestAssets. */
+export function swapManifestAssets(m: LyricManifest, swaps: Record<string, string> | undefined): LyricManifest {
+  if (!swaps || !Object.keys(swaps).length) return m;
+  const swap = (path: string) => swaps[path] ?? path;
+  return {
+    ...m,
+    audio: { ...m.audio, src: swap(m.audio.src) },
+    assets: Object.fromEntries(Object.entries(m.assets ?? {}).map(([k, v]) => [k, swap(v)])),
+  };
+}
+
+/** Swaps a file for another (`to`), or puts the original back (`to` undefined). */
+export function setAssetSwap(edits: Edits, from: string, to: string | undefined): Edits {
+  const assets = { ...(edits.assets ?? {}) };
+  if (to === undefined || to === from) delete assets[from];
+  else assets[from] = to;
+  return { ...edits, assets };
+}
 
 const sortKeys = <T>(o: Record<string, T>) =>
   Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
@@ -94,6 +114,8 @@ export const serializeEdits = (edits: Edits) =>
       props: sortKeys(
         Object.fromEntries(Object.entries(edits.props).map(([k, v]) => [k, sortKeys(v)])),
       ),
+      // left out until there is one, so files from before swaps stay as they were
+      ...(Object.keys(edits.assets ?? {}).length ? { assets: sortKeys(edits.assets) } : {}),
     },
     null,
     2,

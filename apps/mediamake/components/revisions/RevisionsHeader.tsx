@@ -7,6 +7,7 @@ import {
   KeyboardIcon,
   LoaderIcon,
   MapIcon,
+  SlidersHorizontalIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import {
@@ -133,6 +134,7 @@ export function RevisionsHeader() {
   const mapError = useRevisionsStore(s => s.mapError);
   const shortcutsOpen = useRevisionsStore(s => s.shortcutsOpen);
   const setShortcutsOpen = useRevisionsStore(s => s.setShortcutsOpen);
+  const liveSlug = useRevisionsStore(s => s.live?.slug ?? null);
 
   return (
     <header className="flex h-9 shrink-0 items-center gap-3 border-b px-2">
@@ -172,6 +174,27 @@ export function RevisionsHeader() {
           </Hint>
         )}
         {video && <FpsControl />}
+        {liveSlug && (
+          <Hint
+            label="Swap a picture, clip or sound, or turn a scene's knobs, in the editor. Back here, the video plays with your change."
+            side="bottom"
+          >
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs"
+            >
+              <a
+                href={`/remotion-editor?project=${encodeURIComponent(liveSlug)}&source=folder`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <SlidersHorizontalIcon className="size-3.5" /> Tweak it yourself
+              </a>
+            </Button>
+          </Hint>
+        )}
         <SaveIndicator />
         <Popover open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
           <Hint label="Keyboard shortcuts" keys="?" side="bottom">

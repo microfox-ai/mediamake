@@ -356,7 +356,10 @@ bars, motion that eases *into* the next downbeat.
   - pure helpers (`timing.ts`): `findLine(m, 'genjutsu choke', nth)`, `cutBefore(m, query)`,
     `beatAt/timeOfBeat`, `barAt/timeOfBar`, `beatBefore`, `nearestBeat`, `onsetsIn`, `envelopeAt`, `hitAt`.
     **Find lines by content, never hard-code times.**
-  - `asset(path)` — resolves `manifest.assets[...]` / `manifest.audio.src` for `<Img>`, `<Video>`
+  - `asset(path)` — a project file (`manifest.assets[...]`, `manifest.audio.src`, `<slug>/input/…`)
+    as a URL for `<Img>`, `<Video>`, `<OffthreadVideo>`, `<Audio>`. **Load every picture, clip and
+    sound through it, never `staticFile()`**, so a file the user swaps in the editor reaches the
+    scene. Give scenes a few knobs with `withKnobs` (see make-lyrics-video).
 - The kit plays the song; scenes must not add the main `<Audio>` again.
 - Reuse `@microfox/remotion` atoms where they fit (waveforms, captions, effects) — see
   `scenes/ChorusWave.tsx`. Load fonts with `@remotion/google-fonts/<Font>` in a `video/fonts.ts`.

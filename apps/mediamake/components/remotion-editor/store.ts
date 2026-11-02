@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { isAbortError } from '@/lib/local-media/file-access';
 import { getFolderSupport, queryReadWrite, requestReadWrite, type FolderSupport } from '@/lib/revisions/fs';
 import { changedFiles, compileProject, type CompiledProject } from '@/lib/remotion-editor/compile';
-import { serializeEdits } from '@/lib/remotion-editor/edits';
+import { serializeEdits, setAssetSwap } from '@/lib/remotion-editor/edits';
 import {
   forgetFolder as forgetStoredFolder,
   loadFolders,
@@ -20,6 +20,7 @@ import {
   emptyEdits,
   type Edits,
   type LyricManifest,
+  type MediaFile,
   type ProjectEntry,
 } from '@/lib/remotion-editor/types';
 
@@ -71,7 +72,14 @@ type State = {
   compiled: CompiledProject | null;
   Video: React.ComponentType<Record<string, unknown>> | null;
   layerKeys: string[];
+  /** with asset paths turned into URLs (swaps not applied: the stage applies them) */
   manifest: LyricManifest | null;
+  /** as on disk, paths as the project names them */
+  rawManifest: LyricManifest | null;
+  /** the project's images, clips and sounds, for the Assets panel and asset knobs */
+  media: MediaFile[];
+  /** a swapped-in file being saved */
+  swapping: string | null;
   durationInFrames: number;
   edits: Edits;
   savedText: string;
@@ -116,6 +124,14 @@ type State = {
   setOnScreen: (list: OnScreen[]) => void;
   setFrame: (frame: number) => void;
   setPlaying: (playing: boolean) => void;
+  loadMedia: () => Promise<void>;
+  /**
+   * Swaps the file at `from` (a path as the project names it) for another: a file the user picked,
+   * saved in input/swaps/, or a path already in the project. undefined puts the original back.
+   */
+  swapAsset: (from: string, to: File | string | undefined) => Promise<void>;
+  /** Saves a picked file in input/swaps/ and resolves to its path, for an asset knob. */
+  addSwapFile: (file: File) => Promise<string | null>;
 };
 
 const LAST_PROJECT = 'remotion-editor:last-project';
@@ -130,7 +146,7 @@ const readJson = async <T>(source: ProjectSource, path: string): Promise<T | nul
 };
 
 /** Asset paths in the manifest become URLs, for atoms that call staticFile() on their own copy of Remotion. */
-const withAssetUrls = (source: ProjectSource, m: LyricManifest): LyricManifest => ({
+export const withAssetUrls = (source: ProjectSource, m: LyricManifest): LyricManifest => ({
   ...m,
   audio: { ...m.audio, src: source.assetUrl(m.audio.src) },
   assets: Object.fromEntries(
@@ -150,6 +166,9 @@ const noProject = {
   Video: null,
   layerKeys: [],
   manifest: null,
+  rawManifest: null,
+  media: [],
+  swapping: null,
   durationInFrames: 1,
   edits: emptyEdits(),
   savedText: serializeEdits(emptyEdits()),
@@ -200,7 +219,11 @@ export const useEditor = create<State>((set, get) => {
           store: useEditor,
         };
       }
-      const wantsFolder = !REPO_AVAILABLE || localStorage.getItem(LAST_SOURCE) === 'folder';
+      // ?source=folder: opened from live review, which plays the folder it last opened
+      const wantsFolder =
+        !REPO_AVAILABLE ||
+        new URLSearchParams(window.location.search).get('source') === 'folder' ||
+        localStorage.getItem(LAST_SOURCE) === 'folder';
       if (wantsFolder && folders[0]) {
         // a kept grant ("Allow on every visit") reopens without a click
         if ((await queryReadWrite(folders[0].handle)) === 'granted') {
@@ -336,6 +359,7 @@ export const useEditor = create<State>((set, get) => {
           Video: kit.makeProjectVideo(project) as React.ComponentType<Record<string, unknown>>,
           layerKeys: kit.layerKeys(project.layers),
           manifest: withAssetUrls(source, manifest),
+          rawManifest: manifest,
           durationInFrames: Math.max(
             1,
             Math.ceil((manifest.audio.duration + (project.tail ?? 0)) * project.fps),
@@ -345,6 +369,7 @@ export const useEditor = create<State>((set, get) => {
           editsMtime: compiled.files[editsPath] ?? null,
           saveState: 'idle',
         });
+        void get().loadMedia();
       } catch (e) {
         if (still()) set({ phase: 'error', progress: null, error: message(e) });
       }
@@ -368,6 +393,7 @@ export const useEditor = create<State>((set, get) => {
         });
         // the Player remounts with the new component; put the playhead back
         requestAnimationFrame(() => player.current?.seekTo(frame));
+        void get().loadMedia();
       } catch (e) {
         // keep showing the version that compiled
         set({ error: message(e), changed: [] });
@@ -468,6 +494,40 @@ export const useEditor = create<State>((set, get) => {
     setOnScreen: list => set({ onScreen: list }),
     setFrame: frame => set({ frame }),
     setPlaying: playing => set({ playing }),
+
+    loadMedia: async () => {
+      const { source, slug } = get();
+      if (!source?.listMedia || !slug) return;
+      const media = await source.listMedia(slug).catch(() => null);
+      if (media && get().slug === slug && get().source === source) set({ media });
+    },
+
+    addSwapFile: async file => {
+      const { source, slug } = get();
+      if (!source?.writeSwap || !slug) {
+        toast.error('This source cannot save files');
+        return null;
+      }
+      set({ swapping: file.name });
+      try {
+        const path = await source.writeSwap(slug, file);
+        await get().loadMedia();
+        return path;
+      } catch (e) {
+        toast.error(`Could not save ${file.name}: ${message(e)}`, { duration: 6000 });
+        return null;
+      } finally {
+        set({ swapping: null });
+      }
+    },
+
+    swapAsset: async (from, to) => {
+      const slug = get().slug;
+      const path = to instanceof File ? await get().addSwapFile(to) : to;
+      if (to instanceof File && !path) return;
+      if (get().slug !== slug) return;
+      get().change(e => setAssetSwap(e, from, path ?? undefined));
+    },
   };
 });
 

@@ -5,6 +5,7 @@ import {
   type CompiledProject,
 } from '@/lib/remotion-editor/compile';
 import type { FolderSource } from '@/lib/remotion-editor/folder-source';
+import { swapManifestAssets } from '@/lib/remotion-editor/edits';
 import {
   emptyEdits,
   type Edits,
@@ -93,6 +94,7 @@ export async function loadLiveProject(
     // a broken edits.json: review without it, as a render would
   }
   const { project, kit } = compiled;
+  const edits = { ...emptyEdits(), ...kit.parseEdits(rawEdits) } as Edits;
   const { window: win, tail = 0 } = project as typeof project & Windowed;
   const fps = project.fps;
   const durationInFrames = Math.max(
@@ -126,8 +128,9 @@ export async function loadLiveProject(
     Video: kit.makeProjectVideo(project) as React.ComponentType<
       Record<string, unknown>
     >,
-    manifest: withAssetUrls(source, manifest),
-    edits: { ...emptyEdits(), ...kit.parseEdits(rawEdits) } as Edits,
+    // files swapped in the editor in place of the ones the manifest names
+    manifest: withAssetUrls(source, swapManifestAssets(manifest, edits.assets)),
+    edits,
     fps,
     width: project.width,
     height: project.height,

@@ -110,6 +110,12 @@ range and General comments, drawing, spots and the magnifier.
 - **Fixes** go in the project as usual; the open page recompiles when the code or `video/edits.json`
   changes and its window regains focus, so there is nothing to re-render between rounds. Say what
   changed and restart the watcher.
+- **The user may fix small notes themselves:** "Tweak it yourself" in the header opens the project
+  in /remotion-editor, where they move and retype things, turn a scene's knobs and swap pictures,
+  clips and sounds (saved in `video/edits.json`: `props` and `assets`; new files in
+  `projects/<slug>/input/swaps/`). Read `edits.json` before fixing a note: one they already fixed
+  there needs no code, just say so. Bake edits into the code only when asked (make-lyrics-video,
+  step 11); a swap is baked by ingesting the file into the media library (`media ingest`) first.
 - **Preflight** checks a render, so it runs on the first real render, before that link.
 
 ## 2. Preflight before the link

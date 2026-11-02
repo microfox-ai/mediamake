@@ -20,7 +20,8 @@
  * sounds, then the edit from `start`, turned in 0.6 s. Kept so those shorts still render as they were.
  */
 import React from 'react';
-import { AbsoluteFill, Easing, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Easing, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
+import { asset } from '../kit/hooks';
 import { Audio } from '@remotion/media';
 import type { SceneProps } from '../kit/contract';
 import { measure, useFontsReady } from './measure';
@@ -250,7 +251,7 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
             <>
               {/* above the band: the logo, three start lights filling up, the number; below it: the call and the phone */}
               {logo && (
-                <Img src={staticFile(`${slug}/${logo}`)} style={{ position: 'absolute', left: (width - width * 0.2) / 2, top: height * 0.085, width: width * 0.2, objectFit: 'contain' }} />
+                <Img src={asset(`${slug}/${logo}`)} style={{ position: 'absolute', left: (width - width * 0.2) / 2, top: height * 0.085, width: width * 0.2, objectFit: 'contain' }} />
               )}
               <div style={{ position: 'absolute', left: 0, right: 0, top: height * 0.15, display: 'flex', justifyContent: 'center', gap: lampSize * 0.35 }}>
                 {[0, 1, 2].map(k => <Lamp key={k} on={k < counted && song < turnFrom} size={lampSize} red={colors.red} />)}
@@ -275,7 +276,7 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
             <>
               {/* first version, top to bottom: the logo, the phone turning, the band, the words */}
               {logo && (
-                <Img src={staticFile(`${slug}/${logo}`)} style={{ position: 'absolute', left: (width - width * 0.28) / 2, top: bandTop - height * 0.235, width: width * 0.28, objectFit: 'contain' }} />
+                <Img src={asset(`${slug}/${logo}`)} style={{ position: 'absolute', left: (width - width * 0.28) / 2, top: bandTop - height * 0.235, width: width * 0.28, objectFit: 'contain' }} />
               )}
               <div style={{ position: 'absolute', left: 0, right: 0, top: bandTop - height * 0.135, display: 'flex', justifyContent: 'center' }}>
                 <PhoneTurn t={song - hook.from} color={colors.bone} accent={colors.red} size={width * 0.17} />
@@ -300,7 +301,7 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
         ) : null}
         <Sequence from={f0} layout="none">
           <OffthreadVideo
-            src={staticFile(`${slug}/${video}`)}
+            src={asset(`${slug}/${video}`)}
             startFrom={f0}
             // the edit's own mix, faded out over the short's last 0.4 s; 'center': faded in slowly from silence
             // to full at 0, the turn (squared, so it swells rather than jumps)
@@ -312,7 +313,7 @@ export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, 
       {flash > 0.01 && <AbsoluteFill style={{ background: colors.bone, opacity: flash }} />}
       {hook.sfx.map((s, k) => (
         <Sequence key={k} from={Math.round(s.at * fps)} name={`hook ${s.file}`} layout="none">
-          <Audio src={staticFile(`${slug}/derived/sfx/${s.file}.wav`)} volume={s.gain} />
+          <Audio src={asset(`${slug}/derived/sfx/${s.file}.wav`)} volume={s.gain} />
         </Sequence>
       ))}
     </AbsoluteFill>
