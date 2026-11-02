@@ -58,6 +58,8 @@ before(() => {
   ff(['-f', 'lavfi', '-i', 'color=c=blue:s=64x64', '-frames:v', '1', path.join(fixtures, 'pin.jpg')]);
   process.env.MEDIAMAKE_CONFIG = path.join(tmp, 'config.json');
   process.env.MEDIA_NO_WAIT = '1';
+  // the backup test's disk; never the real ones under /Volumes
+  process.env.MEDIA_VOLUMES = path.join(tmp, 'Volumes');
   const cfg = saveConfig({
     root: path.join(downloads, '_LIBRARY'),
     inbox: path.join(downloads, '_INBOX'),
@@ -336,7 +338,9 @@ describe('library', () => {
   });
 
   test('backups: staged as clones by channel, copied to a disk with every file checked, listed and restored', async () => {
-    const render = put('v2.mp4', path.join(downloads, 'gojo-1765863553018.mp4'));
+    // bytes of its own, so its only copies are the ones this test makes
+    ff(['-f', 'lavfi', '-i', 'color=c=orange:s=320x180:r=30', '-t', '1', '-pix_fmt', 'yuv420p', path.join(fixtures, 'v10.mp4')]);
+    const render = put('v10.mp4', path.join(downloads, 'gojo-1765863553018.mp4'));
     await scan(lib, ['downloads']);
     const staged = path.join(backupRoot(lib), 'AMZ', 'renders', path.basename(render));
     assert.equal((await stage(lib, [render], { channel: 'animemusiczone', as: 'renders' })).done, 0, 'a dry run stages nothing');
@@ -357,9 +361,12 @@ describe('library', () => {
     assert.equal(listed.length, 1);
     assert.deepEqual(listed[0].disks, ['T7']);
 
-    // the original and the clone gone: the disk brings it back where it was
+    // the original and the clone gone: the item is on the disk (cold), and the disk brings it back where it was
     fs.rmSync(staged);
     fs.rmSync(render);
+    await scan(lib, ['downloads']);
+    const item = lib.db.prepare('SELECT status, disk FROM items WHERE id = ?').get(listed[0].sha256) as { status: string; disk: string };
+    assert.deepEqual({ ...item }, { status: 'cold', disk: 'T7' });
     assert.equal((await restore(lib, ['gojo'], { from: disk, yes: true })).done, 1);
     assert.equal(await sha256File(render), await sha256File(copy));
     // a copy that no longer matches its hash is refused

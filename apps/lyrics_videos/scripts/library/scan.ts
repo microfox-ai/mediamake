@@ -14,7 +14,7 @@ import { DIRS, REPO, kindOf } from '../paths.ts';
 import { classify, isPersonal, mediaTypeOf } from './classify.ts';
 import { channelOfFolder } from './config.ts';
 import { getItem, openDb, reindex, tx, type Kind, type Role } from './db.ts';
-import { backupRoot } from './backup.ts';
+import { backedUp, backupRoot } from './backup.ts';
 import { addLocation, addSource, addTags, knownHash, rank, relOf, roleOf, upsertItem, type Lib } from './lib.ts';
 import { probe, thumbnail } from './probe.ts';
 import { readFolder } from './sidecar.ts';
@@ -164,7 +164,8 @@ export const archived = () => {
 
 /** Copies under a root that weren't seen this time are gone; an item without copies is cold or missing. */
 const forget = (lib: Lib, root: Root, seen: Set<string>) => {
-  const onDisk = archived();
+  // on a disk through cleanup-out's archive or a backup
+  const onDisk = new Map([...backedUp(lib), ...archived()]);
   const roles: Record<Root, Role[]> = {
     library: ['library'],
     downloads: ['downloads', 'delivery'],

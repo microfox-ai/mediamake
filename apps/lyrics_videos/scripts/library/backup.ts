@@ -12,7 +12,6 @@
  * the clones gone; a connected disk's own manifest is read too. Restoring needs the disk (or the
  * staged clone, while it's still here).
  */
-import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -111,24 +110,28 @@ export const stage = async (lib: Lib, paths: string[], o: { channel: string; as:
 
 export type Drive = { mount: string; name: string; free: number; total: number; writable: boolean; backup: boolean };
 
-/** External disks under /Volumes (the system disk and disk images left out). */
+/** Where disks mount (MEDIA_VOLUMES points the tests at a folder of their own). */
+const volumes = () => process.env.MEDIA_VOLUMES ?? '/Volumes';
+
+/** External disks (the system disk is a link under /Volumes, so it's left out). */
 export const drives = (): Drive[] =>
-  execFileSync('mount', { encoding: 'utf8' })
-    .split('\n')
-    .map(l => l.match(/^\S+ on (\/Volumes\/.+) \(([^)]*)\)$/))
-    .filter((m): m is RegExpMatchArray => !!m)
-    .map(m => {
-      const mount = m[1];
+  (fs.existsSync(volumes()) ? fs.readdirSync(volumes(), { withFileTypes: true }) : [])
+    .filter(d => d.isDirectory() && !d.name.startsWith('.'))
+    .map(d => {
+      const mount = path.join(volumes(), d.name);
       const s = fs.statfsSync(mount);
-      return {
-        mount, name: path.basename(mount), free: s.bavail * s.bsize, total: s.blocks * s.bsize,
-        writable: !m[2].includes('read-only'), backup: fs.existsSync(path.join(mount, DISK_FOLDER, 'backup.json')),
-      };
+      let writable = true;
+      try {
+        fs.accessSync(mount, fs.constants.W_OK);
+      } catch {
+        writable = false;
+      }
+      return { mount, name: d.name, free: s.bavail * s.bsize, total: s.blocks * s.bsize, writable, backup: fs.existsSync(path.join(mount, DISK_FOLDER, 'backup.json')) };
     });
 
 /** A volume name (T7) or a folder (/Volumes/T7, or any folder for a test) → the backup folder on it. */
 export const diskOf = (arg: string, create = false) => {
-  const mount = arg.startsWith('/') ? arg : path.join('/Volumes', arg);
+  const mount = arg.startsWith('/') ? arg : path.join(volumes(), arg);
   if (!fs.existsSync(mount)) throw new Error(`${mount} isn't there: is the disk connected? (media backup drives)`);
   const root = path.join(mount, DISK_FOLDER);
   const marker = path.join(root, 'backup.json');
@@ -139,6 +142,10 @@ export const diskOf = (arg: string, create = false) => {
   }
   return { root, disk: { id: meta?.id ?? '', name: path.basename(mount) } };
 };
+
+/** Every file copied to a backup disk, by hash → the disk's name: once its last copy here goes, the item is cold, not missing. */
+export const backedUp = (lib: Lib) =>
+  new Map(readManifest(localManifest(lib)).filter(e => e.action === 'copied' && e.disk).map(e => [e.sha256, e.disk!.name]));
 
 /** The latest line for each file in the backup, and which disks hold it. */
 export const state = (entries: BackupEntry[]) => {
