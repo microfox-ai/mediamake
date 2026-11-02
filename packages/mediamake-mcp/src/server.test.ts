@@ -144,6 +144,152 @@ describe('catalog_versions', () => {
   });
 });
 
+describe('catalog admin tools', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Records each call; `reply` answers by method and path. */
+  function stubApi(reply: (method: string, path: string, body: any) => unknown) {
+    const calls: { method: string; url: URL; body?: any }[] = [];
+    vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? 'GET';
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      calls.push({ method, url, body });
+      return Response.json(reply(method, url.pathname, body) ?? {});
+    });
+    return calls;
+  }
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result: any = await (await connect(false)).callTool({ name, arguments: args });
+    return { isError: !!result.isError, out: result.isError ? result.content[0].text : JSON.parse(result.content[0].text) };
+  };
+
+  it('lists items with filters and absolute release pages', async () => {
+    const calls = stubApi(() => ({ items: [{ id: 'skill/x', tier: 'public', page: '/core/releases/skill/x' }] }));
+    const { out } = await call('catalog_items', { kind: 'skill', archived: false, query: 'brand' });
+    expect(calls[0].url.pathname).toBe('/api/admin/catalog/items');
+    expect(Object.fromEntries(calls[0].url.searchParams)).toEqual({ kind: 'skill', archived: 'false', q: 'brand' });
+    expect(out).toEqual({
+      count: 1,
+      items: [{ id: 'skill/x', tier: 'public', page: 'http://mm.test/core/releases/skill/x' }],
+      dashboard: 'http://mm.test/core/releases',
+    });
+  });
+
+  it('shows one item with its install steps in words and without the title index', async () => {
+    stubApi(() => ({
+      item: { id: 'skill/x' },
+      names: { 'skill/x': 'X' },
+      plan: {
+        ok: true,
+        steps: [
+          { type: 'repo', repo: 'microfox-ai/mediamake' },
+          { type: 'source', kind: 'skill', id: 'skill/x', source: { type: 'github-skill' } },
+          { type: 'source', kind: 'mcp', id: 'mcp/fal', source: { type: 'mcp-server' }, forChoices: ['mcp/fal'] },
+        ],
+        choices: [{ id: 'mcp/fal', need: 'optional' }],
+      },
+    }));
+    const { out } = await call('catalog_item', { item: 'skill/x' });
+    expect(out.names).toBeUndefined();
+    expect(out.page).toBe('http://mm.test/core/releases/skill/x');
+    expect(out.install.steps).toEqual([
+      'Clone microfox-ai/mediamake',
+      'skill skill/x from its source (github-skill)',
+      'mcp mcp/fal from its source (mcp-server) (only if they take mcp/fal)',
+    ]);
+  });
+
+  it('archives items with a note, and answers with their pages', async () => {
+    const calls = stubApi(() => ({ archived: true }));
+    const { out } = await call('catalog_archive', { items: ['skill/a', 'skill/b'], note: 'unused' });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].body).toEqual({ type: 'set_archived', itemIds: ['skill/a', 'skill/b'], archived: true, note: 'unused' });
+    expect(out.items).toEqual([
+      { id: 'skill/a', page: 'http://mm.test/core/releases/skill/a' },
+      { id: 'skill/b', page: 'http://mm.test/core/releases/skill/b' },
+    ]);
+  });
+
+  it('takes an item out of the vault before starting its community gate', async () => {
+    const calls = stubApi((method, path, body) =>
+      method === 'GET'
+        ? { item: { id: 'mcp/x', kind: 'mcp', visibility: 'private', neverPublish: true }, definedIn: 'database' }
+        : body.type === 'schedule_release'
+          ? { item: { publicAt: '2026-12-02T00:00:00.000Z' } }
+          : { item: {} },
+    );
+    const { out } = await call('catalog_set_stage', { item: 'mcp/x', stage: 'community', gateDays: 30 });
+    expect(calls.map(c => c.body?.type ?? c.url.pathname)).toEqual(['/api/admin/catalog/item', 'set_never_publish', 'schedule_release']);
+    expect(calls[1].body).toEqual({ itemId: 'mcp/x', type: 'set_never_publish', neverPublish: false });
+    expect(calls[2].body).toEqual({ itemId: 'mcp/x', type: 'schedule_release', days: 30 });
+    expect(out).toEqual({ item: 'mcp/x', stage: 'community', goesPublicAt: '2026-12-02T00:00:00.000Z', page: 'http://mm.test/core/releases/mcp/x' });
+  });
+
+  it("won't move what is always public, or what is defined in the repo, and leaves an item where it already is", async () => {
+    stubApi(() => ({ item: { id: 'skill/x', kind: 'skill', visibility: 'public' }, definedIn: 'skills.json' }));
+    const skill = await call('catalog_set_stage', { item: 'skill/x', stage: 'development' });
+    expect(skill.isError).toBe(true);
+    expect(skill.out).toContain('always public');
+
+    vi.unstubAllGlobals();
+    stubApi(() => ({ item: { id: 'app/x', kind: 'app', visibility: 'public' }, definedIn: 'items.ts' }));
+    expect((await call('catalog_set_stage', { item: 'app/x', stage: 'development' })).out).toContain('lib/catalog/items.ts');
+
+    vi.unstubAllGlobals();
+    const calls = stubApi(() => ({ item: { id: 'mcp/x', kind: 'mcp', visibility: 'network' }, definedIn: 'database' }));
+    const same = await call('catalog_set_stage', { item: 'mcp/x', stage: 'community' });
+    expect(same.out.unchanged).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('lists an MCP made by others with where it installs from', async () => {
+    const calls = stubApi(() => ({ item: {} }));
+    const source = { type: 'mcp-server', name: 'suno', remote: { url: 'https://api.suno.com/mcp' } };
+    const { out } = await call('catalog_add_third_party', {
+      id: 'mcp/suno',
+      title: 'Suno',
+      summary: 'Songs from Suno.',
+      madeBy: { name: 'Suno', homepage: 'https://suno.com' },
+      source,
+      notes: 'Needs a Suno account.',
+    });
+    expect(calls[0].body).toEqual({
+      type: 'upsert_item',
+      item: {
+        kind: 'mcp',
+        slug: 'suno',
+        title: 'Suno',
+        summary: 'Songs from Suno.',
+        status: 'live',
+        madeBy: { name: 'Suno', homepage: 'https://suno.com' },
+        install: { source, notes: 'Needs a Suno account.' },
+      },
+    });
+    expect(out).toEqual({
+      id: 'mcp/suno',
+      page: 'http://mm.test/core/releases/mcp/suno',
+      installPage: 'http://mm.test/access?item=mcp%2Fsuno',
+    });
+  });
+
+  it('makes an invite link on the site', async () => {
+    const calls = stubApi(() => ({ invite: { code: 'abc123', maxUses: 5 } }));
+    const { out } = await call('catalog_invite', { items: ['mcp/browse-hack'], uses: 5, grantDays: 30 });
+    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: ['mcp/browse-hack'], maxUses: 5, grantDays: 30 });
+    expect(out.link).toBe('http://mm.test/access?code=abc123');
+  });
+
+  it('rejects an id that is not a catalog id', async () => {
+    stubApi(() => ({}));
+    const result: any = await (await connect(false)).callTool({ name: 'catalog_archive', arguments: { items: ['pack-brand-kit'] } });
+    expect(result.isError).toBe(true);
+  });
+});
+
 describe('generations', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

@@ -24,7 +24,11 @@ what it is, who can open it, where it lives, what installing it does, and what n
 `/core/releases` lists every item.
 
 - After any release step, give the user the link of each item it touched: `npm run catalog --
-  release | add | promote | schedule | vault | grant` (they print it), a workflow that publishes a
-  release, a new or changed skill, or an edit to `apps/mediamake/lib/catalog/third-party.json`. For
-  a new version, link `…/core/releases/<kind>/<slug>#v<version>`.
+  release | add | promote | schedule | vault | grant | archive` and the MediaMake MCP's `catalog_*`
+  tools (they print or return it), a workflow that publishes a release, a new or changed skill, or an
+  edit to `apps/mediamake/lib/catalog/third-party.json`. For a new version, link
+  `…/core/releases/<kind>/<slug>#v<version>`.
+- With the MediaMake MCP connected, manage releases through its tools: `catalog_items` to see what is
+  what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
+  stay public and installable), `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite`.
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.

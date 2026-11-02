@@ -34,6 +34,8 @@
  *   init
  *   add <file.catalog.json>                          (list an MCP or skill made by others: no package of ours,
  *                                                     installed from its install.source, always public)
+ *   archive <itemId> [<itemId>...] [--off] [--note "..."]   (left off the homepage, still installs by its
+ *                                                     link; any item, a skill from the repo too)
  *
  * Each step prints the item's release page, <MEDIAMAKE_URL>/core/releases/<kind>/<slug>
  * (what it is, who can open it, where it lives): give that link to whoever you release for.
@@ -66,7 +68,8 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   invite  [<itemId>...] [--group network] [--uses 5] [--days 30] [--expires 14] [--note "..."]
   requests | approve <requestId> [--days 30] | reject <requestId>
   list | init
-  add <file.catalog.json>                          (list an MCP or skill made by others: no package, always public)`;
+  add <file.catalog.json>                          (list an MCP or skill made by others: no package, always public)
+  archive <itemId> [<itemId>...] [--off] [--note "..."]   (left off the homepage, still installs by its link)`;
 
 type Flags = Record<string, string | true>;
 
@@ -440,6 +443,15 @@ async function main() {
 
     case 'add':
       return add(positional[0]);
+
+    case 'archive': {
+      if (!positional.length) fail('archive <itemId> [<itemId>...] [--off] [--note "..."]');
+      const archived = !flags.off;
+      await admin({ type: 'set_archived', itemIds: positional, archived, note: flag(flags, 'note') });
+      console.log(archived ? `✅ Archived: left off the homepage, still installs by its link` : `✅ Back on the homepage`);
+      for (const itemId of positional) console.log(page(itemId));
+      return;
+    }
 
     default:
       console.log(USAGE);

@@ -54,6 +54,20 @@ thumbnail must pass them:
 8. **Readable in the feed.** At 168×94 (phone feed) the word and the face still read; at 360×202
    (desktop) the kicker may blur.
 
+## First: check the MCPs
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/browse-hack` | recommended | Frames from a YouTube link (`youtube_download`), and Midjourney concepts and outcrops in the user's Chrome (`midjourney-style-reference`, `midjourney-outcrop`) | Only the user's own picture or a video file they give, and no Midjourney concepts or outcrops |
+| `mcp/fal` | optional | Generated concept art when Midjourney isn't wanted (paid: ask first) | Concepts come from Midjourney or the user's own pictures |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say at intake what it costs and offer to install it from MediaMake ("Set up
+mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
+
 ## 1. Intake: ask before building
 
 Collect with `AskUserQuestion` (put the recommended option first; skip what the request or the

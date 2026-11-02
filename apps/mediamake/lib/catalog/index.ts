@@ -1,10 +1,12 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
 import { installPromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { catalogItemsDB } from './store';
+import { catalogArchiveDB, catalogItemsDB } from './store';
 import {
   effectiveVisibility,
   isInstallable,
+  withArchive,
+  type ArchiveMark,
   type CatalogEntry,
   type CatalogItem,
   type CatalogItemRecord,
@@ -41,7 +43,8 @@ export function toEntry(entitlements: Entitlements, stored: CatalogItem): Catalo
  * Catalog as seen by one viewer, newest first. Only items the viewer can
  * open are returned: locked items are hidden entirely, so their names never
  * reach people without access. Installable items carry an `installPrompt`,
- * and items that work with others (a skill's MCPs) their `uses`.
+ * items that work with others (a skill's MCPs) their `uses`, and archived
+ * ones `archivedAt` (the homepage leaves those out).
  *
  * Merges the items defined in ./items (public-safe cards, third-party.json
  * and the skill registry) with the catalog database, where released and
@@ -57,14 +60,15 @@ export async function listCatalog(
   const entitlements = options.entitlements ?? (await getEntitlements(viewer));
 
   let stored: CatalogItemRecord[] = [];
+  let archived: ArchiveMark[] = [];
   try {
-    stored = await catalogItemsDB.list({ kind });
+    [stored, archived] = await Promise.all([catalogItemsDB.list({ kind }), catalogArchiveDB.list()]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[] }>();
-  for (const record of [...getStaticRecords(kind), ...stored.map(withRegistryUses)]) {
+  for (const record of withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses });
   }
 

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
+import { Archive, ArchiveRestore, ArrowLeft, Check, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
@@ -10,14 +11,15 @@ import { cn } from '@/lib/utils';
 import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
-import { GroupLabel, Panel, TierPill } from './parts';
-import { TIER_META, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, tierOf, type ItemDetail } from './model';
+import { ArchivedPill, GroupLabel, Panel, TierPill } from './parts';
+import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, tierOf, type ItemDetail } from './model';
 
 /**
  * One catalog item's release page (/core/releases/<kind>/<slug>): what it is,
  * who can open it, where it lives, what installing it does, what it needs and
- * what uses it, and its history. Read-only: moving it along stays on the
- * board, in the access sheet and in `npm run catalog`.
+ * what uses it, and its history. Its one action is Archive / Unarchive; moving
+ * it along stays on the board, in the access sheet, in `npm run catalog` and
+ * in the MediaMake MCP's catalog tools.
  */
 
 const KIND_LABEL: Record<CatalogKind, string> = { mcp: 'MCP', skill: 'Skill', app: 'App', tutorial: 'Tutorial' };
@@ -95,18 +97,23 @@ function describeStep(step: InstallStep): { title: string; detail?: string } {
 export function ReleaseItem({ id }: { id: string }) {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
+  // bumped after archiving, to load the item again without the skeleton
+  const [reloads, setReloads] = useState(0);
+
+  useEffect(() => {
+    setDetail(null);
+    setError(null);
+  }, [id]);
 
   useEffect(() => {
     let live = true;
-    setDetail(null);
-    setError(null);
     fetchItemDetail(id)
       .then(loaded => live && setDetail(loaded))
       .catch(e => live && setError({ message: (e as Error).message, status: (e as { status?: number }).status }));
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, reloads]);
 
   // a link to one release (…#v0.7.0) lands on it once the page has loaded
   useEffect(() => {
@@ -165,7 +172,7 @@ export function ReleaseItem({ id }: { id: string }) {
         <ArrowLeft className="size-4" /> Releases
       </Link>
 
-      <Header detail={detail} tier={tier} />
+      <Header detail={detail} tier={tier} onArchived={() => setReloads(n => n + 1)} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -182,12 +189,13 @@ export function ReleaseItem({ id }: { id: string }) {
   );
 }
 
-function Header({ detail, tier }: { detail: ItemDetail; tier: ReleaseTier }) {
-  const { item, installPrompt, code } = detail;
+function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ReleaseTier; onArchived: () => void }) {
+  const { item, installPrompt, code, archive } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
   return (
-    <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    // the actions sit beside the title only when there is room for both
+    <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div className="flex min-w-0 items-start gap-4">
         <span className={cn('flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl', TIER_META[tier].soft)}>
           {item.cover ? (
@@ -201,6 +209,7 @@ function Header({ detail, tier }: { detail: ItemDetail; tier: ReleaseTier }) {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
             <TierPill tier={tier} />
+            {archive && <ArchivedPill />}
           </div>
           <p className="text-sm text-muted-foreground">
             <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
@@ -209,10 +218,17 @@ function Header({ detail, tier }: { detail: ItemDetail; tier: ReleaseTier }) {
           </p>
           <About summary={item.summary} description={detail.description} />
           {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+          {archive && (
+            <p className="text-xs text-muted-foreground">
+              Archived {formatDate(archive.at)}
+              {archive.note ? `: ${archive.note}` : ''}. Left off the homepage; it still installs by its link.
+            </p>
+          )}
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 xl:shrink-0">
         {installPrompt && <CopyPrompt prompt={installPrompt} />}
+        <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
         {installPrompt || !item.href ? (
           <Button variant="outline" size="sm" asChild>
             <a href={`/access?item=${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer">
@@ -252,6 +268,34 @@ function About({ summary, description }: { summary: string; description?: string
         </button>
       )}
     </p>
+  );
+}
+
+/** Archives the item (left off the homepage, still installs) or brings it back. */
+function ArchiveButton({ id, archived, onDone }: { id: string; archived: boolean; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      title={archived ? 'Show it on the homepage again' : 'Leave it off the homepage; it stays public and installs by its link'}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await adminCall({ type: 'set_archived', itemIds: [id], archived: !archived });
+          toast.success(archived ? 'Back on the homepage' : 'Archived: left off the homepage');
+          onDone();
+        } catch (e) {
+          toast.error((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {archived ? <ArchiveRestore /> : <Archive />}
+      {archived ? 'Unarchive' : 'Archive'}
+    </Button>
   );
 }
 

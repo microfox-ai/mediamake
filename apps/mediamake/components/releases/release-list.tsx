@@ -6,7 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { slugOf, type CatalogItemRecord, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 import { KIND_ICON } from './release-board';
-import { TierPill } from './parts';
+import { ArchivedPill, TierPill } from './parts';
 import { TIER_META, TIER_ORDER, itemPath, originOf, tierOf, type AdminCatalog } from './model';
 
 const KIND_ORDER: CatalogKind[] = ['mcp', 'skill', 'app', 'tutorial'];
@@ -37,7 +37,13 @@ export function ReleaseList({ data, items, now }: { data: AdminCatalog; items: C
     rows: items
       .filter(item => item.kind === kind)
       .map(item => ({ item, tier: tierOf(item, now) }))
-      .sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || a.item.title.localeCompare(b.item.title)),
+      // archived ones last, then by tier and title
+      .sort(
+        (a, b) =>
+          Number(!!a.item.archivedAt) - Number(!!b.item.archivedAt) ||
+          TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) ||
+          a.item.title.localeCompare(b.item.title),
+      ),
   })).filter(group => group.rows.length);
 
   if (!groups.length) {
@@ -80,7 +86,7 @@ function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ReleaseTie
     .filter(Boolean)
     .join(' · ');
   return (
-    <li>
+    <li className={cn(item.archivedAt && 'opacity-60')}>
       <Link href={itemPath(item.id)} className={cn(ROW, 'group py-3 transition-colors hover:bg-muted/40')}>
         <span className="flex min-w-0 items-center gap-3">
           <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', TIER_META[tier].soft)}>
@@ -91,7 +97,10 @@ function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ReleaseTie
             <span className="block truncate font-mono text-xs text-muted-foreground">{item.id}</span>
           </span>
         </span>
-        <TierPill tier={tier} />
+        <span className="flex flex-wrap items-center gap-1.5">
+          <TierPill tier={tier} />
+          {item.archivedAt && <ArchivedPill />}
+        </span>
         <span className="hidden truncate text-xs text-muted-foreground md:block">{originOf(item)}</span>
         <span
           className="hidden truncate text-xs text-muted-foreground md:block"

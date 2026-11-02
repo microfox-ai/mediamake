@@ -173,6 +173,34 @@
     {
       "name": "get_render_input_props",
       "description": "The exact inputProps a past render used (the compiled composition JSON)."
+    },
+    {
+      "name": "catalog_versions",
+      "description": "Live version numbers and release notes of MediaMake catalog items (skills, MCPs, apps)."
+    },
+    {
+      "name": "catalog_items",
+      "description": "Admins: every catalog item with who can open it, where it comes from, whether it is archived, and its release page."
+    },
+    {
+      "name": "catalog_item",
+      "description": "Admins: everything about one catalog item: access, where it lives, what installing it does, what uses it, its versions."
+    },
+    {
+      "name": "catalog_archive",
+      "description": "Admins: archive unused items (left off the homepage, still installable) or bring them back."
+    },
+    {
+      "name": "catalog_set_stage",
+      "description": "Admins: move one of our apps, MCPs or tutorials between development, community, public and the vault."
+    },
+    {
+      "name": "catalog_add_third_party",
+      "description": "Admins: list an open-source or hosted MCP or skill made by others, with where it installs from."
+    },
+    {
+      "name": "catalog_invite",
+      "description": "Admins: make an invite link that opens gated catalog items for the people it is sent to."
     }
   ],
   "keywords": [

@@ -3,7 +3,7 @@ import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
 import { installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type ItemUse } from '@/lib/catalog';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
-import { accessRequestsDB } from '@/lib/catalog/store';
+import { accessRequestsDB, catalogArchiveDB } from '@/lib/catalog/store';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
@@ -30,10 +30,12 @@ export default async function AccessPage({
   let installable = false;
   let hasPackage = false;
   let uses: (ItemUse & { title?: string; href?: string })[] = [];
+  let archived = false;
   let pending = false;
   if (itemId) {
     // the database's record, else one the repo defines (a registry skill, a third-party MCP)
-    const record = await getCatalogRecord(itemId);
+    const [record, mark] = await Promise.all([getCatalogRecord(itemId), catalogArchiveDB.get(itemId).catch(() => null)]);
+    archived = !!mark;
     if (record) {
       const entitlements = await getEntitlements(viewer);
       const entry = toEntry(entitlements, toCard(record));
@@ -88,6 +90,11 @@ export default async function AccessPage({
                 <Badge variant="outline" className="capitalize">{item.kind}</Badge>
                 {item.visibility !== 'public' && (
                   <Badge variant="secondary">{item.visibility === 'network' ? 'Community' : 'Private'}</Badge>
+                )}
+                {archived && (
+                  <Badge variant="secondary" title="Not in use any more: left off the homepage, still installs">
+                    Archived
+                  </Badge>
                 )}
                 {item.version && (
                   <span className="font-mono text-xs text-muted-foreground" title="Latest release">

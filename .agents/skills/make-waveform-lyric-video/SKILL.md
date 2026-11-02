@@ -78,6 +78,20 @@ win.
 An instrumental (no text on screen) goes through prepare with `input/lyrics.json` = `[]`: one
 "song" section, no lines; write the real sections into the video map yourself after the render.
 
+MCPs (check at intake which this session has; transcription calls ElevenLabs' API directly, step 1):
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
+| `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say what it costs before starting and offer to install it from MediaMake ("Set
+up mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
+
 ## 0. Intake (one short round)
 
 `AskUserQuestion`, recommended option first; skip what the request already answers:

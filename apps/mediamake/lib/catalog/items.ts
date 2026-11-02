@@ -1,5 +1,6 @@
 import { registry } from '@/lib/skills/registry';
 import type { RegistrySkill } from '@/lib/library/types';
+import { siteUrl } from './install-prompt';
 import thirdPartyJson from './third-party.json';
 import {
   parseCatalogItemId,
@@ -13,15 +14,20 @@ import {
   type MadeBy,
 } from './types';
 
+/** This site, for the install specs that point back at it (the hosted MediaMake MCP). */
+const MEDIAMAKE_SITE = siteUrl() ?? 'https://mediamake.microfox.app';
+
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose
  * names are already public here: unreleased apps and MCPs belong in the
  * catalog database so they stay out of this public repo. Skills are always
  * public: their files are committed in .agents/skills, and every one in the
  * repo's registry (skills.json) is a card, see skillCatalogItems. MCPs and
- * skills made by others are in third-party.json (see getStaticRecords).
+ * skills made by others are in third-party.json (see getStaticRecords). A
+ * card with an `install` spec installs like any item (the MediaMake MCP:
+ * its hosted connector).
  */
-export const catalogItems: CatalogItem[] = [
+export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
   // Apps. Public pages anyone can open today carry openToAll.
   {
     id: 'app/studio',
@@ -91,11 +97,27 @@ export const catalogItems: CatalogItem[] = [
     id: 'mcp/mediamake',
     kind: 'mcp',
     title: 'MediaMake MCP',
-    summary: 'Use mediamake projects, media and renders from Claude and other MCP clients.',
+    summary:
+      "Use MediaMake from Claude: projects and timelines, presets, media, transcriptions, Suno takes, renders, brand kits, and the catalog for admins. The hosted connector: sign in with your MediaMake account.",
+    // In development: admins and private testers (the team) install it; anyone else needs a grant or invite
     visibility: 'private',
-    status: 'coming-soon',
+    status: 'beta',
     tags: ['mcp', 'claude'],
     releasedAt: '2026-10-24',
+    install: {
+      source: {
+        type: 'mcp-server',
+        name: 'mediamake',
+        remote: { url: `${MEDIAMAKE_SITE}/mcp` },
+        setup: [
+          'Claude Code: run /mcp, pick mediamake and sign in to MediaMake in the browser window that opens, then click Allow.',
+          'The Claude apps: the connector asks them to sign in to MediaMake and click Allow when they first use it.',
+        ],
+        guide: 'https://github.com/microfox-ai/mediamake/tree/main/packages/mediamake-mcp#readme',
+      },
+      notes:
+        "Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files (bring media in by https link). It signs in with their MediaMake account, no API key.",
+    },
   },
 
   // Skills: not listed here, they come from the registry (skillCatalogItems below).

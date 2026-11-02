@@ -199,6 +199,7 @@ export function ItemCard({
           </span>
           {item.status !== 'live' && <span className="capitalize">{item.status.replace('-', ' ')}</span>}
           {item.listed === false && <span>Unlisted</span>}
+          {item.archivedAt && <span title="Left off the homepage; still installs by its link">Archived</span>}
           {item.install?.uses?.length ? <span title={item.install.uses.map(u => `${u.id} (${u.need})`).join('\n')}>Uses {item.install.uses.length}</span> : null}
         </div>
       </div>
