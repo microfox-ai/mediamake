@@ -14,6 +14,7 @@ import { DIRS, REPO, kindOf } from '../paths.ts';
 import { classify, isPersonal, mediaTypeOf } from './classify.ts';
 import { channelOfFolder } from './config.ts';
 import { getItem, openDb, reindex, tx, type Kind, type Role } from './db.ts';
+import { backupRoot } from './backup.ts';
 import { addLocation, addSource, addTags, knownHash, rank, relOf, roleOf, upsertItem, type Lib } from './lib.ts';
 import { probe, thumbnail } from './probe.ts';
 import { readFolder } from './sidecar.ts';
@@ -55,7 +56,8 @@ const filesOf = (lib: Lib, root: Root): Found[] => {
         ? walk(lib.root, () => true, (abs, name) => name === '.catalog' || name === '.cache.noindex' || abs === path.join(lib.root, '_review'))
         : [];
     case 'downloads': {
-      const skip = new Set([lib.root, lib.cfg.inbox].map(p => path.resolve(p)));
+      // the backup's staging folder holds clones of files already catalogued where they came from
+      const skip = new Set([lib.root, lib.cfg.inbox, backupRoot(lib)].map(p => path.resolve(p)));
       const excluded = new Set(lib.cfg.exclude.map(e => e.toLowerCase()));
       return walk(
         lib.cfg.deliverRoot,

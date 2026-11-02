@@ -28,6 +28,11 @@
  *   deliver <slug> --uploaded                   the user published it
  *   sweep --plan [--limit=N] | --review=<id> | --apply=<id> [--yes] | --undo=<id> [--yes]
  *       sort what lies around in Downloads into the library, after the user's review (cleanup-downloads skill)
+ *   backup add <file|folder>… --channel=<id|folder> [--as=renders] [--yes]   stage clones in Downloads/_BACKUP/<CHANNEL>/<as>/
+ *   backup drives                                                            external disks, and which hold a backup
+ *   backup copy --to=<disk> [--yes]                                          copy what's staged to the disk, each file checked
+ *   backup list [words] [--channel= --disk=]                                 what's backed up, and where (no disk needed)
+ *   restore <words>… [--from=<disk>] [--to=<folder>] [--channel=] [--yes]   copy files back, checked (restore-backup skill)
  *   status | export | apply-requests
  */
 import { spawnSync } from 'node:child_process';
@@ -47,6 +52,7 @@ import { absOf, openLibrary, resolveItem, userPath, type Lib } from './library/l
 import { listProductions, saveProduction, touchProduction, type Production } from './library/production.ts';
 import { ROOTS, duplicates, rebuild, scan, type Root } from './library/scan.ts';
 import { applySweep, planSweep, reviewSweep, undoSweep } from './library/sweep.ts';
+import { copyToDisk, drives, listBackup, restore, stage } from './library/backup.ts';
 import { lock, size } from './library/sys.ts';
 import { cacheGet, cacheInto, cachePut, use } from './library/use.ts';
 
@@ -363,6 +369,44 @@ const main = async () => {
       }
       release();
       return has('yes') ? changed() : undefined;
+    }
+    case 'backup': {
+      const [op, ...paths] = rest;
+      if (op === 'drives') {
+        const list = drives();
+        if (!list.length) return console.log('No external disk is connected (nothing under /Volumes). Connect one and run this again.');
+        for (const d of list) console.log(`${d.name.padEnd(20)} ${size(d.free).padStart(9)} free of ${size(d.total).padStart(9)}  ${d.writable ? 'writable' : 'READ-ONLY'}${d.backup ? '  has a MediaMake Backup' : ''}  (${d.mount})`);
+        return;
+      }
+      if (op === 'add') {
+        if (!paths.length || !flag('channel')) throw new Error('media backup add <file|folder>… --channel=<id|folder> [--as=renders] [--yes]');
+        const r = await stage(lib, paths.map(userPath), { channel: flag('channel')!, as: flag('as') ?? 'files', yes: has('yes') });
+        const fresh = r.plan.filter(p => !p.again);
+        console.log(`${fresh.length} to stage in ${path.join(r.root, r.channel)} (${size(fresh.reduce((n, p) => n + p.bytes, 0))}, clones: no extra space)${r.plan.length - fresh.length ? `; ${r.plan.length - fresh.length} already staged` : ''}`);
+        return console.log(has('yes') ? `✔ staged ${r.done}` : 'Dry run: add --yes.');
+      }
+      if (op === 'copy') {
+        if (!flag('to')) throw new Error('media backup copy --to=<disk> [--yes] (media backup drives lists them)');
+        const r = await copyToDisk(lib, flag('to')!, { yes: has('yes'), log: s => console.log(s) });
+        console.log(`${r.todo.length} files (${size(r.bytes)}) → ${r.target}`);
+        if (!has('yes')) return console.log('Dry run: add --yes.');
+        console.log(`✔ copied and checked ${r.done}${r.bad.length ? `; ${r.bad.length} didn't check out and were removed from the disk:\n  ${r.bad.join('\n  ')}` : ''}`);
+        return;
+      }
+      if (op === 'list') {
+        const files = listBackup(lib, paths, { channel: flag('channel'), disk: flag('disk') });
+        for (const f of files) console.log(`${f.rel.padEnd(70)} ${size(f.bytes).padStart(9)}  ${[f.here ? 'staged here' : '', ...f.disks.map(d => `on ${d}`)].filter(Boolean).join(', ') || 'nowhere now'}`);
+        return console.log(`${files.length} files, ${size(files.reduce((n, f) => n + f.bytes, 0))}`);
+      }
+      throw new Error('media backup add|drives|copy|list …');
+    }
+    case 'restore': {
+      if (!rest.length) throw new Error('media restore <words>… [--from=<disk>] [--to=<folder>] [--channel=] [--yes]');
+      const r = await restore(lib, rest, { from: flag('from'), to: flag('to'), channel: flag('channel'), yes: has('yes') });
+      for (const p of r.picks) console.log(`${p.available ? (has('yes') ? '✔' : '→') : '✖'} ${p.entry.rel}  →  ${p.dest}${p.available ? '' : `  (not in ${r.source}${p.entry.disks.length ? `; it's on ${p.entry.disks.join(', ')}: --from=<that disk>` : ''})`}`);
+      if (!r.picks.length) return console.log('Nothing in the backup matches (media backup list shows what is there).');
+      console.log(has('yes') ? `✔ restored and checked ${r.done}${r.bad.length ? `; ${r.bad.length} didn't match their hash and were removed:\n  ${r.bad.join('\n  ')}` : ''}` : 'Dry run: add --yes.');
+      return;
     }
     case 'status':
       return status(lib);

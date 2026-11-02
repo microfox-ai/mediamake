@@ -99,6 +99,7 @@ Housekeeping: disk space, archives and backups
 |---|---|---|
 | [`cleanup-downloads`](.agents/skills/cleanup-downloads/SKILL.md) | public | Sort the media lying around the Mac — loose files at the top of ~/Downloads and of the channel folders (twixtor packs, Suno mixes, Midjourney images, stock clips), the… |
 | [`cleanup-out`](.agents/skills/cleanup-out/SKILL.md) | public | Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol… |
+| [`restore-backup`](.agents/skills/restore-backup/SKILL.md) | public | Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVE… |
 
 ## skill
 
