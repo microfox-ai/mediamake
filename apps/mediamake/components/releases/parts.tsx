@@ -12,6 +12,18 @@ export function TierPill({ tier, className }: { tier: ReleaseTier; className?: s
   );
 }
 
+/** Next to the tier of an archived item: still open as before, left off the homepage. */
+export function ArchivedPill({ className }: { className?: string }) {
+  return (
+    <span
+      title="Archived: left off the homepage, still installs by its link"
+      className={cn('inline-flex w-fit shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground', className)}
+    >
+      Archived
+    </span>
+  );
+}
+
 /** A titled card, as the release pages lay out their sections. */
 export function Panel({
   title,

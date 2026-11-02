@@ -10,10 +10,11 @@ import {
   accessGroupsDB,
   accessInvitesDB,
   accessRequestsDB,
+  catalogArchiveDB,
   catalogItemsDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
-import { cardRecords, skillRecords, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
+import { cardRecords, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import {
   CATALOG_KINDS,
@@ -26,6 +27,7 @@ import {
   catalogItemId,
   parseCatalogItemId,
   isValidSlug,
+  withArchive,
   type CatalogKind,
   type CatalogStatus,
   type GrantSubject,
@@ -59,9 +61,9 @@ async function listPeople() {
  * Everything an admin needs to manage releases: items (with versions),
  * the repo's skills from skills.json, the third-party items from
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
- * aren't stored as items, live grants, groups, invites, pending access
- * requests, the people who hold API keys, and whether public releases are
- * open site-wide.
+ * aren't stored as items (archived ones carry `archivedAt`), live grants,
+ * groups, invites, pending access requests, the people who hold API keys,
+ * and whether public releases are open site-wide.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -70,19 +72,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, invites, requests, people] = await Promise.all([
+  const [items, grants, groups, invites, requests, people, archived] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
     accessInvitesDB.list(),
     accessRequestsDB.list('pending'),
     listPeople(),
+    catalogArchiveDB.list(),
   ]);
   return NextResponse.json({
-    items: items.map(withRegistryUses),
-    skills: skillRecords(items),
-    thirdParty: thirdPartyRecords(items),
-    cards: cardRecords(items),
+    items: withArchive(items.map(withRegistryUses), archived),
+    skills: withArchive(skillRecords(items), archived),
+    thirdParty: withArchive(thirdPartyRecords(items), archived),
+    cards: withArchive(cardRecords(items), archived),
     grants,
     groups,
     invites,
@@ -203,6 +206,9 @@ function daysFromNow(days?: number) {
  *                             (moves a development item to community now; it goes public by itself at that time)
  *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays a community item)
  *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (vault: admins and explicit grants only)
+ *  { type: 'set_archived',    itemIds: string[] (or itemId), archived: boolean, note? }
+ *                             (archived items keep their access and install by link, but leave the homepage;
+ *                             any item, a skill from the repo too)
  *  { type: 'set_tier',        clientId, tier: 'public' | 'community' | 'private' }
  *                             (moves a person between the private and network groups)
  *  { type: 'remove_item',     itemId }
@@ -289,6 +295,19 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         return bad((error as Error).message);
       }
+    }
+
+    case 'set_archived': {
+      const ids = [...new Set<string>(Array.isArray(body.itemIds) ? body.itemIds : body.itemId ? [body.itemId] : [])];
+      if (!ids.length || ids.length > 200 || ids.some(id => typeof id !== 'string')) return bad('itemIds is required: 1 to 200 item ids');
+      if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return bad('note must be text of 500 characters or fewer');
+      // any item the catalog knows: one the repo defines, or a stored one
+      const unknown: string[] = [];
+      for (const id of ids) if (!staticRecord(id) && !(await catalogItemsDB.get(id))) unknown.push(id);
+      if (unknown.length) return NextResponse.json({ error: `Unknown item${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}` }, { status: 404 });
+      const archived = body.archived !== false;
+      await catalogArchiveDB.set(ids, archived, adminId, body.note?.trim() || undefined);
+      return NextResponse.json({ archived, itemIds: ids });
     }
 
     case 'remove_item': {

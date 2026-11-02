@@ -43,6 +43,20 @@ not overdo … and if it is simple, you need not even upscale unnecessarily wast
    with a price (fal SeedVR2 ≈ $0.001 per output megapixel) and run only on a yes. A quick cover from
    a big enough picture costs nothing.
 
+## First: check the MCPs
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/fal` | recommended | Upscaling a small source picture (`fal-ai/seedvr/upscale/image`), outcropping it to a square, and Spotify Canvas videos (paid: asked first, with the price) | Covers only from pictures big enough already: a small one stays soft at 3000 px, and no fal outcrop or Canvas video |
+| `mcp/browse-hack` | optional | Midjourney outcrops, upscales and new pictures in the user's Chrome (`midjourney-outcrop`) | Outcrops and new pictures come from fal or the user |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say at intake what it costs and offer to install it from MediaMake ("Set up
+mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
+
 ## 1. Intake (one round)
 
 `AskUserQuestion`, recommended option first; skip what's answered and say what you assumed:

@@ -10,6 +10,7 @@ import {
   type AccessInvite,
   type AccessRequest,
   type AccessRequestStatus,
+  type ArchiveMark,
   type CatalogDownload,
   type CatalogItem,
   type CatalogItemRecord,
@@ -23,6 +24,7 @@ import {
 
 const COL = {
   items: 'catalog_items',
+  archive: 'catalog_archive',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -58,6 +60,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.requests).createIndex({ requestId: 1 }, { unique: true });
   await db.collection(COL.requests).createIndex({ status: 1, createdAt: -1 });
   await db.collection(COL.downloads).createIndex({ itemId: 1, at: -1 });
+  await db.collection(COL.archive).createIndex({ id: 1 }, { unique: true });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -284,6 +287,43 @@ export const catalogItemsDB = {
       .sort({ at: -1 })
       .limit(limit)
       .toArray();
+  },
+};
+
+// ── Archive ──────────────────────────────────────────────────────────────────
+
+/** Archived items (see ArchiveMark): any id, a skill from the repo too, so kept apart from the items. */
+export const catalogArchiveDB = {
+  async list(): Promise<ArchiveMark[]> {
+    const db = await getDatabase();
+    return db.collection<ArchiveMark>(COL.archive).find({}, { projection: { _id: 0 } }).toArray();
+  },
+
+  async get(id: string): Promise<ArchiveMark | null> {
+    const db = await getDatabase();
+    return db.collection<ArchiveMark>(COL.archive).findOne({ id }, { projection: { _id: 0 } });
+  },
+
+  /**
+   * Archives the items (one archived already keeps its date; a new note
+   * replaces the old one) or takes them out of the archive.
+   */
+  async set(ids: string[], archived: boolean, actor?: string, note?: string) {
+    const db = await getDatabase();
+    if (!archived) {
+      await db.collection<ArchiveMark>(COL.archive).deleteMany({ id: { $in: ids } });
+      return;
+    }
+    const now = nowISO();
+    await db.collection<ArchiveMark>(COL.archive).bulkWrite(
+      ids.map(id => ({
+        updateOne: {
+          filter: { id },
+          update: { $setOnInsert: withoutUndefined({ id, at: now, by: actor }), ...(note ? { $set: { note } } : {}) },
+          upsert: true,
+        },
+      })),
+    );
   },
 };
 

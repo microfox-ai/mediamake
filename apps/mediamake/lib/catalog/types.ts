@@ -153,6 +153,12 @@ export interface CatalogItem {
   publicAt?: string;
   /** Set when someone else makes it (see MadeBy). Such an item is always public. */
   madeBy?: MadeBy;
+  /**
+   * When an admin archived it (see ArchiveMark: kept apart from the item, so
+   * any item can be archived, a skill from the repo too). An archived item
+   * keeps its access and installs by its link, but leaves the homepage.
+   */
+  archivedAt?: string;
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;
@@ -300,6 +306,24 @@ export interface CatalogItemRecord extends CatalogItem {
 /** True when the item has something to install: a published package of ours, or a source. */
 export function isInstallable(record: Pick<CatalogItemRecord, 'versions' | 'install'>): boolean {
   return record.versions.length > 0 || !!record.install?.source;
+}
+
+/**
+ * An archived item, in MongoDB `catalog_archive`: unused or no longer
+ * important, so left off the homepage (and sunk to the end of /skills). It
+ * stays public, or as shared as it was, and installs by its link.
+ */
+export interface ArchiveMark {
+  id: string;
+  at: string;
+  by?: string;
+  note?: string;
+}
+
+/** The items with `archivedAt` set on the archived ones. */
+export function withArchive<T extends { id: string; archivedAt?: string }>(items: T[], marks: ArchiveMark[]): T[] {
+  const at = new Map(marks.map(mark => [mark.id, mark.at]));
+  return items.map(item => (at.has(item.id) ? { ...item, archivedAt: at.get(item.id) } : item));
 }
 
 export type CatalogEntry = CatalogItem & {

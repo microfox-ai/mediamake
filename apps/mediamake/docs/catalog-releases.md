@@ -122,6 +122,41 @@ The page reads `GET /api/admin/catalog/item?id=<id>`, which changes nothing
 `npm run catalog` prints the item's page after each step, and Claude gives
 it to you after any release (the rule is in the repo's CLAUDE.md).
 
+## Archiving
+
+An item that is unused or no longer important can be **archived**: it leaves
+the homepage (every tab) and moves to a folded **archived** group at the end
+of `/skills`, but nothing else changes. It keeps its tier and access, its page
+and install prompt still work, and items that need or use it still install
+it. Any item can be archived, a skill from the repo too, so the archive is
+kept apart from the items, in MongoDB `catalog_archive` (`ArchiveMark`:
+when, by whom, and an optional note shown on its release page). `/skills`
+picks changes up within five minutes; the homepage and the release pages at
+once.
+
+- On the item's release page: **Archive** / **Unarchive**.
+- From a terminal: `npm run catalog -- archive skill/a skill/b [--note "why"]`,
+  and `--off` to bring them back.
+- From Claude: the MediaMake MCP's `catalog_archive` (below).
+- Admin API: `{ type: 'set_archived', itemIds, archived, note? }`.
+
+## From Claude: the MediaMake MCP's catalog tools
+
+The MediaMake MCP (the hosted connector at `/mcp`, or the local `.mcpb`)
+manages the catalog for admins, so releases can be run by asking Claude.
+They call the admin API with the person's own key, so they work only for
+admins, and each answers with the release page of every item it touched.
+
+| Tool | Does |
+| --- | --- |
+| `catalog_items` | Every item in a line (`GET /api/admin/catalog/items`): tier, where it comes from, archived, what it works with, what uses it, its page. Filters: kind, tier, archived, words. |
+| `catalog_item` | One item's page as data: access and grants, where it lives, the install steps and choices, what uses it, versions and notes. |
+| `catalog_archive` | Archive items, or bring them back (`archived: false`), with a note. |
+| `catalog_set_stage` | Move one of our apps, MCPs or tutorials to development, community (optionally with a gate), public or the vault, taking it out of the vault first when needed. Skills and items made by others refuse: archive them instead. |
+| `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
+| `catalog_invite` | An invite link that opens gated items for the people it is sent to. |
+| `catalog_versions` | Live versions and release notes (anyone, for updates). |
+
 ## Tiers
 
 Every item sits in one tier, and every person belongs to one. The admin
@@ -427,7 +462,9 @@ session cookie or Bearer key themselves):
 | `POST /api/catalog/update-token { token? }` (Bearer install code) | Trades an install code for an update token (or adds the item to `token`) |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
-| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish` |
+| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived` |
+| `GET /api/admin/catalog/items[?kind=][&tier=][&archived=][&q=]` | Admin: every item in a line (`ItemSummary`), read-only |
+| `GET /api/admin/catalog/item?id=<id>` | Admin: one item as its release page shows it, read-only |
 
 `MEDIAMAKE_ACCESS_GRANTS=clientId:skill/lyric-video|mcp/*,clientId2:*` still works as a
 fallback when no database is configured.

@@ -6,11 +6,12 @@ import {
   type AccessGroup,
   type AccessInvite,
   type AccessRequest,
+  type ArchiveMark,
   type CatalogItemRecord,
   type ReleaseTier,
-  type UseNeed,
 } from '@/lib/catalog/types';
 import type { InstallPlan } from '@/lib/catalog/plan';
+import type { UsedBy } from '@/lib/catalog/summary';
 
 export { COMMUNITY_GROUP, PRIVATE_GROUP };
 
@@ -62,7 +63,9 @@ export interface ItemDetail {
   /** What installing it does, as an admin would get it. */
   plan: InstallPlan;
   /** Items that need it installed first (`requires`) or offer it as a choice (`uses`). */
-  usedBy: { id: string; title: string; how: 'requires' | 'uses'; need?: UseNeed; for?: string }[];
+  usedBy: UsedBy[];
+  /** Set when it is archived: when, by whom, and why. */
+  archive: ArchiveMark | null;
   /** Titles by id, for everything in the catalog. */
   names: Record<string, string>;
   installPrompt?: string;
@@ -79,22 +82,7 @@ export async function fetchItemDetail(id: string): Promise<ItemDetail> {
   return json as ItemDetail;
 }
 
-/** An item's release page, e.g. /core/releases/mcp/browse-hack. Release commands print it too. */
-export function itemPath(id: string) {
-  return `/core/releases/${id}`;
-}
-
-/**
- * Where an item comes from, in a few words: our package, a skill in the repo,
- * an open-source or hosted item made by others, or a page of the app.
- */
-export function originOf(item: CatalogItemRecord): string {
-  if (item.madeBy) return `${item.madeBy.repo ? 'Open source' : 'Hosted'} · ${item.madeBy.name}`;
-  if (item.versions.length) return `Our package · v${item.versions[item.versions.length - 1].version}`;
-  if (item.install?.source?.type === 'github-skill') return 'Skill in the repo';
-  if (item.href) return 'Page in the app';
-  return 'Nothing released yet';
-}
+export { itemPath, originOf } from '@/lib/catalog/summary';
 
 export const TIER_META: Record<
   ReleaseTier,

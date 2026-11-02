@@ -27,7 +27,8 @@ A project holds timelines. A timeline is a list of preset instances (a full/scen
 Timelines come in three formats: "tree" (current, has a nodes instance tree), "flat" (older, presets only) and "legacy-preset-data" (oldest, deprecated). Learn from tree timelines first.
 Typical flows: transcribe a song -> create_timeline / add_preset_to_timeline -> render_presets or render. Use survey_timelines and get_timeline to see how existing videos are built before making new ones.
 A project is a channel or brand: get_brand_kit has its look, list_generations its song takes made with Suno (rated keeper, maybe or reject with rate_generation).
-Workers (run_worker) and renders cost money; confirm with the user before large batches.`;
+Workers (run_worker) and renders cost money; confirm with the user before large batches.
+Admins manage the catalog (skills, MCPs, apps, tutorials) with catalog_items, catalog_item, catalog_archive, catalog_set_stage, catalog_add_third_party and catalog_invite. Each answers with the items' release pages: give the user those links after every change.`;
 
 const HOSTED_NOTE = `
 This is the hosted connector: it runs on the Mediamake servers and cannot read or write files on the user's computer. Bring media in by public https URL (upload_media with sourceUrl). upload_brand_kit takes the kit's file list and returns upload URLs for the big files: PUT them (curl from the kit folder), then call finish_brand_kit_upload.`;

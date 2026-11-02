@@ -79,8 +79,20 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
 | Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
 | Catalog                | `catalog_versions` (live version numbers and release notes of skills, MCPs and apps)                                                                                                        |
+| Catalog, admins only   | `catalog_items`, `catalog_item`, `catalog_archive`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite` (see "Managing the catalog")                                         |
 
 There are no delete tools on purpose.
+
+### Managing the catalog
+
+Admins run MediaMake's releases from Claude with the catalog tools; for anyone else the API answers
+403. `catalog_items` lists every skill, MCP, app and tutorial with who can open it, where it comes from
+and whether it is archived; `catalog_item` shows one in full. `catalog_archive` takes unused items off
+the homepage (they stay public and installable by their link), `catalog_set_stage` moves our apps,
+MCPs and tutorials between development, community, public and the vault, `catalog_add_third_party`
+lists an open-source or hosted MCP or skill made by others, and `catalog_invite` makes an invite link.
+Every answer carries the release page of each item (`/core/releases/<kind>/<slug>`) to give the user.
+See [catalog-releases.md](../../apps/mediamake/docs/catalog-releases.md).
 
 ### Timeline formats
 

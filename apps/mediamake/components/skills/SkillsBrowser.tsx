@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckIcon, CopyIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon, SearchIcon, SparklesIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, CopyIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon, SearchIcon, SparklesIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { NeedBadge } from '@/components/catalog/uses';
@@ -72,24 +72,29 @@ export function SkillsBrowser({
   registry,
   naming,
   installPrompts = {},
+  archived = [],
 }: {
   registry: SkillsRegistry | null;
   naming: { pattern: string; about: string }[];
   /** The install prompt per skill name (made on the server, which knows the site's URL). */
   installPrompts?: Record<string, string>;
+  /** Skills an admin archived: still public, listed last and folded away. */
+  archived?: string[];
 }) {
   const [query, setQuery] = useState('');
 
   const all = registry?.skills ?? [];
-  const categories = useMemo(() => {
+  const { categories, shelved } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (registry?.categories ?? [])
-      .map(c => ({
-        ...c,
-        skills: (registry?.skills ?? []).filter(s => s.category === c.id && (!q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q))),
-      }))
-      .filter(c => c.skills.length);
-  }, [registry, query]);
+    const shelf = new Set(archived);
+    const matches = (registry?.skills ?? []).filter(s => !q || `${s.name} ${s.summary} ${s.variantOf ?? ''}`.toLowerCase().includes(q));
+    return {
+      categories: (registry?.categories ?? [])
+        .map(c => ({ ...c, skills: matches.filter(s => s.category === c.id && !shelf.has(s.name)) }))
+        .filter(c => c.skills.length),
+      shelved: matches.filter(s => shelf.has(s.name)),
+    };
+  }, [registry, query, archived]);
 
   if (!registry)
     return (
@@ -129,7 +134,7 @@ export function SkillsBrowser({
           </div>
         </div>
 
-        {categories.length === 0 && <p className="text-sm text-muted-foreground">No skill matches.</p>}
+        {categories.length === 0 && shelved.length === 0 && <p className="text-sm text-muted-foreground">No skill matches.</p>}
 
         {categories.map(c => (
           <section key={c.id} className="flex flex-col gap-3">
@@ -144,6 +149,24 @@ export function SkillsBrowser({
             </div>
           </section>
         ))}
+
+        {shelved.length > 0 && (
+          // open while searching, so a match in the archive isn't hidden
+          <details open={!!query.trim()} className="group flex flex-col gap-3">
+            <summary className="flex cursor-pointer list-none items-baseline gap-3 border-b pb-2 [&::-webkit-details-marker]:hidden">
+              <h2 className="font-mono text-base font-semibold">archived</h2>
+              <span className="text-sm text-muted-foreground">
+                {shelved.length} skill{shelved.length === 1 ? '' : 's'} not in use: still public, left off the homepage
+              </span>
+              <ChevronDownIcon className="ml-auto size-4 self-center text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-3 grid gap-3 opacity-70 sm:grid-cols-2 lg:grid-cols-3">
+              {shelved.map(s => (
+                <SkillCard key={s.name} skill={s} installPrompt={installPrompts[s.name]} />
+              ))}
+            </div>
+          </details>
+        )}
       </div>
     </main>
   );

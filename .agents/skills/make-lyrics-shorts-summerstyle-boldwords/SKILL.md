@@ -210,6 +210,20 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    itself, a slow push-in, hard cuts, 2560×1440) — then segregated like any footage.
 3. **A style reference** (optional): a reel whose look they want; this skill's default is the one above.
 
+MCPs (check at intake which this session has; ElevenLabs transcription goes through its API directly):
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/mediamake` | recommended | The song's timed words from MediaMake's transcriptions, free (`list_transcriptions`, `get_transcription`) | Transcribe the song with ElevenLabs instead (paid, asked first) |
+| `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say what it costs before starting and offer to install it from MediaMake ("Set
+up mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
+
 ## Workflow
 
 ### 0. Intake (short)
