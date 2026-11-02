@@ -15,3 +15,16 @@ media library and reused by every production. Where it is on this machine is in
 - Deliver to the channel folders in Downloads only what the user approved (`media deliver`).
 - Never move or rename library files by hand (`media mv`).
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
+
+## Releases: always give the item's link
+
+Every catalog item (skill, MCP, app, tutorial) has a page for admins,
+`https://mediamake.microfox.app/core/releases/<kind>/<slug>` (e.g. `/core/releases/mcp/browse-hack`):
+what it is, who can open it, where it lives, what installing it does, and what needs or uses it.
+`/core/releases` lists every item.
+
+- After any release step, give the user the link of each item it touched: `npm run catalog --
+  release | add | promote | schedule | vault | grant` (they print it), a workflow that publishes a
+  release, a new or changed skill, or an edit to `apps/mediamake/lib/catalog/third-party.json`. For
+  a new version, link `…/core/releases/<kind>/<slug>#v<version>`.
+- How releases work: `apps/mediamake/docs/catalog-releases.md`.

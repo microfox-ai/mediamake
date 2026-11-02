@@ -12,6 +12,10 @@ a skill holds a key or a path on this machine, in CI too. The mediamake app show
 [`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy, and in the Library
 (`/library`) with each skill's runs and outputs.
 
+A skill names the MCPs it works with in a `| MCP | Need | Used for | Without it |` table in its
+SKILL.md (see `publish-skill`): it checks them when it runs, and installing it from MediaMake offers
+each one, saying what it is for and what the skill loses without it.
+
 ## Naming
 
 A skill is named `<verb>-<thing>`; the verb is its category:
@@ -41,9 +45,9 @@ Media making: videos and audio (the only skills that start with make-)
 |---|---|---|
 | [`make-loudness-remaster`](.agents/skills/make-loudness-remaster/SKILL.md) | public | Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make… |
 | [`make-lyrics-shorts-summerstyle-boldwords`](.agents/skills/make-lyrics-shorts-summerstyle-boldwords/SKILL.md) | public | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… |
-| [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… |
+| [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… MCPs: browse-hack (recommended), fal (optional), blender (optional). |
 | [`make-lyrics-video-like-nakama`](.agents/skills/make-lyrics-video-like-nakama/SKILL.md) (variant of `make-lyrics-video`) | public | Variant of make-lyrics-video in the style of the Nakama! lyric video (projects/nakama, Anime Music Zone, finished 2026-10-27): the song as a captain's logbook lying on… |
-| [`make-video-music-remix`](.agents/skills/make-video-music-remix/SKILL.md) | public | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… |
+| [`make-video-music-remix`](.agents/skills/make-video-music-remix/SKILL.md) | public | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… MCPs: browse-hack (recommended), elevenlabs (optional). |
 | [`make-video-music-remix-like-f1xhitit`](.agents/skills/make-video-music-remix-like-f1xhitit/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
 | [`make-video-music-remix-like-quicksilverxkingpin`](.agents/skills/make-video-music-remix-like-quicksilverxkingpin/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero… |
 | [`make-video-music-remix-shorts`](.agents/skills/make-video-music-remix-shorts/SKILL.md) | public | Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style… |
@@ -64,8 +68,8 @@ Kits and packs that bundle several outputs
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo an… |
-| [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio… |
+| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo an… MCPs: elevenlabs (required), browse-hack (recommended), fal (optional). |
+| [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio… MCPs: browse-hack (recommended). |
 
 ## revise
 

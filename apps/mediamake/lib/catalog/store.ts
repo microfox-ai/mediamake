@@ -180,10 +180,19 @@ export const catalogItemsDB = {
         },
       );
     }
-    // Skills are always public: record any stored as private or network (from before that rule) as public.
+    // Skills and items made by others are always public: record any stored as private or network
+    // (from before that rule) as public.
     const skills = await db
       .collection<CatalogItemRecord>(COL.items)
-      .find({ kind: { $in: ALWAYS_PUBLIC_KINDS }, $or: [{ visibility: { $ne: 'public' } }, { neverPublish: true }, { publicAt: { $exists: true } }] }, { projection: { _id: 0, id: 1, stageHistory: 1 } })
+      .find(
+        {
+          $and: [
+            { $or: [{ kind: { $in: ALWAYS_PUBLIC_KINDS } }, { madeBy: { $exists: true } }] },
+            { $or: [{ visibility: { $ne: 'public' } }, { neverPublish: true }, { publicAt: { $exists: true } }] },
+          ],
+        },
+        { projection: { _id: 0, id: 1, stageHistory: 1 } },
+      )
       .toArray();
     for (const item of skills) {
       const firstTime = !item.stageHistory?.some(h => h.visibility === 'public');

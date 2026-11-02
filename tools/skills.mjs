@@ -33,6 +33,18 @@
  * frontmatter metadata, plus `forked-from: <base>@<commit>` when `fork` made it. `metadata.category`
  * overrides the verb. A skill that needs another skill's output says so in `metadata.depends-on`
  * (comma-separated names); the dependency is one-way.
+ *
+ * The MCPs a skill works with go in one table in its SKILL.md (by convention under
+ * `## First: check the MCPs`), which the skill reads when it runs and the catalog offers when it is
+ * installed (as choices, saying what each one is for and what the skill loses without it):
+ *
+ *   | MCP | Need | Used for | Without it |
+ *   |---|---|---|---|
+ *   | `mcp/elevenlabs` | required | sound effects for intros and end screens | no sound at all |
+ *
+ * Need is required (its main job needs it), recommended or optional; no `|` inside a cell. The
+ * MCPs are catalog items: ours, or ones made by others listed in
+ * apps/mediamake/lib/catalog/third-party.json. `check` fails on a malformed table.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -45,7 +57,15 @@ const CLAUDE = path.join(ROOT, '.claude', 'skills');
 const AGENTS = path.join(ROOT, '.agents', 'skills');
 const INDEX = path.join(ROOT, 'SKILLS.md');
 const REGISTRY = path.join(ROOT, 'skills.json');
+const LOCK = path.join(ROOT, 'skills-lock.json');
+const THIRD_PARTY = path.join(ROOT, 'apps', 'mediamake', 'lib', 'catalog', 'third-party.json');
 export const REGISTRY_SCHEMA = 'mediamake.skills/v1';
+
+/** How much a skill gets out of an MCP it uses (UseNeed in apps/mediamake/lib/catalog/types.ts). */
+export const NEEDS = ['required', 'recommended', 'optional'];
+/** Our own MCPs, released through the catalog rather than listed in third-party.json. */
+const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
+const MCP_HEADER = /^\|\s*MCP\s*\|\s*Need\s*\|\s*Used for\s*\|\s*Without it\s*\|$/i;
 
 /** Category by name prefix: what each verb means. Order is the order in SKILLS.md. */
 export const CATEGORIES = [
@@ -122,9 +142,67 @@ const variantRefOf = (name, base, meta) => {
   return name.slice(base.length + 1).replace(/^like-/, '') || undefined;
 };
 
+/** Markdown emphasis and code marks off a table cell: the catalog shows it as plain text. */
+const plainCell = s => s.replace(/\*\*|__|`/g, '').trim();
+
+/**
+ * The MCPs a skill works with, from the `| MCP | Need | Used for | Without it |` table in its
+ * SKILL.md (see the header comment), and what is wrong with the table, by line.
+ */
+const mcpTable = file => {
+  const lines = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').split('\n');
+  // a table shown as an example, inside a code block, is not the skill's own
+  let fenced = false;
+  const start = lines.findIndex(line => {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    return !fenced && MCP_HEADER.test(line.trim());
+  });
+  const mcps = [];
+  const errors = [];
+  if (start < 0) return { mcps, errors };
+  if (!/^\|[\s:|-]+\|$/.test(lines[start + 1]?.trim() ?? '')) errors.push(`SKILL.md:${start + 2}: the MCP table needs its |---| row under the header`);
+  for (let i = start + 2; i < lines.length && lines[i].trim().startsWith('|'); i++) {
+    const at = `SKILL.md:${i + 1}`;
+    const cells = lines[i].trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    if (cells.length !== 4) {
+      errors.push(`${at}: an MCP row has 4 cells (MCP | Need | Used for | Without it), this one ${cells.length}; no | inside a cell`);
+      continue;
+    }
+    const [rawId, rawNeed, usedFor, without] = cells;
+    const id = plainCell(rawId);
+    const need = plainCell(rawNeed).toLowerCase();
+    if (!/^mcp\/[a-z0-9][a-z0-9-]{0,63}$/.test(id)) errors.push(`${at}: "${rawId}" isn't a catalog MCP id like \`mcp/elevenlabs\``);
+    else if (!NEEDS.includes(need)) errors.push(`${at}: need "${rawNeed}" isn't one of ${NEEDS.join(', ')}`);
+    else if (!plainCell(usedFor) || !plainCell(without)) errors.push(`${at}: say what ${id} is used for and what the skill loses without it`);
+    else if (mcps.some(m => m.id === id)) errors.push(`${at}: ${id} is in the table twice`);
+    else mcps.push({ id, need, for: plainCell(usedFor), without: plainCell(without) });
+  }
+  return { mcps, errors };
+};
+
+/** skills-lock.json: skills vendored from other repos (`npx skills add`), by name → `owner/repo`. */
+const vendored = () => {
+  try {
+    const lock = JSON.parse(fs.readFileSync(LOCK, 'utf8'));
+    return new Map(Object.entries(lock.skills ?? {}).filter(([, s]) => s.sourceType === 'github' && s.source).map(([name, s]) => [name, s.source]));
+  } catch {
+    return new Map();
+  }
+};
+
+/** The MCP ids listed in third-party.json. */
+const thirdPartyIds = () => {
+  try {
+    return new Set(JSON.parse(fs.readFileSync(THIRD_PARTY, 'utf8')).items.map(item => item.id));
+  } catch {
+    return new Set();
+  }
+};
+
 /** Every skill in .claude/skills (and public ones not linked yet). */
 export const allSkills = () => {
   const names = new Set([...(fs.existsSync(CLAUDE) ? fs.readdirSync(CLAUDE) : []), ...(fs.existsSync(AGENTS) ? fs.readdirSync(AGENTS) : [])]);
+  const upstreams = vendored();
   const skills = [];
   for (const name of [...names].sort()) {
     const link = path.join(CLAUDE, name);
@@ -136,6 +214,7 @@ export const allSkills = () => {
     if (!fs.existsSync(path.join(dir, 'SKILL.md'))) continue;
     const fm = frontmatter(path.join(dir, 'SKILL.md'));
     const variantOf = fm.metadata['variant-of'];
+    const { mcps, errors: mcpErrors } = mcpTable(path.join(dir, 'SKILL.md'));
     skills.push({
       name,
       dir,
@@ -149,6 +228,9 @@ export const allSkills = () => {
       forkedFrom: fm.metadata['forked-from'],
       forked: fm.metadata.forked,
       dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
+      mcps,
+      mcpErrors,
+      upstream: upstreams.get(name),
       version: fm.version ?? fm.metadata.version,
       description: fm.description ?? '',
       frontName: fm.name,
@@ -163,6 +245,9 @@ const summary = d => {
   return first.length > 170 ? `${first.slice(0, 167).trimEnd()}…` : first;
 };
 
+/** "elevenlabs (required), browse-hack (recommended)". */
+const mcpList = mcps => mcps.map(m => `${m.id.slice('mcp/'.length)} (${m.need})`).join(', ');
+
 const list = () => {
   let skills = allSkills();
   const cat = flag('category');
@@ -172,7 +257,7 @@ const list = () => {
     const group = skills.filter(s => s.category === c.id);
     if (!group.length) continue;
     console.log(`\n${c.id} · ${c.about}`);
-    for (const s of group) console.log(`  ${s.moved ? '●' : '○'} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.dependsOn.length ? ` (needs ${s.dependsOn.join(', ')})` : ''}${s.linked ? '' : '  [not linked in .claude/skills]'}`);
+    for (const s of group) console.log(`  ${s.moved ? '●' : '○'} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.dependsOn.length ? ` (needs ${s.dependsOn.join(', ')})` : ''}${s.mcps.length ? ` (MCPs: ${mcpList(s.mcps)})` : ''}${s.linked ? '' : '  [not linked in .claude/skills]'}`);
   }
   console.log('\n● in .agents/skills  ○ a folder in .claude/skills, not moved yet (run: node tools/skills.mjs add --all)');
 };
@@ -187,6 +272,10 @@ export const checks = skill => {
   if (skill.frontName !== skill.name) problems.push(`SKILL.md says name: ${skill.frontName}, the folder is ${skill.name}`);
   const names = new Set(allSkills().map(s => s.name));
   for (const d of skill.dependsOn) if (!names.has(d)) notes.push(`depends on ${d}, which isn't a skill in this repo`);
+  const listed = thirdPartyIds();
+  for (const m of skill.mcps) {
+    if (!listed.has(m.id) && !OUR_MCPS.has(m.id)) notes.push(`uses ${m.id}, which isn't one of ours or in ${rel(THIRD_PARTY)}: list it there so installs can offer it`);
+  }
   const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   for (const file of walk(skill.dir)) {
     const size = fs.statSync(file).size;
@@ -220,6 +309,10 @@ const renderIndex = skills => {
     '[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy, and in the Library',
     '(`/library`) with each skill\'s runs and outputs.',
     '',
+    'A skill names the MCPs it works with in a `| MCP | Need | Used for | Without it |` table in its',
+    'SKILL.md (see `publish-skill`): it checks them when it runs, and installing it from MediaMake offers',
+    'each one, saying what it is for and what the skill loses without it.',
+    '',
     '## Naming',
     '',
     'A skill is named `<verb>-<thing>`; the verb is its category:',
@@ -239,7 +332,8 @@ const renderIndex = skills => {
     out.push(`## ${c.id}`, '', c.about, '', '| Skill | Visibility | What it does |', '|---|---|---|');
     for (const s of group) {
       const name = `[\`${s.name}\`](${rel(s.dir)}/SKILL.md)`;
-      out.push(`| ${name}${s.variantOf ? ` (variant of \`${s.variantOf}\`)` : ''} | public | ${summary(s.description).replace(/\|/g, '/')} |`);
+      const mcps = s.mcps.length ? ` MCPs: ${mcpList(s.mcps)}.` : '';
+      out.push(`| ${name}${s.variantOf ? ` (variant of \`${s.variantOf}\`)` : ''} | public | ${summary(s.description).replace(/\|/g, '/')}${mcps} |`);
     }
     out.push('');
   }
@@ -261,6 +355,8 @@ const renderRegistry = skills => {
       variantRef: s.variantRef,
       forkedFrom: s.forkedFrom,
       dependsOn: s.dependsOn.length ? s.dependsOn : undefined,
+      mcps: s.mcps.length ? s.mcps : undefined,
+      upstream: s.upstream,
       version: s.version,
     };
     return Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== ''));
@@ -323,10 +419,16 @@ const leaks = () => {
   return found.length ? `Every skill is public, and these must not be committed:\n${found.map(f => `  ✖ ${f}`).join('\n')}\nUse a repo-relative path or an env var name instead.` : null;
 };
 
+/** Malformed MCP tables in any skill, as one message, or null. */
+const mcpTables = () => {
+  const found = allSkills().flatMap(s => s.mcpErrors.map(e => `${s.name}/${e}`));
+  return found.length ? `These MCP tables can't be read (| MCP | Need | Used for | Without it |, need: ${NEEDS.join(' / ')}):\n${found.map(f => `  ✖ ${f}`).join('\n')}` : null;
+};
+
 const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
-  const stale = [staleness(), leaks()].filter(Boolean).join('\n') || null;
+  const stale = [staleness(), leaks(), mcpTables()].filter(Boolean).join('\n') || null;
   if (!stale) return hook ? undefined : console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} are up to date`);
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
@@ -349,7 +451,8 @@ const add = () => {
   let failed = false;
   for (const skill of skills) {
     if (skill.moved) throw new Error(`${skill.name} is in .agents/skills already`);
-    const { problems, notes } = checks(skill);
+    const { problems: leaked, notes } = checks(skill);
+    const problems = [...leaked, ...skill.mcpErrors];
     for (const p of problems) console.log(`✖ ${skill.name}: ${p}`);
     for (const n of notes) console.log(`⚠ ${skill.name}: ${n}`);
     if (problems.length) {

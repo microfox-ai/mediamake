@@ -15,17 +15,112 @@ items stored with another stage from before this rule are moved to public the
 next time the dashboard loads). Everything below about stages, gates and the
 vault is for apps, MCPs and tutorials.
 
+**So are items made by others.** An open-source MCP or skill, or an MCP its
+maker hosts, that an admin lists in the catalog (ElevenLabs, fal, Blender)
+has nothing of ours in it to hold back: it is always public too, and it
+installs from where it lives, not from a package of ours. See
+[Items made by others](#items-made-by-others).
+
 ## Where things live
 
 | What | Where | Public? |
 | --- | --- | --- |
 | Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
+| MCPs and skills made by others | `lib/catalog/third-party.json` (committed), or MongoDB `catalog_items` for ones added with `npm run catalog -- add` | Yes, always |
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
 | Grants, groups, invites, requests, download log | MongoDB `access_grants`, `access_groups`, `access_invites`, `access_requests`, `catalog_downloads` | No |
 
 Item ids look like `mcp/browse-hack` or `skill/lyric-video`.
+
+## Items made by others
+
+MediaMake also lists MCPs and skills we don't build, so our skills can point
+people at them and one prompt installs them: open-source ones (a repo and a
+licence) and hosted ones from their makers. Only admins list them, in one of
+two ways:
+
+- **In the repo**: add an entry to
+  [`lib/catalog/third-party.json`](../lib/catalog/third-party.json) in a PR.
+  It is live on the next deploy, and CI can see it (skills' MCP tables are
+  checked against it).
+- **Without a deploy**: `npm run catalog -- add elevenlabs.catalog.json`,
+  with a file shaped like one of those entries. The stored item wins over
+  the repo's.
+
+An entry is a card plus `madeBy` and `install.source`:
+
+```json
+{
+  "id": "mcp/elevenlabs",
+  "title": "ElevenLabs",
+  "summary": "Sound effects, speech, voices and transcription, as files on your computer.",
+  "madeBy": { "name": "ElevenLabs", "repo": "elevenlabs/elevenlabs-mcp", "license": "MIT" },
+  "install": {
+    "source": {
+      "type": "mcp-server",
+      "name": "elevenlabs",
+      "local": {
+        "command": "uvx",
+        "args": ["elevenlabs-mcp"],
+        "env": [{ "name": "ELEVENLABS_API_KEY", "description": "Your ElevenLabs API key", "getAt": "https://elevenlabs.io/app/settings/api-keys", "secret": true, "required": true }]
+      },
+      "guide": "https://github.com/elevenlabs/elevenlabs-mcp#readme"
+    },
+    "notes": "Needs an ElevenLabs account and uv. Every generation spends credits."
+  }
+}
+```
+
+- `madeBy`: who makes it (`name`), and for open source its `repo` and
+  `license`; a hosted one gives its `homepage`. Cards show "Open source · by
+  ElevenLabs · MIT", or "By fal".
+- `install.source` (`InstallSource` in `lib/catalog/types.ts`):
+  - `{ "type": "mcp-server", "name", "local"?, "remote"?, "mcpb"?, "setup"?, "guide"? }`:
+    `local` runs on the person's machine (`command`, `args`, `env`), `remote`
+    is hosted (`url`, `headers`, and a `connectorUrl` when the Claude apps
+    sign in at another URL), `mcpb` is a bundle on a GitHub release. Give at
+    least one; install.md picks what fits the person's Claude. Each `env` /
+    `headers` entry says what the value is, where to get it (`getAt`), how
+    it's written (`format`, e.g. `Bearer {value}`) and whether it's a
+    `secret`. `setup` is what comes after adding the server, in order (an
+    add-on to enable).
+  - `{ "type": "github-skill", "repo", "path", "ref"? }`: a skill folder in a
+    public repo.
+- They have no versions: `release` refuses one (use `add`), and the gate
+  commands refuse them, like skills. The dashboard shows them in Public.
+
+The repo's own skills install the same way, from their folder here
+(`github-skill` at `.agents/skills/<name>`), with the MediaMake repo first
+(they work on its apps and scripts) and the skills they depend on. A skill
+vendored from another repo (`skills-lock.json`, e.g. `remotion-dev/skills`)
+is shown as made by its upstream and installs on its own.
+
+## Seeing what is what: the release pages
+
+Releases are mostly done by Claude, from a terminal; the dashboard is where
+to look. **`/core/releases`** opens on **Items**: every item by kind, with
+who can open it, where it comes from and what it connects to. Each item has
+its own page, **`/core/releases/<kind>/<slug>`** (e.g.
+`/core/releases/mcp/browse-hack`), that answers everything about it on one
+screen:
+
+- **What installing it does**: the plan install.md follows, step by step,
+  and the choices it offers (a skill's MCPs).
+- **Connections**: what it needs first, what it works with (and what is lost
+  without each), and what needs or uses it.
+- **Who can open it**: its tier, the gate, the groups and grants that reach
+  it (**Manage access** opens the access sheet).
+- **Where it lives**: who makes it, its code, its package (version, size,
+  storage key), how it installs, and which file or store defines it.
+- **History**: versions with their notes (`#v<version>` links straight to
+  one) and every stage change.
+
+The page reads `GET /api/admin/catalog/item?id=<id>`, which changes nothing
+(the dashboard's own `GET /api/admin/catalog` also settles due gates).
+`npm run catalog` prints the item's page after each step, and Claude gives
+it to you after any release (the rule is in the repo's CLAUDE.md).
 
 ## Tiers
 
@@ -194,6 +289,44 @@ from `GET /api/catalog/install?item=<id>`: every dependency in order, each
 once, with 30-minute package links. A dependency the person can't open stops
 the plan with a 409 instead of half-installing.
 
+### What an item works with: choices
+
+Some things an item uses are worth having but not worth forcing: a brand kit
+can't make sound without ElevenLabs, researches much faster with Browse Hack,
+and only sometimes wants fal. Those go in `install.uses`, each with how much
+the item needs it, what for, and what the person loses without it:
+
+```json
+{ "id": "mcp/elevenlabs", "need": "required", "for": "Sound effects for intros and end screens", "without": "No sound at all" }
+```
+
+`need` is `required` (its main job needs it), `recommended` (it works
+without, worse or slower) or `optional`. The plan returns them as `choices`
+(strongest first, each with its `reasons`), and the steps they bring, their
+own dependencies included, are marked `forChoices`. install.md asks the
+person which to add, says what each one they skip costs, and installs only
+the steps of the ones they take. A choice they can't get from MediaMake (not
+shared with them, or not in the catalog) comes back `available: false`, in
+the same words either way, instead of failing the plan. Only what is
+installed outright brings choices: a choice's own `uses` are left out.
+
+**Skills declare theirs in SKILL.md**, in the table the skill also reads when
+it runs (by convention under `## First: check the MCPs`):
+
+```markdown
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/elevenlabs` | required | Sound effects for intros and end screens (`text_to_sound_effects`) | No sound at all |
+| `mcp/browse-hack` | recommended | Pinterest research boards and Midjourney art | Research by hand in the browser |
+```
+
+`node tools/skills.mjs index` puts the table in `skills.json` as the skill's
+`mcps` (the catalog's `uses`, also for a skill released as a package that
+declares none of its own), SKILLS.md and `/skills` show them, and `check`
+(CI) fails on a table it can't read. Each MCP is one of ours or an item made
+by others; publishing a skill that names another one warns to list it in
+`third-party.json`.
+
 Declare what an item needs in `catalog.json` under `install`:
 
 ```json
@@ -211,6 +344,9 @@ Declare what an item needs in `catalog.json` under `install`:
         "kind": "chrome-extension",
         "guide": "https://github.com/microfox-ai/extensions#install-browse-hack"
       }
+    ],
+    "uses": [
+      { "id": "mcp/elevenlabs", "need": "optional", "for": "Sound effects on the intro", "without": "A silent intro" }
     ],
     "notes": "Shown to the person before installing."
   }
@@ -269,7 +405,12 @@ const skills = await listCatalog(viewer, 'skill');
 - `getEntitlements(viewer)` + `accessLevel(entitlements, item)` answer many
   items with one database round trip.
 - `lib/catalog/items.ts` holds cards defined in code (only names that are fine
-  to be public); a database item with the same id wins.
+  to be public), the registry's skills and `third-party.json`'s items; a
+  database item with the same id wins. `getCatalogRecord(id)`
+  (`lib/catalog/records.ts`) gives either, for install plans and pages.
+- `lib/catalog/plan.ts` builds install plans (`planInstall`, tested in
+  `plan.test.ts`); `lib/catalog/install.ts` hands it the database, storage
+  and the viewer's access.
 - `/access?item=<id>` shows an item you can open with its install prompt and
   a download; `/access?code=<code>` redeems an invite (the way new people get
   in while releases are locked).

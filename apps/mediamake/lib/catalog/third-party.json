@@ -1,0 +1,94 @@
+{
+  "schema": "mediamake.third-party/v1",
+  "about": "MCPs and skills we list in the catalog but don't build: open-source ones (with their repo and licence) and hosted ones from their makers. Always public, never packaged by us: the install plan hands out `install.source`. Admins add one here (or through the admin API, which wins). Skills point at them from their `## First: check the MCPs` table. See apps/mediamake/docs/catalog-releases.md.",
+  "items": [
+    {
+      "id": "mcp/elevenlabs",
+      "title": "ElevenLabs",
+      "summary": "Sound effects, speech, voices, transcription and audio isolation from ElevenLabs, as files on your computer. The official open-source MCP server.",
+      "status": "live",
+      "tags": ["mcp", "audio", "sound effects"],
+      "releasedAt": "2026-11-02",
+      "madeBy": { "name": "ElevenLabs", "repo": "elevenlabs/elevenlabs-mcp", "license": "MIT", "homepage": "https://elevenlabs.io" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "elevenlabs",
+          "local": {
+            "command": "uvx",
+            "args": ["elevenlabs-mcp"],
+            "env": [
+              {
+                "name": "ELEVENLABS_API_KEY",
+                "description": "Your ElevenLabs API key",
+                "getAt": "https://elevenlabs.io/app/settings/api-keys",
+                "secret": true,
+                "required": true
+              },
+              {
+                "name": "ELEVENLABS_MCP_BASE_PATH",
+                "description": "The folder it may read input files from and saves to by default (~/Desktop when unset). Set it to your home folder so it can use files in your projects.",
+                "required": false
+              }
+            ]
+          },
+          "guide": "https://github.com/elevenlabs/elevenlabs-mcp#readme"
+        },
+        "notes": "Needs an ElevenLabs account (the free tier has 10,000 credits a month) and uv. Every generation spends credits."
+      }
+    },
+    {
+      "id": "mcp/fal",
+      "title": "fal",
+      "summary": "Image, video and audio models on fal (Nano Banana, upscalers, image-to-video, cutouts), hosted by fal.",
+      "status": "live",
+      "tags": ["mcp", "images", "video"],
+      "releasedAt": "2026-11-02",
+      "madeBy": { "name": "fal", "homepage": "https://fal.ai/docs/model-apis/mcp" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "fal",
+          "remote": {
+            "url": "https://mcp.fal.ai/mcp",
+            "headers": [
+              {
+                "name": "Authorization",
+                "format": "Bearer {value}",
+                "description": "Your fal API key",
+                "getAt": "https://fal.ai/dashboard/keys",
+                "secret": true,
+                "required": true
+              }
+            ],
+            "connectorUrl": "https://mcp.fal.ai/mcp-relay"
+          },
+          "guide": "https://fal.ai/docs/model-apis/mcp"
+        },
+        "notes": "Needs a fal account with credits: every image or video it makes is paid."
+      }
+    },
+    {
+      "id": "mcp/blender",
+      "title": "Blender",
+      "summary": "Build, import and render 3D scenes in Blender from Claude. Open source, through a Blender add-on.",
+      "status": "live",
+      "tags": ["mcp", "3d"],
+      "releasedAt": "2026-11-02",
+      "madeBy": { "name": "Siddharth Ahuja", "repo": "ahujasid/blender-mcp", "license": "MIT" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "blender",
+          "local": { "command": "uvx", "args": ["mcp-for-blender"] },
+          "setup": [
+            "Install its Blender add-on: `uvx mcp-for-blender install-addon`.",
+            "Ask them to open Blender, go to Edit → Preferences → Add-ons and turn on Interface: MCP for Blender. The add-on starts its server when Blender opens (press N in the 3D viewport → MCP for Blender tab → Start MCP Server if it isn't running)."
+          ],
+          "guide": "https://github.com/ahujasid/blender-mcp#readme"
+        },
+        "notes": "Needs Blender 3.0 or newer and uv. Blender has to be open, with the add-on's server running, whenever Claude uses it."
+      }
+    }
+  ]
+}

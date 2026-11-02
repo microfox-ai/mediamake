@@ -32,6 +32,11 @@
  *   reject  <requestId>
  *   list
  *   init
+ *   add <file.catalog.json>                          (list an MCP or skill made by others: no package of ours,
+ *                                                     installed from its install.source, always public)
+ *
+ * Each step prints the item's release page, <MEDIAMAKE_URL>/core/releases/<kind>/<slug>
+ * (what it is, who can open it, where it lives): give that link to whoever you release for.
  */
 
 import { config } from 'dotenv';
@@ -60,7 +65,8 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   group   add|remove <groupId> <clientId> [<clientId>...]
   invite  [<itemId>...] [--group network] [--uses 5] [--days 30] [--expires 14] [--note "..."]
   requests | approve <requestId> [--days 30] | reject <requestId>
-  list | init`;
+  list | init
+  add <file.catalog.json>                          (list an MCP or skill made by others: no package, always public)`;
 
 type Flags = Record<string, string | true>;
 
@@ -89,6 +95,14 @@ function flag(flags: Flags, name: string): string | undefined {
 function fail(message: string): never {
   console.error(`❌ ${message}`);
   process.exit(1);
+}
+
+/**
+ * The item's release page (what it is, who can open it, where it lives),
+ * printed after each step: pass it on to the person you are releasing for.
+ */
+function page(itemId: string, anchor?: string) {
+  return `   🔗 ${BASE_URL}/core/releases/${itemId}${anchor ? `#${anchor}` : ''}`;
 }
 
 async function admin<T = any>(body: Record<string, unknown>): Promise<T> {
@@ -161,6 +175,7 @@ async function release(pathArg: string | undefined, flags: Flags) {
   if (isBundle && existsSync(installGuide)) copyFileSync(installGuide, join(dir, 'INSTALL.md'));
   // catalog.json overrides anything read from SKILL.md or the .mcpb manifest.
   const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
+  if (manifest.madeBy) fail(`${manifestPath} is for something made by ${manifest.madeBy.name}: list it with "add", it has no package of ours`);
   const skillMd = join(dir, 'SKILL.md');
   const bundle = readdirSync(dir).find(f => f.endsWith('.mcpb'));
   const front = existsSync(skillMd)
@@ -239,6 +254,7 @@ async function release(pathArg: string | undefined, flags: Flags) {
     await admin({ type: 'publish_version', itemId, version, storageKey, sha256, bytes: bytes.length, notes });
     console.log(`✅ ${itemId}@${version} published (${(bytes.length / 1024).toFixed(1)} KB, sha256 ${sha256.slice(0, 12)}…)`);
     console.log(`   Share access: npm run catalog -- invite ${itemId} --uses 5`);
+    console.log(page(itemId, `v${version}`));
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -265,6 +281,44 @@ function subject(flags: Flags) {
   return { clientId, groupId };
 }
 
+/**
+ * Lists an MCP or skill someone else makes (open source, or hosted by its
+ * maker): no package of ours, it installs from `install.source`, and it is
+ * always public. The file has the shape of an entry in
+ * lib/catalog/third-party.json ("id" or "kind" + "slug", "madeBy",
+ * "install": { "source", "uses"?, "notes"? }); a stored item wins over that file.
+ */
+async function add(pathArg: string | undefined) {
+  if (!pathArg) fail('add needs a catalog.json, e.g. add elevenlabs.catalog.json');
+  const file = userPath(pathArg);
+  if (!existsSync(file)) fail(`${file} does not exist`);
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  const [idKind, idSlug] = typeof manifest.id === 'string' ? manifest.id.split('/') : [];
+  const kind = manifest.kind ?? idKind;
+  const slug = manifest.slug ?? idSlug;
+  if (!kind || !slug) fail('Set "id" (e.g. "mcp/elevenlabs"), or "kind" and "slug"');
+  if (!manifest.madeBy?.name) fail('Set "madeBy": { "name": … }. add is for MCPs and skills made by others; release our own');
+  if (!manifest.install?.source) fail('Set "install.source": where it installs from (InstallSource in lib/catalog/types.ts)');
+  const { item } = await admin({
+    type: 'upsert_item',
+    item: {
+      kind,
+      slug,
+      title: manifest.title ?? titleCase(slug),
+      summary: manifest.summary ?? '',
+      status: manifest.status ?? 'live',
+      listed: manifest.listed,
+      href: manifest.href,
+      cover: manifest.cover,
+      tags: manifest.tags,
+      madeBy: manifest.madeBy,
+      install: manifest.install,
+    },
+  });
+  console.log(`✅ ${item.id} listed, made by ${manifest.madeBy.name}: always public, installed from its ${manifest.install.source.type} source`);
+  console.log(page(item.id));
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const { positional, flags } = parseArgs(rest);
@@ -278,33 +332,38 @@ async function main() {
       const [itemId, visibility] = positional;
       if (!itemId || !visibility) fail('promote <itemId> <private|network|public>');
       await admin({ type: 'set_visibility', itemId, visibility });
-      return console.log(`✅ ${itemId} is now ${visibility}`);
+      console.log(`✅ ${itemId} is now ${visibility}`);
+      return console.log(page(itemId));
     }
 
     case 'schedule': {
       const itemId = positional[0] ?? fail('schedule <itemId> [--days 30 | --at <date>]');
       const { item } = await admin({ type: 'schedule_release', itemId, days, at: flag(flags, 'at') });
-      return console.log(`✅ ${itemId} is a community item until ${item.publicAt}, then public`);
+      console.log(`✅ ${itemId} is a community item until ${item.publicAt}, then public`);
+      return console.log(page(itemId));
     }
 
     case 'unschedule': {
       const itemId = positional[0] ?? fail('unschedule <itemId>');
       await admin({ type: 'cancel_release', itemId });
-      return console.log(`✅ ${itemId} no longer goes public by itself`);
+      console.log(`✅ ${itemId} no longer goes public by itself`);
+      return console.log(page(itemId));
     }
 
     case 'vault': {
       const itemId = positional[0] ?? fail('vault <itemId> [--off]');
       const neverPublish = !flags.off;
       await admin({ type: 'set_never_publish', itemId, neverPublish });
-      return console.log(neverPublish ? `✅ ${itemId} is in the vault (never published)` : `✅ ${itemId} is out of the vault, back in development`);
+      console.log(neverPublish ? `✅ ${itemId} is in the vault (never published)` : `✅ ${itemId} is out of the vault, back in development`);
+      return console.log(page(itemId));
     }
 
     case 'grant': {
       const itemId = positional[0];
       if (!itemId) fail("grant <itemId|'*'> --to <clientId>");
       const { grant } = await admin({ type: 'grant', itemId, ...subject(flags), days, note: flag(flags, 'note') });
-      return console.log(`✅ Granted ${itemId} to ${grant.subject.kind} ${grant.subject.id}${grant.expiresAt ? ` until ${grant.expiresAt}` : ''} (${grant.grantId})`);
+      console.log(`✅ Granted ${itemId} to ${grant.subject.kind} ${grant.subject.id}${grant.expiresAt ? ` until ${grant.expiresAt}` : ''} (${grant.grantId})`);
+      return itemId === '*' ? undefined : console.log(page(itemId));
     }
 
     case 'revoke': {
@@ -372,12 +431,15 @@ async function main() {
         const redeemed = invite.redeemedBy.map((r: any) => r.clientId).join(', ');
         console.log(`invite ${invite.code}: ${invite.itemIds.join(', ') || invite.groupId}  ${invite.uses}/${invite.maxUses} used${redeemed ? `  by ${redeemed}` : ''}`);
       }
-      return;
+      return console.log(`\nEvery item, with what it is and where it lives: ${BASE_URL}/core/releases`);
     }
 
     case 'init':
       await admin({ type: 'init_indexes' });
       return console.log('✅ Catalog indexes created');
+
+    case 'add':
+      return add(positional[0]);
 
     default:
       console.log(USAGE);

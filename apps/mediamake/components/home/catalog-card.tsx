@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
+import { MadeByLine, UsesLine } from '@/components/catalog/uses';
 
 const kindLabel: Record<CatalogEntry['kind'], string> = {
   mcp: 'MCP',
@@ -60,6 +61,9 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
           )}
         </h3>
         <p className="text-sm text-muted-foreground">{card.summary}</p>
+        {/* the card is a link itself: no link inside */}
+        {card.madeBy && <MadeByLine madeBy={card.madeBy} link={false} />}
+        {!locked && card.uses && card.uses.length > 0 && <UsesLine uses={card.uses} />}
         {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
       </div>
 

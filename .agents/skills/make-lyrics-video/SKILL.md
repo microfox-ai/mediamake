@@ -59,6 +59,20 @@ so lines break mid-phrase. Keep every word and its timing exactly, and only regr
 For Remotion technique (springs, captions, audio viz, fonts, transitions, three.js) consult the
 `remotion-best-practices` skill and its `remotion-markup` / `remotion-captions` references.
 
+**MCPs** for sourcing assets (step 5): check which this session has before the intake.
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/browse-hack` | recommended | Pinterest artwork in bulk, YouTube clips, and Midjourney outcrops and fills, in the user's Chrome (`pinterest_bulk_start`, `youtube_download`, `midjourney_outcrop`) | The user finds and drops in every picture and clip by hand |
+| `mcp/fal` | optional | Cutting a subject off its picture so graphics go behind it (`fal-ai/birefnet/v2`, paid) | No cutouts: graphics sit over the picture, never behind the subject |
+| `mcp/blender` | optional | 3D set pieces, only when the idea needs one | No 3D: the video stays 2D |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say what it costs and offer to install it from MediaMake ("Set up mcp/<name>
+from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md"; its
+tools show up in the next session), or go ahead without it.
+
 Arguments: a project slug, or a path to a folder of inputs.
 
 ## 0. Intake — ask before building (every new project)

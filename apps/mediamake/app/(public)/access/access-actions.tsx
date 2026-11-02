@@ -17,6 +17,7 @@ export function AccessActions({
   pending: initiallyPending,
   loginHref,
   installPrompt,
+  worksWith = false,
 }: {
   itemId: string;
   access: AccessLevel;
@@ -25,6 +26,8 @@ export function AccessActions({
   pending: boolean;
   loginHref: string;
   installPrompt?: string;
+  /** It works with other items (a skill's MCPs), which the install offers as choices. */
+  worksWith?: boolean;
 }) {
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState(initiallyPending);
@@ -32,7 +35,9 @@ export function AccessActions({
   const [error, setError] = useState<string | null>(null);
 
   if (access !== 'locked') {
-    if (!hasPackage) return <p className="text-sm text-muted-foreground">You have access. No download is published yet.</p>;
+    if (!installPrompt) return <p className="text-sm text-muted-foreground">You have access. No download is published yet.</p>;
+    // installed from where it lives (a skill in the repo, an MCP from its maker): nothing of ours to download
+    if (!hasPackage) return <InstallPrompt itemId={itemId} prompt={installPrompt} signedIn={signedIn} worksWith={worksWith} />;
     if (!signedIn) {
       return (
         <Button asChild>
@@ -42,8 +47,8 @@ export function AccessActions({
     }
     return (
       <div className="space-y-4">
-        {installPrompt && <InstallPrompt itemId={itemId} prompt={installPrompt} />}
-        <Button asChild variant={installPrompt ? 'outline' : 'default'}>
+        <InstallPrompt itemId={itemId} prompt={installPrompt} signedIn worksWith={worksWith} />
+        <Button asChild variant="outline">
           <a href={`/api/catalog/download?item=${encodeURIComponent(itemId)}&redirect=1`}>Download package</a>
         </Button>
       </div>
@@ -149,15 +154,30 @@ export function RedeemInvite({
 }
 
 /** The paste-into-Claude prompt that installs an item and what it needs. */
-export function InstallPrompt({ itemId, prompt }: { itemId: string; prompt: string }) {
+export function InstallPrompt({
+  itemId,
+  prompt,
+  signedIn,
+  worksWith = false,
+}: {
+  itemId: string;
+  prompt: string;
+  signedIn: boolean;
+  worksWith?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Install with Claude</p>
       <p className="text-sm text-muted-foreground">
-        Copy this and paste it into Claude Code or Claude Desktop. It installs this and everything it needs, and tells you
-        when it needs you. The copy carries a one-time install code (valid for 2 hours), so Claude won't ask for your
-        API key.
+        Copy this and paste it into Claude Code or Claude Desktop. It installs this and everything it needs
+        {worksWith ? ', asks which of the MCPs it works with to add (and what you lose without each),' : ''} and tells you
+        when it needs you.{' '}
+        {signedIn
+          ? "The copy carries a one-time install code (valid for 2 hours), so Claude won't ask for your API key."
+          : worksWith
+            ? 'Sign in first if MediaMake shared MCPs with you: the copy then carries an install code, so Claude can add them too.'
+            : ''}
       </p>
       <div className="flex gap-2">
         <code className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>

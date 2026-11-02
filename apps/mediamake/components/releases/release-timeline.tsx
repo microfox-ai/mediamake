@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import type { CatalogItemRecord } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ItemAction } from './releases-dashboard';
 import { KIND_ICON } from './release-board';
-import { TIER_META, formatDate, formatLeft, gateOf, tierOf, type AdminCatalog } from './model';
+import { TIER_META, formatDate, formatLeft, gateOf, itemPath, tierOf, type AdminCatalog } from './model';
 
 /**
  * Gated items in the order they go public, then the most recent releases.
@@ -56,7 +57,9 @@ export function ReleaseTimeline({
                       )}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <Link href={itemPath(item.id)} className="block truncate text-sm font-medium hover:underline">
+                        {item.title}
+                      </Link>
                       <p className="truncate text-xs text-muted-foreground">{item.id}</p>
                     </div>
                   </div>
@@ -91,7 +94,9 @@ export function ReleaseTimeline({
             <ul className="divide-y">
               {ungated.map(item => (
                 <li key={item.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                  <span className="truncate text-sm">{item.title}</span>
+                  <Link href={itemPath(item.id)} className="truncate text-sm hover:underline">
+                    {item.title}
+                  </Link>
                   <Button variant="outline" size="sm" onClick={() => onAction(item, { type: 'schedule' })}>
                     Start gate
                   </Button>
@@ -111,7 +116,9 @@ export function ReleaseTimeline({
                 <li key={item.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className={cn('size-1.5 shrink-0 rounded-full', TIER_META.public.dot)} />
-                    <span className="truncate text-sm">{item.title}</span>
+                    <Link href={itemPath(item.id)} className="truncate text-sm hover:underline">
+                      {item.title}
+                    </Link>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.releasedAt)}</span>
                 </li>

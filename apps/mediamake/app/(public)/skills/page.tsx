@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SkillsBrowser } from '@/components/skills/SkillsBrowser';
+import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { namingRules, registry } from '@/lib/skills/registry';
 
 export const metadata: Metadata = {
@@ -11,5 +12,6 @@ export const metadata: Metadata = {
 export const dynamic = 'force-static';
 
 export default function SkillsPage() {
-  return <SkillsBrowser registry={registry} naming={registry ? namingRules(registry) : []} />;
+  const installPrompts = Object.fromEntries((registry?.skills ?? []).map(skill => [skill.name, installPromptFor(`skill/${skill.name}`)]));
+  return <SkillsBrowser registry={registry} naming={registry ? namingRules(registry) : []} installPrompts={installPrompts} />;
 }

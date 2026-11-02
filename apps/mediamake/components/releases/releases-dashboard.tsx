@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { CalendarClock, Lock, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import type { CatalogItemRecord, CatalogKind, ReleaseTier } from '@/lib/catalog/types';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { ReleaseBoard } from './release-board';
+import { ReleaseList } from './release-list';
 import { ReleaseTimeline } from './release-timeline';
 import { PeoplePanel } from './people-panel';
 import { ItemAccessSheet } from './item-access-sheet';
@@ -46,9 +47,11 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 /**
- * Admin dashboard for release tiers: which items sit in the vault, in
- * development, with the community or in public; the gates that turn
- * community items public by themselves; and who belongs to each tier.
+ * Admin dashboard for release tiers: every item and what it connects to
+ * (each opens its own page, /core/releases/<kind>/<slug>); which items sit in
+ * the vault, in development, with the community or in public; the gates
+ * that turn community items public by themselves; and who belongs to each
+ * tier. `?access=<id>` opens that item's access sheet.
  */
 export function ReleasesDashboard() {
   const [data, setData] = useState<AdminCatalog | null>(null);
@@ -76,6 +79,20 @@ export function ReleasesDashboard() {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, [load]);
+
+  // An item page's "Manage access" lands here with ?access=<id>: open that sheet once.
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    if (!data || openedFromLink.current) return;
+    openedFromLink.current = true;
+    const url = new URL(window.location.href);
+    const wanted = url.searchParams.get('access');
+    const found = wanted ? [...data.items, ...data.thirdParty, ...data.cards, ...data.skills].find(item => item.id === wanted) : undefined;
+    if (!found) return;
+    setAccessFor(found);
+    url.searchParams.delete('access');
+    window.history.replaceState(null, '', url);
+  }, [data]);
 
   const run = useCallback(
     async (label: string, body: Record<string, unknown>) => {
@@ -116,17 +133,17 @@ export function ReleasesDashboard() {
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return [...(data?.items ?? []), ...(data?.skills ?? [])].filter(
+    return [...(data?.items ?? []), ...(data?.thirdParty ?? []), ...(data?.cards ?? []), ...(data?.skills ?? [])].filter(
       item =>
         (kind === 'all' || item.kind === kind) &&
         (!q || item.title.toLowerCase().includes(q) || item.id.includes(q) || item.tags?.some(t => t.toLowerCase().includes(q))),
     );
   }, [data, query, kind]);
 
-  // skills from skills.json were never released through a gate: the timeline leaves them out
+  // items defined in the repo (skills, third-party items, cards) were never released through a gate: the timeline leaves them out
   const released = useMemo(() => {
-    const fromRegistry = new Set((data?.skills ?? []).map(skill => skill.id));
-    return items.filter(item => !fromRegistry.has(item.id));
+    const fromRepo = new Set([...(data?.skills ?? []), ...(data?.thirdParty ?? []), ...(data?.cards ?? [])].map(item => item.id));
+    return items.filter(item => !fromRepo.has(item.id));
   }, [data, items]);
 
   const counts = useMemo(() => {
@@ -168,9 +185,10 @@ export function ReleasesDashboard() {
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
-        <p className="text-sm text-muted-foreground">
-          Move apps and MCPs from the vault to the public. Community items go public by themselves when their gate ends.
-          Skills are always public: every skill in the repo&apos;s skills.json sits in Public and skips the gate.
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Every skill, MCP, app and tutorial MediaMake hands out: who can open it, where it comes from and what it works
+          with. Open one to see everything about it. Our apps and MCPs move from the vault to the public on the Board;
+          skills, and MCPs or skills made by others, are always public.
         </p>
       </div>
 
@@ -224,9 +242,10 @@ export function ReleasesDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="board" className="gap-4">
+      <Tabs defaultValue="items" className="gap-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <TabsList>
+            <TabsTrigger value="items">Items</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="people">
@@ -261,6 +280,16 @@ export function ReleasesDashboard() {
             </Button>
           </div>
         </div>
+
+        <TabsContent value="items">
+          {data ? (
+            <ReleaseList data={data} items={tier === 'all' ? items : items.filter(item => tierOf(item, now) === tier)} now={now} />
+          ) : (
+            <div className="flex flex-col gap-6">
+              {[0, 1].map(i => <Skeleton key={i} className="h-64 rounded-2xl" />)}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="board">
           {data ? (

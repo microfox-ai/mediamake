@@ -143,3 +143,43 @@ describe('catalog_versions', () => {
     ]);
   });
 });
+
+describe('generations', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const REF = '0b8f9c7e-1d2a-4c3b-9e8f-7a6b5c4d3e2f';
+
+  it('lists takes with list filters joined, and can leave out the lyrics', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (input: string) => {
+      urls.push(String(input));
+      return Response.json({ items: [{ id: 'g1', ref: REF, title: 'Rain', lyrics: '[Verse]' }], nextCursor: 'next', role: 'owner' });
+    });
+    const result: any = await (await connect(false)).callTool({
+      name: 'list_generations',
+      arguments: { projectId: 'p1', rating: ['keeper', 'unrated'], kind: ['cover'], parentRef: `https://suno.com/song/${REF}`, lyrics: false },
+    });
+    const url = new URL(urls[0]);
+    expect(url.pathname).toBe('/api/generations');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ projectId: 'p1', rating: 'keeper,unrated', kind: 'cover', parentRef: REF, limit: '20' });
+    expect(JSON.parse(result.content[0].text)).toEqual({ items: [{ id: 'g1', ref: REF, title: 'Rain' }], nextCursor: 'next' });
+  });
+
+  it('rates a take by its suno.com link', async () => {
+    const calls: { method: string; url: string; body?: any }[] = [];
+    vi.stubGlobal('fetch', async (input: string, init: RequestInit = {}) => {
+      calls.push({ method: init.method ?? 'GET', url: String(input), body: JSON.parse(String(init.body)) });
+      return Response.json({ id: 'g1', ref: REF, rating: 'keeper' });
+    });
+    const result: any = await (await connect(true)).callTool({
+      name: 'rate_generation',
+      arguments: { id: `https://suno.com/song/${REF}?sh=x`, rating: 'keeper', note: 'Use for the gojo edit' },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(calls).toEqual([
+      { method: 'PATCH', url: `http://mm.test/api/generations/${REF}`, body: { rating: 'keeper', note: 'Use for the gojo edit' } },
+    ]);
+  });
+});
