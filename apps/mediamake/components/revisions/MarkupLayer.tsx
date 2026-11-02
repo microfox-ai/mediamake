@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Thumbnail } from '@remotion/player';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { frameAt } from '@/lib/revisions/frames';
 import {
   MARK_COLORS,
@@ -20,6 +21,7 @@ import {
   useRevisionsStore,
   type MarkupTool,
 } from './store';
+import { LiveMedia, mediaBox, type StageMedia } from './live-media';
 
 /*
  * Drawing on the frame, the spot and the magnifier, over the video's picture.
@@ -43,8 +45,8 @@ interface Rect {
   height: number;
 }
 
-/** Where the picture sits in the <video> box: object-contain letterboxes it. */
-function pictureRect(el: HTMLVideoElement): Rect | null {
+/** Where the picture sits in the <video> box (or a live Player's): object-contain letterboxes it. */
+function pictureRect(el: StageMedia): Rect | null {
   const vw = el.videoWidth;
   const vh = el.videoHeight;
   const bw = el.clientWidth;
@@ -85,7 +87,7 @@ function usePictureRect(videoUrl: string | undefined): Rect | null {
       });
     update();
     const observer = new ResizeObserver(update);
-    observer.observe(el);
+    observer.observe(mediaBox(el));
     el.addEventListener('loadedmetadata', update);
     // a stream can change its frame size
     el.addEventListener('resize', update);
@@ -159,6 +161,25 @@ export function MarkupLayer() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const loupeRef = useRef<HTMLCanvasElement>(null);
+  // a live project's magnifier: the frame drawn again by the browser, larger (a Player shows DOM, not pixels)
+  const live = useRevisionsStore(s => s.live);
+  const liveLoupe = useRevisionsStore(
+    s => !!s.live && s.loupe && !s.playing && !!rect,
+  );
+  // only while it shows: playing changes the time every frame
+  const liveFrame = useRevisionsStore(s =>
+    s.live && s.loupe && !s.playing
+      ? Math.min(
+          s.live.durationInFrames - 1,
+          frameAt(s.currentTime, s.live.fps),
+        )
+      : 0,
+  );
+  const liveProps = useMemo(
+    () => (live ? { manifest: live.manifest, edits: live.edits } : {}),
+    [live],
+  );
+  const liveLoupeRef = useRef<HTMLDivElement>(null);
   const draft = useRef<Draft | null>(null);
   /** The pointer over the picture, in screen pixels from its corner. */
   const pointer = useRef<{ x: number; y: number } | null>(null);
@@ -208,9 +229,11 @@ export function MarkupLayer() {
       const ctx = canvas?.getContext('2d');
       const el = getVideoElement();
       const p = pointer.current;
+      const dom = liveLoupeRef.current;
       if (!canvas || !ctx) return;
       if (!s.loupe || !p || !el?.videoWidth) {
         canvas.style.display = 'none';
+        if (dom) dom.style.display = 'none';
         return;
       }
       const dpr = window.devicePixelRatio || 1;
@@ -220,19 +243,38 @@ export function MarkupLayer() {
         canvas.height = size;
       }
       canvas.style.display = 'block';
-      canvas.style.transform = `translate(${p.x - LOUPE / 2}px, ${p.y - LOUPE / 2}px)`;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, size, size);
+      const at = `translate(${p.x - LOUPE / 2}px, ${p.y - LOUPE / 2}px)`;
+      canvas.style.transform = at;
       // the picture around the pointer, LOUPE_ZOOM× its size on screen
       const span = LOUPE / LOUPE_ZOOM; // screen pixels the loupe covers
       const k = el.videoWidth / r.width; // video pixels per screen pixel
-      drawRegion(
-        ctx,
-        el,
-        [el.videoWidth, el.videoHeight],
-        [(p.x - span / 2) * k, (p.y - span / 2) * k, span * k, span * k],
-        [size, size],
-      );
+      if (dom) {
+        dom.style.display = 'block';
+        // under this canvas: the live frame, enlarged and moved so the pointer is in the middle
+        dom.style.transform = at;
+        const inner = dom.firstElementChild as HTMLElement | null;
+        if (inner)
+          inner.style.transform = `translate(${LOUPE / 2 - p.x * LOUPE_ZOOM}px, ${LOUPE / 2 - p.y * LOUPE_ZOOM}px)`;
+        ctx.clearRect(0, 0, size, size);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, size, size);
+      }
+      const picture = el instanceof LiveMedia ? null : el;
+      if (picture) {
+        drawRegion(
+          ctx,
+          picture,
+          [el.videoWidth, el.videoHeight],
+          [(p.x - span / 2) * k, (p.y - span / 2) * k, span * k, span * k],
+          [size, size],
+        );
+      } else if (!dom) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.font = `${12 * dpr}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Pause to magnify', size / 2, size / 2 + 28 * dpr);
+      }
       // the marks, from their canvas
       const marks = canvasRef.current;
       if (marks?.width) {
@@ -406,6 +448,33 @@ export function MarkupLayer() {
         }}
       >
         <canvas ref={canvasRef} className="absolute inset-0 size-full" />
+        {liveLoupe && live && rect && (
+          <div
+            ref={liveLoupeRef}
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 overflow-hidden rounded-full bg-black"
+            style={{ width: LOUPE, height: LOUPE, display: 'none' }}
+          >
+            <div
+              className="absolute left-0 top-0"
+              style={{
+                width: rect.width * LOUPE_ZOOM,
+                height: rect.height * LOUPE_ZOOM,
+              }}
+            >
+              <Thumbnail
+                component={live.Video}
+                inputProps={liveProps}
+                compositionWidth={live.width}
+                compositionHeight={live.height}
+                durationInFrames={live.durationInFrames}
+                fps={live.fps}
+                frameToDisplay={liveFrame}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          </div>
+        )}
         <canvas
           ref={loupeRef}
           aria-hidden

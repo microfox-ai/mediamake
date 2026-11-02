@@ -136,6 +136,8 @@ export interface Revision {
   video: RevisionVideoInfo;
   /** Map file the shot ids came from, if any. */
   map: string | null;
+  /** Set when the notes were left on the project playing live, not on a render. */
+  live?: { project: string };
   createdAt: string;
   updatedAt: string;
   comments: RevisionComment[];

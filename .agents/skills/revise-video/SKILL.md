@@ -1,6 +1,6 @@
 ---
 name: revise-video
-description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/, fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). Append new user feedback to the log at the bottom.
+description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/ (or out/<slug>/live.revisions/ when the user reviewed the project live, before any render: /video-revision?live=<slug>), fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). Append new user feedback to the log at the bottom.
 metadata:
   category: revise
 ---
@@ -80,6 +80,38 @@ rotate shorts and anything that gets uploaded come only from the master (`shorts
 refuses a review render). When the user asks for full size during review, render full size. Shorts
 render at full size (`lyric-shorts render` has no proxy; they are short).
 
+### Or review it live, before rendering
+
+The screen can also play a lyric project straight from its code, the way /remotion-editor does, so
+the user can leave notes on a video that was never rendered:
+
+```
+https://mediamake.microfox.app/video-revision?live=<slug>
+```
+
+(`http://localhost:3002/video-revision?live=<slug>` while mediamake runs locally.) The first time,
+the user picks the `apps/lyrics_videos` folder (or the repo) and allows editing; after that the link
+reopens it, and the left panel lists every project under **Live projects**. Everything else works as
+for a render: shots from `video/shots.json` (or one per lyric line, the IDs a render gets), point,
+range and General comments, drawing, spots and the magnifier.
+
+- **When:** offer it for the first look at a new build, or when a round's fixes are small, to skip a
+  review render. Render (step 1) when the user wants to judge the finished file: smoothness of a heavy
+  3D scene (live playback can drop frames a render never would), the encode, the sound mix, or
+  anything spliced or made with ffmpeg after the render (look grids, minor-revision splices), which
+  live review does not show.
+- **Notes** go in `out/<slug>/live.revisions/` (the revision JSON carries `"live": {"project": "<slug>"}`).
+  The watcher (step 4) watches that folder too.
+- **Stills** are rendered in the browser a few seconds after a comment is added, and can miss some
+  effects (radial gradients, some filters and blend modes). Every comment in the `.md` has a
+  `Render:` line, `npm run stills -w lyrics_videos -- <slug> <seconds> --only --scale=1` (times are
+  the video's own, output in `out/<slug>/stills/`): run it when the look matters, when a still
+  looks off, and for range comments, which have no still.
+- **Fixes** go in the project as usual; the open page recompiles when the code or `video/edits.json`
+  changes and its window regains focus, so there is nothing to re-render between rounds. Say what
+  changed and restart the watcher.
+- **Preflight** checks a render, so it runs on the first real render, before that link.
+
 ## 2. Preflight before the link
 
 Machines check, the user judges: the user should never be the one who finds a black frame. After
@@ -133,7 +165,7 @@ Right after giving the link, start the watcher as a background command (Bash
 npm run wait-revision -w lyrics_videos -- <slug>     # --video=<mp4> to watch one video only
 ```
 
-It watches every `.revisions/` folder under `out/<slug>/` (not the kept `v<N>/` copies) and exits
+It watches every `.revisions/` folder under `out/<slug>/`, `live.revisions/` included (not the kept `v<N>/` copies), and exits
 when the user sets a revision to **Ready for Claude**, printing the revision with its open notes.
 Then read it (step 5) and act on it (step 6) without waiting for a message: the user doesn't need
 to paste anything. If it
@@ -150,6 +182,7 @@ out/<slug>/<slug>.revisions/
   rev-001/          one JPEG per point comment: c01_h1.3_f000372.jpg (comment, shot, frame),
                     plus c01_h1.3_f000372_zoom.jpg when the comment pins a spot
   preflight.json    effects marked intended (preflight --intended), skipped by later runs
+out/<slug>/live.revisions/      the same, for notes left on the project reviewed live
 ```
 
 - **General comments** (`kind: "general"`) have no time: they are about the whole video (pacing,
@@ -241,7 +274,8 @@ project) go in the making skill's lessons/feedback log; lessons about the review
 the log below.
 
 **How the loop is going:** `npm run loop-stats -w lyrics_videos -- [slug …] [--since=<date>]` prints,
-per video, the rounds, the user's notes per round (point / range, how many done), machine notes and
+per video, the rounds, the user's notes per round (point / range / general, how many done; live
+reviews show as `<slug>/live (no render)`), machine notes and
 kept versions, and per production the logged renders (master / review / clip or look) and their
 minutes. Run it when the user asks how reviewing is going, or before and after a change to the loop.
 
@@ -253,3 +287,4 @@ Append dated entries: what the user said → the rule.
 - 2026-10-26 · quicksilverxkingpin ("are you only rendering changed chunks and replacing them in the video? … write that down in the revision skill: if it's just minor changes, save time by doing that") → step 3's "Minor revisions": render only the changed frame ranges and splice them into the previous cut; full renders only when the changes are global or spread across the video.
 - 2026-10-27 · a revision on a preview clip arrived together with "build the full video now" → when comments are fixed in a bigger render than the one reviewed (a clip → the whole video), say in each reply where the fix is in the new render (its time there), resolve the revision, and give the new render's link.
 - 2026-11-02 · the video-revision plan, Phase 0 ("8-second clip gen first is optional, depends on skill (so ask the user whether to create previews or gen whole, by default gen whole for generating videos under 1 minute)"; "the rest is fine") → Previews or the whole video, asked at intake by every making skill (the whole video by default under a minute; previews as one labelled grid, `--look` + `look-grid`); review renders at half size with the master once after sign-off (step 1); preflight before the link (step 2); the background watcher instead of a pasted message (step 4); `loop-stats` to measure the loop (step 7).
+- 2026-11-02 · the video-revision plan, Phase 1 (live review; the user chose to start it) → "Or review it live, before rendering": `/video-revision?live=<slug>` plays the project from its code, notes go in `out/<slug>/live.revisions/`, stills render in the browser (or a stills line in the `.md`); renders stay for judging the finished file.

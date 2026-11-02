@@ -6,17 +6,18 @@
  *
  * Usage: npm run loop-stats -w lyrics_videos -- [slug …] [--since=2026-10-01] [--json]
  *
- * Per video: rounds (revisions with notes from the user), the user's notes (point / range, how many
+ * Per video: rounds (revisions with notes from the user), the user's notes (point / range / general, how many
  * done), machine notes from preflight, kept versions (each one a full render that was replaced) and
  * the days from the first note to the last. Per production: logged renders (master / half-size
- * review / clip or look) and their minutes. Render minutes count from the first logged render (the
+ * review / clip or look) and their minutes. Notes left on a project reviewed live (live.revisions/) show as
+ * "<slug>/live (no render)". Render minutes count from the first logged render (the
  * log is new).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readRenders, type RenderEntry } from './render-log.ts';
-import { REVISIONS_SUFFIX, isMachineNote, readRevisions, type Revision } from './revision-files.ts';
+import { LIVE_VIDEO, REVISIONS_SUFFIX, isMachineNote, readRevisions, type Revision } from './revision-files.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'out');
@@ -94,7 +95,8 @@ function statsFor(project: string, dir: string, name: string): VideoStats {
   const stamps = userNotes.map(c => c.createdAt).filter(Boolean).sort();
   return {
     project,
-    video: path.relative(OUT, path.join(dir, `${name}.mp4`)).split(path.sep).join('/'),
+    // live.revisions/: notes on the project playing live, before a render
+    video: path.relative(OUT, path.join(dir, name === LIVE_VIDEO ? `${name} (no render)` : `${name}.mp4`)).split(path.sep).join('/'),
     rounds: revisions.filter(r => r.comments.some(c => !isMachineNote(c))).length,
     revisions: revisions.length,
     resolved: revisions.filter(r => r.status === 'resolved').length,

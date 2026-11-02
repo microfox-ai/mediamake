@@ -78,10 +78,15 @@ export type Revision = {
   status: RevisionStatus;
   video: RevisionVideoInfo;
   map: string | null;
+  /** set when the notes were left on the project playing live in the screen, not on a render */
+  live?: { project: string };
   createdAt: string;
   updatedAt: string;
   comments: RevisionComment[];
 };
+
+/** The name a live review goes by where a video's would: out/<slug>/live.revisions/. */
+export const LIVE_VIDEO = 'live';
 
 export const STATUS_LABEL: Record<RevisionStatus, string> = { draft: 'Draft', ready: 'Ready for Claude', resolved: 'Resolved' };
 
@@ -111,6 +116,7 @@ export function normalizeRevision(raw: unknown, id: string): Revision {
     status: r.status === 'ready' || r.status === 'resolved' ? r.status : 'draft',
     video: (r.video ?? { file: '', size: 0, lastModified: 0, duration: 0, fps: 30 }) as RevisionVideoInfo,
     map: typeof r.map === 'string' ? r.map : null,
+    ...(r.live && typeof r.live.project === 'string' ? { live: { project: r.live.project } } : {}),
     createdAt: r.createdAt ?? now,
     updatedAt: r.updatedAt ?? now,
     comments: Array.isArray(r.comments)
@@ -233,6 +239,10 @@ export function reviewLink(videoPath: string): string {
   return `https://mediamake.microfox.app/video-revision?folder=${encoded}&video=${encodeURIComponent(path.basename(videoPath))}`;
 }
 
+/** The stills script for these seconds of a live-reviewed project, at full size. */
+const stillsLine = (project: string, seconds: number[]) =>
+  `\`npm run stills -w lyrics_videos -- ${project} ${seconds.map(t => t.toFixed(2)).join(',')} --only --scale=1\``;
+
 const quote = (text: string) =>
   text
     .trim()
@@ -247,19 +257,31 @@ export function revisionToMarkdown(revision: Revision, revisionsDir: string): st
   const open = comments.filter(c => c.status === 'open').length;
   const lines: string[] = [];
   lines.push(`# ${revision.title} (${revision.id}) — ${STATUS_LABEL[revision.status]}`, '');
+  const live = revision.live?.project;
+  const size = video.width && video.height ? ` · ${video.width}×${video.height}` : '';
   lines.push(
-    `Video: \`${video.file}\` · ${video.fps} fps · ${formatTime(video.duration)}` +
-      (video.width && video.height ? ` · ${video.width}×${video.height}` : '') +
-      ` · modified ${new Date(video.lastModified).toISOString()}`,
+    live
+      ? `Live review of the project \`${live}\` (\`projects/${live}/\`), not of a render: the composition ` +
+          `played in the browser from its code and \`video/edits.json\` · ${video.fps} fps · ${formatTime(video.duration)}${size}` +
+          ` · code as of ${new Date(video.lastModified).toISOString()}`
+      : `Video: \`${video.file}\` · ${video.fps} fps · ${formatTime(video.duration)}${size}` +
+          ` · modified ${new Date(video.lastModified).toISOString()}`,
   );
-  lines.push(`Shot map: ${revision.map ? `\`${revision.map}\`` : 'none'}`);
+  lines.push(
+    `Shot map: ${revision.map ? `\`${revision.map}\`` : 'none'}` +
+      (live && revision.map?.endsWith('manifest.json') ? ' (one shot per lyric line, as a render of it gets)' : ''),
+  );
   lines.push(`Updated: ${revision.updatedAt}`, '');
   lines.push(`${comments.length} comment${comments.length === 1 ? '' : 's'}: ${open} open, ${comments.length - open} done.`, '');
   lines.push(
     `Written by preflight (scripts/preflight.ts) in the Revisions screen's layout; the screen rewrites this file on its next save. ` +
       `Notes that start with "Preflight ·" are machine notes. ` +
       `\`${revision.id}.json\` is the source of truth; to close a comment set its \`status\` to \`"done"\` and add a \`reply\` there. ` +
-      `Range comments have no stills: run the ffmpeg line from the video's folder to extract frames.`,
+      (live
+        ? `Stills were rendered in the browser, which can miss some effects (radial gradients, some filters and blend ` +
+          `modes): when the look matters, or a comment has no still, render its frames with the \`Render:\` line under it ` +
+          `(run in the repo). Range comments have only that line.`
+        : `Range comments have no stills: run the ffmpeg line from the video's folder to extract frames.`),
   );
   if (comments.some(hasMarks)) {
     lines.push('');
@@ -285,6 +307,7 @@ export function revisionToMarkdown(revision: Revision, revisionsDir: string): st
       if (c.shot) lines.push(`- Shot: \`${c.shot.id}\`${c.shot.label ? ` ${c.shot.label}` : ''} (${c.shot.from.toFixed(2)}–${c.shot.to.toFixed(2)} s)`);
       lines.push(`- Time: ${c.time.toFixed(3)} s, frame ${c.frame}`);
       if (c.snapshot) lines.push(`- Still: \`${revisionsDir}/${c.snapshot}\`${hasMarks(c) ? ' (marks drawn in)' : ''}`);
+      if (live) lines.push(`- Render: ${stillsLine(live, [c.time])}`);
       if (c.drawing?.length) lines.push(`- Marks: ${c.drawing.map(describeMark).join('; ')}`);
       if (c.spot) lines.push(`- Spot: ${describeSpot(c.spot)}${c.zoom ? `; zoomed crop \`${revisionsDir}/${c.zoom}\`` : ''}`);
     } else {
@@ -298,9 +321,13 @@ export function revisionToMarkdown(revision: Revision, revisionsDir: string): st
       lines.push(`- Range: ${c.from.toFixed(3)}–${c.to.toFixed(3)} s, frames ${c.fromFrame}–${c.toFrame} (inclusive)`);
       const duration = Math.max(c.to - c.from, 1 / (video.fps || 30));
       const rate = Math.min(8, Math.max(1, Math.round(8 / duration)));
-      lines.push(
-        `- Frames: \`ffmpeg -ss ${c.from.toFixed(3)} -i "${video.file}" -t ${duration.toFixed(3)} -vf fps=${rate} -q:v 3 "${revisionsDir}/${revision.id}/${c.id}_range_%02d.jpg"\``,
-      );
+      if (live) {
+        const n = Math.min(6, Math.max(2, Math.round(duration * 2)));
+        lines.push(`- Render: ${stillsLine(live, Array.from({ length: n }, (_, i) => c.from + (duration * (i + 0.5)) / n))}`);
+      } else
+        lines.push(
+          `- Frames: \`ffmpeg -ss ${c.from.toFixed(3)} -i "${video.file}" -t ${duration.toFixed(3)} -vf fps=${rate} -q:v 3 "${revisionsDir}/${revision.id}/${c.id}_range_%02d.jpg"\``,
+        );
     }
     if (c.reply) lines.push('', `**Reply:** ${c.reply}`);
   }

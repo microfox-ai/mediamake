@@ -4,8 +4,8 @@
  * (revise-video › Auto pick-up), so the notes reach Claude without the user pasting a message.
  *
  * Usage: npm run wait-revision -w lyrics_videos -- <slug> [--video=out/<slug>/<slug>.mp4] [--timeout=110] [--every=3]
- *   watches every <video>.revisions/ folder under out/<slug>/ (the video, its clips, looks and shorts; not the
- *   kept v<N>/ copies), or only --video's. A revision that is already ready is reported at once.
+ *   watches every <video>.revisions/ folder under out/<slug>/ (the video, its clips, looks and shorts, and
+ *   live.revisions/ from reviewing the project live; not the kept v<N>/ copies), or only --video's. A revision that is already ready is reported at once.
  *   --timeout  minutes to wait (default 110, inside the two hours a background command may run); exits 3 then
  *   --every    seconds between looks at the disk (default 3)
  */
@@ -69,6 +69,11 @@ function report(found: { dir: string; revision: Revision }[]) {
       `${revision.id} “${revision.title}” is ready for Claude: ${open.length} open of ${revision.comments.length} ` +
         `(${notes.length} from the user) in ${shown(json)}.`,
     );
+    if (revision.live)
+      console.log(
+        `A live review: notes on projects/${revision.live.project} playing from its code (no render). Fix the project, ` +
+          `not a video; the screen reloads it when the code changes.`,
+      );
     console.log(`Read ${shown(path.join(dir, `${revision.id}.md`))} first; the stills of point notes are in ${shown(path.join(dir, revision.id))}/.`);
     for (const c of open) console.log(`  ${commentLine(c)}`);
   }
