@@ -9,11 +9,15 @@ import path from 'node:path';
 import { getItem, tagsOf, type Item } from './db.ts';
 import { absOf, locationsOf, sourcesOf, type Lib } from './lib.ts';
 import { frames, sheet } from './probe.ts';
+import { relationsOf } from './relations.ts';
+import { channelClause } from './share.ts';
 import { lpad, pad, size } from './sys.ts';
 
 export type FindOptions = {
   kind?: string;
   subject?: string;
+  /** a channel's items: <channel>/… subjects (its songs, its art), its tag, use in its productions */
+  channel?: string;
   minHeight?: number;
   hasAudio?: boolean;
   unused?: boolean;
@@ -47,6 +51,11 @@ export const find = (lib: Lib, words: string, o: FindOptions = {}): Item[] => {
     where.push('(i.subject = ? OR i.subject LIKE ? OR i.subject LIKE ?)');
     args.push(o.subject, `${o.subject}/%`, `%/${o.subject}`);
   }
+  if (o.channel) {
+    const c = channelClause(lib, o.channel);
+    where.push(c.sql);
+    args.push(...c.args);
+  }
   if (o.minHeight) {
     where.push('i.height >= ?');
     args.push(o.minHeight);
@@ -74,6 +83,12 @@ export const printItems = (lib: Lib, items: Item[]) => {
   if (!items.length) return lib.log('Nothing found. Try fewer words, or drop a facet.');
   for (const it of items) {
     const uses = (lib.db.prepare('SELECT COUNT(*) AS n FROM uses WHERE item_id = ?').get(it.id)?.n as number) ?? 0;
+    if (it.status === 'remote') {
+      const r = lib.db.prepare('SELECT channel, url FROM remote WHERE item_id = ?').get(it.id) as { channel: string; url: string | null } | undefined;
+      const how = r?.url ? `media sync pull --ids=${it.id.slice(0, 10)} --yes` : 'details only: its file is not shared';
+      lib.log(`${it.id.slice(0, 10)}  ${pad(it.kind, 10)} ${lpad(res(it), 8)} ${lpad(size(it.bytes), 8)}  ${it.title ?? it.id}  (remote: ${r?.channel ?? '?'} team's · ${how})`);
+      continue;
+    }
     const flags = [it.rating === 'bad' ? 'rated bad' : '', it.status !== 'online' ? it.status : '', uses ? `used ×${uses}` : '', it.role !== 'library' ? `in ${it.role}` : '']
       .filter(Boolean)
       .join(', ');
@@ -84,7 +99,10 @@ export const printItems = (lib: Lib, items: Item[]) => {
 /** Everything known about one item: what it is, where it came from, where its copies are, who used it. */
 export const describe = (lib: Lib, it: Item) => ({
   ...it,
-  abs: absOf(lib, it.path),
+  abs: it.status === 'remote' ? null : absOf(lib, it.path),
+  remote: it.status === 'remote' ? (lib.db.prepare('SELECT channel, url, file_name AS fileName, pulled_at AS pulledAt FROM remote WHERE item_id = ?').get(it.id) ?? null) : null,
+  shared: lib.db.prepare('SELECT channel, via, approved_at AS approvedAt, uploaded_at AS uploadedAt FROM shares WHERE item_id = ?').all(it.id),
+  ...relationsOf(lib, it.id),
   thumb: fs.existsSync(path.join(lib.thumbs, `${it.id}.jpg`)) ? path.join(lib.thumbs, `${it.id}.jpg`) : null,
   tags: tagsOf(lib.db, it.id),
   sources: sourcesOf(lib, it.id),
@@ -98,7 +116,7 @@ export const printItem = (lib: Lib, id: string) => {
   const it = getItem(lib.db, id)!;
   const d = describe(lib, it);
   lib.log(`${d.title ?? path.basename(d.path)}  [${d.kind}${d.subject ? ` · ${d.subject}` : ''}]  ${d.id}`);
-  lib.log(`  ${d.abs}`);
+  lib.log(`  ${d.abs ?? `remote: the ${(d.remote as { channel?: string } | null)?.channel ?? ''} team's${(d.remote as { url?: string } | null)?.url ? ` (media sync pull --ids=${d.id.slice(0, 10)} --yes)` : ', details only'}`}`);
   lib.log(`  ${[res(it), size(it.bytes), it.codec, it.has_audio === 0 ? 'no sound' : ''].filter(Boolean).join(' · ')}`);
   if (d.tags.length) lib.log(`  tags: ${d.tags.join(', ')}`);
   for (const s of d.sources) lib.log(`  from ${s.tool}${s.ref ? ` ${s.ref}` : ''}${s.title ? `: ${s.title}` : ''}${s.query ? ` (search "${s.query}")` : ''}${s.url ? `  ${s.url}` : ''}`);
@@ -107,6 +125,10 @@ export const printItem = (lib: Lib, id: string) => {
   for (const n of d.notes as { at: string; text: string }[]) lib.log(`  note ${n.at.slice(0, 10)}: ${n.text}`);
   for (const c of d.cached as { kind: string; params: string }[]) lib.log(`  cached: ${c.kind}${c.params !== 'default' ? ` (${c.params})` : ''}`);
   if (it.rating) lib.log(`  rated ${it.rating}`);
+  for (const r of d.parents) lib.log(`  ${r.relation} of ${r.id ? (getItem(lib.db, r.id)?.title ?? r.id.slice(0, 10)) : `${r.parent} (not in the library yet)`}`);
+  for (const r of d.children) lib.log(`  has a ${r.relation}: ${getItem(lib.db, r.id!)?.title ?? r.id?.slice(0, 10)}`);
+  for (const sh of d.shared as { channel: string; uploadedAt: string | null }[]) lib.log(`  shared with the ${sh.channel} team${sh.uploadedAt ? '' : ' (uploads on the next media sync push --yes)'}`);
+  if (it.lyrics) lib.log(`  lyrics: ${it.lyrics.split('\n').filter(Boolean).slice(0, 2).join(' / ')}…`);
 };
 
 /** A labelled grid of the found items (or 12 frames of one video), for looking before casting. */

@@ -50,6 +50,8 @@ export interface BrandAsset {
   url: string;
   mimeType?: string;
   size?: number;
+  /** The file's SHA-256, so a pull (`media sync pull`) knows whether it has it already. */
+  sha256?: string;
   label?: string;
 }
 
@@ -290,6 +292,7 @@ export function normalizeAssets(input: unknown): BrandAsset[] {
       url,
       mimeType: typeof o.mimeType === 'string' ? o.mimeType : mimeOf(path),
       ...(typeof o.size === 'number' ? { size: o.size } : {}),
+      ...(typeof o.sha256 === 'string' && /^[0-9a-f]{64}$/i.test(o.sha256) ? { sha256: o.sha256.toLowerCase() } : {}),
       ...(typeof o.label === 'string' && o.label ? { label: o.label } : {}),
     });
   }

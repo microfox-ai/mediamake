@@ -73,7 +73,8 @@ function normalizeItem(raw: Record<string, unknown>, fileKind: MediaKind): Media
   const path = str(raw.path);
   if (!id || !path) return null;
   const source = raw.source && typeof raw.source === 'object' ? (raw.source as MediaItem['source']) : undefined;
-  const status = raw.status === 'cold' || raw.status === 'missing' ? raw.status : 'online';
+  const status = raw.status === 'cold' || raw.status === 'missing' || raw.status === 'remote' ? raw.status : 'online';
+  const remote = raw.remote && typeof raw.remote === 'object' && str((raw.remote as { channel?: unknown }).channel) ? { channel: String((raw.remote as { channel: string }).channel), file: !!(raw.remote as { file?: unknown }).file } : undefined;
   return {
     id,
     path,
@@ -96,6 +97,14 @@ function normalizeItem(raw: Record<string, unknown>, fileKind: MediaKind): Media
     guess: str(raw.guess),
     status,
     dupes: strings(raw.dupes),
+    lyrics: str(raw.lyrics),
+    related: list(raw.related)
+      .map(r => ({ relation: str(r.relation) ?? 'variation', id: str(r.id) ?? '' }))
+      .filter(r => r.id),
+    remote,
+    shared: list(raw.shared)
+      .map(r => ({ channel: str(r.channel) ?? '', uploaded: !!r.uploaded }))
+      .filter(r => r.channel),
   };
 }
 
@@ -122,7 +131,7 @@ function normalizeProduction(raw: Record<string, unknown>): Production | null {
 function normalizeChannel(raw: Record<string, unknown>): Channel | null {
   const id = str(raw.id);
   if (!id) return null;
-  return { id, name: str(raw.name) ?? id, folder: str(raw.folder) ?? '', logo: str(raw.logo), productions: strings(raw.productions) };
+  return { id, name: str(raw.name) ?? id, folder: str(raw.folder) ?? '', projectId: str(raw.projectId), logo: str(raw.logo), productions: strings(raw.productions) };
 }
 
 const bestOf = (v: unknown): BestOutput | undefined => {

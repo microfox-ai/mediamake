@@ -232,8 +232,14 @@ function MediaFacetsPanel() {
       {[...c.status.keys()].some(s => s !== 'online') && (
         <section>
           <Heading>Where</Heading>
-          {(['online', 'cold', 'missing'] as const).map(s => (
-            <Option key={s} active={f.status.includes(s)} onClick={() => facet('status', toggle(f.status, s))} label={s === 'online' ? 'On this Mac' : s === 'cold' ? 'On an unplugged disk' : 'Missing'} count={c.status.get(s) ?? 0} />
+          {(['online', 'cold', 'missing', 'remote'] as const).map(s => (
+            <Option
+              key={s}
+              active={f.status.includes(s)}
+              onClick={() => facet('status', toggle(f.status, s))}
+              label={s === 'online' ? 'On this Mac' : s === 'cold' ? 'On an unplugged disk' : s === 'remote' ? 'A teammate’s (on the cloud)' : 'Missing'}
+              count={c.status.get(s) ?? 0}
+            />
           ))}
         </section>
       )}

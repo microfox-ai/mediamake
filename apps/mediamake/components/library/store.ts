@@ -102,6 +102,10 @@ const describe = (req: LibraryRequest): string => {
       return req.channel ? `channel set to ${req.channel}` : 'channel cleared';
     case 'set-thumbnail':
       return 'thumbnail set';
+    case 'share':
+      return `shared with the ${req.channel ?? 'channel'} team (uploads on the next media sync push)`;
+    case 'unshare':
+      return `no longer shared with the ${req.channel ?? 'channel'} team`;
   }
 };
 
@@ -351,6 +355,13 @@ export function pendingChannel(pending: Pending[], slug: string): string | null 
   let c: string | null | undefined;
   for (const { req } of pending) if (req.target === slug && req.op === 'set-channel') c = req.channel;
   return c;
+}
+
+/** Whether a share or unshare is waiting for this item: true shared, false unshared. */
+export function pendingShare(pending: Pending[], id: string): boolean | undefined {
+  let shared: boolean | undefined;
+  for (const { req } of pending) if (req.target === id && (req.op === 'share' || req.op === 'unshare')) shared = req.op === 'share';
+  return shared;
 }
 
 export function pendingThumbnail(pending: Pending[], slug: string): string | undefined {

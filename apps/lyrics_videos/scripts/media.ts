@@ -10,7 +10,8 @@
  *   init --watch | --unwatch                      a launchd agent that files the inbox by itself (ask the user first)
  *   ingest [<file|folder>…] [--kind= --subject= --channel= --tags=a,b] [--dry-run] [--now]
  *       file the inbox (no paths), or the given files (cloned into the library, left where they are)
- *   find <words> [--kind= --subject= --min-height= --audio|--no-audio --unused --role= --all --limit= --json --sheet[=<jpg>]]
+ *   find <words> [--kind= --subject= --channel= --min-height= --audio|--no-audio --unused --role= --all --limit= --json --sheet[=<jpg>]]
+ *       words match titles, names, tags, searches, prompts (a Suno take's styles), lyrics and notes
  *   show <id|path> [--json] [--sheet[=<jpg>]]
  *   use <id|path> <slug> [--as=input/footage/x.mp4] [--with=segregation,faces] [--skill=] [--force]
  *   cache get <id|path> <kind> [--params=] [--into=<folder>]      exits 3 when nothing is cached
@@ -34,14 +35,27 @@
  *   backup list [words] [--channel= --disk=]                                 what's backed up, and where (no disk needed)
  *   restore <words>… [--from=<disk>] [--to=<folder>] [--channel=] [--yes]   copy files back, checked (restore-backup skill)
  *   status | export | apply-requests
+ *
+ * A channel's team (its MediaMake cloud project) shares brand kit, skill variants, productions and media:
+ *   cloud login [--url=<MediaMake site>] | logout | status   the API key goes in the macOS Keychain
+ *       (or set MEDIAMAKE_API_URL and MEDIAMAKE_API_KEY); it is never written to the config or shown
+ *   channel list                                  channels, their folders and linked cloud projects
+ *   channel link <channel> <projectId> | channel unlink <channel>
+ *   channel limit <channel> <MB> [--yes]          how much the team may share in files (the owner)
+ *   sync status|push|pull [--channel=] [--what=brand,skills,productions,media,music] [--yes]
+ *       a dry run until --yes; a pull never overwrites: what differs lands as <file>.theirs
+ *   sync pull --ids=<id>,… [--yes]                a teammate's files (remote items in find), filed here
+ *   share <id|path>… [--channel=] [--yes]         let the channel's team have these files (under its limit)
+ *   unshare <id|path>… [--channel=] [--yes]       stop sharing them (their details stay)
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { configFile, hasConfig, loadConfig, saveConfig } from './library/config.ts';
-import { getItem, KINDS, type Kind } from './library/db.ts';
+import { connect, deleteKeychainKey, keySource, readSecret, saveKeychainKey } from './library/cloud.ts';
+import { channelNamed, cloudUrl, configFile, hasConfig, linkChannel, loadConfig, saveCloudUrl, saveConfig } from './library/config.ts';
+import { getItem, KINDS, type Item, type Kind } from './library/db.ts';
 import { WHATS, deliver, markUploaded, type What } from './library/deliver.ts';
 import { dedupe, printDedupe } from './library/dedupe.ts';
 import { applyRequests, moveItem, rate, tag } from './library/edit.ts';
@@ -53,7 +67,9 @@ import { listProductions, saveProduction, touchProduction, type Production } fro
 import { ROOTS, duplicates, rebuild, scan, type Root } from './library/scan.ts';
 import { applySweep, planSweep, reviewSweep, undoSweep } from './library/sweep.ts';
 import { copyToDisk, drives, listBackup, restore, stage } from './library/backup.ts';
-import { lock, size } from './library/sys.ts';
+import { approveShare, pickChannel, withdrawShare } from './library/share.ts';
+import { PARTS, pullFiles, pushShared, syncChannel, withdrawFiles, type ChannelReport, type Part, type Step } from './library/sync.ts';
+import { lock, pad, size } from './library/sys.ts';
 import { cacheGet, cacheInto, cachePut, use } from './library/use.ts';
 
 const args = process.argv.slice(2);
@@ -78,7 +94,7 @@ if (HEAVY.has(cmd) && process.platform === 'darwin' && !process.env.MEDIA_BACKGR
   process.exit(r.status ?? 1);
 }
 
-const TOOLS = ['youtube', 'instagram', 'pinterest', 'midjourney', 'fal', 'elevenlabs', 'suno', 'other'];
+const TOOLS = ['youtube', 'instagram', 'pinterest', 'midjourney', 'fal', 'elevenlabs', 'suno', 'mediamake-sync', 'other'];
 
 const README_LIBRARY = `This is the media library: everything productions use (downloads, generated art, songs, sound
 effects, fonts), sorted by kind and then by subject: footage/one-piece/zoro/, music/<artist>/<song>/…
@@ -170,9 +186,57 @@ const status = (lib: Lib) => {
   console.log(`Productions: ${prods.length} (${prods.filter(p => p.registered).length} registered) · deliveries: ${count('SELECT COUNT(*) AS n FROM deliveries')}`);
 };
 
+/** The site and its key: sign in once, the Keychain keeps the key. */
+const cloudCommand = async () => {
+  const [op] = rest;
+  const url = (flag('url') ?? cloudUrl())?.replace(/\/+$/, '');
+  if (!url) throw new Error('Which MediaMake site? media cloud login --url=https://<your MediaMake site>');
+  if (op === 'login') {
+    const key = await readSecret(`API key for ${url} (from ${url}/core/api-keys; it isn't shown): `);
+    if (!key) throw new Error('No key given');
+    const projects = await connect({ url, key }).get<unknown[]>('/api/project');
+    saveKeychainKey(url, key);
+    if (flag('url')) saveCloudUrl(url);
+    return console.log(`✔ Signed in to ${url} (${Array.isArray(projects) ? projects.length : 0} projects you can open). The key is in the Keychain as "MediaMake API key".`);
+  }
+  if (op === 'logout') return console.log(deleteKeychainKey(url) ? `Signed out of ${url}: the key is gone from the Keychain.` : `No key for ${url} in the Keychain.`);
+  if (op === 'status') {
+    const from = keySource(url);
+    console.log(`${url}  key: ${from ?? 'none (media cloud login)'}`);
+    if (!from) return;
+    const projects = await connect({ url }).get<unknown[]>('/api/project');
+    return console.log(`✔ ${Array.isArray(projects) ? projects.length : 0} projects you can open`);
+  }
+  throw new Error('media cloud login [--url=] | logout | status');
+};
+
+const SYMBOL: Record<Step['action'], string> = { push: '↑', pull: '↓', same: '=', conflict: '⚠', skip: '–', pending: '…', done: '✔', failed: '✖' };
+
+/** What a sync would do or did, for one channel: a line per part, then the steps worth naming. */
+const printReport = (r: ChannelReport) => {
+  const p = r.status.project;
+  console.log(`${r.channel} → ${p.name} (${p.role}) · files ${size(r.status.usedBytes)} of ${size(r.status.limitBytes)}`);
+  for (const part of PARTS) {
+    const steps = r.steps.filter(st => st.part === part);
+    if (!steps.length) continue;
+    const counts = (Object.keys(SYMBOL) as Step['action'][])
+      .map(a => {
+        const of = steps.filter(st => st.action === a);
+        const bytes = of.reduce((t, st) => t + (st.bytes ?? 0), 0);
+        return of.length ? `${SYMBOL[a]} ${of.length}${bytes ? ` (${size(bytes)})` : ''}` : '';
+      })
+      .filter(Boolean);
+    console.log(`  ${pad(part, 12)} ${counts.join(' · ')}`);
+    for (const st of steps.filter(st => (!st.bulk || st.action === 'failed' || st.action === 'conflict') && st.action !== 'same'))
+      console.log(`    ${SYMBOL[st.action]} ${st.dir === 'pull' ? '↓' : '↑'} ${st.key}${st.bytes ? `  ${size(st.bytes)}` : ''}${st.detail ? `  (${st.detail})` : ''}`);
+  }
+  for (const note of r.notes) console.log(`  · ${note}`);
+};
+
 const main = async () => {
   if (!cmd || cmd === 'help' || has('help')) return usage();
   if (cmd === 'init') return init();
+  if (cmd === 'cloud') return cloudCommand();
   if (!hasConfig()) throw new Error(`No library yet: run npm run media -w lyrics_videos -- init (config ${configFile()})`);
   const lib = openLibrary();
   const changed = () => exportLibrary(lib);
@@ -193,9 +257,12 @@ const main = async () => {
       return;
     }
     case 'find': {
+      const channel = flag('channel') && channelNamed(lib.cfg, flag('channel'));
+      if (flag('channel') && !channel) throw new Error(`Unknown channel "${flag('channel')}". Known: ${Object.keys(lib.cfg.channels).join(', ')}`);
       const items = find(lib, rest.join(' '), {
         kind: flag('kind'),
         subject: flag('subject'),
+        channel: channel || undefined,
         minHeight: flag('min-height') ? Number(flag('min-height')) : undefined,
         hasAudio: has('audio') ? true : has('no-audio') ? false : undefined,
         unused: has('unused'),
@@ -407,6 +474,113 @@ const main = async () => {
       if (!r.picks.length) return console.log('Nothing in the backup matches (media backup list shows what is there).');
       console.log(has('yes') ? `✔ restored and checked ${r.done}${r.bad.length ? `; ${r.bad.length} didn't match their hash and were removed:\n  ${r.bad.join('\n  ')}` : ''}` : 'Dry run: add --yes.');
       return;
+    }
+    case 'channel': {
+      const [op, name, value] = rest;
+      if (op === 'list') {
+        let projects: Map<string, { displayName: string; isOwned?: boolean; sharedRole?: string }> | null = null;
+        let why = '';
+        try {
+          const list = await connect().get<{ id: string; displayName: string; isOwned?: boolean; sharedRole?: string }[]>('/api/project');
+          projects = new Map(list.map(p => [p.id, p]));
+        } catch (err) {
+          why = err instanceof Error ? err.message : String(err);
+        }
+        const roleOf = (p: { isOwned?: boolean; sharedRole?: string }) => (p.isOwned ? 'owner' : (p.sharedRole ?? 'viewer'));
+        for (const [id, folder] of Object.entries(lib.cfg.channels)) {
+          const pid = lib.cfg.links[id];
+          const p = pid ? projects?.get(pid) : undefined;
+          console.log(`${pad(id, 18)} ${pad(folder, 18)} ${pid ? `${p ? `${p.displayName} (${roleOf(p)})` : projects ? '(no such project you can open)' : ''}  ${pid}` : '-'}`);
+        }
+        if (why) return console.log(`\nProject names need MediaMake: ${why}`);
+        const linked = new Set(Object.values(lib.cfg.links));
+        const free = [...(projects?.values() ?? [])].filter(p => !linked.has((p as { id?: string }).id ?? ''));
+        if (free.length) console.log(`\nYour cloud projects not linked to a channel:\n${free.map(p => `  ${pad(p.displayName, 30)} ${(p as { id?: string }).id} (${roleOf(p)})`).join('\n')}`);
+        return console.log('\nLink one: media channel link <channel> <projectId>');
+      }
+      const ch = channelNamed(lib.cfg, name);
+      if (!ch) throw new Error(`media channel link <channel> <projectId> | unlink <channel> | limit <channel> <MB>; channels: ${Object.keys(lib.cfg.channels).join(', ')}`);
+      if (op === 'unlink') {
+        linkChannel(ch, null);
+        return console.log(`${ch} is no longer linked (nothing on the cloud changed).`);
+      }
+      if (op === 'link') {
+        if (!value) throw new Error(`media channel link ${ch} <projectId> (media channel list shows your projects)`);
+        const p = await connect().get<{ id: string; displayName: string; isOwned?: boolean; sharedRole?: string }>('/api/project', { id: value });
+        linkChannel(ch, value);
+        return console.log(`✔ ${ch} → ${p.displayName} (${p.isOwned ? 'owner' : (p.sharedRole ?? 'viewer')}). See what would sync: media sync status --channel=${ch}`);
+      }
+      if (op === 'limit') {
+        const projectId = lib.cfg.links[ch];
+        if (!projectId) throw new Error(`${ch} isn't linked to a cloud project yet: media channel link ${ch} <projectId>`);
+        const mb = Number(value);
+        if (!value || !Number.isFinite(mb) || mb < 0) throw new Error(`media channel limit ${ch} <MB> [--yes]`);
+        const cloud = connect();
+        const st = await cloud.get<{ usedBytes: number; limitBytes: number }>('/api/channel-sync', { projectId });
+        console.log(`${ch}: ${size(st.usedBytes)} of ${size(st.limitBytes)} shared in files; the limit would be ${mb} MB`);
+        if (!has('yes')) return console.log('Dry run: add --yes.');
+        const r = await cloud.put<{ limitBytes: number }>('/api/channel-sync', { projectId, limitMb: mb });
+        return console.log(`✔ ${ch}'s team may share ${size(r.limitBytes)} in files`);
+      }
+      throw new Error(`Unknown: channel ${op}`);
+    }
+    case 'sync': {
+      const [mode] = rest;
+      if (!['status', 'push', 'pull'].includes(mode)) throw new Error('media sync status|push|pull [--channel=] [--what=brand,skills,productions,media,music] [--yes]');
+      const cloud = connect();
+      if (mode === 'pull' && flag('ids')) {
+        const r = await pullFiles(lib, cloud, list('ids') ?? [], has('yes'));
+        for (const st of r.steps) console.log(`${SYMBOL[st.action]} ${st.key}${st.bytes ? `  ${size(st.bytes)}` : ''}${st.detail ? `  (${st.detail})` : ''}`);
+        for (const f of r.filed) console.log(`  filed ${f}`);
+        if (!has('yes') && r.steps.some(st => st.action === 'pull')) console.log('Dry run: add --yes.');
+        return has('yes') ? changed() : undefined;
+      }
+      const what = (list('what') ?? [...PARTS]) as Part[];
+      const bad = what.filter(w => !PARTS.includes(w));
+      if (bad.length) throw new Error(`--what= one or more of ${PARTS.join(', ')}`);
+      const channel = flag('channel') && channelNamed(lib.cfg, flag('channel'));
+      if (flag('channel') && !channel) throw new Error(`Unknown channel "${flag('channel')}". Known: ${Object.keys(lib.cfg.channels).join(', ')}`);
+      const channels = channel ? [channel] : Object.keys(lib.cfg.links);
+      if (!channels.length) throw new Error('No channel is linked to a cloud project yet: media channel list, then media channel link <channel> <projectId>');
+      const yes = has('yes') && mode !== 'status';
+      for (const ch of channels) printReport(await syncChannel(lib, cloud, ch, mode as 'status' | 'push' | 'pull', { what, yes }));
+      if (mode !== 'status' && !yes) console.log('\nDry run: add --yes.');
+      if (yes) changed();
+      return;
+    }
+    case 'share':
+    case 'unshare': {
+      if (!rest.length) throw new Error(`media ${cmd} <id|path>… [--channel=] [--yes]`);
+      const named = flag('channel') && channelNamed(lib.cfg, flag('channel'));
+      // unshare: the channels it is shared with (or the one named)
+      const sharedWith = (it: Item) => (lib.db.prepare('SELECT channel FROM shares WHERE item_id = ?').all(it.id) as { channel: string }[]).map(r => r.channel).filter(c => !named || c === named);
+      const byChannel = new Map<string, Item[]>();
+      for (const ref of rest) {
+        const it = resolveItem(lib, ref);
+        const chs = cmd === 'share' ? [pickChannel(lib, it, flag('channel'))] : sharedWith(it);
+        if (!chs.length) console.log(`${it.id.slice(0, 10)} isn't shared with ${named ? `the ${named} team` : 'a team'}`);
+        for (const ch of chs) byChannel.set(ch, [...(byChannel.get(ch) ?? []), it]);
+      }
+      const cloud = has('yes') && byChannel.size ? connect() : null;
+      for (const [ch, items] of byChannel) {
+        const total = items.reduce((t, it) => t + it.bytes, 0);
+        console.log(`${cmd === 'share' ? 'Share with' : 'Stop sharing with'} the ${ch} team: ${items.length} file${items.length === 1 ? '' : 's'}, ${size(total)}`);
+        for (const it of items) console.log(`  ${it.id.slice(0, 10)}  ${pad(it.kind, 10)} ${size(it.bytes).padStart(8)}  ${absOf(lib, it.path)}`);
+        if (!cloud) continue;
+        if (cmd === 'unshare') {
+          for (const it of items) withdrawShare(lib, it, ch);
+          await withdrawFiles(lib, cloud, ch, items.map(it => it.id));
+          console.log(`✔ the ${ch} team no longer gets them (their details stay)`);
+          continue;
+        }
+        for (const it of items) approveShare(lib, it, ch, 'cli');
+        printReport(await pushShared(lib, cloud, ch, items.map(it => it.id), true));
+      }
+      if (!has('yes')) {
+        if (cmd === 'share') console.log(`The channel's limit counts every file its team shares (media sync status shows it).`);
+        return console.log('Dry run: add --yes once the user has said yes.');
+      }
+      return changed();
     }
     case 'status':
       return status(lib);

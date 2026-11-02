@@ -5,6 +5,7 @@
  *
  * Tools write <file>.source.json next to each download in the inbox (mediamake.source/v1), and a
  * Pinterest bulk session writes _session.json (mediamake.pinterest-session/v1) for its whole folder.
+ * A song's lyrics are kept as <file>.lyrics.txt beside it (and in its entry).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,6 +29,8 @@ export type Entry = {
   notes?: Note[];
   /** the name it had before the library named it */
   original?: string;
+  /** a song's words; <file>.lyrics.txt beside it has the same */
+  lyrics?: string;
   addedAt: string;
   confidence?: number;
 };
@@ -53,6 +56,16 @@ export const dropEntry = (dir: string, name: string) => {
 };
 
 export const sourceOf = (file: string) => readJson<Source>(`${file}.source.json`);
+
+/** <file>.lyrics.txt: a song's words, beside it in the inbox (from the tool) and in the library. */
+export const lyricsFile = (file: string) => `${file}.lyrics.txt`;
+export const readLyrics = (file: string) => {
+  try {
+    return fs.readFileSync(lyricsFile(file), 'utf8').trim() || undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 type PinSession = { pins?: { id: string; file: string; url?: string; pageUrl?: string; query?: string; at?: string }[] };
 /** Pinterest bulk folders: file name → where the pin came from. */

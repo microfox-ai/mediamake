@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { AlertTriangleIcon, CopyIcon, FilmIcon, FolderKanbanIcon, GitForkIcon, HardDriveIcon, LayersIcon, MusicIcon, PlayIcon, StarIcon } from 'lucide-react';
+import { AlertTriangleIcon, CloudIcon, CopyIcon, FilmIcon, FolderKanbanIcon, GitForkIcon, HardDriveIcon, LayersIcon, MusicIcon, PlayIcon, StarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { drifted, qualityOf } from '@/lib/library/filter';
 import { productionThumb, ratingOf, skillThumb } from '@/lib/library/model';
@@ -233,7 +233,12 @@ export function MediaCard({ item, size = 'md' }: { item: MediaItem; size?: 'sm' 
       <div className="relative w-full">
         <Thumb image={item.thumb} seed={item.subject ?? item.kind} title={item.title} label={item.kind} className="aspect-video rounded-xl border border-black/5" />
         <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-wrap gap-1">
-          {item.status !== 'online' && (
+          {item.status === 'remote' && (
+            <Chip tone="accent" title={`A teammate’s, shared through the ${item.remote?.channel ?? ''} channel${item.remote?.file ? '' : ' (details only)'}`}>
+              <CloudIcon /> team
+            </Chip>
+          )}
+          {item.status !== 'online' && item.status !== 'remote' && (
             <Chip tone="warn" title={item.status === 'cold' ? 'On an external disk that isn’t plugged in' : 'Not found where the catalog has it'}>
               {item.status === 'cold' ? <HardDriveIcon /> : <AlertTriangleIcon />} {item.status}
             </Chip>

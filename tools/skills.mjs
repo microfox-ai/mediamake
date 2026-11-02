@@ -72,7 +72,7 @@ const rel = p => path.relative(ROOT, p);
  * name, description, version and one level of metadata from a SKILL.md's frontmatter. Values are
  * single lines, or folded/literal blocks (`>` / `|`).
  */
-const frontmatter = file => {
+export const frontmatter = file => {
   const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   const out = { metadata: {} };
@@ -177,8 +177,11 @@ const list = () => {
   console.log('\n● in .agents/skills  ○ a folder in .claude/skills, not moved yet (run: node tools/skills.mjs add --all)');
 };
 
+/** The files a skill's checks read, and the only ones `media sync` shares: text, never binaries. */
+export const TEXT_FILE = /\.(md|mjs|js|ts|tsx|py|json|txt|sh|ya?ml|env)$/;
+
 /** What must not be committed (problems) or deserves a look (notes): every skill is public on GitHub. */
-const checks = skill => {
+export const checks = skill => {
   const problems = [];
   const notes = [];
   if (skill.frontName !== skill.name) problems.push(`SKILL.md says name: ${skill.frontName}, the folder is ${skill.name}`);
@@ -188,7 +191,7 @@ const checks = skill => {
   for (const file of walk(skill.dir)) {
     const size = fs.statSync(file).size;
     if (size > 1024 * 1024) notes.push(`${rel(file)} is ${(size / 1048576).toFixed(1)} MB: does it belong in a skill?`);
-    if (size > 2 * 1024 * 1024 || !/\.(md|mjs|js|ts|tsx|py|json|txt|sh|ya?ml|env)$/.test(file)) continue;
+    if (size > 2 * 1024 * 1024 || !TEXT_FILE.test(file)) continue;
     const lines = fs.readFileSync(file, 'utf8').split('\n');
     lines.forEach((line, i) => {
       const at = `${rel(file)}:${i + 1}`;
@@ -495,9 +498,12 @@ const main = () => {
   run();
 };
 
-try {
-  main();
-} catch (err) {
-  console.error(`✖ ${err.message}`);
-  process.exit(1);
+// a command (node tools/skills.mjs …); the media CLI imports frontmatter and checks without running one
+if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) {
+  try {
+    main();
+  } catch (err) {
+    console.error(`✖ ${err.message}`);
+    process.exit(1);
+  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CopyIcon, ExternalLinkIcon, FolderOpenIcon, GitForkIcon, ImagePlusIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
+import { CloudIcon, CopyIcon, ExternalLinkIcon, FolderOpenIcon, GitForkIcon, ImagePlusIcon, PlusIcon, SparklesIcon, UsersIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,11 +10,11 @@ import { Hint } from '@/components/revisions/keyboard';
 import { revealOrCopy } from '@/lib/file-revisions/reveal';
 import { drifted, qualityOf } from '@/lib/library/filter';
 import { productionThumb, ratingOf, skillThumb } from '@/lib/library/model';
-import type { MediaItem, Production, Skill } from '@/lib/library/types';
+import type { Channel, Library, MediaItem, Production, Skill } from '@/lib/library/types';
 import { Chip, MiniRow, Stars } from './Cards';
 import { ago, bytes, copy, duration, itemPath, plural, tilde } from './format';
 import { Thumb, useCatalogUrl } from './Thumb';
-import { pendingChannel, pendingRating, pendingSort, pendingTags, pendingThumbnail, useLibraryStore } from './store';
+import { pendingChannel, pendingRating, pendingShare, pendingSort, pendingTags, pendingThumbnail, useLibraryStore } from './store';
 
 const REPO = 'https://github.com/microfox-ai/mediamake/blob/main';
 
@@ -403,6 +403,16 @@ function SkillDetail({ skill }: { skill: Skill }) {
 
 /* ---------- media item ---------- */
 
+function CopyButton({ text, what }: { text: string; what: string }) {
+  return (
+    <Hint label="Copy">
+      <button type="button" className="rounded p-1 text-muted-foreground hover:text-foreground" onClick={() => void copy(text, what)}>
+        <CopyIcon className="size-3" />
+      </button>
+    </Hint>
+  );
+}
+
 function AudioPreview({ rel }: { rel: string }) {
   const url = useCatalogUrl(rel);
   return url ? <audio src={url} controls className="mt-2 w-full" /> : null;
@@ -452,6 +462,55 @@ function Tags({ item }: { item: MediaItem }) {
   );
 }
 
+/** Kinds whose files a channel's team can have (the media CLI's SHARED_KINDS). */
+const SHAREABLE = new Set(['footage', 'images', 'art', 'overlays', 'references']);
+
+/** The linked channels an item belongs to (its subject, its tags, the productions that used it), as the CLI picks them. */
+function teamsFor(library: Library, item: MediaItem): Channel[] {
+  const linked = library.channels.filter(c => c.projectId);
+  const mine = linked.filter(c => item.subject?.startsWith(`${c.id}/`) || item.tags.includes(c.id) || item.uses.some(slug => library.production[slug]?.channel === c.id));
+  return mine.length ? mine : linked.length === 1 ? linked : [];
+}
+
+/** Share with team: asks the media CLI (a request) to give the channel's team this file. */
+function ShareWithTeam({ item }: { item: MediaItem }) {
+  const library = useLibraryStore(s => s.library);
+  const pending = useLibraryStore(s => s.pending);
+  const send = useLibraryStore(s => s.send);
+  const waiting = pendingShare(pending, item.id);
+  const teams = teamsFor(library, item);
+  if (!SHAREABLE.has(item.kind) || item.status === 'remote' || (!teams.length && !item.shared?.length)) return null;
+  const shared = new Map((item.shared ?? []).map(s => [s.channel, s.uploaded]));
+  const name = (id: string) => library.channel[id]?.name ?? id;
+  return (
+    <section>
+      <Label>Team</Label>
+      <div className="space-y-1.5 text-xs">
+        {[...new Set([...teams.map(t => t.id), ...shared.keys()])].map(id => {
+          const isShared = waiting !== undefined ? waiting : shared.has(id);
+          return (
+            <div key={id} className="flex items-center gap-2">
+              <UsersIcon className="size-3.5 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{name(id)}</span>
+              {waiting !== undefined ? (
+                <Chip tone="pending">{waiting ? 'sharing' : 'unsharing'}</Chip>
+              ) : shared.has(id) ? (
+                <Chip tone={shared.get(id) ? 'good' : 'outline'} title={shared.get(id) ? 'Its file is on the cloud project' : 'Uploads on the next media sync push --yes'}>
+                  {shared.get(id) ? 'shared' : 'waiting for push'}
+                </Chip>
+              ) : null}
+              <Button size="sm" variant="outline" className="h-7 rounded-full text-xs" onClick={() => void send({ op: isShared ? 'unshare' : 'share', target: item.id, channel: id })}>
+                {isShared ? 'Stop sharing' : 'Share with team'}
+              </Button>
+            </div>
+          );
+        })}
+        <p className="text-[11px] text-muted-foreground">Its details are shared with the team anyway; the file goes up with media sync push, within the channel&apos;s limit.</p>
+      </div>
+    </section>
+  );
+}
+
 function ItemDetail({ item }: { item: MediaItem }) {
   const library = useLibraryStore(s => s.library);
   const pending = useLibraryStore(s => s.pending);
@@ -468,8 +527,18 @@ function ItemDetail({ item }: { item: MediaItem }) {
     ['Subject', item.subject ?? '—'],
     ['Size', [item.width && item.height ? `${item.width}×${item.height}` : null, qualityOf(item), bytes(item.bytes)].filter(Boolean).join(' · ')],
     ...(item.duration ? ([['Length', [duration(item.duration), item.fps ? `${Math.round(item.fps)} fps` : null, item.hasAudio === false ? 'no audio' : item.hasAudio ? 'with audio' : null].filter(Boolean).join(' · ')]] as [string, string][]) : []),
-    ['Where', item.status === 'online' ? 'On this Mac' : item.status === 'cold' ? 'On an unplugged disk' : 'Missing from where the catalog has it'],
+    [
+      'Where',
+      item.status === 'online'
+        ? 'On this Mac'
+        : item.status === 'cold'
+          ? 'On an unplugged disk'
+          : item.status === 'remote'
+            ? `A teammate’s, through ${library.channel[item.remote?.channel ?? '']?.name ?? item.remote?.channel ?? 'a channel'}${item.remote?.file ? '' : ' (details only)'}`
+            : 'Missing from where the catalog has it',
+    ],
   ];
+  const pull = `npm run media -w lyrics_videos -- sync pull --ids=${item.id.slice(0, 10)} --yes`;
 
   return (
     <div className="space-y-6">
@@ -480,7 +549,25 @@ function ItemDetail({ item }: { item: MediaItem }) {
       <div>
         <h2 className="text-lg font-semibold leading-tight tracking-tight">{item.title}</h2>
         <div className="mt-2">
-          <PathRow path={where.abs ?? where.shown} />
+          {item.status === 'remote' ? (
+            <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-2.5 py-2 text-xs">
+              <CloudIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              {item.remote?.file ? (
+                <>
+                  <span className="min-w-0 flex-1">On the team&apos;s cloud. Bring it here with media sync pull.</span>
+                  <Hint label="Copy the command">
+                    <button type="button" className="rounded p-1 text-muted-foreground hover:text-foreground" onClick={() => void copy(pull, 'Command copied')}>
+                      <CopyIcon className="size-3" />
+                    </button>
+                  </Hint>
+                </>
+              ) : (
+                <span className="min-w-0 flex-1">Only its details are shared: its file is still on a teammate&apos;s Mac.</span>
+              )}
+            </div>
+          ) : (
+            <PathRow path={where.abs ?? where.shown} />
+          )}
         </div>
       </div>
 
@@ -519,6 +606,8 @@ function ItemDetail({ item }: { item: MediaItem }) {
         <Tags item={item} />
       </section>
 
+      <ShareWithTeam item={item} />
+
       {item.source && (item.source.tool || item.source.url) && (
         <section>
           <Label>Source</Label>
@@ -526,14 +615,48 @@ function ItemDetail({ item }: { item: MediaItem }) {
             <div>
               {item.source.tool}
               {item.source.ref && <span className="ml-1.5 font-mono text-muted-foreground">{item.source.ref}</span>}
+              {item.source.model && <span className="ml-1.5 text-muted-foreground">· {item.source.model}</span>}
+              {item.source.relation && <Chip className="ml-1.5" tone="outline">{item.source.relation}</Chip>}
             </div>
             {item.source.title && <div className="text-muted-foreground">{item.source.title}</div>}
-            {item.source.url && (
-              <a href={item.source.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate text-primary hover:underline">
-                {item.source.url.replace(/^https?:\/\/(www\.)?/, '')} <ExternalLinkIcon className="size-3 shrink-0" />
+            {(item.source.pageUrl ?? item.source.url) && (
+              <a href={item.source.pageUrl ?? item.source.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate text-primary hover:underline">
+                {(item.source.pageUrl ?? item.source.url)!.replace(/^https?:\/\/(www\.)?/, '')} <ExternalLinkIcon className="size-3 shrink-0" />
               </a>
             )}
           </div>
+        </section>
+      )}
+
+      {item.source?.prompt && (
+        <section>
+          <Label action={<CopyButton text={item.source.prompt} what="Prompt copied" />}>{item.kind === 'music' ? 'Styles' : 'Prompt'}</Label>
+          <p className="whitespace-pre-wrap break-words rounded-lg bg-muted/60 px-2.5 py-2 text-xs">{item.source.prompt}</p>
+          {item.source.excludeStyles && <p className="mt-1.5 text-[11px] text-muted-foreground">Leaves out: {item.source.excludeStyles}</p>}
+          {item.source.instrumental && <p className="mt-1.5 text-[11px] text-muted-foreground">Instrumental</p>}
+        </section>
+      )}
+
+      {item.lyrics && (
+        <section>
+          <Label action={<CopyButton text={item.lyrics} what="Lyrics copied" />}>Lyrics</Label>
+          <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-muted/60 px-2.5 py-2 font-sans text-xs leading-relaxed">{item.lyrics}</pre>
+        </section>
+      )}
+
+      {!!item.related?.length && (
+        <section>
+          <Label>Made from</Label>
+          {item.related.map(r => {
+            const parent = library.item[r.id];
+            return parent ? (
+              <MiniRow key={`${r.relation}-${r.id}`} image={parent.thumb} seed={parent.subject ?? parent.kind} title={parent.title} subtitle={`${r.relation} of`} onClick={() => select({ kind: 'item', id: r.id })} />
+            ) : (
+              <div key={`${r.relation}-${r.id}`} className="px-1.5 font-mono text-xs text-muted-foreground">
+                {r.relation} of {r.id.slice(0, 10)}
+              </div>
+            );
+          })}
         </section>
       )}
 

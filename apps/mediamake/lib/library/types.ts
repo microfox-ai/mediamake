@@ -67,6 +67,8 @@ export interface Channel {
   name: string;
   /** Its folder in the delivery root (Downloads/AMZ). */
   folder: string;
+  /** The MediaMake cloud project its team shares (`media channel link`). */
+  projectId?: string;
   logo?: string;
   productions: string[];
 }
@@ -127,7 +129,16 @@ export interface MediaSource {
   tool?: string;
   ref?: string;
   url?: string;
+  pageUrl?: string;
   title?: string;
+  /** What was asked for; a Suno take's styles. */
+  prompt?: string;
+  model?: string;
+  /** Suno: the styles it was told to leave out. */
+  excludeStyles?: string;
+  instrumental?: boolean;
+  /** Suno: how it came about (cover, extend, remaster, reuse, upload). */
+  relation?: string;
 }
 
 export interface MediaNote {
@@ -136,7 +147,8 @@ export interface MediaNote {
   production?: string;
 }
 
-export type MediaStatus = 'online' | 'cold' | 'missing';
+/** remote: a teammate's item (`media sync pull`), with no copy on this Mac yet. */
+export type MediaStatus = 'online' | 'cold' | 'missing' | 'remote';
 
 export interface MediaItem {
   /** sha256 of the content. */
@@ -168,6 +180,14 @@ export interface MediaItem {
   status: MediaStatus;
   /** Other paths holding the same bytes. */
   dupes?: string[];
+  /** A song's words. */
+  lyrics?: string;
+  /** What it was made from: a cover's original, a song's stems… */
+  related?: { relation: string; id: string }[];
+  /** A teammate's item: whose channel, and whether its file can be pulled. */
+  remote?: { channel: string; file: boolean };
+  /** The channels whose team gets its file; uploaded once `media sync push` sent it. */
+  shared?: { channel: string; uploaded: boolean }[];
 }
 
 export interface Run {
@@ -187,7 +207,9 @@ export type LibraryRequest =
   | { op: 'sort'; target: string; kind: Exclude<MediaKind, 'unsorted'>; subject?: string; tags?: string[] }
   | { op: 'set-channel'; target: string; channel: string | null }
   /** The production's picture, made from a library item's. */
-  | { op: 'set-thumbnail'; target: string; item: string };
+  | { op: 'set-thumbnail'; target: string; item: string }
+  /** Share with team: the user's OK to give the channel's team this file (`media sync push` uploads it). */
+  | { op: 'share' | 'unshare'; target: string; channel?: string };
 
 export type RequestFile = LibraryRequest & { schema: typeof REQUEST_SCHEMA; at: string; from: 'library-page' };
 

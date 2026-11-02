@@ -7,7 +7,8 @@ reused. Approved outputs go to the channel folders in Downloads. Every skill fol
 
 ```
 ~/Downloads/
-  _INBOX/<tool>/          tools download here first (youtube, instagram, pinterest, midjourney, fal, elevenlabs, suno)
+  _INBOX/<tool>/          tools download here first (youtube, instagram, pinterest, midjourney, fal, elevenlabs, suno,
+                          mediamake-sync for a teammate's files)
   _LIBRARY/
     footage/<franchise>/<character|topic>/   overlays/<type>/   images/<franchise>/<character>/<set>/
     art/<channel>/<set>/   music/<channel>/<song>/   sfx/<category>/   references/<topic>/   fonts/   3d/
@@ -18,7 +19,9 @@ reused. Approved outputs go to the channel folders in Downloads. Every skill fol
 ```
 
 Where these are on a machine, and which folder each channel delivers to, is in `~/.mediamake/config.json`
-(`library`: root, inbox, deliverRoot, channels, exclude). That file is never committed.
+(`library`: root, inbox, deliverRoot, channels, exclude). That file is never committed. A channel is its
+folder (`"animemusiczone": "AMZ"`) or, once linked to its team's MediaMake cloud project,
+`{ "folder": "AMZ", "projectId": "…" }`.
 
 ## The rules for every skill
 
@@ -26,9 +29,18 @@ Where these are on a machine, and which folder each channel delivers to, is in `
    (`--kind=footage --min-height=1080 --unused --sheet`). `--sheet` draws a labelled contact sheet;
    look at it before casting. Items the user rated bad are left out (`--all` shows them).
 2. **Download into the inbox.**
-   - Browse Hack's `youtube_download`, `instagram_download`, `pinterest_bulk_start` and
-     `midjourney_download_images` save into `_INBOX/<tool>/` themselves, and answer
+   - Browse Hack's `youtube_download`, `instagram_download`, `pinterest_bulk_start`,
+     `midjourney_download_images` and `suno_download` save into `_INBOX/<tool>/` themselves, and answer
      `alreadyHave` when the library holds the file.
+   - Suno takes go to `_INBOX/suno/<channel>/<set>/<Title> [<id8>].mp3`. Their sidecar adds `pageUrl`,
+     `author`, `prompt` (the styles), `lyrics`, `excludeStyles`, `instrumental`, `settings`,
+     `parentRef` with `relation` (cover, extend, remaster, reuse, upload), `sourceItem` (a library
+     item's SHA-256), `workspace` and `channel`.
+     - Ingest files them under that channel (the folder's, else the sidecar's): `music/<channel>/<song>/`.
+     - Lyrics go beside the song as `<file>.lyrics.txt`.
+     - What a take was made from is linked (`media show`): a cover to its original, stems to their
+       song, a take of an uploaded track to that track.
+     - `media find --kind=music --channel=<id> "<words>"` matches lyrics and styles.
    - Anything else (fal, ElevenLabs, a curl) goes to `_INBOX/<tool>/`, with `<file>.source.json` beside it:
      `{ "schema": "mediamake.source/v1", "tool", "ref", "url", "title", "query", "prompt", "model", "price" }`.
    - Then run `media ingest`. A launchd watcher does this by itself once `media init --watch` is installed.
@@ -54,14 +66,31 @@ Where these are on a machine, and which folder each channel delivers to, is in `
    run `media rate <id> good`.
 8. **Never move or rename library files by hand.** Use `media mv <id> --kind= --subject=` (or
    `--to=<folder>`), so the catalog and the folder's `.media.json` stay right.
+9. **Share a channel's work with its team through `media sync`, a dry run first.**
+   - Once: `media cloud login` (the API key goes in the macOS Keychain, never in the config), then
+     `media channel link <channel> <projectId>` (`media channel list` shows the projects).
+   - `media sync status --channel=<id>` shows what would go up and come down: the brand kit
+     (`brands/<channel>/`), the skill variants its productions use, its productions'
+     `mediamake.json`, its media's details, and keeper Suno takes (`--what=music`).
+   - `media sync push|pull --channel=<id> [--what=…]`, then `--yes`. Viewers of the project pull;
+     owners and editors push.
+   - A pull never overwrites: a file that differs here lands beside it as `<file>.theirs`. Merge it
+     and delete the `.theirs`; until then that thing isn't pushed.
+   - Files go up only when the user says so (`media share <id> --yes`, or Share with team on the
+     Library page) and only within the channel's limit (100 MB in all by default; the owner sets it
+     with `media channel limit`).
+   - A teammate's items show in `media find` as remote; `media sync pull --ids=<id> --yes` brings
+     a file here and files it.
 
 ## What lives where
 
 | What | Where | Notes |
 | --- | --- | --- |
 | A file's record | `<folder>/.media.json` (mediamake.library/v1) | Durable; `media scan --rebuild` makes the catalog again from these |
-| The catalog | `.catalog/library.db` (SQLite, `node:sqlite`) | `items`, `sources` (UNIQUE tool+ref), `tags`, `notes`, `locations`, `uses`, `derived`, `productions`, `deliveries`, `runs`, FTS `search` |
+| The catalog | `.catalog/library.db` (SQLite, `node:sqlite`) | `items` (with a song's `lyrics`), `sources` (UNIQUE tool+ref; a tool's other keys in `extra`), `tags`, `notes`, `locations`, `uses`, `derived`, `productions`, `deliveries`, `runs`, `relations` (item → parent: cover, extend, remaster, stems, variation), `remote` (a teammate's items), `shares` (files the user shared with a channel's team), `synced` (what this Mac last saw on the cloud), FTS `search` |
 | Provenance | `<file>.source.json` in the inbox → merged into `.media.json` | Browse Hack writes it; any tool can |
+| A song's lyrics | `<file>.lyrics.txt` beside it, and in its `.media.json` entry | From Suno's sidecar (or a `.lyrics.txt` in the inbox) |
+| A channel's team | Its MediaMake cloud project: brand kit, `/api/channel-sync` (productions, skill variants, media details), `mediaFiles` with `contentSource: "library-sync"` | `media sync`; `.theirs` beside anything a pull would have changed |
 | A production | `projects/<slug>/mediamake.json` (mediamake.production/v2) | channel, artist, song, skills, status, deliverFolder |
 | A delivery | `<CHANNEL>/<slug>/delivery.json` (mediamake.delivery/v1) | what came from where, hashes, final → uploaded |
 | The Library page | `.catalog/export/*.json` + `.catalog/thumbs/` (mediamake.library-export/v1) | Rewritten after every change; page edits come back as `.catalog/requests/*.json`, applied by `media apply-requests` |

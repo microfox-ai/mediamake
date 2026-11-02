@@ -22,13 +22,56 @@ export type Source = {
   title?: string;
   author?: string;
   query?: string;
+  /** what was asked for; a Suno take's styles */
   prompt?: string;
   model?: string;
   height?: number;
   fps?: number;
+  /** what it cost (Suno: credits) */
   price?: number;
   downloadedAt?: string;
+  // Suno (Browse Hack's suno_download)
+  lyrics?: string;
+  excludeStyles?: string;
+  instrumental?: boolean;
+  settings?: Record<string, unknown>;
+  /** the clip it was made from */
+  parentRef?: string;
+  relation?: SourceRelation;
+  /** the library item (sha256) it was made from, e.g. the track uploaded to Suno */
+  sourceItem?: string;
+  workspace?: { id?: string; name?: string };
+  /** the library channel it was made for */
+  channel?: string;
+  /** what a teammate's library knows about it (media sync pull) */
+  library?: SharedDetails;
 };
+
+export type SourceRelation = 'cover' | 'extend' | 'remaster' | 'reuse' | 'upload';
+
+/** One item as a channel's team shares it (media sync): what it is, never where it is on someone's Mac. */
+export type SharedDetails = {
+  sha256: string;
+  kind: string;
+  subject?: string | null;
+  title?: string | null;
+  /** where it sits in the sharer's library, relative to its root */
+  path?: string;
+  tags?: string[];
+  sources?: Source[];
+  rating?: string | null;
+  notes?: { at: string; text: string; production?: string }[];
+  bytes?: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  fps?: number | null;
+  hasAudio?: boolean | null;
+  lyrics?: string | null;
+};
+
+/** The keys of a source that have their own columns in the catalog; the rest is kept as its extra. */
+export const SOURCE_COLUMNS = ['schema', 'tool', 'ref', 'url', 'pageUrl', 'title', 'author', 'query', 'prompt', 'model', 'height', 'fps', 'price', 'downloadedAt', 'lyrics', 'library'] as const;
 
 export type MediaType = 'video' | 'audio' | 'image' | 'font' | '3d' | 'archive';
 const EXT: Record<MediaType, string[]> = {
@@ -73,6 +116,8 @@ const TOOLS: [RegExp, (m: RegExpMatchArray) => Guess][] = [
   [/^([0-9a-f]{32})(?: \(\d+\))?\.(?:jpe?g|png|webp|gif|mp4)$/i, m => ({ tool: 'pinterest', ref: m[1] })],
   [/^PinGrab_(\d+)/i, m => ({ tool: 'pinterest', ref: `grab-${m[1]}` })],
   [/^ElevenLabs_/i, () => ({ tool: 'elevenlabs' })],
+  // Browse Hack's Suno downloads: "<title> [<first 8 of the clip id>].mp3"
+  [/ \[[0-9a-f]{8}\](?: \(\d+\))?\.(?:mp3|wav|m4a|flac)$/i, () => ({ tool: 'suno' })],
 ];
 export const guessTool = (name: string): Guess | null => {
   for (const [re, f] of TOOLS) {
@@ -152,10 +197,12 @@ export const matchSubjects = (text: string): Subjects => {
 
 const RES = /\s*\((\d{3,4})p(\d{2,3})?(?:,[^)]*)?\)/gi;
 const REPEAT = /\s*\(\d+\)$/;
+/** Browse Hack's " [<id8>]" after a Suno title */
+const CLIP = /\s*\[[0-9a-f]{8}\]/gi;
 const STOP = new Set(['the', 'a', 'an', 'of', 'for', 'in', 'on', 'and', 'with', 'by', 'to', 'from', 'x', 'vs', 'ft', 'feat', 'official', 'video', 'free', 'quality', 'high', 'hd', 'uhd', 'fhd', '4k', '8k', '2k', 'best', 'full', 'new', 'final', 'no', 'cc']);
 
 /** "Zoro Twixtor Clips 4K (2160p60) (1)" → "Zoro Twixtor Clips 4K". */
-export const cleanTitle = (base: string) => base.replace(RES, '').replace(REPEAT, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+export const cleanTitle = (base: string) => base.replace(RES, '').replace(REPEAT, '').replace(CLIP, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
 /** Hashes, ids and timestamps: a name that says nothing, kept as it is. */
 /** Words a download's name carries that say nothing about what it shows ("224162_small", "Clip 1 (Copy)"). */
 const FILLER = /(^|[^a-z])(tiny|small|medium|large|hd|uhd|copy|clip|video|image|img|untitled|\d+p\d*|\d+fps)(?=[^a-z]|$)/gi;
@@ -184,7 +231,7 @@ const qualityTags = (p: Probe | null | undefined, type: MediaType) => {
 /** The song a Suno file belongs to: "DBZ - Goten - growling rock 2 (Remastered)" → "dbz-goten". */
 export const songOf = (base: string) => {
   const parts = cleanTitle(base)
-    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
     .split(/\s+-\s+/)
     .map(s => s.trim())
     .filter(Boolean);
