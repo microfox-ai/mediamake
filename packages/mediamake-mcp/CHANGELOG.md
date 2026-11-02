@@ -1,5 +1,11 @@
 # @microfox/mediamake-mcp
 
+## 0.1.4
+
+### Patch Changes
+
+- 36e8e89: Changes from PR #470: catalog-updates
+
 ## 0.1.3
 
 ### Patch Changes
