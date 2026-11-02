@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
 import { LoaderIcon, TriangleAlertIcon } from 'lucide-react';
-import { setElementEdit } from '@/lib/remotion-editor/edits';
+import { setElementEdit, swapManifestAssets } from '@/lib/remotion-editor/edits';
 import { EDITS_SCHEMA } from '@/lib/remotion-editor/types';
 import {
   elementsById,
@@ -15,7 +15,7 @@ import {
   type Box,
 } from './dom';
 import { ConnectPanel } from './ConnectPanel';
-import { player, useEditor } from './store';
+import { player, useEditor, withAssetUrls } from './store';
 
 const BLUE = '#0B84F3';
 const NO_ELEMENTS = {};
@@ -292,7 +292,17 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
 /** The Player sized to fit the stage, with the edit overlay on top. */
 export function Stage() {
   const Video = useEditor(s => s.Video);
-  const manifest = useEditor(s => s.manifest);
+  const source = useEditor(s => s.source);
+  const rawManifest = useEditor(s => s.rawManifest);
+  const assetSwaps = useEditor(s => s.edits.assets);
+  // swapped files in place of the ones the manifest names (the kit's asset() swaps the rest)
+  const manifest = useMemo(
+    () =>
+      source && rawManifest
+        ? withAssetUrls(source, swapManifestAssets(rawManifest, assetSwaps))
+        : null,
+    [source, rawManifest, assetSwaps],
+  );
   const compiled = useEditor(s => s.compiled);
   const kit = compiled?.kit;
   // Element edits (moves, scales, fonts) reach the video through a live channel, so a drag
@@ -344,11 +354,16 @@ export function Stage() {
       live
         ? {
             manifest,
-            edits: { schema: EDITS_SCHEMA, elements: NO_ELEMENTS, props: propEdits },
+            edits: {
+              schema: EDITS_SCHEMA,
+              elements: NO_ELEMENTS,
+              props: propEdits,
+              assets: assetSwaps,
+            },
             liveEdits: live,
           }
         : { manifest, edits },
-    [manifest, edits, propEdits, live],
+    [manifest, edits, propEdits, assetSwaps, live],
   );
 
   const setPlayer = useCallback((p: PlayerRef | null) => {

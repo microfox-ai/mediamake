@@ -169,6 +169,9 @@ IndexedDB list as the editor's.
   the video paused.
 - When the window regains focus and the project's code or `video/edits.json` changed, it compiles
   again and seeks back to where it was.
+- **Tweak it yourself** (header) opens the project in `/remotion-editor` on the same folder
+  (`?source=folder`): moves, text, a scene's knobs, swapped pictures, clips and sounds. Back here, the
+  reload above plays the change; swapped files are listed again when the project compiles.
 - Heavy scenes can drop frames while playing; a render never does. Judge smoothness on a render.
 
 ## Flow

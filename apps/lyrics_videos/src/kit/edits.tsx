@@ -6,7 +6,10 @@
  *   the DOM after each frame through the CSS `translate`, `scale` and `rotate` properties. Those
  *   stack with the scene's own `transform`, so its animation keeps running underneath.
  * - props: values written into a layer's props before it renders, keyed by path
- *   ("lockups.3.rows.0.1.text"). The editor only offers the fields a scene lists in `editable()`.
+ *   ("lockups.3.rows.0.1.text"). The editor offers the fields a scene lists in `editable()` and the
+ *   knobs it declares (`withKnobs`).
+ * - assets: files swapped for others (the path the project names → the replacement), applied by
+ *   `asset()` and the manifest (hooks.ts).
  *
  * Every layer can be moved as a whole (`layer:<key>`) without touching its scene.
  */
@@ -51,6 +54,8 @@ export type Edits = {
   elements?: Record<string, ElementEdit>;
   /** layer key → props path → value */
   props?: Record<string, Record<string, unknown>>;
+  /** "slug/input/cover.jpg" → "slug/input/swaps/cover-2.jpg" */
+  assets?: Record<string, string>;
 };
 
 export type EditableOptions = {
@@ -316,6 +321,13 @@ export const parseEdits = (raw: unknown): Edits => {
     elements: isObject(o.elements) ? (o.elements as Record<string, ElementEdit>) : {},
     props: isObject(o.props)
       ? (o.props as Record<string, Record<string, unknown>>)
+      : {},
+    assets: isObject(o.assets)
+      ? Object.fromEntries(
+          Object.entries(o.assets).filter(
+            (e): e is [string, string] => typeof e[1] === 'string' && !!e[1],
+          ),
+        )
       : {},
   };
 };

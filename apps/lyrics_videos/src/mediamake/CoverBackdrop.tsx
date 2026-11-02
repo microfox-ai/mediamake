@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import { AbsoluteFill, Img, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
+import { withKnobs } from '../kit/knobs';
 import type { Manifest } from '../kit/manifest';
 import { asset, useBeat, useEnergy, useEnvelope, useHit, useManifest, useSongTime } from '../kit/hooks';
 import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilter, PictureTexture, type PictureLook } from './PictureLook';
@@ -568,3 +569,14 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
     </AbsoluteFill>
   );
 };
+
+withKnobs(CoverBackdrop, {
+  image: { type: 'asset', accept: 'image', label: 'Picture', hint: 'Default: the first picture in input/' },
+  fit: { type: 'select', options: ['cover', 'contain'], label: 'Fit', default: 'cover' },
+  motion: { type: 'select', options: ['zoom-loop', 'pan-loop', 'push', 'still'], label: 'Motion', default: 'zoom-loop' },
+  loopSeconds: { type: 'number', min: 4, max: 60, step: 1, unit: 's', label: 'Seconds per loop', default: 20 },
+  dim: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Darken', hint: 'Black over the picture so text reads', default: 0.35 },
+  beatKick: { type: 'number', min: 0, max: 1, step: 0.05, label: 'Kick on beats', default: 0.4 },
+  kickOn: { type: 'select', options: ['beat', 'kick'], label: 'Kick follows', default: 'beat' },
+  tint: { type: 'color', label: 'Tint' },
+});

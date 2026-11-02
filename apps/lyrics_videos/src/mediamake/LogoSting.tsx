@@ -2,6 +2,7 @@ import React from 'react';
 import { AbsoluteFill, OffthreadVideo } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import { asset, useSection } from '../kit/hooks';
+import { withKnobs } from '../kit/knobs';
 
 export type LogoStingProps = {
   /** The channel's logo animation with alpha (a manifest asset name), drawn full-frame into `box`. */
@@ -36,3 +37,12 @@ export const LogoSting: React.FC<SceneProps<LogoStingProps>> = ({ manifest, src,
     </AbsoluteFill>
   );
 };
+
+withKnobs(LogoSting, {
+  src: { type: 'asset', accept: 'video', label: 'Logo clip' },
+  'box.left': { type: 'number', step: 5, unit: 'px', label: 'Left' },
+  'box.top': { type: 'number', step: 5, unit: 'px', label: 'Top' },
+  'box.width': { type: 'number', min: 100, max: 1920, step: 10, unit: 'px', label: 'Width' },
+  fadeIn: { type: 'number', min: 0, max: 2, step: 0.05, unit: 's', label: 'Fade in', default: 0.15 },
+  fadeOut: { type: 'number', min: 0, max: 2, step: 0.05, unit: 's', label: 'Fade out', default: 0.4 },
+});

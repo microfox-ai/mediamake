@@ -264,7 +264,10 @@ bars, motion that eases *into* the next downbeat.
   - pure helpers (`timing.ts`): `findLine(m, 'genjutsu choke', nth)`, `cutBefore(m, query)`,
     `beatAt/timeOfBeat`, `barAt/timeOfBar`, `beatBefore`, `nearestBeat`, `onsetsIn`, `envelopeAt`, `hitAt`.
     **Find lines by content, never hard-code times.**
-  - `asset(path)` — resolves `manifest.assets[...]` / `manifest.audio.src` for `<Img>`, `<Video>`
+  - `asset(path)` — a project file (`manifest.assets[...]`, `manifest.audio.src`, `<slug>/input/…`)
+    as a URL for `<Img>`, `<Video>`, `<OffthreadVideo>`, `<Audio>`. **Load every picture, clip and
+    sound through it, never `staticFile()`**: a file the user swaps in the editor reaches the scene
+    only this way (fonts can keep `staticFile()`).
 - The kit plays the song; scenes must not add the main `<Audio>` again.
 - Reuse `@microfox/remotion` atoms where they fit (waveforms, captions, effects) — see
   `scenes/ChorusWave.tsx`. Load fonts with `@remotion/google-fonts/<Font>` in a `video/fonts.ts`.
@@ -282,6 +285,22 @@ bars, motion that eases *into* the next downbeat.
   sorted list; `props` is the cue's path inside the layer's props (`lockups.3.rows.0.1`) and `fields`
   the cue keys worth changing (`text`, `font`, `size`, colours); elements that must move together
   share an id (a picture and its cutout). Whole layers are selectable without any marking.
+- **Give each scene a few knobs** for what a person would change without code, with the kit's
+  `withKnobs(Scene, knobs)`:
+  ```tsx
+  export const Photo = withKnobs(PhotoScene, {
+    size: { type: 'number', min: 200, max: 900, step: 10, unit: 'px', label: 'Size', default: 420 },
+    border: { type: 'color', label: 'Border' },
+    style: { type: 'select', options: ['card', 'polaroid'], label: 'Frame' },
+    tilt: { type: 'toggle', label: 'Tilt' },
+    image: { type: 'asset', accept: 'image', label: 'Picture' },
+  });
+  ```
+  Each key is a props path the scene reads (with its default in code, or `default` here). The editor
+  shows them as sliders, colour pickers, menus, switches, text fields and file pickers, and saves a
+  change as a `props` edit. Good knobs: sizes, counts, speeds and timings, colours and opacities,
+  which file to show, volumes. Keep it to a handful per scene, labelled in the user's words; a scene
+  without knobs still shows its layer's simple props.
 - **Keep a shot list in `video/shots.json` as you build: every rendered video needs a map.** One
   entry per shot (each cut or picture change, montages count as one shot), in song seconds:
   `[{ "id": "h1.3", "from": 4.7, "to": 6.87, "label": "Reticle on W19 eye", "lyric": "Infallible calculate", "section": "hook-1" }]`.
@@ -549,15 +568,19 @@ The user can adjust a project by hand in mediamake's **Remotion editor**:
 Brave; the first time they pick `apps/lyrics_videos`, after that it reopens), or
 `http://localhost:<port>/remotion-editor?project=<slug>` while mediamake runs `next dev`, which
 reads the repo with no picking. Give them the link with the slug filled in. It compiles the project
-in the browser from this folder, so code changes show up on their own (after replacing a picture,
-they press Reload). What they change is saved to **`projects/<slug>/video/edits.json`**, and every
-render (Studio, stills, render-project) applies it on top of the code:
+in the browser from this folder, so code changes show up on their own (a file replaced on disk shows
+after Reload). Besides moving and retyping, they turn a scene's knobs in the inspector and swap
+pictures, clips and sounds in the **Assets** panel, which saves the new file under
+`projects/<slug>/input/swaps/`. Live review (`/video-revision`) opens the same page with "Tweak it
+yourself". What they change is saved to **`projects/<slug>/video/edits.json`**, and every render
+(Studio, stills, render-project) applies it on top of the code:
 
 ```jsonc
 {
   "schema": "lyrics_videos.edits/v1",
   "elements": { "lockup:line-11": { "x": 40, "y": -120, "scale": 1.1, "rotate": -3, "font": "Anton", "label": "HALF-WORN CLOAK", "at": 38.3 } },
-  "props": { "type": { "lockups.12.rows.0.1.text": "CLOAK" } }   // layer key → props path → value
+  "props": { "type": { "lockups.12.rows.0.1.text": "CLOAK" }, "photo": { "size": 600 } },   // layer key → props path → value
+  "assets": { "my-song/input/cover.png": "my-song/input/swaps/20261102-131514-cover-v2.png" }   // file → the one in its place
 }
 ```
 
@@ -567,8 +590,12 @@ render (Studio, stills, render-project) applies it on top of the code:
   section labels, `#2` for repeats).
 - When you change cues, check `edits.json`: a `props` path is an index into the cue list, so adding
   or removing cues can move it onto another cue. Fix or drop stale entries, and say so.
+- `assets` swaps a file wherever the scene loads it through `asset()` or the manifest. A scene that
+  still calls `staticFile()` ignores the swap: switch it to `asset()`.
 - On request, **bake** edits into the code (positions into `pos`/`dx`/`dy`, text and fonts into the
-  cues) and remove what you baked from `edits.json`. Never hand-edit the file while the page has
+  cues, knob values into the layer's props) and remove what you baked from `edits.json`. To bake a
+  swap, ingest the new file into the media library (`media ingest <path> --channel=<id>`), give the
+  project its clone (`media use`) where the old file was used, and drop the entry. Never hand-edit the file while the page has
   unsaved edits; when the page has none it picks up your change by itself.
 
 ## Promoting a scene into the mediamake editor

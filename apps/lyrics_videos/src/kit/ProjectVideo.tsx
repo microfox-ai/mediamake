@@ -18,7 +18,13 @@ import {
   type Edits,
   type LiveElementEdits,
 } from './edits';
-import { asset, ManifestContext, SectionContext } from './hooks';
+import {
+  asset,
+  ManifestContext,
+  SectionContext,
+  setAssetSwaps,
+  swapManifestAssets,
+} from './hooks';
 import { ManifestSchema, type Manifest } from './manifest';
 
 export type ProjectVideoProps = {
@@ -36,7 +42,13 @@ export const makeProjectVideo = (
   project: ProjectDefinition,
 ): React.FC<ProjectVideoProps> => {
   const keys = layerKeys(project.layers);
-  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest, edits, liveEdits }) => {
+  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest: named, edits, liveEdits }) => {
+    // swapped files first: scenes read them through asset() and the manifest while rendering
+    setAssetSwaps(edits?.assets);
+    const manifest = useMemo(
+      () => (named ? swapManifestAssets(named, edits?.assets) : named),
+      [named, edits?.assets],
+    );
     const { fps } = useVideoConfig();
     const win = project.window;
     const start = win ? Math.round(win.from * fps) : 0;

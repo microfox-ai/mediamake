@@ -10,9 +10,40 @@ import { barAt, beatAt, envelopeAt, hitAt, timeOfBar } from './timing';
 export const ManifestContext = createContext<Manifest | null>(null);
 export const SectionContext = createContext<Section | null>(null);
 
-/** Resolves a manifest path ("slug/input/x.png") or URL to something <Img>/<Audio> can load. */
-export const asset = (src: string): string =>
-  /^(https?:|data:|blob:)/.test(src) ? src : staticFile(src);
+let swaps: Record<string, string> = {};
+
+/**
+ * Files swapped in mediamake's editor (edits.json `assets`: the path a project names → the file
+ * that replaces it). The project video sets them before its scenes render, so `asset()` and the
+ * manifest hand every scene the replacement, in Studio, stills and renders alike.
+ */
+export const setAssetSwaps = (next: Record<string, string> | undefined) => {
+  swaps = next ?? {};
+};
+
+/**
+ * Resolves a manifest path ("slug/input/x.png") or URL to something <Img>/<Audio> can load. Load
+ * every image, clip and sound through it (not `staticFile()` directly), so a file swapped in the
+ * editor is swapped everywhere.
+ */
+export const asset = (src: string): string => {
+  const path = swaps[src] ?? src;
+  return /^(https?:|data:|blob:)/.test(path) ? path : staticFile(path);
+};
+
+/** The manifest with swapped files in place of the ones it names (the song, `assets`). */
+export const swapManifestAssets = <M extends Pick<Manifest, 'audio' | 'assets'>>(
+  manifest: M,
+  next: Record<string, string> | undefined,
+): M => {
+  if (!next || !Object.keys(next).length) return manifest;
+  const swap = (path: string) => next[path] ?? path;
+  return {
+    ...manifest,
+    audio: { ...manifest.audio, src: swap(manifest.audio.src) },
+    assets: Object.fromEntries(Object.entries(manifest.assets ?? {}).map(([k, v]) => [k, swap(v)])),
+  };
+};
 
 export const useManifest = (): Manifest => {
   const manifest = useContext(ManifestContext);

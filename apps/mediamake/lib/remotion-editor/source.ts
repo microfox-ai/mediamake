@@ -1,4 +1,4 @@
-import type { CodeFile, ProjectEntry } from './types';
+import type { CodeFile, MediaFile, ProjectEntry } from './types';
 
 /**
  * Where a lyric project's files come from. Paths are relative to the apps/lyrics_videos folder
@@ -22,6 +22,27 @@ export interface ProjectSource {
   prepare?(slug: string, onProgress?: (message: string) => void): Promise<void>;
   /** Releases what prepare() holds. */
   dispose?(): void;
+  /** Images, clips and sounds a project's scenes can load (not analysis/, archive/ …). */
+  listMedia?(slug: string): Promise<MediaFile[]>;
+  /**
+   * Saves a file the user dropped in as projects/<slug>/input/swaps/<name>, never over another, and
+   * resolves to its path as staticFile() takes it. assetUrl() answers for it from then on.
+   */
+  writeSwap?(slug: string, file: File): Promise<string>;
+}
+
+/** Where a swapped-in file goes: a new name in projects/<slug>/input/swaps/, dated so it sorts. */
+export function swapPathFor(slug: string, fileName: string, now = new Date()): string {
+  const dot = fileName.lastIndexOf('.');
+  const ext = dot > 0 ? fileName.slice(dot).toLowerCase().replace(/[^.a-z0-9]/g, '') : '';
+  const base =
+    (dot > 0 ? fileName.slice(0, dot) : fileName)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'file';
+  const stamp = now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+  return `${slug}/input/swaps/${stamp}-${base}${ext}`;
 }
 
 const API = '/api/dev-lyrics';
@@ -79,5 +100,21 @@ export const repoSource: ProjectSource = {
   assetUrl(publicPath) {
     if (/^(https?:|data:|blob:)/.test(publicPath)) return publicPath;
     return `${window.location.origin}${API}/raw/projects/${encodePath(publicPath)}`;
+  },
+  async listMedia(slug) {
+    const res = await fetch(`${API}/media?slug=${encodeURIComponent(slug)}`, {
+      cache: 'no-store',
+    });
+    return (await json<{ files: MediaFile[] }>(res)).files;
+  },
+  async writeSwap(slug, file) {
+    const path = swapPathFor(slug, file.name);
+    const res = await fetch(`${API}/raw/projects/${encodePath(path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    await json<{ mtime: number }>(res);
+    return path;
   },
 };

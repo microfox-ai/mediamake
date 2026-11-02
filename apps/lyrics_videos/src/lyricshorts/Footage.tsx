@@ -9,7 +9,8 @@
  * arrive together) — LyricShort decides which.
  */
 import React from 'react';
-import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, staticFile, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Freeze, OffthreadVideo, Sequence, useVideoConfig } from 'remotion';
+import { asset } from '../kit/hooks';
 import { clipSpeed, clipTime, OVERLAP, type ResolvedCut, type Transition, type transitionOf } from './spec';
 
 export type FootageLook = {
@@ -237,7 +238,7 @@ export const FootageAt: React.FC<{ slug: string; cuts: ResolvedCut[]; t: number;
   if (i < 0) i = t < cuts[0].start ? 0 : cuts.length - 1;
   const c = cuts[i];
   const tau = t - c.start;
-  const src = (k: number) => staticFile(`${slug}/derived/lyricshorts/${cuts[k].file}`);
+  const src = (k: number) => asset(`${slug}/derived/lyricshorts/${cuts[k].file}`);
   const g = look.grade;
   const grade = `saturate(${g.saturate}) contrast(${g.contrast}) brightness(${g.brightness})${c.mono ? ' grayscale(1)' : ''}`;
   let fx = IDENT;

@@ -255,6 +255,10 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   `mediamake` from `.claude/launch.json`) and open `http://localhost:3002/remotion-editor?project=<slug>`
   in the browser pane; prefer local, the deployed editor lags behind engine changes. Say which
   timeline mark to jump to. The user's moves save to `video/edits.json` and every render applies them.
+  They can also swap the cover, overlays or logo clip in the editor's Assets panel, and turn the
+  cover's and logo's knobs (picture, darken, kick, motion, tint; logo box and fades) in the
+  inspector. A scene you write for a project loads its files with the kit's `asset()`, never
+  `staticFile()`, and declares its knobs with `withKnobs` (see make-lyrics-video).
 - **Clips and renders only when asked** (rule 10): `npm run render-project -w lyrics_videos -- <slug>
   --frames=<a>-<b> --proxy` (half size, faster than the ≈ 1 min for 24 s at full size).
 

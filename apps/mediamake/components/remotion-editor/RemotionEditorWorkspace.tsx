@@ -8,8 +8,10 @@ import {
 } from '@/components/ui/resizable';
 import { isTextField } from '@/components/revisions/keyboard';
 import { handlesFromDrop } from '@/lib/local-media/file-access';
+import { cn } from '@/lib/utils';
 import { resetElement, resetPropFields, setElementEdit } from '@/lib/remotion-editor/edits';
 import { EditorHeader } from './EditorHeader';
+import { AssetsPanel } from './AssetsPanel';
 import { ElementsPanel } from './ElementsPanel';
 import { Inspector } from './Inspector';
 import { Stage } from './Stage';
@@ -149,6 +151,35 @@ function useDiskWatch() {
   }, []);
 }
 
+/** Elements (layers, what is on screen, edits) or Assets (the project's files, to swap). */
+function LeftPanel() {
+  const [tab, setTab] = useState<'elements' | 'assets'>('elements');
+  const swaps = useEditor(s => Object.keys(s.edits.assets).length);
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 gap-1 border-b px-2 py-1.5">
+        {(['elements', 'assets'] as const).map(t => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={cn(
+              'rounded px-2 py-0.5 text-xs capitalize text-muted-foreground hover:bg-muted',
+              tab === t && 'bg-muted font-medium text-foreground',
+            )}
+          >
+            {t}
+            {t === 'assets' && swaps > 0 && (
+              <span className="ml-1 tabular-nums text-primary">{swaps}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1">{tab === 'elements' ? <ElementsPanel /> : <AssetsPanel />}</div>
+    </div>
+  );
+}
+
 export function RemotionEditorWorkspace() {
   const init = useEditor(s => s.init);
   const openDropped = useEditor(s => s.openDropped);
@@ -190,7 +221,7 @@ export function RemotionEditorWorkspace() {
         <ResizablePanel defaultSize={82} minSize={40}>
           <ResizablePanelGroup direction="horizontal" autoSaveId="remotion-editor-horizontal">
             <ResizablePanel defaultSize={18} minSize={12} maxSize={35}>
-              <ElementsPanel />
+              <LeftPanel />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={58} minSize={30}>

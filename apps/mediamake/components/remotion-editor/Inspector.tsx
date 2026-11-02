@@ -23,6 +23,7 @@ import {
 } from '@/lib/remotion-editor/edits';
 import { emptyEdits, type ElementEdit } from '@/lib/remotion-editor/types';
 import { Hint } from '@/components/revisions/keyboard';
+import { KnobsSection } from './Knobs';
 import { useEditor, type SelectedInfo } from './store';
 
 /**
@@ -406,6 +407,8 @@ function ProjectSummary() {
           <li>Alt-click picks the next thing under the pointer.</li>
           <li>Whole layers are in the list on the left.</li>
           <li>Double-click text to change what it says.</li>
+          <li>A layer&apos;s knobs (sizes, colours, files…) show when it or something in it is selected.</li>
+          <li>Assets (left) swaps an image, clip or sound for another file.</li>
           <li>Arrows nudge 1 px (⇧ 10 px). Delete resets the selection.</li>
           <li>Scenes choose what can be picked with the kit&apos;s editable().</li>
         </ul>
@@ -431,6 +434,7 @@ export function Inspector() {
   }
 
   const label = info?.label ?? stored?.label ?? selectedId;
+  const layerKey = info?.layer ?? (selectedId.startsWith('layer:') ? selectedId.slice(6) : null);
   const stale = stored?.label && info?.label && stored.label !== info.label;
   return (
     <div className="h-full overflow-y-auto">
@@ -460,6 +464,7 @@ export function Inspector() {
       </div>
       <TransformSection id={selectedId} info={info} />
       {info && <FieldsSection info={info} />}
+      {layerKey && <KnobsSection layerKey={layerKey} />}
       <div className="px-3 py-3">
         <Button
           variant="outline"
