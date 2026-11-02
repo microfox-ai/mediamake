@@ -32,6 +32,19 @@ anywhere else. When it is done, give the user a one-click way to open it: a `bas
 `open -R "<absolute path to the video>"` (the app adds a Run button; Finder opens with it
 selected). Never open Finder yourself.
 
+## First: check the MCPs
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/browse-hack` | recommended | Filling YouTube Studio's upload form from info.json on the brand's channel (`youtube_fill_uploads`, `youtube_list_channels`) | The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say at intake what it costs and offer to install it from MediaMake ("Set up
+mcp/browse-hack from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
+
 ## Parallel threads (the user's standing request)
 
 "When creating brands or creating youtube pack, run parallel threads for faster execution"

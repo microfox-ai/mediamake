@@ -60,21 +60,27 @@ out/brands/<brand>/
 
 For Remotion technique, use the `remotion-best-practices` skill.
 
-## First: check the connectors
+## First: check the MCPs
 
-Before doing anything else, check which MCP servers / connectors this session has, and tell the
-user right away about anything missing. Some are **required**, with no substitute:
+Before doing anything else, check which of these MCPs this session has, and tell the user right
+away about any that is missing and what it costs. A **required** one has no substitute:
 
-| needed for | connector | without it |
-|------------|-----------|------------|
-| sound effects (intros, end screens) | **ElevenLabs** (`mcp__elevenlabs__text_to_sound_effects`) | sound cannot be made at all. Don't fake it with other audio. |
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/elevenlabs` | required | Sound effects for intros, end screens and the brand sting (`text_to_sound_effects`) | No sound at all: the kit's scenes stay silent. Don't fake it with other audio |
+| `mcp/browse-hack` | recommended | Pinterest research boards (`pinterest_bulk_start`) and Midjourney logo concepts and artwork, in the user's Chrome | Research by hand in the browser and no Midjourney art: fal or the user's own pictures instead |
+| `mcp/fal` | optional | Nano Banana logo concepts that need exact lettering, and artwork when Midjourney isn't wanted (paid) | Concepts and art come from Midjourney or the user's own pictures |
 
 Everything else (fonts from Google Fonts, glyphs, Remotion scenes, renders, the guide, the
-export) runs locally and needs no connector. To check, look for `mcp__elevenlabs__*` tools; if
-they are only deferred, load them with ToolSearch ("elevenlabs"), which also waits for servers
-that are still connecting. If a required connector is missing, or the user has no connectors at
-all, say so **before starting**, name what it blocks, and ask them to connect it (e.g. via
-`/mcp`), or to go ahead with only the parts that don't need it.
+export) runs locally and needs no MCP. To check, look for the tools named above:
+`mcp__<name>__<tool>` in Claude Code, while a connector added in the Claude app has a random
+prefix, so match on the tool's name. If they are only deferred, load them with ToolSearch
+("elevenlabs"), which also waits for servers that are still connecting. If one is missing, or the
+user has no MCPs at all, say so **before starting**: what it blocks (its "Without it") and what it
+gives. Offer to install it from MediaMake ("Set up mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or to go ahead with only the parts that don't need it. Don't start a part that needs a
+missing **required** MCP until they choose.
 
 ## Scope: size the kit first
 
@@ -312,7 +318,7 @@ when the user has picked the intros, make "Make sound effects for them?" the tur
 message, and never skip it silently. It can be made **before or
 after** the picture, for either: audio first, then time the scene's hits to the moments the
 analysis finds in the sound; or picture first, then line the sound up with the scene's hits.
-Needs the ElevenLabs connector (see "First: check the connectors").
+Needs the ElevenLabs MCP (see "First: check the MCPs").
 Tools: `logoGraphics/tools/sfx.py <brand>` and `sync_check.py <brand>`, `logoGraphics/lib/Sfx.tsx`.
 Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "Sound" section of
 `scenes/storyboard.md`).
@@ -588,3 +594,4 @@ Add entries at the bottom: date · brand · what they said → the rule.
 - 2026-10-27 · skill · "do high level research and designing only for standard or full, for starter speed is the mantra." → Design research applies to Standard (a board per piece) and Full (in depth); a Starter kit skips research and boards and goes straight to 2–3 logo options, the favicon, fonts, tagline and export, unless the user asks for research.
 - 2026-10-29 · Browse Hack (a Chrome extension that lets AI use the browser; "bare minimal brand materials… reference good modern logos… blue or green (only 1 color)") · Starter built in two short rounds: three vector marks drawn as SVG paths (a browser tile with the pointer cut out, a sliced pointer, a window with the pointer breaking out), each in both candidate colours on white and ink and at 64/32/16 px real size, plus the name in four grotesks on one sheet → "b2 green, t4" picked mark, colour and font in one reply. For a product that is a browser extension, the kit also carries the extension's icons (16/32/48 from the 16 px grid drawing, 128 with Chrome's 96 px artwork, a 1024 icon.png for Plasmo). A mid green fails as text on white (2.6:1) and under white button text: ship a darker shade of the same hue for text and use ink on green buttons.
 - 2026-10-30 · anime sounds like (the channel of the bold-word lyric shorts) · "a simple logo & brandkit… should be a complicated graphic art related to anime, pick at random that suits best from available pins and generated pics" → a picture logo picked from the user's own generated stills: tile them on numbered contact sheets (436 Midjourney stills from ~/Downloads, the `u…_` and `*-midjourney-*` files) and keep the sheets visible, because the user may pick straight from them ("no, let pick 18"); leave Pinterest pins out (other artists' work, no licence) and say so. Three simple lockups of the one picture (the art in a gold ring + the name stacked; the name width-fit with the art inside the letters, as in the shorts; the art seen through waveform bars) on dark and light, with icons down to 16 px, plus taglines on the same sheet → "disk i like", and they gave their own line. A dark-haired subject inside knockout letters sinks into a black ground: give the dark version a thin edge in the brand colour. For a raster logo, cut the round crop into its own square file (one file for renders and SVGs, embedded as a data URI with `xlink:href` so librsvg reads it), size the lockup PNG to the crop's real resolution, and give the 16–48 px icons a tighter crop (the face and its most telling detail) in a heavier ring.
+- 2026-11-02 · skill · "each skill might have dependency mcps for example brandkit requires elevenlabs for soundfx generation, browsehack for pinterest search etc.. and it should automatically guide user into installing the mcps as well and what avoiding an mcp install will lose" → "First: check the connectors" became "First: check the MCPs": one `| MCP | Need | Used for | Without it |` table (ElevenLabs required, Browse Hack recommended, fal optional) that `tools/skills.mjs` puts in skills.json, so installing the skill from MediaMake offers each MCP with what skipping it costs. When the skill runs and one is missing, say what it blocks and offer its MediaMake install prompt.

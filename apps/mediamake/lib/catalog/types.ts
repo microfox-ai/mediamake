@@ -21,13 +21,36 @@ export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial'];
  */
 export const ALWAYS_PUBLIC_KINDS: CatalogKind[] = ['skill'];
 
-/** True when the item's kind is always public (see ALWAYS_PUBLIC_KINDS). */
-export function isAlwaysPublic(item: { id?: string; kind?: CatalogKind }): boolean {
+/**
+ * True when the item is always public: its kind is (see ALWAYS_PUBLIC_KINDS),
+ * or someone else makes it (`madeBy`). An open-source or hosted MCP or skill
+ * that an admin listed has nothing of ours in it to hold back.
+ */
+export function isAlwaysPublic(item: { id?: string; kind?: CatalogKind; madeBy?: MadeBy }): boolean {
+  if (item.madeBy) return true;
   const kind = item.kind ?? (item.id?.split('/')[0] as CatalogKind | undefined);
   return !!kind && ALWAYS_PUBLIC_KINDS.includes(kind);
 }
 
-export const ALWAYS_PUBLIC_ERROR = 'Skills are always public: only apps, MCPs and tutorials go through gated releases';
+export const ALWAYS_PUBLIC_ERROR =
+  'Skills and items made by others are always public: only our own apps, MCPs and tutorials go through gated releases';
+
+/**
+ * Who makes an item we list but don't build: an open-source MCP or skill
+ * (with its repo and licence), or a hosted MCP from its maker. Only admins
+ * list these (the admin API, or lib/catalog/third-party.json). They have no
+ * package of ours: the installer gets them from `install.source`.
+ */
+export interface MadeBy {
+  /** Who makes it, e.g. `ElevenLabs`. */
+  name: string;
+  /** Its code on GitHub (`owner/name`), when it is open source. */
+  repo?: string;
+  /** SPDX licence id of an open-source item, e.g. `MIT`. */
+  license?: string;
+  /** Its maker's page or docs, when that isn't the repo. */
+  homepage?: string;
+}
 
 /**
  * Release stage of an item, from most to least restricted.
@@ -128,6 +151,8 @@ export interface CatalogItem {
    * item is a community item; see effectiveVisibility.
    */
   publicAt?: string;
+  /** Set when someone else makes it (see MadeBy). Such an item is always public. */
+  madeBy?: MadeBy;
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;
@@ -172,11 +197,89 @@ export type InstallRequirement =
  */
 export type InstallMethod = 'skill' | 'mcpb' | 'app' | 'manual';
 
+/**
+ * How much an item gets out of something it uses:
+ *  - required:    its main job needs it (pack-brand-kit can't make sound without ElevenLabs).
+ *  - recommended: it works without, noticeably worse or slower.
+ *  - optional:    an extra for some requests.
+ * The person may still skip any of them: the installer says what they lose.
+ */
+export type UseNeed = 'required' | 'recommended' | 'optional';
+
+export const USE_NEEDS: UseNeed[] = ['required', 'recommended', 'optional'];
+
+/**
+ * Another catalog item (usually an MCP) this item works with. Unlike
+ * `requires`, it isn't installed without asking: the install plan offers it
+ * as a choice, with what it is for and what the person loses without it.
+ * Skills declare theirs in SKILL.md (see tools/skills.mjs, `## First: check the MCPs`).
+ */
+export interface ItemUse {
+  /** Catalog item id, e.g. `mcp/elevenlabs`. */
+  id: string;
+  need: UseNeed;
+  /** What the item uses it for, e.g. "sound effects for intros and end screens". */
+  for: string;
+  /** What the person loses by not installing it. */
+  without: string;
+}
+
+/**
+ * A value an MCP server needs from the person: an environment variable of a
+ * local server, or a header of a hosted one (e.g. an API key).
+ */
+export interface McpSetting {
+  /** Variable or header name, e.g. `ELEVENLABS_API_KEY` or `Authorization`. */
+  name: string;
+  description: string;
+  /** How the value is written, `{value}` standing for what the person gives, e.g. `Bearer {value}`. */
+  format?: string;
+  /** Where the person gets the value, e.g. their maker's API keys page. */
+  getAt?: string;
+  /** An API key or token: asked for, never printed back or written anywhere but the server's config. */
+  secret?: boolean;
+  required?: boolean;
+  default?: string;
+}
+
+/** Where an item that has no package of ours is installed from. */
+export type InstallSource =
+  /** A skill folder in a public GitHub repository, e.g. `remotion-dev/skills` at `skills/remotion-render`. */
+  | { type: 'github-skill'; repo: string; path: string; ref?: string }
+  /**
+   * An MCP server someone else publishes. Give at least one way to add it;
+   * install.md picks the one that fits the person's Claude.
+   */
+  | {
+      type: 'mcp-server';
+      /** The name to add it under: its tools show up as `mcp__<name>__<tool>` in Claude Code. */
+      name: string;
+      /** Runs on the person's machine, e.g. `uvx` with `["elevenlabs-mcp"]`. */
+      local?: { command: string; args?: string[]; env?: McpSetting[] };
+      /** Hosted by its maker (Streamable HTTP). */
+      remote?: {
+        url: string;
+        headers?: McpSetting[];
+        /** The URL to add as a custom connector in the Claude apps when it differs (signs in instead of a key). */
+        connectorUrl?: string;
+      };
+      /** An `.mcpb` bundle attached to a GitHub release, for Claude Desktop. */
+      mcpb?: { repo: string; asset: string; tag?: string };
+      /** Steps after the server is added (an add-on to enable, an app to open), in order. */
+      setup?: string[];
+      /** Its maker's setup guide, for anything the above doesn't cover. */
+      guide?: string;
+    };
+
 export interface InstallSpec {
   method?: InstallMethod;
   /** File inside the package the method acts on, e.g. `browse-hack.mcpb`. */
   entry?: string;
   requires?: InstallRequirement[];
+  /** Items it works with, offered to the person as choices (see ItemUse). */
+  uses?: ItemUse[];
+  /** For an item with no package of ours (see MadeBy): where it is installed from. */
+  source?: InstallSource;
   /** Short note shown to the person before installing. */
   notes?: string;
 }
@@ -194,13 +297,21 @@ export interface CatalogItemRecord extends CatalogItem {
   stageHistory?: { visibility: Visibility; at: string; by?: string }[];
 }
 
+/** True when the item has something to install: a published package of ours, or a source. */
+export function isInstallable(record: Pick<CatalogItemRecord, 'versions' | 'install'>): boolean {
+  return record.versions.length > 0 || !!record.install?.source;
+}
+
 export type CatalogEntry = CatalogItem & {
   access: CatalogAccess;
   /**
    * A prompt to paste into Claude that installs the item and everything it
-   * needs. Only set on items the viewer can open that have a package.
+   * needs. Only set on items the viewer can open that can be installed (see
+   * isInstallable): every registry skill and third-party item can.
    */
   installPrompt?: string;
+  /** What it works with (see ItemUse), on items the viewer can open. */
+  uses?: ItemUse[];
 };
 export type CatalogItemWithAccess = CatalogEntry;
 
@@ -277,11 +388,11 @@ export interface CatalogDownload {
 }
 
 /**
- * Visibility right now: a skill is always public, and a gated item whose
+ * Visibility right now: a skill or an item made by others is always public, and a gated item whose
  * `publicAt` has passed is public.
  */
 export function effectiveVisibility(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind' | 'madeBy'>>,
   now: number = Date.now(),
 ): Visibility {
   if (isAlwaysPublic(item)) return 'public';
@@ -292,7 +403,7 @@ export function effectiveVisibility(
 
 /** The dashboard tier of an item right now. */
 export function releaseTier(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind'>>,
+  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind' | 'madeBy'>>,
   now: number = Date.now(),
 ): ReleaseTier {
   if (isAlwaysPublic(item)) return 'public';

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Copy, Link2, X } from 'lucide-react';
 import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { PersonPicker } from './person-picker';
 import {
   COMMUNITY_GROUP,
@@ -19,6 +21,7 @@ import {
   gateOf,
   grantsFor,
   groupMembers,
+  itemPath,
   personName,
   tierOf,
   type AdminCatalog,
@@ -53,7 +56,7 @@ export function ItemAccessSheet({
     { label: `Private testers · ${privateCount}`, on: tier !== 'vault' },
     { label: `Community · ${communityCount}`, on: tier === 'community' || tier === 'public' },
     isAlwaysPublic(item)
-      ? { label: 'Everyone (skills are always public)', on: true }
+      ? { label: `Everyone (${item.madeBy ? 'made by others' : 'skills'}: always public)`, on: true }
       : { label: data.publicReleasesOpen ? 'Everyone' : 'Everyone (locked site-wide)', on: tier === 'public' && data.publicReleasesOpen },
   ];
 
@@ -94,7 +97,17 @@ export function ItemAccessSheet({
             {item.version ? ` · v${item.version}` : ''}
             {gate ? ` · public on ${formatDate(gate.end)}` : ''}
           </SheetDescription>
+          {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+          <Link href={itemPath(item.id)} className="w-fit text-xs font-medium text-primary hover:underline">
+            Open its page: what it is and where it lives →
+          </Link>
         </SheetHeader>
+
+        {item.install?.uses?.length ? (
+          <section className="border-b p-5">
+            <UsesList uses={item.install.uses} />
+          </section>
+        ) : null}
 
         <section className="flex flex-col gap-3 border-b p-5">
           <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Who can open it</h4>

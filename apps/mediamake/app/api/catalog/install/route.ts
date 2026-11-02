@@ -60,7 +60,8 @@ export async function GET(req: NextRequest) {
   const at = new Date().toISOString();
   await Promise.all(
     plan.steps.flatMap(step =>
-      step.type === 'item'
+      // packages that are only there for a choice may be turned down: they aren't counted
+      step.type === 'item' && !step.forChoices
         ? [catalogItemsDB.logDownload({ itemId: step.id, version: step.version, clientId: viewer.clientId, at })]
         : [],
     ),

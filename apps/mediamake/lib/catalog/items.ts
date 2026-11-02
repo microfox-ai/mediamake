@@ -1,12 +1,25 @@
 import { registry } from '@/lib/skills/registry';
-import type { CatalogItem, CatalogItemRecord, CatalogKind } from './types';
+import type { RegistrySkill } from '@/lib/library/types';
+import thirdPartyJson from './third-party.json';
+import {
+  parseCatalogItemId,
+  slugOf,
+  type CatalogItem,
+  type CatalogItemRecord,
+  type CatalogKind,
+  type InstallRequirement,
+  type InstallSpec,
+  type ItemUse,
+  type MadeBy,
+} from './types';
 
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose
  * names are already public here: unreleased apps and MCPs belong in the
  * catalog database so they stay out of this public repo. Skills are always
  * public: their files are committed in .agents/skills, and every one in the
- * repo's registry (skills.json) is a card, see skillCatalogItems.
+ * repo's registry (skills.json) is a card, see skillCatalogItems. MCPs and
+ * skills made by others are in third-party.json (see getStaticRecords).
  */
 export const catalogItems: CatalogItem[] = [
   // Apps. Public pages anyone can open today carry openToAll.
@@ -96,19 +109,59 @@ export const catalogItems: CatalogItem[] = [
  */
 const SKILLS_LISTED_AT = '2026-10-24';
 
-/** Every skill in the registry as a card: always public, opening on /skills. */
-export function skillCatalogItems(): CatalogItem[] {
-  return (registry?.skills ?? []).map((skill) => ({
+/** The repository the registry's skills are committed in. */
+export const SKILLS_REPO = 'microfox-ai/mediamake';
+
+/** A registry skill's MCPs, as the catalog's `uses` (see ItemUse). */
+export function registryUses(name: string): ItemUse[] | undefined {
+  return registry?.skills.find((skill) => skill.name === name)?.mcps;
+}
+
+/** One registry skill as a card: always public, opening on /skills. */
+function skillCard(skill: RegistrySkill): CatalogItem {
+  const [owner] = skill.upstream?.split('/') ?? [];
+  return {
     id: `skill/${skill.name}`,
     kind: 'skill',
     title: skill.name,
     summary: skill.summary,
     visibility: 'public',
     status: 'live',
+    // a skill vendored from another repo (skills-lock.json) is someone else's
+    ...(skill.upstream && { madeBy: { name: owner, repo: skill.upstream } }),
     href: `/skills#${skill.name}`,
     tags: [skill.category, ...(skill.variantOf ? ['variant'] : [])],
     releasedAt: SKILLS_LISTED_AT,
-  }));
+  };
+}
+
+/**
+ * How a registry skill installs: its folder from this public repo, the repo
+ * itself for our own skills (they work on its apps and scripts; a skill
+ * vendored from elsewhere stands alone), the skills it depends on first, and
+ * its MCPs as choices.
+ */
+function skillInstall(skill: RegistrySkill): InstallSpec {
+  const requires: InstallRequirement[] = [
+    ...(skill.upstream ? [] : [{ type: 'repo' as const, repo: SKILLS_REPO, why: 'The skill works in the MediaMake repo: its apps, scripts and brand kits' }]),
+    ...(skill.dependsOn ?? []).map((name) => ({ type: 'item' as const, id: `skill/${name}` })),
+  ];
+  return {
+    method: 'skill',
+    source: { type: 'github-skill', repo: SKILLS_REPO, path: skill.path },
+    requires,
+    ...(skill.mcps?.length && { uses: skill.mcps }),
+  };
+}
+
+function skillRecord(skill: RegistrySkill): CatalogItemRecord {
+  const card = skillCard(skill);
+  return { ...card, slug: skill.name, install: skillInstall(skill), versions: [], createdAt: card.releasedAt };
+}
+
+/** Every skill in the registry as a card: always public, opening on /skills. */
+export function skillCatalogItems(): CatalogItem[] {
+  return (registry?.skills ?? []).map(skillCard);
 }
 
 /**
@@ -118,13 +171,94 @@ export function skillCatalogItems(): CatalogItem[] {
  */
 export function skillRecords(stored: { id: string }[]): CatalogItemRecord[] {
   const have = new Set(stored.map((item) => item.id));
-  return skillCatalogItems()
-    .filter((item) => !have.has(item.id))
-    .map((item) => ({ ...item, slug: item.id.slice('skill/'.length), versions: [], createdAt: item.releasedAt }));
+  return (registry?.skills ?? []).map(skillRecord).filter((record) => !have.has(record.id));
+}
+
+/** third-party.json: MCPs and skills made by others that admins listed (see MadeBy). */
+interface ThirdPartyFile {
+  schema: string;
+  items: (Omit<CatalogItem, 'kind' | 'visibility'> & { madeBy: MadeBy; install: InstallSpec })[];
+}
+
+export const THIRD_PARTY_SCHEMA = 'mediamake.third-party/v1';
+
+const thirdParty: ThirdPartyFile['items'] =
+  (thirdPartyJson as { schema?: string }).schema === THIRD_PARTY_SCHEMA ? (thirdPartyJson as unknown as ThirdPartyFile).items : [];
+
+function thirdPartyRecord({ install, ...item }: ThirdPartyFile['items'][number]): CatalogItemRecord {
+  const parsed = parseCatalogItemId(item.id);
+  return {
+    ...item,
+    kind: parsed?.kind ?? 'mcp',
+    slug: parsed?.slug ?? slugOf(item.id),
+    visibility: 'public',
+    install,
+    versions: [],
+    createdAt: item.releasedAt,
+  };
+}
+
+/** The third-party items as release records for the admin dashboard, leaving out stored ones. */
+export function thirdPartyRecords(stored: { id: string }[]): CatalogItemRecord[] {
+  const have = new Set(stored.map((item) => item.id));
+  return thirdParty.map(thirdPartyRecord).filter((record) => !have.has(record.id));
+}
+
+/** The cards above (apps, the MediaMake MCP) as records for the admin dashboard, leaving out stored ones. */
+export function cardRecords(stored: { id: string }[]): CatalogItemRecord[] {
+  const have = new Set(stored.map((item) => item.id));
+  return catalogItems
+    .filter((card) => !have.has(card.id))
+    .map((card) => ({ ...card, slug: slugOf(card.id), versions: [], createdAt: card.releasedAt }));
+}
+
+/** A record without its stored-only fields. */
+function toCardFields(record: CatalogItemRecord): CatalogItem {
+  const { slug: _slug, install: _install, versions: _versions, createdAt: _createdAt, ...card } = record;
+  return card;
+}
+
+/**
+ * Every item the repo defines, as records: the cards above (nothing to
+ * install), the third-party items and the registry's skills. The catalog
+ * database may store any of them itself; the stored record wins.
+ */
+export function getStaticRecords(kind?: CatalogKind): CatalogItemRecord[] {
+  return [...cardRecords([]), ...thirdParty.map(thirdPartyRecord), ...(registry?.skills ?? []).map(skillRecord)].filter(
+    (record) => !kind || record.kind === kind,
+  );
+}
+
+/** The record of an item the repo defines (see getStaticRecords), for install plans and install pages. */
+export function staticRecord(id: string): CatalogItemRecord | null {
+  const kind = parseCatalogItemId(id)?.kind;
+  return kind ? (getStaticRecords(kind).find((record) => record.id === id) ?? null) : null;
+}
+
+/** Which file in the repo defines an item, for the release pages; null when only the database has it. */
+export function staticOrigin(id: string): 'third-party.json' | 'skills.json' | 'items.ts' | null {
+  if (thirdParty.some((item) => item.id === id)) return 'third-party.json';
+  if (id.startsWith('skill/') && registry?.skills.some((skill) => skill.name === slugOf(id))) return 'skills.json';
+  if (catalogItems.some((item) => item.id === id)) return 'items.ts';
+  return null;
+}
+
+/** Where an item's code is on GitHub, when the catalog knows. */
+export function codeUrlOf(record: CatalogItemRecord): string | undefined {
+  const source = record.install?.source;
+  if (source?.type === 'github-skill') return `https://github.com/${source.repo}/tree/${source.ref ?? 'HEAD'}/${source.path}`;
+  return record.madeBy?.repo ? `https://github.com/${record.madeBy.repo}` : undefined;
+}
+
+/** A stored skill without `uses` of its own takes its registry entry's MCPs. */
+export function withRegistryUses(record: CatalogItemRecord): CatalogItemRecord {
+  if (record.kind !== 'skill' || record.install?.uses) return record;
+  const uses = registryUses(record.slug);
+  return uses?.length ? { ...record, install: { ...record.install, uses } } : record;
 }
 
 export function getStaticCatalogItems(kind?: CatalogKind): CatalogItem[] {
-  return [...catalogItems, ...skillCatalogItems()]
-    .filter((item) => !kind || item.kind === kind)
+  return getStaticRecords(kind)
+    .map(toCardFields)
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 }
