@@ -1,5 +1,15 @@
 # @microfox/mediamake-mcp
 
+## 0.2.0
+
+### Minor Changes
+
+- 6abf982: `list_generations` and `rate_generation`: read a channel's Suno song takes (styles, lyrics, model, settings, audio, parent take) and rate them keeper, maybe or reject, with notes and the productions they were used in.
+
+### Patch Changes
+
+- 1d05e02: Changes from PR #472: suno-generations
+
 ## 0.1.4
 
 ### Patch Changes
