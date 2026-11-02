@@ -1,12 +1,13 @@
-import type { Metadata } from 'next';
-import { SkillLibraryWorkspace } from '@/components/skill-library/SkillLibraryWorkspace';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Skill Library · MediaMake',
-  description:
-    'Browse the Claude Code skills on this computer with thumbnails, their variants, and the projects that used them',
-};
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-export default function SkillLibraryPage() {
-  return <SkillLibraryWorkspace />;
+/** The skill library is the Library's Skills view now; old links keep their skill or production. */
+export default async function SkillLibraryPage({ searchParams }: Props) {
+  const q = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const skill = one(q.skill);
+  const production = one(q.production);
+  const params = new URLSearchParams(production && !skill ? { view: 'productions', production } : { view: 'skills', ...(skill && { skill }) });
+  redirect(`/library?${params}`);
 }

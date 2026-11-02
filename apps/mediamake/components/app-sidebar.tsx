@@ -87,8 +87,8 @@ const data = {
       icon: <ImagesIcon />,
     },
     {
-      title: "Skill Library",
-      url: "/skill-library",
+      title: "Library",
+      url: "/library",
       icon: <LayersIcon />,
     },
     {

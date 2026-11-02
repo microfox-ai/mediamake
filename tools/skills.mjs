@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * skills: list, add and fork this repo's Claude Code skills, and keep SKILLS.md up to date.
+ * skills: list, add and fork this repo's Claude Code skills, and keep SKILLS.md and skills.json up to date.
  *
  * Every skill is public and committed: nothing about a skill is hidden. (Apps and MCPs are the
  * gated ones; they go through private/ and the catalog releases, see docs/catalog-releases.md.)
@@ -12,21 +12,31 @@
  * A new skill made as a real folder in .claude/skills is public too (it gets committed as it is);
  * `add` moves it to .agents/skills and links it, like the others.
  *
+ * skills.json (mediamake.skills/v1) is the registry: every skill's name, category, summary, where it
+ * is and what it is a variant of. The /skills page and the Library page read it, and the media CLI
+ * puts it in the library's export; nothing else parses SKILL.md.
+ *
  * Usage: node tools/skills.mjs list [--category=<c>] [--json]
  *        node tools/skills.mjs add <name> | --all [--dry-run]   checks, then moves a .claude/skills
  *                                                               folder to .agents/skills and links it
  *        node tools/skills.mjs fork <base> <new-name> [--like=<ref>]   a variant of a skill
- *        node tools/skills.mjs index                          rewrites SKILLS.md
- *        node tools/skills.mjs check [--hook=session|edit]    fails when SKILLS.md is out of date or a
- *            skill holds a key, a token or a path on this machine (exit 1; as a Claude Code hook: a
- *            SessionStart note, or exit 2 after a tool changed a skill). CI runs it on every PR.
+ *        node tools/skills.mjs diff <variant> [--stat] [--json]   what the variant changed against its
+ *            base at the fork commit, and what the base changed since
+ *        node tools/skills.mjs diff --all --json              the same numbers for every variant
+ *        node tools/skills.mjs index                          rewrites SKILLS.md and skills.json
+ *        node tools/skills.mjs check [--hook=session|edit]    fails when SKILLS.md or skills.json is out
+ *            of date or a skill holds a key, a token or a path on this machine (exit 1; as a Claude
+ *            Code hook: a SessionStart note, or exit 2 after a tool changed a skill). CI runs it on every PR.
  *
  * Names are <verb>-<thing>, the verb is the category (see CATEGORIES); a variant is
  * <base>-like-<ref> (or <base>-v<N> for a frozen older version) and says `variant-of` in its
- * frontmatter metadata. `metadata.category` overrides the verb. A skill that needs another skill's
- * output says so in `metadata.depends-on` (comma-separated names); the dependency is one-way.
+ * frontmatter metadata, plus `forked-from: <base>@<commit>` when `fork` made it. `metadata.category`
+ * overrides the verb. A skill that needs another skill's output says so in `metadata.depends-on`
+ * (comma-separated names); the dependency is one-way.
  */
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,6 +44,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLAUDE = path.join(ROOT, '.claude', 'skills');
 const AGENTS = path.join(ROOT, '.agents', 'skills');
 const INDEX = path.join(ROOT, 'SKILLS.md');
+const REGISTRY = path.join(ROOT, 'skills.json');
+export const REGISTRY_SCHEMA = 'mediamake.skills/v1';
 
 /** Category by name prefix: what each verb means. Order is the order in SKILLS.md. */
 export const CATEGORIES = [
@@ -55,27 +67,59 @@ const [cmd, a1, a2] = args.filter(a => !a.startsWith('--'));
 const flag = k => flags.find(f => f.startsWith(`--${k}=`))?.slice(k.length + 3);
 const rel = p => path.relative(ROOT, p);
 
-/** name, description and metadata from a SKILL.md's frontmatter (single-line values, one level of metadata). */
+/**
+ * name, description, version and one level of metadata from a SKILL.md's frontmatter. Values are
+ * single lines, or folded/literal blocks (`>` / `|`).
+ */
 const frontmatter = file => {
-  const text = fs.readFileSync(file, 'utf8');
+  const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   const out = { metadata: {} };
   if (!m) return out;
+  const lines = m[1].split('\n');
   let inMeta = false;
-  for (const line of m[1].split('\n')) {
-    const top = line.match(/^([a-zA-Z_-]+):\s*(.*)$/);
-    const sub = line.match(/^\s+([a-zA-Z_-]+):\s*(.*)$/);
+  for (let i = 0; i < lines.length; i++) {
+    const top = lines[i].match(/^([a-zA-Z_-]+):\s*(.*)$/);
+    const sub = lines[i].match(/^\s+([a-zA-Z_-]+):\s*(.*)$/);
+    let key;
+    let value;
+    let meta = false;
     if (top) {
-      inMeta = top[1] === 'metadata' && !top[2];
-      if (!inMeta) out[top[1]] = unquote(top[2]);
-    } else if (sub && inMeta) out.metadata[sub[1]] = unquote(sub[2]);
+      inMeta = top[1] === 'metadata' && !top[2].trim();
+      if (inMeta) continue;
+      [key, value] = [top[1], top[2]];
+    } else if (sub && inMeta) [key, value, meta] = [sub[1], sub[2], true];
+    else continue;
+    if (/^[>|][+-]?$/.test(value.trim())) {
+      const block = [];
+      const indent = meta ? 4 : 2;
+      while (i + 1 < lines.length && (lines[i + 1].startsWith(' '.repeat(indent)) || !lines[i + 1].trim())) block.push(lines[++i].trim());
+      value = value.trim().startsWith('>') ? block.join(' ').replace(/\s+/g, ' ') : block.join('\n');
+    }
+    if (meta) out.metadata[key] = unquote(value);
+    else out[key] = unquote(value);
   }
   return out;
 };
-const unquote = v => v.trim().replace(/^(['"])(.*)\1$/, '$2');
+const unquote = v => v.trim().replace(/^(['"])([\s\S]*)\1$/, '$2');
+/** SKILL.md descriptions escape angle brackets for the markdown around them. */
+const decode = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
 const categoryOf = (name, meta) =>
   meta.category ?? CATEGORIES.find(c => (c.prefix && name.startsWith(c.prefix)) || (c.suffix && name.endsWith(c.suffix)))?.id ?? 'other';
+
+/** "make-video-music-remix" → "Make video music remix". */
+const humanize = name => {
+  const words = name.replace(/[-_]+/g, ' ').trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : name;
+};
+
+/** What a variant is modelled on: `metadata.variant-ref`, else its name past the base's (`-like-<ref>`, `-v<N>`). */
+const variantRefOf = (name, base, meta) => {
+  if (meta['variant-ref']) return meta['variant-ref'];
+  if (!base || !name.startsWith(`${base}-`)) return undefined;
+  return name.slice(base.length + 1).replace(/^like-/, '') || undefined;
+};
 
 /** Every skill in .claude/skills (and public ones not linked yet). */
 export const allSkills = () => {
@@ -90,6 +134,7 @@ export const allSkills = () => {
     const dir = isDir ? link : pub;
     if (!fs.existsSync(path.join(dir, 'SKILL.md'))) continue;
     const fm = frontmatter(path.join(dir, 'SKILL.md'));
+    const variantOf = fm.metadata['variant-of'];
     skills.push({
       name,
       dir,
@@ -97,8 +142,13 @@ export const allSkills = () => {
       moved: !isDir,
       linked: isLink || isDir,
       category: categoryOf(name, fm.metadata),
-      variantOf: fm.metadata['variant-of'],
+      title: fm.metadata.title,
+      variantOf,
+      variantRef: variantOf ? variantRefOf(name, variantOf, fm.metadata) : undefined,
+      forkedFrom: fm.metadata['forked-from'],
+      forked: fm.metadata.forked,
       dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
+      version: fm.version ?? fm.metadata.version,
       description: fm.description ?? '',
       frontName: fm.name,
     });
@@ -106,9 +156,9 @@ export const allSkills = () => {
   return skills;
 };
 
-/** The description's first sentence, short enough for a table cell. */
+/** The description's first sentence, short enough for a table cell or a card. */
 const summary = d => {
-  const first = d.split(/(?<!\b(?:e\.g|i\.e|etc)\.)(?<=[.!?])\s+(?=[A-Z])/)[0].replace(/\|/g, '/').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  const first = decode(d.split(/(?<!\b(?:e\.g|i\.e|etc)\.)(?<=[.!?])\s+(?=[A-Z])/)[0]);
   return first.length > 170 ? `${first.slice(0, 167).trimEnd()}…` : first;
 };
 
@@ -150,8 +200,7 @@ const checks = skill => {
 };
 
 /** SKILLS.md as it should be now. */
-const renderIndex = () => {
-  const skills = allSkills();
+const renderIndex = skills => {
   const out = [
     '# Skills',
     '',
@@ -161,10 +210,11 @@ const renderIndex = () => {
     '(see [catalog-releases.md](apps/mediamake/docs/catalog-releases.md)). The `publish-skill` skill',
     'adds a new skill and checks it for keys and private paths; `fork-skill` makes a variant.',
     '',
-    'Regenerate this file with `node tools/skills.mjs index` (add and fork do it themselves);',
-    '`node tools/skills.mjs check` fails when it is out of date or a skill holds a key or a path on',
-    'this machine, in CI too. The mediamake app shows it at',
-    '[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy.',
+    'Regenerate this file and the registry, [`skills.json`](skills.json), with `node tools/skills.mjs index`',
+    '(add and fork do it themselves); `node tools/skills.mjs check` fails when either is out of date or',
+    'a skill holds a key or a path on this machine, in CI too. The mediamake app shows the registry at',
+    '[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy, and in the Library',
+    '(`/library`) with each skill\'s runs and outputs.',
     '',
     '## Naming',
     '',
@@ -174,7 +224,9 @@ const renderIndex = () => {
     '',
     'A **variant** keeps its base skill\'s name and adds what it is modelled on: `<base>-like-<ref>`',
     '(e.g. `make-video-music-remix-like-f1xhitit`, the style of one finished edit), or `<base>-v<N>` for',
-    'an older version kept as it was. Its frontmatter says `metadata: variant-of: <base>`.',
+    'an older version kept as it was. Its frontmatter says `metadata: variant-of: <base>`, and',
+    '`forked-from: <base>@<commit>` when `fork` made it: `node tools/skills.mjs diff <variant>` shows',
+    'what the variant changed and what the base changed since.',
     '',
   ];
   for (const c of CATEGORIES) {
@@ -183,30 +235,69 @@ const renderIndex = () => {
     out.push(`## ${c.id}`, '', c.about, '', '| Skill | Visibility | What it does |', '|---|---|---|');
     for (const s of group) {
       const name = `[\`${s.name}\`](${rel(s.dir)}/SKILL.md)`;
-      out.push(`| ${name}${s.variantOf ? ` (variant of \`${s.variantOf}\`)` : ''} | public | ${summary(s.description)} |`);
+      out.push(`| ${name}${s.variantOf ? ` (variant of \`${s.variantOf}\`)` : ''} | public | ${summary(s.description).replace(/\|/g, '/')} |`);
     }
     out.push('');
   }
-  return { text: out.join('\n'), skills };
+  return out.join('\n');
+};
+
+/** skills.json as it should be now: one entry per skill, keys left out when they have no value. */
+const renderRegistry = skills => {
+  const entry = s => {
+    const e = {
+      name: s.name,
+      title: s.title ?? humanize(s.name),
+      summary: summary(s.description),
+      description: decode(s.description),
+      category: s.category,
+      location: s.moved ? 'committed' : 'local',
+      path: rel(s.dir),
+      variantOf: s.variantOf,
+      variantRef: s.variantRef,
+      forkedFrom: s.forkedFrom,
+      dependsOn: s.dependsOn.length ? s.dependsOn : undefined,
+      version: s.version,
+    };
+    return Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== ''));
+  };
+  const registry = {
+    schema: REGISTRY_SCHEMA,
+    categories: CATEGORIES.map(({ id, prefix, suffix, about }) => ({ id, ...(prefix && { prefix }), ...(suffix && { suffix }), about })),
+    skills: skills.map(entry),
+  };
+  return `${JSON.stringify(registry, null, 2)}\n`;
 };
 
 const index = () => {
-  const { text, skills } = renderIndex();
-  fs.writeFileSync(INDEX, text);
-  console.log(`✔ ${rel(INDEX)} (${skills.length} skills)`);
+  const skills = allSkills();
+  fs.writeFileSync(INDEX, renderIndex(skills));
+  fs.writeFileSync(REGISTRY, renderRegistry(skills));
+  console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} (${skills.length} skills)`);
 };
 
-/** What changed since SKILLS.md was written, or null when it is up to date. */
+/** What changed since SKILLS.md and skills.json were written, or null when both are up to date. */
 const staleness = () => {
-  const { text, skills } = renderIndex();
+  const skills = allSkills();
   const old = fs.existsSync(INDEX) ? fs.readFileSync(INDEX, 'utf8') : '';
-  if (old === text) return null;
-  const listed = new Set([...old.matchAll(/^\| \[?`([a-z0-9-]+)`/gm)].map(m => m[1]));
+  const oldRegistry = fs.existsSync(REGISTRY) ? fs.readFileSync(REGISTRY, 'utf8') : '';
+  const indexStale = old !== renderIndex(skills);
+  const registryStale = oldRegistry !== renderRegistry(skills);
+  if (!indexStale && !registryStale) return null;
+  let listed = new Set([...old.matchAll(/^\| \[?`([a-z0-9-]+)`/gm)].map(m => m[1]));
+  if (!indexStale) {
+    try {
+      listed = new Set(JSON.parse(oldRegistry).skills.map(s => s.name));
+    } catch {
+      listed = new Set();
+    }
+  }
   const now = new Set(skills.map(s => s.name));
   const added = [...now].filter(n => !listed.has(n));
   const gone = [...listed].filter(n => !now.has(n));
   const parts = [added.length && `not listed: ${added.join(', ')}`, gone.length && `listed but gone: ${gone.join(', ')}`].filter(Boolean);
-  return `SKILLS.md is out of date with the skills folder (${parts.join('; ') || 'a summary, visibility or variant changed'}). Run: node tools/skills.mjs index`;
+  const which = indexStale && registryStale ? 'SKILLS.md and skills.json are' : indexStale ? 'SKILLS.md is' : 'skills.json is';
+  return `${which} out of date with the skills folder (${parts.join('; ') || 'a summary, category, visibility or variant changed'}). Run: node tools/skills.mjs index`;
 };
 
 /** Hook input from Claude Code: did this tool call touch a skill? */
@@ -232,7 +323,7 @@ const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
   const stale = [staleness(), leaks()].filter(Boolean).join('\n') || null;
-  if (!stale) return hook ? undefined : console.log(`✔ ${rel(INDEX)} is up to date`);
+  if (!stale) return hook ? undefined : console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} are up to date`);
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
     return console.log(JSON.stringify({ systemMessage: `⚠ ${stale}`, hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: stale } }));
@@ -276,6 +367,8 @@ const add = () => {
   if (failed) throw new Error('Fix the ✖ lines, then run add again');
 };
 
+const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 }).trim();
+
 const fork = () => {
   const base = find(a1);
   const name = a2;
@@ -283,6 +376,13 @@ const fork = () => {
   if (!name.startsWith(`${base.name}-`)) console.log(`⚠ a variant's name starts with its base's: ${base.name}-like-<ref> or ${base.name}-v<N>`);
   const to = path.join(AGENTS, name);
   if (fs.existsSync(to) || fs.lstatSync(path.join(CLAUDE, name), { throwIfNoEntry: false })) throw new Error(`${name} exists already`);
+  let sha = null;
+  try {
+    sha = git('rev-parse', 'HEAD');
+    if (git('status', '--porcelain', '--', rel(base.dir))) console.log(`⚠ ${base.name} has changes that aren't committed: diff counts them as the variant's own until they are`);
+  } catch {
+    console.log('⚠ not a git checkout: no forked-from commit, so diff will have to guess the fork point');
+  }
   fs.cpSync(base.dir, to, { recursive: true });
   fs.symlinkSync(path.relative(CLAUDE, to), path.join(CLAUDE, name));
   const file = path.join(to, 'SKILL.md');
@@ -290,25 +390,102 @@ const fork = () => {
   const today = new Date().toISOString().slice(0, 10);
   let text = fs.readFileSync(file, 'utf8');
   const [, fm, body] = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/) ?? [null, '', text];
-  let front = fm.replace(/^name:.*$/m, `name: ${name}`);
+  // a variant of a variant: its own lineage replaces the copied one
+  let front = fm.replace(/^name:.*$/m, `name: ${name}`).replace(/^[ \t]+(variant-of|variant-ref|forked|forked-from):.*\n?/gm, '');
   // keep what the base does, drop its triggers ("Use when…"), so the variant never competes with it
   front = front.replace(/^description:\s*(.*)$/m, (_, d) => {
     const what = unquote(d).split(/\s+Use (?:when|this)\b/)[0].trim();
     const log = /Append new user feedback/.test(d) ? ' Append new user feedback to the log at the bottom.' : '';
     return `description: Variant of ${base.name} in the style of ${ref}: <what is different, one sentence>. ${what} Use only when the user names this variant or asks for the ${ref} style; otherwise ${base.name}.${log}`;
   });
-  const meta = `  variant-of: ${base.name}\n  forked: ${today}`;
+  const meta = `  variant-of: ${base.name}\n  forked: ${today}${sha ? `\n  forked-from: ${base.name}@${sha.slice(0, 12)}` : ''}`;
   front = /^metadata:\s*$/m.test(front) ? front.replace(/^metadata:\s*$/m, `metadata:\n${meta}`) : `${front}\nmetadata:\n${meta}`;
   const h1 = body.match(/^# .*$/m);
-  const note = `\n\n> **Variant of \`${base.name}\`** (forked ${today}), modelled on **${ref}**. Everything below is ${base.name} as it was that day, plus what this variant changes. Improvements to ${base.name} don't flow in by themselves: port the ones that fit.\n\n## This variant\n\n<What is different from ${base.name} and why: pacing, devices, type, sound, the reference project's prefs.md rules that define the look.>\n`;
+  const note = `\n\n> **Variant of \`${base.name}\`** (forked ${today}), modelled on **${ref}**. Everything below is ${base.name} as it was that day, plus what this variant changes. Improvements to ${base.name} don't flow in by themselves: port the ones that fit (\`node tools/skills.mjs diff ${name}\` shows them).\n\n## This variant\n\n<What is different from ${base.name} and why: pacing, devices, type, sound, the reference project's prefs.md rules that define the look.>\n`;
   const newBody = h1 ? body.replace(h1[0], `# ${name}${note}`) : `# ${name}${note}\n${body}`;
   fs.writeFileSync(file, `---\n${front}\n---\n${newBody}`);
-  console.log(`✔ ${rel(to)} from ${base.name}; now fill in its description and "This variant"`);
+  console.log(`✔ ${rel(to)} from ${base.name}${sha ? `@${sha.slice(0, 12)}` : ''}; now fill in its description and "This variant"`);
   index();
 };
 
+/**
+ * Where a variant was forked: `forked-from: <base>@<commit>`, else the commit that first added it
+ * (a variant made before forked-from existed), else HEAD for one not committed yet.
+ */
+const forkPoint = variant => {
+  const [, sha] = variant.forkedFrom?.match(/@([0-9a-f]{7,40})$/i) ?? [];
+  if (sha) return { sha: git('rev-parse', `${sha}^{commit}`), guessed: false };
+  const added = git('log', '--diff-filter=A', '--format=%H', '--', `.agents/skills/${variant.name}/SKILL.md`, `.claude/skills/${variant.name}/SKILL.md`).split('\n').filter(Boolean);
+  return { sha: added.at(-1) ?? git('rev-parse', 'HEAD'), guessed: true };
+};
+
+/** `git diff --no-index` between two folders: numstat totals and the patch (labelled a/<left>, b/<right>). */
+const diffDirs = (cwd, left, right, patch) => {
+  const run = extra => spawnSync('git', ['diff', '--no-index', ...extra, left, right], { cwd, encoding: 'utf8', maxBuffer: 1 << 28 }).stdout ?? '';
+  let files = 0;
+  let added = 0;
+  let removed = 0;
+  for (const line of run(['--numstat']).split('\n').filter(Boolean)) {
+    const [a, r] = line.split('\t');
+    files++;
+    added += Number(a) || 0;
+    removed += Number(r) || 0;
+  }
+  return { files, added, removed, stat: files ? run(['--stat=100']) : '', patch: patch && files ? run([]) : '' };
+};
+
+/** What a variant changed against its base at the fork, and what the base changed since. */
+const drift = (variant, { patch = false } = {}) => {
+  if (!variant.variantOf) throw new Error(`${variant.name} isn't a variant (no metadata.variant-of)`);
+  const base = find(variant.variantOf);
+  const { sha, guessed } = forkPoint(variant);
+  const short = sha.slice(0, 12);
+  const at = [`.agents/skills/${base.name}`, `.claude/skills/${base.name}`].find(p => spawnSync('git', ['cat-file', '-e', `${sha}:${p}/SKILL.md`], { cwd: ROOT }).status === 0);
+  if (!at) throw new Error(`${base.name} isn't in git at ${short}, the fork point of ${variant.name}`);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-diff-'));
+  try {
+    // the base as it was at the fork, and both skills as they are now, side by side
+    const then = `${base.name}@${short}`;
+    fs.mkdirSync(path.join(tmp, 'x'));
+    execFileSync('tar', ['-x', '-C', path.join(tmp, 'x')], { input: execFileSync('git', ['archive', '--format=tar', sha, at], { cwd: ROOT, maxBuffer: 1 << 28 }) });
+    fs.renameSync(path.join(tmp, 'x', at), path.join(tmp, then));
+    fs.cpSync(variant.dir, path.join(tmp, variant.name), { recursive: true });
+    fs.cpSync(base.dir, path.join(tmp, base.name), { recursive: true });
+    const own = diffDirs(tmp, then, variant.name, patch);
+    const upstream = diffDirs(tmp, then, base.name, patch);
+    const commits = Number(git('rev-list', '--count', `${sha}..HEAD`, '--', `.agents/skills/${base.name}`, `.claude/skills/${base.name}`)) || 0;
+    const date = git('show', '-s', '--format=%cs', sha);
+    return { skill: variant.name, base: base.name, from: `${base.name}@${short}`, date, guessed, own, upstream: { commits, ...upstream } };
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+};
+
+const diff = () => {
+  const json = flags.includes('--json');
+  const numbers = d => ({ ...d, own: { files: d.own.files, added: d.own.added, removed: d.own.removed }, upstream: { commits: d.upstream.commits, files: d.upstream.files, added: d.upstream.added, removed: d.upstream.removed } });
+  if (flags.includes('--all')) {
+    const skills = allSkills();
+    const all = skills.filter(s => s.variantOf && skills.some(b => b.name === s.variantOf)).map(s => numbers(drift(s)));
+    if (json) return console.log(JSON.stringify(all, null, 2));
+    for (const d of all) console.log(`${d.skill}: its own changes ${d.own.files} files (+${d.own.added} −${d.own.removed}); ${d.base} since ${d.from}${d.guessed ? ' (guessed)' : ''}: ${d.upstream.commits} commits, ${d.upstream.files} files (+${d.upstream.added} −${d.upstream.removed})`);
+    return;
+  }
+  if (!a1) throw new Error('Usage: diff <variant> [--stat] [--json], or diff --all [--json]');
+  const d = drift(find(a1), { patch: !json && !flags.includes('--stat') });
+  if (json) return console.log(JSON.stringify(numbers(d), null, 2));
+  const counts = c => `${c.files} file${c.files === 1 ? '' : 's'}, +${c.added} −${c.removed}`;
+  console.log(`${d.skill} · variant of ${d.base}, forked at ${d.from} (${d.date})${d.guessed ? ', guessed from the commit that added it (no forked-from)' : ''}\n`);
+  console.log(`What ${d.skill} changed against ${d.from}: ${d.own.files ? counts(d.own) : 'nothing'}`);
+  if (d.own.stat) console.log(d.own.stat);
+  console.log(`What ${d.base} changed since: ${d.upstream.files ? `${d.upstream.commits} commit${d.upstream.commits === 1 ? '' : 's'}, ${counts(d.upstream)}` : 'nothing'}${d.upstream.files ? ' (port the ones that fit)' : ''}`);
+  if (d.upstream.stat) console.log(d.upstream.stat);
+  if (d.own.patch) console.log(`\n── ${d.skill} against ${d.from} ──\n\n${d.own.patch}`);
+  if (d.upstream.patch) console.log(`\n── ${d.base} since ${d.from} ──\n\n${d.upstream.patch}`);
+};
+
 const main = () => {
-  const commands = { list, add, publish: add, fork, index, check };
+  const commands = { list, add, publish: add, fork, diff, index, check };
   const run = commands[cmd];
   if (!run) {
     console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').match(/\/\*\*([\s\S]*?)\*\//)[1].replace(/^ \* ?/gm, ''));

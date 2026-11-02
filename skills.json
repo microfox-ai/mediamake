@@ -1,0 +1,368 @@
+{
+  "schema": "mediamake.skills/v1",
+  "categories": [
+    {
+      "id": "make",
+      "prefix": "make-",
+      "about": "Media making: videos and audio (the only skills that start with make-)"
+    },
+    {
+      "id": "create",
+      "prefix": "create-",
+      "about": "Images and artwork"
+    },
+    {
+      "id": "pack",
+      "prefix": "pack-",
+      "about": "Kits and packs that bundle several outputs"
+    },
+    {
+      "id": "revise",
+      "prefix": "revise-",
+      "about": "Review loops with the user"
+    },
+    {
+      "id": "analyze",
+      "prefix": "analyze-",
+      "about": "Breaking media down for later edits"
+    },
+    {
+      "id": "write",
+      "prefix": "write-",
+      "about": "Text: titles, descriptions, metadata"
+    },
+    {
+      "id": "cleanup",
+      "prefix": "cleanup-",
+      "about": "Housekeeping: disk space, archives and backups"
+    },
+    {
+      "id": "skill",
+      "suffix": "-skill",
+      "about": "Managing skills themselves"
+    },
+    {
+      "id": "remotion",
+      "prefix": "remotion-",
+      "about": "Remotion reference (installed from remotion-dev/skills)"
+    },
+    {
+      "id": "other",
+      "about": "Everything else"
+    }
+  ],
+  "skills": [
+    {
+      "name": "analyze-video",
+      "title": "Analyze video",
+      "summary": "Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that…",
+      "description": "Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that come back later in the video, and draw contact sheets so Claude can see the whole video at a glance and use it for further edits; optionally cut one clip per shot or per scene. Use when the user says \"segregate / split / break down this video\", \"find the shots / cuts / scene changes\", \"mark where the shots change\", \"make clips of each shot / scene\", \"contact sheet of this film\", \"index this footage\", \"/analyze-video <file>\", or gives a finished video (film, episode, trailer, AMV, music video) that a later edit has to reuse.",
+      "category": "analyze",
+      "location": "committed",
+      "path": ".agents/skills/analyze-video"
+    },
+    {
+      "name": "cleanup-out",
+      "title": "Cleanup out",
+      "summary": "Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol…",
+      "description": "Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the older versions, working files and sources of finished productions to an external hard disk (each copy checked before anything is removed here), back the finals up there, and remove the local finals only once the user says they're uploaded; restore brings anything back. Brands and the images the skill library and review screens read always stay. Use when the user says \"clean up out\", \"free up space\", \"the disk is full\", \"archive old renders / projects to my hard disk\", \"back up the finals\", \"I uploaded <video>, clear it\", \"/cleanup-out\", or asks to bring archived files back.",
+      "category": "cleanup",
+      "location": "committed",
+      "path": ".agents/skills/cleanup-out"
+    },
+    {
+      "name": "create-music-poster",
+      "title": "Create music poster",
+      "summary": "Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail eng…",
+      "description": "Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says \"make a music poster\", \"album art / cover art / single artwork for <song>\", \"DistroKid cover\", \"/create-music-poster\", or asks for more cover options for a poster job under apps/lyrics_videos/thumbnails/jobs/. Append new user feedback to the log at the bottom.",
+      "category": "create",
+      "location": "committed",
+      "path": ".agents/skills/create-music-poster"
+    },
+    {
+      "name": "create-thumbnail",
+      "title": "Create thumbnail",
+      "summary": "Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be cl…",
+      "description": "Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says \"make a thumbnail\", \"thumbnail for this video / song / lyric video\", \"/create-thumbnail\", \"thumbnail variants\", \"A/B test thumbnails\", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/lyrics_videos/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.",
+      "category": "create",
+      "location": "committed",
+      "path": ".agents/skills/create-thumbnail",
+      "dependsOn": [
+        "pack-brand-kit"
+      ]
+    },
+    {
+      "name": "fork-skill",
+      "title": "Fork skill",
+      "summary": "Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-musi…",
+      "description": "Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-music-remix-like-f1xhitit), or <base>-v<N> that keeps an older version as it was before a big change — with its differences written down, a description that only triggers when asked for, and its lineage in the frontmatter. Use when the user says \"make a variant of <skill>\", \"save this style as a skill\", \"fork <skill>\", \"keep the old version of <skill>\", \"a skill like <project>\", or \"/fork-skill <base> <ref>\".",
+      "category": "skill",
+      "location": "committed",
+      "path": ".agents/skills/fork-skill"
+    },
+    {
+      "name": "make-loudness-remaster",
+      "title": "Make loudness remaster",
+      "summary": "Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make…",
+      "description": "Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder in REAPER (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else), measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as \"<title> - final master (-N LUFS).wav\". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says \"remaster <song>\", \"master this track\", \"make it louder\", \"louder for YouTube / Spotify / the gym\", \"loudness options\", \"/make-loudness-remaster\", or gives a song folder (a Suno mix with or without its stems) to master. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-loudness-remaster"
+    },
+    {
+      "name": "make-lyrics-shorts-summerstyle-boldwords",
+      "title": "Make lyrics shorts summerstyle boldwords",
+      "summary": "Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the \"summer leaves quietly\" reel — a sho…",
+      "description": "Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the \"summer leaves quietly\" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says \"make lyric shorts / reels of my song\", \"shorts with bold stacked words\", \"words width-fit with the video inside the letters\", \"text mask shorts\", \"shorts like this reference\" (stacked-type), \"/make-lyrics-shorts-summerstyle-boldwords\", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-lyrics-shorts-summerstyle-boldwords"
+    },
+    {
+      "name": "make-lyrics-video",
+      "title": "Make lyrics video",
+      "summary": "Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us…",
+      "description": "Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use when the user says \"make a lyric video from <folder>\", \"/make-lyrics-video <slug>\", or asks to add/edit scenes of a project under apps/lyrics_videos/projects.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-lyrics-video"
+    },
+    {
+      "name": "make-lyrics-video-like-nakama",
+      "title": "Make lyrics video like nakama",
+      "summary": "Variant of make-lyrics-video in the style of the Nakama! lyric video (projects/nakama, Anime Music Zone, finished 2026-10-27): the song as a captain's logbook lying on…",
+      "description": "Variant of make-lyrics-video in the style of the Nakama! lyric video (projects/nakama, Anime Music Zone, finished 2026-10-27): the song as a captain's logbook lying on a sunlit desk among 3D props, full pages of faded log text that writes itself into room as animations leave, every lyric inked and highlighted inside the log or half a line to a page in choruses, three captioned pictures a spread (one colour clip, two traced ink sketches), the franchise word torn out into footage, manga sound effects lettered on the page at the chorus peaks, a multi-view line-art illusion for the intro and a Blender-rendered desk for the outro. Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use only when the user names this variant or asks for the nakama style; otherwise make-lyrics-video.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-lyrics-video-like-nakama",
+      "variantOf": "make-lyrics-video",
+      "variantRef": "nakama"
+    },
+    {
+      "name": "make-video-music-remix",
+      "title": "Make video music remix",
+      "summary": "Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume…",
+      "description": "Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat at the footage's own speed; the lyrics (or the music's energy) pick each shot, the footage's scenes run in order through hooks and drops; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says \"make a song edit / remix / AMV of <video> to <song>\", \"edit this footage to this song\", \"cut these clips to the beat\", \"take this edit as inspo\", \"/make-video-music-remix\", or asks to change a project under apps/lyrics_videos/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-video-music-remix"
+    },
+    {
+      "name": "make-video-music-remix-like-f1xhitit",
+      "title": "Make video music remix like f1xhitit",
+      "summary": "Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h…",
+      "description": "Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or hype track: black-and-white long real-speed takes in the intro, colour bursting in on verse 1, verses cast literally on a steady one-beat pulse, hooks, drops and the bridge each following one scene in order, smooth warp zooms and a speaker pump on every kick, wide-tracked Michroma captions in the bottom bar with only punch words big (Anton), natural colour (no colour devices), slow motion only in the bridge, a \"<footage> × <song>\" collab title lockup and the channel's sign-off. Use only when the user names this variant or asks for an edit like F1 × Hit It / the f1xhitit style; otherwise make-video-music-remix. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-video-music-remix-like-f1xhitit",
+      "variantOf": "make-video-music-remix",
+      "variantRef": "f1xhitit"
+    },
+    {
+      "name": "make-video-music-remix-like-quicksilverxkingpin",
+      "title": "Make video music remix like quicksilverxkingpin",
+      "summary": "Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero…",
+      "description": "Variant of make-video-music-remix in the style of the Quicksilver × Kingpin edit (projects/quicksilverxkingpin, ATOMIC RAP, revised to v14 on 2026-10-26): a superhero speedster edit for a boastful rap, several films of one hero cut beat-tight, hook scenes in story order, every punch word big and acting it out (segmented behind the hero, outlined, or a knockout that masks the shot into the letters), hot and cold scenes alternating with word colours to match, and nothing ever shown twice. Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat at the footage's own speed; the lyrics (or the music's energy) pick each shot, the footage's scenes run in order through hooks and drops; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use only when the user names this variant or asks for the quicksilverxkingpin style; otherwise make-video-music-remix. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-video-music-remix-like-quicksilverxkingpin",
+      "variantOf": "make-video-music-remix",
+      "variantRef": "quicksilverxkingpin"
+    },
+    {
+      "name": "make-video-music-remix-shorts",
+      "title": "Make video music remix shorts",
+      "summary": "Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style…",
+      "description": "Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song edit in Remotion, in make-video-music-remix's edit style — every run picks the three coolest different stretches of the song (energy, the opening hit, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose, either as \"rotate your phone\" shorts (a vertical hook built on the film's own signature, then the finished 16:9 edit as it is, turned 90° to fill the frame; the user's choice for hitixf1) or recast for the vertical frame (the footage reframed around its subject, stacked splits and boxes where a crop would be soft, words and captions laid out for a phone); reviewed through Revisions (revise-video). Builds on a make-video-music-remix project (ideally a finished long edit, whose casting it starts from). Use when the user says \"make shorts / reels / tiktoks of <edit>\", \"vertical cuts of this song edit\", \"9:16 / 3:4 versions\", \"/make-video-music-remix-shorts\", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-video-music-remix-shorts"
+    },
+    {
+      "name": "make-waveform-lyric-video",
+      "title": "Make waveform lyric video",
+      "summary": "Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate,…",
+      "description": "Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/lyrics_videos with src/mediamake and scripts/wave-lab.ts. Use when the user says \"make a waveform lyric video\", \"lyric video with a waveform / audio visualizer / spectrum\", \"here's a song and a poster, make the video\", \"/make-waveform-lyric-video\", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-waveform-lyric-video"
+    },
+    {
+      "name": "pack-brand-kit",
+      "title": "Pack brand kit",
+      "summary": "Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo an…",
+      "description": "Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says \"make a brand / brand kit / brand guide for this logo\", \"create intro animations for my logo\", \"logo animation\", \"end cards / end screens for my channel\", \"channel branding\", \"sound effects for my intro / end screen\", or asks to add a scene or asset to a brand under apps/lyrics_videos/brands/ or to the shared engine in apps/lyrics_videos/logoGraphics/. Append new user feedback to the log at the bottom.",
+      "category": "pack",
+      "location": "committed",
+      "path": ".agents/skills/pack-brand-kit",
+      "dependsOn": [
+        "revise-image"
+      ]
+    },
+    {
+      "name": "pack-youtube",
+      "title": "Pack youtube",
+      "summary": "Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio…",
+      "description": "Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/lyrics_videos/out/youtube/<slug>/, ready to paste into YouTube Studio. Use when the user says \"make a YouTube pack\", \"YouTube upload pack for <song>\", \"/pack-youtube\", \"thumbnail + title + description for this song\", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.",
+      "category": "pack",
+      "location": "committed",
+      "path": ".agents/skills/pack-youtube"
+    },
+    {
+      "name": "publish-skill",
+      "title": "Publish skill",
+      "summary": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for…",
+      "description": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then move it to .agents/skills (committed, linked from .claude/skills) and update SKILLS.md. Also lists every skill. Use when the user says \"publish a skill\", \"add <skill> to the repo\", \"commit my new skill\", \"list the skills\", \"/publish-skill [category]\", or asks to update SKILLS.md.",
+      "category": "skill",
+      "location": "committed",
+      "path": ".agents/skills/publish-skill"
+    },
+    {
+      "name": "remotion-best-practices",
+      "title": "Remotion best practices",
+      "summary": "Router for all Remotion skills",
+      "description": "Router for all Remotion skills",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-best-practices",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-captions",
+      "title": "Remotion captions",
+      "summary": "Transcribing, displaying and animating captions",
+      "description": "Transcribing, displaying and animating captions",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-captions",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-create",
+      "title": "Remotion create",
+      "summary": "Create a new Remotion video",
+      "description": "Create a new Remotion video",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-create",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-docs",
+      "title": "Remotion docs",
+      "summary": "Search Remotion documentation",
+      "description": "Search Remotion documentation",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-docs",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-interactivity",
+      "title": "Remotion interactivity",
+      "summary": "Structure Remotion markup for interactivity",
+      "description": "Structure Remotion markup for interactivity",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-interactivity",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-maps",
+      "title": "Remotion maps",
+      "summary": "Remotion Map animation knowledge",
+      "description": "Remotion Map animation knowledge",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-maps",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-markup",
+      "title": "Remotion markup",
+      "summary": "Content, animation and effects best practices",
+      "description": "Content, animation and effects best practices",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-markup",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-multimedia",
+      "title": "Remotion multimedia",
+      "summary": "Interacting with Mediabunny",
+      "description": "Interacting with Mediabunny",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-multimedia",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-render",
+      "title": "Remotion render",
+      "summary": "Export a Remotion video",
+      "description": "Export a Remotion video",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-render",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-saas",
+      "title": "Remotion saas",
+      "summary": "Build an app with Remotion",
+      "description": "Build an app with Remotion",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-saas",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-studio",
+      "title": "Remotion studio",
+      "summary": "Preview a Remotion video",
+      "description": "Preview a Remotion video",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-studio",
+      "version": "4.0.537"
+    },
+    {
+      "name": "remotion-upgrade",
+      "title": "Remotion upgrade",
+      "summary": "Upgrade Remotion, and related packages",
+      "description": "Upgrade Remotion, and related packages",
+      "category": "remotion",
+      "location": "committed",
+      "path": ".agents/skills/remotion-upgrade",
+      "version": "4.0.537"
+    },
+    {
+      "name": "revise-image",
+      "title": "Revise image",
+      "summary": "Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the revi…",
+      "description": "Review and revise a set of images with the user through mediamake's Image Revisions screen (/image-revision) — make the set reviewable (index.json), give them the review link, read their revision files (finals, keeps, drops, comments pinned to spots with zoomed crops) under <folder>/<set>.revisions/, act on them the way the skill that made the images works (re-render, keep, pick finals), reply and resolve, and log the lessons. Shared by every image skill (thumbnails, posters, logo concepts, Midjourney / fal sets, any create-* skill to come). Use after a round of images the user will look at, or when the user says \"rev-002 is ready\", \"check my image revision / comments\", \"act on the revisions\", \"/revise-image <set>\", or asks to fix notes left in the Image Revisions screen. Not for videos. Append new user feedback to the log at the bottom.",
+      "category": "revise",
+      "location": "committed",
+      "path": ".agents/skills/revise-image"
+    },
+    {
+      "name": "revise-video",
+      "title": "Revise video",
+      "summary": "Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read thei…",
+      "description": "Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — give them the review link for a render, read their revision files (point comments with stills, range comments across shots) under out/<slug>/<slug>.revisions/, fix each comment in the project, reply and resolve, and log the lessons. Shared by every video-making skill (make-lyrics-video, make-video-music-remix, their variants, and any make-* video skill to come). Use after a render the user will watch, or when the user says \"rev-002 is ready\", \"check my revision / comments\", \"act on the revisions\", \"/revise-video <slug>\", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /image-revision). Append new user feedback to the log at the bottom.",
+      "category": "revise",
+      "location": "committed",
+      "path": ".agents/skills/revise-video"
+    },
+    {
+      "name": "write-youtube-metadata",
+      "title": "Write youtube metadata",
+      "summary": "Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) fro…",
+      "description": "Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) from the song's title and its lyrics.json (or any lyrics file). The description is a 2-line intro to the song, the plain lyrics (no timestamps, no section labels), a 1-line outro about the channel and at most 5 hashtags, in the channel's voice; checked against YouTube's limits and saved as title.txt / description.txt. Use when the user says \"YouTube title and description for <song>\", \"write the description with lyrics\", \"YouTube metadata\", \"/write-youtube-metadata\", or as the metadata step of pack-youtube. Append new user feedback to the log at the bottom.",
+      "category": "write",
+      "location": "committed",
+      "path": ".agents/skills/write-youtube-metadata"
+    }
+  ]
+}

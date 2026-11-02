@@ -1,10 +1,12 @@
-import type { CatalogItem, CatalogKind } from './types';
+import { registry } from '@/lib/skills/registry';
+import type { CatalogItem, CatalogItemRecord, CatalogKind } from './types';
 
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose
  * names are already public here: unreleased apps and MCPs belong in the
  * catalog database so they stay out of this public repo. Skills are always
- * public: their files are committed in .agents/skills and listed at /skills.
+ * public: their files are committed in .agents/skills, and every one in the
+ * repo's registry (skills.json) is a card, see skillCatalogItems.
  */
 export const catalogItems: CatalogItem[] = [
   // Apps. Public pages anyone can open today carry openToAll.
@@ -57,15 +59,16 @@ export const catalogItems: CatalogItem[] = [
     releasedAt: '2026-10-22',
   },
   {
+    // the id stays: it keys the stored item and its grants
     id: 'app/skill-library',
     kind: 'app',
-    title: 'Skill Library',
-    summary: 'Browse the skills on your computer with thumbnails, their variants and the projects that used them.',
+    title: 'Library',
+    summary: 'Your channels, productions, skills and media library in one place: what each skill made and what each production used.',
     visibility: 'public',
     openToAll: true,
     status: 'beta',
-    href: '/skill-library',
-    tags: ['skills', 'variants'],
+    href: '/library',
+    tags: ['skills', 'media', 'productions'],
     releasedAt: '2026-10-26',
   },
 
@@ -81,35 +84,46 @@ export const catalogItems: CatalogItem[] = [
     releasedAt: '2026-10-24',
   },
 
-  // Skills
-  {
-    id: 'skill/lyric-video',
-    kind: 'skill',
-    title: 'Lyric video',
-    summary: 'Turn a song and its lyrics into a timed lyric video.',
-    visibility: 'public',
-    status: 'beta',
-    href: '/skills',
-    tags: ['music', 'lyrics'],
-    releasedAt: '2026-10-24',
-  },
-  {
-    id: 'skill/waveform-video',
-    kind: 'skill',
-    title: 'Waveform video',
-    summary: 'Audio-reactive waveform visuals for tracks and podcasts.',
-    visibility: 'public',
-    status: 'beta',
-    href: '/skills',
-    tags: ['music', 'audio'],
-    releasedAt: '2026-10-24',
-  },
+  // Skills: not listed here, they come from the registry (skillCatalogItems below).
 
   // Tutorials: none published yet.
 ];
 
+/**
+ * Skills have no release date of their own (they are never gated), so they
+ * share the day skills were first listed in the catalog and sort by name.
+ */
+const SKILLS_LISTED_AT = '2026-10-24';
+
+/** Every skill in the registry as a card: always public, opening on /skills. */
+export function skillCatalogItems(): CatalogItem[] {
+  return (registry?.skills ?? []).map((skill) => ({
+    id: `skill/${skill.name}`,
+    kind: 'skill',
+    title: skill.name,
+    summary: skill.summary,
+    visibility: 'public',
+    status: 'live',
+    href: `/skills#${skill.name}`,
+    tags: [skill.category, ...(skill.variantOf ? ['variant'] : [])],
+    releasedAt: SKILLS_LISTED_AT,
+  }));
+}
+
+/**
+ * The registry's skills as release records for the admin dashboard, leaving
+ * out any the catalog database stores itself (a stored record wins, as in
+ * listCatalog).
+ */
+export function skillRecords(stored: { id: string }[]): CatalogItemRecord[] {
+  const have = new Set(stored.map((item) => item.id));
+  return skillCatalogItems()
+    .filter((item) => !have.has(item.id))
+    .map((item) => ({ ...item, slug: item.id.slice('skill/'.length), versions: [], createdAt: item.releasedAt }));
+}
+
 export function getStaticCatalogItems(kind?: CatalogKind): CatalogItem[] {
-  return catalogItems
+  return [...catalogItems, ...skillCatalogItems()]
     .filter((item) => !kind || item.kind === kind)
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 }

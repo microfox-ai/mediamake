@@ -116,12 +116,18 @@ export function ReleasesDashboard() {
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data?.items ?? []).filter(
+    return [...(data?.items ?? []), ...(data?.skills ?? [])].filter(
       item =>
         (kind === 'all' || item.kind === kind) &&
         (!q || item.title.toLowerCase().includes(q) || item.id.includes(q) || item.tags?.some(t => t.toLowerCase().includes(q))),
     );
   }, [data, query, kind]);
+
+  // skills from skills.json were never released through a gate: the timeline leaves them out
+  const released = useMemo(() => {
+    const fromRegistry = new Set((data?.skills ?? []).map(skill => skill.id));
+    return items.filter(item => !fromRegistry.has(item.id));
+  }, [data, items]);
 
   const counts = useMemo(() => {
     const result: Record<ReleaseTier, number> = { vault: 0, development: 0, community: 0, public: 0 };
@@ -164,7 +170,7 @@ export function ReleasesDashboard() {
         <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
         <p className="text-sm text-muted-foreground">
           Move apps and MCPs from the vault to the public. Community items go public by themselves when their gate ends.
-          Skills are always public: their files are committed in the repo, so they sit in Public and skip the gate.
+          Skills are always public: every skill in the repo&apos;s skills.json sits in Public and skips the gate.
         </p>
       </div>
 
@@ -258,7 +264,15 @@ export function ReleasesDashboard() {
 
         <TabsContent value="board">
           {data ? (
-            <ReleaseBoard data={data} items={items} tiers={visibleTiers} now={now} onAction={onAction} />
+            <ReleaseBoard
+              data={data}
+              items={items}
+              tiers={visibleTiers}
+              now={now}
+              onAction={onAction}
+              collapseSkills={kind === 'all' && !query.trim()}
+              onShowSkills={() => setKind('skill')}
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {TIER_ORDER.map(t => <Skeleton key={t} className="h-64 rounded-xl" />)}
@@ -267,7 +281,7 @@ export function ReleasesDashboard() {
         </TabsContent>
 
         <TabsContent value="timeline">
-          {data && <ReleaseTimeline data={data} items={items} now={now} onAction={onAction} />}
+          {data && <ReleaseTimeline data={data} items={released} now={now} onAction={onAction} />}
         </TabsContent>
 
         <TabsContent value="people">

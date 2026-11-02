@@ -33,7 +33,9 @@ export function HomePage({
     window.history.replaceState(null, '', url);
   };
 
-  const visible = 'kind' in active ? cards.filter((c) => c.kind === active.kind) : cards;
+  // every skill in the repo is a card (always public, never released through a gate): they have
+  // their own tab, so Latest releases stays the apps, MCPs and tutorials
+  const visible = 'kind' in active ? cards.filter((c) => c.kind === active.kind) : cards.filter((c) => c.kind !== 'skill');
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
