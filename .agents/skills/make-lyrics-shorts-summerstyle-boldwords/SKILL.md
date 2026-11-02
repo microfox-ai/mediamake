@@ -229,10 +229,20 @@ previews unless the user asks for them (`revise-video` › Previews or the whole
 
 ### 1. Project, song, words
 
-`projects/<slug>/input/`: the song, `lyrics.json`, `project.json`, `footage/`, `inspiration/`. Every
-file is a copy, never a symlink: `cp -c <download> input/footage/<name>.mp4` clones a big video at no
-disk cost on the same disk, and the project keeps working when the user moves or deletes the download
-(a link into ~/Downloads broke eyesofpink). Then make-lyrics-video steps 2–3: `npm run analyze -w lyrics_videos -- <slug>
+`projects/<slug>/input/`: the song, `lyrics.json`, `project.json`, `footage/`, `inspiration/`.
+Register the production (`npm run media -w lyrics_videos -- production new <slug> --channel=<brand id>
+--skill=make-lyrics-shorts-summerstyle-boldwords`).
+
+**The media library first** (`apps/lyrics_videos/scripts/library/README.md`):
+- `media find "<character> twixtor" --kind=footage --sheet` and `media find "<character> <scene>"
+  --kind=images` before any download or Pinterest round. The One Piece run fetched the same Zoro
+  packs twice.
+- Downloads go to `_INBOX` (Browse Hack's YouTube and Pinterest tools save there and skip what the
+  library has), then `media ingest`.
+- Every file in `input/` is a clone, never a symlink: `media use <id> <slug>
+  --as=input/footage/<name>.mp4`. A link into ~/Downloads broke eyesofpink.
+
+Then make-lyrics-video steps 2–3: `npm run analyze -w lyrics_videos -- <slug>
 --plots` (stems, beat grid, CTC word alignment; ~1 min with models cached) and `prepare-project`.
 **Set real sections**: print each bar's drums / bass / other / vocal envelope with its lyric (see the
 eyesofpink session) and write intro / verse / pre-chorus / chorus / break / bridge / build / outro to
@@ -242,7 +252,10 @@ eyesofpink session) and write intro / verse / pre-chorus / chorus / break / brid
 
 `uv run --script .claude/skills/analyze-video/scripts/segregate.py "projects/<slug>/input/footage/<name>.mp4"
 --out projects/<slug>/footage --min-shot 0.1` (a 4K60 AV1 3.6-min edit: ~3.5 min): run it on the copy in
-`input/`, since `segregation.json` keeps the path it was given. Read `sheets/shots_*.jpg`;
+`input/`, since `segregation.json` keeps the path it was given. First try the cache:
+`media cache get projects/<slug>/input/footage/<name>.mp4 segregation --into=projects/<slug>/footage/<name>`.
+After a fresh run, or once its faces are marked, put both back: `media cache put … segregation <folder>
+--tool=analyze-video` and `media cache put … faces <faces.json>`. Read `sheets/shots_*.jpg`;
 note title cards, burned-in credits, black gaps and **repeated passes** (fan edits often show every
 shot twice, graded then "raw": use one of each pair). Further sources: their own folder and a prefix in
 `shorts/footage.json`.
@@ -385,7 +398,10 @@ scan doesn't cover) and fix or answer what it finds. Review with
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time), then start the watcher
 (`npm run wait-revision -w lyrics_videos -- <slug>` covers every short). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:
-`npm run shorts -w lyrics_videos -- <slug> mark <id> liked|bad`.
+`npm run shorts -w lyrics_videos -- <slug> mark <id> liked|bad`. Footage the user called wrong or bad
+("the twixtors look bad"): `media rate <id> bad --note="…" --production=<slug>`. Approved shorts go
+to the channel's folder: `media deliver <slug> --what=shorts` (a dry run), then `--yes`, and give the
+`open -R` line.
 
 ## The cut list — reference
 

@@ -3,7 +3,12 @@
  * folder layout, so scripts that sweep across every production (cleanup-out today, sync and the
  * production-folder restructure later) follow it instead of hard-coding folders.
  *
- * Layout 1 (today): one production is spread over every folder named after it.
+ * Layout 2 (2026-11-02) keeps layout 1's folders and adds the shared media library, outside the
+ * repo (scripts/library, `npm run media`): sources live there once and projects hold APFS clones
+ * of what they use; approved outputs are delivered to the channel folders in Downloads. Library
+ * files are the library's own business; cleanup-out still sweeps only the folders below.
+ *
+ * Layout 1: one production is spread over every folder named after it.
  *
  *   projects/<name>/            input, analysis, derived, footage* (sources) + scene code
  *   out/<name>/                 <name>.mp4 (final), v<N>/ (versions), clips, stills, parts… (work)
@@ -25,7 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const LAYOUT = 1;
+export const LAYOUT = 2;
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO = path.resolve(ROOT, '..', '..');
 

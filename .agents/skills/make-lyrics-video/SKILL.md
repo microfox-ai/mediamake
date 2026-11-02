@@ -94,10 +94,16 @@ cite them.
 ## 1. Set up the project folder
 
 - Slug: kebab-case, `[a-z0-9-]`, not starting with `_` (underscore folders are ignored by discovery).
-- If the user gave an outside folder, copy its files into `apps/lyrics_videos/projects/<slug>/input/`:
-  copies, never symlinks, so the project owns its sources and the user can move or delete the
-  originals once it is done (`cp -c` clones a big video at no disk cost on the same disk).
-  Never edit or delete files in `input/` after that — it is the user's source of truth.
+- **The media library first** (`apps/lyrics_videos/scripts/library/README.md`):
+  - If the user gave an outside folder, run `npm run media -w lyrics_videos -- ingest <folder> --channel=<brand id>`.
+    It clones the files into the library and leaves the user's folder as it was.
+  - Search the library for anything else the video needs before downloading or generating it
+    (`media find … --sheet`).
+  - Give the project clones (`media use <id> <slug> --as=input/<name>`): copies, never symlinks,
+    so the project owns its sources and the user can move or delete the originals once it is done.
+  - Never edit or delete files in `input/` after that — it is the user's source of truth.
+  - Register the production: `media production new <slug> --channel=<brand id> --skill=make-lyrics-video`.
+    When the user approves the final render: `media deliver <slug> --what=video`, then `--yes`.
 - Inputs:
   - **required:** the song (`song.mp3`, `.wav`, `.m4a`, ...). With several formats, point `project.json`
     `audio` at the lossless one (wav/flac): it is what plays and what gets analyzed.

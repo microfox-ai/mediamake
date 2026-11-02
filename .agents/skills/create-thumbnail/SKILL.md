@@ -100,6 +100,10 @@ In order of preference:
   pick the most expressive face or moment. Thumbnails sell emotion: eyes, a reaction, a peak.
 - **A concept to generate:** Midjourney through Browse Hack (`midjourney-style-reference` when
   they have a look in mind). fal costs money: ask first. Generate at 16:9 with room for words.
+- **The media library** holds the art, outcrops and upscales of earlier rounds and productions
+  (`npm run media -w lyrics_videos -- find "<song or character>" --kind=art --sheet`). Look there
+  before generating or paying again. New generations go through `_INBOX` and `media ingest`
+  (`apps/lyrics_videos/scripts/library/README.md`).
 - **No picture:** the `poster` preset (type is the picture).
 
 Put pictures in `input/`. For anything that goes behind or in front of words, make a cutout:

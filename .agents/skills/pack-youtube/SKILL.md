@@ -150,6 +150,12 @@ files, `title`, `video`, `status: "ready"`) and tell the user where everything g
 Description, Thumbnail (one file, or Test & Compare with the three; YouTube picks the winner by
 watch time). The audio and lyrics in `input/` are for reference; this skill uploads nothing.
 
+Once the user approves the pack, deliver it to the channel's folder (the user copied packs there by
+hand before): `npm run media -w lyrics_videos -- deliver <slug> --what=youtube,video` (a dry run),
+then `--yes`. It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
+and an older delivery moves to `previous/v<N>/`. Give the `open -R` line. When the user says it's
+published: `media deliver <slug> --uploaded`.
+
 ## Feedback log
 
 Add entries at the bottom: date · song / channel · what they said → the rule.

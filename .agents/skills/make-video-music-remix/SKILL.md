@@ -158,7 +158,8 @@ Ask with `AskUserQuestion` only what the request leaves open, and say what you a
 (16:9 / letterboxed / 9:16; fps; full song or a cut-down; vertical shorts of a stretch are
 `make-video-music-remix-shorts`), the channel or brand it's for (its name
 may sign off the outro), how much text, footage that is off-limits (spoilers, burned-in graphics,
-people), anything they hate. Write `brief.md` and seed `prefs.md`.
+people), anything they hate. Write `brief.md` and seed `prefs.md`. Register the production:
+`npm run media -w lyrics_videos -- production new <slug> --channel=<brand id> --skill=make-video-music-remix`.
 
 Ask too whether to pitch 3–4 looks of the first hook first, as 8 s clips side by side in one grid,
 or to build the whole edit (`revise-video` › Previews or the whole video): the whole edit by default
@@ -167,9 +168,16 @@ under a minute or when they gave an edit to follow, previews when the style is o
 ### 1. Project folder
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json` (`title`, `artist`, `audio`,
-`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). Every file is a
-copy, never a symlink (`cp -c` clones a big download at no disk cost on the same disk), so the user can
-move or delete the originals once the edit is done. Never edit the user's files in `input/`.
+`sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). **The media
+library first** (`apps/lyrics_videos/scripts/library/README.md`):
+- `media find "<character or film> <type>" --kind=footage --sheet` before any download. The same
+  packs come back across edits (Zoro, the Kingpin song, One Piece raw clips).
+- Missing footage is downloaded into `_INBOX` (Browse Hack does it and says when the library
+  already has the video), then `media ingest`.
+- Every file in `input/` is a clone from the library (`media use <id> <slug> --as=input/<name>`),
+  never a symlink. Footage the user handed over elsewhere: `media ingest <path> --channel=<id>`
+  first (it stays where it was).
+- Never edit the user's files in `input/`.
 
 ### 2. Study the inspiration — `inspo.md`
 
@@ -182,7 +190,10 @@ pacing (cuts per beat), the transitions, the type, the colour, and what suits th
 
 `segregate.py "projects/<slug>/input/<footage>" --out projects/<slug>/footage` (the copy in `input/`:
 `segregation.json` keeps that path; each further source into its own folder,
-e.g. `footage-lm/`). Read every `sheets/shots_*.jpg` and `scene_*.jpg`; write down:
+e.g. `footage-lm/`). Before segregating, `media cache get projects/<slug>/input/<footage> segregation
+--into=projects/<slug>/footage` (another edit may have done this file already); after a fresh run,
+`media cache put projects/<slug>/input/<footage> segregation projects/<slug>/footage --tool=analyze-video`.
+Read every `sheets/shots_*.jpg` and `scene_*.jpg`; write down:
 
 - **families** of shots (the per-genre lists above) and each shot's **length** (a cut can't be
   longer than its take);
@@ -309,7 +320,11 @@ picture: render the audio and mux it onto the video (`-c:v copy`).
 
 Review with the **`revise-video`** skill (preflight, the `/remotion-revision` link, the background
 watcher, reading and closing the user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
-every comment in `prefs.md` and the general rule in the lessons log here. After the master render,
+every comment in `prefs.md` and the general rule in the lessons log here. When the user approves the
+final, deliver it to the channel's folder: `media deliver <slug> --what=video` (a dry run), then
+`--yes`. It goes to `Downloads/<CHANNEL>/<slug>/` and an older delivery moves to `previous/`; give
+the `open -R` line it prints. Footage the user rejected: `media rate <id> bad --note="…" --production=<slug>`.
+After the master render,
 offer thumbnails (`create-thumbnail`), the YouTube pack (`pack-youtube`) and vertical shorts of the
 song's best stretches (`make-video-music-remix-shorts`, which starts from this edit's casting).
 

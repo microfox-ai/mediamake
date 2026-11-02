@@ -49,6 +49,12 @@ uv run --script .claude/skills/analyze-video/scripts/segregate.py "<video>"
 
 - Output goes next to the video as `<video name>_segregation/` unless you pass `--out <dir>`. If the
   video is in the repo (e.g. a project's `input/`), put the output somewhere gitignored.
+- **Analyse a file once.** The media library caches segregations by the file's content
+  (`apps/lyrics_videos/scripts/library/README.md`).
+  - Before a run: `npm run media -w lyrics_videos -- cache get "<video>" segregation --into=<out dir>`.
+    It exits 3 when there's none.
+  - After a run: `media cache put "<video>" segregation <out dir> --tool=analyze-video --target=footage/{name}`.
+  - Another production of the same footage then gets it back in seconds (`media use … --with=segregation`).
 - Clips: only when the user wants files. `--clips shots`, `--clips scenes` or `--clips both`
   (frame-accurate H.264 re-encodes, `--clip-height 1080` to shrink 4K). For a Remotion edit you
   rarely need them: `<OffthreadVideo src={…} startFrom={…} endAt={…}>` on the original file with the
