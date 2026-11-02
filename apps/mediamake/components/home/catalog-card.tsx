@@ -8,13 +8,16 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
+import { watchPath } from '@/lib/catalog/video';
 import { MadeByLine, UsesLine } from '@/components/catalog/uses';
+import { VideoThumb } from '@/components/catalog/video';
 
 const kindLabel: Record<CatalogEntry['kind'], string> = {
   mcp: 'MCP',
   skill: 'Skill',
   app: 'App',
   tutorial: 'Tutorial',
+  course: 'Course',
 };
 
 const statusLabel: Record<CatalogEntry['status'], string> = {
@@ -25,59 +28,77 @@ const statusLabel: Record<CatalogEntry['status'], string> = {
 
 export function CatalogCard({ card }: { card: CatalogEntry }) {
   const locked = card.access === 'locked';
-  // Locked cards lead to the request-access / redeem-invite page, and
-  // installable ones without a page of their own to their install page.
+  // Locked cards lead to the request-access / redeem-invite page; a card with a
+  // video to where it plays (a course's page, else the item's page; an app
+  // still opens itself); and installable ones without a page of their own to
+  // their install page.
   const accessHref = `/access?item=${encodeURIComponent(card.id)}`;
-  const href = locked ? accessHref : (card.href ?? (card.installPrompt ? accessHref : undefined));
+  const href = locked
+    ? accessHref
+    : card.kind === 'course' || (card.video && card.kind !== 'app')
+      ? watchPath(card.id)
+      : (card.href ?? (card.installPrompt ? accessHref : undefined));
+  // a skill always shows a picture on top: its thumbnail, else its title on its own colour
+  const showThumb = !!card.video?.thumbnail || card.kind === 'skill';
 
   const body = (
     <div
       className={cn(
-        'group flex h-full flex-col gap-4 rounded-xl border bg-card p-5 transition-colors',
+        'group flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors',
         locked ? 'border-dashed' : href && 'hover:border-foreground/30 hover:bg-muted/40',
       )}
     >
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">{kindLabel[card.kind]}</Badge>
-        <Badge variant="secondary">{statusLabel[card.status]}</Badge>
-        {!locked && card.version && (
-          <span className="font-mono text-xs text-muted-foreground" title="Latest release">
-            v{card.version}
-          </span>
-        )}
-        {card.access !== 'open' && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
-            {locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
-            {locked ? 'Invite only' : 'You have access'}
-          </span>
-        )}
-      </div>
-
-      <div className={cn('flex flex-col gap-1.5', locked && 'opacity-60')}>
-        <h3 className="flex items-center gap-1 font-semibold">
-          {card.title}
-          {!locked && href && (
-            <ArrowUpRight className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-          )}
-        </h3>
-        <p className="text-sm text-muted-foreground">{card.summary}</p>
-        {/* the card is a link itself: no link inside */}
-        {card.madeBy && <MadeByLine madeBy={card.madeBy} link={false} />}
-        {!locked && card.uses && card.uses.length > 0 && <UsesLine uses={card.uses} />}
-        {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
-      </div>
-
-      {!locked && card.installPrompt && <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />}
-
-      {card.tags && card.tags.length > 0 && (
-        <div className={cn('mt-auto flex flex-wrap gap-1.5', locked && 'opacity-60')}>
-          {card.tags.map((tag) => (
-            <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
+      {showThumb && (
+        <VideoThumb
+          id={card.id}
+          title={card.video?.title || card.title}
+          src={card.video?.thumbnail}
+          className={cn('border-b', locked && 'opacity-60')}
+        />
       )}
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{kindLabel[card.kind]}</Badge>
+          <Badge variant="secondary">{statusLabel[card.status]}</Badge>
+          {!locked && card.version && (
+            <span className="font-mono text-xs text-muted-foreground" title="Latest release">
+              v{card.version}
+            </span>
+          )}
+          {card.access !== 'open' && (
+            <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+              {locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+              {locked ? 'Invite only' : 'You have access'}
+            </span>
+          )}
+        </div>
+
+        <div className={cn('flex flex-col gap-1.5', locked && 'opacity-60')}>
+          <h3 className="flex items-center gap-1 font-semibold">
+            {card.title}
+            {!locked && href && (
+              <ArrowUpRight className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            )}
+          </h3>
+          <p className="text-sm text-muted-foreground">{card.summary}</p>
+          {/* the card is a link itself: no link inside */}
+          {card.madeBy && <MadeByLine madeBy={card.madeBy} link={false} />}
+          {!locked && card.uses && card.uses.length > 0 && <UsesLine uses={card.uses} />}
+          {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
+        </div>
+
+        {!locked && card.installPrompt && <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />}
+
+        {card.tags && card.tags.length > 0 && (
+          <div className={cn('mt-auto flex flex-wrap gap-1.5', locked && 'opacity-60')}>
+            {card.tags.map((tag) => (
+              <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 

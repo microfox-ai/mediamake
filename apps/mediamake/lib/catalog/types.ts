@@ -1,6 +1,6 @@
 /**
- * Catalog of released products (skills, MCPs, apps, tutorials) and the
- * records that decide who may use the gated ones.
+ * Catalog of released products (skills, MCPs, apps, tutorials, courses) and
+ * the records that decide who may use the gated ones.
  *
  * Only metadata lives here and in MongoDB. The packaged content of a
  * private or network item sits in a private bucket path and is handed out
@@ -8,9 +8,13 @@
  * this (public) repository.
  */
 
-export type CatalogKind = 'skill' | 'mcp' | 'app' | 'tutorial';
+/** A tutorial is one YouTube video; a course plays tutorials in order (see CatalogVideo). */
+export type CatalogKind = 'skill' | 'mcp' | 'app' | 'tutorial' | 'course';
 
-export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial'];
+export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial', 'course'];
+
+/** Kinds that are videos themselves: their card takes the video's title and description. */
+export const VIDEO_KINDS: CatalogKind[] = ['tutorial', 'course'];
 
 /**
  * Kinds that are always public. Every skill's files are committed in the
@@ -159,6 +163,8 @@ export interface CatalogItem {
    * keeps its access and installs by its link, but leaves the homepage.
    */
   archivedAt?: string;
+  /** Its video (see CatalogVideo, kept apart like the archive): a skill's intro, a tutorial, a course. */
+  video?: ItemVideo;
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;
@@ -324,6 +330,38 @@ export interface ArchiveMark {
 export function withArchive<T extends { id: string; archivedAt?: string }>(items: T[], marks: ArchiveMark[]): T[] {
   const at = new Map(marks.map(mark => [mark.id, mark.at]));
   return items.map(item => (at.has(item.id) ? { ...item, archivedAt: at.get(item.id) } : item));
+}
+
+/**
+ * The video of an item, in MongoDB `catalog_videos`: a skill's intro (or an
+ * MCP's or app's), a tutorial, or a course. Kept apart from the items, like
+ * the archive, so a skill from the repo can have one too. Every video has its
+ * own title, description and thumbnail, set on the item's release page.
+ */
+export interface CatalogVideo {
+  /** The item it belongs to, e.g. `skill/pack-brand-kit` or `tutorial/brand-kit-in-one-prompt`. */
+  id: string;
+  /** The YouTube video id. A course has none: it plays its lessons. */
+  youtubeId?: string;
+  title: string;
+  description: string;
+  /** An uploaded thumbnail; YouTube's own when unset (see videoThumbnail in ./video). */
+  thumbnail?: string;
+  /** A course's tutorials, in the order it plays them (`tutorial/<slug>` ids). */
+  lessons?: string[];
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+/** What a card carries of its video (see withVideos in ./video). */
+export interface ItemVideo {
+  youtubeId?: string;
+  title: string;
+  description: string;
+  /** The thumbnail to show: the uploaded one, else YouTube's (a course's: its first lesson's). */
+  thumbnail?: string;
+  /** A course's lessons (tutorial ids), in order. */
+  lessons?: string[];
 }
 
 export type CatalogEntry = CatalogItem & {

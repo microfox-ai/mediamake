@@ -8,9 +8,9 @@ const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: true
 
 const ITEM_ID = z
   .string()
-  .regex(/^(skill|mcp|app|tutorial)\/[a-z0-9][a-z0-9-]{0,63}$/, 'a catalog id such as skill/pack-brand-kit or mcp/browse-hack')
+  .regex(/^(skill|mcp|app|tutorial|course)\/[a-z0-9][a-z0-9-]{0,63}$/, 'a catalog id such as skill/pack-brand-kit or mcp/browse-hack')
   .describe('Catalog item id, e.g. "skill/pack-brand-kit" or "mcp/browse-hack"');
-const KIND = z.enum(['skill', 'mcp', 'app', 'tutorial']);
+const KIND = z.enum(['skill', 'mcp', 'app', 'tutorial', 'course']);
 const TIER = z.enum(['vault', 'development', 'community', 'public']);
 /** A person's tier; the community is stored as the `network` access group. */
 const PEOPLE_TIER = z.enum(['private', 'community', 'public']);

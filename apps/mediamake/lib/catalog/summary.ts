@@ -44,6 +44,11 @@ export function itemPath(id: string) {
  */
 export function originOf(item: CatalogItemRecord): string {
   if (item.madeBy) return `${item.madeBy.repo ? 'Open source' : 'Hosted'} · ${item.madeBy.name}`;
+  if (item.kind === 'tutorial') return item.video?.youtubeId ? 'YouTube video' : 'No video yet';
+  if (item.kind === 'course') {
+    const lessons = item.video?.lessons?.length ?? 0;
+    return lessons ? `Course · ${lessons} lesson${lessons === 1 ? '' : 's'}` : 'Course · no lessons yet';
+  }
   if (item.versions.length) return `Our package · v${item.versions[item.versions.length - 1].version}`;
   if (item.install?.source?.type === 'github-skill') return 'Skill in the repo';
   if (item.install?.source?.type === 'mcp-server') return item.install.source.remote ? 'Our hosted connector' : 'Our MCP server';

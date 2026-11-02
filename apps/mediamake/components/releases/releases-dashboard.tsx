@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarClock, Lock, RefreshCw, Search, ShieldAlert } from 'lucide-react';
+import { BookOpen, CalendarClock, GraduationCap, Lock, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import type { CatalogItemRecord, CatalogKind, ReleaseTier } from '@/lib/catalog/types';
 import { CATALOG_KINDS } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { ReleaseTimeline } from './release-timeline';
 import { PeoplePanel } from './people-panel';
 import { ItemAccessSheet } from './item-access-sheet';
 import { ScheduleDialog } from './schedule-dialog';
+import { NewVideoItemDialog } from './video-panel';
 import {
   COMMUNITY_GROUP,
   PRIVATE_GROUP,
@@ -51,7 +52,8 @@ const ACTION_LABEL: Record<string, string> = {
  * (each opens its own page, /core/releases/<kind>/<slug>); which items sit in
  * the vault, in development, with the community or in public; the gates
  * that turn community items public by themselves; and who belongs to each
- * tier. `?access=<id>` opens that item's access sheet.
+ * tier. Tutorials and courses are added here (New tutorial, New course).
+ * `?access=<id>` opens that item's access sheet.
  */
 export function ReleasesDashboard() {
   const [data, setData] = useState<AdminCatalog | null>(null);
@@ -67,6 +69,7 @@ export function ReleasesDashboard() {
   const [tier, setTier] = useState<ReleaseTier | 'all'>('all');
   const [scheduling, setScheduling] = useState<CatalogItemRecord | null>(null);
   const [accessFor, setAccessFor] = useState<CatalogItemRecord | null>(null);
+  const [adding, setAdding] = useState<'tutorial' | 'course' | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
@@ -189,13 +192,26 @@ export function ReleasesDashboard() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Every skill, MCP, app and tutorial MediaMake hands out: who can open it, where it comes from and what it works
-          with. Open one to see everything about it. Our apps and MCPs move from the vault to the public on the Board;
-          skills, and MCPs or skills made by others, are always public.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            Every skill, MCP, app, tutorial and course MediaMake hands out: who can open it, where it comes from and what it
+            works with. Open one to see everything about it, and to set a skill&apos;s intro video. Our apps, MCPs, tutorials
+            and courses move from the vault to the public on the Board; skills, and MCPs or skills made by others, are always
+            public.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAdding('tutorial')} disabled={!data}>
+            <BookOpen />
+            New tutorial
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAdding('course')} disabled={!data}>
+            <GraduationCap />
+            New course
+          </Button>
+        </div>
       </div>
 
       {data && !data.publicReleasesOpen && (
@@ -249,7 +265,8 @@ export function ReleasesDashboard() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="gap-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* stacked until there is room for the tabs, the search and every kind side by side */}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <TabsList>
             <TabsTrigger value="items">Items</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
@@ -261,7 +278,7 @@ export function ReleasesDashboard() {
               ) : null}
             </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search items" className="h-9 w-52 pl-8" />
@@ -343,6 +360,7 @@ export function ReleasesDashboard() {
               }
             }}
           />
+          <NewVideoItemDialog kind={adding} existing={data.items} onClose={() => setAdding(null)} />
           <ItemAccessSheet
             data={data}
             item={accessFor ? data.items.find(i => i.id === accessFor.id) ?? accessFor : null}

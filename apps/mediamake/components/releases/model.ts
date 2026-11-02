@@ -8,6 +8,7 @@ import {
   type AccessRequest,
   type ArchiveMark,
   type CatalogItemRecord,
+  type CatalogVideo,
   type ReleaseTier,
 } from '@/lib/catalog/types';
 import type { InstallPlan } from '@/lib/catalog/plan';
@@ -73,6 +74,21 @@ export interface ItemDetail {
   code?: string;
   /** A skill's whole description (its card's summary is the first sentence). */
   description?: string;
+  /** Its video as stored: a skill's intro, a tutorial, a course and its lessons. */
+  video: CatalogVideo | null;
+  /** A course: every tutorial it can play. */
+  tutorials?: LessonOption[];
+  /** A tutorial: the courses that play it. */
+  inCourses?: { id: string; title: string }[];
+}
+
+/** A tutorial as a course's lesson picker shows it. */
+export interface LessonOption {
+  id: string;
+  title: string;
+  tier: ReleaseTier;
+  thumbnail?: string;
+  archivedAt?: string;
 }
 
 export async function fetchItemDetail(id: string): Promise<ItemDetail> {

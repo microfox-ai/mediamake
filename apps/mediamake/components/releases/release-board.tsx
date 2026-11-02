@@ -9,6 +9,7 @@ import {
   BookOpen,
   CalendarClock,
   CalendarX,
+  GraduationCap,
   Hammer,
   MoreHorizontal,
   Plug,
@@ -47,6 +48,7 @@ export const KIND_ICON: Record<CatalogKind, React.ComponentType<{ className?: st
   mcp: Plug,
   app: AppWindow,
   tutorial: BookOpen,
+  course: GraduationCap,
 };
 
 export function ReleaseBoard({

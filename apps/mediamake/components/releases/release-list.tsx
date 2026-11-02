@@ -9,8 +9,8 @@ import { KIND_ICON } from './release-board';
 import { ArchivedPill, TierPill } from './parts';
 import { TIER_META, TIER_ORDER, itemPath, originOf, tierOf, type AdminCatalog } from './model';
 
-const KIND_ORDER: CatalogKind[] = ['mcp', 'skill', 'app', 'tutorial'];
-const KIND_PLURAL: Record<CatalogKind, string> = { mcp: 'MCPs', skill: 'Skills', app: 'Apps', tutorial: 'Tutorials' };
+const KIND_ORDER: CatalogKind[] = ['mcp', 'skill', 'app', 'tutorial', 'course'];
+const KIND_PLURAL: Record<CatalogKind, string> = { mcp: 'MCPs', skill: 'Skills', app: 'Apps', tutorial: 'Tutorials', course: 'Courses' };
 
 const ROW = 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-5 md:grid-cols-[minmax(0,1.3fr)_9.5rem_minmax(0,1fr)_minmax(0,1.2fr)_1rem]';
 

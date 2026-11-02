@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { CatalogEntry } from '@/lib/catalog/types';
+import type { CatalogEntry, CatalogKind } from '@/lib/catalog/types';
 import { CatalogCard } from './catalog-card';
 import { homeTabs, type HomeTab } from './tabs';
 
@@ -37,7 +37,10 @@ export function HomePage({
   // their own tab, so Latest releases stays the apps, MCPs and tutorials. Archived items stay
   // installable by their link but are left off every tab.
   const listed = cards.filter((c) => !c.archivedAt);
-  const visible = 'kind' in active ? listed.filter((c) => c.kind === active.kind) : listed.filter((c) => c.kind !== 'skill');
+  const visible =
+    'kinds' in active
+      ? listed.filter((c) => (active.kinds as readonly CatalogKind[]).includes(c.kind))
+      : listed.filter((c) => c.kind !== 'skill');
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -82,7 +85,7 @@ export function HomePage({
             <img src="/brand/mediamake-mark-glow.svg" alt="" className="h-20 w-auto" />
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">MediaMake</h1>
             <p className="max-w-xl text-muted-foreground">
-              MCPs, skills, apps and tutorials for making content.
+              MCPs, skills, apps, tutorials and courses for making content.
             </p>
           </section>
         )}

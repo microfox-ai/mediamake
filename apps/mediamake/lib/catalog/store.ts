@@ -17,6 +17,7 @@ import {
   type CatalogKind,
   type CatalogStatus,
   type CatalogVersion,
+  type CatalogVideo,
   type GrantSubject,
   type InstallSpec,
   type Visibility,
@@ -25,6 +26,7 @@ import {
 const COL = {
   items: 'catalog_items',
   archive: 'catalog_archive',
+  videos: 'catalog_videos',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -61,6 +63,8 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.requests).createIndex({ status: 1, createdAt: -1 });
   await db.collection(COL.downloads).createIndex({ itemId: 1, at: -1 });
   await db.collection(COL.archive).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.videos).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -123,6 +127,12 @@ export const catalogItemsDB = {
       await this.setVisibility(item.id, visibility, actor);
     }
     return (await this.get(item.id))!;
+  },
+
+  /** Sets a card's title and summary alone: a tutorial or course takes them from its video. */
+  async setWords(id: string, words: { title: string; summary: string }) {
+    const db = await getDatabase();
+    await db.collection<CatalogItemRecord>(COL.items).updateOne({ id }, { $set: { ...words, updatedAt: nowISO() } });
   },
 
   /**
@@ -324,6 +334,45 @@ export const catalogArchiveDB = {
         },
       })),
     );
+  },
+};
+
+// ── Videos ───────────────────────────────────────────────────────────────────
+
+/** Videos on items (see CatalogVideo): any id, a skill from the repo too, so kept apart from the items. */
+export const catalogVideosDB = {
+  async list(): Promise<CatalogVideo[]> {
+    const db = await getDatabase();
+    return db.collection<CatalogVideo>(COL.videos).find({}, { projection: { _id: 0 } }).toArray();
+  },
+
+  async get(id: string): Promise<CatalogVideo | null> {
+    const db = await getDatabase();
+    return db.collection<CatalogVideo>(COL.videos).findOne({ id }, { projection: { _id: 0 } });
+  },
+
+  async getMany(ids: string[]): Promise<CatalogVideo[]> {
+    const db = await getDatabase();
+    return db.collection<CatalogVideo>(COL.videos).find({ id: { $in: ids } }, { projection: { _id: 0 } }).toArray();
+  },
+
+  /** The courses that play this tutorial. */
+  async coursesWith(lessonId: string): Promise<CatalogVideo[]> {
+    const db = await getDatabase();
+    return db.collection<CatalogVideo>(COL.videos).find({ lessons: lessonId }, { projection: { _id: 0 } }).toArray();
+  },
+
+  /** Sets an item's video, replacing the one it had. */
+  async set(video: Omit<CatalogVideo, 'updatedAt' | 'updatedBy'>, actor?: string): Promise<CatalogVideo> {
+    const db = await getDatabase();
+    const record = withoutUndefined({ ...video, updatedAt: nowISO(), updatedBy: actor }) as CatalogVideo;
+    await db.collection<CatalogVideo>(COL.videos).replaceOne({ id: video.id }, record, { upsert: true });
+    return record;
+  },
+
+  async remove(id: string) {
+    const db = await getDatabase();
+    await db.collection(COL.videos).deleteOne({ id });
   },
 };
 

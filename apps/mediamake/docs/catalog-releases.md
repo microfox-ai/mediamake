@@ -1,8 +1,8 @@
 # Catalog releases and access
 
-MediaMake ships skills, MCPs, apps and tutorials as **catalog items**. An app,
-MCP or tutorial starts private, is shared with a few people, then with your
-network, and finally goes public. The repository is public, so it holds only
+MediaMake ships skills, MCPs, apps, tutorials and courses as **catalog
+items**. An app, MCP, tutorial or course starts private, is shared with a few
+people, then with your network, and finally goes public. The repository is public, so it holds only
 the code for this; their content lives in private storage.
 
 **Skills are public by default.** Every skill's files are committed in the repo
@@ -31,6 +31,7 @@ installs from where it lives, not from a package of ours. See
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
+| Videos: a skill's intro, tutorials, courses' lessons | MongoDB `catalog_videos` (YouTube links only) | As shared as the item they belong to |
 | Grants, groups, invites, requests, download log | MongoDB `access_grants`, `access_groups`, `access_invites`, `access_requests`, `catalog_downloads` | No |
 
 Item ids look like `mcp/browse-hack` or `skill/lyric-video`.
@@ -140,6 +141,49 @@ once.
   and `--off` to bring them back.
 - From Claude: the MediaMake MCP's `catalog_archive` (below).
 - Admin API: `{ type: 'set_archived', itemIds, archived, note? }`.
+
+## Videos: intros, tutorials and courses
+
+Every video is a YouTube video, embedded with YouTube's player: nothing else
+is hosted or played. Each one has its own **title, description and
+thumbnail**, edited on its item's release page. The thumbnail is one uploaded
+there (`create_thumbnail_upload`, public once uploaded) or pasted as a link;
+without one it is YouTube's, `https://img.youtube.com/vi/<id>/maxresdefault.jpg`
+(swapped for `hqdefault.jpg` on videos too old to have a maxres one).
+
+- **A skill's intro** (or an MCP's or app's): paste its YouTube link under
+  **Intro video** on its release page, e.g. `/core/releases/skill/pack-brand-kit`.
+  It plays on the item's page (`/access?item=skill/pack-brand-kit`), and its
+  thumbnail tops the item's card on the homepage. Like the archive, videos are
+  kept apart from the items (`catalog_videos`, keyed by item id), so a skill
+  from the repo gets one without being stored as an item.
+- **Tutorials** (`tutorial/<slug>`): one YouTube video each, added with **New
+  tutorial** on `/core/releases`. A tutorial is its video: its card takes the
+  video's title and the first paragraph of its description. It plays on
+  `/access?item=tutorial/<slug>`.
+- **Courses** (`course/<slug>`): tutorials played in order, added with **New
+  course**, their lessons picked and ordered on the course's release page. The
+  course page, `/courses/<slug>`, plays each lesson and moves to the next when
+  it ends; `?lesson=<n>` opens on one. Its thumbnail defaults to its first
+  lesson's.
+
+Tutorials and courses go through the gated releases like apps and MCPs: they
+start in development and move on the Board. A course shows each viewer only
+the lessons they can open. On the homepage, both are on the Tutorials tab, and
+every skill card has a picture on top: its intro's thumbnail, or its name on a
+colour of its own (the same colour every time, `placeholderBackground` in
+`lib/catalog/video.ts`).
+
+Admin API (`POST /api/admin/catalog`):
+
+- `{ type: 'set_video', itemId, video: { url, title, description?, thumbnail? } }`:
+  any item's video; a course gives `lessons` (tutorial ids, in order) instead of
+  a `url`. `video: null` removes it. Links that aren't one YouTube video are
+  refused (`parseYouTubeId`).
+- `{ type: 'create_video_item', kind: 'tutorial' | 'course', slug, video, visibility? }`:
+  a new tutorial or course with its video.
+- `{ type: 'create_thumbnail_upload', itemId, filename, contentType }`: a signed
+  link to upload a thumbnail image to.
 
 ## From Claude: the MediaMake MCP's catalog tools
 
@@ -474,7 +518,7 @@ session cookie or Bearer key themselves):
 | `POST /api/catalog/update-token { token? }` (Bearer install code) | Trades an install code for an update token (or adds the item to `token`) |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
-| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived` |
+| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `create_video_item`, `create_thumbnail_upload` |
 | `GET /api/admin/catalog/items[?kind=][&tier=][&archived=][&q=]` | Admin: every item in a line (`ItemSummary`), read-only |
 | `GET /api/admin/catalog/item?id=<id>` | Admin: one item as its release page shows it, read-only |
 
