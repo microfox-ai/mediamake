@@ -111,7 +111,12 @@ export interface RangeComment extends CommentBase {
   shots: string[];
 }
 
-export type RevisionComment = PointComment | RangeComment;
+/** A note on the whole video (pacing, mood, a rule for every place): no time, listed first for Claude. */
+export interface GeneralComment extends CommentBase {
+  kind: 'general';
+}
+
+export type RevisionComment = PointComment | RangeComment | GeneralComment;
 
 export interface RevisionVideoInfo {
   file: string;

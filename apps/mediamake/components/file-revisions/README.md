@@ -3,7 +3,7 @@
 A review screen for **any set of files** on this computer, at `/file-revision` (`/image-revision` and
 `/thumbnail-revision` redirect there): thumbnails, music posters, generated images from an MCP
 server, outros, the library sweep's videos and songs, a download, anything in a folder. Videos and
-audio play in the zoom view. The sibling of `/remotion-revision` (a Remotion render's frame-by-frame
+audio play in the zoom view. The sibling of `/video-revision` (a Remotion render's frame-by-frame
 review, `components/revisions/`). The user selects files (several at once), picks finals, keeps,
 drops and comments, zooms in to catch small mistakes, and submits a revision file that lands
 **next to the files**, where Claude reads it. The schema names (`mediamake.image-set/v1`,
@@ -140,5 +140,5 @@ for one click). Browsers never expose absolute paths, so the first open is the u
 - `components/file-revisions/store.ts`: zustand store (set, files and what they play, selection, zoom, revisions, autosave).
 - `SetsPanel.tsx`, `FileGrid.tsx` (tiles, box selection), `ZoomView.tsx` (magnifier, player), `RevisionPanel.tsx`, `FileRevisionsWorkspace.tsx`: the UI.
 - `lib/file-revisions/reveal.ts` + `app/api/dev-reveal/route.ts`: Show in Finder / Copy path (the route is exempt from API auth in `middleware.ts`, like `dev-lyrics`).
-- Folder IO, `Hint` and shortcut helpers are shared with `/remotion-revision` (`lib/revisions/fs.ts`, `components/revisions/keyboard.tsx`).
+- Folder IO, `Hint` and shortcut helpers are shared with `/video-revision` (`lib/revisions/fs.ts`, `components/revisions/keyboard.tsx`).
 - `apps/lyrics_videos/scripts/image-index.ts` writes the contract for any folder; `scripts/thumbs.ts` writes it for thumbnails and posters; the library sweep (`scripts/library/sweep.ts`, `media sweep --review=<id>` to rebuild) for its moves, with a clone of each video and song.

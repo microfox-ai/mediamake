@@ -10,6 +10,7 @@ import {
   CircleIcon,
   ClipboardCopyIcon,
   CrosshairIcon,
+  GlobeIcon,
   EraserIcon,
   MoreHorizontalIcon,
   MoveUpRightIcon,
@@ -329,7 +330,28 @@ function RevisionHeader({ revision }: { revision: Revision }) {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** Switches the next comment to one about the whole video (G). */
+function GeneralButton() {
+  const setGeneral = useRevisionsStore(s => s.setGeneral);
+  return (
+    <Hint
+      label="Make it a general comment: about the whole video, no time"
+      keys="G"
+    >
+      <button
+        type="button"
+        onClick={() => setGeneral(true)}
+        className="ml-auto shrink-0 rounded px-1 underline-offset-2 hover:underline"
+      >
+        General
+      </button>
+    </Hint>
+  );
+}
+
 function AnchorChip() {
+  const general = useRevisionsStore(s => s.general);
+  const setGeneral = useRevisionsStore(s => s.setGeneral);
   const selection = useRevisionsStore(s => s.selection);
   const map = useRevisionsStore(s => s.map);
   const currentTime = useRevisionsStore(s => s.currentTime);
@@ -340,6 +362,25 @@ function AnchorChip() {
   const pause = useRevisionsStore(s => s.pause);
   const clearSketch = useRevisionsStore(s => s.clearSketch);
 
+  if (general) {
+    return (
+      <div className="flex items-center gap-1.5 rounded bg-violet-500/10 px-2 py-1 text-[11px] text-violet-900 dark:text-violet-200">
+        <GlobeIcon className="size-3.5 shrink-0" />
+        <span className="min-w-0 truncate">
+          General · the whole video, no time · listed first for Claude
+        </span>
+        <Hint label="Comment on the frame (or the range) instead" keys="G">
+          <button
+            type="button"
+            onClick={() => setGeneral(false)}
+            className="ml-auto shrink-0"
+          >
+            <XIcon className="size-3" />
+          </button>
+        </Hint>
+      </div>
+    );
+  }
   // marks make the comment one on the frame they were drawn on
   if (sketch && !sketchIsEmpty(sketch)) {
     const shot = shotAt(map, sketch.time);
@@ -393,11 +434,12 @@ function AnchorChip() {
           {shots.length > 0 &&
             ` · ${shots.length === 1 ? shots[0].id : `${shots[0].id} → ${shots[shots.length - 1].id}`}`}
         </span>
+        <GeneralButton />
         <Hint label="Comment on the current frame instead" keys="Esc">
           <button
             type="button"
             onClick={() => setSelection(null)}
-            className="ml-auto"
+            className="shrink-0"
           >
             <XIcon className="size-3" />
           </button>
@@ -417,6 +459,7 @@ function AnchorChip() {
         )}
         f{frameAt(currentTime, fps)} · {formatTime(currentTime)} · saves a still
       </span>
+      <GeneralButton />
     </div>
   );
 }
@@ -549,6 +592,7 @@ function MarkupBar() {
 
 function Composer() {
   const video = useRevisionsStore(s => s.video);
+  const general = useRevisionsStore(s => s.general);
   const selection = useRevisionsStore(s => s.selection);
   const sketch = useRevisionsStore(s =>
     sketchIsEmpty(s.sketch) ? null : s.sketch,
@@ -593,13 +637,15 @@ function Composer() {
           }
         }}
         placeholder={
-          sketch
-            ? sketch.marks.length
-              ? 'What should change where you drew?'
-              : 'What should change at this spot?'
-            : selection
-              ? 'What should change in this range?'
-              : 'What should change in this frame?'
+          general
+            ? 'What should change across the whole video?'
+            : sketch
+              ? sketch.marks.length
+                ? 'What should change where you drew?'
+                : 'What should change at this spot?'
+              : selection
+                ? 'What should change in this range?'
+                : 'What should change in this frame?'
         }
         className="min-h-16 resize-none text-sm"
       />
@@ -609,11 +655,13 @@ function Composer() {
         </span>
         <Hint
           label={
-            sketch
-              ? `Add a comment on f${sketch.frame} (saves a still with the marks${sketch.spot ? ' and a 2× crop of the spot' : ''})`
-              : selection
-                ? 'Add a comment on the selected range'
-                : 'Add a comment on this frame (saves a still)'
+            general
+              ? 'Add a general comment (no time; Claude reads these first)'
+              : sketch
+                ? `Add a comment on f${sketch.frame} (saves a still with the marks${sketch.spot ? ' and a 2× crop of the spot' : ''})`
+                : selection
+                  ? 'Add a comment on the selected range'
+                  : 'Add a comment on this frame (saves a still)'
           }
           keys="Mod ↵"
         >
@@ -700,9 +748,11 @@ function CommentCard({
   }, [highlighted]);
 
   const where =
-    comment.kind === 'point'
-      ? `${comment.shot?.id ? `${comment.shot.id} · ` : ''}f${comment.frame} · ${formatTime(comment.time)}`
-      : `${comment.shots.length ? `${comment.shots[0]}${comment.shots.length > 1 ? ` → ${comment.shots[comment.shots.length - 1]}` : ''} · ` : ''}f${comment.fromFrame}–f${comment.toFrame}`;
+    comment.kind === 'general'
+      ? 'General'
+      : comment.kind === 'point'
+        ? `${comment.shot?.id ? `${comment.shot.id} · ` : ''}f${comment.frame} · ${formatTime(comment.time)}`
+        : `${comment.shots.length ? `${comment.shots[0]}${comment.shots.length > 1 ? ` → ${comment.shots[comment.shots.length - 1]}` : ''} · ` : ''}f${comment.fromFrame}–f${comment.toFrame}`;
 
   return (
     <div
@@ -731,7 +781,9 @@ function CommentCard({
             )}
           </button>
         </Hint>
-        {comment.kind === 'range' ? (
+        {comment.kind === 'general' ? (
+          <GlobeIcon className="size-3 shrink-0 text-violet-600" />
+        ) : comment.kind === 'range' ? (
           <ScissorsIcon className="size-3 shrink-0 text-sky-600" />
         ) : (
           <CameraIcon className="size-3 shrink-0 text-muted-foreground" />

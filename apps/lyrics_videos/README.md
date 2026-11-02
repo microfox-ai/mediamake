@@ -66,7 +66,7 @@ Anything after the slug is passed through to `remotion render`. Output is
 
 Each render also writes `<slug>.map.json` beside the MP4: every shot from
 `projects/<slug>/video/shots.json` with its ID and time range (one shot per lyric line when the
-project has no shot list). mediamake's Remotion Revisions screen (`/remotion-revision`) reads it to tag review
+project has no shot list). mediamake's Video Revision screen (`/video-revision`) reads it to tag review
 comments with shot IDs, and saves the comments in `<slug>.revisions/` next to the video.
 
 ```bash

@@ -19,7 +19,7 @@ footage). This skill frees the space in three tiers, from safe to final:
 **Never touched:** `brands/` (every video uses the kits), `apps/mediamake/out` except through
 `archive` (copied and checked first), `out/brands/` unless the user names a path in it, git-tracked files, files changed in the last 15 minutes, and everything that isn't heavy.
 Only video, audio, arrays and archives move. Images, JSON, notes and code stay, so the skill library,
-`/remotion-revision` and `/file-revision` keep working for archived work.
+`/video-revision` and `/file-revision` keep working for archived work.
 
 Everything runs through `apps/lyrics_videos/scripts/cleanup-out.ts`. Every command is a dry run until
 `--yes`. The folder layout (which file is a final, a version, work or a source) lives only in

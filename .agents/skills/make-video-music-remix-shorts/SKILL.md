@@ -326,7 +326,7 @@ fix or answer what it finds; after them, start the watcher (`npm run wait-revisi
 <slug>` covers every short), as `revise-video` describes.
 
 Review with **`revise-video`**, one link per short and format:
-`/remotion-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` (if it doesn't open, the user
+`/video-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` (if it doesn't open, the user
 picks `out/<slug>/shorts/<id>/`). Log the comments. When the user likes a short:
 `npm run shorts -w lyrics_videos -- <slug> mark <id> liked`. Then offer the YouTube text per short
 (`pack-youtube` / `write-youtube-metadata`, with #shorts) and, for the long edit, a related-video link.

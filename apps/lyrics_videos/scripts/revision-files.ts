@@ -67,7 +67,9 @@ export type RangeComment = CommentBase & {
   toFrame: number;
   shots: string[];
 };
-export type RevisionComment = PointComment | RangeComment;
+/** a note on the whole video (pacing, mood, a change for every place): no time, listed first */
+export type GeneralComment = CommentBase & { kind: 'general' };
+export type RevisionComment = PointComment | RangeComment | GeneralComment;
 export type RevisionVideoInfo = { file: string; size: number; lastModified: number; duration: number; fps: number; width?: number; height?: number };
 export type Revision = {
   schema: string;
@@ -175,9 +177,11 @@ export function formatTime(seconds: number): string {
   return `${m}:${rest.toFixed(2).padStart(5, '0')}`;
 }
 
-const commentTime = (c: RevisionComment) => (c.kind === 'point' ? c.time : c.from);
+/** seconds into the video; general notes sort before everything */
+const commentTime = (c: RevisionComment) => (c.kind === 'general' ? -1 : c.kind === 'point' ? c.time : c.from);
 
 function shotsLabel(c: RevisionComment): string {
+  if (c.kind === 'general') return 'the whole video';
   if (c.kind === 'point') return c.shot?.id ?? 'no shot';
   if (c.shots.length === 0) return 'no shot';
   return c.shots.length === 1 ? c.shots[0] : `${c.shots[0]} → ${c.shots[c.shots.length - 1]}`;
@@ -208,7 +212,7 @@ const hasMarks = (c: RevisionComment) => c.kind === 'point' && (!!c.drawing?.len
 
 /** One line per comment, for a terminal: "c03 · h1.3 · 0:12.40 — make the logo bigger [2 marks, spot]" */
 export function commentLine(c: RevisionComment, max = 160): string {
-  const when = c.kind === 'point' ? formatTime(c.time) : `${formatTime(c.from)}–${formatTime(c.to)}`;
+  const when = c.kind === 'general' ? 'general' : c.kind === 'point' ? formatTime(c.time) : `${formatTime(c.from)}–${formatTime(c.to)}`;
   const text = c.text.replace(/\s+/g, ' ').trim();
   const marks =
     c.kind === 'point' && hasMarks(c)
@@ -224,9 +228,9 @@ export function commentLine(c: RevisionComment, max = 160): string {
 export function reviewLink(videoPath: string): string {
   const folder = path.relative(path.join(ROOT, 'out'), path.dirname(path.resolve(videoPath))).split(path.sep).join('/');
   if (folder.startsWith('..') || path.isAbsolute(folder))
-    return `https://mediamake.microfox.app/remotion-revision (open the folder ${path.dirname(path.resolve(videoPath))})`;
+    return `https://mediamake.microfox.app/video-revision (open the folder ${path.dirname(path.resolve(videoPath))})`;
   const encoded = folder.split('/').map(encodeURIComponent).join('/');
-  return `https://mediamake.microfox.app/remotion-revision?folder=${encoded}&video=${encodeURIComponent(path.basename(videoPath))}`;
+  return `https://mediamake.microfox.app/video-revision?folder=${encoded}&video=${encodeURIComponent(path.basename(videoPath))}`;
 }
 
 const quote = (text: string) =>
@@ -265,9 +269,18 @@ export function revisionToMarkdown(revision: Revision, revisionsDir: string): st
         `a spot's zoomed crop shows the frame around it at 2×.`,
     );
   }
+  if (comments.some(c => c.kind === 'general')) {
+    lines.push('');
+    lines.push(
+      `General comments come first: they are about the whole video (pacing, mood, a change for every place ` +
+        `it applies), so act on them everywhere, not at one time.`,
+    );
+  }
   for (const c of comments) {
     lines.push('');
-    if (c.kind === 'point') {
+    if (c.kind === 'general') {
+      lines.push(`## ${c.id} · General — ${c.status}`, '', quote(c.text));
+    } else if (c.kind === 'point') {
       lines.push(`## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`, '', quote(c.text), '');
       if (c.shot) lines.push(`- Shot: \`${c.shot.id}\`${c.shot.label ? ` ${c.shot.label}` : ''} (${c.shot.from.toFixed(2)}–${c.shot.to.toFixed(2)} s)`);
       lines.push(`- Time: ${c.time.toFixed(3)} s, frame ${c.frame}`);

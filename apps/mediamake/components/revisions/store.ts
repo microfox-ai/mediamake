@@ -182,6 +182,8 @@ interface RevisionsState {
   sketch: Sketch | null;
   /** The magnifier that follows the pointer over the video. */
   loupe: boolean;
+  /** The next comment is about the whole video: no time, listed first. */
+  general: boolean;
 
   init: () => Promise<void>;
   openFolderPicker: () => Promise<void>;
@@ -256,6 +258,7 @@ interface RevisionsState {
   undoMark: () => void;
   clearSketch: () => void;
   toggleLoupe: () => void;
+  setGeneral: (general: boolean) => void;
 }
 
 export const selectFps = (
@@ -487,6 +490,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     markColor: 'red',
     sketch: null,
     loupe: false,
+    general: false,
 
     init: async () => {
       const support = getFolderSupport();
@@ -998,7 +1002,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         duration || Infinity,
         frameBoundary(Math.max(range.from, range.to), fps),
       );
-      set({ selection: to - from >= 1 / fps - 1e-6 ? { from, to } : null });
+      const selection = to - from >= 1 / fps - 1e-6 ? { from, to } : null;
+      // a range is a comment on that stretch, not on the whole video
+      set({ selection, ...(selection ? { general: false } : {}) });
     },
 
     setIn: () => {
@@ -1144,7 +1150,10 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const createdAt = new Date().toISOString();
       let comment: RevisionComment;
 
-      if (selection && !sketch) {
+      if (get().general) {
+        // marks and a selected range stay for the next comment
+        comment = { kind: 'general', id, text, createdAt, status: 'open' };
+      } else if (selection && !sketch) {
         const { first, last } = rangeFrames(selection, fps);
         comment = {
           kind: 'range',
@@ -1227,7 +1236,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       }));
       set({
         highlightCommentId: id,
-        ...(sketch ? { sketch: null, tool: null } : {}),
+        ...(sketch && comment.kind === 'point'
+          ? { sketch: null, tool: null }
+          : {}),
       });
       return true;
     },
@@ -1296,7 +1307,9 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       if (!comment) return;
       const fps = selectFps(get());
       videoEl?.pause();
-      if (comment.kind === 'point') {
+      if (comment.kind === 'general') {
+        // nowhere to go: it is about the whole video
+      } else if (comment.kind === 'point') {
         get().setSelection(null);
         get().seek(timeOfFrame(comment.frame, fps));
       } else {
@@ -1304,7 +1317,11 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         get().seek(comment.from);
       }
       // reviewing a comment, not drawing: its own marks show on its frame
-      set({ highlightCommentId: commentId, tool: null });
+      set({
+        highlightCommentId: commentId,
+        tool: null,
+        ...(comment.kind !== 'general' ? { general: false } : {}),
+      });
     },
 
     requestComposerFocus: () =>
@@ -1316,7 +1333,12 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         videoEl?.pause();
         if (get().selection) get().setSelection(null);
       }
-      set({ tool, ...(tool && tool !== 'spot' ? { lastTool: tool } : {}) });
+      set({
+        tool,
+        ...(tool && tool !== 'spot' ? { lastTool: tool } : {}),
+        // marks belong to a frame
+        ...(tool ? { general: false } : {}),
+      });
     },
 
     toggleDrawing: () => {
@@ -1356,5 +1378,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     clearSketch: () => set({ sketch: null }),
 
     toggleLoupe: () => set(s => ({ loupe: !s.loupe })),
+
+    setGeneral: general => set({ general }),
   };
 });

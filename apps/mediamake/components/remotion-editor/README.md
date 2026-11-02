@@ -44,13 +44,19 @@ in every render (Studio, stills, `render-project`). The page is public (`app/(pu
    `inputProps = { manifest, edits }`. The manifest's asset paths become URLs first, because
    `@microfox/remotion` atoms call their own `staticFile()`.
 4. **Select.** Scenes mark elements with the kit's `editable()` (`data-edit-*` attributes). The
-   overlay measures them in the Player's DOM every animation frame. A click picks the smallest
+   overlay measures them in the Player's DOM every animation frame while playing or dragging, and
+   otherwise only after a seek, an edit, a new selection or hover, a resize, or half a second. A click picks the smallest
    visible element under the pointer, unless it lands on the selection or inside it (then it drags
    the selection); Alt-click walks outwards; double-click goes in and opens the text. Every layer is
    selectable from the list as `layer:<key>`.
 5. **Apply.** The kit's `EditsApplier` writes `elements` edits as the CSS `translate`, `scale` and
    `rotate` properties (they stack with the scene's own `transform`) and a font family, after
    every frame. `props` edits are written into the layer's props before it renders.
+   In the editor, `elements` edits travel outside `inputProps`, through the kit's live channel
+   (`createLiveElementEdits`, passed as `liveEdits`): a drag sets it on every pointer move and only
+   the applier re-renders, not the scenes (a 3D scene re-rendering per move is what made drags
+   lag). `inputProps` change only for `props` edits. A kit from before the channel gets everything
+   through `inputProps`, as it used to.
 6. **Save.** Changes autosave 0.6 s after the last one (never mid-drag); ⌘S saves now. The page
    checks the disk every 2 s: changed code recompiles in place (the last good version keeps
    playing on a compile error), and an `edits.json` changed by someone else is reloaded when the

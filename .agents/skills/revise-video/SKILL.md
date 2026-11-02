@@ -1,6 +1,6 @@
 ---
 name: revise-video
-description: Review and revise a rendered video with the user through mediamake's Remotion Revisions screen (/remotion-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/, fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). Append new user feedback to the log at the bottom.
+description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/, fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). Append new user feedback to the log at the bottom.
 metadata:
   category: revise
 ---
@@ -9,7 +9,7 @@ metadata:
 
 The review loop for every rendered video in `apps/lyrics_videos`. The making skill builds and
 renders; this skill renders for review, checks the render before the user sees it, takes the user's
-notes back from the **Remotion Revisions** screen, fixes them in the project, and closes the loop.
+notes back from the **Video Revision** screen, fixes them in the project, and closes the loop.
 The making skill's own rules (its principles, its `prefs.md`, its render command) still apply to
 every fix.
 
@@ -106,18 +106,19 @@ the top of the video's next revision, where the user will see them beside their 
 ## 3. Give the user the review link
 
 ```
-https://mediamake.microfox.app/remotion-revision?folder=<slug>&video=<slug>.mp4
+https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4
 ```
 
 Preflight prints it. It opens on the deployed app; while mediamake runs locally,
-`http://localhost:3002/remotion-revision?folder=<slug>&video=<slug>.mp4` (the port in
-`.claude/launch.json`). The old `/revisions` path still redirects. For a kept cut, point `folder`
+`http://localhost:3002/video-revision?folder=<slug>&video=<slug>.mp4` (the port in
+`.claude/launch.json`). The old `/remotion-revision` and `/revisions` paths still redirect. For a kept cut, point `folder`
 at it (`<slug>/v5`). Say whether it is a half-size review render.
 
 The screen loads the video and its map, shows the shots on a timeline (⌘←/→ jumps shot to shot) and
 saves comments **next to the video**. On a paused frame the user can draw (pencil, brush, arrow, box,
 circle; red fix, green add, yellow move) and pin the exact spot, with a magnifier for small detail;
-the comment keeps the marks and a 2× crop of the spot. Browsers can't open a local folder from a
+the comment keeps the marks and a 2× crop of the spot. A **General** comment (G) is about the
+whole video and has no time. Browsers can't open a local folder from a
 link: the first time, the user picks `out/<slug>/` and allows editing; after that the link (or
 History) reopens it in one click. Better: they add `apps/lyrics_videos/out` once as a **source**
 (Sources → +); every project folder in it (and its `v<N>/` folders) is then listed on each visit
@@ -151,6 +152,10 @@ out/<slug>/<slug>.revisions/
   preflight.json    effects marked intended (preflight --intended), skipped by later runs
 ```
 
+- **General comments** (`kind: "general"`) have no time: they are about the whole video (pacing,
+  mood, "no text over music-only stretches"). The `.md` lists them first; read them first and
+  apply each one everywhere it fits, not at one spot. When one is a standing preference, add it to
+  the making skill's `prefs.md` or its log too, so the next video starts with it.
 - **Point comments** carry `time`, `frame`, the `shot` they were made on and a `snapshot` still
   (path relative to `<slug>.revisions/`). Open the still with the Read tool before acting.
 - **Marks and spots.** A point comment can carry `drawing` (marks the user drew on that frame) and

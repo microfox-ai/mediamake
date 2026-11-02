@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Player, type PlayerRef } from '@remotion/player';
 import { LoaderIcon, TriangleAlertIcon } from 'lucide-react';
 import { setElementEdit } from '@/lib/remotion-editor/edits';
+import { EDITS_SCHEMA } from '@/lib/remotion-editor/types';
 import {
   elementsById,
   hitTest,
@@ -17,6 +18,7 @@ import { ConnectPanel } from './ConnectPanel';
 import { player, useEditor } from './store';
 
 const BLUE = '#0B84F3';
+const NO_ELEMENTS = {};
 const HANDLE = 9;
 
 const place = (el: HTMLElement | null, box: Box | null) => {
@@ -34,8 +36,8 @@ const place = (el: HTMLElement | null, box: Box | null) => {
 type Gesture = 'move' | 'scale' | 'rotate';
 
 /**
- * Selection, drag, scale and rotate over the Player. Boxes follow the elements every animation
- * frame and are positioned directly (no React render per frame).
+ * Selection, drag, scale and rotate over the Player. Boxes follow the elements (every animation
+ * frame while something moves) and are positioned directly (no React render per frame).
  */
 function Overlay({ scale, fps }: { scale: number; fps: number }) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -43,20 +45,51 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
   const hoverRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLSpanElement>(null);
   const hoverId = useRef<string | null>(null);
+  const hoverChanged = useRef<() => void>(() => undefined);
   const selectedId = useEditor(s => s.selectedId);
 
   useEffect(() => {
     let raf = 0;
     let lastScan = 0;
+    let lastMeasure = 0;
     let scanKey = '';
     let infoKey = '';
+    // Measuring forces a layout, so it runs only when something can have moved: while playing or
+    // dragging, after a seek, an edit, a new selection or hover, a resize, and every half second
+    // for scenes that settle on their own (fonts, pictures loading).
+    let dirty = true;
+    let scanDirty = true;
+    const touch = () => {
+      dirty = true;
+      scanDirty = true;
+    };
+    const unsubscribe = useEditor.subscribe((s, prev) => {
+      if (
+        s.frame !== prev.frame ||
+        s.edits !== prev.edits ||
+        s.selectedId !== prev.selectedId ||
+        s.playing !== prev.playing ||
+        s.Video !== prev.Video
+      )
+        touch();
+    });
+    const resize = new ResizeObserver(touch);
+    if (overlayRef.current) resize.observe(overlayRef.current);
+    window.addEventListener('scroll', touch, true);
+    hoverChanged.current = () => {
+      dirty = true;
+    };
     const tick = (time: number) => {
       raf = requestAnimationFrame(tick);
       const root = player.current?.getContainerNode();
       const overlay = overlayRef.current;
       if (!root || !overlay) return;
-      const origin = overlay.getBoundingClientRect();
       const state = useEditor.getState();
+      const moving = state.playing || state.dragging;
+      if (!moving && !dirty && time - lastMeasure < 500) return;
+      dirty = false;
+      lastMeasure = time;
+      const origin = overlay.getBoundingClientRect();
       const id = state.selectedId;
       const selEls = id ? elementsById(root, id) : [];
       place(selRef.current, unionBox(selEls, origin));
@@ -74,8 +107,12 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
       } else {
         infoKey = '';
       }
-      if (time - lastScan > 250) {
+      // the list of what is on screen walks every marked element: four times a second at most,
+      // once a second while playing, and not during a drag
+      const every = state.playing ? 1000 : 250;
+      if (!state.dragging && (scanDirty || state.playing) && time - lastScan > every) {
         lastScan = time;
+        scanDirty = false;
         const list = scanOnScreen(root);
         const key = list.map(i => `${i.id}\u0000${i.label}`).join('|');
         if (key !== scanKey) {
@@ -85,7 +122,13 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsubscribe();
+      resize.disconnect();
+      window.removeEventListener('scroll', touch, true);
+      hoverChanged.current = () => undefined;
+    };
   }, []);
 
   const startGesture = useCallback(
@@ -172,6 +215,7 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
     if (useEditor.getState().dragging) return;
     const root = player.current?.getContainerNode();
     const hit = root ? (hitTest(root, e.clientX, e.clientY)[0]?.id ?? null) : null;
+    if (hit !== hoverId.current) hoverChanged.current();
     hoverId.current = hit;
     if (overlayRef.current) overlayRef.current.style.cursor = hit ? 'move' : 'default';
   };
@@ -215,6 +259,7 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerLeave={() => {
+        if (hoverId.current) hoverChanged.current();
         hoverId.current = null;
       }}
       onDoubleClick={onDoubleClick}
@@ -248,8 +293,22 @@ function Overlay({ scale, fps }: { scale: number; fps: number }) {
 export function Stage() {
   const Video = useEditor(s => s.Video);
   const manifest = useEditor(s => s.manifest);
-  const edits = useEditor(s => s.edits);
   const compiled = useEditor(s => s.compiled);
+  const kit = compiled?.kit;
+  // Element edits (moves, scales, fonts) reach the video through a live channel, so a drag
+  // re-renders only the kit's EditsApplier. Prop edits (text, sizes) re-render the scenes, as they
+  // must. A kit from before live edits gets everything through inputProps.
+  const live = useMemo(
+    () => kit?.createLiveElementEdits?.(useEditor.getState().edits.elements) ?? null,
+    [kit],
+  );
+  useEffect(() => {
+    if (!live) return;
+    live.set(useEditor.getState().edits.elements);
+    return useEditor.subscribe(s => live.set(s.edits.elements));
+  }, [live]);
+  const edits = useEditor(s => (live ? null : s.edits));
+  const propEdits = useEditor(s => s.edits.props);
   const durationInFrames = useEditor(s => s.durationInFrames);
   const phase = useEditor(s => s.phase);
   const error = useEditor(s => s.error);
@@ -280,7 +339,17 @@ export function Stage() {
     return { w: project.width * s, h: project.height * s, scale: s };
   }, [project, box]);
 
-  const inputProps = useMemo(() => ({ manifest, edits }), [manifest, edits]);
+  const inputProps = useMemo(
+    () =>
+      live
+        ? {
+            manifest,
+            edits: { schema: EDITS_SCHEMA, elements: NO_ELEMENTS, props: propEdits },
+            liveEdits: live,
+          }
+        : { manifest, edits },
+    [manifest, edits, propEdits, live],
+  );
 
   const setPlayer = useCallback((p: PlayerRef | null) => {
     player.current = p;

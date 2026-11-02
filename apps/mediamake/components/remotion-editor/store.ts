@@ -471,4 +471,17 @@ export const useEditor = create<State>((set, get) => {
   };
 });
 
-export const selectDirty = (s: State) => serializeEdits(s.edits) !== s.savedText;
+let serialized: { edits: Edits; text: string } | null = null;
+/** Runs on every change to the store (each played frame too), so the text is kept per edits. */
+export const selectDirty = (s: State) => {
+  if (serialized?.edits !== s.edits) serialized = { edits: s.edits, text: serializeEdits(s.edits) };
+  return serialized.text !== s.savedText;
+};
+
+let settledEdits: Edits | null = null;
+/**
+ * The edits, except during a drag: then the ones from before it. A drag changes the edits on every
+ * pointer move; lists of edits catch up when it ends instead of re-rendering each time.
+ */
+export const selectSettledEdits = (s: State) =>
+  s.dragging && settledEdits ? settledEdits : (settledEdits = s.edits);

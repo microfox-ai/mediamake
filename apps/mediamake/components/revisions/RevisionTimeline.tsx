@@ -195,6 +195,8 @@ const CommentLane = memo(function CommentLane({
           e.stopPropagation();
           focusComment(c.id);
         };
+        // general comments have no place on the timeline
+        if (c.kind === 'general') return null;
         if (c.kind === 'range') {
           return (
             <div

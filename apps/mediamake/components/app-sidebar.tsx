@@ -77,8 +77,8 @@ const data = {
       icon: <ClapperboardIcon />,
     },
     {
-      title: "Remotion Revisions",
-      url: "/remotion-revision",
+      title: "Video Revisions",
+      url: "/video-revision",
       icon: <MessageSquareTextIcon />,
     },
     {

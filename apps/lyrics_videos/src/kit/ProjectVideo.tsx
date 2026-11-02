@@ -16,6 +16,7 @@ import {
   layerKeys,
   loadEdits,
   type Edits,
+  type LiveElementEdits,
 } from './edits';
 import { asset, ManifestContext, SectionContext } from './hooks';
 import { ManifestSchema, type Manifest } from './manifest';
@@ -25,6 +26,8 @@ export type ProjectVideoProps = {
   manifest: Manifest | null;
   /** null or missing: loaded from projects/<slug>/video/edits.json when there is one. */
   edits?: Edits | null;
+  /** mediamake's editor only: element edits that change without re-rendering the scenes */
+  liveEdits?: LiveElementEdits | null;
 };
 
 /** Turns a project's layers into Sequences, with the song playing underneath. With `window`, the
@@ -33,7 +36,7 @@ export const makeProjectVideo = (
   project: ProjectDefinition,
 ): React.FC<ProjectVideoProps> => {
   const keys = layerKeys(project.layers);
-  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest, edits }) => {
+  const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest, edits, liveEdits }) => {
     const { fps } = useVideoConfig();
     const win = project.window;
     const start = win ? Math.round(win.from * fps) : 0;
@@ -97,7 +100,7 @@ export const makeProjectVideo = (
                 {song}
               </Sequence>
             ) : song}
-            <EditsApplier elements={edits?.elements} />
+            <EditsApplier elements={edits?.elements} live={liveEdits} />
           </AbsoluteFill>
         </ManifestContext.Provider>
       </CompositionProvider>

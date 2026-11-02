@@ -154,9 +154,9 @@ function Header() {
         </span>
       )}
       <div className="ml-auto flex items-center gap-3">
-        <Hint label="Remotion renders are reviewed here, with comments on frames and ranges" side="bottom">
-          <Link href="/remotion-revision" className="text-xs text-muted-foreground hover:text-foreground">
-            Remotion revisions
+        <Hint label="Videos are reviewed here, with comments on frames and ranges" side="bottom">
+          <Link href="/video-revision" className="text-xs text-muted-foreground hover:text-foreground">
+            Video revisions
           </Link>
         </Hint>
         <SaveIndicator />

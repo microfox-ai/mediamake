@@ -144,8 +144,18 @@ function useShortcuts() {
         case 'Escape':
           if (store.tool) store.setTool(null);
           else if (store.loupe) store.toggleLoupe();
+          else if (store.general) store.setGeneral(false);
           else store.setSelection(null);
           break;
+        case 'g':
+        case 'G': {
+          // a comment on the whole video, then straight to writing it
+          e.preventDefault();
+          const general = !store.general;
+          store.setGeneral(general);
+          if (general) store.requestComposerFocus();
+          break;
+        }
         case 'd':
         case 'D':
           store.toggleDrawing();

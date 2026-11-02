@@ -131,11 +131,14 @@ export function isStaleRevision(
   );
 }
 
+/** Seconds into the video; general notes sort before everything. */
 export function commentSortKey(c: RevisionComment): number {
+  if (c.kind === 'general') return -1;
   return c.kind === 'point' ? c.time : c.from;
 }
 
 function shotsLabel(c: RevisionComment): string {
+  if (c.kind === 'general') return 'the whole video';
   if (c.kind === 'point') return c.shot?.id ?? 'no shot';
   if (c.shots.length === 0) return 'no shot';
   return c.shots.length === 1
@@ -197,9 +200,21 @@ export function revisionToMarkdown(
     );
   }
 
+  if (comments.some(c => c.kind === 'general')) {
+    lines.push('');
+    lines.push(
+      `General comments come first: they are about the whole video (pacing, mood, a change for every place ` +
+        `it applies), so act on them everywhere, not at one time.`,
+    );
+  }
+
   for (const c of comments) {
     lines.push('');
-    if (c.kind === 'point') {
+    if (c.kind === 'general') {
+      lines.push(`## ${c.id} · General — ${c.status}`);
+      lines.push('');
+      lines.push(quote(c.text));
+    } else if (c.kind === 'point') {
       lines.push(
         `## ${c.id} · ${shotsLabel(c)} · f${c.frame} (${formatTime(c.time)}) — ${c.status}`,
       );

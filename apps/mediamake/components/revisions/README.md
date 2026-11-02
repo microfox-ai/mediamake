@@ -1,7 +1,7 @@
 # Revisions
 
-A review screen for rendered videos on this computer, at `/remotion-revision` (`/revisions`
-redirects there). Its sibling for images (thumbnails, posters, any image set) is `/file-revision` (`components/file-revisions/`). The user watches a render,
+A review screen for rendered videos on this computer, at `/video-revision` (`/remotion-revision`
+and `/revisions` redirect there). Its sibling for images (thumbnails, posters, any image set) is `/file-revision` (`components/file-revisions/`). The user watches a render,
 jumps between shots, and leaves comments that land as files **next to the video**, where Claude
 reads them in the next session. Nothing is uploaded; everything goes through the File System
 Access API (Chromium only, like the rest of local media). The page is public (`app/(public)/`): no sign-in, no API calls.
@@ -123,6 +123,8 @@ seconds of the video. Shot IDs must stay stable between renders (split a shot as
       "shots": ["h1.3", "h1.4"],
       "status": "open",
     },
+    // the whole video: no time, listed first
+    { "id": "c03", "kind": "general", "text": "…", "status": "open" },
   ],
 }
 ```
@@ -158,7 +160,7 @@ is not a revision and is ignored.
    window regains focus, so new renders show up without opening anything. Chrome asks for one
    "Reconnect" click per source per visit unless "Allow on every visit" was chosen.
 
-Deep link for Claude: `/remotion-revision?folder=<folder name>&video=<file name>` picks the matching
+Deep link for Claude: `/video-revision?folder=<folder name>&video=<file name>` picks the matching
 history entry and asks for access with one click. Browsers never expose absolute paths and no URL
 can grant folder access, so the first open of a folder is always the user's pick.
 
@@ -172,7 +174,7 @@ can grant folder access, so the first open of a folder is always the user's pick
 | Shift + click / drag                                      | extend the selection from the playhead                                                        |
 | drag a selection edge                                     | adjust it                                                                                     |
 | `I` / `O`                                                 | set selection in / out at the playhead                                                        |
-| `Esc`                                                     | stop drawing, then close the magnifier, then clear the selection                              |
+| `Esc`                                                     | stop drawing, then close the magnifier, then leave General, then clear the selection          |
 | `⌘/Ctrl ←` `→`                                            | previous / next shot (comment pins when there is no map); works anywhere, text boxes included |
 | `⌘/Ctrl ⇧ ←` `→`                                          | previous / next section                                                                       |
 | `Space`                                                   | play / pause (loops the selection when loop is on)                                            |
@@ -192,12 +194,16 @@ can grant folder access, so the first open of a folder is always the user's pick
 | `⌘/Ctrl Z`                                                | undo the last mark (outside text boxes)                                                       |
 | `Z`                                                       | magnifier: 3× under the pointer; with no tool on, a click pins the spot                       |
 | `C` or `Enter`                                            | write a comment                                                                               |
+| `G`                                                       | write a general comment (the whole video, no time); `G` again goes back to the frame          |
 | `⌘/Ctrl Enter`                                            | add the comment                                                                               |
 | `⌘S`                                                      | save now                                                                                      |
 
 Point comments anchor to the playhead when added (the video pauses while typing, so what you see is
 what is attached) and save a JPEG of that frame. Range comments save no stills; the `.md` lists an
-`ffmpeg` command per range so Claude can extract the frames it needs.
+`ffmpeg` command per range so Claude can extract the frames it needs. General comments (**General**
+on the chip above the box, or `G`) are about the whole video: no time, no still, listed first in the
+`.md` and the panel. The switch stays on for the next comment until `G`, `Esc`, a range, a drawing
+tool or a timed comment turns it off.
 
 ### Drawing and the spot
 

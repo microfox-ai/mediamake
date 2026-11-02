@@ -39,7 +39,7 @@ The site has a public side and a signed-in side.
   render history, workers, agents, API keys, billing and quota. Admins also get
   **`/core/releases`**, the release dashboard (see below).
 - **Review and browser apps**, open to everyone: `/remotion-editor` (edit lyric videos in the
-  browser), `/remotion-revision` and `/file-revision` (comment on renders and image sets, track
+  browser), `/video-revision` and `/file-revision` (comment on renders and image sets, track
   revisions), `/skill-library` (browse the skills on your computer with their variants and the
   projects that used them) and `/skills` (the public skills index).
 - **`/access`** handles invites and access requests for catalog items.

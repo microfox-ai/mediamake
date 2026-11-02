@@ -275,7 +275,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   `storyboardVideo('<slug>', storyboard, [extra layers])`.
 - `wave-lab <slug> looks|waves|fonts|captions|final [--only=…] [--at=s] [--clip=6]` → labelled stills,
   clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/file-revision` (a still plays
-  its clip in the zoom view); for 2–4 clips also a labelled grid, printed with its `/remotion-revision` link.
+  its clip in the zoom view); for 2–4 clips also a labelled grid, printed with its `/video-revision` link.
 - `stills <slug> <s,s,…> --only [--scale=1]`: the folder is cleared on every run — copy the files
   out between batches; batches of ≤ 6 avoid font timeouts.
 - The catalog (`catalog/`, shots in `out/waveform-catalog/`): waves, font sets and caption setups

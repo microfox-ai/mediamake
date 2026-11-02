@@ -60,7 +60,10 @@ const readyNow = () =>
 function report(found: { dir: string; revision: Revision }[]) {
   for (const { dir, revision } of found) {
     const notes = revision.comments.filter(c => !isMachineNote(c));
-    const open = revision.comments.filter(c => c.status === 'open');
+    // general notes (the whole video) first: they change how the rest are read
+    const open = revision.comments
+      .filter(c => c.status === 'open')
+      .sort((a, b) => Number(b.kind === 'general') - Number(a.kind === 'general'));
     const json = path.join(dir, `${revision.id}.json`);
     console.log(
       `${revision.id} “${revision.title}” is ready for Claude: ${open.length} open of ${revision.comments.length} ` +

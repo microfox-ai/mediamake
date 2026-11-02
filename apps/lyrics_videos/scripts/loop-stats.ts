@@ -42,6 +42,7 @@ type VideoStats = {
   notes: number;
   point: number;
   range: number;
+  general: number;
   done: number;
   machine: number;
   versions: number;
@@ -100,6 +101,7 @@ function statsFor(project: string, dir: string, name: string): VideoStats {
     notes: userNotes.length,
     point: userNotes.filter(c => c.kind === 'point').length,
     range: userNotes.filter(c => c.kind === 'range').length,
+    general: userNotes.filter(c => c.kind === 'general').length,
     done: userNotes.filter(c => c.status === 'done').length,
     machine: revisions.flatMap(r => r.comments.filter(isMachineNote)).length,
     versions,
@@ -132,7 +134,7 @@ for (const project of projects) {
 }
 rows.sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }));
 
-const sum = (key: 'rounds' | 'notes' | 'point' | 'range' | 'done' | 'machine' | 'versions' | 'revisions') => rows.reduce((t, r) => t + r[key], 0);
+const sum = (key: 'rounds' | 'notes' | 'point' | 'range' | 'general' | 'done' | 'machine' | 'versions' | 'revisions') => rows.reduce((t, r) => t + r[key], 0);
 const totals = {
   videos: rows.length,
   reviewed: rows.filter(r => r.rounds).length,
@@ -140,6 +142,7 @@ const totals = {
   notes: sum('notes'),
   point: sum('point'),
   range: sum('range'),
+  general: sum('general'),
   done: sum('done'),
   machine: sum('machine'),
   versions: sum('versions'),
@@ -164,13 +167,13 @@ const span = (r: VideoStats) => {
   const days = Math.round((new Date(r.last).getTime() - new Date(r.first).getTime()) / 86_400_000);
   return `${day(r.first)} → ${day(r.last)} (${days} d)`;
 };
-const header = ['video', 'rounds', 'notes', 'per round', 'point/range', 'done', 'machine', 'versions', 'first → last note'];
+const header = ['video', 'rounds', 'notes', 'per round', 'point/range/general', 'done', 'machine', 'versions', 'first → last note'];
 const table = rows.map(r => [
   r.video,
   String(r.rounds),
   String(r.notes),
   r.rounds ? (r.notes / r.rounds).toFixed(1) : '',
-  `${r.point}/${r.range}`,
+  `${r.point}/${r.range}/${r.general}`,
   r.notes ? `${Math.round((r.done / r.notes) * 100)}%` : '',
   String(r.machine),
   String(r.versions),
@@ -196,7 +199,7 @@ const n = (count: number, word: string) => `${count} ${word}${count === 1 ? '' :
 console.log(
   `\n${n(totals.videos, 'video')}, ${totals.reviewed} reviewed in the Revisions screen: ${n(totals.rounds, 'round')} ` +
     `(${totals.roundsPerReviewedVideo} per reviewed video), ${n(totals.notes, 'note')} (${totals.notesPerRound} per round, ` +
-    `${totals.point} point / ${totals.range} range), ${n(totals.machine, 'machine note')}, ${n(totals.versions, 'kept version')} ` +
+    `${totals.point} point / ${totals.range} range / ${totals.general} general), ${n(totals.machine, 'machine note')}, ${n(totals.versions, 'kept version')} ` +
     `(${totals.versionsPerVideo} per video)${totals.renderMinutes ? `, ${totals.renderMinutes} render minutes logged` : ''}.` +
     `${since ? ` Since ${opt('since')}.` : ''}`,
 );
