@@ -65,7 +65,7 @@ export class MediamakeClient {
   }
 
   async request<T = any>(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     options: { query?: Query; body?: unknown; timeoutMs?: number } = {},
   ): Promise<T> {
@@ -126,5 +126,9 @@ export class MediamakeClient {
 
   put<T = any>(path: string, body?: unknown) {
     return this.request<T>('PUT', path, { body });
+  }
+
+  patch<T = any>(path: string, body?: unknown) {
+    return this.request<T>('PATCH', path, { body });
   }
 }

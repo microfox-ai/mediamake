@@ -59,6 +59,15 @@ A cloud project (a channel or brand) can carry a brand kit: colours, fonts, bran
 intros, outros, end screens and sounds. Upload the folder the `pack-brand-kit` skill exports from the
 Projects page, or with the MCP's `upload_brand_kit`. Needs community access or above.
 
+### Generations
+
+A cloud project also keeps the channel's song takes: every song, cover, extend and remaster made with
+Suno, with its styles, lyrics, model, settings and audio. Browse Hack saves each take as it is made.
+The Generations sheet on the Projects page plays them, rates them keeper, maybe or reject, keeps notes
+and style presets, and copies a take for Claude to make more from; the MCP has `list_generations` and
+`rate_generation`. Same access as brand kits. Routes and fields:
+[generations.md](apps/mediamake/docs/generations.md).
+
 ### Catalog, tiers and releases
 
 **Skills are public by default**: every skill is committed in this repo and open to everyone, with
@@ -76,7 +85,7 @@ development**, **community** (ready, pre-release, optionally gated to turn publi
 ## The MCP server
 
 Lets Claude (or any MCP client) drive MediaMake: projects and timelines, presets, media,
-transcription, workers and agents, brand kits and renders. Two ways to add it:
+transcription, workers and agents, brand kits, song takes and renders. Two ways to add it:
 
 - **Hosted, by URL** (nothing to install): add `https://<your-mediamake-host>/mcp` as a custom
   connector in Claude and sign in with your MediaMake account. In Claude Code:
