@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   AppWindow,
   Archive,
@@ -37,8 +38,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { MadeByLine } from '@/components/catalog/uses';
 import type { ItemAction } from './releases-dashboard';
-import { TIER_META, formatDate, formatLeft, gateOf, grantsFor, tierOf, type AdminCatalog } from './model';
+import { TIER_META, formatDate, formatLeft, gateOf, grantsFor, itemPath, tierOf, type AdminCatalog } from './model';
 
 export const KIND_ICON: Record<CatalogKind, React.ComponentType<{ className?: string }>> = {
   skill: Wand2,
@@ -83,7 +85,7 @@ export function ReleaseBoard({
             <div className={cn('flex flex-col gap-3', tiers.length === 1 && 'sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4')}>
               {skills.length > 0 && <SkillsCard count={skills.length} onShow={onShowSkills} />}
               {column.map(item => (
-                <ItemCard key={item.id} data={data} item={item} now={now} onAction={onAction} />
+                <ItemCard key={item.id} data={data} item={item} now={now} onAction={onAction} inCode={data.cards.some(card => card.id === item.id)} />
               ))}
               {!all.length && (
                 <p className="rounded-xl border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">Nothing here</p>
@@ -116,11 +118,14 @@ export function ItemCard({
   item,
   now,
   onAction,
+  inCode = false,
 }: {
   data: AdminCatalog;
   item: CatalogItemRecord;
   now: number;
   onAction: (item: CatalogItemRecord, action: ItemAction) => void;
+  /** A card defined in lib/catalog/items.ts: shown, but it moves only by editing that file. */
+  inCode?: boolean;
 }) {
   const [confirmRelease, setConfirmRelease] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
@@ -131,7 +136,7 @@ export function ItemCard({
 
   return (
     <article className="group overflow-hidden rounded-xl border bg-card shadow-xs transition hover:shadow-sm">
-      <button type="button" className="block w-full text-left" onClick={() => onAction(item, { type: 'access' })}>
+      <Link href={itemPath(item.id)} className="block w-full">
         <div className="relative aspect-[2/1] w-full overflow-hidden bg-muted">
           {item.cover && !coverFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -150,22 +155,29 @@ export function ItemCard({
             {item.kind}
           </span>
         </div>
-      </button>
+      </Link>
 
       <div className="flex flex-col gap-2 p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold">
-              <button type="button" className="hover:underline" onClick={() => onAction(item, { type: 'access' })}>
+              <Link href={itemPath(item.id)} className="hover:underline">
                 {item.title}
-              </button>
+              </Link>
             </h3>
             <p className="truncate text-xs text-muted-foreground">
               {item.id}
               {item.version ? ` · v${item.version}` : ''}
             </p>
+            {item.madeBy && <MadeByLine madeBy={item.madeBy} link={false} className="truncate" />}
           </div>
-          <ItemMenu item={item} tier={tier} gated={!!gate} onAction={onAction} onRelease={() => setConfirmRelease(true)} />
+          {inCode ? (
+            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Defined in lib/catalog/items.ts: edit that file to change it">
+              in code
+            </span>
+          ) : (
+            <ItemMenu item={item} tier={tier} gated={!!gate} onAction={onAction} onRelease={() => setConfirmRelease(true)} />
+          )}
         </div>
 
         {gate && (
@@ -187,6 +199,7 @@ export function ItemCard({
           </span>
           {item.status !== 'live' && <span className="capitalize">{item.status.replace('-', ' ')}</span>}
           {item.listed === false && <span>Unlisted</span>}
+          {item.install?.uses?.length ? <span title={item.install.uses.map(u => `${u.id} (${u.need})`).join('\n')}>Uses {item.install.uses.length}</span> : null}
         </div>
       </div>
 
@@ -223,7 +236,7 @@ function ItemMenu({
   onRelease: () => void;
 }) {
   const act = (action: ItemAction) => () => onAction(item, action);
-  // Skills are always public: no stages, gate or vault to move them through.
+  // Skills and items made by others are always public: no stages, gate or vault to move them through.
   const alwaysPublic = isAlwaysPublic(item);
   return (
     <DropdownMenu>
@@ -268,7 +281,7 @@ function ItemMenu({
         )}
         {alwaysPublic && (
           <DropdownMenuItem disabled>
-            <Rocket /> Always public (skill)
+            <Rocket /> Always public ({item.madeBy ? `made by ${item.madeBy.name}` : 'skill'})
           </DropdownMenuItem>
         )}
         {tier === 'public' && !alwaysPublic && (

@@ -1,10 +1,12 @@
 import Link from 'next/link';
-import { getEntitlements, getViewer } from '@/lib/access';
-import { installPromptFor, toCard, toEntry, type CatalogEntry } from '@/lib/catalog';
+import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
+import { installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type ItemUse } from '@/lib/catalog';
+import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
-import { accessRequestsDB, catalogItemsDB } from '@/lib/catalog/store';
+import { accessRequestsDB } from '@/lib/catalog/store';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { AccessActions, RedeemInvite } from './access-actions';
 
 export const dynamic = 'force-dynamic';
@@ -25,15 +27,30 @@ export default async function AccessPage({
 
   let item: CatalogEntry | null = null;
   let releases: Release[] = [];
+  let installable = false;
+  let hasPackage = false;
+  let uses: (ItemUse & { title?: string; href?: string })[] = [];
   let pending = false;
   if (itemId) {
-    const record = await catalogItemsDB.get(itemId).catch(() => null);
+    // the database's record, else one the repo defines (a registry skill, a third-party MCP)
+    const record = await getCatalogRecord(itemId);
     if (record) {
-      const entry = toEntry(await getEntitlements(viewer), toCard(record));
+      const entitlements = await getEntitlements(viewer);
+      const entry = toEntry(entitlements, toCard(record));
       // Locked items are hidden: answer as if they don't exist.
       if (entry.access !== 'locked') {
         item = entry;
         releases = releasesOf(record.versions, 20);
+        installable = isInstallable(record);
+        hasPackage = record.versions.length > 0;
+        // what it works with, named and linked when this viewer can open it
+        uses = await Promise.all(
+          (record.install?.uses ?? []).map(async use => {
+            const used = await getCatalogRecord(use.id);
+            const open = used && accessLevel(entitlements, used) !== 'locked';
+            return open ? { ...use, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` } : use;
+          }),
+        );
       }
       if (item?.access === 'locked' && viewer.clientId) {
         pending = (await accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => [])).includes(record.id);
@@ -80,15 +97,18 @@ export default async function AccessPage({
               </div>
               <CardTitle className="text-2xl">{item.title}</CardTitle>
               {item.summary && <CardDescription>{item.summary}</CardDescription>}
+              {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              {uses.length > 0 && <UsesList uses={uses} />}
               <AccessActions
                 itemId={item.id}
                 access={item.access}
-                hasPackage={!!item.version}
+                hasPackage={hasPackage}
                 signedIn={!!viewer.clientId}
                 pending={pending}
-                installPrompt={item.version ? installPromptFor(item.id) : undefined}
+                installPrompt={installable ? installPromptFor(item.id) : undefined}
+                worksWith={uses.length > 0}
                 loginHref={loginHref}
               />
             </CardContent>

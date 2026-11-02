@@ -13,7 +13,7 @@ import {
   catalogItemsDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
-import { skillRecords } from '@/lib/catalog/items';
+import { cardRecords, skillRecords, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import {
   CATALOG_KINDS,
@@ -21,12 +21,15 @@ import {
   DEFAULT_GATE_DAYS,
   NETWORK_GROUP,
   PRIVATE_GROUP,
+  USE_NEEDS,
   VISIBILITIES,
   catalogItemId,
+  parseCatalogItemId,
   isValidSlug,
   type CatalogKind,
   type CatalogStatus,
   type GrantSubject,
+  type UseNeed,
   type Visibility,
 } from '@/lib/catalog/types';
 
@@ -54,9 +57,11 @@ async function listPeople() {
 /**
  * GET /api/admin/catalog
  * Everything an admin needs to manage releases: items (with versions),
- * the repo's skills from skills.json that aren't stored as items, live
- * grants, groups, invites, pending access requests, the people who hold
- * API keys, and whether public releases are open site-wide.
+ * the repo's skills from skills.json, the third-party items from
+ * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
+ * aren't stored as items, live grants, groups, invites, pending access
+ * requests, the people who hold API keys, and whether public releases are
+ * open site-wide.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -74,8 +79,10 @@ export async function GET(req: NextRequest) {
     listPeople(),
   ]);
   return NextResponse.json({
-    items,
+    items: items.map(withRegistryUses),
     skills: skillRecords(items),
+    thirdParty: thirdPartyRecords(items),
+    cards: cardRecords(items),
     grants,
     groups,
     invites,
@@ -100,26 +107,77 @@ const requirementSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+const repoSchema = z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'repo must be owner/name');
+
+/** What an item works with: offered as a choice when it is installed (see ItemUse). */
+const useSchema = z.object({
+  id: z.string().refine(id => !!parseCatalogItemId(id), 'id must be a catalog id such as mcp/elevenlabs'),
+  need: z.enum(USE_NEEDS as [UseNeed, ...UseNeed[]]),
+  for: z.string().min(1).max(300),
+  without: z.string().min(1).max(300),
+});
+
+const mcpSettingSchema = z.object({
+  name: z.string().regex(/^[A-Za-z_][\w-]*$/),
+  description: z.string().min(1).max(300),
+  format: z.string().includes('{value}').optional(),
+  getAt: z.string().url().optional(),
+  secret: z.boolean().optional(),
+  required: z.boolean().optional(),
+  default: z.string().optional(),
+});
+
+/** Where an item with no package of ours installs from (see InstallSource). */
+const sourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('github-skill'), repo: repoSchema, path: z.string().min(1), ref: z.string().optional() }),
+  z
+    .object({
+      type: z.literal('mcp-server'),
+      name: z.string().regex(/^[A-Za-z0-9][\w-]{0,63}$/, 'name must be letters, digits, dashes and underscores'),
+      local: z
+        .object({ command: z.string().min(1), args: z.array(z.string()).optional(), env: z.array(mcpSettingSchema).optional() })
+        .optional(),
+      remote: z
+        .object({ url: z.string().url(), headers: z.array(mcpSettingSchema).optional(), connectorUrl: z.string().url().optional() })
+        .optional(),
+      mcpb: z.object({ repo: repoSchema, asset: z.string().min(1), tag: z.string().optional() }).optional(),
+      setup: z.array(z.string().min(1)).optional(),
+      guide: z.string().url().optional(),
+    })
+    .refine(source => source.local || source.remote || source.mcpb, 'an mcp-server source needs local, remote or mcpb'),
+]);
+
 const installSchema = z.object({
   method: z.enum(['skill', 'mcpb', 'app', 'manual']).optional(),
   entry: z.string().optional(),
   requires: z.array(requirementSchema).optional(),
+  uses: z.array(useSchema).optional(),
+  source: sourceSchema.optional(),
   notes: z.string().max(1000).optional(),
 });
 
-const itemSchema = z.object({
-  kind: z.enum(CATALOG_KINDS as [CatalogKind, ...CatalogKind[]]),
-  slug: z.string().refine(isValidSlug, 'slug must be lowercase letters, digits and dashes'),
-  title: z.string().min(1).max(120),
-  summary: z.string().max(500).default(''),
-  visibility: z.enum(VISIBILITIES as [Visibility, ...Visibility[]]).optional(),
-  status: z.enum(CATALOG_STATUSES as [CatalogStatus, ...CatalogStatus[]]).optional(),
-  listed: z.boolean().optional(),
-  href: z.string().optional(),
-  cover: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  install: installSchema.optional(),
-});
+const itemSchema = z
+  .object({
+    kind: z.enum(CATALOG_KINDS as [CatalogKind, ...CatalogKind[]]),
+    slug: z.string().refine(isValidSlug, 'slug must be lowercase letters, digits and dashes'),
+    title: z.string().min(1).max(120),
+    summary: z.string().max(500).default(''),
+    visibility: z.enum(VISIBILITIES as [Visibility, ...Visibility[]]).optional(),
+    status: z.enum(CATALOG_STATUSES as [CatalogStatus, ...CatalogStatus[]]).optional(),
+    listed: z.boolean().optional(),
+    href: z.string().optional(),
+    cover: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    /** Someone else makes it: an open-source or hosted MCP or skill (always public, installed from install.source). */
+    madeBy: z
+      .object({ name: z.string().min(1).max(120), repo: repoSchema.optional(), license: z.string().max(60).optional(), homepage: z.string().url().optional() })
+      .optional(),
+    install: installSchema.optional(),
+  })
+  .refine(item => !item.madeBy || item.install?.source || item.href, {
+    message: 'an item made by others needs install.source (or an href to its page)',
+    path: ['install', 'source'],
+  });
 
 const versionSchema = z.string().regex(/^[0-9A-Za-z.+-]{1,40}$/, 'version must look like 1.2.0');
 
@@ -137,9 +195,9 @@ function daysFromNow(days?: number) {
  * POST /api/admin/catalog
  *
  * Body variants:
- *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, install? } }
+ *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, madeBy?, install? } }
  *                             (visibility/status left out keep the current value; new items start private, beta;
- *                             skills are always public)
+ *                             skills and items made by others (madeBy, with install.source) are always public)
  *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }
  *  { type: 'schedule_release', itemId, days? (default 30) | at? (ISO) }
  *                             (moves a development item to community now; it goes public by itself at that time)
@@ -243,6 +301,7 @@ export async function POST(req: NextRequest) {
       if (!version.success) return bad(version.error.issues[0].message);
       const item = await catalogItemsDB.get(body.itemId);
       if (!item) return NextResponse.json({ error: 'Register the item first (upsert_item)' }, { status: 404 });
+      if (item.madeBy) return bad(`${item.id} is made by ${item.madeBy.name}: it installs from install.source, not a package of ours`);
       if (item.versions.some(v => v.version === version.data)) {
         return bad(`${item.id}@${version.data} is already published; bump the version`);
       }

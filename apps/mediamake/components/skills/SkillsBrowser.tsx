@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLinkIcon, GitForkIcon, LibraryIcon, SearchIcon, SparklesIcon } from 'lucide-react';
+import { CheckIcon, CopyIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon, SearchIcon, SparklesIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { NeedBadge } from '@/components/catalog/uses';
+import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
+import { slugOf } from '@/lib/catalog/types';
 import type { RegistrySkill, SkillsRegistry } from '@/lib/library/types';
 
 const REPO = 'https://github.com/microfox-ai/mediamake/blob/main';
 
-function SkillCard({ skill }: { skill: RegistrySkill }) {
+function SkillCard({ skill, installPrompt }: { skill: RegistrySkill; installPrompt?: string }) {
   return (
     // the catalog's skill cards link to /skills#<name>
     <div id={skill.name} className="flex scroll-mt-6 flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground target:ring-2 target:ring-primary">
@@ -22,6 +25,17 @@ function SkillCard({ skill }: { skill: RegistrySkill }) {
         )}
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">{skill.summary}</p>
+      {skill.mcps && skill.mcps.length > 0 && (
+        // what each MCP is for and what the skill loses without it, on hover
+        <ul className="flex flex-wrap gap-1.5" aria-label="MCPs it works with">
+          {skill.mcps.map(mcp => (
+            <li key={mcp.id} title={`${mcp.for}\nWithout it: ${mcp.without}`} className="flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs">
+              <span className="font-mono">{slugOf(mcp.id)}</span>
+              <NeedBadge need={mcp.need} className="px-1 py-0 text-[10px]" />
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1">
         <a href={`${REPO}/${skill.path}/SKILL.md`} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-xs font-medium text-primary hover:underline">
           SKILL.md on GitHub <ExternalLinkIcon className="size-3" />
@@ -29,12 +43,41 @@ function SkillCard({ skill }: { skill: RegistrySkill }) {
         <Link href={`/library?view=skills&skill=${encodeURIComponent(skill.name)}`} className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
           Runs and outputs <LibraryIcon className="size-3" />
         </Link>
+        {installPrompt && <CopyPrompt itemId={`skill/${skill.name}`} prompt={installPrompt} />}
       </div>
     </div>
   );
 }
 
-export function SkillsBrowser({ registry, naming }: { registry: SkillsRegistry | null; naming: { pattern: string; about: string }[] }) {
+/** Copies the paste-into-Claude install prompt: the skill, the repo it works in, and its MCPs as choices. */
+function CopyPrompt({ itemId, prompt }: { itemId: string; prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      title={prompt}
+      onClick={async () => {
+        await copyInstallPrompt(itemId, prompt).catch(() => undefined);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="inline-flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+    >
+      {copied ? 'Copied' : 'Copy install prompt'} {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+    </button>
+  );
+}
+
+export function SkillsBrowser({
+  registry,
+  naming,
+  installPrompts = {},
+}: {
+  registry: SkillsRegistry | null;
+  naming: { pattern: string; about: string }[];
+  /** The install prompt per skill name (made on the server, which knows the site's URL). */
+  installPrompts?: Record<string, string>;
+}) {
   const [query, setQuery] = useState('');
 
   const all = registry?.skills ?? [];
@@ -96,7 +139,7 @@ export function SkillsBrowser({ registry, naming }: { registry: SkillsRegistry |
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {c.skills.map(s => (
-                <SkillCard key={s.name} skill={s} />
+                <SkillCard key={s.name} skill={s} installPrompt={installPrompts[s.name]} />
               ))}
             </div>
           </section>

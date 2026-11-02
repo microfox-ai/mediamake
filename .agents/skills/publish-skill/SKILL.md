@@ -44,11 +44,32 @@ per skill with its one-line summary.
 - ✖ a path on this machine (`/Users/…`), something that looks like an API key or token, or a
   frontmatter `name` that doesn't match the folder. Fix it in the skill first (a repo-relative
   path, an env var name instead of a value), then check again.
-- ⚠ a `depends-on` naming a skill that isn't in the repo, an email address, or a file over 1 MB.
+- ✖ an MCP table it can't read (see "MCPs it works with" below).
+- ⚠ a `depends-on` naming a skill that isn't in the repo, an MCP that isn't ours or listed in
+  `apps/mediamake/lib/catalog/third-party.json`, an email address, or a file over 1 MB.
 
 Also read the skill yourself before adding it (the repo is public on GitHub): prices, client
 names, private plans, personal notes in its feedback log. Show the user anything that looks
 private and let them reword it; never add a skill you haven't read.
+
+**MCPs it works with.** When the skill calls any MCP's tools (ElevenLabs, Browse Hack, fal,
+Blender…), it needs a `## First: check the MCPs` section near the top with one table, which the
+skill reads when it runs and MediaMake offers when someone installs it (each MCP as a choice,
+with what skipping it costs):
+
+```markdown
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/elevenlabs` | required | Sound effects for intros and end screens (`text_to_sound_effects`) | No sound at all: the scenes stay silent |
+```
+
+`required` only when the skill's main job can't be done without it; `recommended` when it works
+without, worse or slower; `optional` for extras. Name the tools in "Used for" and be concrete in
+"Without it": that line is what the person reads when deciding to skip it. Under the table, tell
+Claude to look for those tools (load deferred ones with ToolSearch), say before starting what a
+missing one costs, and offer its MediaMake install prompt ("Set up mcp/<name> from MediaMake by
+following https://github.com/microfox-ai/mediamake/blob/main/install.md"), as `pack-brand-kit`
+does. An MCP that isn't ours goes in `third-party.json` first (who makes it, and how it installs).
 
 ## 3. Add
 

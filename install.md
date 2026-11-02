@@ -94,6 +94,35 @@ curl -fsS -H "Authorization: Bearer $AUTH" \
 Before installing, tell them in one or two lines what you're about to set up
 (the step titles) and anything they'll need to click.
 
+### Choices: the MCPs it works with
+
+The plan's `choices` are what the item works with but doesn't need outright,
+such as a skill's MCPs (ElevenLabs for a brand kit's sound effects), strongest
+first. Each has a `need` (`required`: the item's main job needs it;
+`recommended`: it works without, worse or slower; `optional`: an extra) and
+`reasons`: what each item uses it for (`for`) and what the person loses
+without it (`without`). The steps that are there only for a choice carry its
+id in `forChoices`.
+
+1. Leave out choices that are set up already (the MCP is connected:
+   `claude mcp get <name>`, its tools in this session, or **Settings →
+   Connectors** / **Extensions** in Claude Desktop), saying so in a word.
+2. _Ask_ about the rest in the same message as the plan: one line each with
+   what it gives and what skipping it loses, recommending the `required` and
+   `recommended` ones. Install only what they pick: a choice they turn down is
+   skipped, with no second ask. For a `required` one they skip, say plainly
+   which parts of the item won't work.
+3. A choice with `available: false` can't come from MediaMake for them
+   (`unavailable` says why): tell them what they lose. If step 2 left `$AUTH`
+   empty, copying the install prompt while signed in on `$MEDIAMAKE_URL`
+   (it then carries an install code) brings back the ones shared with them.
+4. In step 4, install a step with `forChoices` only if they said yes to at
+   least one of those ids. Steps without it are always installed.
+
+When you finish, list the choices they skipped with what each costs, and the
+prompt that adds one later: "Set up <id> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md".
+
 ## 4. Install each step, in order
 
 Make a working folder: `~/.mediamake/installs/<item slug>`.
@@ -138,6 +167,54 @@ Download `downloadUrl` into the working folder.
   run, and its settings start empty. Follow `guide` for anything extra, such
   as the extension's own settings.
 - Anything else: follow `guide`.
+
+### `type: "source"`: installed from where it lives
+
+No package of ours: `source` says where it comes from. A step with `madeBy`
+is made by someone else (an open-source project, or a service hosted by its
+maker); name the maker when you tell them about it, and show `notes` if set.
+
+- **`source.type: "github-skill"`**: a skill folder in a public GitHub repo.
+  - When an earlier `repo` step cloned `source.repo` (MediaMake's skills come
+    with the MediaMake repo), the skill is there already: its
+    `.claude/skills/<slug>` loads when Claude Code runs in that folder. Copy
+    nothing; tell them to start Claude Code there (`cd ~/mediamake && claude`)
+    to use it.
+  - Otherwise fetch just that folder (with `--branch <ref>` when `source.ref`
+    is set):
+    ```bash
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/<repo>.git <working folder>/src
+    git -C <working folder>/src sparse-checkout set <path>
+    ```
+    and install `<working folder>/src/<path>` the way the **skill** method of
+    `type: "item"` says (Claude Code: `~/.claude/skills/<slug>`).
+- **`source.type: "mcp-server"`**: a server its maker publishes, added under
+  `source.name`. If a server by that name is already registered and works,
+  it's set up (see **Already set up?**). The values it needs are in
+  `local.env` or `remote.headers`: _Ask_ for each `required` one (`getAt` is
+  where they get it). A `secret` one is an API key: have them paste it, never
+  show it back, and write it only into the server's config. `format` is how
+  it is written (`Bearer {value}`), `default` the value when they give none;
+  leave out one that comes out empty. Then add it the way that fits:
+  - Claude Code: `local` when there is one. Check its command runs first
+    (`uvx` comes with uv: https://docs.astral.sh/uv/getting-started/installation/),
+    then `claude mcp add --scope user <name> -e KEY=value … -- <command> <args…>`.
+    Otherwise `remote`:
+    `claude mcp add --scope user --transport http <name> <url> --header "<Header>: <value>"`.
+    Remove a server already registered under `<name>` first, as for `mcpb`.
+    Its tools appear in the next Claude Code session.
+  - Claude Desktop: `mcpb` when there is one (download it from that GitHub
+    release and open it, as for `mcpb`). Otherwise a `remote` with a
+    `connectorUrl`, or with no `headers`: _Ask_ them to add it in **Settings →
+    Connectors → Add custom connector** with that URL and sign in. Otherwise
+    `local`: add `"<name>": { "command", "args", "env" }` to `mcpServers` in
+    `claude_desktop_config.json` (macOS `~/Library/Application Support/Claude/`,
+    Windows `%APPDATA%\Claude\`; keep what is there), then _Ask_ them to quit
+    and reopen Claude Desktop.
+  - The Claude app on the web or a phone: only `remote` (its `connectorUrl`,
+    else `url`) as a custom connector.
+  - Then do the `setup` steps in order, and use `guide`, its maker's own
+    setup guide, for anything these don't cover.
 
 ### `type: "item"`: a MediaMake package
 
@@ -186,6 +263,9 @@ So that updates never need an install code again:
    ```
    One entry per `type: "item"` step, with the plan's `version` and where it
    went (skill folder, `~/.mediamake/mcp/<slug>`, repo, or `"claude-desktop"`).
+   A `type: "source"` step gets one too, with `"source": "<source.type>"`
+   instead of a version (it has none on MediaMake), and `path` the skill
+   folder, the repo it came with, or the MCP server's name.
 2. If step 2 used an install code, trade it for an update token. Send the
    one already saved, if any, so it is extended instead of replaced:
    ```bash
@@ -269,6 +349,13 @@ from MediaMake" or "check MediaMake for updates", or paste a prompt like
    `server.mcp_config` differs from the old one. Then follow its
    `INSTALL.md`'s check and do step 5 (record the versions; trade an install
    code if you used one).
+   An item installed from its source (`"source"` in `installed.json`) has
+   no versions on MediaMake, so it isn't in `versions`: a skill that came
+   with the MediaMake repo updates with `git -C ~/mediamake pull --ff-only`;
+   one fetched from another repo, by fetching its folder again (step 4's
+   `type: "source"`); an MCP from its maker updates itself (`uvx` runs the
+   latest release when it starts, a hosted one is always current), so only
+   say so.
 6. **401, or the item is under `missing`:** the token lapsed or wasn't made
    for this item. _Ask_ them to open the item's page on `$MEDIAMAKE_URL`
    while signed in, click **Copy install prompt** and paste it; use its

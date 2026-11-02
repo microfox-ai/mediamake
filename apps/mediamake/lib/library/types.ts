@@ -10,6 +10,8 @@
  *   media CLI applies. The page writes nothing else.
  */
 
+import type { ItemUse } from '../catalog/types';
+
 export const REGISTRY_SCHEMA = 'mediamake.skills/v1';
 export const EXPORT_SCHEMA = 'mediamake.library-export/v1';
 export const REQUEST_SCHEMA = 'mediamake.library-request/v1';
@@ -40,6 +42,13 @@ export interface RegistrySkill {
   /** `<base>@<commit>`, written by `skills.mjs fork`. */
   forkedFrom?: string;
   dependsOn?: string[];
+  /**
+   * The MCPs it works with, from the `## First: check the MCPs` table in its SKILL.md: the
+   * catalog offers them when the skill is installed, with what each is for and what it costs to skip.
+   */
+  mcps?: ItemUse[];
+  /** `owner/repo` a skill was vendored from (skills-lock.json), e.g. remotion-dev/skills. */
+  upstream?: string;
   version?: string;
 }
 

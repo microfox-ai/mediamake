@@ -147,8 +147,21 @@ Sections, whatever the genre:
 
 Tools: ffmpeg, uv. Engine (committed): `src/remix/` (cut-list language `edl.ts`, `resolve.ts`,
 renderer `Remix.tsx`, `gfx/`), `scripts/remix.ts` (`npm run remix`), `scripts/matte.py` (BiRefNet
-cutouts + subject anchors), `scripts/render.ts` (`npm run render-project`). Sound effects: the
-ElevenLabs connector (`text_to_sound_effects`).
+cutouts + subject anchors), `scripts/render.ts` (`npm run render-project`).
+
+MCPs (check at intake which this session has):
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/browse-hack` | recommended | Downloading footage from YouTube into the library inbox and checking a clip's real size and HDR first (`youtube_download`, `youtube_get_video`) | The user downloads every clip and drops it in themselves |
+| `mcp/elevenlabs` | optional | Sound effects, only when the user asks for them (`text_to_sound_effects`) | No sound effects: the edit runs on the song alone |
+
+Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
+Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
+If one is missing, say what it costs before starting and offer to install it from MediaMake ("Set
+up mcp/<name> from MediaMake by following
+https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
+session), or go ahead without it.
 
 ## Workflow
 

@@ -8,7 +8,9 @@ import {
   type AccessRequest,
   type CatalogItemRecord,
   type ReleaseTier,
+  type UseNeed,
 } from '@/lib/catalog/types';
+import type { InstallPlan } from '@/lib/catalog/plan';
 
 export { COMMUNITY_GROUP, PRIVATE_GROUP };
 
@@ -23,6 +25,10 @@ export interface AdminCatalog {
   items: CatalogItemRecord[];
   /** The repo's skills (skills.json) not stored as items: always public, nothing to release. */
   skills: CatalogItemRecord[];
+  /** MCPs and skills made by others (lib/catalog/third-party.json) not stored as items: always public too. */
+  thirdParty: CatalogItemRecord[];
+  /** Cards defined in code (lib/catalog/items.ts: the apps, the MediaMake MCP): shown, but moved only by editing that file. */
+  cards: CatalogItemRecord[];
   grants: AccessGrant[];
   groups: AccessGroup[];
   invites: AccessInvite[];
@@ -41,6 +47,53 @@ export async function adminCall<T = unknown>(body?: Record<string, unknown>): Pr
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(json.error || `Request failed (${res.status})`), { status: res.status });
   return json as T;
+}
+
+/** GET /api/admin/catalog/item?id=<id>: one item as its release page shows it. */
+export interface ItemDetail {
+  item: CatalogItemRecord;
+  /** Where the item is defined: stored in the catalog database, or a file in the repo. */
+  definedIn: 'database' | 'third-party.json' | 'skills.json' | 'items.ts' | null;
+  /** Live grants that reach it: its own, its kind's and everything's. */
+  grants: AccessGrant[];
+  /** How many people are in each group. */
+  groups: { private: number; community: number };
+  publicReleasesOpen: boolean;
+  /** What installing it does, as an admin would get it. */
+  plan: InstallPlan;
+  /** Items that need it installed first (`requires`) or offer it as a choice (`uses`). */
+  usedBy: { id: string; title: string; how: 'requires' | 'uses'; need?: UseNeed; for?: string }[];
+  /** Titles by id, for everything in the catalog. */
+  names: Record<string, string>;
+  installPrompt?: string;
+  /** Its code on GitHub, when known. */
+  code?: string;
+  /** A skill's whole description (its card's summary is the first sentence). */
+  description?: string;
+}
+
+export async function fetchItemDetail(id: string): Promise<ItemDetail> {
+  const res = await fetch(`/api/admin/catalog/item?id=${encodeURIComponent(id)}`);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(json.error || `Request failed (${res.status})`), { status: res.status });
+  return json as ItemDetail;
+}
+
+/** An item's release page, e.g. /core/releases/mcp/browse-hack. Release commands print it too. */
+export function itemPath(id: string) {
+  return `/core/releases/${id}`;
+}
+
+/**
+ * Where an item comes from, in a few words: our package, a skill in the repo,
+ * an open-source or hosted item made by others, or a page of the app.
+ */
+export function originOf(item: CatalogItemRecord): string {
+  if (item.madeBy) return `${item.madeBy.repo ? 'Open source' : 'Hosted'} · ${item.madeBy.name}`;
+  if (item.versions.length) return `Our package · v${item.versions[item.versions.length - 1].version}`;
+  if (item.install?.source?.type === 'github-skill') return 'Skill in the repo';
+  if (item.href) return 'Page in the app';
+  return 'Nothing released yet';
 }
 
 export const TIER_META: Record<
