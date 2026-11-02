@@ -15,7 +15,8 @@ export const KINDS = ['footage', 'overlays', 'images', 'art', 'music', 'sfx', 'r
 export type Kind = (typeof KINDS)[number] | '_unsorted';
 /** Where a copy is: what the sweep, dedupe and cleanup-out decide by. */
 export type Role = 'library' | 'inbox' | 'downloads' | 'delivery' | 'project' | 'out' | 'brands' | 'overlays' | 'archive' | 'other';
-export type Status = 'online' | 'cold' | 'missing';
+/** remote: a teammate's item, known from `media sync pull`, with no copy on this Mac yet */
+export type Status = 'online' | 'cold' | 'missing' | 'remote';
 
 export type Item = {
   id: string;
@@ -38,6 +39,8 @@ export type Item = {
   role: Role;
   confidence: number;
   added_at: string;
+  /** a song's words (Suno's lyrics), also kept as <file>.lyrics.txt beside it */
+  lyrics?: string | null;
 };
 
 const SCHEMA = [
@@ -72,6 +75,22 @@ const SCHEMA = [
    CREATE TABLE runs (
      skill TEXT NOT NULL, session TEXT, at TEXT NOT NULL, cwd TEXT, production TEXT, verdict TEXT, UNIQUE(session, skill, at));
    CREATE VIRTUAL TABLE search USING fts5(item_id UNINDEXED, text, tokenize = 'unicode61 remove_diacritics 2');`,
+  // 2: Suno songs (lyrics, the rest of a take's settings, what it was made from) and channel team sync
+  `ALTER TABLE items ADD COLUMN lyrics TEXT;
+   ALTER TABLE sources ADD COLUMN extra TEXT;
+   CREATE TABLE relations (
+     item_id TEXT NOT NULL, relation TEXT NOT NULL, parent TEXT NOT NULL, parent_id TEXT, at TEXT NOT NULL,
+     UNIQUE(item_id, relation, parent));
+   CREATE INDEX relations_parent ON relations(parent_id);
+   CREATE TABLE remote (
+     item_id TEXT PRIMARY KEY, channel TEXT NOT NULL, project_id TEXT NOT NULL, url TEXT, file_name TEXT, mime TEXT,
+     data TEXT NOT NULL, pulled_at TEXT NOT NULL);
+   CREATE TABLE shares (
+     item_id TEXT NOT NULL, channel TEXT NOT NULL, via TEXT NOT NULL, approved_at TEXT NOT NULL, uploaded_at TEXT,
+     UNIQUE(item_id, channel));
+   CREATE TABLE synced (
+     channel TEXT NOT NULL, what TEXT NOT NULL, key TEXT NOT NULL, hash TEXT NOT NULL, at TEXT NOT NULL,
+     UNIQUE(channel, what, key));`,
 ];
 
 export const catalogDir = (root: string) => path.join(root, '.catalog');
@@ -101,6 +120,15 @@ export const tx = <T>(db: DatabaseSync, fn: () => T): T => {
   }
 };
 
+/** A source's own keys beyond the columns (Suno's lyrics settings, parent, workspace…), stored as JSON. */
+export const extraOf = (v: unknown): Record<string, unknown> => {
+  try {
+    return typeof v === 'string' && v ? (JSON.parse(v) as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+};
+
 /** node:sqlite refuses undefined: bind null. */
 export const n = (v: unknown) => (v === undefined ? null : v);
 
@@ -122,8 +150,10 @@ export const reindex = (db: DatabaseSync, id: string) => {
     it.subject?.replace(/[/-]/g, ' '),
     path.basename(it.path).replace(/[._-]+/g, ' '),
     ...tagsOf(db, id),
+    // a Suno take's prompt is its styles (its excluded styles are left out: they're what it isn't)
     ...src.flatMap(s => [s.tool, s.title, s.author, s.query, s.prompt, s.model]),
     ...notes.map(r => r.text),
+    it.lyrics,
   ];
   db.prepare('INSERT INTO search (item_id, text) VALUES (?, ?)').run(id, words.filter(Boolean).join(' '));
 };

@@ -49,6 +49,9 @@ const syncRow = (lib: Lib, p: Production) =>
     )
     .run(p.slug, n(p.title), n(p.channel), n(p.artist), n(p.song), p.status ?? 'active', path.join(lib.projects, p.slug), n(p.deliverFolder), now());
 
+/** The catalog's row for a production, from its file (after `media sync pull` wrote one). */
+export const indexProduction = (lib: Lib, slug: string) => syncRow(lib, readProduction(lib, slug));
+
 export const saveProduction = (lib: Lib, slug: string, patch: Partial<Production>) => {
   const file = fileOf(lib, slug);
   const cur = readJson<Production>(file) ?? ({} as Production);

@@ -14,6 +14,7 @@ media library and reused by every production. Where it is on this machine is in
 - Register a production at intake (`media production new <slug> --channel=…`).
 - Deliver to the channel folders in Downloads only what the user approved (`media deliver`).
 - Never move or rename library files by hand (`media mv`).
+- A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
 
 ## Releases: always give the item's link
 

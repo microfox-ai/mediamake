@@ -5,10 +5,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { DIRS, ROOT } from '../paths.ts';
-import type { Source } from './classify.ts';
+import { DIRS, REPO, ROOT } from '../paths.ts';
+import { SOURCE_COLUMNS, type Source } from './classify.ts';
 import { loadConfig, type LibraryConfig } from './config.ts';
-import { catalogDir, getItem, n, openDb, reindex, type Item, type Role } from './db.ts';
+import { catalogDir, extraOf, getItem, n, openDb, reindex, type Item, type Role } from './db.ts';
 import { now, readJson } from './sys.ts';
 
 export type Lib = {
@@ -22,10 +22,12 @@ export type Lib = {
   out: string;
   brands: string;
   overlays: string;
+  /** .claude/skills: where skill variants are installed (media sync) */
+  skills: string;
   log: (s: string) => void;
 };
 
-export const openLibrary = (opts: { cfg?: LibraryConfig; projects?: string; out?: string; brands?: string; overlays?: string; quiet?: boolean } = {}): Lib => {
+export const openLibrary = (opts: { cfg?: LibraryConfig; projects?: string; out?: string; brands?: string; overlays?: string; skills?: string; quiet?: boolean } = {}): Lib => {
   const cfg = opts.cfg ?? loadConfig();
   const catalog = catalogDir(cfg.root);
   return {
@@ -40,6 +42,7 @@ export const openLibrary = (opts: { cfg?: LibraryConfig; projects?: string; out?
     out: opts.out ?? DIRS.out,
     brands: opts.brands ?? DIRS.brands,
     overlays: opts.overlays ?? path.join(ROOT, 'overlays'),
+    skills: opts.skills ?? path.join(REPO, '.claude', 'skills'),
     log: opts.quiet ? () => {} : (s: string) => console.log(s),
   };
 };
@@ -112,13 +115,15 @@ export const knownHash = (lib: Lib, abs: string, st: fs.Stats) => {
 
 /**
  * One (tool, ref) points at one item. A better copy of the same source (a higher resolution
- * download) takes it over; the older item keeps a tag saying which one replaced it.
+ * download) takes it over; the older item keeps a tag saying which one replaced it. `beside`: a
+ * teammate's item (media sync), which never takes a source over from one on this Mac.
  */
-export const addSource = (lib: Lib, id: string, s: Source) => {
+export const addSource = (lib: Lib, id: string, s: Source, opts: { beside?: boolean } = {}) => {
   if (!s.tool) return;
   let ref = s.ref ?? id.slice(0, 16);
   const had = lib.db.prepare('SELECT item_id FROM sources WHERE tool = ? AND ref = ?').get(s.tool, ref) as { item_id: string } | undefined;
-  if (had && had.item_id !== id) {
+  if (had && had.item_id !== id && opts.beside) ref = `${ref}@${id.slice(0, 8)}`;
+  else if (had && had.item_id !== id) {
     const old = getItem(lib.db, had.item_id);
     const mine = getItem(lib.db, id);
     if (old && mine && (old.height ?? 0) >= (mine.height ?? 0)) ref = `${ref}@${id.slice(0, 8)}`;
@@ -127,14 +132,28 @@ export const addSource = (lib: Lib, id: string, s: Source) => {
       addTags(lib, had.item_id, [`replaced-by:${id.slice(0, 12)}`]);
     }
   }
+  const extra = extraKeys(s);
   lib.db
     .prepare(
-      `INSERT INTO sources (item_id, tool, ref, url, page_url, title, author, query, prompt, model, price, downloaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO sources (item_id, tool, ref, url, page_url, title, author, query, prompt, model, price, downloaded_at, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(tool, ref) DO UPDATE SET item_id = excluded.item_id, url = COALESCE(excluded.url, url), page_url = COALESCE(excluded.page_url, page_url),
          title = COALESCE(excluded.title, title), author = COALESCE(excluded.author, author), query = COALESCE(excluded.query, query),
-         prompt = COALESCE(excluded.prompt, prompt), model = COALESCE(excluded.model, model), price = COALESCE(excluded.price, price)`,
+         prompt = COALESCE(excluded.prompt, prompt), model = COALESCE(excluded.model, model), price = COALESCE(excluded.price, price),
+         extra = COALESCE(excluded.extra, extra)`,
     )
-    .run(id, s.tool, ref, n(s.url), n(s.pageUrl), n(s.title), n(s.author), n(s.query), n(s.prompt), n(s.model), n(s.price), n(s.downloadedAt));
+    .run(id, s.tool, ref, n(s.url), n(s.pageUrl), n(s.title), n(s.author), n(s.query), n(s.prompt), n(s.model), n(s.price), n(s.downloadedAt), Object.keys(extra).length ? JSON.stringify(extra) : null);
+};
+
+/** A source's keys without a column of their own (Suno's excludeStyles, settings, parentRef…). */
+const extraKeys = (s: Source) => Object.fromEntries(Object.entries(s).filter(([k, v]) => v !== undefined && v !== null && !(SOURCE_COLUMNS as readonly string[]).includes(k)));
+
+/** A source as the sidecar had it, minus what is kept elsewhere (lyrics on the item, a teammate's details). */
+export const provenance = (s: Source): Source =>
+  Object.fromEntries(Object.entries(s).filter(([k, v]) => v !== undefined && v !== null && k !== 'lyrics' && k !== 'library')) as Source;
+
+/** A song's words, on the item (and so in the search index). */
+export const setLyrics = (lib: Lib, id: string, lyrics: string | undefined | null) => {
+  if (lyrics?.trim()) lib.db.prepare('UPDATE items SET lyrics = ? WHERE id = ?').run(lyrics.trim(), id);
 };
 
 export const addTags = (lib: Lib, id: string, tags: string[]) => {
@@ -143,8 +162,8 @@ export const addTags = (lib: Lib, id: string, tags: string[]) => {
 };
 
 export const sourcesOf = (lib: Lib, id: string) =>
-  (lib.db.prepare('SELECT tool, ref, url, page_url AS pageUrl, title, author, query, prompt, model, price, downloaded_at AS downloadedAt FROM sources WHERE item_id = ?').all(id) as Source[]).map(s =>
-    Object.fromEntries(Object.entries(s).filter(([, v]) => v !== null)) as Source,
+  (lib.db.prepare('SELECT tool, ref, url, page_url AS pageUrl, title, author, query, prompt, model, price, downloaded_at AS downloadedAt, extra FROM sources WHERE item_id = ?').all(id) as unknown as (Source & { extra?: string | null })[]).map(
+    ({ extra, ...s }) => ({ ...Object.fromEntries(Object.entries(s).filter(([, v]) => v !== null)), ...extraOf(extra) }) as Source,
   );
 
 export const locationsOf = (lib: Lib, id: string) =>

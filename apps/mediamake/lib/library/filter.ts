@@ -44,7 +44,8 @@ function ratingMatches(m: MediaItem, want: string) {
 }
 
 function itemText(lib: Library, m: MediaItem): string {
-  return [m.title, m.path, m.kind, m.subject, ...m.tags, m.source?.tool, m.source?.title, m.source?.ref, ...m.uses.map(u => lib.production[u]?.title ?? u), ...(m.notes ?? []).map(n => (typeof n === 'string' ? n : n.text))]
+  // a Suno take's prompt is its styles; its lyrics are searched too
+  return [m.title, m.path, m.kind, m.subject, ...m.tags, m.source?.tool, m.source?.title, m.source?.ref, m.source?.prompt, m.lyrics, ...m.uses.map(u => lib.production[u]?.title ?? u), ...(m.notes ?? []).map(n => (typeof n === 'string' ? n : n.text))]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();

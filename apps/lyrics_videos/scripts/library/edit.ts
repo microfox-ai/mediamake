@@ -10,7 +10,8 @@ import { destOf } from './classify.ts';
 import { getItem, reindex, tagsOf, tx, type Item, type Kind } from './db.ts';
 import { absOf, addTags, relOf, type Lib } from './lib.ts';
 import { saveProduction, type Production } from './production.ts';
-import { dropEntry, putEntry, readFolder } from './sidecar.ts';
+import { approveShare, withdrawShare } from './share.ts';
+import { dropEntry, lyricsFile, putEntry, readFolder } from './sidecar.ts';
 import { freePath, move, now, readJson } from './sys.ts';
 
 const inLibrary = (it: Item) => !path.isAbsolute(it.path);
@@ -62,6 +63,8 @@ export const moveItem = async (lib: Lib, it: Item, to: { kind?: Kind; subject?: 
   const dest = freePath(path.join(lib.root, rel, name));
   const entry = dropEntry(path.dirname(from), name) ?? readFolder(path.dirname(from)).items[name];
   await move(from, dest);
+  // a song's lyrics go with it
+  if (fs.existsSync(lyricsFile(from))) await move(lyricsFile(from), lyricsFile(dest));
   const next = { ...it, path: relOf(lib, dest), kind: kind ?? it.kind, subject };
   tx(lib.db, () => {
     lib.db.prepare('UPDATE items SET path = ?, kind = ?, subject = ? WHERE id = ?').run(next.path, next.kind, next.subject, it.id);
@@ -83,7 +86,9 @@ type Request =
   | { op: 'move'; target: string; kind?: Kind; subject?: string }
   | { op: 'set-channel'; target: string; channel: string | null }
   | { op: 'set-thumbnail'; target: string; item: string }
-  | { op: 'production'; target: string; channel?: string; title?: string; status?: Production['status'] };
+  | { op: 'production'; target: string; channel?: string; title?: string; status?: Production['status'] }
+  // Share with team: the user's OK to upload the file to the channel's cloud project (media sync push sends it)
+  | { op: 'share' | 'unshare'; target: string; channel?: string };
 
 /** Carry out what the Library page asked for; each request file then moves to requests/done/. */
 export const applyRequests = async (lib: Lib) => {
@@ -104,7 +109,9 @@ export const applyRequests = async (lib: Lib) => {
       } else {
         const it = getItem(lib.db, r.target);
         if (!it) throw new Error(`no item ${r.target}`);
-        if (r.op === 'tag') tag(lib, it, r.add ?? [], r.remove ?? []);
+        if (r.op === 'share') approveShare(lib, it, r.channel, 'library-page');
+        else if (r.op === 'unshare') withdrawShare(lib, it, r.channel);
+        else if (r.op === 'tag') tag(lib, it, r.add ?? [], r.remove ?? []);
         // the page rates 1–5; the CLI says good or bad (1–2 count as bad: `find` leaves them out)
         else if (r.op === 'rate') rate(lib, it, r.rating === null ? null : String(r.rating), r.note);
         else if (r.op === 'note') rate(lib, it, it.rating, r.text);

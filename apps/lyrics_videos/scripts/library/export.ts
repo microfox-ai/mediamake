@@ -5,21 +5,25 @@
  * <sha>.jpg per item, prod-<slug>.jpg per production, channel-<id>.png per channel.
  *
  *   meta.json         { schema, generatedAt, counts }
- *   channels.json     [{ id, name, folder, logo?, productions }]
+ *   channels.json     [{ id, name, folder, projectId?, logo?, productions }]
  *   productions.json  [{ slug, title, artist?, channel?, song?, status, skills, deliverFolder?, thumbnail?, updatedAt, uses, deliveries }]
  *   skills.json       [{ ...the repo's skills.json entry, runs, lastRun?, productions, bestOutput? }]
  *   media-<kind>.json [{ id, path, kind, subject?, title, tags, bytes, width?, height?, duration?, fps?, hasAudio?,
- *                        rating?, notes?, source?, uses, thumb?, status, dupes? }]
+ *                        rating?, notes?, source?, lyrics?, preview?, related?, uses, thumb?, status, remote?, shared?, dupes? }]
  *   runs.json         [{ skill, session, at, production?, verdict? }]
+ *
+ * A song's preview is the song itself in thumbs/ (an APFS clone, no extra space; else a small m4a),
+ * so the page can play it. A teammate's item (status remote) says whose channel it came from and
+ * whether its file can be pulled; `shared` lists the channels whose team gets an item's file.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO } from '../paths.ts';
-import { KINDS, type Item } from './db.ts';
+import { KINDS, extraOf, type Item } from './db.ts';
 import { absOf, type Lib } from './lib.ts';
 import { importRuns, listProductions } from './production.ts';
-import { now, readJson, writeJson } from './sys.ts';
+import { cloneOnly, now, readJson, writeJson } from './sys.ts';
 
 const COVER = /^(thumbnail|cover|poster)\.(jpe?g|png|webp)$/i;
 
@@ -52,6 +56,29 @@ const productionPicture = (lib: Lib, slug: string, deliverFolder?: string) => {
     if (pick) return path.join(dir, pick);
   }
   return undefined;
+};
+
+/**
+ * A song the page can play, in thumbs/ (made once). An mp3, m4a or ogg is cloned (no extra space);
+ * anything else (a WAV master) becomes a 96 kbps m4a, a few a run so an export never stalls, and so a
+ * clone never keeps a big master's space after cleanup moves it to a disk.
+ */
+const audioPreview = (lib: Lib, it: Item, budget: { encodes: number }) => {
+  if (it.kind !== 'music' || it.status !== 'online' || it.ext === '.zip') return undefined;
+  const src = absOf(lib, it.path);
+  const small = /^\.(mp3|m4a|ogg)$/.test(it.ext);
+  const dest = path.join(lib.thumbs, `${it.id}${small ? it.ext : '.m4a'}`);
+  if (fs.existsSync(dest)) return dest;
+  if (!fs.existsSync(src)) return undefined;
+  if (small && cloneOnly(src, dest)) return dest;
+  if (budget.encodes-- <= 0) return undefined;
+  try {
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', src, '-vn', '-c:a', 'aac', '-b:a', '96k', dest], { stdio: 'pipe', timeout: 120_000 });
+    return dest;
+  } catch {
+    fs.rmSync(dest, { force: true });
+    return undefined;
+  }
 };
 
 const channelLogo = (lib: Lib, id: string) => {
@@ -128,7 +155,7 @@ export const exportLibrary = (lib: Lib) => {
     const brand = readJson<{ name?: string }>(path.join(lib.brands, id, 'brand', 'brand.json')) ?? readJson<{ name?: string }>(path.join(lib.brands, id, 'brand.json'));
     const logo = channelLogo(lib, id);
     const thumb = logo && fs.existsSync(logo) ? thumbFrom(logo, path.join(lib.thumbs, `channel-${id}.png`)) : undefined;
-    return { id, name: brand?.name ?? id, folder, logo: rel(thumb), productions: productions.filter(p => p.channel === id).map(p => p.slug) };
+    return { id, name: brand?.name ?? id, folder, projectId: lib.cfg.links[id], logo: rel(thumb), productions: productions.filter(p => p.channel === id).map(p => p.slug) };
   });
 
   // ---- skills: the repo's registry (tools/skills.mjs index) plus what the runs say
@@ -153,14 +180,22 @@ export const exportLibrary = (lib: Lib) => {
 
   // ---- media, one file per kind
   const counts: Record<string, number> = {};
+  const budget = { encodes: 10 };
   for (const kind of [...KINDS, '_unsorted'] as const) {
     const items = lib.db.prepare('SELECT * FROM items WHERE kind = ? ORDER BY subject, path').all(kind) as Item[];
     counts[kind] = items.length;
     const rows = items.map(it => {
       const tags = (lib.db.prepare('SELECT tag FROM tags WHERE item_id = ?').all(it.id) as { tag: string }[]).map(r => r.tag);
-      const src = lib.db.prepare('SELECT tool, ref, url, page_url AS pageUrl, title, author, query, prompt, model FROM sources WHERE item_id = ? LIMIT 1').get(it.id) as
+      const row = lib.db.prepare('SELECT tool, ref, url, page_url AS pageUrl, title, author, query, prompt, model, extra FROM sources WHERE item_id = ? LIMIT 1').get(it.id) as
         | Record<string, string | null>
         | undefined;
+      // a Suno take's styles are its prompt; what it leaves out and how it came about are in extra
+      const extra = extraOf(row?.extra);
+      const src = row && { ...row, extra: null, excludeStyles: extra.excludeStyles ?? null, instrumental: extra.instrumental ?? null, relation: extra.relation ?? null };
+      const remote = it.status === 'remote' ? (lib.db.prepare('SELECT channel, url FROM remote WHERE item_id = ?').get(it.id) as { channel: string; url: string | null } | undefined) : undefined;
+      const shared = (lib.db.prepare('SELECT channel, uploaded_at FROM shares WHERE item_id = ?').all(it.id) as { channel: string; uploaded_at: string | null }[]).map(r => ({ channel: r.channel, uploaded: !!r.uploaded_at }));
+      const related = (lib.db.prepare('SELECT relation, parent_id AS id FROM relations WHERE item_id = ? AND parent_id IS NOT NULL').all(it.id) as { relation: string; id: string }[]).map(r => ({ ...r }));
+      const preview = audioPreview(lib, it, budget);
       const guess = it.kind === '_unsorted' ? tags.find(t => t.startsWith('kind:'))?.slice(5) : undefined;
       const notes = (lib.db.prepare('SELECT text FROM notes WHERE item_id = ? ORDER BY at').all(it.id) as { text: string }[]).map(r => r.text);
       const dupes = (lib.db.prepare('SELECT path FROM locations WHERE item_id = ? AND path != ?').all(it.id, it.path) as { path: string }[]).map(r => absOf(lib, r.path));
@@ -181,11 +216,16 @@ export const exportLibrary = (lib: Lib) => {
         rating: it.rating ?? undefined,
         notes: notes.length ? notes : undefined,
         source: src ? Object.fromEntries(Object.entries(src).filter(([, v]) => v !== null)) : undefined,
+        lyrics: it.lyrics ?? undefined,
+        preview: preview ? rel(preview) : undefined,
+        related: related.length ? related : undefined,
         uses: uses.get(it.id) ?? [],
         thumb: fs.existsSync(thumb) ? rel(thumb) : undefined,
         guess,
         status: it.status,
         role: it.role,
+        remote: remote ? { channel: remote.channel, file: !!remote.url } : undefined,
+        shared: shared.length ? shared : undefined,
         dupes: dupes.length ? dupes : undefined,
       };
     });

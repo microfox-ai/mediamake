@@ -15,9 +15,10 @@ import { classify, isPersonal, mediaTypeOf } from './classify.ts';
 import { channelOfFolder } from './config.ts';
 import { getItem, openDb, reindex, tx, type Kind, type Role } from './db.ts';
 import { backupRoot } from './backup.ts';
-import { addLocation, addSource, addTags, knownHash, rank, relOf, roleOf, upsertItem, type Lib } from './lib.ts';
+import { addLocation, addSource, addTags, knownHash, rank, relOf, roleOf, setLyrics, upsertItem, type Lib } from './lib.ts';
 import { probe, thumbnail } from './probe.ts';
-import { readFolder } from './sidecar.ts';
+import { linkRelations, resolveRelations } from './relations.ts';
+import { readFolder, readLyrics } from './sidecar.ts';
 import { now, rendering, sha256File, size, sleep } from './sys.ts';
 
 export const ROOTS = ['library', 'downloads', 'projects', 'out', 'brands', 'overlays'] as const;
@@ -138,6 +139,8 @@ const indexFile = async (lib: Lib, f: Found, countHash: (b: number) => void) => 
     for (const s of side?.sources ?? (c.tool ? [{ tool: c.tool, ref: c.ref, prompt: c.prompt }] : [])) addSource(lib, id!, s);
     addTags(lib, id!, [...(side?.tags ?? c.tags), ...(c.guess ? [`kind:${c.guess}`] : [])]);
     for (const note of side?.notes ?? []) lib.db.prepare('INSERT INTO notes (item_id, at, text, production) VALUES (?, ?, ?, ?)').run(id!, note.at, note.text, note.production ?? null);
+    setLyrics(lib, id!, side?.lyrics ?? readLyrics(f.abs));
+    if (side?.sources) linkRelations(lib, id!, f.abs, side.sources);
     reindex(lib.db, id!);
   });
   if (type !== 'font' && type !== '3d' && type !== 'archive' && !fs.existsSync(path.join(lib.thumbs, `${id}.jpg`)))
@@ -224,6 +227,8 @@ export const scan = async (lib: Lib, roots: Root[] = [...ROOTS]) => {
     report.missing = forget(lib, root, seen);
     reports.push(report);
   }
+  // a cover read before the take it covers: linked now that both are in
+  resolveRelations(lib);
   return reports;
 };
 
