@@ -143,6 +143,26 @@
       "path": ".agents/skills/fork-skill"
     },
     {
+      "name": "make-cwc-tutorial",
+      "title": "Make cwc tutorial",
+      "summary": "Make a \"Cook with Claude\" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episod…",
+      "description": "Make a \"Cook with Claude\" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, \"one of the many open-source skills\", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action (\"now it can be your idea… just start\"), and the series end card asking \"What do you wish to make next?\". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video). Use when the user says \"make a Cook with Claude tutorial / episode for <skill>\", \"tutorial video like the pack-brand-kit one\", \"/make-cwc-tutorial <skill>\", or asks to change a project named cookwithclaude-* under apps/lyrics_videos/projects. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-cwc-tutorial",
+      "dependsOn": [
+        "revise-video"
+      ],
+      "mcps": [
+        {
+          "id": "mcp/elevenlabs",
+          "need": "required",
+          "for": "The voice-over in the brand voice (text_to_speech) and new sound effects (text_to_sound_effects)",
+          "without": "No episode: the series voice can't be replaced with another voice"
+        }
+      ]
+    },
+    {
       "name": "make-loudness-remaster",
       "title": "Make loudness remaster",
       "summary": "Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make…",
