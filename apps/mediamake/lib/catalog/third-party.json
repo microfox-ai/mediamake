@@ -5,6 +5,7 @@
     {
       "id": "mcp/elevenlabs",
       "title": "ElevenLabs",
+      "alternativeTo": "mcp/elevenlabs-connector",
       "summary": "Sound effects, speech, voices, transcription and audio isolation from ElevenLabs, as files on your computer. The official open-source MCP server.",
       "status": "live",
       "tags": ["mcp", "audio", "sound effects"],

@@ -189,6 +189,8 @@ const itemSchema = z
       .object({ name: z.string().min(1).max(120), repo: repoSchema.optional(), license: z.string().max(60).optional(), homepage: z.string().url().optional() })
       .optional(),
     install: installSchema.optional(),
+    /** An older way to do what that item does: shown as Old, an alternative only. */
+    alternativeTo: z.string().refine(id => !!parseCatalogItemId(id), 'alternativeTo must be a catalog id such as mcp/elevenlabs-connector').optional(),
   })
   .refine(item => !item.madeBy || item.install?.source || item.href, {
     message: 'an item made by others needs install.source (or an href to its page)',

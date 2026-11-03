@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
-import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type CatalogVideo, type ItemUse } from '@/lib/catalog';
+import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, mcpRunsOf, slugOf, toCard, toEntry, type CatalogEntry, type CatalogVideo, type McpRuns, type UseShown } from '@/lib/catalog';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
 import { accessRequestsDB, catalogArchiveDB, catalogVideosDB } from '@/lib/catalog/store';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
+import { OldBadge, RunsBadges } from '@/components/catalog/runs';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
 import { AccessActions, RedeemInvite } from './access-actions';
 
@@ -33,7 +34,10 @@ export default async function AccessPage({
   let releases: Release[] = [];
   let installable = false;
   let hasPackage = false;
-  let uses: (ItemUse & { title?: string; href?: string })[] = [];
+  let uses: UseShown[] = [];
+  let runs: McpRuns[] = [];
+  // the item to use first when this one is an old alternative, named and linked when this viewer can open it
+  let preferred: { id: string; title?: string; href?: string } | undefined;
   let archived = false;
   let pending = false;
   let directoryUrl: string | undefined;
@@ -57,14 +61,25 @@ export default async function AccessPage({
         installable = isInstallable(record);
         directoryUrl = directoryUrlOf(record.install?.source);
         hasPackage = record.versions.length > 0;
-        // what it works with, named and linked when this viewer can open it
+        runs = mcpRunsOf(record);
+        // what it works with, named and linked when this viewer can open it, with where each one runs
         uses = await Promise.all(
           (record.install?.uses ?? []).map(async use => {
             const used = await getCatalogRecord(use.id);
-            const open = used && accessLevel(entitlements, used) !== 'locked';
-            return open ? { ...use, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` } : use;
+            if (!used) return use;
+            const shown = { ...use, runs: mcpRunsOf(used), alternativeTo: used.alternativeTo };
+            return accessLevel(entitlements, used) !== 'locked'
+              ? { ...shown, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` }
+              : shown;
           }),
         );
+        if (record.alternativeTo) {
+          const first = await getCatalogRecord(record.alternativeTo);
+          preferred =
+            first && accessLevel(entitlements, first) !== 'locked'
+              ? { id: first.id, title: first.title, href: `/access?item=${encodeURIComponent(first.id)}` }
+              : { id: record.alternativeTo };
+        }
       }
       if (item?.access === 'locked' && viewer.clientId) {
         pending = (await accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => [])).includes(record.id);
@@ -99,7 +114,9 @@ export default async function AccessPage({
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">{item.kind}</Badge>
+                <Badge variant="outline" className={item.kind === 'mcp' ? 'uppercase' : 'capitalize'}>{item.kind}</Badge>
+                <RunsBadges runs={runs} />
+                {preferred && <OldBadge to={preferred.title ?? slugOf(preferred.id)} />}
                 {item.visibility !== 'public' && (
                   <Badge variant="secondary">{item.visibility === 'network' ? 'Community' : 'Private'}</Badge>
                 )}
@@ -117,6 +134,19 @@ export default async function AccessPage({
               <CardTitle className="text-2xl">{item.title}</CardTitle>
               {item.summary && <CardDescription>{item.summary}</CardDescription>}
               {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+              {preferred && (
+                <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                  <span className="font-medium">Old, an alternative only.</span> Use{' '}
+                  {preferred.href ? (
+                    <Link href={preferred.href} className="font-medium underline underline-offset-2">
+                      {preferred.title}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{slugOf(preferred.id)}</span>
+                  )}{' '}
+                  first; add this one only for what that one can&apos;t do.
+                </p>
+              )}
               {directoryUrl && (
                 <p className="text-xs text-muted-foreground">
                   In Claude&apos;s connector directory:{' '}
