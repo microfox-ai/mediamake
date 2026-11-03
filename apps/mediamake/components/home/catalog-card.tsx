@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { watchPath } from '@/lib/catalog/video';
 import { MadeByLine, UsesLine } from '@/components/catalog/uses';
 import { VideoThumb } from '@/components/catalog/video';
@@ -28,18 +29,18 @@ const statusLabel: Record<CatalogEntry['status'], string> = {
 
 export function CatalogCard({ card }: { card: CatalogEntry }) {
   const locked = card.access === 'locked';
-  // Locked cards lead to the request-access / redeem-invite page; a skill to
-  // its own page; a card with a video to where it plays (a course's page, else the item's page; an app
-  // still opens itself); and installable ones without a page of their own to
-  // their install page.
+  // Locked cards lead to the request-access / redeem-invite page; a skill, an
+  // MCP or an app to its own page (which plays its intro video and opens or
+  // installs it); a tutorial or course to where it plays; and anything else
+  // installable to its install page.
   const accessHref = `/access?item=${encodeURIComponent(card.id)}`;
   const href = locked
     ? accessHref
-    : card.kind === 'skill' && card.href
-      ? card.href // a skill's own page plays its intro too
-      : card.kind === 'course' || (card.video && card.kind !== 'app')
-      ? watchPath(card.id)
-      : (card.href ?? (card.installPrompt ? accessHref : undefined));
+    : card.kind === 'skill' || card.kind === 'mcp' || card.kind === 'app'
+      ? itemPagePath(card.id)
+      : card.kind === 'course' || card.video
+        ? watchPath(card.id)
+        : (card.href ?? (card.installPrompt ? accessHref : undefined));
   // a skill always shows a picture on top: its thumbnail, else its title on its own colour
   const showThumb = !!card.video?.thumbnail || card.kind === 'skill';
 
