@@ -179,8 +179,8 @@ export function InstallPrompt({
             ? 'Sign in first if MediaMake shared MCPs with you: the copy then carries an install code, so Claude can add them too.'
             : ''}
       </p>
-      <div className="flex gap-2">
-        <code className="flex-1 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>
+      <div className="flex flex-wrap gap-2">
+        <code className="min-w-0 flex-1 basis-56 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>
         <Button
           variant="secondary"
           onClick={async () => {

@@ -7,7 +7,7 @@ import { OldBadge, RunsBadges } from './runs';
 /**
  * What a catalog item works with (its `uses`, e.g. a skill's MCPs) and who
  * makes an item we list but don't build (`madeBy`): on the install page,
- * the homepage cards and /skills.
+ * the homepage cards and the skill pages (/skills/<name>).
  */
 
 export const NEED_LABEL: Record<UseNeed, string> = {

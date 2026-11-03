@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CatalogEntry, CatalogKind } from '@/lib/catalog/types';
 import { CatalogCard } from './catalog-card';
+import { SKILL_FILTER_PARAMS, type SkillCategoryInfo, type SkillFacet, type SkillFilters } from './skill-filters';
+import { SkillsTab } from './skills-tab';
 import { homeTabs, type HomeTab } from './tabs';
 
 const MEDIAMAKE_REPO = 'https://github.com/microfox-ai/mediamake';
@@ -17,10 +19,13 @@ export function HomePage({
   cards,
   initialTab,
   signedIn,
+  skills,
 }: {
   cards: CatalogEntry[];
   initialTab: HomeTab;
   signedIn: boolean;
+  /** What the Skills tab searches and filters by (see SkillsTab). */
+  skills: { facets: Record<string, SkillFacet>; categories: SkillCategoryInfo[]; initial: SkillFilters };
 }) {
   const [tab, setTab] = useState<HomeTab>(initialTab);
   const active = homeTabs.find((t) => t.value === tab)!;
@@ -30,8 +35,16 @@ export function HomePage({
     const url = new URL(window.location.href);
     if (value === 'home') url.searchParams.delete('tab');
     else url.searchParams.set('tab', value);
+    // the Skills tab's search and filters belong to it
+    if (value !== 'skills') for (const key of SKILL_FILTER_PARAMS) url.searchParams.delete(key);
     window.history.replaceState(null, '', url);
   };
+
+  // an old /skills#<name> link lands here with its fragment: open that skill's page
+  useEffect(() => {
+    const name = decodeURIComponent(window.location.hash.slice(1));
+    if (name && cards.some((c) => c.id === `skill/${name}`)) window.location.replace(`/skills/${encodeURIComponent(name)}`);
+  }, [cards]);
 
   // every skill in the repo is a card (always public, never released through a gate): they have
   // their own tab, so Latest releases stays the apps, MCPs and tutorials. Archived items stay
@@ -91,10 +104,14 @@ export function HomePage({
         )}
 
         <section className={cn('pb-16', tab !== 'home' && 'pt-10')}>
-          <h2 className="mb-4 text-sm font-medium text-muted-foreground">
-            {tab === 'home' ? 'Latest releases' : active.label}
-          </h2>
-          {visible.length > 0 ? (
+          {tab !== 'skills' && (
+            <h2 className="mb-4 text-sm font-medium text-muted-foreground">
+              {tab === 'home' ? 'Latest releases' : active.label}
+            </h2>
+          )}
+          {tab === 'skills' ? (
+            <SkillsTab cards={cards.filter((c) => c.kind === 'skill')} {...skills} />
+          ) : visible.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((card) => (
                 <CatalogCard key={card.id} card={card} />

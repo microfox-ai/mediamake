@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { CrudHash } from '@microfox/db-upstash';
 import { Redis } from '@upstash/redis';
@@ -377,6 +378,7 @@ export async function POST(req: NextRequest) {
       if (unknown.length) return NextResponse.json({ error: `Unknown item${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}` }, { status: 404 });
       const archived = body.archived !== false;
       await catalogArchiveDB.set(ids, archived, adminId, body.note?.trim() || undefined);
+      refreshSkillPages(ids);
       return NextResponse.json({ archived, itemIds: ids });
     }
 
@@ -387,11 +389,13 @@ export async function POST(req: NextRequest) {
       if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
       if (body.video === null) {
         await catalogVideosDB.remove(item.id);
+        refreshSkillPages([item.id]);
         return NextResponse.json({ video: null });
       }
       const checked = await checkVideo(item.kind, body.video);
       if ('error' in checked) return bad(checked.error);
       const video = await catalogVideosDB.set({ id: item.id, ...checked.video }, adminId);
+      refreshSkillPages([item.id]);
       // a tutorial or course is its video: its card says what the video says
       if (stored && VIDEO_KINDS.includes(item.kind)) {
         await catalogItemsDB.setWords(item.id, { title: video.title, summary: summaryFrom(video.description) });
@@ -572,4 +576,9 @@ export async function POST(req: NextRequest) {
     default:
       return bad(`Unknown type ${body.type}`);
   }
+}
+
+/** A skill's page is cached for a few minutes: show a new intro video or archive mark at once. */
+function refreshSkillPages(ids: string[]) {
+  for (const id of ids) if (id.startsWith('skill/')) revalidatePath(`/skills/${id.slice('skill/'.length)}`);
 }
