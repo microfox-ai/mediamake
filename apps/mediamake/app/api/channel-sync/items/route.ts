@@ -41,7 +41,7 @@ function cleanSkill(data: unknown): { files: { path: string; text: string }[] } 
   return bytes <= MAX_SKILL_BYTES && out.some(f => f.path === 'SKILL.md') ? { files: out } : null;
 }
 
-// GET /api/channel-sync/items?projectId=...&what=production|skill|media - what the channel's team shares
+// GET /api/channel-sync/items?projectId=...&what=production|skill|media [&files=1: media with a shared file only] - what the channel's team shares
 export async function GET(request: NextRequest) {
   const projectId = request.nextUrl.searchParams.get('projectId');
   const what = request.nextUrl.searchParams.get('what') as SyncWhat | null;
@@ -51,8 +51,9 @@ export async function GET(request: NextRequest) {
     const access = await channelSyncAccess(db, projectId, clientId, 'read');
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     if (!what || !SYNC_WHATS.includes(what)) return NextResponse.json({ error: `what is one of ${SYNC_WHATS.join(', ')}` }, { status: 400 });
-    const docs = await syncItems(db).find({ projectId: projectId!, what }).sort({ key: 1 }).toArray();
     const links = what === 'media' ? await sharedLinks(db, projectId!) : new Map();
+    const onlyFiles = what === 'media' && request.nextUrl.searchParams.get('files') === '1';
+    const docs = (await syncItems(db).find({ projectId: projectId!, what }).sort({ key: 1 }).toArray()).filter(d => !onlyFiles || links.has(d.key));
     const items: SyncItem[] = docs.map(d => ({
       key: d.key,
       hash: d.hash,

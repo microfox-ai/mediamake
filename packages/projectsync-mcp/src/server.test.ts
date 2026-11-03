@@ -17,6 +17,7 @@ const TOOLS = [
   'list_productions', 'get_production', 'create_production', 'update_production', 'delete_production',
   'list_releases', 'get_release', 'create_release', 'update_release', 'delete_release',
   'list_media', 'search_media', 'get_media', 'upload_media', 'delete_media',
+  'list_shared_assets', 'download_shared_assets', 'share_assets', 'unshare_assets', 'set_shared_limit',
 ];
 
 async function connect(baseUrl = 'http://ps.test') {
@@ -206,5 +207,186 @@ describe('list_projects', () => {
     expect(all).toMatchObject({ total: 2, projects: [{ id: 'p1', role: 'owner' }, { id: 'p2', role: 'editor' }] });
     const found = text(await client.callTool({ name: 'list_projects', arguments: { search: 'Portal' } }));
     expect(found).toMatchObject({ pagination: { total: 1 }, projects: [{ name: 'Portal', role: 'editor' }] });
+  });
+});
+
+describe('shared assets against a stand-in MediaMake', () => {
+  const MB = 1_000_000;
+  let http: Server;
+  let base: string;
+  const stored = new Map<string, Buffer>();
+  const details = new Map<string, Record<string, unknown>>();
+  let files: { sha256: string; size: number; state: 'uploading' | 'shared' | 'withdrawn'; url: string; fileName: string; contentType: string }[] = [];
+  const seen: { method: string; path: string; body?: any; headers?: Record<string, unknown>; query?: Record<string, string> }[] = [];
+  let limitBytes = 100 * MB;
+  const used = () => files.filter(f => f.state === 'shared').reduce((n, f) => n + f.size, 0);
+
+  beforeEach(async () => {
+    stored.clear();
+    details.clear();
+    files = [];
+    seen.length = 0;
+    limitBytes = 100 * MB;
+    http = createHttpServer(async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      const raw = Buffer.concat(chunks);
+      const url = new URL(req.url!, base);
+      const reply = (status: number, data: unknown) => {
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+      };
+      if (url.pathname.startsWith('/storage/')) {
+        seen.push({ method: req.method!, path: url.pathname, headers: req.headers });
+        if (req.method === 'PUT') {
+          if (req.headers['x-amz-acl'] !== 'public-read') return reply(403, { error: 'signed public-read' });
+          stored.set(url.pathname, raw);
+          return void res.end();
+        }
+        const body = stored.get(url.pathname);
+        if (!body) return reply(404, { error: 'NoSuchKey' });
+        res.writeHead(200, { 'Content-Length': body.length });
+        return void res.end(body);
+      }
+      const body = raw.length ? JSON.parse(raw.toString()) : undefined;
+      const query = Object.fromEntries(url.searchParams);
+      seen.push({ method: req.method!, path: url.pathname, body, headers: req.headers, query });
+      const projectId = query.projectId ?? body?.projectId;
+      if (projectId !== 'proj') return reply(404, { error: 'Project not found' });
+      if (url.pathname === '/api/channel-sync') {
+        if (req.method === 'PUT') {
+          limitBytes = Math.round(body.limitMb * MB);
+          return reply(200, { projectId, limitBytes });
+        }
+        return reply(200, { project: { id: projectId, name: 'Overlays', role: 'editor' }, limitBytes, usedBytes: used(), counts: { production: 0, skill: 0, media: details.size, files: files.filter(f => f.state === 'shared').length } });
+      }
+      if (url.pathname === '/api/channel-sync/items') {
+        if (req.method === 'PUT') {
+          for (const it of body.items) details.set(it.key, it.data);
+          return reply(200, { projectId, what: 'media', saved: body.items.map((i: { key: string }) => i.key), same: [], conflicts: [] });
+        }
+        const items = [...details.entries()]
+          .map(([key, data]) => {
+            const f = files.find(x => x.sha256 === key && x.state === 'shared');
+            return { key, hash: key, data, mine: true, ...(f ? { file: { url: f.url, size: f.size, fileName: f.fileName, contentType: f.contentType } } : {}) };
+          })
+          .filter(i => query.files !== '1' || i.file);
+        return reply(200, { projectId, what: 'media', role: 'editor', items });
+      }
+      if (url.pathname === '/api/channel-sync/files') {
+        if (req.method === 'POST') {
+          const uploads = [];
+          const already = [];
+          const refused = [];
+          let use = used();
+          for (const f of body.files as { sha256: string; size: number; fileName: string; contentType: string }[]) {
+            if (files.some(x => x.sha256 === f.sha256 && x.state === 'shared')) {
+              already.push(f.sha256);
+              continue;
+            }
+            if (use + f.size > limitBytes) {
+              refused.push({ sha256: f.sha256, reason: `over the channel's limit (${Math.round(use / MB)} of ${Math.round(limitBytes / MB)} MB used, this is 1 MB)` });
+              continue;
+            }
+            use += f.size;
+            const u = `${base}/storage/${f.sha256.slice(0, 12)}-${f.fileName}`;
+            files = files.filter(x => x.sha256 !== f.sha256);
+            files.push({ sha256: f.sha256, size: f.size, state: 'uploading', url: u, fileName: f.fileName, contentType: f.contentType });
+            uploads.push({ sha256: f.sha256, uploadUrl: u, url: u, contentType: f.contentType });
+          }
+          return reply(200, { projectId, uploads, already, refused, usedBytes: use, limitBytes });
+        }
+        if (req.method === 'PUT') {
+          const shared = [];
+          const failed = [];
+          for (const sha of body.sha256 as string[]) {
+            const f = files.find(x => x.sha256 === sha && x.state === 'uploading');
+            if (f && stored.get(new URL(f.url).pathname)?.length === f.size) {
+              f.state = 'shared';
+              shared.push(sha);
+            } else failed.push({ sha256: sha, reason: 'not found in storage' });
+          }
+          return reply(200, { projectId, shared, failed, usedBytes: used(), limitBytes });
+        }
+        const gone = query.sha256.split(',');
+        for (const f of files) if (gone.includes(f.sha256)) f.state = 'withdrawn';
+        return reply(200, { projectId, withdrawn: gone });
+      }
+      reply(404, { error: `no route ${req.method} ${url.pathname}` });
+    });
+    await new Promise<void>(done => http.listen(0, '127.0.0.1', done));
+    base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+  });
+  afterEach(async () => {
+    await new Promise(done => http.close(done));
+  });
+
+  it('shares files with their details (a dry run first), lists them, downloads them checked with a source sidecar, and stops sharing', async () => {
+    await project({ 'overlays/light-leak.mp4': 'leak-bytes', 'overlays/grain.mp4': 'grain' });
+    const client = await connect(base);
+    const paths = [join(dir, 'overlays/light-leak.mp4'), join(dir, 'overlays/grain.mp4')];
+    const args = { projectId: 'proj', filePaths: paths, kind: 'overlays', subject: 'light-leaks', tags: ['warm'] };
+
+    const dry = text(await client.callTool({ name: 'share_assets', arguments: { ...args, dryRun: true } }));
+    expect(dry.dryRun).toBe(true);
+    expect(dry.upload.map((u: { name: string }) => u.name).sort()).toEqual(['grain.mp4', 'light-leak.mp4']);
+    expect(dry.limit).toEqual({ usedMb: 0, limitMb: 100, freeMb: 100 });
+    expect(seen.filter(s => s.method !== 'GET')).toHaveLength(0);
+
+    const done = text(await client.callTool({ name: 'share_assets', arguments: args }));
+    expect(done.shared.map((s: { name: string }) => s.name).sort()).toEqual(['grain.mp4', 'light-leak.mp4']);
+    expect(done.failed).toEqual([]);
+    const det = seen.find(s => s.path === '/api/channel-sync/items' && s.method === 'PUT')!;
+    expect(det.body.items.find((i: { key: string }) => i.key === sha('grain')).data).toMatchObject({ sha256: sha('grain'), kind: 'overlays', subject: 'light-leaks', title: 'grain', tags: ['warm'], bytes: 5 });
+    const put = seen.find(s => s.path.startsWith('/storage/') && s.method === 'PUT')!;
+    expect(put.headers?.['x-amz-acl']).toBe('public-read');
+    expect(stored.get(`/storage/${sha('grain').slice(0, 12)}-grain.mp4`)?.toString()).toBe('grain');
+    // the details and the file went up in that order, then the confirmation
+    const order = seen.filter(s => s.method !== 'GET').map(s => `${s.method} ${s.path.replace(/\/storage\/.*/, '/storage')}`);
+    expect(order).toEqual(['PUT /api/channel-sync/items', 'POST /api/channel-sync/files', 'PUT /storage', 'PUT /storage', 'PUT /api/channel-sync/files']);
+
+    const again = text(await client.callTool({ name: 'share_assets', arguments: args }));
+    expect(again.shared).toEqual([]);
+    expect(again.already).toHaveLength(2);
+
+    const list = text(await client.callTool({ name: 'list_shared_assets', arguments: { projectId: 'proj' } }));
+    expect(list.total).toBe(2);
+    expect(list.assets.find((a: { sha256: string }) => a.sha256 === sha('grain'))).toMatchObject({ kind: 'overlays', title: 'grain', subject: 'light-leaks', fileName: 'grain.mp4', bytes: 5 });
+    const found = text(await client.callTool({ name: 'list_shared_assets', arguments: { projectId: 'proj', query: 'grain' } }));
+    expect(found.assets.map((a: { fileName: string }) => a.fileName)).toEqual(['grain.mp4']);
+    expect(text(await client.callTool({ name: 'list_shared_assets', arguments: { projectId: 'proj', kind: 'footage' } })).total).toBe(0);
+
+    const saveTo = join(dir, 'pulled');
+    const dl = text(await client.callTool({ name: 'download_shared_assets', arguments: { projectId: 'proj', saveTo, sha256: [sha('grain')] } }));
+    expect(dl.saved).toHaveLength(1);
+    expect(await readFile(join(saveTo, 'grain.mp4'), 'utf8')).toBe('grain');
+    expect(JSON.parse(await readFile(join(saveTo, 'grain.mp4.source.json'), 'utf8'))).toMatchObject({ schema: 'mediamake.source/v1', tool: 'mediamake-sync', ref: sha('grain'), channel: 'proj', library: { kind: 'overlays', subject: 'light-leaks', tags: ['warm'] } });
+    const twice = text(await client.callTool({ name: 'download_shared_assets', arguments: { projectId: 'proj', saveTo } }));
+    expect(twice.already).toHaveLength(1);
+    expect(twice.saved.map((s: { savedTo: string }) => s.savedTo)).toEqual([join(saveTo, 'light-leak.mp4')]);
+    // a stored copy that doesn't match its sha256 is refused and not kept
+    stored.set(`/storage/${sha('leak-bytes').slice(0, 12)}-light-leak.mp4`, Buffer.from('tampered'));
+    await rm(join(saveTo, 'light-leak.mp4'));
+    const bad = text(await client.callTool({ name: 'download_shared_assets', arguments: { projectId: 'proj', saveTo, sha256: [sha('leak-bytes')] } }));
+    expect(bad.failed[0].reason).toMatch(/sha256/);
+    expect(await readFile(join(saveTo, 'light-leak.mp4'), 'utf8').catch(() => 'gone')).toBe('gone');
+    expect(text(await client.callTool({ name: 'download_shared_assets', arguments: { projectId: 'proj', saveTo, sha256: [sha('nothing')] } })).missing).toEqual([sha('nothing')]);
+
+    expect(text(await client.callTool({ name: 'unshare_assets', arguments: { projectId: 'proj', sha256: [sha('grain')] } })).withdrawn).toEqual([sha('grain')]);
+    expect(text(await client.callTool({ name: 'list_shared_assets', arguments: { projectId: 'proj' } })).total).toBe(1);
+  });
+
+  it("refuses what doesn't fit the limit, which the owner raises", async () => {
+    await project({ 'big.mp4': 'twelve bytes', 'small.mp4': 'ok' });
+    const client = await connect(base);
+    limitBytes = 10;
+    const dry = text(await client.callTool({ name: 'share_assets', arguments: { projectId: 'proj', filePaths: [join(dir, 'big.mp4')], dryRun: true } }));
+    expect(dry.overLimit).toMatch(/set_shared_limit/);
+    expect(dry.upload[0].kind).toBe('footage');
+    const r = text(await client.callTool({ name: 'share_assets', arguments: { projectId: 'proj', filePaths: [join(dir, 'big.mp4'), join(dir, 'small.mp4')] } }));
+    expect(r.refused).toEqual([{ name: 'big.mp4', sha256: sha('twelve bytes'), reason: expect.stringMatching(/limit/) }]);
+    expect(r.shared.map((s: { name: string }) => s.name)).toEqual(['small.mp4']);
+    expect(text(await client.callTool({ name: 'set_shared_limit', arguments: { projectId: 'proj', limitMb: 250 } })).limitMb).toBe(250);
+    expect(seen.find(s => s.path === '/api/channel-sync' && s.method === 'PUT')?.body).toEqual({ projectId: 'proj', limitMb: 250 });
   });
 });
