@@ -49,17 +49,17 @@ away about any that is missing and what it costs. A **required** one has no subs
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | The voice-over in the brand voice (`creative_generate_speech`, the voice from `creative_list_voices`) and new sound effects (`creative_generate_in_flow`, `node_type: sfx`) | `mcp/elevenlabs` instead, when it is installed; with neither, no episode: the series voice can't be replaced with another voice |
-| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: the same voice and sound effects as files on the computer (`text_to_speech`, `text_to_sound_effects`) | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | required | The voice-over in the brand voice and new sound effects, as files on the computer (`text_to_speech`, `text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; with neither, no episode: the series voice can't be replaced with another voice |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): the same voice and sound effects as flow runs to download (`creative_generate_speech` with the voice from `creative_list_voices`, `creative_generate_in_flow` with `node_type: sfx`) | Nothing, while the ElevenLabs MCP is installed |
 
 Everything else (Remotion, three.js, ffmpeg, whisper in `apps/lyrics_videos/analysis/.venv`, the
 media library, the built-in browser for Pexels) runs locally. To check, look for the tools named
 above: `mcp__<name>__<tool>` in Claude Code; a connector added in the Claude app has a random prefix,
-so match on the tool's name. If they are only deferred, load them with ToolSearch. The ElevenLabs
-connector comes first; the archived local `mcp/elevenlabs` is only the fallback, so don't ask for it
-while the connector works. If neither is there, say so before starting and offer the connector's
-MediaMake install prompt ("Set up mcp/elevenlabs-connector from MediaMake by following
-https://github.com/microfox-ai/mediamake/blob/main/install.md").
+so match on the tool's name. If they are only deferred, load them with ToolSearch. The local ElevenLabs
+MCP comes first (an API key, its takes land as files); the hosted connector is only the alternative
+where no local MCP runs, so don't ask for it while the MCP works. If neither is there, say so before
+starting and offer the MCP's MediaMake install prompt ("Set up mcp/elevenlabs from MediaMake by
+following https://github.com/microfox-ai/mediamake/blob/main/install.md").
 
 ## Intake (one round)
 
@@ -105,8 +105,8 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
 - **Reads:** one take per stretch, sentences separated with `<break time="0.5–1.0s" />`, written to
   land roughly on the picture's beats. A single added word is recorded in context ("Look. <break/>
   Pick.") and cut out, so its tone matches its neighbours.
-- **Recording:** with the connector, download each take from its run into the folders below; the
-  local MCP (the fallback) can't write to `~/Downloads` either. Record into
+- **Recording:** the local MCP writes each take as a file (not into `~/Downloads`); with the connector
+  (the web alternative) download each take from its run into the folders below. Record into
   `projects/<slug>/input/vo-rN/raw/<line>-<take>/` (one folder per take: same-second takes overwrite
   each other), then move every take to `~/Downloads/_INBOX/elevenlabs/<set>/` with a
   `<file>.source.json` (text, voice, model, settings, characters). The library's watcher may file
@@ -327,3 +327,4 @@ in this skill's draft, `make-skill-intro-video`, over episode 1's build and four
 - 2026-11-03 · ep. 1 Short · "also create a vertical thumbnail for the short" + "keep it simple same as the video one" → the Short's thumbnail is the episode's picked design recast for 9:16, not a new concept.
 - 2026-11-03 · ep. 1 · "summarise everything we did in the video, and update the linked skill" → `reference/ep01.md` (the episode from brief to upload) and the publishing stage in this skill.
 - 2026-11-03 · skill · "pack-brand-kit and make-cwc-tutorial still list the now-archived ElevenLabs MCP as required. tell that it is optional, in case hosted elvenlabs in unconnectable ( fallback basically )" → the hosted ElevenLabs connector (`mcp/elevenlabs-connector`) is the required MCP and makes the sound effects (`creative_generate_in_flow`, `node_type: sfx`) and the voice-over (`creative_generate_speech`); the archived local `mcp/elevenlabs` is optional, the fallback when the connector can't be connected or reached.
+- 2026-11-04 · skill · "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid widget … old elevenlabs mcp with api key setup is much cleaner" → flipped back: the local `mcp/elevenlabs` is the required MCP (voice and sound effects as files); the hosted connector is only the alternative where no local MCP runs (the Claude web or phone app).

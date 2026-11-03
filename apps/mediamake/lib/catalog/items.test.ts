@@ -34,13 +34,14 @@ describe('third-party.json', () => {
 
   it('points an old alternative at an item the catalog has, which is not old itself', () => {
     const old = items.filter(i => i.alternativeTo);
-    assert.ok(old.length > 0);
     for (const item of old) {
       const first = staticRecord(item.alternativeTo!);
       assert.ok(first, `${item.id} is an alternative to ${item.alternativeTo}, which the catalog has`);
       assert.ok(!first.alternativeTo, `${item.alternativeTo} is not an old alternative itself`);
     }
-    assert.equal(staticRecord('mcp/elevenlabs')?.alternativeTo, 'mcp/elevenlabs-connector');
+    // the ElevenLabs MCP comes first on a computer; the connector is its alternative on the web, not an old way of it
+    assert.equal(staticRecord('mcp/elevenlabs')?.alternativeTo, undefined);
+    assert.equal(staticRecord('mcp/elevenlabs-connector')?.alternativeTo, undefined);
   });
 
   it('says where each MCP runs: a hosted connector on the web, a local server or a bundle on the computer', () => {
@@ -55,13 +56,14 @@ describe('third-party.json', () => {
 
   it("gives every MCP a health: an admin's mark, else the repo's default, else healthy", () => {
     const elevenlabs = staticRecord('mcp/elevenlabs')!;
-    assert.equal(elevenlabs.title, 'ElevenLabs (Archived)');
-    assert.equal(elevenlabs.health, 'archived');
+    assert.equal(elevenlabs.title, 'ElevenLabs');
+    assert.equal(elevenlabs.health, undefined);
     for (const item of items) if (item.health) assert.ok(MCP_HEALTH.includes(item.health), `${item.id}: ${item.health} is a health`);
 
     const connector = staticRecord('mcp/elevenlabs-connector')!;
+    const archivedByRepo = { ...elevenlabs, id: 'mcp/old', health: 'archived' as const };
     const skill = { id: 'skill/x', kind: 'skill' as const };
-    const [archived, healthy, broken, untouched] = withHealth([elevenlabs, connector, { ...connector, id: 'mcp/fal' }, skill], [
+    const [archived, healthy, broken, untouched] = withHealth([archivedByRepo, connector, { ...connector, id: 'mcp/fal' }, skill], [
       { id: 'mcp/fal', health: 'not-working', note: 'its API changed', at: '2026-11-03' },
     ]);
     assert.equal(archived.health, 'archived');
@@ -69,7 +71,8 @@ describe('third-party.json', () => {
     assert.deepEqual([broken.health, broken.healthNote], ['not-working', 'its API changed']);
     assert.equal('health' in untouched, false);
     // a mark beats the repo's default
-    assert.equal(withHealth([elevenlabs], [{ id: 'mcp/elevenlabs', health: 'healthy', at: '2026-11-03' }])[0].health, 'healthy');
+    assert.equal(withHealth([archivedByRepo], [{ id: 'mcp/old', health: 'healthy', at: '2026-11-03' }])[0].health, 'healthy');
+    assert.equal(withHealth([elevenlabs], [])[0].health, 'healthy');
   });
 
   it('has an update prompt the update skill knows', () => {
@@ -100,8 +103,8 @@ describe('registry skills', () => {
     assert.deepEqual(
       skill.install?.uses?.map(u => [u.id, u.need]),
       [
-        ['mcp/elevenlabs-connector', 'required'],
-        ['mcp/elevenlabs', 'optional'],
+        ['mcp/elevenlabs', 'required'],
+        ['mcp/elevenlabs-connector', 'optional'],
         ['mcp/browse-hack', 'recommended'],
         ['mcp/fal', 'optional'],
       ],
@@ -114,7 +117,7 @@ describe('registry skills', () => {
     assert.deepEqual(skill.install?.requires, []);
   });
 
-  it('plans pack-brand-kit from the repo alone: the ElevenLabs connector, its local fallback and fal as choices, Browse Hack only from the database', async () => {
+  it('plans pack-brand-kit from the repo alone: the ElevenLabs MCP, its hosted alternative and fal as choices, Browse Hack only from the database', async () => {
     const plan = await planInstall('skill/pack-brand-kit', {
       getRecord: async id => staticRecord(id),
       canOpen: () => true,
@@ -128,9 +131,9 @@ describe('registry skills', () => {
     assert.deepEqual(
       plan.choices.map(c => [c.id, c.available]),
       [
-        ['mcp/elevenlabs-connector', true],
-        ['mcp/browse-hack', false],
         ['mcp/elevenlabs', true],
+        ['mcp/browse-hack', false],
+        ['mcp/elevenlabs-connector', true],
         ['mcp/fal', true],
       ],
     );
@@ -148,7 +151,7 @@ describe('registry skills', () => {
     assert.equal(directoryUrlOf(source), undefined);
   });
 
-  it("offers the shorts skill ElevenLabs' connector from Claude's directory, not the MediaMake MCP", async () => {
+  it("offers the shorts skill the ElevenLabs MCP first and ElevenLabs' connector from Claude's directory as the alternative, not the MediaMake MCP", async () => {
     const connector = staticRecord('mcp/elevenlabs-connector')!;
     assert.equal(directoryUrlOf(connector.install?.source), 'https://claude.ai/directory/elevenlabs');
     const plan = await planInstall('skill/make-lyrics-shorts-summerstyle-boldwords', {
@@ -158,8 +161,9 @@ describe('registry skills', () => {
     });
     assert.ok(plan.ok);
     if (!plan.ok) return;
+    assert.equal(plan.choices.find(c => c.id === 'mcp/elevenlabs')?.need, 'required');
     const choice = plan.choices.find(c => c.id === 'mcp/elevenlabs-connector');
-    assert.equal(choice?.need, 'required');
+    assert.equal(choice?.need, 'optional');
     assert.ok(choice?.available);
     assert.ok(!plan.choices.some(c => c.id === 'mcp/mediamake'));
   });

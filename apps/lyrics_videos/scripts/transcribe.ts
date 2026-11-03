@@ -10,9 +10,10 @@
  * there are some, else makes the MP3 to send (a WAV, FLAC or AIFF stem or a video becomes a 128 kb/s
  * mono MP3, a tenth of the upload or less; the encoder's padding is marked in the file, so no word
  * moves) and prints its price. Then, after the user said yes to the price:
- *   - the ElevenLabs connector, first choice: its creative_transcribe_audio on that MP3 (picked in its
- *     file picker), then --save=<the words JSON it gave> keeps them here and in the cache;
- *   - without the connector: --yes sends the MP3 to Scribe with the ElevenLabs MCP's key (elevenlabs.ts).
+ *   - first choice: --yes sends the MP3 to Scribe with the local ElevenLabs MCP's key (elevenlabs.ts), no widget;
+ *   - only where no local MCP runs (the Claude web or phone app), the hosted ElevenLabs connector: its
+ *     creative_transcribe_audio on that MP3 (picked in its file picker widget), then --save=<the words JSON
+ *     it gave> keeps them here and in the cache.
  *   --mix      a project's whole song instead of its vocal stem
  *   --lang     the language's code (en, hi, te, ja…); Scribe detects it when left out
  *   --letters  every letter's time as well (timestamps_granularity=character)
@@ -196,8 +197,8 @@ if (!has('yes')) {
   console.log(`  about ${Math.ceil((duration / 60) * CREDITS_PER_MINUTE)} credits (Scribe, ~${CREDITS_PER_MINUTE} a minute)${credits ? `; ${credits.left.toLocaleString('en')} of ${credits.limit.toLocaleString('en')} left this month` : ''}`);
   if (!lib) console.log('  not cached afterwards: the song is not in the media library');
   console.log('Nothing sent. Once the user says yes to the price:');
-  console.log(`  - with the ElevenLabs connector (first choice): creative_transcribe_audio on ${shown(upload)}, then --save=<its words JSON>`);
-  console.log(`  - without it: --yes sends it to Scribe with ${key ? `the ElevenLabs MCP's key (from ${key.from})` : 'the ElevenLabs MCP\'s key, which is not set up: run --yes to see how'}`);
+  console.log(`  - first choice: --yes sends it to Scribe with ${key ? `the ElevenLabs MCP's key (from ${key.from})` : 'the ElevenLabs MCP\'s key, which is not set up: run --yes to see how'}`);
+  console.log(`  - only on the Claude web or phone app: the ElevenLabs connector's creative_transcribe_audio on ${shown(upload)}, then --save=<its words JSON>`);
   process.exit(0);
 }
 

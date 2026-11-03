@@ -262,7 +262,7 @@ Sections, whatever the genre:
 
 1. **The song** (wav/flac preferred) and, if words will be shown, **its timed transcription**
    (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe it as CLAUDE.md ›
-   Transcription says (the ElevenLabs connector first, else `npm run transcribe … --yes`; paid: ask first).
+   Transcription says (`npm run transcribe … --yes` with the ElevenLabs MCP's key; the hosted connector only on the web; paid: ask first).
    No words at all: skip the text layer (an instrumental edit is untested end to end here — check
    that `prepare-project` accepts the project before relying on it).
 2. **Footage**: one or more videos (each its own source), ideally edits or highlight reels.
@@ -277,8 +277,8 @@ MCPs (check at intake which this session has):
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/browse-hack` | recommended | Downloading footage from YouTube into the library inbox and checking a clip's real size and HDR first (`youtube_download`, `youtube_get_video`) | The user downloads every clip and drops it in themselves |
-| `mcp/elevenlabs-connector` | optional | Timed lyrics when the user wants text and has no `lyrics.json` (`creative_transcribe_audio` on the vocal stem's MP3), and sound effects only when the user asks for them (`creative_generate_in_flow`, `node_type: sfx`) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
-| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key for `npm run transcribe --yes`, and sound effects (`text_to_sound_effects`, only when the user asks for them) | Nothing, while the connector is connected (it makes sound effects too, `creative_generate_in_flow` with `node_type: sfx`) |
+| `mcp/elevenlabs` | optional | Its API key for timed lyrics when the user wants text and has no `lyrics.json` (`npm run transcribe --yes`, Scribe on the vocal stem's MP3), and sound effects as files only when the user asks for them (`text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; else the user brings a timed `lyrics.json`, and no sound effects: the edit runs on the song alone |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save`; sound effects as flow runs to download (`creative_generate_in_flow`, `node_type: sfx`) | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -645,8 +645,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   holds n frames, so a 0.46 s take carries a full beat on a punch word), later moments of long takes, one
   deliberate callback, and in the last drop a flashback of the whole story from the unused ends of
   earlier takes (¼ beat each, so no frame repeats); better, ask for a third source as soon as the
-  budget falls short. The ElevenLabs connector's speech_to_text returns text only: for word timings
-  call the API itself (`/v1/speech-to-text`, `timestamps_granularity=word`).
+  budget falls short. The ElevenLabs MCP's speech_to_text returns text only: for word timings
+  `npm run transcribe … --yes` calls the API itself (`/v1/speech-to-text`, `timestamps_granularity=word`).
 - 2026-10-25 — hitixf1 after sign-off: "rerender video, by adding the atomic rap outro at the end … no
   need to add intro … reduce the volume of outro by a bit, as it sound too strong" → a finished edit
   gets the channel's end screen (brands/<brand>/outros/, the user picks which) appended after the last
@@ -893,3 +893,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
   `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
+- 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
+  widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
+  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
+  tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.

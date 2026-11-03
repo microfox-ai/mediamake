@@ -159,8 +159,9 @@ export interface CatalogItem {
   madeBy?: MadeBy;
   /**
    * An older way to do what another item does (that item's id): shown as Old,
-   * an alternative only, pointing to the one to use first. The ElevenLabs MCP
-   * is the hosted ElevenLabs connector's.
+   * an alternative only, pointing to the one to use first. (None today: the
+   * hosted ElevenLabs connector is the ElevenLabs MCP's alternative on the
+   * web, not an older way of it.)
    */
   alternativeTo?: string;
   /** How an MCP is doing (see McpHealth): the repo's default, an admin's mark wins (see withHealth). */

@@ -67,8 +67,8 @@ away about any that is missing and what it costs. A **required** one has no subs
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | Sound effects for intros, end screens and the brand sting (`creative_generate_in_flow` with `node_type: sfx`, model `eleven_text_to_sound_v2`; download each take from its run) | `mcp/elevenlabs` instead, when it is installed; with neither, no sound at all: the kit's scenes stay silent. Don't fake it with other audio |
-| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: the same sound effects as files on the computer (`text_to_sound_effects`) | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | required | Sound effects for intros, end screens and the brand sting, as files on the computer (`text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; with neither, no sound at all: the kit's scenes stay silent. Don't fake it with other audio |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): the same sound effects as flow runs to download (`creative_generate_in_flow` with `node_type: sfx`, model `eleven_text_to_sound_v2`) | Nothing, while the ElevenLabs MCP is installed |
 | `mcp/browse-hack` | recommended | Pinterest research boards (`pinterest_bulk_start`) and Midjourney logo concepts and artwork, in the user's Chrome | Research by hand in the browser and no Midjourney art: fal or the user's own pictures instead |
 | `mcp/fal` | optional | Nano Banana logo concepts that need exact lettering, and artwork when Midjourney isn't wanted (paid) | Concepts and art come from Midjourney or the user's own pictures |
 
@@ -76,9 +76,9 @@ Everything else (fonts from Google Fonts, glyphs, Remotion scenes, renders, the 
 export) runs locally and needs no MCP. To check, look for the tools named above:
 `mcp__<name>__<tool>` in Claude Code, while a connector added in the Claude app has a random
 prefix, so match on the tool's name. If they are only deferred, load them with ToolSearch
-("elevenlabs"), which also waits for servers that are still connecting. The ElevenLabs connector
-comes first; the archived local `mcp/elevenlabs` is only the fallback, so don't ask for it while the
-connector works. If one is missing, or the
+("elevenlabs"), which also waits for servers that are still connecting. The local ElevenLabs MCP
+comes first (an API key, its files land straight in the brand's folders); the hosted connector is only
+the alternative where no local MCP runs, so don't ask for it while the MCP works. If one is missing, or the
 user has no MCPs at all, say so **before starting**: what it blocks (its "Without it") and what it
 gives. Offer to install it from MediaMake ("Set up mcp/<name> from MediaMake by following
 https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
@@ -321,7 +321,7 @@ when the user has picked the intros, make "Make sound effects for them?" the tur
 message, and never skip it silently. It can be made **before or
 after** the picture, for either: audio first, then time the scene's hits to the moments the
 analysis finds in the sound; or picture first, then line the sound up with the scene's hits.
-Needs the ElevenLabs connector, or the local ElevenLabs MCP as its fallback (see "First: check the
+Needs the local ElevenLabs MCP, or the hosted ElevenLabs connector as its alternative (see "First: check the
 MCPs").
 Tools: `logoGraphics/tools/sfx.py <brand>` and `sync_check.py <brand>`, `logoGraphics/lib/Sfx.tsx`.
 Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "Sound" section of
@@ -354,7 +354,7 @@ Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "So
   soft bell as the logo lands.
 - `scripts/logos.ts` renders scene MP4s with audio; transparent logo renders stay silent.
 - Lessons from INVERTED Devils (reference: `brands/inverteddevils/graphics/parts/Sfx.tsx`, `sound/`):
-  - The local ElevenLabs MCP (the fallback) only writes into a folder that already exists: create one per sound first, then
+  - The local ElevenLabs MCP only writes into a folder that already exists: create one per sound first, then
     rename the files into `sound/raw/<name>.mp3`.
   - librosa's onset **lags ~0.1 s on files that start loud right away** (kicks, drops, a needle).
     Use the precise `attack` (first moment at 30% of the hit level, 1.5 ms resolution) for those,
@@ -606,3 +606,4 @@ Add entries at the bottom: date · brand · what they said → the rule.
 - 2026-11-02 · skill · "each skill might have dependency mcps for example brandkit requires elevenlabs for soundfx generation, browsehack for pinterest search etc.. and it should automatically guide user into installing the mcps as well and what avoiding an mcp install will lose" → "First: check the connectors" became "First: check the MCPs": one `| MCP | Need | Used for | Without it |` table (ElevenLabs required, Browse Hack recommended, fal optional) that `tools/skills.mjs` puts in skills.json, so installing the skill from MediaMake offers each MCP with what skipping it costs. When the skill runs and one is missing, say what it blocks and offer its MediaMake install prompt.
 - 2026-11-03 · Cook with Claude · "for the opener, create a vertical version and save it to brand kit" (the approved 14 s opener, voiced, every shot drawn for 1920×1080) → a 9:16 version is its own scene beside the 16:9 one (`<id>-vertical`, width/height on the scene, kit path `intros/vertical/<file>-9x16.mp4`, as The Moon Devs and Omkara name theirs), laid out again shot by shot, never cropped, and it imports the 16:9 scene's timing and sound files rather than copying them, so the two can't drift (checked: same loudness, soundtracks line up within 1 ms). Helpers hard-wired to the wide frame (layer, paper, grain) get tall twins in a small kit file that re-exports the rest. What re-laid well, approved first round: a strip of huge words → a column the camera runs down; one long line → three rows; a wide oval ring → an upright one; object beside its word → object above, word centred under it; a sideways stream → one scrolling up like a feed; the logo ~80 % of the width a little above the middle, clear of the Shorts captions and buttons. Re-cut footage from the library's originals (a 4K figure scaled so his head stays whole through the turn, the plain wall above extended by stretching its top rows, blurred, and the words typed on that wall); a 1.78× crop of HD footage only where it is soft anyway (fire). logos.ts renders full size only, so the half-size review cut went through a brand tool (`graphics/tools/review-render.ts`, with a shot map for Video Revision).
 - 2026-11-03 · skill · "pack-brand-kit and make-cwc-tutorial still list the now-archived ElevenLabs MCP as required. tell that it is optional, in case hosted elvenlabs in unconnectable ( fallback basically )" → the hosted ElevenLabs connector (`mcp/elevenlabs-connector`) is the required MCP and makes the sound effects (`creative_generate_in_flow`, `node_type: sfx`); the archived local `mcp/elevenlabs` is optional, the fallback when the connector can't be connected or reached.
+- 2026-11-04 · skill · "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid widget … old elevenlabs mcp with api key setup is much cleaner" → flipped back: the local `mcp/elevenlabs` is the required MCP (its sound effects land as files in the brand's folders); the hosted connector is only the alternative where no local MCP runs (the Claude web or phone app), its takes being flow runs to download.

@@ -82,10 +82,10 @@ MCPs (check at intake which this session has; transcription calls ElevenLabs' AP
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
 | `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
-| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for `npm run transcribe --yes` | Nothing, while the connector is connected |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -122,13 +122,14 @@ is paid: the first run only gives back the song's cached words or prints the pri
 
 ```bash
 npm run transcribe -w lyrics_videos -- <slug>                      # cached words, or the MP3 and the price
-npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # after the ElevenLabs connector (first choice)
-npm run transcribe -w lyrics_videos -- <slug> --yes                # no connector: Scribe with the MCP's key
+npm run transcribe -w lyrics_videos -- <slug> --yes                # first choice: Scribe with the ElevenLabs MCP's key
+npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # web only: after the ElevenLabs connector's widget
 ```
 
-The ElevenLabs connector's `creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks
-it in its file picker); `--save` keeps the words it gives in `input/lyrics.raw.json` and the media
-library's cache. Every word comes with its start and end (`--lang=<code>` for a non-English song).
+`--yes` writes every word's start and end to `input/lyrics.raw.json` and the media library's cache
+(`--lang=<code>` for a non-English song). Only where no local MCP runs, the hosted ElevenLabs connector's
+`creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks it in its file picker widget)
+and `--save` keeps the words it gives the same way.
 
 Re-cut into lines with a small script in the project (`tools/recut.py`, copy Devil in the Details'):
 a list of lines, each its `htmlText` with the hero word in `<b>` and its rows split with `<br/>`; the
@@ -531,3 +532,8 @@ Append dated entries: what the user said → the rule.
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
   `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
+- 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
+  widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
+  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
+  tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
