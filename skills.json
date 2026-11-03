@@ -183,8 +183,14 @@
         {
           "id": "mcp/elevenlabs-connector",
           "need": "required",
-          "for": "The song's timed words, every word's start and end (creative_transcribe_audio)",
-          "without": "Scribe's API with an ElevenLabs API key instead, or the user brings a timed lyrics.json"
+          "for": "The song's timed words, every word's start and end (creative_transcribe_audio on the vocal stem's MP3)",
+          "without": "mcp/elevenlabs's key with npm run transcribe --yes instead, or the user brings a timed lyrics.json"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "without": "Nothing, while the connector is connected"
         },
         {
           "id": "mcp/browse-hack",
@@ -204,6 +210,12 @@
       "path": ".agents/skills/make-lyrics-video",
       "mcps": [
         {
+          "id": "mcp/elevenlabs-connector",
+          "need": "recommended",
+          "for": "The song's timed words when there is no lyrics.json (creative_transcribe_audio on the vocal stem's MP3)",
+          "without": "mcp/elevenlabs's key with npm run transcribe --yes instead, or the user brings a timed lyrics.json"
+        },
+        {
           "id": "mcp/browse-hack",
           "need": "recommended",
           "for": "Pinterest artwork in bulk, YouTube clips, and Midjourney outcrops and fills, in the user's Chrome (pinterest_bulk_start, youtube_download, midjourney_outcrop)",
@@ -220,6 +232,12 @@
           "need": "optional",
           "for": "3D set pieces, only when the idea needs one",
           "without": "No 3D: the video stays 2D"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "without": "Nothing, while the connector is connected"
         }
       ]
     },
@@ -250,9 +268,15 @@
           "without": "The user downloads every clip and drops it in themselves"
         },
         {
+          "id": "mcp/elevenlabs-connector",
+          "need": "optional",
+          "for": "Timed lyrics when the user wants text and has no lyrics.json (creative_transcribe_audio on the vocal stem's MP3)",
+          "without": "mcp/elevenlabs's key with npm run transcribe --yes instead, or the user brings a timed lyrics.json"
+        },
+        {
           "id": "mcp/elevenlabs",
           "need": "optional",
-          "for": "Sound effects, only when the user asks for them (text_to_sound_effects)",
+          "for": "Sound effects, only when the user asks for them (text_to_sound_effects), and its API key for npm run transcribe --yes when the connector isn't connected",
           "without": "No sound effects: the edit runs on the song alone"
         }
       ]
@@ -298,6 +322,12 @@
       "path": ".agents/skills/make-waveform-lyric-video",
       "mcps": [
         {
+          "id": "mcp/elevenlabs-connector",
+          "need": "required",
+          "for": "The song's timed words, every word's start and end (creative_transcribe_audio on the vocal stem's MP3)",
+          "without": "mcp/elevenlabs's key with npm run transcribe --yes instead, or the user brings a timed lyrics.json"
+        },
+        {
           "id": "mcp/browse-hack",
           "need": "recommended",
           "for": "Inspiration and backgrounds from Pinterest (pinterest_bulk_start), and outcropping a portrait poster to 16:9 with Midjourney (midjourney_outcrop), in the user's Chrome",
@@ -308,6 +338,12 @@
           "need": "optional",
           "for": "Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first)",
           "without": "The poster is used as it is"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "without": "Nothing, while the connector is connected"
         }
       ]
     },

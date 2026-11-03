@@ -121,6 +121,11 @@ id in `forChoices`.
    (it then carries an install code) brings back the ones shared with them.
 4. In step 4, install a step with `forChoices` only if they said yes to at
    least one of those ids. Steps without it are always installed.
+5. A maker's hosted connector and its local server for the same job (ElevenLabs:
+   `mcp/elevenlabs-connector` and `mcp/elevenlabs`): set up the connector first,
+   it signs in with no key. Offer the local one after it, as the fallback its
+   `for` says (its API key for MediaMake's `npm run transcribe --yes`, or what
+   the connector can't do, like sound effects for a brand kit).
 
 When you finish, list the choices they skipped with what each costs, and the
 prompt that adds one later: "Set up <id> from MediaMake by following
@@ -219,11 +224,25 @@ maker); name the maker when you tell them about it, and show `notes` if set.
 - **`source.type: "mcp-server"`**: a server its maker publishes, added under
   `source.name`. If a server by that name is already registered and works,
   it's set up (see **Already set up?**). The values it needs are in
-  `local.env` or `remote.headers`: _Ask_ for each `required` one (`getAt` is
-  where they get it). A `secret` one is an API key: have them paste it, never
-  show it back, and write it only into the server's config. `format` is how
-  it is written (`Bearer {value}`), `default` the value when they give none;
-  leave out one that comes out empty. Then add it the way that fits:
+  `local.env` or `remote.headers`: _Ask_ for each `required` one, saying what
+  its `description` says. A `secret` one is an API key; walk them through it
+  one step at a time:
+  1. **Make it**: open `getAt` (signed in), create a key the way its
+     `description` says, and copy it straight away (most services show a key
+     only once).
+  2. **Paste it here**: their next message in this chat, the key alone, no
+     other words. Never repeat it in a message, and write it only into the
+     server's config: no `.env`, no project file.
+  3. **Say where it lives** so they can change it later: Claude Code keeps it
+     in `~/.claude.json` (`mcpServers` › `<name>` › `env`, or `headers`);
+     Claude Desktop in `claude_desktop_config.json` (below). To change it,
+     paste the new one to Claude, or edit that file.
+  Someone who would rather not paste a key into a chat can put it in
+  themselves: give them the `claude mcp add` line (or the
+  `claude_desktop_config.json` entry) with `<your key>` in its place, and
+  wait until they say it's done. `format` is how it is written
+  (`Bearer {value}`), `default` the value when they give none; leave out one
+  that comes out empty. Then add it the way that fits:
   - A `remote` with a `directoryUrl` is listed in Claude's connector
     directory: in the Claude apps (Desktop, the web, a phone) _Ask_ them to
     open that page, add it there and sign in, instead of a custom connector.
