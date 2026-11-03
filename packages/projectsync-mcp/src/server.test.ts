@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MediamakeClient } from '../../mediamake-mcp/src/client';
 import { INPUT_LIMIT_BYTES, productionFiles, releaseFiles, within } from './files';
 import { createServer } from './server';
@@ -164,5 +164,26 @@ describe('create_production against a stand-in MediaMake', () => {
     const pulled = text(await client.callTool({ name: 'get_production', arguments: { projectId: 'proj', id: 'p1', saveTo } }));
     expect(pulled.download).toMatchObject({ saved: 2, unchanged: 0 });
     expect(await readFile(join(saveTo, 'code/video/edl.ts'), 'utf8')).toBe('export const edl = []');
+  });
+});
+
+describe('list_projects', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('takes the plain list the API answers without a search, and the paged one with', async () => {
+    const project = { id: 'p1', displayName: 'MediaMake', tags: [], isOwned: true, updatedAt: '' };
+    const shared = { id: 'p2', displayName: 'Portal', tags: [], isOwned: false, sharedRole: 'editor', updatedAt: '' };
+    vi.stubGlobal('fetch', async (url: string) => {
+      const paged = new URL(url).searchParams.has('search');
+      const body = paged ? { projects: [shared], pagination: { page: 1, limit: 50, total: 1, totalPages: 1 } } : [project, shared];
+      return new Response(JSON.stringify(body), { status: 200 });
+    });
+    const client = await connect();
+    const all = text(await client.callTool({ name: 'list_projects', arguments: {} }));
+    expect(all).toMatchObject({ total: 2, projects: [{ id: 'p1', role: 'owner' }, { id: 'p2', role: 'editor' }] });
+    const found = text(await client.callTool({ name: 'list_projects', arguments: { search: 'Portal' } }));
+    expect(found).toMatchObject({ pagination: { total: 1 }, projects: [{ name: 'Portal', role: 'editor' }] });
   });
 });
