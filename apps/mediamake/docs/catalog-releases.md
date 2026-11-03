@@ -27,7 +27,7 @@ installs from where it lives, not from a package of ours. See
 | --- | --- | --- |
 | Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
 | MCPs and skills made by others | `lib/catalog/third-party.json` (committed), or MongoDB `catalog_items` for ones added with `npm run catalog -- add` | Yes, always |
-| Cards for our apps and the MediaMake MCP | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: the MediaMake MCP installs its hosted connector (`/mcp`), for admins and private testers while it is in development; grants and invites can name a card too | As each card says |
+| Cards for our apps and the MediaMake MCP | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: the MediaMake MCP installs its hosted connector (`/mcp`), for admins only (its card is in the vault: it runs the catalog); grants and invites can name a card too | As each card says |
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
@@ -231,11 +231,11 @@ along; the CLI below does the same from a terminal.
 
 An API key only signs someone in; it opens nothing beyond public items by
 itself. That includes the hosted MediaMake MCP (`/mcp`): who may connect
-follows the `mcp/mediamake` item like any other release, so while it is in
-development only admins, private testers and people granted it get past the
-consent screen and the endpoint (others see why, and a 403). Moving the item
-to community or public opens the connector to them with no code change
-(`lib/mcp/access.ts`).
+follows the `mcp/mediamake` item like any other release. It is in the vault,
+because it runs the catalog, so only admins and people granted it by name get
+past the consent screen and the endpoint (others see why, and a 403, and are
+pointed at ProjectSync for their projects). Taking it out of the vault and
+moving it along opens the connector with no code change (`lib/mcp/access.ts`).
 
 **Adding a private tester** is one step, and it is all they need:
 `npm run catalog -- group add private <clientId>`, or set their tier to

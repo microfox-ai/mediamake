@@ -1,0 +1,3 @@
+mcpb/server/
+*.mcpb
+dist/

@@ -34,3 +34,8 @@ export async function getProjectRole(
 export function canWrite(role: ProjectRole | null): boolean {
   return role === 'owner' || role === 'editor';
 }
+
+/** True when the role may delete from the project: its owner only. */
+export function canDelete(role: ProjectRole | null): boolean {
+  return role === 'owner';
+}

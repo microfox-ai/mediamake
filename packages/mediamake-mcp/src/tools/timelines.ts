@@ -42,94 +42,11 @@ async function mapLimit<T, R>(
   return results;
 }
 
-export function registerProjectTools(
+/** Timelines (and the oldest, legacy ones). Projects themselves are ProjectSync's (packages/projectsync-mcp). */
+export function registerTimelineTools(
   server: McpServer,
   client: MediamakeClient,
 ) {
-  server.registerTool(
-    'list_projects',
-    {
-      title: 'List projects',
-      description:
-        'List Mediamake projects the API key can see (owned or shared). Filter by name search or tag. Each project holds timelines.',
-      inputSchema: {
-        search: z
-          .string()
-          .optional()
-          .describe('Case-insensitive match on the project name'),
-        tag: z.string().optional(),
-        page: z.number().int().min(1).optional(),
-        limit: z.number().int().min(1).max(100).optional(),
-      },
-      annotations: READ,
-    },
-    safe(async ({ search, tag, page, limit }) => {
-      // The route only paginates when search or tag is set; otherwise it returns every project.
-      const data = await client.get('/api/project', {
-        search,
-        tag,
-        page,
-        limit,
-      });
-      if (Array.isArray(data)) {
-        const start = ((page ?? 1) - 1) * (limit ?? 50);
-        const slice = data.slice(start, start + (limit ?? 50));
-        return json({
-          projects: slice,
-          total: data.length,
-          page: page ?? 1,
-          limit: limit ?? 50,
-        });
-      }
-      return json(data);
-    }),
-  );
-
-  server.registerTool(
-    'get_project',
-    {
-      title: 'Get project',
-      description:
-        'Get one project and a page of its timelines (newest first).',
-      inputSchema: {
-        id: z.string().describe('Project id'),
-        timelinesLimit: z.number().int().min(1).max(100).default(50),
-      },
-      annotations: READ,
-    },
-    safe(async ({ id, timelinesLimit }) => {
-      const [project, timelines] = await Promise.all([
-        client.get('/api/project', { id }),
-        client.get('/api/project/timeline', {
-          projectId: id,
-          summary: true,
-          limit: timelinesLimit,
-        }),
-      ]);
-      return json({
-        ...project,
-        timelines: timelines.timelines,
-        timelinesPagination: timelines.pagination,
-      });
-    }),
-  );
-
-  server.registerTool(
-    'create_project',
-    {
-      title: 'Create project',
-      description: 'Create a new Mediamake project.',
-      inputSchema: {
-        displayName: z.string().min(1),
-        tags: z.array(z.string()).optional(),
-      },
-      annotations: WRITE,
-    },
-    safe(async ({ displayName, tags }) =>
-      json(await client.post('/api/project', { displayName, tags })),
-    ),
-  );
-
   server.registerTool(
     'list_timelines',
     {

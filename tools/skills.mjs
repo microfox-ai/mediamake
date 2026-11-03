@@ -64,7 +64,7 @@ export const REGISTRY_SCHEMA = 'mediamake.skills/v1';
 /** How much a skill gets out of an MCP it uses (UseNeed in apps/mediamake/lib/catalog/types.ts). */
 export const NEEDS = ['required', 'recommended', 'optional'];
 /** Our own MCPs, released through the catalog rather than listed in third-party.json. */
-const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
+const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']);
 const MCP_HEADER = /^\|\s*MCP\s*\|\s*Need\s*\|\s*Used for\s*\|\s*Without it\s*\|$/i;
 
 /** Category by name prefix: what each verb means. Order is the order in SKILLS.md. */

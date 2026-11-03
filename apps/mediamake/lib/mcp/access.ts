@@ -6,12 +6,12 @@ export const HOSTED_MCP_ITEM = 'mcp/mediamake';
 
 /**
  * Who may use the hosted connector follows its catalog item, like any other
- * release: while it is in development that is admins, private testers (the
- * `private` group) and anyone granted it; moving the item to community or
- * public opens it further with no change here.
+ * release. It is in the vault (admins only: it runs the catalog), which opens
+ * to admins and grants that name it; taking it out of the vault and moving it
+ * along opens it further with no change here.
  */
 export function mayUseHostedMcp(entitlements: Entitlements, item: GatedItem | null): boolean {
-  return accessLevel(entitlements, item ?? { id: HOSTED_MCP_ITEM, visibility: 'private' }) !== 'locked';
+  return accessLevel(entitlements, item ?? { id: HOSTED_MCP_ITEM, visibility: 'private', neverPublish: true }) !== 'locked';
 }
 
 export async function canUseHostedMcp(clientId: string): Promise<boolean> {
@@ -20,4 +20,4 @@ export async function canUseHostedMcp(clientId: string): Promise<boolean> {
 }
 
 export const HOSTED_MCP_LOCKED =
-  'The MediaMake MCP is in testing: admins and private testers can use it. Ask a MediaMake admin to add you as a private tester.';
+  'The MediaMake MCP is for MediaMake admins: it runs the catalog releases. For your projects, brand kits, productions, releases and media, install ProjectSync (mcp/projectsync).';
