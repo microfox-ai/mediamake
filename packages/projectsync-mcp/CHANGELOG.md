@@ -1,5 +1,11 @@
 # @microfox/projectsync-mcp
 
+## 0.1.2
+
+### Patch Changes
+
+- 80b4618: Changes from PR #490: projectsync-live
+
 ## 0.1.1
 
 ### Patch Changes
