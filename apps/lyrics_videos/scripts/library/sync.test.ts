@@ -38,7 +38,7 @@ import { find } from './find.ts';
 import { ingest } from './ingest.ts';
 import { openLibrary, sourcesOf, type Lib } from './lib.ts';
 import { saveProduction } from './production.ts';
-import { approveShare } from './share.ts';
+import { approveShare, keyForProject, keyNamed, withdrawShare } from './share.ts';
 import { pullFiles, pushShared, syncChannel, theirsCopies, type Part, type Step } from './sync.ts';
 import { sha256File } from './sys.ts';
 import { use } from './use.ts';
@@ -212,8 +212,8 @@ const http_ = http.createServer((req, res) => void handle(req, res).catch(err =>
 // ---------- three Macs ----------
 
 type Mac = { lib: Lib; cloud: Cloud; dir: string };
-const macs: Record<'mine' | 'theirs' | 'viewer', Mac> = {} as never;
-const mac = (name: keyof typeof macs, key: string): Mac => {
+const macs: Record<'mine' | 'theirs' | 'viewer' | 'loose', Mac> = {} as never;
+const mac = (name: keyof typeof macs, key: string, links: Record<string, string> = { animemusiczone: PROJECT }): Mac => {
   const dir = path.join(tmp, name);
   const downloads = path.join(dir, 'Downloads');
   const cfg: LibraryConfig = {
@@ -221,7 +221,7 @@ const mac = (name: keyof typeof macs, key: string): Mac => {
     inbox: path.join(downloads, '_INBOX'),
     deliverRoot: downloads,
     channels: { animemusiczone: 'AMZ', inverteddevils: 'INVERTED-DEVILS' },
-    links: { animemusiczone: PROJECT },
+    links,
     exclude: [],
   };
   for (const d of ['projects', 'brands', 'skills']) fs.mkdirSync(path.join(dir, d), { recursive: true });
@@ -259,6 +259,7 @@ before(async () => {
   ff(['-f', 'lavfi', '-i', 'testsrc=size=320x180:rate=30', '-t', '1', '-pix_fmt', 'yuv420p', path.join(fixtures, 'zoro.mp4')]);
   ff(['-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=30', '-t', '1', '-pix_fmt', 'yuv420p', path.join(fixtures, 'luffy.mp4')]);
   ff(['-f', 'lavfi', '-i', 'color=c=blue:s=64x64', '-frames:v', '1', path.join(fixtures, 'pin.jpg')]);
+  ff(['-f', 'lavfi', '-i', 'color=c=white:s=64x64:rate=30', '-t', '1', '-pix_fmt', 'yuv420p', path.join(fixtures, 'leak.mp4')]);
   ff(['-f', 'lavfi', '-i', 'color=c=red:s=96x96', '-frames:v', '1', path.join(fixtures, 'logo.png')]);
   ff(['-f', 'lavfi', '-i', 'color=c=green:s=96x96', '-frames:v', '1', path.join(fixtures, 'logo2.png')]);
   ff(['-f', 'lavfi', '-i', 'color=c=yellow:s=96x96', '-frames:v', '1', path.join(fixtures, 'logo3.png')]);
@@ -270,6 +271,8 @@ before(async () => {
   macs.mine = mac('mine', 'key-owner');
   macs.theirs = mac('theirs', 'key-editor');
   macs.viewer = mac('viewer', 'key-viewer');
+  // an editor's Mac with no channel linked at all: it shares with projects by their id
+  macs.loose = mac('loose', 'key-editor', {});
 });
 
 after(() => {
@@ -595,5 +598,50 @@ describe('viewers and music', () => {
     assert.ok(r.steps.some(s => s.dir === 'push') && r.steps.some(s => s.dir === 'pull'));
     assert.equal(JSON.stringify([...server.items.entries()]), before);
     assert.ok(theirsCopies(path.join(macs.theirs.lib.skills, 'make-lyrics-video-like-nakama', 'refs', 'notes.md')).length === 1);
+  });
+});
+
+describe('shared assets by project (no channel needed)', () => {
+  test('a Mac with no linked channel shares an overlay with a project by its id; the team pulls it', async () => {
+    const m = macs.loose;
+    server.limitBytes = 50 * MB;
+    assert.equal(keyForProject(macs.mine.lib, PROJECT), 'animemusiczone', 'a project a channel here is linked to: its shares keep the channel key');
+    assert.equal(keyForProject(m.lib, PROJECT), PROJECT, 'no link here: the project id itself');
+    assert.throws(() => keyNamed(m.lib, { project: 'amz' }), /project id/);
+    assert.equal(keyNamed(m.lib, { channel: PROJECT }), PROJECT, '--channel= takes a project id too');
+    assert.throws(() => keyNamed(m.lib, { channel: 'nosuch' }), /Unknown channel/);
+
+    inboxFile(m, 'other/light-leak.mp4', 'leak.mp4', { tool: 'other' });
+    const filed = await ingest(m.lib, [m.lib.cfg.inbox], { hint: { kind: 'overlays', subject: 'light-leaks' } });
+    const it = getItem(m.lib.db, filed.find(f => f.file.includes('light-leak'))!.id!)!;
+    assert.equal(it.kind, 'overlays');
+    assert.equal(approveShare(m.lib, it, { project: PROJECT }, 'cli'), PROJECT);
+    const r = await pushShared(m.lib, m.cloud, PROJECT, [it.id], true);
+    assert.equal(r.channel, PROJECT);
+    assert.equal(r.status.project.id, PROJECT);
+    assert.equal(of(r.steps, 'done').length, 2, `its details and its file: ${r.steps.map(s => `${s.action} ${s.key} ${s.detail ?? ''}`).join('; ')}`);
+    assert.ok(server.files.find(f => f.sha256 === it.id && f.state === 'shared'), 'the file is on the cloud');
+    const d = server.items.get(`media:${it.id}`)!.data as MediaDetails;
+    assert.equal(d.kind, 'overlays');
+    assert.equal(d.subject, 'light-leaks');
+
+    // a teammate linked through the channel sees it as a remote overlay and pulls it into their library, where the sharer keeps it
+    const v = macs.viewer;
+    await sync(v, 'pull', ['media']);
+    assert.equal(getItem(v.lib.db, it.id)?.status, 'remote');
+    const pulled = await pullFiles(v.lib, v.cloud, [it.id], true);
+    assert.equal(pulled.filed.length, 1, pulled.steps.map(s => `${s.action} ${s.key} ${s.detail ?? ''}`).join('; '));
+    const got = getItem(v.lib.db, it.id)!;
+    assert.equal(got.status, 'online');
+    assert.equal(got.kind, 'overlays');
+    assert.equal(got.subject, 'light-leaks');
+    assert.equal(got.path, it.path);
+
+    // the project's status by its id, from the Mac with no channel at all; then the share is taken back
+    const st = await syncChannel(m.lib, m.cloud, PROJECT, 'status', { what: ['media'] });
+    assert.equal(st.channel, PROJECT);
+    assert.ok(st.status.counts.files >= 1);
+    assert.deepEqual(withdrawShare(m.lib, it, PROJECT), [PROJECT]);
+    assert.throws(() => withdrawShare(m.lib, it, 'nosuch'), /Unknown channel/);
   });
 });

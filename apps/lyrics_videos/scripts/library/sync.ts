@@ -41,7 +41,7 @@ import { KINDS, getItem, n, reindex, tagsOf, tx, type Item } from './db.ts';
 import { ingest } from './ingest.ts';
 import { absOf, addSource, addTags, knownHash, sourcesOf, type Lib } from './lib.ts';
 import { indexProduction, listProductions } from './production.ts';
-import { channelClause, sharesOf } from './share.ts';
+import { channelClause, isProjectId, projectOf, sharesOf } from './share.ts';
 import { lock, now, readJson, sha256File, sha256Text, size, writeJson } from './sys.ts';
 
 export const PARTS = ['brand', 'skills', 'productions', 'media', 'music'] as const;
@@ -699,7 +699,7 @@ const mediaPull = async (ctx: Ctx): Promise<Plan> => {
   const files = [...remote.values()].filter(r => r.file && getItem(ctx.lib.db, r.key)?.status !== 'online' && getItem(ctx.lib.db, r.key)?.status !== 'cold').length;
   return {
     steps,
-    notes: files ? [`media: ${files} of the team's files can come here: media find --channel=${ctx.channel}, then media sync pull --ids=<id>,… --yes`] : [],
+    notes: files ? [`media: ${files} of the team's files can come here: ${isProjectId(ctx.channel) ? 'media find <words>' : `media find --channel=${ctx.channel}`}, then media sync pull --ids=<id>,… --yes`] : [],
     apply: async () => {
       for (const r of fresh) putRemote(ctx, r);
       for (const s of steps) if (s.action === 'pull') s.action = 'done';
@@ -889,9 +889,10 @@ const PLANNERS: Record<Part, Record<Direction, (ctx: Ctx) => Promise<Plan>>> = {
 
 export type ChannelReport = { channel: string; status: ChannelSyncStatus; steps: Step[]; notes: string[] };
 
+/** The key is a linked channel, or a cloud project's id (a project's shared assets need no channel). */
 const connectChannel = async (lib: Lib, cloud: Cloud, channel: string, yes: boolean): Promise<Ctx> => {
-  const projectId = lib.cfg.links[channel];
-  if (!projectId) throw new Error(`${channel} isn't linked to a cloud project yet: media channel link ${channel} <projectId> (media channel list shows yours)`);
+  const projectId = projectOf(lib, channel);
+  if (!projectId) throw new Error(`${channel} isn't linked to a cloud project yet: media channel link ${channel} <projectId> (media channel list shows yours), or name a project itself: --project=<id>`);
   const status = await cloud.get<ChannelSyncStatus>('/api/channel-sync', { projectId });
   return { lib, cloud, channel, projectId, status, yes };
 };
