@@ -36,10 +36,12 @@ export function registerProjectTools(server: McpServer, client: MediamakeClient)
       annotations: READ,
     },
     safe(async args => {
+      // the route pages its answer only with a search or tag; otherwise it is the whole list
       const data = await client.get('/api/project', args);
+      const list = Array.isArray(data) ? data : data.projects;
       return json({
-        ...data,
-        projects: data.projects.map((p: { id: string; displayName: string; tags: string[]; isOwned?: boolean; sharedRole?: Role; updatedAt: string; brandKit?: unknown }) => ({
+        ...(Array.isArray(data) ? { total: list.length } : { pagination: data.pagination }),
+        projects: list.map((p: { id: string; displayName: string; tags: string[]; isOwned?: boolean; sharedRole?: Role; updatedAt: string; brandKit?: unknown }) => ({
           id: p.id,
           name: p.displayName,
           tags: p.tags,
