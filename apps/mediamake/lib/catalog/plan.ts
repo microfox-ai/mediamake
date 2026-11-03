@@ -136,6 +136,26 @@ function stronger(a: UseNeed, b: UseNeed): UseNeed {
   return USE_NEEDS.indexOf(a) <= USE_NEEDS.indexOf(b) ? a : b;
 }
 
+/** The MediaMake repository: every skill of ours works in a local checkout of it. */
+export const MEDIAMAKE_REPO = 'microfox-ai/mediamake';
+
+const MEDIAMAKE_REPO_NEED: InstallRequirement = {
+  type: 'repo',
+  repo: MEDIAMAKE_REPO,
+  why: 'The skill works in the MediaMake repo: its apps, scripts and brand kits',
+};
+
+/**
+ * What an item needs first. A skill of ours (one nobody else makes) always
+ * needs the MediaMake repo cloned before anything else, whether or not its
+ * record says so (a released package's catalog.json may leave it out).
+ */
+function requirementsOf(record: CatalogItemRecord): InstallRequirement[] {
+  const requires = record.install?.requires ?? [];
+  if (record.kind !== 'skill' || record.madeBy) return requires;
+  return requires.some(req => req.type === 'repo' && req.repo === MEDIAMAKE_REPO) ? requires : [MEDIAMAKE_REPO_NEED, ...requires];
+}
+
 /**
  * Resolves `itemId` and everything it requires into an ordered plan:
  * dependencies before the items that need them, each one once.
@@ -149,7 +169,8 @@ function stronger(a: UseNeed, b: UseNeed): UseNeed {
  * and its steps (with their own dependencies) are in the plan marked
  * `forChoices`. A choice the person can't get from MediaMake is listed as
  * unavailable instead of failing the plan. Items installed only for a
- * choice don't bring choices of their own.
+ * choice don't bring choices of their own. A skill of ours always brings
+ * the MediaMake repo (see requirementsOf).
  */
 export async function planInstall(itemId: string, sources: PlanSources): Promise<InstallPlan> {
   const records = new Map<string, Promise<CatalogItemRecord | null>>();
@@ -225,7 +246,7 @@ export async function planInstall(itemId: string, sources: PlanSources): Promise
     if (!version && !source) return `${id} has no published version yet.`;
 
     const needs: string[] = [];
-    for (const req of record.install?.requires ?? []) {
+    for (const req of requirementsOf(record)) {
       if (req.type === 'item') {
         const error = await visit(req.id, id, choice, [...path, id]);
         if (error) return error;

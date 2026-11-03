@@ -26,11 +26,14 @@ goes for the update token from step 5.
   one. The site adds it when they copy the prompt while signed in.
 - Note which Claude you are running in. It decides where skills and MCPs
   go (step 4).
+- **A MediaMake skill** (`skill/…`, unless the plan says someone else makes
+  it) always needs the MediaMake repository on their own computer. See
+  [MediaMake skills: the repo first](#mediamake-skills-the-repo-first).
 
 ## 1. GitHub
 
-Every install needs a GitHub account and `git`. Most skills also need the
-MediaMake repository cloned.
+Every install needs a GitHub account and `git`. Every MediaMake skill also
+needs the MediaMake repository cloned on their computer (step 4).
 
 1. Check `git --version`. If it's missing, install it (macOS:
    `xcode-select --install` or `brew install git`; Windows:
@@ -142,6 +145,31 @@ each section below says how. A copy you installed from MediaMake before
 `~/.claude/skills` or `~/.mediamake/mcp`) is an update: replace it without
 asking.
 
+### MediaMake skills: the repo first
+
+Every skill MediaMake makes (a `skill/…` step with no `madeBy`) runs inside
+a local git checkout of `microfox-ai/mediamake`: it uses the repo's apps,
+scripts and brand kits, and does nothing useful without them. The plan puts
+that `repo` step before the skill. If a plan has no such step, clone the
+repo anyway (as `type: "repo"` says) before the skill. Never install one of
+these skills without the repo.
+
+If you can't run commands on their own computer (the Claude app on the web
+or a phone, or a sandbox that isn't their computer), you can't set the skill
+up from here. Tell them it needs the MediaMake repo on their computer, and
+_Ask_ them to paste the same prompt into Claude Code there
+(https://claude.com/claude-code), or to run these in a terminal and then
+start Claude Code in that folder:
+
+```bash
+gh repo clone microfox-ai/mediamake ~/mediamake
+cd ~/mediamake && npm install
+```
+
+They use the skill from Claude Code started in `~/mediamake`
+(`cd ~/mediamake && claude`, or that folder opened in the Claude desktop
+app's Code tab), not from a chat with no folder.
+
 ### `type: "repo"`: clone a GitHub repository
 
 Clone to `~/mediamake` for `microfox-ai/mediamake`, otherwise
@@ -230,6 +258,8 @@ maker); name the maker when you tell them about it, and show `notes` if set.
      Capabilities → Skills** (zip the folder for them first and give them the
      path). Replace an older copy of the same skill, unless it's a symlink or
      sits in a git checkout: that's their working copy, so _Ask_ first.
+     A MediaMake skill still needs the repo (see
+     [MediaMake skills: the repo first](#mediamake-skills-the-repo-first)).
    - **mcpb**: the bundle is `entry` inside the package. For Claude Desktop,
      open it (`open <file>` on macOS, `start "" "<file>"` on Windows) and
      _Ask_ them to click **Install** and fill in any settings it asks for
@@ -290,7 +320,8 @@ So that updates never need an install code again:
 - Run whatever check the INSTALL.md files gave you (for an MCP: list its
   tools, or call a status tool).
 - Tell them in a few lines what's installed (with its version), where, and
-  the one thing to try first, and that saying "update <item>" later brings it
+  the one thing to try first (for a MediaMake skill: start Claude Code in
+  `~/mediamake` and type `/<slug>`), and that saying "update <item>" later brings it
   up to date (the item's page on `$MEDIAMAKE_URL` shows the live version and
   release notes). Mention anything that still needs them (a restart of Claude Desktop
   or a new Claude Code session so a new skill or MCP shows up, an extension

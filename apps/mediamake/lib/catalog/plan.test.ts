@@ -130,7 +130,7 @@ describe('planInstall', () => {
     });
     const plan = ok(await planInstall('skill/s', sources([skill, elevenlabs])));
     assert.deepEqual(plan.choices, []);
-    assert.deepEqual(plan.steps.map(s => [('id' in s ? s.id : ''), s.forChoices]), [['mcp/elevenlabs', undefined], ['skill/s', undefined]]);
+    assert.deepEqual(plan.steps.map(s => [('id' in s ? s.id : s.repo), s.forChoices]), [['microfox-ai/mediamake', undefined], ['mcp/elevenlabs', undefined], ['skill/s', undefined]]);
   });
 
   it('only takes choices from items installed outright, not from the choices themselves', async () => {
@@ -138,6 +138,39 @@ describe('planInstall', () => {
     const plan = ok(await planInstall('skill/pack-brand-kit', sources([brandKit, chained, browseHack])));
     assert.deepEqual(plan.choices.map(c => c.id), ['mcp/elevenlabs', 'mcp/browse-hack', 'mcp/fal']);
     assert.equal(plan.choices.find(c => c.id === 'mcp/fal')!.reasons.length, 1); // only the skill's own reason
+  });
+
+  it('clones the MediaMake repo first for every skill of ours, once, even when its record leaves it out', async () => {
+    const released = record('skill/lyric-video', { method: 'skill' }, packaged);
+    const plan = ok(await planInstall('skill/lyric-video', sources([released])));
+    assert.deepEqual(
+      plan.steps.map(s => [s.type, 'id' in s ? s.id : s.repo]),
+      [
+        ['repo', 'microfox-ai/mediamake'],
+        ['item', 'skill/lyric-video'],
+      ],
+    );
+    assert.deepEqual(plan.steps[0].requiredBy, ['skill/lyric-video']);
+
+    // a skill that already lists it, and one it depends on, still clone it once
+    const base = record('skill/base', { source: skillSource('base') });
+    const variant = record('skill/variant', { source: skillSource('variant'), requires: [{ type: 'repo', repo: 'microfox-ai/mediamake' }, { type: 'item', id: 'skill/base' }] });
+    const both = ok(await planInstall('skill/variant', sources([base, variant])));
+    assert.deepEqual(
+      both.steps.map(s => [s.type, 'id' in s ? s.id : s.repo]),
+      [
+        ['repo', 'microfox-ai/mediamake'],
+        ['source', 'skill/base'],
+        ['source', 'skill/variant'],
+      ],
+    );
+    assert.deepEqual(both.steps[0].requiredBy, ['skill/variant', 'skill/base']);
+  });
+
+  it('adds no MediaMake repo for a skill someone else makes, or for an MCP', async () => {
+    const theirs = record('skill/theirs', { source: { type: 'github-skill', repo: 'someone/skills', path: 'theirs' } }, { madeBy: { name: 'someone', repo: 'someone/skills' } });
+    assert.deepEqual(ok(await planInstall('skill/theirs', sources([theirs]))).steps.map(s => s.type), ['source']);
+    assert.deepEqual(ok(await planInstall('mcp/browse-hack', sources([browseHack]))).steps.map(s => s.type), ['github-release', 'item']);
   });
 
   it('still fails the plan when something required outright is locked or missing', async () => {
