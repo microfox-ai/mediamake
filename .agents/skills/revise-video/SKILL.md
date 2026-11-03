@@ -89,11 +89,10 @@ the user can leave notes on a video that was never rendered:
 https://mediamake.microfox.app/video-revision?live=<slug>
 ```
 
-(`http://localhost:3002/video-revision?live=<slug>` while mediamake runs locally.) The first time,
-the user picks the `apps/lyrics_videos` folder (or the repo) and allows editing; after that the link
-reopens it, and the left panel lists every project under **Live projects**. Everything else works as
-for a render: shots from `video/shots.json` (or one per lyric line, the IDs a render gets), point,
-range and General comments, drawing, spots and the magnifier.
+The first time, the user picks the `apps/lyrics_videos` folder (or the repo) and allows editing;
+after that the link reopens it, and the left panel lists every project under **Live projects**.
+Everything else works as for a render: shots from `video/shots.json` (or one per lyric line, the IDs
+a render gets), point, range and General comments, drawing, spots and the magnifier.
 
 - **When:** offer it for the first look at a new build, or when a round's fixes are small, to skip a
   review render. Render (step 1) when the user wants to judge the finished file: smoothness of a heavy
@@ -151,10 +150,12 @@ the top of the video's next revision, where the user will see them beside their 
 https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4
 ```
 
-Preflight prints it. It opens on the deployed app; while mediamake runs locally,
-`http://localhost:3002/video-revision?folder=<slug>&video=<slug>.mp4` (the port in
-`.claude/launch.json`). The old `/remotion-revision` and `/revisions` paths still redirect. For a kept cut, point `folder`
-at it (`<slug>/v5`). Say whether it is a half-size review render.
+Preflight prints it. It opens on the deployed app, no local server needed. **Always this base URL,
+`https://mediamake.microfox.app`, never a `localhost` link** (2026-11-02: "why are you creating
+wrong remotion urls, always use the base url - mediamake.microfox.app"), even while a local dev
+server is running for your own checks. The old `/remotion-revision` and `/revisions` paths still
+redirect. For a kept cut, point `folder` at it (`<slug>/v5`). Say whether it is a half-size review
+render.
 
 The screen loads the video and its map, shows the shots on a timeline (⌘←/→ jumps shot to shot) and
 saves comments **next to the video**. On a paused frame the user can draw (pencil, brush, arrow, box,
@@ -279,6 +280,26 @@ only the frames they change and splice them into the previous cut.
   previous cut. Then keep the previous version, rebuild the map, run preflight (a bad splice shows
   as a black or frozen frame) and answer the revision as usual.
 
+### Sound-only revisions: audio files, built with ffmpeg
+
+When the user is reviewing only the sound (levels, which track, fades, how loud the effects sit),
+don't render video at all, and don't use Remotion for anything a simple ffmpeg call can do: a
+Remotion render loads Chrome and the whole bundle and eats RAM that the other sessions' renders need.
+
+- **Mix the review audio with ffmpeg** from the same layers the scene places (each file, its start
+  time, trim, volume, fades and playback rate: `atrim`, `asetrate`, `volume='…':eval=frame`,
+  `adelay`, `amix=normalize=0`), so the mix is sample-exact. Keep one source of truth: write the layer
+  list once as data that both the scene and the mixing tool read, or check the ffmpeg mix against the
+  last Remotion render's audio (same loudness within ~0.5 LU, hits on the same times) before trusting it.
+- **Send only the audio** (an MP3 or WAV per scene, named for the scene), with its loudness, not the
+  MP4s: the user is listening, not watching.
+- **Measure with ffmpeg too:** `ebur128` for loudness, momentary loudness around each effect against
+  the music bed, cross-correlation for sync.
+- **Once the sound is approved,** put it in the scene's source (so later renders and exports match)
+  and, if the picture hasn't changed, mux the approved audio onto the existing render
+  (`ffmpeg -i prev.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -c:a aac`) instead of rendering again.
+  Render with Remotion only when the picture changed too.
+
 ## 7. Log what you learned
 
 Every comment teaches something. Style-specific lessons (this look, this footage, this song) go in
@@ -301,3 +322,5 @@ Append dated entries: what the user said → the rule.
 - 2026-10-27 · a revision on a preview clip arrived together with "build the full video now" → when comments are fixed in a bigger render than the one reviewed (a clip → the whole video), say in each reply where the fix is in the new render (its time there), resolve the revision, and give the new render's link.
 - 2026-11-02 · the video-revision plan, Phase 0 ("8-second clip gen first is optional, depends on skill (so ask the user whether to create previews or gen whole, by default gen whole for generating videos under 1 minute)"; "the rest is fine") → Previews or the whole video, asked at intake by every making skill (the whole video by default under a minute; previews as one labelled grid, `--look` + `look-grid`); review renders at half size with the master once after sign-off (step 1); preflight before the link (step 2); the background watcher instead of a pasted message (step 4); `loop-stats` to measure the loop (step 7).
 - 2026-11-02 · the video-revision plan, Phase 1 (live review; the user chose to start it) → "Or review it live, before rendering": `/video-revision?live=<slug>` plays the project from its code, notes go in `out/<slug>/live.revisions/`, stills render in the browser (or a stills line in the `.md`); renders stay for judging the finished file.
+- 2026-11-02 · Cook with Claude end screens, three sound rounds each re-rendered as full MP4s ("show me sounds only since i am reviewing only sounds. mark that point in a generalistic mediamake remotion skill" + "those that can be reviewed with simple ffmpeg calls must not be done with remotion, wastes up ram usage") → step 6's "Sound-only revisions": mix the review audio with ffmpeg from the scene's layers, send audio files only, measure with ffmpeg, and after approval mux the audio onto the existing render rather than re-rendering.
+

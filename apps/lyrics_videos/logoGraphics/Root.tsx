@@ -39,7 +39,7 @@ const SceneComposition: React.FC<{ logo: Brand; scene: LogoScene }> = ({ logo, s
     height={scene.height ?? logo.height}
     durationInFrames={Math.round(scene.seconds * logo.fps)}
     defaultProps={
-      { transparent: scene.transparent ?? false, guides: false, preview: logo.preview, brand: logo.brand, scene: scene.id } satisfies LogoCompositionProps
+      { transparent: scene.transparent ?? false, guides: false, preview: scene.preview ?? logo.preview, brand: logo.brand, scene: scene.id } satisfies LogoCompositionProps
     }
   />
 );

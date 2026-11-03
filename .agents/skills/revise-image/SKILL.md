@@ -31,8 +31,9 @@ still apply to every fix. The screen itself is documented in
 https://mediamake.microfox.app/file-revision?job=<set>
 ```
 
-It opens on the deployed app, no local server needed; while mediamake runs locally,
-`http://localhost:3002/file-revision?job=<set>`. (`/thumbnail-revision` still redirects.)
+It opens on the deployed app, no local server needed. **Always this base URL,
+`https://mediamake.microfox.app`, never a `localhost` link** (2026-11-02: "always use the base url -
+mediamake.microfox.app"), even while a local dev server runs. (`/thumbnail-revision` still redirects.)
 
 The first time, the user opens `apps/lyrics_videos/out` there (kept as a source: every thumbnail
 and poster set is listed after that) or the set's own folder. There they select files (click; ⌘

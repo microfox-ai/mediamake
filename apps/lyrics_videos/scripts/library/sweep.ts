@@ -17,7 +17,8 @@
  *   media sweep --undo=<id> [--yes]  moves them all back
  *
  * Never proposed: delivered outputs (a video that matches a render in out/, anything in release/,
- * youtube/, remaster/ or previous/ folders, final masters), the config's excluded folders,
+ * youtube/, remaster/ or previous/ folders, final masters, a channel folder's thumbnails, posters,
+ * numbered shorts and .mov exports), the config's excluded folders,
  * personal captures, files changed in the last 15 minutes. Exact copies of library files are set
  * aside in _INBOX/_duplicates/ (never deleted). Projects, out/ and brands/ are not swept.
  */
@@ -35,6 +36,10 @@ import { cloneOnly, freePath, move, now, openFiles, readJson, slug, writeJson } 
 const RECENT = 15 * 60_000;
 const DELIVERED_DIRS = new Set(['release', 'youtube', 'remaster', 'previous', 'shorts', 'final']);
 const MASTER = /final master|\(-?\d+(\.\d+)? ?lufs\)/i;
+/** A channel folder's own finished work: thumbnails, posters (gohan-mp), milestone cards (vegeta-15k), numbered shorts (07-higuruma-sentence-strike-s01). */
+const FINISHED = /thumb|poster|(^|[^a-z0-9])(mp\d?|\d{2,3}k)$|^\d{2}-.+-s\d{2}$/i;
+/** An editor's export (levi.mov): downloads come as mp4 or webm. */
+const EXPORT = /\.mov$/i;
 
 export type Move = {
   n: number;
@@ -93,6 +98,7 @@ export const planSweep = (lib: Lib, o: { limit?: number } = {}) => {
       continue;
     }
     if (isPersonal(name) || segs.slice(0, -1).some(s => DELIVERED_DIRS.has(s.toLowerCase())) || MASTER.test(name)) continue;
+    if (segs.length === 2 && (FINISHED.test(path.parse(name).name) || EXPORT.test(name))) continue;
     if (Date.now() - fs.statSync(abs).mtimeMs < RECENT) continue;
     // a video that is also a render (in out/, or archived from it by cleanup-out) is a delivered final: it stays
     if (mediaTypeOf(name) === 'video' && (roles(r.item_id).includes('out') || renders.has(r.item_id))) continue;

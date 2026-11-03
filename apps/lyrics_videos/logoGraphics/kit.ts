@@ -21,6 +21,8 @@ export type LogoScene = {
   /** frame size when it differs from the logo's (YouTube banner, profile picture, a hi-res still) */
   width?: number;
   height?: number;
+  /** this scene's preview ground when it differs from the logo's (e.g. a light-on-dark logo variant) */
+  preview?: string;
 };
 
 export type LogoGraphic = {
