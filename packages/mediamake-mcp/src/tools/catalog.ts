@@ -1,7 +1,9 @@
+import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, safe } from '../util.js';
+import { json, mimeFromName, rejectLocalArgs, safe, withoutLocalArgs, type ToolOptions } from '../util.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: true } as const;
@@ -60,6 +62,83 @@ const SOURCE = z.discriminatedUnion('type', [
   }),
 ]);
 
+/** A video as the app stores it (CatalogVideo in the app's lib/catalog/types.ts). */
+type StoredVideo = { youtubeId?: string; title: string; description: string; thumbnail?: string; lessons?: string[] };
+
+/** What a video is made of; catalog_set_video and catalog_add_video_item share it. */
+const VIDEO_FIELDS = {
+  url: z.string().optional().describe('The YouTube link (watch, youtu.be, shorts or embed); only YouTube videos play. Not for a course'),
+  title: z.string().min(1).max(120).optional(),
+  description: z
+    .string()
+    .max(5000)
+    .optional()
+    .describe("Shown under the video. A tutorial's or course's first paragraph is also its card's summary"),
+  thumbnail: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("An https image link. Without one it is YouTube's (a course: its first lesson's); null goes back to that"),
+  thumbnailFile: z
+    .string()
+    .optional()
+    .describe('A PNG, JPEG, WebP, GIF or AVIF on this computer to upload as the thumbnail (public once uploaded)'),
+  lessons: z.array(ITEM_ID).max(100).optional().describe('A course only: its tutorials (tutorial/<slug>), in the order they play'),
+};
+const LOCAL_ARGS: (keyof typeof VIDEO_FIELDS)[] = ['thumbnailFile'];
+const THUMBNAIL_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
+/** The video the admin API's set_video and create_video_item take. */
+type VideoBody = { url?: string; title: string; description?: string; thumbnail?: string; lessons?: string[] };
+type ThumbnailFile = { name: string; contentType: string; bytes: Buffer };
+
+const youtubeLink = (id: string) => `https://www.youtube.com/watch?v=${id}`;
+
+/** Reads a thumbnail image from this computer before anything is saved, so a wrong file changes nothing. */
+async function readThumbnail(filePath: string): Promise<ThumbnailFile> {
+  const contentType = mimeFromName(filePath);
+  if (!contentType || !THUMBNAIL_TYPES.includes(contentType)) throw new Error(`${filePath} is not a PNG, JPEG, WebP, GIF or AVIF image`);
+  return { name: basename(filePath), contentType, bytes: await readFile(filePath) };
+}
+
+/** Uploads a thumbnail for the item (public once uploaded) and answers with its link. */
+async function uploadThumbnail(client: MediamakeClient, itemId: string, file: ThumbnailFile) {
+  const { uploadUrl, publicUrl } = await client.post<{ uploadUrl: string; publicUrl: string }>('/api/admin/catalog', {
+    type: 'create_thumbnail_upload',
+    itemId,
+    filename: file.name,
+    contentType: file.contentType,
+  });
+  // The URL is signed with ACL public-read, so the header must match.
+  const put = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.contentType, 'x-amz-acl': 'public-read' },
+    body: new Uint8Array(file.bytes),
+  });
+  if (!put.ok) throw new Error(`Upload of ${file.name} failed (${put.status}): ${(await put.text()).slice(0, 300)}`);
+  return publicUrl;
+}
+
+/** A video as the tools answer: its YouTube link, and the thumbnail it shows (YouTube's when none was set). */
+function shownVideo(video: StoredVideo) {
+  const { youtubeId, ...rest } = video;
+  return {
+    ...rest,
+    ...(youtubeId && { youtube: youtubeLink(youtubeId) }),
+    thumbnail: video.thumbnail ?? (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : undefined),
+  };
+}
+
+/** The same as the release dashboard's: "Brand kit in one prompt" → brand-kit-in-one-prompt. */
+function slugify(title: string) {
+  return title
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+    .replace(/-+$/, '');
+}
+
 type PlanStep = {
   type: 'repo' | 'github-release' | 'item' | 'source';
   forChoices?: string[];
@@ -81,9 +160,15 @@ function stepLine(step: PlanStep): string {
   }
 }
 
-export function registerCatalogTools(server: McpServer, client: MediamakeClient) {
+export function registerCatalogTools(server: McpServer, client: MediamakeClient, options: ToolOptions = { localFiles: true }) {
   /** The item's release page on the admin dashboard: give it to the user after any change. */
   const page = (id: string) => client.url(`/core/releases/${id}`);
+  /** Where the item's video plays: a course's own page, else the item's page. */
+  const plays = (id: string) => (id.startsWith('course/') ? client.url(`/${id.replace('course/', 'courses/')}`) : client.url('/access', { item: id }));
+
+  /** Saves an item's whole video (POST set_video) and answers with what was stored. */
+  const saveVideo = async (itemId: string, video: VideoBody) =>
+    (await client.post<{ video: StoredVideo }>('/api/admin/catalog', { type: 'set_video', itemId, video })).video;
 
   server.registerTool(
     'catalog_versions',
@@ -117,7 +202,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
     {
       title: 'Catalog items (admins)',
       description:
-        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials) in a line each: who can open it (tier: vault, development, community or public), where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, the MCPs it works with, what uses it, and its release page. Filter by kind, tier, archived or words in the id or title. Start here before archiving, moving or sharing items.',
+        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials, courses) in a line each: who can open it (tier: vault, development, community or public), where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, the MCPs it works with, what uses it, and its release page. Filter by kind, tier, archived or words in the id or title. Start here before archiving, moving or sharing items.',
       inputSchema: {
         kind: KIND.optional(),
         tier: TIER.optional(),
@@ -141,7 +226,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
     {
       title: 'Catalog item (admins)',
       description:
-        'Admins only. Everything about one catalog item: what it is, who can open it and the grants that reach it, whether it is archived, where it lives (who makes it, its code, its package and how it installs), what installing it does (the steps, and the MCPs it offers as choices with what each is for and what is lost without it), what needs or uses it, and its versions with release notes. Answers with its release page link: give it to the user.',
+        'Admins only. Everything about one catalog item: what it is, who can open it and the grants that reach it, whether it is archived, where it lives (who makes it, its code, its package and how it installs), what installing it does (the steps, and the MCPs it offers as choices with what each is for and what is lost without it), what needs or uses it, its video (an intro, a tutorial, or the lessons of a course), and its versions with release notes. Answers with its release page link: give it to the user.',
       inputSchema: { item: ITEM_ID },
       annotations: READ,
     },
@@ -179,7 +264,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
     {
       title: 'Move a catalog item (admins)',
       description:
-        "Admins only. Move one of our apps, MCPs or tutorials between release tiers: development (admins and private testers), community (also the community group), public (everyone, once public releases are open site-wide) or vault (admins and explicit grants only, never published). With gateDays or publicAt, community starts a gate: it goes public by itself then. Skills and items made by others are always public, so they can't be moved: archive them instead to take them off the homepage. Confirm with the user before making something public. Answers with the release page link: give it to the user.",
+        "Admins only. Move one of our apps, MCPs, tutorials or courses between release tiers: development (admins and private testers), community (also the community group), public (everyone, once public releases are open site-wide) or vault (admins and explicit grants only, never published). With gateDays or publicAt, community starts a gate: it goes public by itself then. Skills and items made by others are always public, so they can't be moved: archive them instead to take them off the homepage. Confirm with the user before making something public. Answers with the release page link: give it to the user.",
       inputSchema: {
         item: ITEM_ID,
         stage: z.enum(['development', 'community', 'public', 'vault']),
@@ -240,6 +325,89 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient)
         item: { kind, slug, title, summary, status: 'live', tags, madeBy, install: { source, ...(notes && { notes }) } },
       });
       return json({ id, page: page(id), installPage: client.url('/access', { item: id }) });
+    }),
+  );
+
+  server.registerTool(
+    'catalog_set_video',
+    {
+      title: "Set a catalog item's video (admins)",
+      description:
+        "Admins only. Set, change or remove the video of a catalog item: a skill's intro (or an MCP's or app's), a tutorial's video, or a course's lessons. Only YouTube videos play, with YouTube's player. Fields left out keep what the item has, so a new title alone renames it; an item with no video yet needs its title and url (a course: lessons). An intro plays on the item's page and its thumbnail tops the item's homepage card; a tutorial's or course's card takes the video's title and first paragraph. catalog_item shows the current video, and for a course the tutorials it can play. Answers with the release page and where the video plays: give the user both.",
+      inputSchema: withoutLocalArgs(
+        { item: ITEM_ID, ...VIDEO_FIELDS, remove: z.boolean().optional().describe('true takes the video off the item') },
+        LOCAL_ARGS,
+        options,
+      ),
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ item, remove, url, title, description, thumbnail, thumbnailFile, lessons }) => {
+      rejectLocalArgs(options, { thumbnailFile });
+      if (remove) {
+        if ([url, title, description, thumbnail, thumbnailFile, lessons].some(v => v !== undefined)) throw new Error('remove takes the video off: give no other fields');
+        await client.post('/api/admin/catalog', { type: 'set_video', itemId: item, video: null });
+        return json({ item, video: null, page: page(item) });
+      }
+      if (thumbnail !== undefined && thumbnailFile) throw new Error('Give thumbnail or thumbnailFile, not both');
+      const file = thumbnailFile ? await readThumbnail(thumbnailFile) : undefined;
+
+      const { video: current } = await client.get<{ video: StoredVideo | null }>('/api/admin/catalog/item', { id: item });
+      const newTitle = title ?? current?.title;
+      if (!newTitle) throw new Error(`${item} has no video yet: give its title and ${item.startsWith('course/') ? 'lessons' : 'url'}`);
+      const video: VideoBody = {
+        url: url ?? (current?.youtubeId ? youtubeLink(current.youtubeId) : undefined),
+        title: newTitle,
+        description: description ?? current?.description,
+        thumbnail: thumbnail === undefined ? current?.thumbnail : (thumbnail ?? undefined),
+        lessons: lessons ?? current?.lessons,
+      };
+      // the video is saved (and checked) before the upload, so a refused one uploads nothing
+      let saved = await saveVideo(item, video);
+      if (file) saved = await saveVideo(item, { ...video, thumbnail: await uploadThumbnail(client, item, file) });
+      return json({ item, video: shownVideo(saved), page: page(item), plays: plays(item) });
+    }),
+  );
+
+  server.registerTool(
+    'catalog_add_video_item',
+    {
+      title: 'Add a tutorial or course (admins)',
+      description:
+        "Admins only. Add a tutorial (one YouTube video, played on its page) or a course (tutorials played in order on its own page, /courses/<slug>) to the catalog. Its card takes the video's title and the first paragraph of its description. It starts in development (admins and private testers): move it on with catalog_set_stage once the user says so. Its id is <kind>/<slug>, the slug made from the title unless given. Change it later with catalog_set_video (a course's lessons too). Answers with the release page and where it plays: give the user both.",
+      inputSchema: withoutLocalArgs(
+        {
+          kind: z.enum(['tutorial', 'course']),
+          slug: z
+            .string()
+            .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, 'lowercase letters, digits and dashes')
+            .optional()
+            .describe('Leave out to make it from the title'),
+          ...VIDEO_FIELDS,
+          title: z.string().min(1).max(120),
+        },
+        LOCAL_ARGS,
+        options,
+      ),
+      annotations: WRITE,
+    },
+    safe(async ({ kind, slug, url, title, description, thumbnail, thumbnailFile, lessons }) => {
+      rejectLocalArgs(options, { thumbnailFile });
+      if (thumbnail != null && thumbnailFile) throw new Error('Give thumbnail or thumbnailFile, not both');
+      const file = thumbnailFile ? await readThumbnail(thumbnailFile) : undefined;
+      const itemSlug = slug ?? slugify(title);
+      if (!itemSlug) throw new Error(`No id can be made from "${title}": give a slug`);
+      const id = `${kind}/${itemSlug}`;
+
+      const video: VideoBody = { url, title, description, thumbnail: thumbnail ?? undefined, lessons: kind === 'course' ? (lessons ?? []) : lessons };
+      let { video: saved } = await client.post<{ video: StoredVideo }>('/api/admin/catalog', { type: 'create_video_item', kind, slug: itemSlug, video });
+      if (file) {
+        try {
+          saved = await saveVideo(id, { ...video, thumbnail: await uploadThumbnail(client, id, file) });
+        } catch (error) {
+          throw new Error(`Added ${id} (${page(id)}), but its thumbnail didn't upload: ${(error as Error).message}. Try again with catalog_set_video.`);
+        }
+      }
+      return json({ item: id, stage: 'development', video: shownVideo(saved), page: page(id), plays: plays(id) });
     }),
   );
 

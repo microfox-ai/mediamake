@@ -1,6 +1,9 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MediamakeClient } from './client';
 import { createServer } from './server';
 
@@ -335,6 +338,170 @@ describe('catalog admin tools', () => {
     expect(bad.out).toContain('c3, c4');
     expect(bad.out).toContain('catalog_invite');
     expect(none.filter(c => c.method === 'POST')).toHaveLength(0);
+  });
+
+  /** set_video answers with what it stored: the YouTube id from the link, like the app. */
+  const storedVideo = (video: any) => ({
+    video: {
+      ...(video.url && { youtubeId: new URL(video.url).searchParams.get('v') }),
+      title: video.title,
+      description: video.description ?? '',
+      ...(video.thumbnail && { thumbnail: video.thumbnail }),
+      ...(video.lessons && { lessons: video.lessons }),
+    },
+  });
+  const INTRO = { youtubeId: 'aqz-KE-bpKQ', title: 'Pack a brand kit', description: 'Episode 1.', thumbnail: 'https://cdn.test/t.jpg' };
+
+  it('changes one field of a video and keeps the rest', async () => {
+    const calls = stubApi((method, _path, body) => (method === 'GET' ? { item: {}, video: INTRO } : storedVideo(body.video)));
+    const { out } = await call('catalog_set_video', { item: 'skill/pack-brand-kit', title: 'Brand kit in one prompt' });
+    expect(calls[0].url.searchParams.get('id')).toBe('skill/pack-brand-kit');
+    expect(calls[1].body).toEqual({
+      type: 'set_video',
+      itemId: 'skill/pack-brand-kit',
+      video: { url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Brand kit in one prompt', description: 'Episode 1.', thumbnail: 'https://cdn.test/t.jpg' },
+    });
+    expect(out).toEqual({
+      item: 'skill/pack-brand-kit',
+      video: { title: 'Brand kit in one prompt', description: 'Episode 1.', thumbnail: 'https://cdn.test/t.jpg', youtube: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
+      page: 'http://mm.test/core/releases/skill/pack-brand-kit',
+      plays: 'http://mm.test/access?item=skill%2Fpack-brand-kit',
+    });
+  });
+
+  it("goes back to YouTube's thumbnail with null, and needs a title for a new video", async () => {
+    const calls = stubApi((method, _path, body) => (method === 'GET' ? { item: {}, video: INTRO } : storedVideo(body.video)));
+    const { out } = await call('catalog_set_video', { item: 'skill/pack-brand-kit', thumbnail: null });
+    expect(calls[1].body.video.thumbnail).toBeUndefined();
+    expect(out.video.thumbnail).toBe('https://img.youtube.com/vi/aqz-KE-bpKQ/maxresdefault.jpg');
+
+    vi.unstubAllGlobals();
+    const none = stubApi(() => ({ item: {}, video: null }));
+    const bad = await call('catalog_set_video', { item: 'course/cwc', description: 'Lessons' });
+    expect(bad.isError).toBe(true);
+    expect(bad.out).toContain('give its title and lessons');
+    expect(none.filter(c => c.method === 'POST')).toHaveLength(0);
+  });
+
+  it('removes a video, and only with nothing else given', async () => {
+    const calls = stubApi(() => ({ video: null }));
+    const { out } = await call('catalog_set_video', { item: 'skill/x', remove: true });
+    expect(calls.map(c => c.body)).toEqual([{ type: 'set_video', itemId: 'skill/x', video: null }]);
+    expect(out).toEqual({ item: 'skill/x', video: null, page: 'http://mm.test/core/releases/skill/x' });
+    expect((await call('catalog_set_video', { item: 'skill/x', remove: true, title: 'X' })).isError).toBe(true);
+  });
+
+  it('adds a tutorial with its id made from the title, and a course that plays on its own page', async () => {
+    const calls = stubApi((_method, _path, body) => ({ item: {}, ...storedVideo(body.video) }));
+    const { out } = await call('catalog_add_video_item', {
+      kind: 'tutorial',
+      title: 'Brand kit in one prompt!',
+      url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+    });
+    expect(calls[0].body).toEqual({
+      type: 'create_video_item',
+      kind: 'tutorial',
+      slug: 'brand-kit-in-one-prompt',
+      video: { url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Brand kit in one prompt!' },
+    });
+    expect(out).toMatchObject({
+      item: 'tutorial/brand-kit-in-one-prompt',
+      stage: 'development',
+      page: 'http://mm.test/core/releases/tutorial/brand-kit-in-one-prompt',
+      plays: 'http://mm.test/access?item=tutorial%2Fbrand-kit-in-one-prompt',
+    });
+
+    const course = await call('catalog_add_video_item', { kind: 'course', slug: 'cwc', title: 'Cook with Claude' });
+    expect(calls[1].body.video).toEqual({ title: 'Cook with Claude', lessons: [] });
+    expect(course.out.plays).toBe('http://mm.test/courses/cwc');
+  });
+
+  it('takes a thumbnail file only on the local server', async () => {
+    for (const [localFiles, offered] of [[true, true], [false, false]] as const) {
+      const { tools } = await (await connect(localFiles)).listTools();
+      for (const name of ['catalog_set_video', 'catalog_add_video_item']) {
+        expect(Object.keys(tools.find(t => t.name === name)!.inputSchema.properties ?? {}).includes('thumbnailFile')).toBe(offered);
+      }
+    }
+  });
+
+  describe('thumbnail files', () => {
+    let dir: string;
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'catalog-thumb-'));
+    });
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    /** The admin API and the storage PUT, recorded with their headers. */
+    function stubWithStorage(storageStatus = 200) {
+      const calls: { method: string; url: string; headers: Record<string, string>; body?: any }[] = [];
+      vi.stubGlobal('fetch', async (input: string, init: RequestInit = {}) => {
+        const url = String(input);
+        const method = init.method ?? 'GET';
+        const headers = (init.headers ?? {}) as Record<string, string>;
+        if (url.startsWith('https://store.test/')) {
+          calls.push({ method, url, headers, body: init.body });
+          return new Response(storageStatus === 200 ? null : 'denied', { status: storageStatus });
+        }
+        const body = init.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ method, url, headers, body });
+        if (method === 'GET') return Response.json({ item: {}, video: INTRO });
+        if (body.type === 'create_thumbnail_upload')
+          return Response.json({ uploadUrl: 'https://store.test/put?sig=1', publicUrl: 'https://cdn.test/catalog-thumbnails/new.png' });
+        return Response.json({ item: {}, ...storedVideo(body.video) });
+      });
+      return calls;
+    }
+    const callLocal = async (name: string, args: Record<string, unknown>) => {
+      const result: any = await (await connect(true)).callTool({ name, arguments: args });
+      return { isError: !!result.isError, text: result.content[0].text as string };
+    };
+
+    it('saves the video, uploads the image public-read, then points the video at it', async () => {
+      const file = join(dir, 'thumb.png');
+      await writeFile(file, Buffer.from([137, 80, 78, 71]));
+      const calls = stubWithStorage();
+      const { isError, text } = await callLocal('catalog_set_video', { item: 'skill/pack-brand-kit', thumbnailFile: file });
+      expect(isError).toBe(false);
+      expect(calls.map(c => c.body?.type ?? `${c.method} ${new URL(c.url).pathname}`)).toEqual([
+        'GET /api/admin/catalog/item',
+        'set_video',
+        'create_thumbnail_upload',
+        'PUT /put',
+        'set_video',
+      ]);
+      expect(calls[2].body).toEqual({ type: 'create_thumbnail_upload', itemId: 'skill/pack-brand-kit', filename: 'thumb.png', contentType: 'image/png' });
+      expect(calls[3].headers).toEqual({ 'Content-Type': 'image/png', 'x-amz-acl': 'public-read' });
+      expect(calls[4].body.video.thumbnail).toBe('https://cdn.test/catalog-thumbnails/new.png');
+      expect(JSON.parse(text).video.thumbnail).toBe('https://cdn.test/catalog-thumbnails/new.png');
+    });
+
+    it('refuses a file that is not an image before saving anything', async () => {
+      const file = join(dir, 'notes.txt');
+      await writeFile(file, 'hi');
+      const calls = stubWithStorage();
+      const { isError, text } = await callLocal('catalog_set_video', { item: 'skill/x', thumbnailFile: file });
+      expect(isError).toBe(true);
+      expect(text).toContain('not a PNG, JPEG, WebP, GIF or AVIF image');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('says a new tutorial was added when only its thumbnail failed', async () => {
+      const file = join(dir, 'thumb.jpg');
+      await writeFile(file, Buffer.from([255, 216, 255]));
+      stubWithStorage(403);
+      const { isError, text } = await callLocal('catalog_add_video_item', {
+        kind: 'tutorial',
+        title: 'Ep 1',
+        url: 'https://youtu.be/aqz-KE-bpKQ',
+        thumbnailFile: file,
+      });
+      expect(isError).toBe(true);
+      expect(text).toContain('Added tutorial/ep-1');
+      expect(text).toContain('catalog_set_video');
+    });
   });
 
   it('rejects an id that is not a catalog id', async () => {

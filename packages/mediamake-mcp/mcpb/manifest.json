@@ -192,11 +192,19 @@
     },
     {
       "name": "catalog_set_stage",
-      "description": "Admins: move one of our apps, MCPs or tutorials between development, community, public and the vault."
+      "description": "Admins: move one of our apps, MCPs, tutorials or courses between development, community, public and the vault."
     },
     {
       "name": "catalog_add_third_party",
       "description": "Admins: list an open-source or hosted MCP or skill made by others, with where it installs from."
+    },
+    {
+      "name": "catalog_set_video",
+      "description": "Admins: set, change or remove a catalog item's YouTube video: a skill's intro, a tutorial's video, a course's lessons."
+    },
+    {
+      "name": "catalog_add_video_item",
+      "description": "Admins: add a tutorial (one YouTube video) or a course (tutorials played in order); it starts in development."
     },
     {
       "name": "catalog_invite",

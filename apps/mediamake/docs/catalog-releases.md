@@ -185,6 +185,9 @@ Admin API (`POST /api/admin/catalog`):
 - `{ type: 'create_thumbnail_upload', itemId, filename, contentType }`: a signed
   link to upload a thumbnail image to.
 
+From Claude, the MediaMake MCP's `catalog_set_video` and `catalog_add_video_item`
+do the same (see below).
+
 ## From Claude: the MediaMake MCP's catalog tools
 
 The MediaMake MCP (the hosted connector at `/mcp`, or the local `.mcpb`)
@@ -197,8 +200,10 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_items` | Every item in a line (`GET /api/admin/catalog/items`): tier, where it comes from, archived, what it works with, what uses it, its page. Filters: kind, tier, archived, words. |
 | `catalog_item` | One item's page as data: access and grants, where it lives, the install steps and choices, what uses it, versions and notes. |
 | `catalog_archive` | Archive items, or bring them back (`archived: false`), with a note. |
-| `catalog_set_stage` | Move one of our apps, MCPs or tutorials to development, community (optionally with a gate), public or the vault, taking it out of the vault first when needed. Skills and items made by others refuse: archive them instead. |
+| `catalog_set_stage` | Move one of our apps, MCPs, tutorials or courses to development, community (optionally with a gate), public or the vault, taking it out of the vault first when needed. Skills and items made by others refuse: archive them instead. |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
+| `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
+| `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts in development. |
 | `catalog_invite` | An invite link that opens gated items for the people it is sent to, or (with `group`) makes them private testers or community members. |
 | `catalog_people` | The private testers, the community and everyone else with a key, plus tier invite links and pending requests. |
 | `catalog_set_tier` | Make people private testers, community or public, by client id or the name on their key. |
