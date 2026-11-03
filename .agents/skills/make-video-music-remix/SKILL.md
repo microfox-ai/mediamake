@@ -139,7 +139,8 @@ Sections, whatever the genre:
 ## What it needs
 
 1. **The song** (wav/flac preferred) and, if words will be shown, **its timed transcription**
-   (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe (paid: ask).
+   (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe it as CLAUDE.md ›
+   Transcription says (the ElevenLabs connector first, else `npm run transcribe … --yes`; paid: ask first).
    No words at all: skip the text layer (an instrumental edit is untested end to end here — check
    that `prepare-project` accepts the project before relying on it).
 2. **Footage**: one or more videos (each its own source), ideally edits or highlight reels.
@@ -154,7 +155,8 @@ MCPs (check at intake which this session has):
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/browse-hack` | recommended | Downloading footage from YouTube into the library inbox and checking a clip's real size and HDR first (`youtube_download`, `youtube_get_video`) | The user downloads every clip and drops it in themselves |
-| `mcp/elevenlabs` | optional | Sound effects, only when the user asks for them (`text_to_sound_effects`) | No sound effects: the edit runs on the song alone |
+| `mcp/elevenlabs-connector` | optional | Timed lyrics when the user wants text and has no `lyrics.json` (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | optional | Sound effects, only when the user asks for them (`text_to_sound_effects`), and its API key for `npm run transcribe --yes` when the connector isn't connected | No sound effects: the edit runs on the song alone |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -682,3 +684,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   that was a bad setup → a project owns its sources: footage goes into `input/` as a copy (`cp -c`), never
   a link, and is segregated from that copy. `prepare-project` and `cleanup-out scan` list any link under
   `projects/` whose file is gone; never remove one yourself (ask: put the file back, or remove the link).
+- 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
+  wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
+  first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
+  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.

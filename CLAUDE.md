@@ -16,6 +16,25 @@ media library and reused by every production. Where it is on this machine is in
 - Never move or rename library files by hand (`media mv`).
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
 
+## Transcription: the ElevenLabs connector first
+
+Every skill gets a song's timed words the same way: ElevenLabs Scribe on the vocal stem, around
+`npm run transcribe -w lyrics_videos -- <slug>` (`apps/lyrics_videos/scripts/transcribe.ts`).
+
+1. Run it with no flags first (free; the stem comes from `npm run analyze -w lyrics_videos -- <slug> --only separate`).
+   It gives back the song's words from the media library's cache when they are there (done), else makes the
+   stem's mono MP3 (`analysis/stems/vocals.mp3`, a tenth of the WAV) and prints the price. Show it and ask.
+2. First choice, the hosted ElevenLabs connector (`mcp/elevenlabs-connector`, tools `creative_*`):
+   `creative_transcribe_audio` on that MP3 (the user picks it in its file picker: give them an `open -R` line for
+   it), download its `words_download_url`, then `--save=<that file>` writes `input/lyrics.raw.json` and keeps the
+   words in the cache.
+3. Only when the connector isn't connected: `--yes` sends the MP3 to Scribe with the local ElevenLabs MCP's key
+   (`mcp/elevenlabs`), which the script finds in Claude Code's or Claude Desktop's config.
+
+`--lang=<code>`, `--letters` for letter times, `--mix` for the whole song, or a file path instead of a slug.
+Never a curl with a key, a key in a .env, the local MCP's own `speech_to_text` (text only, no times) or the
+MediaMake MCP's transcriptions. When installing, the connector comes first; the local MCP is the fallback.
+
 ## Releases: always give the item's link
 
 Every catalog item (skill, MCP, app, tutorial) has a page for admins,

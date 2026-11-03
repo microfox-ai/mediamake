@@ -30,7 +30,8 @@
     "preflight": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/preflight.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",
-    "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts"
+    "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts",
+    "transcribe": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/transcribe.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

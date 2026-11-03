@@ -191,18 +191,19 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
 
 1. **The song** (wav preferred) and **timed words**, transcribed with ElevenLabs Scribe, never taken from
    MediaMake's transcriptions (the user, 2026-11-03: "should not use mediamake mcp instead use elevenlabs
-   directly"). Separate the vocals and transcribe the vocal stem (make-waveform-lyric-video step 1). It is
-   paid: get the price and ask first.
-   - **The ElevenLabs connector** (`mcp/elevenlabs-connector`, added from
+   directly"). Separate the vocals and transcribe the vocal stem as CLAUDE.md › Transcription says
+   (make-waveform-lyric-video step 1): `npm run transcribe -w lyrics_videos -- <slug>` first gives back the
+   song's cached words, or makes the stem's MP3 and prints the price. It is paid: ask first.
+   - **The ElevenLabs connector, first choice** (`mcp/elevenlabs-connector`, added from
      https://claude.ai/directory/elevenlabs, its tools named `creative_*`): `creative_transcribe_audio`
      with `estimate_only: true` for the price, then for real. A file on this computer goes in through
-     `creative_upload_flow_reference` (modality `audio`: the user picks the stem in the picker), wired in
+     `creative_upload_flow_reference` (modality `audio`: the user picks `analysis/stems/vocals.mp3` in the picker), wired in
      with `connect_from`; a direct https link through `creative_attach_reference_file`. Every word comes
      back with its start and end seconds in `transcripts[].words` (`creative_get_flow_run_status`), the
-     full list at `words_download_url`.
-   - **Without it**, or when this client shows no picker: Scribe's API with an ElevenLabs API key
-     (`ELEVENLABS_API_KEY`, e.g. the local ElevenLabs MCP's) and `timestamps_granularity=word`
-     (`character` adds letter times), as in make-waveform-lyric-video step 1. Not the local MCP's
+     full list at `words_download_url`: download it, then `npm run transcribe -w lyrics_videos -- <slug>
+     --save=<that file>` writes `input/lyrics.raw.json` and keeps the words in the media library's cache.
+   - **Without it**, or when this client shows no picker: `--yes` sends the MP3 to Scribe with the local
+     ElevenLabs MCP's key (`mcp/elevenlabs`; `--letters` adds letter times). Not the local MCP's
      `speech_to_text`: it returns the text only, no times.
    Check the transcription is of the same mix (same length). **A published song (a YouTube link, a
    playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and transcribe
@@ -224,7 +225,8 @@ MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio`) | Scribe's API with an ElevenLabs API key instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -810,3 +812,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   word's start and end; the open-source `elevenlabs-mcp` (0.12.2) `speech_to_text` keeps only the text, so without the
   connector Scribe's API is called with that MCP's key (word times, or letter times with `character`). Respelling now
   follows the user's written lyrics.
+- 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
+  wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
+  first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
+  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.

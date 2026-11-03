@@ -198,7 +198,8 @@ Sections, whatever the genre:
 ## What it needs
 
 1. **The song** (wav/flac preferred) and, if words will be shown, **its timed transcription**
-   (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe (paid: ask).
+   (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe it as CLAUDE.md ›
+   Transcription says (the ElevenLabs connector first, else `npm run transcribe … --yes`; paid: ask first).
    No words at all: skip the text layer (an instrumental edit is untested end to end here — check
    that `prepare-project` accepts the project before relying on it).
 2. **Footage**: one or more videos (each its own source), ideally edits or highlight reels.

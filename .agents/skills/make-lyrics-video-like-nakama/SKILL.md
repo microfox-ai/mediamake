@@ -142,15 +142,16 @@ This workflow only works when **both** exist:
 
 If either is missing, stop and tell the user before doing anything else:
 - No audio: this skill doesn't apply. Say so; a video that isn't driven by a song needs a different setup.
-- No transcription: offer to transcribe the song first (mediamake has transcription APIs under
-  `apps/mediamake/app/api/transcribe`: AssemblyAI, ElevenLabs, Gemini). Never invent or estimate
-  timings. These cost money: ask before calling one.
-  - Call it through the Mediamake MCP's `transcribe` (`provider: "elevenlabs-stt"` / `"assembly"`,
-    `saveTo: …/input/lyrics.raw.json`): it returns word timings. The ElevenLabs MCP's own
-    `speech_to_text` returns plain text only, which is useless for timing.
-  - Transcribe the Demucs vocal stem, not the mix: `uv run --project analysis python
-    analysis/pipeline.py <slug> --only separate` works before `lyrics.json` exists (~1 min); encode
-    `analysis/stems/vocals.wav` to MP3 for the upload.
+- No transcription: offer to transcribe the song first with ElevenLabs Scribe, as CLAUDE.md ›
+  Transcription says. Never invent or estimate timings. It costs credits: ask first.
+  - Separate the vocals (`npm run analyze -w lyrics_videos -- <slug> --only separate`, works before
+    `lyrics.json` exists, ~1 min), then `npm run transcribe -w lyrics_videos -- <slug>`: the song's
+    cached words, or the stem's MP3 and the price.
+  - The ElevenLabs connector first (`creative_transcribe_audio` on `analysis/stems/vocals.mp3`, then
+    `--save=<its words JSON>`); without it, `--yes` with the ElevenLabs MCP's key. Either way
+    `input/lyrics.raw.json` gets every word's start and end.
+  - Not the MediaMake MCP's transcriptions, nor the ElevenLabs MCP's own `speech_to_text` (plain text
+    only, useless for timing).
   - When the song comes as an existing lyric video, read the written lyrics off its frames: sample the
     text half at 4 fps, start a new card when most of the lit text pixels go dark, keep each card's
     last frame, crop the text band and tile the cards into sheets to read.

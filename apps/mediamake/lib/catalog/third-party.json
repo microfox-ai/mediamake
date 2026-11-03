@@ -20,7 +20,7 @@
             "env": [
               {
                 "name": "ELEVENLABS_API_KEY",
-                "description": "Your ElevenLabs API key",
+                "description": "Your ElevenLabs API key. At the link (Developers > API Keys) create one: Restrict Key is on by default, so turn it off or allow Speech to Text, Text to Speech, Sound Effects, Voices and User. Copy it at once (shown only once). MediaMake's npm run transcribe reads it here too.",
                 "getAt": "https://elevenlabs.io/app/settings/api-keys",
                 "secret": true,
                 "required": true

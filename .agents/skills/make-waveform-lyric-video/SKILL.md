@@ -82,8 +82,10 @@ MCPs (check at intake which this session has; transcription calls ElevenLabs' AP
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
+| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
 | `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
+| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -114,16 +116,19 @@ Write the answers to `brief.md`, start `prefs.md`.
 ## 1. Lyrics
 
 Copy the song and picture into `projects/<slug>/input/` (slug rules as make-lyrics-video step 1).
-Separate the vocals first (`uv run --project analysis python analysis/pipeline.py <slug> --only
-separate`, ~1 min) and **transcribe the vocal stem** with ElevenLabs speech-to-text and word
-timestamps (the key is the second `ELEVENLABS_API_KEY` in `apps/mediamake/.env`; add
-`-F language_code=<code>` for non-English):
+Separate the vocals first (`npm run analyze -w lyrics_videos -- <slug> --only separate`, ~1 min,
+free) and **transcribe the vocal stem** with ElevenLabs Scribe, as CLAUDE.md › Transcription says. It
+is paid: the first run only gives back the song's cached words or prints the price; show it and ask.
 
 ```bash
-curl -s https://api.elevenlabs.io/v1/speech-to-text -H "xi-api-key: $KEY" \
-  -F model_id=scribe_v1 -F timestamps_granularity=word -F tag_audio_events=false \
-  -F file=@vocals.mp3 > projects/<slug>/input/lyrics.raw.json
+npm run transcribe -w lyrics_videos -- <slug>                      # cached words, or the MP3 and the price
+npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # after the ElevenLabs connector (first choice)
+npm run transcribe -w lyrics_videos -- <slug> --yes                # no connector: Scribe with the MCP's key
 ```
+
+The ElevenLabs connector's `creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks
+it in its file picker); `--save` keeps the words it gives in `input/lyrics.raw.json` and the media
+library's cache. Every word comes with its start and end (`--lang=<code>` for a non-English song).
 
 Re-cut into lines with a small script in the project (`tools/recut.py`, copy Devil in the Details'):
 a list of lines, each its `htmlText` with the hero word in `<b>` and its rows split with `<br/>`; the
@@ -490,3 +495,8 @@ Append dated entries: what the user said → the rule.
   caps); an upright, wide-tracked serif stack needed StackedLyrics `leading`, `heroStroke` ≈ 0 (keep the
   hairlines), `wordSpace` and a `glint`; the centre bottom over a bright prop (a medallion) swallowed
   unsung words, so side columns only.
+- 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
+  wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
+  first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
+  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
