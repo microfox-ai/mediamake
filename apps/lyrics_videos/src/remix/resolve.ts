@@ -75,6 +75,8 @@ export type ResolvedText = {
   from: number;
   to: number;
   words: ResolvedWord[]; // one entry per displayed word, with its own start
+  /** 'pow' with `small`: the whole lyric line, word by word with their starts */
+  small?: ResolvedWord[];
   cue: TextCue;
   /** index among the cues of its style, for alternating placement */
   n: number;
@@ -132,6 +134,9 @@ export const resolveCuts = (m: ManifestLike, f: Footage, blocks: Block[], matted
         const over = sourceTime(cut, to - from) - s1;
         const under = s0 - sourceTime(cut, to - from);
         if (over > 1 / 24) cut.warn = `runs ${over.toFixed(2)}s past the end of ${c.src} (into the footage's next shot)`;
+        // segregation boundaries can be a frame off: a cut that plays its take to the very last frame can flash the
+        // next shot's first frame (kingpinxdeadpool v10's scan); a held take stops short of the end on its own
+        else if (over > -1 / 30 && cut.holdAt === undefined) cut.warn = `ends on the last frame of ${c.src} (its next shot can flash in): a little more slow motion or a shorter cut`;
         if (under > 1 / 24) cut.warn = `rewinds ${under.toFixed(2)}s past the start of ${c.src} (into the footage's previous shot)`;
         if (matted.has(c.src) && !c.fx.some(x => x.k === 'flat')) cut.matte = { key: c.src, in: s0 };
       }
@@ -144,8 +149,8 @@ export const resolveCuts = (m: ManifestLike, f: Footage, blocks: Block[], matted
   return out;
 };
 
-const LAYER: Record<TextStyle, string> = { big: 'big', front: 'big', line: 'line', label: 'label', sub: 'sub', timer: 'timer', map: 'map', flank: 'flank', comic: 'comic', decal: 'decal', bar: 'bar', plane: 'plane', glass: 'big', ko: 'ko', stack: 'stack', flow: 'flow' };
-const HOLD: Record<TextStyle, number> = { big: 1, front: 1.5, line: 1.5, label: 3, sub: 4, timer: 0, map: 4, flank: 4, comic: 1, decal: 4, bar: 1.2, plane: 1.5, glass: 1.2, ko: 1, stack: 2, flow: 1 };
+const LAYER: Record<TextStyle, string> = { big: 'big', front: 'big', line: 'line', label: 'label', sub: 'sub', timer: 'timer', map: 'map', flank: 'flank', comic: 'comic', pow: 'pow', decal: 'decal', bar: 'bar', plane: 'plane', glass: 'big', ko: 'ko', stack: 'stack', flow: 'flow', lock: 'ko' };
+const HOLD: Record<TextStyle, number> = { big: 1, front: 1.5, line: 1.5, label: 3, sub: 4, timer: 0, map: 4, flank: 4, comic: 1, pow: 1, decal: 4, bar: 1.2, plane: 1.5, glass: 1.2, ko: 1, stack: 2, flow: 1, lock: 3 };
 
 /**
  * Seconds a sung word shows before its aligned start. Aligned starts trail the consonant onsets by
@@ -153,6 +158,21 @@ const HOLD: Record<TextStyle, number> = { big: 1, front: 1.5, line: 1.5, label: 
  * appearing in delay").
  */
 export const TEXT_LEAD = 0.15;
+
+/** 'lock': where a phrase starts in its sung line — the first word from `from` on that matches the phrase's first word,
+ *  preferring the start where most of the words after it match too (display words like 'X' for "cross" may differ) */
+const phraseAt = (sung: { text: string }[], text: string, from: number) => {
+  const parts = text.split(' ').map(norm);
+  let best = -1;
+  let score = -1;
+  for (let i = from; i < sung.length; i++) {
+    if (norm(sung[i].text) !== parts[0]) continue;
+    const k = parts.filter((p, j) => sung[i + j] && norm(sung[i + j].text) === p).length;
+    if (k > score) [best, score] = [i, k];
+  }
+  if (best < 0) throw new Error(`lockup "${text}": "${parts[0]}" is not sung in "${sung.map(x => x.text).join(' ')}"`);
+  return best;
+};
 
 export const resolveText = (m: ManifestLike, cues: TextCue[], lead = TEXT_LEAD): ResolvedText[] => {
   const beatLen = (t: number) => {
@@ -166,8 +186,8 @@ export const resolveText = (m: ManifestLike, cues: TextCue[], lead = TEXT_LEAD):
     let lastEnd: number;
     if (cue.line) {
       const line = findLine(m, cue.line[0], cue.line[1] ?? 0);
-      const w0 = cue.w ?? 0;
       const sung = line.words;
+      const w0 = cue.style === 'lock' ? phraseAt(sung, cue.text, cue.w ?? 0) : cue.w ?? 0;
       const text = cue.text === '*' ? line.text.toUpperCase().replace(/[.,!?]+$/, '') : cue.text;
       const parts = text.split(' ');
       if (cue.ws) {
@@ -175,7 +195,7 @@ export const resolveText = (m: ManifestLike, cues: TextCue[], lead = TEXT_LEAD):
         const lines = text.split('/');
         words = lines.map((t, k) => ({ text: t, at: Math.max(0, (sung[cue.ws![k] ?? cue.ws![cue.ws!.length - 1]] ?? sung[sung.length - 1]).start - lead) }));
         lastEnd = (sung[cue.ws[cue.ws.length - 1]] ?? sung[sung.length - 1]).end;
-      } else if (cue.perWord || cue.text === '*') {
+      } else if (cue.perWord || cue.text === '*' || cue.style === 'lock') {
         words = parts.map((t, k) => ({ text: t, at: Math.max(0, (sung[w0 + k] ?? sung[sung.length - 1]).start - lead) }));
         lastEnd = (sung[w0 + parts.length - 1] ?? sung[sung.length - 1]).end;
       } else {
@@ -188,17 +208,24 @@ export const resolveText = (m: ManifestLike, cues: TextCue[], lead = TEXT_LEAD):
       words = cue.text.split(' ').map(t => ({ text: t, at }));
       lastEnd = at;
     }
+    let small: ResolvedWord[] | undefined;
+    if (cue.small && cue.line) {
+      const line = findLine(m, cue.line[0], cue.line[1] ?? 0);
+      small = line.words.map(x => ({ text: x.text.toUpperCase().replace(/[.,!?]+$/, ''), at: Math.max(0, x.start - lead) }));
+      lastEnd = Math.max(lastEnd, line.words[line.words.length - 1].end);
+    }
     if (cue.start !== undefined) {
       const s = beatTime(m, cue.start);
       words = words.map(x => ({ ...x, at: Math.max(x.at, s) }));
+      if (small) small = small.map(x => ({ ...x, at: Math.max(x.at, s) }));
     }
-    const from = words[0].at;
+    const from = small ? Math.min(words[0].at, small[0].at) : words[0].at;
     let to = cue.until
       ? findLine(m, cue.until[0], cue.until[1] ?? 0).words[0].start - lead - 0.02
       : Math.min(m.audio.duration, lastEnd + (cue.hold ?? HOLD[cue.style]) * beatLen(lastEnd));
     if (cue.end !== undefined) to = Math.min(to, beatTime(m, cue.end) - 0.02);
     const n = (count[cue.style] = (count[cue.style] ?? -1) + 1);
-    return { i, style: cue.style, from, to, words, cue, n };
+    return { i, style: cue.style, from, to, words, small, cue, n };
   });
   // one cue per layer at a time: the next one cuts the previous off
   for (const t of raw) {

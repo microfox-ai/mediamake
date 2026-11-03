@@ -26,7 +26,7 @@ import { AbsoluteFill, Easing, Freeze, interpolate, OffthreadVideo, random, Sequ
 import { asset } from '../kit/hooks';
 import { Audio } from '@remotion/media';
 import type { SceneProps } from '../kit/contract';
-import { envelopeAt, hitAt } from '../kit/timing';
+import { beatAt, envelopeAt, hitAt, timeOfBeat } from '../kit/timing';
 import type { Manifest } from '../kit/manifest';
 import type { Block, Fx, Gfx, Sfx, TextCue, Transition } from './edl.ts';
 import { measure, useFontsReady } from './measure';
@@ -37,8 +37,9 @@ import { TitleCard } from './gfx/TitleCard';
 export type RemixTheme = {
   /** punch: big words; line: captions and lines; data: HUD; title: the title card's title (falls back to punch);
    *  sign: the channel's sign-off ('flank', falls back to line); comic: 'comic' caption boxes (falls back to punch);
-   *  script: big words with cue.font 'script' (falls back to punch) */
-  fonts: { punch: string; line: string; data: string; title?: string; sign?: string; comic?: string; script?: string };
+   *  script: big words with cue.font 'script' (falls back to punch); any other key: a face a big word picks by name
+   *  (cue.font) */
+  fonts: { punch: string; line: string; data: string; title?: string; sign?: string; comic?: string; script?: string; [face: string]: string | undefined };
   /** fire: a true red for words over flames (cue color 'fire'; #FF3B30 when unset) */
   colors: { ground: string; bone: string; red: string; cyan: string; acid: string; fire?: string };
   /** resolves when the fonts are loaded (measurement waits for it) */
@@ -87,6 +88,10 @@ type Ctx = {
   frame: { w: number; h: number };
   /** vertical frames: the height of the top words and of the captions (px), clear of the platforms' buttons */
   safe: { top: number; caption: number };
+  /** 'ripple' transitions: the ring maps, one per phase (rippleMap); empty when no cut ripples */
+  ripples: string[];
+  /** 'lock' words: where each lockup sits and how big (placeLocks), by the cue's index */
+  locks: Map<number, LockLayout>;
 };
 
 const expOut = Easing.out(Easing.exp);
@@ -106,8 +111,10 @@ const wobble = (seed: string, t: number) => {
 };
 
 /** frames of each transition: the out-shot's exit and the in-shot's entry */
-const OUT: Partial<Record<Transition, number>> = { zoom: 6, whip: 4, whipr: 4, whipv: 4, spin: 5, liquid: 5, flow: 5 };
-const IN: Partial<Record<Transition, number>> = { zoom: 12, whip: 6, whipr: 6, whipv: 6, spin: 8, match: 10, carry: 10, pass: 8, flash: 5, impact: 10, liquid: 10, flow: 9 };
+const OUT: Partial<Record<Transition, number>> = { zoom: 6, whip: 4, whipr: 4, whipv: 4, spin: 5, liquid: 5, ripple: 12, flow: 5 };
+/** transitions that move the picture (a word drawn into it would be carried off the frame) */
+const MOVING = new Set<Transition>(['zoom', 'match', 'flow', 'spin', 'whip', 'whipr', 'whipv', 'carry', 'pass', 'liquid', 'ripple']);
+const IN: Partial<Record<Transition, number>> = { zoom: 12, whip: 6, whipr: 6, whipv: 6, spin: 8, match: 10, carry: 10, pass: 8, flash: 5, impact: 10, liquid: 10, ripple: 18, flow: 9 };
 /** how far a warp zoom pushes into the subject (scale 1 + ZOOM at the cut) */
 const ZOOM = 1.5;
 
@@ -169,6 +176,12 @@ const anchorAt = (ctx: Ctx, cut: ResolvedCut, songT: number): [number, number, n
   const v = viewAt(ctx, cut, songT);
   return a[2] > 0 && v !== FULL ? [(a[0] - v.x0) / v.fx, (a[1] - v.y0) / v.fy, a[2] / (v.fx * v.fy)] : a;
 };
+/** the least zoom (about the origin ox, oy) that keeps a picture shifted by (mx, my) covering the w × h frame */
+const cover = (ox: number, oy: number, mx: number, my: number, w: number, h: number) => {
+  const cx = Math.max(0.05 * w, Math.min(0.95 * w, ox)), cy = Math.max(0.05 * h, Math.min(0.95 * h, oy));
+  return Math.max(1, mx > 0 ? 1 + mx / cx : 1 - mx / (w - cx), my > 0 ? 1 + my / cy : 1 - my / (h - cy));
+};
+
 /** which way the subject moves at the end of a cut: a unit vector in window space and its main axis
  *  (from the anchors over the last 0.15 s; sideways when unknown or still) */
 const motionAt = (ctx: Ctx, cut: ResolvedCut): { dx: number; dy: number; axis: 'h' | 'v' } => {
@@ -290,6 +303,43 @@ const warpLevel = (x: number) => Math.max(0, Math.min(6, Math.round(x * 6)));
 const LIQ_MAX = 160;
 const LIQ_OVER = 0.08;
 const sineInOut = Easing.inOut(Easing.sin);
+// the ripple zoom: the strongest ring pull (px), how far the camera zooms in at the cut, the ring maps' phases
+// (the rings run outward through them, two a second) and the rings across the field's radius
+const RIP_PX = 110;
+const RIP_ZOOM = 0.4;
+const RIP_PHASES = 10;
+const RIP_RINGS = 7;
+
+/**
+ * A ring map for the ripple zoom: a displacement image (like bulgeMap) for a field twice the window's size, centred on
+ * the subject when drawn, whose pull runs along the radius as a sine — rings — strongest mid-way out, nothing at the
+ * centre or the rim. `phase` (0–1) shifts the rings outward; drawn once per phase on a canvas.
+ */
+const rippleMap = (w: number, h: number, phase: number): string => {
+  if (typeof document === 'undefined') return '';
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const g = cv.getContext('2d')!;
+  const img = g.createImageData(w, h);
+  const R = Math.hypot(w, h) / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - w / 2;
+      const dy = y - h / 2;
+      const d = Math.hypot(dx, dy);
+      const r = d / R;
+      const s = Math.sin(2 * Math.PI * (r * RIP_RINGS - phase)) * Math.min(1, r / 0.1) * Math.max(0, 1 - r * 1.15);
+      const i = (y * w + x) * 4;
+      img.data[i] = 128 + 127 * (d > 0 ? dx / d : 0) * s;
+      img.data[i + 1] = 128 + 127 * (d > 0 ? dy / d : 0) * s;
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return cv.toDataURL('image/png');
+};
 /** how long a gfx.reverb echo rings (s) */
 const RV_LIFE = 1.2;
 
@@ -319,7 +369,7 @@ const fitWords = (rt: ResolvedText, family: string, maxW: number, maxH: number, 
   const lh = 0.9;
   const one = (ws: { text: string; at: number }[]) => ws.map(x => x.text).join(' ');
   const sizeFor = (lines: { text: string; at: number }[][]) => {
-    const widest = Math.max(...lines.map(l => measure(one(l), family, 100, track)));
+    const widest = Math.max(...lines.map(l => measure(one(l), family, 100, track, rt.cue.italic)));
     return Math.min((maxW / widest) * 100, maxH / (lines.length * lh));
   };
   let best: Fitted = { lines: [rt.words], size: sizeFor([rt.words]) };
@@ -368,14 +418,44 @@ const SplitWord: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; outline?: 
 /** big punch words: behind the subject (outline = the same words as a stroke over the subject). cue.pos
  *  moves them off the centre into the top or bottom band ('t…' / 'b…') and the left or right half
  *  ('…l' / '…r'), smaller, where two faces share the frame and a centred word would cover one */
-const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boolean; outline?: boolean; cut?: ResolvedCut }> = ({ ctx, rt, song, front, outline, cut }) => {
+/** cue.beside: where a big word fits beside the subject on this cut — the centre of the wider free space left or right
+ *  of its box (at its upper body's height), else above or below it, and the room there; `front` when no side has room
+ *  (a close-up filling the frame), so the word goes in front of the subject, low over the chest */
+const besideOf = (ctx: Ctx, rt: ResolvedText, cut: ResolvedCut) => {
+  const [x0, y0, x1, y1] = boxAt(ctx, cut, Math.max(rt.from, cut.from) + 0.05);
+  const { w, h } = ctx.win;
+  const [l, r, t, b] = [x0, 1 - x1, y0, 1 - y1];
+  const mid = Math.max(0.32, Math.min(0.62, y0 + (y1 - y0) * 0.35));
+  if (Math.max(l, r) >= 0.27) return l >= r ? { hx: l / 2, vy: mid, maxW: l * w * 0.9, maxH: h * 0.6, front: false } : { hx: x1 + r / 2, vy: mid, maxW: r * w * 0.9, maxH: h * 0.6, front: false };
+  if (Math.max(t, b) >= 0.24) return t >= b ? { hx: 0.5, vy: t / 2, maxW: w * 0.8, maxH: t * h * 0.85, front: false } : { hx: 0.5, vy: y1 + b / 2, maxW: w * 0.8, maxH: b * h * 0.85, front: false };
+  // in front of a close-up: low, over the chest, on the side with more room — never over the face
+  return { hx: l >= r ? 0.3 : 0.7, vy: 0.8, maxW: w * 0.5, maxH: h * 0.3, front: true };
+};
+
+const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boolean; outline?: boolean; cut?: ResolvedCut; fade?: number }> = ({ ctx, rt, song, front: frontIn, outline: outlineIn, cut, fade = 1 }) => {
   const { fonts } = ctx.theme;
   const { w, h } = ctx.win;
+  // placed once, on the cut the word lands on, so it holds still across a cut instead of jumping
+  const land = cut && (ctx.cuts.find(c => c.from <= rt.from + 0.25 && c.to > rt.from + 0.25) ?? cut);
+  const place = rt.cue.beside && !rt.cue.pos && land ? besideOf(ctx, rt, land) : undefined;
+  const front = frontIn || !!place?.front;
+  const outline = place?.front ? false : outlineIn;
   const pos = rt.cue.pos ?? 'c';
-  const vy = pos.startsWith('t') ? 0.25 : pos.startsWith('b') ? 0.75 : 0.5;
-  const hx = pos.endsWith('l') ? 0.3 : pos.endsWith('r') ? 0.7 : 0.5;
-  const family = rt.cue.font === 'script' ? (fonts.script ?? fonts.punch) : fonts.punch;
-  const fit = useMemo(() => fitWords(rt, family, w * (front ? 0.72 : 0.88) * (hx === 0.5 ? 1 : 0.5), typeH(ctx) * (front ? 0.5 : 0.8) * (vy === 0.5 ? 1 : 0.5), 0.01), [rt, w, h, family]);
+  const vy = place ? place.vy : pos.startsWith('t') ? 0.25 : pos.startsWith('b') ? 0.75 : 0.5;
+  const hx = place ? place.hx : pos.endsWith('l') ? 0.3 : pos.endsWith('r') ? 0.7 : 0.5;
+  const family = (rt.cue.font && fonts[rt.cue.font]) || fonts.punch;
+  const script = rt.cue.font === 'script';
+  const maxH = place ? place.maxH : typeH(ctx) * (front ? 0.5 : 0.8) * (vy === 0.5 ? 1 : 0.5);
+  const maxW = place ? place.maxW : w * (front ? 0.72 : 0.88) * (hx === 0.5 ? 1 : 0.5);
+  const fit = useMemo(() => fitWords(rt, family, maxW, rt.cue.size ? Math.min(maxH, h * rt.cue.size) : maxH, 0.01), [rt, w, h, family, maxW, maxH]);
+  // a word with no room beside a close-up is drawn once, solid, in the pass over the subject
+  if (place?.front && !outlineIn && cut?.matte) return null;
+  // cue.pulse: the word punches on every kick while it is up (kingpinxdeadpool v10: "beat to the music")
+  const kick = rt.cue.pulse ? hitAt(ctx.manifest, 'kick', song, 10) : 0;
+  // a placed word stays inside the frame, with room for the shot's push-ins and the pump
+  // (the kick pulse grows a word by up to 8 %: half of that on each side is in the margin)
+  const tw = place ? (Math.max(...fit.lines.map(l => measure(l.map(x => x.text).join(' '), family, fit.size, 0.01, rt.cue.italic))) * (rt.cue.pulse ? 1.08 : 1)) / w : 0;
+  const left = place ? Math.max(tw / 2 + 0.05, Math.min(1 - tw / 2 - 0.05, hx)) : hx;
   const color = colorOf(ctx.theme, rt.cue.color);
   // cue.follow: carried by the subject — the move of its cutout's centre since the word landed on this cut,
   // smoothed over ±0.1 s so the word glides with the dance instead of jittering
@@ -400,13 +480,15 @@ const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boo
   return (
     <div
       style={{
-        position: 'absolute', left: w * hx, top: h * vy, transform: `translate(-50%, -50%)${fx || fy ? ` translate(${fx.toFixed(1)}px, ${fy.toFixed(1)}px)` : ''}`, width: w, textAlign: 'center',
-        fontFamily: family, fontSize: fit.size, lineHeight: rt.cue.font === 'script' ? 1.15 : 0.9, color: outline ? 'transparent' : color, whiteSpace: 'nowrap',
+        position: 'absolute', left: w * left, top: h * vy, transform: `translate(-50%, -50%)${fx || fy ? ` translate(${fx.toFixed(1)}px, ${fy.toFixed(1)}px)` : ''}${kick ? ` scale(${(1 + 0.08 * kick).toFixed(3)})` : ''}`, width: w, textAlign: 'center',
+        fontFamily: family, fontSize: fit.size, fontStyle: rt.cue.italic ? 'italic' : undefined, lineHeight: script ? 1.15 : 0.9, color: outline ? 'transparent' : color, whiteSpace: 'nowrap',
         // a script's hairlines vanish on a busy picture: thicken them a little and give them a soft glow
-        WebkitTextStroke: outline ? `${Math.max(2, fit.size * (rt.cue.hollow ? 0.011 : rt.cue.font === 'script' ? 0.01 : 0.006))}px ${color}` : rt.cue.font === 'script' ? `${(fit.size * 0.014).toFixed(1)}px ${color}` : undefined,
-        opacity: outline && !rt.cue.hollow ? 0.85 : 1,
+        WebkitTextStroke: outline ? `${Math.max(2, fit.size * (rt.cue.hollow ? 0.011 : script ? 0.01 : 0.006))}px ${color}` : script ? `${(fit.size * 0.014).toFixed(1)}px ${color}` : undefined,
+        opacity: (outline && !rt.cue.hollow ? 0.85 : 1) * (rt.cue.beside ? fade : 1),
         filter: rt.cue.hollow ? `drop-shadow(0 0 ${(fit.size * 0.02).toFixed(1)}px rgba(0,0,0,0.6))` : undefined,
-        textShadow: front && !outline ? '0 8px 40px rgba(0,0,0,0.5)' : rt.cue.font === 'script' && !outline ? `0 0 ${(fit.size * 0.06).toFixed(1)}px rgba(0,0,0,0.55), 0 0 ${(fit.size * 0.03).toFixed(1)}px ${color}` : undefined,
+        textShadow: front && !outline ? '0 8px 40px rgba(0,0,0,0.5)' : script && !outline ? `0 0 ${(fit.size * 0.06).toFixed(1)}px rgba(0,0,0,0.55), 0 0 ${(fit.size * 0.03).toFixed(1)}px ${color}`
+          // a word beside the subject often lands on a bright sky: a soft shadow keeps light letters readable
+          : place && !outline ? `0 ${(fit.size * 0.02).toFixed(1)}px ${(fit.size * 0.14).toFixed(1)}px rgba(0,0,0,0.45)` : undefined,
       }}
     >
       {fit.lines.map((line, li) => (
@@ -416,13 +498,13 @@ const BigWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number; front?: boo
             const glyph = rt.cue.drawX && GLYPHS[wd.text];
             // a drawn glyph after a word (TASK ✓) starts as that word lands; acts that enter on their own skip the pop
             const at = glyph && (wi > 0 || li > 0) ? wd.at + 0.14 : wd.at;
-            const own = rt.cue.act === 'streak' || rt.cue.act === 'stamp' || rt.cue.act === 'slide';
+            const own = ['streak', 'stamp', 'slide', 'focus', 'write', 'rise', 'type', 'swing', 'rewind', 'glow', 'descend', 'warp', 'bounce', 'knock', 'jelly', 'flip', 'breathe', 'climb', 'slam', 'spin', 'snap', 'halo', 'sway', 'beat'].includes(rt.cue.act ?? '');
             return (
               <span key={wi} style={{ display: 'inline-block', visibility: song >= wd.at - 1e-3 ? 'visible' : 'hidden', transform: own || glyph ? undefined : `translateY(${(1 - p) * 0.06}em) scale(${1.14 - 0.14 * p})`, marginRight: wi < line.length - 1 ? '0.2em' : 0 }}>
                 {glyph ? (
                   <DrawnX glyph={wd.text} at={at} song={song} color={color} outline={outline} />
                 ) : rt.cue.act ? (
-                  <ActWord text={wd.text} act={rt.cue.act} age={song - wd.at} seed={`${rt.i}${wd.text}`} color={color} outline={outline} pushAge={pushAge} family={family} px={fit.size} />
+                  <ActWord text={wd.text} act={rt.cue.act} age={song - wd.at} seed={`${rt.i}${wd.text}`} color={color} outline={outline} pushAge={pushAge} family={family} px={fit.size} beat={beatOf(ctx.manifest, wd.at)} />
                 ) : rt.cue.el && rt.words.length === 1 ? (
                   <ElementWord ctx={ctx} text={wd.text} el={rt.cue.el} outline={outline} />
                 ) : (
@@ -470,7 +552,19 @@ const DrawnX: React.FC<{ glyph?: string; at: number; song: number; color: string
  * two stay aligned; the extras drawn on top (a bullet, a slash, an eraser) only in the solid pass.
  */
 type Act = NonNullable<TextCue['act']>;
-const ActWord: React.FC<{ text: string; act: Act; age: number; seed: string; color: string; outline?: boolean; pushAge?: number; family?: string; px?: number }> = ({ text, act, age, seed, color, outline, pushAge, family, px = 200 }) => {
+/** where a word lands on the beat grid: its beat position (3.5 = halfway between beats 3 and 4) and the beat's length in
+ *  seconds, so acts can move on the song's beats rather than on a clock */
+type BeatInfo = { at: number; len: number };
+const beatOf = (m: Manifest, t: number): BeatInfo => {
+  const at = beatAt(m, t);
+  const i = Math.max(0, Math.floor(at));
+  return { at, len: Math.max(0.2, timeOfBeat(m, i + 1) - timeOfBeat(m, i)) };
+};
+
+const ActWord: React.FC<{ text: string; act: Act; age: number; seed: string; color: string; outline?: boolean; pushAge?: number; family?: string; px?: number; beat?: BeatInfo }> = ({ text, act, age, seed, color, outline, pushAge, family, px = 200, beat = { at: 0, len: 0.5 } }) => {
+  const bl = beat.len;
+  // the song's beat phase now (0 on a beat, 0.5 on the off-beat)
+  const phase = (((beat.at + Math.max(0, age) / bl) % 1) + 1) % 1;
   const letters = [...text];
   const n = letters.length;
   const mid = (n - 1) / 2;
@@ -673,6 +767,279 @@ const ActWord: React.FC<{ text: string; act: Act; age: number; seed: string; col
         </span>
       );
     }
+    case 'focus': { // comes in soft, as if out of focus, and pulls sharp (VISION CLEAR)
+      const e = Easing.out(Easing.cubic)(clamp01(age / 0.6));
+      return <span style={{ ...box, opacity: clamp01(age / 0.12), filter: e < 0.99 ? `blur(${(0.16 * (1 - e)).toFixed(3)}em)` : undefined, transform: `scale(${(1.08 - 0.08 * e).toFixed(3)})` }}>{text}</span>;
+    }
+    case 'write': { // written on left to right like a pen stroke, its tip glowing (ELEGANT, CLASS)
+      const x = 100 * Easing.inOut(Easing.quad)(clamp01(age / 0.55));
+      return (
+        <span style={box}>
+          <span style={{ display: 'inline-block', clipPath: x < 100 ? `inset(-30% ${(100 - x).toFixed(1)}% -30% -15%)` : undefined }}>{text}</span>
+          {!outline && x > 0 && x < 100 && <span style={{ position: 'absolute', top: '15%', bottom: '15%', left: `${x}%`, width: '0.12em', transform: 'translateX(-50%)', background: 'radial-gradient(closest-side, #fff, transparent)', filter: `drop-shadow(0 0 0.1em ${color})` }} />}
+        </span>
+      );
+    }
+    case 'rise': // floats up letter by letter and keeps rising (HIGHER, HEAVENS)
+      return <>{each(i => {
+        const p = Easing.out(Easing.cubic)(clamp01((age - i * 0.05) / 0.45));
+        return { transform: `translateY(${(0.5 * (1 - p) - 0.07 * Math.max(0, age)).toFixed(3)}em)`, opacity: p };
+      })}</>;
+    case 'type': { // typed out behind a blinking cursor (ONLY STORY)
+      const per = 0.055;
+      const k = Math.min(n, Math.floor(Math.max(0, age) / per) + 1);
+      const at = family ? measure(letters.slice(0, k).join(''), family, 100) / 100 : (k / n) * 0.6 * n;
+      const blink = age < n * per + 0.1 || Math.floor(age * 3.2) % 2 === 0;
+      return (
+        <span style={box}>
+          {each(i => ({ opacity: i < k ? 1 : 0 }))}
+          {!outline && blink && <span style={{ position: 'absolute', left: `${(at + 0.04).toFixed(3)}em`, top: '8%', bottom: '8%', width: '0.08em', background: color }} />}
+        </span>
+      );
+    }
+    case 'swing': { // hangs from its top edge and swings to rest (ORNAMENT)
+      const t = Math.max(0, age);
+      const drop = Easing.out(Easing.back(1.8))(clamp01(t / 0.22));
+      const a = 18 * Math.exp(-t * 1.6) * Math.cos(t * 6.5);
+      return <span style={{ ...box, transformOrigin: '50% -0.4em', transform: `translateY(${(-0.7 * (1 - drop)).toFixed(3)}em) rotate(${a.toFixed(2)}deg)`, opacity: clamp01(t / 0.08) }}>{text}</span>;
+    }
+    case 'rewind': { // appears last letter first under VHS jitter and a colour split, then a faint tracking wobble (REWIND)
+      const f = Math.floor(age * 24);
+      const g = Math.exp(-Math.max(0, age) * 4);
+      const jx = (rnd(`rw${f}`) - 0.5) * (0.1 * g + 0.012);
+      return (
+        <span style={{ ...box, transform: `translateX(${jx.toFixed(3)}em) skewX(${((rnd(`rk${f}`) - 0.5) * 10 * g).toFixed(2)}deg)`, textShadow: outline ? undefined : `${(-0.05 * g - 0.01).toFixed(3)}em 0 rgba(255,61,110,0.8), ${(0.05 * g + 0.01).toFixed(3)}em 0 rgba(61,232,255,0.8)` }}>
+          {each(i => ({ opacity: age >= (n - 1 - i) * 0.06 ? 1 : 0 }))}
+        </span>
+      );
+    }
+    case 'glow': { // blooms out of the dark into light (GLOW)
+      const p = Easing.out(Easing.quad)(clamp01(age / 0.6));
+      return <span style={{ ...box, opacity: 0.15 + 0.85 * p, filter: outline ? undefined : `brightness(${(0.6 + 0.7 * p).toFixed(2)})`, textShadow: outline ? undefined : `0 0 ${(0.05 + 0.45 * p).toFixed(3)}em ${color}, 0 0 ${(0.02 + 0.12 * p).toFixed(3)}em #fff` }}>{text}</span>;
+    }
+    case 'descend': // floats down from above, letter by letter, glowing, and hovers (HEAVEN sent)
+      return <>{each(i => {
+        const p = Easing.out(Easing.cubic)(clamp01((age - i * 0.06) / 0.75));
+        return { transform: `translateY(${(-(1 - p) * 1.3 + Math.sin(Math.max(0, age) * 2.2 + i * 0.7) * 0.025).toFixed(3)}em)`, opacity: p, textShadow: outline ? undefined : `0 0 ${(0.08 + 0.25 * (1 - p)).toFixed(3)}em ${color}` };
+      })}</>;
+    case 'warp': { // drops out of light speed: stretched along its speed lines, snapping to size (SPEED)
+      const e = Easing.out(Easing.cubic)(clamp01(age / 0.24));
+      return (
+        <span style={box}>
+          {!outline && e < 1 && [0.25, 0.5, 0.75].map(y => <span key={y} style={{ position: 'absolute', left: '100%', top: `${y * 100}%`, width: `${((1 - e) * 3).toFixed(3)}em`, height: '0.03em', background: `linear-gradient(90deg, ${color}, transparent)`, opacity: 0.8 * (1 - e) }} />)}
+          <span style={{ display: 'inline-block', transformOrigin: '0% 50%', transform: `translateX(${((1 - e) * 1.2).toFixed(3)}em) scaleX(${(1 + 2.6 * (1 - e)).toFixed(3)})`, filter: e < 0.98 ? `blur(${((1 - e) * 0.06).toFixed(3)}em)` : undefined }}>{text}</span>
+        </span>
+      );
+    }
+    case 'bounce': // the letters are dropped in one per quarter beat and bounce to rest (dropping GEMS)
+      return <>{each(i => {
+        const t = (age - i * (bl / 4)) / 0.55;
+        if (t <= 0) return { opacity: 0 };
+        return { transform: `translateY(${(-(1 - Easing.bounce(clamp01(t))) * 1.6).toFixed(3)}em)` };
+      })}</>;
+    case 'knock': { // two thumps, like knocks on a door, the second 0.6 beat after the first (KNOCKED, KNOCKED)
+      const hits = [0, 0.6 * bl].map(t0 => age - t0).filter(d => d >= 0);
+      const d = hits.length ? hits[hits.length - 1] : -1;
+      const k = d >= 0 ? Math.exp(-d * 12) : 0;
+      return <span style={{ ...box, opacity: age >= 0 ? 1 : 0, transform: `scale(${(1 + 0.22 * k).toFixed(3)}) translateX(${(Math.sin(d * 70) * 0.05 * k).toFixed(3)}em)` }}>{text}</span>;
+    }
+    case 'jelly': // the letters land like jelly sweets: squash, stretch and wobble (SWEET)
+      return <>{each(i => {
+        const t = Math.max(0, age - i * 0.04);
+        const w = Math.exp(-t * 3.5) * Math.sin(t * 20);
+        return { transformOrigin: '50% 100%', transform: `scale(${(1 - 0.25 * w).toFixed(3)}, ${(1 + 0.35 * w).toFixed(3)})`, opacity: age - i * 0.04 >= 0 ? 1 : 0 };
+      })}</>;
+    case 'flip': { // a split-flap board: each letter flips through characters and settles, left to right (YEARS)
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const f = Math.floor(age * 24);
+      return <>{letters.map((ch, i) => {
+        const settle = 0.1 + i * 0.08;
+        const done = age >= settle;
+        const c = done || ch === ' ' ? ch : chars[Math.floor(rnd(`f${i}${f}`) * chars.length)];
+        const flap = done ? Math.exp(-(age - settle) * 20) : 0.6 * Math.sin(f * 2.3);
+        return <span key={i} style={{ display: 'inline-block', whiteSpace: 'pre', transform: `perspective(4em) rotateX(${(flap * 60).toFixed(1)}deg)`, opacity: age >= 0 ? 1 : 0 }}>{c}</span>;
+      })}</>;
+    }
+    case 'breathe': { // fades in slowly and breathes in and out over two beats, the letters easing apart (PEACE)
+      const t = Math.max(0, age);
+      const p = Easing.inOut(Easing.quad)(clamp01(t / 0.7));
+      const s = 1 + 0.035 * Math.sin(((beat.at / 2 + t / (2 * bl)) % 1) * Math.PI * 2);
+      return <span style={{ ...box, opacity: p, letterSpacing: `${(0.02 + 0.06 * p).toFixed(3)}em`, transform: `scale(${(s * (0.94 + 0.06 * p)).toFixed(3)})` }}>{text}</span>;
+    }
+    case 'smear': { // never quite sharp: motion-smeared copies either side, the blur pulsing (BLUR)
+      const t = Math.max(0, age);
+      const g = 0.6 + 0.4 * Math.cos(phase * Math.PI * 2);
+      return (
+        <span style={box}>
+          {!outline && [-2, -1, 1, 2].map(k => <span key={k} style={{ position: 'absolute', left: 0, top: 0, transform: `translateX(${(k * 0.09 * g).toFixed(3)}em)`, opacity: 0.22 / Math.abs(k), filter: 'blur(0.02em)' }}>{text}</span>)}
+          <span style={{ display: 'inline-block', filter: `blur(${(0.012 + 0.02 * g).toFixed(3)}em)`, transform: `translateX(${(Math.sin(t * 3) * 0.03).toFixed(3)}em)`, opacity: clamp01(t / 0.1) }}>{text}</span>
+        </span>
+      );
+    }
+    case 'echo': { // its shadow trails out behind it, copy after copy (SHADOW)
+      const t = Math.max(0, age);
+      const g = Easing.out(Easing.cubic)(clamp01(t / 0.5));
+      return (
+        <span style={box}>
+          {!outline && [4, 3, 2, 1].map(k => <span key={k} style={{ position: 'absolute', left: 0, top: 0, color: 'rgba(8,0,0,0.9)', transform: `translate(${(-k * 0.07 * g).toFixed(3)}em, ${(k * 0.05 * g).toFixed(3)}em)`, opacity: (0.4 - k * 0.08) * g, textShadow: 'none' }}>{text}</span>)}
+          <span style={{ position: 'relative', display: 'inline-block', opacity: clamp01(t / 0.12) }}>{text}</span>
+        </span>
+      );
+    }
+    case 'climb': // the letters step up like stairs, one per quarter beat (HIGHER)
+      return <>{each(i => {
+        const t = age - i * (bl / 4);
+        const p = Easing.out(Easing.back(2))(clamp01(t / 0.2));
+        return { transform: `translateY(${(-(i - (n - 1) / 2) * 0.1 * p + (1 - p) * 0.4).toFixed(3)}em)`, opacity: clamp01(t / 0.06) };
+      })}</>;
+    case 'slam': { // slams down from huge, a shockwave ring and a jolt as it lands (ENOUGH)
+      const e = Easing.in(Easing.quad)(clamp01(age / 0.12));
+      const after = Math.max(0, age - 0.12);
+      const ring = clamp01(after / 0.45);
+      const jolt = age > 0.12 ? Math.sin(after * 80) * Math.exp(-after * 14) * 0.04 : 0;
+      return (
+        <span style={{ ...box, transform: `translate(${jolt.toFixed(3)}em, ${(jolt * 0.7).toFixed(3)}em) scale(${(3 - 2 * e).toFixed(3)})`, opacity: 0.2 + 0.8 * e }}>
+          {!outline && age > 0.12 && ring < 1 && <span style={{ position: 'absolute', left: '50%', top: '50%', width: `${((0.6 + 2.4 * ring) * 100).toFixed(1)}%`, height: `${((0.6 + 2.4 * ring) * 100).toFixed(1)}%`, transform: 'translate(-50%, -50%)', borderRadius: '50%', border: `${(0.06 * (1 - ring)).toFixed(3)}em solid ${color}`, opacity: 1 - ring }} />}
+          {text}
+        </span>
+      );
+    }
+    case 'topple': { // stands for a beat, then tips over backwards like a chess piece knocked down (PAWN)
+      const t = Math.max(0, age);
+      const f = clamp01((t - bl) / 0.4);
+      const settle = f >= 1 ? Math.sin((t - bl - 0.4) * 25) * Math.exp(-(t - bl - 0.4) * 8) * 4 : 0;
+      return <span style={{ ...box, transformOrigin: '0% 100%', transform: `rotate(${(-88 * Easing.in(Easing.quad)(f) + settle).toFixed(2)}deg)`, opacity: clamp01(t / 0.1) }}>{text}</span>;
+    }
+    case 'snap': { // there in an instant: a white flash and burst lines, like a reflex (INSTINCT)
+      const f = Math.exp(-Math.max(0, age) * 10);
+      return (
+        <span style={{ ...box, transform: `scale(${(1 + 0.12 * f).toFixed(3)})`, textShadow: outline ? undefined : `0 0 ${(0.05 + 0.5 * f).toFixed(3)}em #fff, 0 0 ${(0.1 + 0.3 * f).toFixed(3)}em ${color}` }}>
+          {!outline && f > 0.05 && Array.from({ length: 8 }, (_, k) => (
+            <span key={k} style={{ position: 'absolute', left: '50%', top: '50%', width: `${(0.4 + 1.2 * (1 - f)).toFixed(3)}em`, height: '0.035em', background: '#fff', opacity: f, transformOrigin: '0 50%', transform: `rotate(${(k * 45 + rnd(`sn${k}`) * 20).toFixed(1)}deg) translateX(${(0.9 + 0.8 * (1 - f)).toFixed(2)}em)` }} />
+          ))}
+          {text}
+        </span>
+      );
+    }
+    case 'spotlight': { // dark on its stage until a spotlight finds it and opens up (STAGE)
+      const t = Math.max(0, age);
+      const x = -10 + 60 * Easing.out(Easing.cubic)(clamp01(t / 0.7));
+      const r = 0.6 + 2.5 * clamp01((t - 0.7) / 0.6);
+      const mask = `radial-gradient(ellipse ${r.toFixed(2)}em ${(r * 0.9).toFixed(2)}em at ${x.toFixed(1)}% 50%, #000 60%, rgba(0,0,0,0.12) 100%)`;
+      return <span style={{ ...box, WebkitMaskImage: mask, maskImage: mask } as React.CSSProperties}>{text}</span>;
+    }
+    case 'burn': { // on fire: a flame gradient rising through the letters, flickering (RAGE)
+      if (outline) return <>{text}</>;
+      const t = Math.max(0, age);
+      const flick = 0.85 + 0.15 * Math.sin(t * 23) * Math.sin(t * 7.3);
+      return (
+        <span style={{ ...box, color: 'transparent', textShadow: 'none', backgroundImage: 'linear-gradient(0deg, #FFD21F 0%, #FF6A00 35%, #E3122B 70%, #3a0000 100%)', backgroundSize: '100% 220%', backgroundPosition: `0 ${(100 - ((t * 60) % 100)).toFixed(1)}%`, WebkitBackgroundClip: 'text', backgroundClip: 'text', filter: `brightness(${flick.toFixed(2)}) drop-shadow(0 0 0.12em rgba(255,90,0,0.8))`, transform: `translateY(${(Math.sin(t * 31) * 0.01).toFixed(3)}em)` }}>
+          {text}
+        </span>
+      );
+    }
+    case 'spin': // spins in a full turn like a clock hand and lands (SPIN round)
+      {
+        const e = Easing.out(Easing.cubic)(clamp01(age / 0.55));
+        return <span style={{ ...box, transform: `rotate(${(-360 * (1 - e)).toFixed(1)}deg) scale(${(0.3 + 0.7 * e).toFixed(3)})`, opacity: clamp01(age / 0.08) }}>{text}</span>;
+      }
+    case 'shatter': { // lands like a pane, cracks on the next beat and falls apart in shards (GLASS)
+      const t = Math.max(0, age);
+      if (t < bl) return <span style={{ ...box, opacity: clamp01(t / 0.08) }}>{text}</span>;
+      const s = clamp01((t - bl) / 0.9);
+      const shards = [[0, 0, 40, 0, 30, 55, 0, 45], [40, 0, 75, 0, 60, 50, 30, 55], [75, 0, 100, 0, 100, 40, 60, 50], [0, 45, 30, 55, 25, 100, 0, 100], [30, 55, 60, 50, 65, 100, 25, 100], [60, 50, 100, 40, 100, 100, 65, 100]];
+      return (
+        <span style={box}>
+          <span style={{ visibility: 'hidden' }}>{text}</span>
+          {shards.map((q, k) => (
+            <span key={k} style={{ position: 'absolute', left: 0, top: 0, clipPath: `polygon(${q[0]}% ${q[1]}%, ${q[2]}% ${q[3]}%, ${q[4]}% ${q[5]}%, ${q[6]}% ${q[7]}%)`, transform: `translate(${((rnd(`sx${k}`) - 0.5) * 0.6 * s).toFixed(3)}em, ${((0.2 + rnd(`sy${k}`) * 0.8) * s * s * 1.5).toFixed(3)}em) rotate(${((rnd(`sr${k}`) - 0.5) * 60 * s).toFixed(1)}deg)`, opacity: 1 - clamp01((s - 0.5) / 0.5) }}>{text}</span>
+          ))}
+          {!outline && s < 0.3 && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', opacity: 1 - s / 0.3 }}>
+              <polyline points="0,45 30,55 60,50 100,40" fill="none" stroke="#fff" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+              <polyline points="40,0 30,55 25,100" fill="none" stroke="#fff" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+              <polyline points="75,0 60,50 65,100" fill="none" stroke="#fff" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+            </svg>
+          )}
+        </span>
+      );
+    }
+    case 'halo': { // a halo settles above it and soft rays turn behind it (DIVINE, HEAVENS)
+      const t = Math.max(0, age);
+      const p = Easing.out(Easing.cubic)(clamp01(t / 0.6));
+      return (
+        <span style={{ ...box, opacity: clamp01(t / 0.15), textShadow: outline ? undefined : `0 0 ${(0.15 * p).toFixed(3)}em ${color}, 0 0 0.4em rgba(255,240,200,${(0.5 * p).toFixed(2)})` }}>
+          {!outline && <span style={{ position: 'absolute', left: '50%', top: '50%', width: '2.6em', height: '2.6em', transform: `translate(-50%, -50%) rotate(${(t * 12).toFixed(1)}deg)`, background: 'repeating-conic-gradient(from 0deg, rgba(255,240,200,0.16) 0deg 6deg, transparent 6deg 24deg)', WebkitMaskImage: 'radial-gradient(circle, #000 20%, transparent 65%)', maskImage: 'radial-gradient(circle, #000 20%, transparent 65%)', opacity: p * 0.8 } as React.CSSProperties} />}
+          {!outline && <span style={{ position: 'absolute', left: '50%', top: `${(-0.08 - 0.12 * p).toFixed(3)}em`, width: '0.9em', height: '0.22em', transform: `translateX(-50%) translateY(${(Math.sin(t * 2.4) * 0.03).toFixed(3)}em)`, borderRadius: '50%', border: '0.05em solid #FFE9A8', boxShadow: '0 0 0.15em #FFD21F, inset 0 0 0.08em #FFD21F', opacity: p }} />}
+          <span style={{ position: 'relative' }}>{text}</span>
+        </span>
+      );
+    }
+    case 'sway': { // leans from side to side on the beat, easy and loose (FINE)
+      const a = 5 * Math.sin((((beat.at + Math.max(0, age) / bl) / 2) % 1) * Math.PI * 2);
+      return <span style={{ ...box, transformOrigin: '50% 90%', transform: `rotate(${a.toFixed(2)}deg)`, opacity: clamp01(age / 0.2) }}>{text}</span>;
+    }
+    case 'sparkle': { // little stars glint around it, one on every half beat (STARS)
+      const t = Math.max(0, age);
+      return (
+        <span style={{ ...box, opacity: clamp01(t / 0.2) }}>
+          {!outline && Array.from({ length: 8 }, (_, k) => {
+            const a = t - k * (bl / 2);
+            if (a < 0 || a > 0.5) return null;
+            const s = Math.sin(Math.PI * (a / 0.5));
+            return (
+              <span key={k} style={{ position: 'absolute', left: `${(rnd(`spx${k}`) * 110 - 5).toFixed(1)}%`, top: `${(rnd(`spy${k}`) * 120 - 35).toFixed(1)}%`, fontSize: `${(0.18 + 0.14 * rnd(`sps${k}`)).toFixed(2)}em`, color: '#fff', opacity: s, transform: `translate(-50%, -50%) scale(${(0.4 + 0.8 * s).toFixed(2)}) rotate(${(a * 180).toFixed(0)}deg)`, textShadow: `0 0 0.3em ${color}`, fontFamily: 'sans-serif' }}>✦</span>
+            );
+          })}
+          {text}
+        </span>
+      );
+    }
+    case 'thread': { // a silver thread is drawn through the letters, left to right (THREAD)
+      const p = Easing.inOut(Easing.quad)(clamp01(Math.max(0, age) / 0.6));
+      return (
+        <span style={{ ...box, opacity: clamp01(age / 0.15) }}>
+          {text}
+          {!outline && (
+            <svg viewBox="0 0 100 20" preserveAspectRatio="none" style={{ position: 'absolute', left: '-6%', top: '38%', width: '112%', height: '0.3em', overflow: 'visible' }}>
+              <path d="M0,10 C8,0 12,20 20,10 S32,0 40,10 S52,20 60,10 S72,0 80,10 S92,20 100,10" fill="none" stroke="#E8EEF2" strokeWidth={3} vectorEffect="non-scaling-stroke" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - p} style={{ filter: 'drop-shadow(0 0 3px #fff)' }} />
+            </svg>
+          )}
+        </span>
+      );
+    }
+    case 'surge': { // charged: lightning crackles around it on every beat (POWER)
+      const zap = phase < 0.25 ? 1 - phase / 0.25 : 0;
+      const f = Math.floor(Math.max(0, age) * 15);
+      const arc = (k: number) => Array.from({ length: 7 }, (_, j) => `${((j / 6) * 100).toFixed(1)},${(50 + (rnd(`z${k}${f}${j}`) - 0.5) * 80).toFixed(1)}`).join(' ');
+      return (
+        <span style={{ ...box, filter: outline ? undefined : `brightness(${(1 + 0.6 * zap).toFixed(2)})`, textShadow: outline ? undefined : `0 0 ${(0.08 + 0.25 * zap).toFixed(3)}em ${color}`, opacity: clamp01(age / 0.1) }}>
+          {text}
+          {!outline && zap > 0.05 && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', left: '-8%', top: '-25%', width: '116%', height: '150%', overflow: 'visible' }}>
+              {[0, 1, 2].map(k => <polyline key={k} points={arc(k)} fill="none" stroke="#E8FBFF" strokeWidth={2.5} vectorEffect="non-scaling-stroke" opacity={zap} style={{ filter: `drop-shadow(0 0 4px ${color})` }} />)}
+            </svg>
+          )}
+        </span>
+      );
+    }
+    case 'beat': // the letters bounce like an equalizer, a wave running through them on every half beat (RHYTHM)
+      return <>{each(i => {
+        const ph = ((beat.at + Math.max(0, age) / bl) * 2 - i * 0.25) % 1;
+        const b = Math.pow(Math.max(0, Math.cos(2 * Math.PI * ph)), 6);
+        return { transformOrigin: '50% 100%', transform: `translateY(${(-0.22 * b).toFixed(3)}em) scaleY(${(1 + 0.1 * b).toFixed(3)})`, opacity: clamp01((age - i * 0.04) / 0.06) };
+      })}</>;
+    case 'shine': { // lands plain; a light sweeps across it like polished metal, now and then (SILVER, GOLD)
+      const t = Math.max(0, age);
+      const sweep = ((t - 0.15) % 2.2) / 0.6;
+      if (outline || t < 0.15 || sweep > 1) return <>{text}</>;
+      return (
+        <span style={box}>
+          {text}
+          <span style={{ position: 'absolute', left: 0, top: 0, color: 'transparent', backgroundImage: 'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.95) 50%, transparent 62%)', backgroundSize: '250% 100%', backgroundPosition: `${(100 - 100 * sweep).toFixed(1)}% 0`, WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>{text}</span>
+        </span>
+      );
+    }
   }
   return <>{text}</>;
 };
@@ -776,6 +1143,169 @@ const ComicWord: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ctx
       {rt.words.map((wd, i) => (
         <span key={i} style={{ visibility: song >= wd.at - 1e-3 ? 'visible' : 'hidden', marginRight: i < rt.words.length - 1 ? '0.25em' : 0 }}>{wd.text}</span>
       ))}
+    </div>
+  );
+};
+
+/**
+ * 'pow': a big comic word, Deadpool's own look (kingpinxdeadpool v5: "deadpool has its own style and vibe, go with
+ * that"): slanted comic lettering (fonts.comic) in the theme's yellow (`acid`) or red, a thick black outline and a hard
+ * offset shadow, each letter a little off the baseline — no panel or burst behind it, so the picture stays visible
+ * (v8: "make sure you don't block the underlying video display"). It sits on the free side of the subject (the side
+ * its anchor is not on), above or below him by where his head is, never over the face. Its entrance acts out the word
+ * (`act`, v8: "play out different animation on the basis of lyrical meaning"): 'streak' races in with afterimages,
+ * 'drop' falls and bounces, 'stamp' slams down and shudders, 'slice' is cut in two along a slash, 'twinkle' sparkles,
+ * 'shake' trembles, 'hop' hops letter by letter, 'drift' floats apart, 'twist' spins in letter by letter, 'glitch'
+ * lands torn with a colour split, 'erase' is wiped away, 'gauge' fills up from the bottom, 'bite' gets a bite taken
+ * out, 'dissolve' goes letter by letter; anything else pops in with an overshoot. `size` is the letter height (window
+ * fraction, default 0.22, shrunk to fit ~44 % of the width); `pos` forces a corner; `small` adds the lyric line.
+ */
+const easeOutBack = (p: number) => 1 + 2.70158 * (p - 1) ** 3 + 1.70158 * (p - 1) ** 2;
+const easeOutBounce = (p: number) => {
+  const n = 7.5625, d = 2.75;
+  if (p < 1 / d) return n * p * p;
+  if (p < 2 / d) return n * (p -= 1.5 / d) * p + 0.75;
+  if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
+  return n * (p -= 2.625 / d) * p + 0.984375;
+};
+const PowWord: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ctx, rt, song }) => {
+  const { fonts, colors } = ctx.theme;
+  const { w, h } = ctx.win;
+  const cut = ctx.cuts.find(c => c.from <= rt.from + 1e-3 && rt.from < c.to);
+  const [cx, cy] = cut?.matte ? anchorAt(ctx, cut, rt.from) : [rt.n % 2 ? 0.3 : 0.7, 0.45];
+  const pos = rt.cue.pos;
+  const onLeft = pos ? pos.endsWith('l') : cx >= 0.5;
+  const low = pos ? pos.startsWith('b') : cy < 0.42;
+  const ink = '#0b0b0b';
+  const red = rt.cue.color === 'red' || rt.cue.color === 'fire';
+  const fill = red ? (rt.cue.color === 'fire' ? '#FF3B30' : colors.red) : rt.cue.color === 'bone' ? colors.bone : rt.cue.color === 'cyan' ? colors.cyan : colors.acid;
+  const act = rt.cue.act;
+  const text = rt.words.map(x => x.text).join(' ');
+  const size = Math.min(h * (rt.cue.size ?? 0.22), (w * 0.44) / Math.max(1, text.length * 0.5));
+  const tilt = (onLeft ? -1 : 1) * (5 + (rt.n % 3) * 2);
+  const popAt = rt.words[0].at;
+  const since = song - popAt;
+  const p = clamp01(since / 0.2);
+  const gone = clamp01((song - (rt.to - 0.12)) / 0.12);
+  const lineIn = clamp01((song - rt.from) / 0.15);
+  // the whole word: how it arrives
+  let tx = 0, ty = 0, sc = 1, rot = tilt;
+  if (act === 'streak') { const e = 1 - (1 - p) ** 3; tx = (onLeft ? -1 : 1) * (1 - e) * w * 0.5; }
+  else if (act === 'stamp') { const q = clamp01(since / 0.12); sc = 2.2 - 1.2 * q * q; const k = Math.max(0, since - 0.12); tx = Math.sin(k * 90) * size * 0.06 * Math.exp(-k * 12); ty = Math.cos(k * 77) * size * 0.05 * Math.exp(-k * 12); }
+  else if (act === 'shake') { const a = size * 0.035 * (0.6 + 0.4 * Math.sin(song * 7)); tx = Math.sin(song * 97) * a; ty = Math.cos(song * 83) * a; sc = 0.4 + 0.6 * easeOutBack(p); }
+  else if (!['drop', 'hop', 'twist', 'drift', 'dissolve'].includes(act ?? '')) { sc = 0.25 + 0.75 * easeOutBack(p); rot = tilt + (1 - p) * tilt * 1.5; }
+  sc *= 1 + 0.3 * gone;
+  const visible = since >= -1e-3;
+  const stroke = Math.max(4, size * 0.07);
+  const glyphs = text.split('');
+  const nl = glyphs.length;
+  const letter = (ch: string, j: number) => {
+    // per letter: where it is in its entrance
+    let lx = 0, ly = (j % 2 ? 1 : -1) * size * 0.03, lr = (j % 3) - 1, ls = 1, lo = 1;
+    const lp = (stagger: number, dur: number) => clamp01((since - j * stagger) / dur);
+    if (act === 'drop') { const q = lp(0.035, 0.45); ly += -(1 - easeOutBounce(q)) * size * 1.6; lo = q > 0 ? 1 : 0; }
+    else if (act === 'hop') { const q = lp(0.05, 0.3); ly += -Math.sin(Math.PI * q) * size * 0.35; lo = since >= j * 0.05 - 0.01 ? 1 : 0; }
+    else if (act === 'twist') { const q = lp(0.045, 0.3); lr += (1 - easeOutBack(q)) * 200; ls = q; }
+    else if (act === 'drift') { const q = clamp01(since / 0.3); ls = q; const k = Math.max(0, since); lx += Math.sin(j * 2.1) * k * size * 0.12; ly += Math.cos(j * 1.7) * k * size * 0.1; lr += Math.sin(j * 3.3) * k * 8; }
+    else if (act === 'dissolve') { ls = clamp01(since / 0.2); const out = clamp01((since - 0.6 - j * 0.06) / 0.15); lo = 1 - out; ly -= out * size * 0.3; }
+    else if (act === 'twinkle') { lo = 0.75 + 0.25 * Math.sin(song * 18 + j * 1.9); ls = 1 + 0.06 * Math.sin(song * 11 + j); }
+    return <span key={j} style={{ display: 'inline-block', opacity: lo, transform: `translate(${lx}px, ${ly}px) rotate(${lr}deg) scale(${ls})`, whiteSpace: 'pre' }}>{ch}</span>;
+  };
+  const sung = (k: number) => {
+    // letters of words not yet sung stay hidden
+    let n = 0;
+    for (let wi = 0; wi < rt.words.length; wi++) {
+      const len = rt.words[wi].text.length + (wi < rt.words.length - 1 ? 1 : 0);
+      if (k < n + len) return song >= rt.words[wi].at - 1e-3;
+      n += len;
+    }
+    return true;
+  };
+  const lettering = (style: React.CSSProperties, key: string) => (
+    <div
+      key={key}
+      style={{
+        fontFamily: fonts.comic ?? fonts.punch, fontSize: size, lineHeight: 0.92, color: fill,
+        WebkitTextStroke: `${stroke}px ${ink}`, paintOrder: 'stroke fill', textShadow: `${size * 0.06}px ${size * 0.07}px 0 ${ink}`,
+        letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase', transform: 'skewX(-8deg)', ...style,
+      }}
+    >
+      {glyphs.map((ch, j) => (sung(j) ? letter(ch, j) : <span key={j} style={{ visibility: 'hidden', whiteSpace: 'pre' }}>{ch}</span>))}
+    </div>
+  );
+  // the acts drawn with copies of the lettering
+  const layers: React.ReactNode[] = [];
+  if (act === 'streak' && p < 1) {
+    for (let k = 3; k >= 1; k--) layers.push(lettering({ position: 'absolute', inset: 0, opacity: 0.25 * (1 - p) * (1 - k / 4), transform: `translateX(${(onLeft ? -1 : 1) * k * size * 0.35}px) skewX(-8deg)` }, `s${k}`));
+  }
+  if (act === 'glitch' && since < 0.35) {
+    const j = Math.sin(song * 140) * size * 0.08;
+    layers.push(lettering({ position: 'absolute', inset: 0, color: '#ff2a3a', opacity: 0.8, mixBlendMode: 'screen', transform: `translate(${j}px, ${-j * 0.3}px) skewX(-8deg)` }, 'gr'));
+    layers.push(lettering({ position: 'absolute', inset: 0, color: '#2af0ff', opacity: 0.8, mixBlendMode: 'screen', transform: `translate(${-j}px, ${j * 0.3}px) skewX(-8deg)` }, 'gc'));
+  }
+  let main: React.ReactNode = lettering({ position: 'relative' }, 'm');
+  if (act === 'slice') {
+    // lands whole, then a slash cuts it and the halves slide apart
+    const k = clamp01((since - 0.18) / 0.25);
+    const d = k * size * 0.22;
+    main = (
+      <div style={{ position: 'relative' }}>
+        {lettering({ position: 'relative', clipPath: 'polygon(0 0, 100% 0, 100% 38%, 0 62%)', transform: `translate(${-d}px, ${-d * 0.35}px) skewX(-8deg)` }, 'a')}
+        {lettering({ position: 'absolute', inset: 0, clipPath: 'polygon(0 62%, 100% 38%, 100% 100%, 0 100%)', transform: `translate(${d}px, ${d * 0.35}px) skewX(-8deg)` }, 'b')}
+        {k > 0 && k < 1 && <div style={{ position: 'absolute', left: '-5%', right: '-5%', top: '50%', height: Math.max(3, size * 0.04), background: colors.bone, transform: 'rotate(-9deg)', opacity: 1 - k, boxShadow: `0 0 ${size * 0.2}px ${colors.bone}` }} />}
+      </div>
+    );
+  } else if (act === 'erase') {
+    const k = clamp01((since - 0.35) / 0.45);
+    main = lettering({ position: 'relative', clipPath: `inset(0 0 0 ${k * 100}%)` }, 'm');
+  } else if (act === 'gauge') {
+    const k = clamp01(since / 0.6);
+    main = (
+      <div style={{ position: 'relative' }}>
+        {lettering({ position: 'relative', color: 'transparent' }, 'o')}
+        {lettering({ position: 'absolute', inset: 0, clipPath: `inset(${(1 - k) * 100}% 0 0 0)` }, 'f')}
+      </div>
+    );
+  } else if (act === 'bite') {
+    const k = clamp01((since - 0.2) / 0.08);
+    main = lettering({ position: 'relative', WebkitMaskImage: k > 0 ? `radial-gradient(circle at 96% 18%, transparent ${k * 22}%, black ${k * 22 + 1}%)` : undefined, maskImage: k > 0 ? `radial-gradient(circle at 96% 18%, transparent ${k * 22}%, black ${k * 22 + 1}%)` : undefined }, 'm');
+  }
+  const sparkles = act === 'twinkle' && visible
+    ? Array.from({ length: 6 }, (_, k) => {
+        const tw = Math.max(0, Math.sin(song * 9 + k * 2.4));
+        const sx = ((k * 37) % 100) / 100, sy = ((k * 53) % 100) / 100;
+        return <div key={`sp${k}`} style={{ position: 'absolute', left: `${sx * 100}%`, top: `${sy * 100 - 10}%`, width: size * 0.18, height: size * 0.18, opacity: tw, transform: `rotate(45deg) scale(${0.5 + tw})`, background: `radial-gradient(circle, ${colors.bone} 0 18%, transparent 60%)`, clipPath: 'polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%)' }} />;
+      })
+    : null;
+  const smallSize = Math.max(h * 0.034, Math.min(size * 0.2, h * 0.05));
+  const smallRow = rt.small && (
+    <div
+      style={{
+        opacity: lineIn * (1 - gone), fontFamily: fonts.comic ?? fonts.punch, fontSize: smallSize, lineHeight: 1.1, color: colors.bone,
+        WebkitTextStroke: `${Math.max(2, smallSize * 0.12)}px ${ink}`, paintOrder: 'stroke fill', textShadow: `${smallSize * 0.08}px ${smallSize * 0.1}px 0 ${ink}`,
+        letterSpacing: '0.04em', textTransform: 'uppercase', textAlign: onLeft ? 'left' : 'right', maxWidth: w * 0.46, margin: `${smallSize * 0.25}px 0`,
+        transform: `rotate(${tilt * 0.5}deg)`,
+      }}
+    >
+      {rt.small.map((wd, i) => (
+        <span key={i} style={{ opacity: song >= wd.at - 1e-3 ? 1 : 0.28, marginRight: '0.3em' }}>{wd.text}</span>
+      ))}
+    </div>
+  );
+  return (
+    <div
+      style={{
+        position: 'absolute', top: low ? h * 0.56 : h * 0.11, [onLeft ? 'left' : 'right']: w * 0.045, maxWidth: w * 0.48,
+        display: 'flex', flexDirection: 'column', alignItems: onLeft ? 'flex-start' : 'flex-end',
+      }}
+    >
+      {rt.cue.small === 'above' && smallRow}
+      <div style={{ position: 'relative', transform: `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${sc})`, transformOrigin: onLeft ? 'left center' : 'right center', opacity: visible ? 1 - gone : 0 }}>
+        {layers}
+        {main}
+        {sparkles}
+      </div>
+      {rt.cue.small !== 'above' && smallRow}
     </div>
   );
 };
@@ -1066,6 +1596,143 @@ const StackWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ct
 };
 
 /**
+ * 'lock': a lockup (kingpinxdeadpool v12, after v11's "much of the words are generic in style and not impactful" and "it
+ * should show words at a lot more of time": the bold-word shorts' lockup, which the user loved, in the wide frame). A phrase
+ * of the line: its highlight word(s) (marked '*') huge in the punch face, the words before it small above it (flush left),
+ * the words after it small below it (flush right), in the small face. The small words wait dimmed and light up as sung;
+ * the highlight slams in on its own word — from larger, blurred and white-hot, with a shudder — then punches on every kick
+ * and, with `act`, acts out its meaning. Each lockup holds until the next one cuts it off and snaps away in three frames.
+ * It sits where it covers least of the subject's head over every cut it spans (placeLocks), alternating sides when two
+ * spots are as good, so the words move around the frame.
+ */
+export type LockLayout = { cx: number; cy: number; hi: number; small: number; bw: number; bh: number; side: string };
+type LockRows = { before: ResolvedText['words']; hi: ResolvedText['words']; after: ResolvedText['words'] };
+const LOCK_LH = 0.86; // the highlight row's height per em (Anton's capitals with a little air)
+const SMALL_LH = 0.95;
+const SMALL_TRACK = 0.04;
+const lockRows = (rt: ResolvedText): LockRows => {
+  const k = rt.words.findIndex(x => x.text.startsWith('*'));
+  const i0 = k < 0 ? rt.words.length - 1 : k;
+  let i1 = i0;
+  while (i1 + 1 < rt.words.length && rt.words[i1 + 1].text.startsWith('*')) i1++;
+  return { before: rt.words.slice(0, i0), hi: rt.words.slice(i0, i1 + 1), after: rt.words.slice(i1 + 1) };
+};
+const lockText = (s: string) => s.replace(/^\*/, '').replace(/[.,!?;:"“”]+$/g, '').toUpperCase();
+const rowText = (ws: LockRows['hi']) => ws.map(x => lockText(x.text)).join(' ');
+// the spots a lockup can take (window fractions: centre, and the room it may fill)
+const LOCK_SPOTS = [
+  { side: 'l', cx: 0.25, cy: 0.5, w: 0.4, h: 0.8 },
+  { side: 'r', cx: 0.75, cy: 0.5, w: 0.4, h: 0.8 },
+  { side: 'b', cx: 0.5, cy: 0.74, w: 0.66, h: 0.4 },
+  { side: 't', cx: 0.5, cy: 0.26, w: 0.66, h: 0.4 },
+];
+/** a lockup's sizes in a room `colW` × `colH` px: the highlight as wide as the room (its capitals at most 0.44 of the
+ *  window's height), the small words about a quarter of it, no wider than the room; all shrunk to the room's height */
+const lockSize = (ctx: Ctx, rows: LockRows, colW: number, colH: number) => {
+  const { punch } = ctx.theme.fonts;
+  const sf = ctx.theme.fonts.small ?? ctx.theme.fonts.line;
+  const hiT = rowText(rows.hi);
+  let hi = Math.min(colW / (measure(hiT, punch, 100) / 100), (ctx.win.h * 0.44) / LOCK_LH);
+  let small = Math.max(30, Math.min(66, hi * 0.27));
+  for (const ws of [rows.before, rows.after]) if (ws.length) small = Math.min(small, colW / (measure(rowText(ws), sf, 100, SMALL_TRACK) / 100));
+  const gap = () => hi * 0.05;
+  const height = () => hi * LOCK_LH + (rows.before.length ? small * SMALL_LH + gap() : 0) + (rows.after.length ? small * SMALL_LH + gap() : 0);
+  const k = Math.min(1, colH / height());
+  hi *= k;
+  small *= k;
+  const bw = Math.max(measure(hiT, punch, hi), ...[rows.before, rows.after].map(ws => (ws.length ? measure(rowText(ws), sf, small, SMALL_TRACK) : 0)));
+  return { hi, small, bw, bh: height() };
+};
+const overlap = (a: number[], b: number[]) => Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+/** where every lockup sits: of the spots, the one that covers least of the subject's head (and then of its body) over the
+ *  cuts it spans, sampled every 0.1 s, bigger letters breaking ties, the last lockup's spot a little less welcome */
+export const placeLocks = (ctx: Ctx): Map<number, LockLayout> => {
+  const out = new Map<number, LockLayout>();
+  const { w, h } = ctx.win;
+  let last = '';
+  for (const rt of ctx.text.filter(x => x.style === 'lock')) {
+    const rows = lockRows(rt);
+    const ts: number[] = [];
+    for (let t = rt.from + 0.05; t < rt.to; t += 0.1) ts.push(t);
+    let best: LockLayout | undefined;
+    let bestScore = Infinity;
+    for (const sp of LOCK_SPOTS) {
+      const z = lockSize(ctx, rows, sp.w * w, sp.h * h);
+      const box = [sp.cx - z.bw / 2 / w, sp.cy - z.bh / 2 / h, sp.cx + z.bw / 2 / w, sp.cy + z.bh / 2 / h];
+      let hit = 0;
+      for (const t of ts) {
+        const cut = ctx.cuts.find(c => c.from <= t && c.to > t);
+        if (!cut || cut.gfx || !cut.matte) continue;
+        const [x0, y0, x1, y1] = boxAt(ctx, cut, t);
+        const head = [x0, y0, x1, y0 + Math.min(0.45, 0.35 * (y1 - y0) + 0.08)];
+        hit += (3 * overlap(box, head)) / Math.max(1e-4, (head[2] - head[0]) * (head[3] - head[1])) + overlap(box, [x0, y0, x1, y1]) / Math.max(1e-4, (box[2] - box[0]) * (box[3] - box[1]));
+      }
+      const score = hit / Math.max(1, ts.length) - (0.8 * z.hi * LOCK_LH) / h + (sp.side === last ? 0.08 : 0);
+      if (score < bestScore) [bestScore, best] = [score, { ...z, cx: sp.cx, cy: sp.cy, side: sp.side }];
+    }
+    out.set(rt.i, best!);
+    last = best!.side;
+  }
+  return out;
+};
+// acts that bring the word in themselves: no slam on top of them
+const OWN_ENTRY = new Set(['type', 'write', 'rewind', 'flip', 'glow', 'breathe', 'focus', 'spotlight', 'descend', 'warp', 'streak', 'bounce', 'climb', 'dissolve']);
+const LockWords: React.FC<{ ctx: Ctx; rt: ResolvedText; song: number }> = ({ ctx, rt, song }) => {
+  const lay = ctx.locks.get(rt.i);
+  if (!lay) return null;
+  const { fonts, colors } = ctx.theme;
+  const { w, h } = ctx.win;
+  const rows = lockRows(rt);
+  const sf = fonts.small ?? fonts.line;
+  const color = colorOf(ctx.theme, rt.cue.color);
+  const hiAt = rows.hi[0].at;
+  const age = song - hiAt;
+  const slam = !OWN_ENTRY.has(rt.cue.act ?? '');
+  const p = slam ? Easing.out(Easing.cubic)(clamp01(age / 0.12)) : 1;
+  const hot = slam && age >= 0 ? clamp01(1 - age / 0.35) : 0;
+  const shudder = slam && age >= 0 ? Math.exp(-age * 10) * lay.hi * 0.025 : 0;
+  const kick = hitAt(ctx.manifest, 'kick', song, 10);
+  const out = clamp01((song - (rt.to - 0.1)) / 0.1);
+  const fadeIn = clamp01((song - rt.from) / 0.08);
+  const ink = hot > 0.05 ? '#FFFFFF' : color;
+  const small = (ws: LockRows['hi'], align: 'left' | 'right') => (
+    <div style={{ fontFamily: sf, fontSize: lay.small, lineHeight: SMALL_LH, letterSpacing: `${SMALL_TRACK}em`, textAlign: align, whiteSpace: 'nowrap', color: colors.bone, textShadow: `0 ${(lay.small * 0.06).toFixed(1)}px ${(lay.small * 0.3).toFixed(1)}px rgba(0,0,0,0.65)` }}>
+      {ws.map((x, k) => (
+        <span key={k} style={{ opacity: 0.38 + 0.62 * clamp01((song - x.at) / 0.1), marginRight: k < ws.length - 1 ? '0.3em' : 0 }}>{lockText(x.text)}</span>
+      ))}
+    </div>
+  );
+  return (
+    <div style={{
+      position: 'absolute', left: lay.cx * w, top: lay.cy * h, width: lay.bw, display: 'flex', flexDirection: 'column', gap: lay.hi * 0.05,
+      transform: `translate(-50%, -50%) scale(${((1 + 0.06 * kick) * (1 + 0.12 * out)).toFixed(4)})`, opacity: fadeIn * (1 - out),
+    }}>
+      {/* a soft shade behind it keeps it readable on a bright picture */}
+      <div style={{ position: 'absolute', left: -lay.hi * 0.35, right: -lay.hi * 0.35, top: -lay.hi * 0.25, bottom: -lay.hi * 0.25, background: 'radial-gradient(closest-side, rgba(0,0,0,0.42), rgba(0,0,0,0))' }} />
+      {rows.before.length > 0 && small(rows.before, 'left')}
+      <div style={{
+        position: 'relative', fontFamily: fonts.punch, fontSize: lay.hi, lineHeight: LOCK_LH, textAlign: 'center', whiteSpace: 'nowrap', color: ink,
+        visibility: age >= -1e-3 ? 'visible' : 'hidden',
+        transform: `translate(${(Math.sin(age * 90) * shudder).toFixed(1)}px, ${(Math.cos(age * 70) * shudder).toFixed(1)}px) scale(${(1.5 - 0.5 * p).toFixed(3)})`,
+        filter: p < 0.999 ? `blur(${((1 - p) * lay.hi * 0.04).toFixed(1)}px)` : undefined,
+        textShadow: `0 0 ${(lay.hi * (0.03 + 0.15 * hot)).toFixed(1)}px ${color}, 0 ${(lay.hi * 0.03).toFixed(1)}px ${(lay.hi * 0.14).toFixed(1)}px rgba(0,0,0,0.55)`,
+      }}>
+        {rows.hi.map((x, k) => {
+          const t = lockText(x.text);
+          const glyph = rt.cue.drawX && GLYPHS[t];
+          return (
+            <span key={k} style={{ display: 'inline-block', marginRight: k < rows.hi.length - 1 ? '0.2em' : 0, visibility: song >= x.at - 1e-3 ? 'visible' : 'hidden' }}>
+              {glyph ? <DrawnX glyph={t} at={x.at} song={song} color={ink} /> : rt.cue.act ? <ActWord text={t} act={rt.cue.act} age={song - x.at} seed={`l${rt.i}${k}`} color={ink} family={fonts.punch} px={lay.hi} beat={beatOf(ctx.manifest, x.at)} /> : t}
+            </span>
+          );
+        })}
+      </div>
+      {rows.after.length > 0 && small(rows.after, 'right')}
+    </div>
+  );
+};
+
+/**
  * 'flow': rhythmic motion typography (quicksilverxkingpin rev-006: "small text at the centre, word by word, the
  * word moving left, very small, Michroma, smooth, matched to the transcription, not the beats"). The line's
  * words sit in a row; each arrives as it is sung, the row glides left (eased) so the newest word lands at
@@ -1312,8 +1979,13 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
   let dblur = 0;
   let warp = 0;
   let liq = 0;
+  let rip = 0;
   let daxis: 'h' | 'v' = 'h';
   const outN = OUT[cut.tout] ?? 0;
+  // big words fade out while the camera moves through a transition and back in once it settles, so a zoom, match,
+  // whip or spin never flings a word off the frame or blows it up (kingpinxdeadpool v11)
+  const moveIn = MOVING.has(cut.tin) ? IN[cut.tin] ?? 0 : 0;
+  const wordsFade = Math.min(moveIn ? clamp01((frame - moveIn * 0.7) / (moveIn * 0.3)) : 1, MOVING.has(cut.tout) && outN ? clamp01((dur - frame - outN * 0.75) / (outN * 0.25)) : 1);
   const left = dur - 1 - frame;
   // the liquid melt's frames, shorter on short cuts so the picture settles between melts
   const liqOut = Math.min(OUT.liquid!, Math.max(2, Math.floor(dur * 0.3)));
@@ -1331,6 +2003,11 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
       rot += 32 * p; scale *= 1 + 0.3 * p; zblur = p * 0.8;
     } else if (cut.tout === 'liquid') {
       if (left < liqOut) liq = sineInOut((liqOut - left) / liqOut);
+    } else if (cut.tout === 'ripple') {
+      // zooming into the subject as the rings spread out of it and the picture melts
+      const [ax, ay] = anchorAt(ctx, cut, cut.to);
+      const k = sineInOut(1 - left / outN);
+      ox = ax * w; oy = ay * h; scale *= 1 + RIP_ZOOM * k; rip = k; liq = Math.max(liq, 0.3 * k); zblur = Math.max(zblur, 0.15 * k);
     } else if (cut.tout === 'flow') {
       const mv = motionAt(ctx, cut);
       tx += mv.dx * p * 0.22 * w; ty += mv.dy * p * 0.22 * w; dblur = p; daxis = mv.axis;
@@ -1350,26 +2027,37 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
     } else if (cut.tin === 'spin') {
       rot -= 32 * (1 - e); scale *= 1 + 0.3 * (1 - e); zblur = Math.max(zblur, 0.8 * (1 - e));
     } else if (cut.tin === 'match' && prev) {
+      // the in-shot's subject starts on the out-shot's: same place, and the same size where that means zooming in.
+      // The picture never shrinks below the frame or slides off it (kingpinxdeadpool v6: a far-off subject before
+      // a close one shrank the next shot to a card on black) — the zoom grows to cover the slide.
       const [px, py, pa] = anchorAt(ctx, prev, prev.to);
       const [cx, cy, ca] = anchorAt(ctx, cut, cut.from);
       const k = 1 - inOut(q);
-      const s0 = pa > 0.01 && ca > 0.01 ? Math.max(0.55, Math.min(1.9, Math.sqrt(pa / ca))) : 1;
-      ox = cx * w; oy = cy * h; tx += (px - cx) * w * k; ty += (py - cy) * h * k; scale *= 1 + (s0 - 1) * k;
+      const s0 = pa > 0.01 && ca > 0.01 ? Math.max(1, Math.min(1.9, Math.sqrt(pa / ca))) : 1;
+      ox = cx * w; oy = cy * h;
+      const mx = (px - cx) * w * k, my = (py - cy) * h * k;
+      tx += mx; ty += my; scale *= Math.max(1 + (s0 - 1) * k, cover(ox, oy, mx, my, w, h));
     } else if (cut.tin === 'flow' && prev) {
-      // the subject lands where the last one was, still travelling the way it went
+      // the subject lands where the last one was, still travelling the way it went (covering the frame, as match)
       const mv = motionAt(ctx, prev);
       const [px, py, pa] = anchorAt(ctx, prev, prev.to);
       const [cx, cy, ca] = anchorAt(ctx, cut, cut.from);
       const k = 1 - e;
-      const s0 = pa > 0.01 && ca > 0.01 ? Math.max(0.6, Math.min(1.7, Math.sqrt(pa / ca))) : 1;
+      const s0 = pa > 0.01 && ca > 0.01 ? Math.max(1, Math.min(1.7, Math.sqrt(pa / ca))) : 1;
       ox = cx * w; oy = cy * h;
-      tx += ((px - cx) * w - mv.dx * 0.22 * w) * k; ty += ((py - cy) * h - mv.dy * 0.22 * w) * k;
-      scale *= 1 + (s0 - 1) * k; dblur = Math.max(dblur, k); daxis = mv.axis;
+      const mx = ((px - cx) * w - mv.dx * 0.22 * w) * k, my = ((py - cy) * h - mv.dy * 0.22 * w) * k;
+      tx += mx; ty += my;
+      scale *= Math.max(1 + (s0 - 1) * k, cover(ox, oy, mx, my, w, h)); dblur = Math.max(dblur, k); daxis = mv.axis;
     } else if (cut.tin === 'impact') {
       scale *= 1 + 0.07 * (1 - e);
     } else if (cut.tin === 'liquid') {
       // peaks on the cut, where the last shot's melt ended, then settles
       if (frame < liqIn) liq = Math.max(liq, 1 - sineInOut(frame / liqIn));
+    } else if (cut.tin === 'ripple') {
+      // lands zoomed in, rippling, and eases back out as the rings die away
+      const [ax, ay] = anchorAt(ctx, cut, cut.from);
+      const k = 1 - sineInOut(q);
+      ox = ax * w; oy = ay * h; scale *= 1 + RIP_ZOOM * k; rip = Math.max(rip, k); liq = Math.max(liq, 0.3 * k); zblur = Math.max(zblur, 0.15 * k);
     }
   }
   if (liq > 0) scale *= 1 + LIQ_OVER * liq;
@@ -1427,7 +2115,9 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
   const blurLevel = Math.round(dblur * 6);
   const wl = warpLevel(warp);
   const liqId = `remix-liq-${cut.id.replace(/\W/g, '-')}`;
-  const camFilter = [blurLevel ? `url(#remix-mb${daxis}${blurLevel})` : '', wl ? `url(#remix-warp${ctx.bands.has(cut.id) ? `-b${Math.round(ctx.win.h)}-` : ''}${wl})` : '', liq > 0.01 ? `url(#${liqId})` : ''].filter(Boolean).join(' ') || undefined;
+  const ripId = `remix-rip-${cut.id.replace(/\W/g, '-')}`;
+  const ripOn = rip > 0.01 && ctx.ripples.length > 0;
+  const camFilter = [blurLevel ? `url(#remix-mb${daxis}${blurLevel})` : '', wl ? `url(#remix-warp${ctx.bands.has(cut.id) ? `-b${Math.round(ctx.win.h)}-` : ''}${wl})` : '', liq > 0.01 ? `url(#${liqId})` : '', ripOn ? `url(#${ripId})` : ''].filter(Boolean).join(' ') || undefined;
 
   const srcT = sourceTime(cut, t, fps);
   // the part of the wide picture this cut shows now (all of it unless a vertical frame reframes it)
@@ -1466,11 +2156,12 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
   // liquid: the last shot's picture keeps flowing in the same field and dissolves into this one
   // (its take holds its last frame if it ends), so the two melt into each other instead of switching
   let melted: React.ReactNode = null;
-  if (cut.tin === 'liquid' && prev && !prev.gfx && !prev.panels && frame < liqIn) {
+  const meltN = cut.tin === 'ripple' ? IN.ripple! : liqIn;
+  if ((cut.tin === 'liquid' || cut.tin === 'ripple') && prev && !prev.gfx && !prev.panels && frame < meltN) {
     const take = ctx.footage.shots[prev.src];
     const pt = sourceTime(prev, prev.to - prev.from + t, fps);
     const at = take ? Math.max(take[0], Math.min(take[1] - 1 / fps, pt)) : pt;
-    melted = <Frame src={plateSrc(ctx, prev.source)} t={at} style={{ filter: gradeOf(prev), opacity: 1 - inOut(clamp01(frame / (liqIn * 0.7))), ...placed(viewAt(ctx, prev, prev.to)) }} />;
+    melted = <Frame src={plateSrc(ctx, prev.source)} t={at} style={{ filter: gradeOf(prev), opacity: 1 - inOut(clamp01(frame / (meltN * 0.7))), ...placed(viewAt(ctx, prev, prev.to)) }} />;
   }
 
   const rig = cut.src === '@lights' ? (ctx.gfx.lights ?? []).filter(l => beatTime(m as never, l.on[0]) <= cut.to + 0.01).pop() : undefined;
@@ -1507,12 +2198,12 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
   const needCutout = cut.matte && (behind.length > 0 || echo || pop || glow > 0.02);
   const subject = (
     <>
-      {behind.map(x => (x.style === 'flank' ? <FlankWords key={x.i} ctx={ctx} rt={x} cut={cut} song={song} /> : <BigWords key={x.i} ctx={ctx} rt={x} song={song} cut={cut} />))}
+      {behind.map(x => (x.style === 'flank' ? <FlankWords key={x.i} ctx={ctx} rt={x} cut={cut} song={song} /> : <BigWords key={x.i} ctx={ctx} rt={x} song={song} cut={cut} fade={wordsFade} />))}
       {echo && cut.matte && Array.from({ length: echo.n ?? 3 }, (_, k) => k + 1).reverse().map(k => (
         <Frame key={k} src={matteSrc(ctx, cut.matte!.key)} t={cutoutAt(k * (echo.dt ?? 0.06))} transparent style={{ objectFit: 'fill', filter: grade, opacity: 0.5 / k, ...view }} />
       ))}
       {needCutout && <Frame src={matteSrc(ctx, cut.matte!.key)} t={matteT} transparent exact={slowed} style={{ objectFit: 'fill', filter: cutoutFilter, ...view }} />}
-      {cut.matte && behind.filter(x => x.style === 'big').map(x => <BigWords key={`o${x.i}`} ctx={ctx} rt={x} song={song} cut={cut} outline />)}
+      {cut.matte && behind.filter(x => x.style === 'big').map(x => <BigWords key={`o${x.i}`} ctx={ctx} rt={x} song={song} cut={cut} outline fade={wordsFade} />)}
       {decals.map(x => <Decal key={`d${x.i}`} ctx={ctx} rt={x} cut={cut} song={song} />)}
       {/* a word set into the shot waits for a zoom, spin or whip entry to settle (it rides the camera, and mid-zoom it is blown up off the edge) */}
       {planes.map(x => <PlaneWord key={`p${x.i}`} ctx={ctx} rt={x} song={song} from={Math.max(x.from, cut.from + (['zoom', 'spin', 'whip', 'whipr', 'whipv'].includes(cut.tin) ? (0.5 * (IN[cut.tin] ?? 0)) / fps : 0))} to={Math.min(x.to, cut.to)} />)}
@@ -1529,6 +2220,15 @@ const Shot: React.FC<{ ctx: Ctx; cut: ResolvedCut }> = ({ ctx: base, cut }) => {
             <feTurbulence type="fractalNoise" baseFrequency={`${(0.0042 + 0.0008 * Math.sin(song * 3)).toFixed(5)} ${(0.0075 + 0.0012 * Math.cos(song * 2.4)).toFixed(5)}`} numOctaves={2} seed={7} result="n" />
             <feColorMatrix in="n" type="matrix" values="1 0 0 0 0  0 0.45 0 0 0.275  0 0 1 0 0  0 0 0 1 0" result="m" />
             <feDisplacementMap in="SourceGraphic" in2="m" scale={(LIQ_MAX * liq).toFixed(1)} xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
+      )}
+      {ripOn && (
+        // the rings, centred on the subject, running outward with the song
+        <svg width={0} height={0} style={{ position: 'absolute' }}>
+          <filter id={ripId} filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x={-w * 0.1} y={-h * 0.1} width={w * 1.2} height={h * 1.2} colorInterpolationFilters="sRGB">
+            <feImage href={ctx.ripples[Math.floor(song * 2 * RIP_PHASES) % RIP_PHASES]} x={ox - w} y={oy - h} width={2 * w} height={2 * h} preserveAspectRatio="none" result="rmap" />
+            <feDisplacementMap in="SourceGraphic" in2="rmap" scale={(RIP_PX * rip).toFixed(1)} xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </svg>
       )}
@@ -1654,6 +2354,74 @@ const Ecg: React.FC<{ ctx: Ctx; song: number; flatline?: number; opacity: number
 const BOLT_N = 7;
 const BOLT_W = 560;
 const BOLT_H = 60;
+/** gfx.meter 'deadpool' (kingpinxdeadpool v9: "update the waveform at center top to match deadpool aesthetics"): his
+ *  mask's emblem, its eyes narrowing on every kick, between two rows of bullets pointing outward that load up with the
+ *  bass, the outer two red; a big kick fires the last loaded one (a muzzle flash at its tip) */
+const DP_N = 8;
+const DP_GAP = 30;
+const DP_R = 28;
+const DP_W = 2 * (DP_R + 14 + DP_N * DP_GAP) + 24;
+const DP_H = 72;
+const DeadpoolMeter: React.FC<{ ctx: Ctx; song: number; opacity: number }> = ({ ctx, song, opacity }) => {
+  const m = ctx.manifest;
+  const { colors } = ctx.theme;
+  const lit = clamp01(envelopeAt(m, 'low', song) * 1.15) * DP_N;
+  const kick = hitAt(m, 'kick', song, 12);
+  const last = (m.onsets?.kick ?? []).reduce<[number, number] | undefined>((a, o) => (o[0] <= song && o[1] > 0.3 ? o as [number, number] : a), undefined);
+  const fire = last ? Math.exp(-(song - last[0]) * 16) : 0;
+  const cx = DP_W / 2;
+  const cy = DP_H / 2;
+  const R = DP_R;
+  const open = 1 - 0.7 * kick;
+  const bullets = (
+    <g>
+      {Array.from({ length: DP_N }, (_, k) => {
+        const on = clamp01(lit - k);
+        const x = cx + R + 14 + k * DP_GAP;
+        const c = k >= DP_N - 2 ? colors.red : colors.bone;
+        return (
+          <g key={k} opacity={on > 0.02 ? 0.35 + 0.65 * on : 1} style={on > 0.5 ? { filter: `drop-shadow(0 0 5px ${c})` } : undefined}>
+            <path d={`M${x},${cy - 5} L${x + 14},${cy - 5} Q${x + 22},${cy - 4} ${x + 25},${cy} Q${x + 22},${cy + 4} ${x + 14},${cy + 5} L${x},${cy + 5} Z`} fill={on > 0.02 ? c : 'rgba(255,255,255,0.08)'} />
+            <line x1={x + 14} y1={cy - 5} x2={x + 14} y2={cy + 5} stroke={colors.ground} strokeWidth={1.4} opacity={on > 0.02 ? 0.6 : 0} />
+          </g>
+        );
+      })}
+    </g>
+  );
+  const tip = Math.ceil(lit) - 1;
+  const tx = cx + R + 14 + tip * DP_GAP + 29;
+  const muzzle = fire > 0.05 && tip >= 0 && (
+    <polygon
+      points={Array.from({ length: 10 }, (_, k) => {
+        const r = (k % 2 ? 3 : 10) * (0.6 + 0.6 * fire);
+        const a = (k / 10) * Math.PI * 2;
+        return `${(tx + Math.cos(a) * r * 1.4).toFixed(1)},${(cy + Math.sin(a) * r).toFixed(1)}`;
+      }).join(' ')}
+      fill="#fff" opacity={fire} style={{ filter: `drop-shadow(0 0 6px ${colors.red}) drop-shadow(0 0 2px #fff)` }}
+    />
+  );
+  const eye = (side: -1 | 1) => {
+    const ex = cx + side * R * 0.4;
+    const ey = cy - R * 0.05;
+    return <ellipse key={side} cx={ex} cy={ey} rx={R * 0.25} ry={R * 0.14 * open + 0.6} fill="#fff" transform={`rotate(${side * -16} ${ex} ${ey})`} />;
+  };
+  return (
+    <svg width={DP_W} height={DP_H} style={{ overflow: 'visible', opacity }}>
+      {bullets}
+      <g transform={`translate(${2 * cx} 0) scale(-1 1)`}>{bullets}</g>
+      {muzzle}
+      <g transform={`translate(${2 * cx} 0) scale(-1 1)`}>{muzzle}</g>
+      <g transform={`translate(${cx} ${cy}) scale(${(1 + 0.08 * kick).toFixed(3)}) translate(${-cx} ${-cy})`}>
+        <circle cx={cx} cy={cy} r={R} fill={colors.red} style={{ filter: `drop-shadow(0 0 ${(3 + 9 * kick).toFixed(1)}px ${colors.red})` }} />
+        <circle cx={cx} cy={cy} r={R * 0.8} fill="#0b0b0b" />
+        <rect x={cx - R * 0.13} y={cy - R * 0.8} width={R * 0.26} height={R * 1.6} fill={colors.red} />
+        {eye(-1)}
+        {eye(1)}
+      </g>
+    </svg>
+  );
+};
+
 const BoltMeter: React.FC<{ ctx: Ctx; song: number; opacity: number }> = ({ ctx, song, opacity }) => {
   const m = ctx.manifest;
   const { colors } = ctx.theme;
@@ -1860,6 +2628,10 @@ const Bars: React.FC<{ ctx: Ctx; song: number }> = ({ ctx, song }) => {
         <div style={{ position: 'absolute', left: 0, right: 0, top, transform: 'translateY(-50%)', textAlign: 'center', fontFamily: fonts.data, fontSize: 18, letterSpacing: '0.45em', color: colors.red }}>
           {label.cue.text.slice(0, Math.ceil(label.cue.text.length * prog(song, label.from, label.from + 0.3)))}
         </div>
+      ) : ctx.gfx.meter?.kind === 'deadpool' ? (
+        <div style={{ position: 'absolute', left: '50%', top, transform: 'translate(-50%, -50%)' }}>
+          <DeadpoolMeter ctx={ctx} song={song} opacity={on} />
+        </div>
       ) : ctx.gfx.meter?.kind === 'bolt' ? (
         <div style={{ position: 'absolute', left: '50%', top, transform: 'translate(-50%, -50%)' }}>
           <BoltMeter ctx={ctx} song={song} opacity={on} />
@@ -1919,7 +2691,11 @@ export const Remix: React.FC<SceneProps<RemixProps>> = ({ manifest, slug, blocks
   // 9:16 keeps the bottom quarter and the top tenth for the Shorts / Reels / TikTok buttons and titles; 3:4 and 4:5 feed posts have none
   const safe = height / width > 1.6 ? { top: height * 0.19, caption: height * 0.7 } : { top: height * 0.12, caption: height * 0.87 };
   const win = tall ? { x: 0, y: 0, w: width, h: height } : { x: (width - ww) / 2, y: (height - wh) / 2, w: ww, h: wh };
-  const ctx: Ctx = { slug, manifest, theme, win, text: r.text, cuts: r.cuts, anchors, footage, gfx, tall, plate: [ww, wh], bands, safe, frame: { w: width, h: height } };
+  const ripples = useMemo(() => (r.cuts.some(c => c.tin === 'ripple') ? Array.from({ length: RIP_PHASES }, (_, k) => rippleMap(Math.round(ww / 2), Math.round(wh / 2), k / RIP_PHASES)) : []), [r.cuts, ww, wh]);
+  const ctx: Ctx = { slug, manifest, theme, win, text: r.text, cuts: r.cuts, anchors, footage, gfx, tall, plate: [ww, wh], bands, safe, frame: { w: width, h: height }, ripples, locks: new Map() };
+  // the lockups' places need the fonts' real widths: measured once they have loaded
+  const locks = useMemo(() => (ready ? placeLocks(ctx) : new Map<number, LockLayout>()), [ready, r.text, r.cuts, anchors, win.w, win.h]); // eslint-disable-line react-hooks/exhaustive-deps
+  ctx.locks = locks;
   // the warp filters work in their element's own pixels: one set for the window, one per band height
   const warps: [string, number, number][] = tall
     ? [['remix-warp', width, height], ...[...new Set([...bands.values()].map(b => b.h))].map(h => [`remix-warp-b${h}-`, width, h] as [string, number, number])]
@@ -1970,8 +2746,13 @@ export const Remix: React.FC<SceneProps<RemixProps>> = ({ manifest, slug, blocks
         {active.filter(x => x.style === 'map').map(x => <TrackMap key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'front').map(x => <BigWords key={x.i} ctx={ctx} rt={x} song={song} front outline={x.cue.hollow} />)}
         {active.filter(x => x.style === 'comic').map(x => <ComicWord key={x.i} ctx={ctx} rt={x} song={song} />)}
+        {active.filter(x => x.style === 'pow').map(x => <PowWord key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'glass').map(x => <GlassWords key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'stack').map(x => <StackWords key={x.i} ctx={ctx} rt={x} song={song} />)}
+        {/* lockups stay inside the window: an act that drops letters in from above never reaches the bars */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          {active.filter(x => x.style === 'lock').map(x => <LockWords key={x.i} ctx={ctx} rt={x} song={song} />)}
+        </div>
         {active.filter(x => x.style === 'flow').map(x => <FlowWords key={x.i} ctx={ctx} rt={x} song={song} />)}
         {active.filter(x => x.style === 'ko').map(x => <KoWord key={x.i} ctx={ctx} rt={x} song={song} />)}
         {tens > 0 && gfx.tensionStyle === 'smoke' && <ChemSmoke ctx={ctx} song={song} k={tens} />}

@@ -25,7 +25,9 @@
  *
  * Shorts (make-video-music-remix-shorts): --short=<id> renders projects/<slug>/shorts/<id> in every
  * format its short.json lists (or --format=9x16) → out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4,
- * kept in v<N>/ the same way, with a map in the short's own time. Lyric shorts
+ * kept in v<N>/ the same way, with a map in the short's own time. A rotate short with its own stretch
+ * (short.json "wide") renders its 16:9 stretch first (<slug>-<id>-16x9) and links it into
+ * projects/<slug>/shorts/<id>/wide.mp4, which the turned short plays. Lyric shorts
  * (make-lyrics-shorts-summerstyle-boldwords) have their own: npm run lyric-shorts -- <slug> render <id | all>.
  *
  * To render through mediamake's /api/remotion/render or Lambda instead, pass the manifest
@@ -139,14 +141,29 @@ if (shortId) {
     process.exit(1);
   }
   // a rotate short starts at its hook, before the stretch
-  const short = JSON.parse(fs.readFileSync(path.join(shortDir, 'short.json'), 'utf8')) as { from: number; formats: string[]; hook?: { from: number } };
+  const short = JSON.parse(fs.readFileSync(path.join(shortDir, 'short.json'), 'utf8')) as { from: number; formats: string[]; hook?: { from: number }; wide?: boolean; video?: string };
   const shots = fs.existsSync(path.join(shortDir, 'shots.json')) ? `shorts/${shortId}/shots.json` : 'video/shots.json';
-  for (const f of format ? [format] : short.formats) {
+  // a rotate short with its own stretch: the 16:9 stretch first (unless only another format is asked for
+  // and the stretch is already there), so the turned short has its video
+  const wideFile = short.wide && short.video ? path.join(ROOT, 'projects', slug, short.video) : undefined;
+  const list = format ? [format] : short.formats;
+  if (wideFile && !clip && !list.includes('16x9') && (!format || !fs.existsSync(wideFile))) list.unshift('16x9');
+  for (const f of list) {
     const name = `${slug}-${shortId}-${f}`;
     const dir = path.join('out', slug, 'shorts', shortId);
     const output = clip ? path.join(dir, 'clips', `${name}-${framesName}.mp4`) : path.join(dir, `${name}.mp4`);
     if (!clip) keepPrevious(path.join(ROOT, dir), name);
     if (!renderOne(name, output, { shots, offset: short.hook?.from ?? short.from })) process.exit(1);
+    if (f === '16x9' && wideFile && !clip) {
+      // the turned short plays it from the project folder (a hard link: no second copy)
+      fs.rmSync(wideFile, { force: true });
+      try {
+        fs.linkSync(path.join(ROOT, output), wideFile);
+      } catch {
+        fs.copyFileSync(path.join(ROOT, output), wideFile);
+      }
+      console.log(`✔ ${path.relative(ROOT, wideFile)} ← ${output}`);
+    }
   }
   process.exit(0);
 }

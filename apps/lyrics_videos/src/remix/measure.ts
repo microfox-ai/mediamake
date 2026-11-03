@@ -8,13 +8,13 @@ import { continueRender, delayRender } from 'remotion';
 let ctx: CanvasRenderingContext2D | null = null;
 const cache = new Map<string, number>();
 
-export const measure = (text: string, family: string, size: number, letterSpacingEm = 0): number => {
-  const key = `${family}|${size}|${letterSpacingEm}|${text}`;
+export const measure = (text: string, family: string, size: number, letterSpacingEm = 0, italic = false): number => {
+  const key = `${family}|${size}|${letterSpacingEm}|${italic ? 'i' : ''}|${text}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   if (!ctx) ctx = document.createElement('canvas').getContext('2d');
   if (!ctx) return text.length * size * 0.5;
-  ctx.font = `${size}px "${family}"`;
+  ctx.font = `${italic ? 'italic ' : ''}${size}px "${family}"`;
   const w = ctx.measureText(text).width + letterSpacingEm * size * Math.max(0, [...text].length - 1);
   cache.set(key, w);
   return w;

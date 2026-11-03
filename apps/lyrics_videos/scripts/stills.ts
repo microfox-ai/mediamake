@@ -50,11 +50,11 @@ const main = async () => {
   );
 
   const short = shortId
-    ? (JSON.parse(fs.readFileSync(path.join(ROOT, 'projects', slug, 'shorts', shortId, 'short.json'), 'utf8')) as { from: number; to: number; formats: string[]; hook?: { from: number } })
+    ? (JSON.parse(fs.readFileSync(path.join(ROOT, 'projects', slug, 'shorts', shortId, 'short.json'), 'utf8')) as { from: number; to: number; formats: string[]; videoFrom?: number; hook?: { from: number } })
     : null;
-  // a rotate short starts at its hook, before the stretch
-  if (short?.hook) short.from = short.hook.from;
   const format = flags.find(f => f.startsWith('--format='))?.split('=')[1] ?? short?.formats[0];
+  // a rotate short starts at its hook, before the stretch; its own 16:9 stretch at `videoFrom`
+  if (short?.hook) short.from = format === '16x9' && short.videoFrom !== undefined ? short.videoFrom : short.hook.from;
   const cuts = flags.includes('--cuts');
   const shotsFile = path.join(ROOT, 'projects', slug, shortId ? `shorts/${shortId}/shots.json` : 'video/shots.json');
   const points = cuts
