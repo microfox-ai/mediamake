@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { registry } from '@/lib/skills/registry';
 import { getStaticRecords, staticRecord, thirdPartyRecords } from './items';
 import { UNAVAILABLE, planInstall } from './plan';
-import { directoryUrlOf, isAlwaysPublic, isInstallable, parseCatalogItemId } from './types';
+import { directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
 const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
@@ -29,6 +29,27 @@ describe('third-party.json', () => {
         }
       }
     }
+  });
+
+  it('points an old alternative at an item the catalog has, which is not old itself', () => {
+    const old = items.filter(i => i.alternativeTo);
+    assert.ok(old.length > 0);
+    for (const item of old) {
+      const first = staticRecord(item.alternativeTo!);
+      assert.ok(first, `${item.id} is an alternative to ${item.alternativeTo}, which the catalog has`);
+      assert.ok(!first.alternativeTo, `${item.alternativeTo} is not an old alternative itself`);
+    }
+    assert.equal(staticRecord('mcp/elevenlabs')?.alternativeTo, 'mcp/elevenlabs-connector');
+  });
+
+  it('says where each MCP runs: a hosted connector on the web, a local server or a bundle on the computer', () => {
+    for (const item of items.filter(i => i.kind === 'mcp')) assert.ok(mcpRunsOf(item).length > 0, `${item.id} runs somewhere`);
+    assert.deepEqual(mcpRunsOf(staticRecord('mcp/elevenlabs-connector')!), ['web']);
+    assert.deepEqual(mcpRunsOf(staticRecord('mcp/elevenlabs')!), ['computer']);
+    assert.deepEqual(mcpRunsOf(staticRecord('mcp/mediamake')!), ['web']);
+    const bundle = { kind: 'mcp' as const, versions: [{ version: '0.1.0', storageKey: 'k', sha256: 's', bytes: 1, publishedAt: '2026-11-03' }], install: { entry: 'x.mcpb' } };
+    assert.deepEqual(mcpRunsOf(bundle), ['computer']);
+    assert.deepEqual(mcpRunsOf({ ...bundle, kind: 'skill' }), []);
   });
 
   it('is shadowed by a stored item with the same id', () => {

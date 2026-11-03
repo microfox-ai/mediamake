@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { ExternalLinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { slugOf, type ItemUse, type MadeBy, type UseNeed } from '@/lib/catalog/types';
+import { slugOf, type MadeBy, type UseNeed, type UseShown } from '@/lib/catalog/types';
+import { OldBadge, RunsBadges } from './runs';
 
 /**
  * What a catalog item works with (its `uses`, e.g. a skill's MCPs) and who
@@ -46,7 +47,7 @@ export function MadeByLine({ madeBy, link: linked = true, className }: { madeBy:
 }
 
 /** The full list for an install page: what each one is for, and what is lost without it. */
-export function UsesList({ uses }: { uses: (ItemUse & { title?: string; href?: string })[] }) {
+export function UsesList({ uses }: { uses: UseShown[] }) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Works with</p>
@@ -62,6 +63,8 @@ export function UsesList({ uses }: { uses: (ItemUse & { title?: string; href?: s
                 <span className="text-sm font-medium">{use.title ?? slugOf(use.id)}</span>
               )}
               <NeedBadge need={use.need} />
+              <RunsBadges runs={use.runs} />
+              {use.alternativeTo && <OldBadge to={slugOf(use.alternativeTo)} />}
             </div>
             <p className="text-sm text-muted-foreground">{use.for}</p>
             <p className="text-xs text-muted-foreground">
@@ -76,15 +79,17 @@ export function UsesList({ uses }: { uses: (ItemUse & { title?: string; href?: s
 }
 
 /** One line for a card: "Works with elevenlabs (required), browse-hack, fal". */
-export function UsesLine({ uses, className }: { uses: ItemUse[]; className?: string }) {
+export function UsesLine({ uses, className }: { uses: UseShown[]; className?: string }) {
   return (
     <p className={cn('text-xs text-muted-foreground', className)} title={uses.map(u => `${slugOf(u.id)} (${u.need}): ${u.for}`).join('\n')}>
       Works with{' '}
       {uses.map((use, i) => (
         <span key={use.id}>
           {i > 0 && ', '}
+          <RunsBadges runs={use.runs} compact className="mr-0.5 align-[-1px]" />
           <span className="font-medium text-foreground/80">{slugOf(use.id)}</span>
           {use.need === 'required' && ' (required)'}
+          {use.alternativeTo && ' (old)'}
         </span>
       ))}
     </p>

@@ -10,6 +10,8 @@ import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { watchPath } from '@/lib/catalog/video';
 import { MadeByLine, UsesLine } from '@/components/catalog/uses';
+import { OldBadge, RunsBadges } from '@/components/catalog/runs';
+import { slugOf } from '@/lib/catalog/types';
 import { VideoThumb } from '@/components/catalog/video';
 
 const kindLabel: Record<CatalogEntry['kind'], string> = {
@@ -59,7 +61,8 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
       <div className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-center gap-2">
           <Badge variant="outline">{kindLabel[card.kind]}</Badge>
-          <Badge variant="secondary">{statusLabel[card.status]}</Badge>
+          <RunsBadges runs={card.runs} />
+          {card.alternativeTo ? <OldBadge to={slugOf(card.alternativeTo)} /> : <Badge variant="secondary">{statusLabel[card.status]}</Badge>}
           {!locked && card.version && (
             <span className="font-mono text-xs text-muted-foreground" title="Latest release">
               v{card.version}
