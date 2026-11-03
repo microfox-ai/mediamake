@@ -87,6 +87,11 @@ const data = {
       icon: <ImagesIcon />,
     },
     {
+      title: "Remaster Revisions",
+      url: "/remaster-revision",
+      icon: <AudioLinesIcon />,
+    },
+    {
       title: "Library",
       url: "/library",
       icon: <LayersIcon />,
