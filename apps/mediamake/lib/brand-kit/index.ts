@@ -62,6 +62,8 @@ export interface BrandKit {
   colors: BrandColor[];
   fonts: BrandFont[];
   assets: BrandAsset[];
+  /** Path of the kit image that stands for the brand (the main logo). Unset: primaryLogo picks one. */
+  logo?: string;
   /** brandguide.md, as markdown. */
   guide?: string;
   /** youtube/channel-description.md. */
@@ -299,11 +301,27 @@ export function normalizeAssets(input: unknown): BrandAsset[] {
   return [...out.values()];
 }
 
-/** The picture that stands for the kit: a still logo first, then a favicon or channel image. */
-export function primaryLogo(kit: Pick<BrandKit, 'assets'>): string | undefined {
+/** Folders that hold other versions of a logo (backup/, alternates/, _previous/, v2/…). */
+const SPARE_FOLDER = /(^|\/)(backups?|alternates?|_?previous|old|archive|v\d+)\//i;
+
+/** The kit image a path or URL names, if there is one. */
+export function findKitImage(assets: BrandAsset[], pathOrUrl: string): BrandAsset | undefined {
+  const value = pathOrUrl.trim();
+  const path = /^https?:\/\//.test(value) ? undefined : cleanPath(value);
+  return assets.find(a => isImage(a.path) && (path ? a.path === path : a.url === value));
+}
+
+/**
+ * The picture that stands for the kit: the one chosen as `logo`, else a still
+ * logo first (not a spare version), then a favicon or channel image.
+ */
+export function primaryLogo(kit: Pick<BrandKit, 'assets' | 'logo'>): string | undefined {
+  const chosen = kit.logo ? findKitImage(kit.assets, kit.logo) : undefined;
+  if (chosen) return chosen.url;
   const images = kit.assets.filter(a => isImage(a.path));
   const rank = (a: BrandAsset) =>
     (a.kind === 'logo' ? 0 : a.kind === 'favicon' ? 2 : a.kind === 'channel' ? 3 : 4) +
+    (SPARE_FOLDER.test(a.path) ? 1 : 0) +
     (a.path.endsWith('.svg') ? 0 : 0.5) +
     (/profile|avatar|icon-512/.test(a.path) ? -0.2 : 0);
   return images.sort((a, b) => rank(a) - rank(b))[0]?.url;
@@ -331,16 +349,22 @@ export interface BrandKitPatch {
   removeAssets?: string[];
   /** true: `assets` replaces the whole list instead of merging. */
   replaceAssets?: boolean;
+  /** The main logo: a kit image's path (or its URL), checked after the assets above. null clears it. */
+  logo?: string | null;
   guide?: string | null;
   channelDescription?: string | null;
   thumbnailProfile?: Record<string, unknown> | null;
 }
 
+/** A patch that can't be applied as asked (e.g. a main logo that isn't in the kit). */
+export class BrandKitError extends Error {}
+
 const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.slice(0, max) : undefined);
 
 /**
  * Applies a patch: fields that are passed replace the stored ones (null
- * clears), assets merge by path unless `replaceAssets`.
+ * clears), assets merge by path unless `replaceAssets`. The main logo must be
+ * an image in the kit (else BrandKitError) and is dropped when its file is.
  */
 export function applyBrandKitPatch(current: BrandKit | undefined | null, patch: BrandKitPatch, clientId?: string): BrandKit {
   const kit: BrandKit = { ...emptyBrandKit(), ...(current ?? {}) };
@@ -372,6 +396,17 @@ export function applyBrandKitPatch(current: BrandKit | undefined | null, patch: 
     assets = assets.filter(a => !drop.has(a.path));
   }
   kit.assets = assets.slice(0, 1000).sort((a, b) => a.path.localeCompare(b.path));
+
+  if (patch.logo !== undefined) {
+    const value = typeof patch.logo === 'string' ? patch.logo.trim() : '';
+    if (!value) delete kit.logo;
+    else {
+      const asset = findKitImage(kit.assets, value);
+      if (!asset) throw new BrandKitError(`The main logo must be an image in the kit; ${value} isn't one.`);
+      kit.logo = asset.path;
+    }
+  }
+  if (kit.logo && !findKitImage(kit.assets, kit.logo)) delete kit.logo;
 
   kit.schema = BRAND_KIT_SCHEMA;
   kit.updatedAt = new Date().toISOString();
@@ -462,6 +497,12 @@ export async function planKitUpload(files: KitFile[], options: { includeMasters?
   if (manifest) {
     if (typeof manifest.name === 'string') plan.patch.name = manifest.name;
     if (Array.isArray(manifest.fonts)) plan.patch.fonts = manifest.fonts;
+    // brand.json's logo: the main logo, when it's one of the images going up (else the save would be refused)
+    if (typeof manifest.logo === 'string' && manifest.logo.trim()) {
+      const logo = cleanPath(manifest.logo);
+      if (plan.upload.some(f => f.path === logo && isImage(logo))) plan.patch.logo = logo;
+      else plan.skipped.push({ path: logo, reason: "brand.json's logo, but not an image in this upload" });
+    }
   }
   if (!plan.patch.fonts && fontFiles.length) {
     plan.patch.fonts = [...new Set(fontFiles.map(fontFamilyFromFile).filter(Boolean))].map(family => ({ family }));

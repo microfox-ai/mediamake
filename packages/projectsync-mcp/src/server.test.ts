@@ -53,6 +53,27 @@ describe('createServer', () => {
   });
 });
 
+describe('brand kit upload', () => {
+  const dryRun = async (only?: string[]) =>
+    text(await (await connect()).callTool({ name: 'upload_brand_kit', arguments: { projectId: 'p1', folder: dir, dryRun: true, only } }));
+
+  it("sets brand.json's logo as the main logo when its image goes up, and says so when it doesn't", async () => {
+    await project({
+      'brand.json': JSON.stringify({ name: 'Get into Zone', logo: 'logo/fist.png' }),
+      'logo/fist.png': 'png',
+      'logo/wordmark.svg': '<svg/>',
+      'graphics/source.png': 'no',
+    });
+    const all = await dryRun();
+    expect(all.fields).toEqual(expect.arrayContaining(['name', 'logo']));
+    expect(all.upload.map((f: { path: string }) => f.path)).toEqual(['logo/fist.png', 'logo/wordmark.svg']);
+
+    const without = await dryRun(['brand.json', 'logo/wordmark.svg']);
+    expect(without.fields).not.toContain('logo');
+    expect(without.skipped).toContainEqual({ path: 'logo/fist.png', reason: "brand.json's logo, but not an image in this upload" });
+  });
+});
+
 describe('production files', () => {
   it('lays out code, outputs and inputs, and skips hidden files and node_modules', async () => {
     await project({

@@ -7,6 +7,7 @@ import {
   Loader2Icon,
   PaletteIcon,
   PlusIcon,
+  StarIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -116,7 +117,20 @@ async function walkKitFolder(dir: FileSystemDirectoryHandle, prefix = "") {
   return { files, skipped };
 }
 
-function AssetTile({ asset, onRemove, canEdit }: { asset: BrandAsset; onRemove: () => void; canEdit: boolean }) {
+function AssetTile({
+  asset,
+  onRemove,
+  canEdit,
+  main,
+  onMakeMain,
+}: {
+  asset: BrandAsset;
+  onRemove: () => void;
+  canEdit: boolean;
+  /** This is the picture shown for the kit: chosen as its main logo, or picked automatically. */
+  main?: "chosen" | "automatic";
+  onMakeMain: () => void;
+}) {
   const name = asset.path.split("/").pop();
   return (
     <div className="group relative overflow-hidden rounded-lg border bg-muted/30">
@@ -142,6 +156,26 @@ function AssetTile({ asset, onRemove, canEdit }: { asset: BrandAsset; onRemove: 
         >
           <XIcon className="size-3" />
         </button>
+      )}
+      {main ? (
+        <span
+          title={main === "chosen" ? "The kit's main logo" : "Shown for the kit until a main logo is chosen"}
+          className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-md bg-background/90 px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
+        >
+          <StarIcon className={cn("size-3", main === "chosen" && "fill-current")} /> Main logo
+        </span>
+      ) : (
+        canEdit &&
+        isImage(asset.path) && (
+          <button
+            type="button"
+            onClick={onMakeMain}
+            title="Use as the main logo"
+            className="absolute left-1 top-1 rounded-md bg-background/90 p-1 opacity-0 shadow-sm transition group-hover:opacity-100"
+          >
+            <StarIcon className="size-3" />
+          </button>
+        )
       )}
     </div>
   );
@@ -308,6 +342,15 @@ export function BrandKitSheet({
   const removeAsset = async (path: string) => {
     try {
       await save({ removeAssets: [path] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const makeMainLogo = async (path: string) => {
+    try {
+      await save({ logo: path });
+      toast.success("Main logo set");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -549,7 +592,14 @@ export function BrandKitSheet({
                   </h3>
                   <div className={cn("grid gap-2", kind === "font" || kind === "sound" || kind === "guide" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
                     {list.map((a) => (
-                      <AssetTile key={a.path} asset={a} canEdit={canEdit} onRemove={() => void removeAsset(a.path)} />
+                      <AssetTile
+                        key={a.path}
+                        asset={a}
+                        canEdit={canEdit}
+                        main={a.url === logo ? (kit?.logo ? "chosen" : "automatic") : undefined}
+                        onMakeMain={() => void makeMainLogo(a.path)}
+                        onRemove={() => void removeAsset(a.path)}
+                      />
                     ))}
                   </div>
                 </section>
