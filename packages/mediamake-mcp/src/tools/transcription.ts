@@ -73,8 +73,8 @@ export function registerTranscriptionTools(
     {
       title: 'Transcribe audio',
       description: options.localFiles
-        ? 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. A local filePath is uploaded first. Signed CDN links (Suno) expire: pass them as sourceUrl through upload_media first, or here as filePath after downloading.'
-        : 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. Signed CDN links (Suno) expire: pass them as sourceUrl through upload_media first and transcribe the URL it returns.',
+        ? 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. A local filePath is uploaded first. Signed CDN links (Suno) expire: transcribe them straight away, or download the file and pass it as filePath.'
+        : 'Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library. Pass lyrics when you have them (for example from Suno) so they are stored beside the timed captions. Signed CDN links (Suno) expire: transcribe them straight away.',
       inputSchema: withoutLocalArgs(
         {
           audioUrl: z.string().url().optional().describe('Public https URL'),

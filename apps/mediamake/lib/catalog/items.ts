@@ -99,9 +99,10 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     kind: 'mcp',
     title: 'MediaMake MCP',
     summary:
-      "Use MediaMake from Claude: projects and timelines, presets, media, transcriptions, Suno takes, renders, brand kits, and the catalog for admins. The hosted connector: sign in with your MediaMake account.",
-    // In development: admins and private testers (the team) install it; anyone else needs a grant or invite
+      "For MediaMake admins: run the catalog (skill, MCP, app and tutorial releases) from Claude, and work with timelines, presets, transcriptions, Suno takes, workers and renders. The hosted connector: sign in with your MediaMake account. Projects, brand kits and media are ProjectSync's.",
+    // Admins only: it runs the releases. In the vault, so private testers don't get it; a grant naming it does
     visibility: 'private',
+    neverPublish: true,
     status: 'beta',
     // the card opens the step-by-step page for connecting it
     href: '/core/mediamake-mcp',

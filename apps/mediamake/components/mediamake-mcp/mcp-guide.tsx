@@ -13,36 +13,35 @@ import { cn } from '@/lib/utils';
 
 const README = 'https://github.com/microfox-ai/mediamake/tree/main/packages/mediamake-mcp#readme';
 
-const stageLabel: Record<CatalogVisibility, string> = {
+type Stage = CatalogVisibility | 'vault';
+
+const stageLabel: Record<Stage, string> = {
+  vault: 'Admins only',
   private: 'In testing',
   network: 'Community',
   public: 'Public',
 };
 
+/** Where people go for their own projects: the tools that moved out of this MCP. */
+const PROJECTSYNC = '/access?item=mcp/projectsync';
+
 /** What the hosted connector offers, by area (packages/mediamake-mcp/src/tools). */
 const TOOL_AREAS: { area: string; does: string; tools: string[] }[] = [
   {
-    area: 'Projects and timelines',
-    does: 'Read how your videos are built and make new timelines.',
-    tools: ['list_projects', 'get_project', 'create_project', 'list_timelines', 'get_timeline', 'survey_timelines', 'create_timeline', 'update_timeline', 'list_legacy_timelines', 'get_legacy_timeline'],
+    area: 'Catalog',
+    does: 'Run releases from Claude: skills, MCPs, apps, tutorials and courses, their videos, and who can open them.',
+    tools: ['catalog_items', 'catalog_item', 'catalog_archive', 'catalog_set_stage', 'catalog_add_third_party', 'catalog_invite', 'catalog_set_video', 'catalog_add_video_item', 'catalog_people', 'catalog_set_tier', 'catalog_versions'],
+  },
+  {
+    area: 'Timelines',
+    does: "Read how videos are built and make new timelines (the project ids come from ProjectSync's list_projects).",
+    tools: ['list_timelines', 'get_timeline', 'survey_timelines', 'create_timeline', 'update_timeline', 'list_legacy_timelines', 'get_legacy_timeline'],
   },
   { area: 'Presets', does: 'Browse presets and add them to a timeline.', tools: ['list_presets', 'get_preset', 'add_preset_to_timeline'] },
-  { area: 'Media', does: 'Find your media, or bring new media in by https link.', tools: ['list_media', 'search_media', 'get_media', 'upload_media'] },
-  { area: 'Transcription', does: "Transcribe a song and read its timed words.", tools: ['transcribe', 'list_transcriptions', 'get_transcription'] },
-  {
-    area: 'Brand kits',
-    does: "A channel's logo, intros, end screens, fonts and colours (community and up).",
-    tools: ['get_brand_kit', 'upload_brand_kit', 'finish_brand_kit_upload', 'update_brand_kit'],
-  },
-  { area: 'Suno takes', does: "A channel's song takes: read them and rate keeper, maybe or reject (community and up).", tools: ['list_generations', 'rate_generation'] },
+  { area: 'Transcription', does: 'Transcribe a song and read its timed words.', tools: ['transcribe', 'list_transcriptions', 'get_transcription'] },
+  { area: 'Suno takes', does: "A channel's song takes: read them and rate keeper, maybe or reject.", tools: ['list_generations', 'rate_generation'] },
   { area: 'Workers and agents', does: 'Run generation workers and agents.', tools: ['list_workers', 'get_worker_schema', 'run_worker', 'get_worker_job', 'list_agents', 'run_agent'] },
   { area: 'Renders', does: 'Plan, start and follow renders.', tools: ['plan_render', 'render', 'render_presets', 'render_status', 'list_renders', 'get_render_input_props'] },
-  { area: 'Catalog', does: 'Version numbers and release notes of skills, MCPs and apps.', tools: ['catalog_versions'] },
-  {
-    area: 'Catalog, admins only',
-    does: 'Run releases and private testers from Claude.',
-    tools: ['catalog_items', 'catalog_item', 'catalog_archive', 'catalog_set_stage', 'catalog_add_third_party', 'catalog_invite', 'catalog_people', 'catalog_set_tier'],
-  },
 ];
 
 interface McpGuideProps {
@@ -51,7 +50,7 @@ interface McpGuideProps {
   clientId: string | null;
   tier: ViewerTier;
   canConnect: boolean;
-  stage: CatalogVisibility;
+  stage: Stage;
 }
 
 export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, stage }: McpGuideProps) {
@@ -67,9 +66,16 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
         </div>
         <h2 className="text-2xl font-semibold tracking-tight">Connect MediaMake to Claude</h2>
         <p className="text-muted-foreground">
-          The MediaMake MCP lets Claude work in your MediaMake account: projects and timelines, presets, media,
-          transcriptions, Suno takes, brand kits and renders. It runs here on MediaMake, so there is nothing to install:
-          add this address to Claude and sign in with your MediaMake account.
+          The MediaMake MCP is for MediaMake admins. It runs the catalog from Claude (skill, MCP, app and tutorial
+          releases) and works with timelines, presets, transcriptions, Suno takes, workers and renders. It runs here on
+          MediaMake, so there is nothing to install: add this address to Claude and sign in with your MediaMake account.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Projects, brand kits, productions, releases and media are in{' '}
+          <Link href={PROJECTSYNC} className="underline">
+            ProjectSync
+          </Link>
+          , a local MCP for everyone on a project.
         </p>
         <CopyBlock text={mcpUrl} label="Copy address" />
       </header>
@@ -154,8 +160,9 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
 
       <Section title="Check it works">
         <p>
-          Ask Claude: <i>&ldquo;List my MediaMake projects.&rdquo;</i> It calls <Kbd>list_projects</Kbd> and shows them. If it
-          says MediaMake isn&apos;t connected, see <a href="#trouble" className="underline">Trouble</a> below.
+          Ask Claude: <i>&ldquo;List the MediaMake catalog&apos;s MCPs.&rdquo;</i> It calls <Kbd>catalog_items</Kbd> and shows
+          them with their release pages. If it says MediaMake isn&apos;t connected, see{' '}
+          <a href="#trouble" className="underline">Trouble</a> below.
         </p>
       </Section>
 
@@ -187,8 +194,11 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
           </li>
           <li>
             <b>It can&apos;t see your computer.</b> It runs on MediaMake&apos;s servers, so bring media in by a public https
-            link. Brand kits upload through links Claude sends the files to from the kit folder (Claude Code and Claude
-            Desktop can do that).
+            link. To upload files from your computer (brand kits, productions, release kits, media), use{' '}
+            <Link href={PROJECTSYNC} className="underline">
+              ProjectSync
+            </Link>
+            .
           </li>
           <li>
             <b>Renders and workers cost money.</b> Claude should check with you before a big batch. A render Claude waits
@@ -221,8 +231,12 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
 
       <Section title="Trouble" id="trouble">
         <dl className="flex flex-col gap-4">
-          <Trouble q="The Allow screen says the MCP is in testing, or Claude gets a 403.">
-            Your account can&apos;t use it yet. Ask a MediaMake admin to add you as a private tester, then connect again.
+          <Trouble q="The Allow screen says the MCP is for admins, or Claude gets a 403.">
+            Only MediaMake admins (and people an admin granted it to by name) can connect. For your own projects, use{' '}
+            <Link href={PROJECTSYNC} className="underline">
+              ProjectSync
+            </Link>
+            .
           </Trouble>
           <Trouble q="No browser window opened in Claude Code.">
             Type <Kbd>/mcp</Kbd>, pick mediamake and choose Authenticate again, or connect with an API key.
@@ -239,13 +253,14 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
       </Section>
 
       {tier === 'admin' && (
-        <Section title="For admins">
+        <Section title="Who can connect">
           <p>
-            Add a private tester under <Link href="/core/releases" className="underline">Releases</Link> → People (set
-            their tier to Private), with <Kbd>npm run catalog -- group add private &lt;clientId&gt;</Kbd>, or by asking
-            Claude (<Kbd>catalog_set_tier</Kbd>). Private testers open every MCP in testing with no per-item grants. Who
-            can connect follows the item, so moving it to community or public opens the connector to them:{' '}
-            <Link href="/core/releases/mcp/mediamake" className="underline">mcp/mediamake</Link>.
+            Admins, and anyone granted <Kbd>mcp/mediamake</Kbd> by name (Releases → its access sheet). It is in the vault,
+            so private testers and the community don&apos;t get it. Who can connect follows the item:{' '}
+            <Link href="/core/releases/mcp/mediamake" className="underline">
+              mcp/mediamake
+            </Link>
+            .
           </p>
         </Section>
       )}
@@ -272,14 +287,7 @@ function AccessNote({ clientId, tier, canConnect, stage }: Pick<McpGuideProps, '
     );
   }
   if (canConnect) {
-    const why =
-      tier === 'admin'
-        ? "You're an admin."
-        : tier === 'private'
-          ? "You're a private tester: every MCP in testing is open to you."
-          : stage === 'private'
-            ? "It's shared with you."
-            : 'It is open to you.';
+    const why = tier === 'admin' ? "You're an admin." : 'An admin granted it to you.';
     return (
       <Alert>
         <ShieldCheck />
@@ -296,11 +304,16 @@ function AccessNote({ clientId, tier, canConnect, stage }: Pick<McpGuideProps, '
   return (
     <Alert>
       <Lock />
-      <AlertTitle>{stageLabel[stage]}: not open to your account yet</AlertTitle>
+      <AlertTitle>{stageLabel[stage]}</AlertTitle>
       <AlertDescription>
         <p>
-          Right now admins and private testers can connect. Ask a MediaMake admin to add you as a private tester (you&apos;re
-          signed in as <span className="font-mono">{clientId}</span>). The steps below work as soon as they do.
+          The MediaMake MCP runs MediaMake&apos;s releases, so only admins can connect (you&apos;re signed in as{' '}
+          <span className="font-mono">{clientId}</span>). For your projects, brand kits, productions, releases and media,
+          install{' '}
+          <Link href={PROJECTSYNC} className="underline">
+            ProjectSync
+          </Link>
+          .
         </p>
       </AlertDescription>
     </Alert>

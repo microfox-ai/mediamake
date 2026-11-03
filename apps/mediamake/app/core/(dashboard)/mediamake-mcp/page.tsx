@@ -11,10 +11,10 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'MediaMake MCP · MediaMake' };
 
 /**
- * /core/mediamake-mcp: how to connect the hosted MediaMake MCP (/mcp) to
+ * /core/mediamake-mcp: how admins connect the hosted MediaMake MCP (/mcp) to
  * Claude, and whether the person looking may. Who may follows the
- * mcp/mediamake catalog item (lib/mcp/access), so this page needs no change
- * when the item moves to community or public.
+ * mcp/mediamake catalog item (lib/mcp/access: the vault, admins only), so this
+ * page needs no change if that ever moves.
  */
 export default async function MediamakeMcpPage() {
   const viewer = await getViewer();
@@ -30,7 +30,7 @@ export default async function MediamakeMcpPage() {
         clientId={viewer.clientId}
         tier={tier}
         canConnect={!!viewer.clientId && mayUseHostedMcp(entitlements, item)}
-        stage={item?.visibility ?? 'private'}
+        stage={item?.neverPublish ? 'vault' : (item?.visibility ?? 'private')}
       />
     </SidebarInset>
   );

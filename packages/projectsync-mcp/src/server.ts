@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MediamakeClient, configFromEnv } from '../../mediamake-mcp/src/client.js';
-import { registerBrandKitTools, registerFinishBrandKitUpload } from '../../mediamake-mcp/src/tools/brand-kit.js';
+import { registerBrandKitTools } from './tools/brand-kit.js';
 import { registerProductionTools, registerReleaseTools } from './tools/bundles.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerProjectTools } from './tools/projects.js';
@@ -26,8 +26,7 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
 /** Builds the ProjectSync MCP server: the MediaMake API with a MediaMake key, and files on this computer. */
 export function createServer(client = new MediamakeClient(apiConfig())) {
   const server = new McpServer({ name: 'projectsync', title: 'ProjectSync', version: '0.1.0' }, { instructions: INSTRUCTIONS });
-  registerBrandKitTools(server, client, { localFiles: true });
-  registerFinishBrandKitUpload(server, client);
+  registerBrandKitTools(server, client);
   registerProjectTools(server, client);
   registerProductionTools(server, client);
   registerReleaseTools(server, client);

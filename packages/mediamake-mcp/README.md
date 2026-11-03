@@ -1,6 +1,6 @@
 # @microfox/mediamake-mcp
 
-An MCP server that lets Claude (or any MCP client) drive Mediamake through its HTTP API: read projects and saved timelines, browse presets, build timelines, upload media, transcribe songs, run generation workers and agents, and render.
+An MCP server for **MediaMake admins**: it runs the catalog from Claude (skill, MCP, app and tutorial releases, their videos, and who can open them) and drives Mediamake's video pipeline through its HTTP API: saved timelines, presets, transcription, Suno takes, generation workers and agents, and renders. Projects, brand kits, productions, release kits and media are **ProjectSync**'s ([`packages/projectsync-mcp`](../projectsync-mcp/README.md)), the local MCP for everyone on a project.
 
 It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, authenticated with a Mediamake API key, so it works against production or a local dev server. It comes two ways:
 
@@ -9,20 +9,19 @@ It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, auth
 
 ## Add by URL (hosted connector)
 
-Step by step, with who can connect right now: [mediamake.microfox.app/core/mediamake-mcp](https://mediamake.microfox.app/core/mediamake-mcp). The quickest way, for the team (admins and private testers): paste "Set up mcp/mediamake from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md" into Claude, or copy that prompt from the MediaMake MCP's card. By hand:
+Step by step, with who can connect right now: [mediamake.microfox.app/core/mediamake-mcp](https://mediamake.microfox.app/core/mediamake-mcp). The quickest way, for admins: paste "Set up mcp/mediamake from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md" into Claude, or copy that prompt from the MediaMake MCP's card. By hand:
 
 - **Claude (claude.ai and Claude Desktop)**: Settings → Connectors → Add custom connector, URL `https://<your-mediamake-host>/mcp`. Claude opens the Mediamake sign-in page; log in with your client ID and key, then press Allow.
 - **Claude Code**: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`, then `/mcp` in a session to sign in. Or skip the sign-in with a key: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp --header "Authorization: Bearer <api key>"`.
 - **Any other MCP client** that speaks Streamable HTTP and OAuth works the same way.
 
-Who may connect follows the `mcp/mediamake` catalog item: while it is in development that is admins and private testers (anyone in the `private` group, no grant needed) plus anyone granted it; everyone else is told so on the consent screen and gets a 403 from `/mcp`.
+Who may connect follows the `mcp/mediamake` catalog item. It is in the vault (`neverPublish`): admins, and anyone granted it by name; private testers and the community don't get it, and everyone else is told so on the consent screen and gets a 403 from `/mcp`.
 
 The connector acts as your account: it calls the API with one of your API keys, so your tier (public, community, private, admin) and access grants apply exactly as they do with the `.mcpb`. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
 
 It has the same tools, adapted for a server that can't see your files:
 
-- `upload_brand_kit` takes the kit folder as a list of files instead of a path: text files (`brandguide.md`, `colors.json`, `brand.json`, …) inline, small files as base64 (3 MB per call), and for everything else it returns a presigned upload URL and a ready `curl` command. Claude PUTs those (Claude Code and Desktop with a shell run the commands from the kit folder), then calls `finish_brand_kit_upload`, which checks each file arrived and adds it to the kit.
-- `upload_media`, `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
+- `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
 
 How it works, in `apps/mediamake`:
 
@@ -74,11 +73,9 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 
 | Area                   | Tools                                                                                                                                                                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Projects and timelines | `list_projects`, `get_project`, `create_project`, `list_timelines`, `get_timeline`, `survey_timelines`, `create_timeline`, `update_timeline`, `list_legacy_timelines`, `get_legacy_timeline` |
-| Brand kits             | `get_brand_kit`, `upload_brand_kit`, `update_brand_kit` (community access or above)                                                                                                       |
+| Timelines              | `list_timelines`, `get_timeline`, `survey_timelines`, `create_timeline`, `update_timeline`, `list_legacy_timelines`, `get_legacy_timeline` (project ids come from ProjectSync's `list_projects`) |
 | Generations            | `list_generations`, `rate_generation` (song takes made with Suno; community access or above)                                                                                                |
 | Presets                | `list_presets`, `get_preset`, `add_preset_to_timeline`                                                                                                                                       |
-| Media                  | `list_media`, `search_media`, `get_media`, `upload_media`                                                                                                                                    |
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
 | Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
@@ -114,9 +111,9 @@ Saved timelines exist in three shapes, and every timeline this server returns sa
 
 `get_timeline` returns a compact summary by default (config, references, preset list, node outline, warnings such as deprecated presets). `detail: "full"` returns the document with embedded preset code removed and, with `maxArrayItems`, long caption arrays cut short. `survey_timelines` aggregates many timelines at once (formats, preset usage per format, canvas sizes), which is the starting point for learning how existing videos are built.
 
-### Brand kits
+### Projects, brand kits and media
 
-A project is a channel or brand, and its brand kit (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, colours, brand guide, thumbnail profile) lives on it. `upload_brand_kit` takes the folder `pack-brand-kit` exports (`apps/lyrics_videos/brands/<brand>/`) and uploads it in one call (`dryRun` lists it first); `get_brand_kit` is what to read before making anything for that brand. Brand kits need community access or above: public accounts keep their kits locally.
+They moved to ProjectSync (`packages/projectsync-mcp`): `list_projects`, `get_project`, `create_project`, `update_project`, the brand kit tools (`get_brand_kit`, `upload_brand_kit`, `finish_brand_kit_upload`, `update_brand_kit`) and the media tools, with productions and release kits beside them, all under each project's permissions.
 
 ### Generations
 

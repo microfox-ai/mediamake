@@ -3,8 +3,8 @@
   "name": "mediamake",
   "display_name": "Mediamake",
   "version": "0.1.0",
-  "description": "Drive Mediamake from Claude: projects and timelines, presets, media, transcription, generation workers, agents and renders.",
-  "long_description": "Connects Claude to your Mediamake app with a Mediamake API key. Read saved projects and timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, upload and search media, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda.",
+  "description": "For MediaMake admins: run the catalog (skill, MCP and app releases) and drive Mediamake's timelines, presets, transcription, workers, agents and renders.",
+  "long_description": "Connects Claude to Mediamake with an admin's Mediamake API key. Run the catalog (skills, MCPs, apps, tutorials, their videos and who can open them), read saved timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda. Projects, brand kits and media are in ProjectSync.",
   "icon": "icon.png",
   "author": {
     "name": "Microfox",
@@ -30,30 +30,6 @@
     }
   },
   "tools": [
-    {
-      "name": "list_projects",
-      "description": "List Mediamake projects the API key can see (owned or shared)."
-    },
-    {
-      "name": "get_project",
-      "description": "Get one project and a page of its timelines (newest first)."
-    },
-    {
-      "name": "create_project",
-      "description": "Create a new Mediamake project."
-    },
-    {
-      "name": "get_brand_kit",
-      "description": "Read a project's brand kit: colours, fonts, guide and every uploaded asset."
-    },
-    {
-      "name": "upload_brand_kit",
-      "description": "Upload a pack-brand-kit folder from this computer to a project."
-    },
-    {
-      "name": "update_brand_kit",
-      "description": "Change a project's brand kit fields."
-    },
     {
       "name": "list_generations",
       "description": "List a project's song takes made with Suno, newest first, with their rating, notes and links."
@@ -103,22 +79,6 @@
       "description": "Append a preset instance to a timeline, the way the editor's Add button does at the top level: inputs start from the preset's defaultInputParams, your presetInputData is merged on top, and the track gets a unique trackName."
     },
     {
-      "name": "list_media",
-      "description": "List files in the Mediamake media library, newest first, with filters."
-    },
-    {
-      "name": "search_media",
-      "description": "Semantic search over the analysed media library (descriptions, keywords, art style, colours)."
-    },
-    {
-      "name": "get_media",
-      "description": "Get one media library entry with all its metadata."
-    },
-    {
-      "name": "upload_media",
-      "description": "Put a file into Mediamake storage and the media library, and return its public URL."
-    },
-    {
       "name": "transcribe",
       "description": "Transcribe a song or voice track into timed captions (lines with word timings) and save it in the Mediamake transcription library."
     },
@@ -148,7 +108,7 @@
     },
     {
       "name": "list_agents",
-      "description": "List Mediamake AI agents (preset writing, prompting, Midjourney, metadata, summarise, research, audio analysis\u2026)."
+      "description": "List Mediamake AI agents (preset writing, prompting, Midjourney, metadata, summarise, research, audio analysis…)."
     },
     {
       "name": "run_agent",
