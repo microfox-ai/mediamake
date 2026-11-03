@@ -1,5 +1,11 @@
 # @microfox/projectsync-mcp
 
+## 0.1.3
+
+### Patch Changes
+
+- 5e33c7f: Changes from PR #499: brand-kit-main-logo
+
 ## 0.1.2
 
 ### Patch Changes
