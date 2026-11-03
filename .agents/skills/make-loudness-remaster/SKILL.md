@@ -16,6 +16,7 @@ So this skill makes the song louder in clean steps and lets the user choose how 
 | Output | Where | What it is |
 | --- | --- | --- |
 | Ladder | `<song folder>/remaster/v<N>/` | `<title> - original -12 LUFS (level-matched).wav` (gain only) and `-11`, `-10`, `-9`, `-8 LUFS.wav` (limiter only), plus the REAPER session `<title> - original louder.rpp` |
+| Review | `<ladder>/remaster.json`, `<ladder>/v<N>.revisions/` | the sidecar `review.py` writes for the Remaster Revisions screen, and the user's pick and notes the screen writes back |
 | Final | next to the song's mix | `<title> - final master (-N LUFS).wav`, a byte-identical copy of the step the user picked |
 
 Everything is 24-bit WAV at the mix's own sample rate, true peak -1.0 dBTP or lower.
@@ -67,15 +68,34 @@ PY="$(uv tool dir)/reaper-mcp-server/bin/python"; SK=.claude/skills/make-loudnes
    picture: -12 and -11 are the original, louder; -10 is nearly identical; -9 gives up a little sub
    and build-up; -8 costs more than all the steps before it together (the build-up roughly halves),
    and its faster limiter release can make bass pump or grit. Tell them to compare the song's
-   loudest part at -9 and -8. Give a one-click `open -R` block for the folder (never open Finder).
-5. **The user picks by ear.** Copy the pick next to the song's mix and check it:
+   loudest part at -9 and -8.
+5. **The user picks by ear, on the Remaster Revisions screen** (a file picker can't A/B: they
+   couldn't compare a ladder in Finder, 2026-11-04). Make the ladder reviewable and give the link:
+
+   ```bash
+   $PY $SK/review.py "<song folder>/remaster/v1"
+   ```
+
+   It writes `remaster.json` beside the versions (title, path, LUFS, true peak, LRA per file) and
+   prints the review link, `https://mediamake.microfox.app/remaster-revision?job=<path under
+   Downloads>` (always this base URL, never localhost, never an `open -R` line for the ladder).
+   There every version plays from one shared playhead: a key switches between them at the same
+   moment, a range loops, levels can be matched, and the user marks the **final**, drops the rest
+   and leaves notes (the screen is documented in `apps/mediamake/components/remaster-revisions/README.md`).
+   The first time, they open the song's folder (or Downloads) once in the screen; after that the
+   link opens the ladder directly. Their pick lands in `<ladder>/v<N>.revisions/rev-NNN.md` (and
+   `.json`, the `mediamake.image-revision/v1` format of revise-image: `final` = the file name without
+   its extension, `drop`, `comments` with a version's ID and sometimes a time `pin.t`). Wait for a
+   revision marked `ready` (or "rev-001 is ready"), read the `.md`, then copy the pick next to the
+   song's mix and check it:
 
    ```bash
    cp -n "<ladder>/<Title> - original -9 LUFS.wav" "<song folder>/<Title> - final master (-9 LUFS).wav" && cmp "<ladder>/<Title> - original -9 LUFS.wav" "<song folder>/<Title> - final master (-9 LUFS).wav"
    ```
 
    From then on that file is the song's audio (lyric video, uploads, DistroKid). Note it in the
-   song's memory or notes.
+   song's memory or notes, answer each note in the revision JSON (`reply`, `status: "done"`) and
+   set the revision's `status` to `resolved`, the way revise-image does.
 6. **Into the library.** The song's mix, its stems and the final master belong to the song's folder
    in the media library (`apps/lyrics_videos/scripts/library/README.md`), where every later
    production finds them:

@@ -119,21 +119,24 @@ export const MAX_FINAL = 3;
 export function formatOf(index: ImageSetIndex | null | undefined) {
   const kind = index?.kind;
   const poster = kind === 'poster';
+  // a remaster ladder: the versions of one song, reviewed by ear on /remaster-revision
+  const remaster = kind === 'remaster';
   const thumbnail = kind === 'thumbnail' || (!kind && !!index?.size && index.size[0] === 1280 && index.size[1] === 720);
   const size = index?.size ?? (thumbnail ? [1280, 720] : undefined);
   return {
     poster,
     thumbnail,
+    remaster,
     /** CSS aspect-ratio when every image shares a size; otherwise each image's own */
     aspect: size ? `${size[0]} / ${size[1]}` : undefined,
     ratio: size ? size[0] / size[1] : undefined,
     /** a poster has one cover; thumbnails one final or up to three for an A/B test */
-    maxFinal: index?.pick?.max ?? (poster ? 1 : thumbnail ? MAX_FINAL : 99),
+    maxFinal: index?.pick?.max ?? (poster || remaster ? 1 : thumbnail ? MAX_FINAL : 99),
     finalLabel: index?.pick?.label ?? (poster ? 'Cover' : 'Final'),
     /** how wide it shows small: YouTube's feed, a streaming app's list, or just small */
     small: poster ? 160 : thumbnail ? 246 : 200,
     smallLabel: poster ? 'List size' : thumbnail ? 'Feed size' : 'Small',
     smallHint: poster ? "How it reads in a streaming app's list" : thumbnail ? "How it reads in YouTube's feed" : 'How it reads small',
-    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : 'files',
+    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : remaster ? 'versions' : 'files',
   };
 }
