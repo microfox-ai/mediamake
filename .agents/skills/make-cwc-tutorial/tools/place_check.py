@@ -1,8 +1,8 @@
 """Check that every voice chunk lands where the timeline puts it, in a rendered episode.
 
-usage: python place_check.py <project dir> <render.mp4> <id>=<seconds> [<id>=<seconds> …]
+usage: python place_check.py <project dir> <render.mp4> <id>=<seconds> [<id>=<seconds> …] [--vo=input/vo-short/vo.json]
 
-Cross-correlates each chunk (from input/vo4/vo.json) with the render's audio around its expected
+Cross-correlates each chunk (from input/vo4/vo.json, or the voice list --vo names) with the render's audio around its expected
 start and prints where it was found and how well it matched. A steady +0.04 s on every line is the
 render's own audio delay; anything else means a chunk moved. Run from apps/lyrics_videos with the
 analysis venv (it needs numpy and librosa).
@@ -18,11 +18,12 @@ import numpy as np
 
 if len(sys.argv) < 4:
     sys.exit(__doc__)
-project, video, *pairs = sys.argv[1:]
+opts = dict(a[2:].split('=', 1) for a in sys.argv[1:] if a.startswith('--') and '=' in a)
+project, video, *pairs = [a for a in sys.argv[1:] if not a.startswith('--')]
 wav = os.path.join(tempfile.mkdtemp(prefix='cwc-place-'), 'mix.wav')
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', video, '-ac', '1', '-ar', '16000', wav], check=True)
 mix, _ = librosa.load(wav, sr=16000)
-chunks = {c['id']: c for c in json.load(open(os.path.join(project, 'input', 'vo4', 'vo.json')))}
+chunks = {c['id']: c for c in json.load(open(os.path.join(project, opts.get('vo', 'input/vo4/vo.json'))))}
 for pair in pairs:
     cid, at = pair.split('=')
     at = float(at)

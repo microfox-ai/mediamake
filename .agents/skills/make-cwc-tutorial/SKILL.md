@@ -1,19 +1,20 @@
 ---
 name: make-cwc-tutorial
-description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video). Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change a project named cookwithclaude-* under apps/lyrics_videos/projects. Append new user feedback to the log at the bottom.
+description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/lyrics_videos/projects. Append new user feedback to the log at the bottom.
 metadata:
-  depends-on: revise-video
+  depends-on: revise-video, create-thumbnail, pack-youtube
   reference: apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
 ---
 
 # make-cwc-tutorial
 
 **Cook with Claude** is MediaMake's tutorial series on its YouTube channel: one episode per item
-(skill first; MCPs and apps later), each about two minutes. Episode 1, `/pack-brand-kit`, went
-through four review rounds and was signed off on 2 Nov 2026 ("yup this is final"). This skill is its
-formula. `template/` holds its code, `tools/` the voice and checking scripts, and the finished project
-is `apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit` on the user's machine (projects are
-gitignored; the template is the committed copy).
+(skill first; MCPs and apps later), each about two minutes, with a 9:16 Short of it. Episode 1, `/pack-brand-kit`, took two rewrites
+of its story and three rounds of review notes, was signed off on 2 Nov 2026 ("yup this is final") and
+went up on YouTube on 3 Nov. This skill is its formula; `reference/ep01.md` tells the episode from
+brief to upload. `template/` holds its code, `tools/` the voice and checking scripts, and the finished
+project is `apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit` on the user's machine (projects
+are gitignored; the template is the committed copy).
 
 ## The rules (the user's own notes, turned into practice)
 
@@ -194,7 +195,89 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
 9. **Master** once the user signs off (`render-project` without `--proxy`), preflight it, then
    `media deliver <slug> --what=video --yes` (set a clean `--title` on the production first: the
    file name comes from it).
-10. **Log** each note's lesson below.
+10. **The Short** when the user wants one (A Short of an episode, below).
+11. **Publish**: the YouTube packs and uploads for the episode and its Short (Publishing on YouTube,
+    below), then, once the episode is live, its link as the item's intro video on the release
+    dashboard.
+12. **Log** each note's lesson below.
+
+## A Short of an episode (9:16)
+
+Ep. 1's Short (`projects/cookwithclaude-pack-brand-kit-short`, approved 3 Nov 2026, notes in its
+`short.md`) is the pattern: the whole episode, recast for 1080 × 1920, not a 60 s cut.
+
+- **Propose first, with an audio cut.** Lay the existing voice cuts out with ffmpeg (`adelay`, the theme
+  passes) into an mp3 so the user hears the pacing before anything is built; no new recording unless
+  a line is missing (then ask with the credit cost). The user chose every beat over a 60 s cut.
+- **Its own project:** `cp -cR` the episode's `input/` (APFS clones), copy `video/`, register it
+  (`media production new <slug>-short`); never touch the approved episode's files.
+- **Retime only where asked.** To speed up a stretch, cut its continuous read at its pauses
+  (`silencedetect`, cuts inside the silences, 10–20 ms fades) into pieces in `input/vo-short/` and
+  shorten the gaps (ep. 1's ritual: 1.07–1.30 s → 0.55–0.65 s); the words keep their own pace. Every
+  beat after it is the episode's time minus the gain (`ep1()` in the Short's `timeline.ts`).
+- **The frame:** set `W`/`H` in `theme.ts` and the project's width/height; `makeCam`, `toFrame` and
+  `Css3D` follow. Then re-place every scene: 3D cameras stand further back or widen (a narrow frame
+  shows ~56 % of the width), tunnels and orbits turn tall, boards become portrait (the shelf: intro
+  over end screen, label, guide pages, banner; the regroup 4 × 3), side-by-side windows stack, long
+  lines break onto two, and a loop round a wide box becomes a swoosh under it. Captions and key
+  content stay clear of the Shorts overlays (the bottom ~420 px, the right-hand buttons).
+- **The opener:** the kit's own vertical version (`brands/cookwithclaude/intros/vertical/
+  cook-with-claude-intro-opener-9x16.mp4`, scene `intro-4-opener-vertical`), played as it is. A boxed
+  16:9 opener was only a stopgap.
+- **The end card:** 7 s, not 20 (Shorts have no end-screen elements); "tell us in the comments".
+- **Re-check what the episode shows against the live site**: the install prompt's address had
+  changed since ep. 1 (now `https://mediamake.microfox.app`).
+- **Checks:** stills at every beat's busiest moment (tile them at a readable size: thin thumbnails
+  misled), preflight with the episode's meant holds answered `--intended`, `tools/place_check.py
+  --vo=input/vo-short/vo.json` for the moved voice pieces.
+
+## Publishing on YouTube
+
+Run `pack-youtube` and adapt it: a tutorial has no lyrics, so the transcript is the narration, and the
+description carries chapters and links instead. Ep. 1's packs are
+`out/youtube/cookwithclaude-pack-brand-kit/` and `…-short/`.
+
+- **Channel:** Cook With Claude, `@cook-with-claude`, in the Chrome profile `channel.json` names.
+  `brands/cookwithclaude/youtube/channel.json` holds the standing answers: not made for kids, AI
+  box unticked (the user's call for a designed narrator voice over motion graphics), language `en`.
+- **Thumbnails** (`create-thumbnail`, in their own session while the words are written here): the
+  brand's profile (`graphics/brand/thumbnail.json`: Lilita One hero words, the JetBrains Mono tag
+  `EP 01 · /pack-brand-kit`, the lockup), pictures from **frames of the episode**, **hook words, not
+  the title**. Hand the session the master's path, the strong moments with their times, and the
+  narration as `input/transcript.txt`. Ep. 1: seven concepts, B1 picked ("A BRAND FROM / SCRATCH.",
+  the 3D spark rising out of the wok). No "one prompt" claims.
+- **Title:** offer three that pair with the thumbnail's words; the user may write their own (ep. 1:
+  "Make a complete brand kit with Claude"). The Short: the same title + ` #Shorts`.
+- **Description** (`ytmeta.py check <pack> --free`): two intro lines (what it makes, copy → paste →
+  name it), `Get the skill: https://mediamake.microfox.app` and the skill's source folder on GitHub,
+  then **chapters**, the series line ("one open-source skill, app or MCP an episode. Copy. Paste.
+  Cook."), at most five hashtags. Ask first whether to add chapters; ep. 1's user wanted them.
+  - Chapters start at 0:00, need at least three, and each must last 10 s or more. Put them on scene
+    starts from `timeline.ts`, and merge beats shorter than 10 s with a neighbour (ep. 1: 0:00 cold
+    open + opener, 0:21, 0:36, 0:46, 1:00 reveal + deliverables, 1:20 shelf, 1:42 call + end).
+  - The Short's description is shorter, with no chapters. Don't link the full episode while it is
+    still private or scheduled ("Video unavailable"); add the link, or set it as the related video,
+    once the episode is live.
+- **End screen:** the episode's own 20 s end card is the end screen. Draw the brand kit's card slots
+  (`outros/cook-with-claude-end-prompt-card-guide.jpg`: a video card bottom left, subscribe beside
+  it) onto a frame of it as `end-screen-card-guide.jpg`, after checking the slots fall on empty
+  slate.
+- **The Short's thumbnail:** the episode's picked design recast for 1080×1920 ("keep it simple, same
+  as the video one"), in its own thumbnail job with `"size": [1080, 1920]` in `thumbs.json` and the
+  same layers stacked: the kicker small above the hero word, as in the 16:9 original. Copy the
+  render straight into the pack: `thumbs pick` re-encodes to 1280×720. Desktop Studio usually has no
+  thumbnail field for Shorts, so the user sets it from the YouTube app.
+- **Uploading** (`youtube_fill_uploads`, only when the user asks): it switches to the channel, fills
+  the form and stops on the Visibility step. On ep. 1 it could not set:
+  - the thumbnail;
+  - a playlist that didn't exist yet ("Open Source Skills");
+  - the scheduled date and time.
+
+  Report every warning and leave those three to the user in the tab. Filling creates a private draft
+  at once, so never fill the same pack twice. A file that arrives after the fill (the Short's
+  thumbnail) goes in the pack, and the user adds it by hand.
+- **Deliver** each pack beside its video: `media deliver <slug> --what=youtube --from=out/youtube/<slug>`
+  (dry run, then `--yes`).
 
 ## Feedback log
 
@@ -228,3 +311,12 @@ in this skill's draft, `make-skill-intro-video`, over episode 1's build and four
 - 2026-11-02 · ep. 1 rev-004 · "remove the 2 … brand setups as they are private - this will shorten the video, which is good" → rule 5; shorter is better.
 - 2026-11-02 · ep. 1 rev-004 · "a complete brand setup with everything you need" · "what do you wish to make next?" · "every one of these started with a name, now it can be your idea, your name, just start it" → the deliverables line, the end question about making, the call that hands the story to the viewer.
 - 2026-11-02 · ep. 1 final · "yup this is final, draft a skill, call it make-cwc-tutorial (this should be able to create tutorial similar to this video)" → this skill, with ep. 1's code as `template/` and its tools.
+- 2026-11-03 · ep. 1 Short · asked for a 45–60 s cut, answered "full video ( jsut speed uo the copy paste name a bit )" → a Short keeps every beat and voice line, recast for 9:16; a stretch is sped up by shortening the pauses between its sentences, never the words.
+- 2026-11-03 · ep. 1 Short · "for the opener, create a vertical version and save it to brand kit" → Shorts open with the kit's own 9:16 opener (`intros/vertical/`), made in the brand kit and reused, not a boxed 16:9 one.
+- 2026-11-03 · ep. 1 Short v2 · "all good" → approved: the whole episode at 114.7 s, the vertical opener, a 7 s end card.
+- 2026-11-03 · ep. 1 YouTube · "pack youtube and upload to youtube" → Publishing on YouTube: pack-youtube adapted for a tutorial, thumbnails in their own session from frames of the episode with hook words, uploads filled with Browse Hack and left for the user to schedule or publish.
+- 2026-11-03 · ep. 1 YouTube · picked "Install link only", then "sry, also put chapters in description" → tutorial descriptions carry chapters (on scene starts, each ≥ 10 s) as well as the install link.
+- 2026-11-03 · ep. 1 YouTube · "Title : Make a complete brand kit with claude" → offer titles, but the user may write their own; the Short reuses it with #Shorts.
+- 2026-11-03 · ep. 1 Short · "also upload the short" (visibility "immediately") → the Short gets its own pack and upload; no link to the full episode until that one is live.
+- 2026-11-03 · ep. 1 Short · "also create a vertical thumbnail for the short" + "keep it simple same as the video one" → the Short's thumbnail is the episode's picked design recast for 9:16, not a new concept.
+- 2026-11-03 · ep. 1 · "summarise everything we did in the video, and update the linked skill" → `reference/ep01.md` (the episode from brief to upload) and the publishing stage in this skill.
