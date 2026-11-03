@@ -326,7 +326,7 @@ export function isInstallable(record: Pick<CatalogItemRecord, 'versions' | 'inst
 
 /**
  * An archived item, in MongoDB `catalog_archive`: unused or no longer
- * important, so left off the homepage (and sunk to the end of /skills). It
+ * important, so left off the homepage (and shown on the Skills tab only behind its Archived filter). It
  * stays public, or as shared as it was, and installs by its link.
  */
 export interface ArchiveMark {

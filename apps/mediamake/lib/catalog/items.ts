@@ -143,7 +143,7 @@ export function registryUses(name: string): ItemUse[] | undefined {
   return registry?.skills.find((skill) => skill.name === name)?.mcps;
 }
 
-/** One registry skill as a card: always public, opening on /skills. */
+/** One registry skill as a card: always public, opening on its own page, /skills/<name>. */
 function skillCard(skill: RegistrySkill): CatalogItem {
   const [owner] = skill.upstream?.split('/') ?? [];
   return {
@@ -155,8 +155,8 @@ function skillCard(skill: RegistrySkill): CatalogItem {
     status: 'live',
     // a skill vendored from another repo (skills-lock.json) is someone else's
     ...(skill.upstream && { madeBy: { name: owner, repo: skill.upstream } }),
-    href: `/skills#${skill.name}`,
-    tags: [skill.category, ...(skill.variantOf ? ['variant'] : [])],
+    href: `/skills/${skill.name}`,
+    tags: [skill.category, ...(skill.variantOf ? ['variant'] : []), ...(skill.internal ? ['internal'] : [])],
     releasedAt: SKILLS_LISTED_AT,
   };
 }
@@ -185,7 +185,7 @@ function skillRecord(skill: RegistrySkill): CatalogItemRecord {
   return { ...card, slug: skill.name, install: skillInstall(skill), versions: [], createdAt: card.releasedAt };
 }
 
-/** Every skill in the registry as a card: always public, opening on /skills. */
+/** Every skill in the registry as a card: always public, opening on its own page. */
 export function skillCatalogItems(): CatalogItem[] {
   return (registry?.skills ?? []).map(skillCard);
 }

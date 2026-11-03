@@ -24,7 +24,8 @@
     {
       "id": "analyze",
       "prefix": "analyze-",
-      "about": "Breaking media down for later edits"
+      "about": "Breaking media down for later edits",
+      "internal": true
     },
     {
       "id": "write",
@@ -34,22 +35,26 @@
     {
       "id": "cleanup",
       "prefix": "cleanup-",
-      "about": "Housekeeping: disk space, archives and backups"
+      "about": "Housekeeping: disk space, archives and backups",
+      "internal": true
     },
     {
       "id": "update",
       "prefix": "update-",
-      "about": "Keeping what MediaMake installed up to date"
+      "about": "Keeping what MediaMake installed up to date",
+      "internal": true
     },
     {
       "id": "skill",
       "suffix": "-skill",
-      "about": "Managing skills themselves"
+      "about": "Managing skills themselves",
+      "internal": true
     },
     {
       "id": "remotion",
       "prefix": "remotion-",
-      "about": "Remotion reference (installed from remotion-dev/skills)"
+      "about": "Remotion reference (installed from remotion-dev/skills)",
+      "internal": true
     },
     {
       "id": "other",
@@ -63,6 +68,7 @@
       "summary": "Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that…",
       "description": "Break an edited film or video into its shots (every cut, dissolve and fade, with exact times and frames), group the shots into scenes, find environments/locations that come back later in the video, and draw contact sheets so Claude can see the whole video at a glance and use it for further edits; optionally cut one clip per shot or per scene. Use when the user says \"segregate / split / break down this video\", \"find the shots / cuts / scene changes\", \"mark where the shots change\", \"make clips of each shot / scene\", \"contact sheet of this film\", \"index this footage\", \"/analyze-video <file>\", or gives a finished video (film, episode, trailer, AMV, music video) that a later edit has to reuse.",
       "category": "analyze",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/analyze-video"
     },
@@ -72,6 +78,7 @@
       "summary": "Sort the media lying around the Mac — loose files at the top of ~/Downloads and of the channel folders (twixtor packs, Suno mixes, Midjourney images, stock clips), the…",
       "description": "Sort the media lying around the Mac — loose files at the top of ~/Downloads and of the channel folders (twixtor packs, Suno mixes, Midjourney images, stock clips), the app's hash-named overlays — into the shared media library (~/Downloads/_LIBRARY), after the user has reviewed every move in /file-revision, leaving folders (boards, batches, kits) whole; set exact copies aside instead of keeping them twice; turn duplicate copies into APFS clones to get disk space back without deleting anything; and tag what the library couldn't place. Every step is a dry run first and every sort can be undone. Use when the user says \"clean up my downloads\", \"sort my downloads\", \"organise the media\", \"where is all my footage\", \"set up the library\", \"/cleanup-downloads\", or after a big batch left Downloads messy. Not for freeing space on renders and project folders (cleanup-out).",
       "category": "cleanup",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/cleanup-downloads"
     },
@@ -81,6 +88,7 @@
       "summary": "Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the ol…",
       "description": "Free disk space on this Mac without losing work — delete what rebuilds itself (Remotion's leftover temp bundles, bundle copies in out/, the Next.js cache), move the older versions, working files and sources of finished productions to an external hard disk (each copy checked before anything is removed here), back the finals up there, and remove the local finals only once the user says they're uploaded; restore brings anything back. Brands and the images the skill library and review screens read always stay. Use when the user says \"clean up out\", \"free up space\", \"the disk is full\", \"archive old renders / projects to my hard disk\", \"back up the finals\", \"I uploaded <video>, clear it\", \"/cleanup-out\", or asks to bring archived files back.",
       "category": "cleanup",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/cleanup-out"
     },
@@ -139,6 +147,7 @@
       "summary": "Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-musi…",
       "description": "Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-music-remix-like-f1xhitit), or <base>-v<N> that keeps an older version as it was before a big change — with its differences written down, a description that only triggers when asked for, and its lineage in the frontmatter. Use when the user says \"make a variant of <skill>\", \"save this style as a skill\", \"fork <skill>\", \"keep the old version of <skill>\", \"a skill like <project>\", or \"/fork-skill <base> <ref>\".",
       "category": "skill",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/fork-skill"
     },
@@ -366,6 +375,7 @@
       "summary": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for…",
       "description": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then move it to .agents/skills (committed, linked from .claude/skills) and update SKILLS.md. Also lists every skill. Use when the user says \"publish a skill\", \"add <skill> to the repo\", \"commit my new skill\", \"list the skills\", \"/publish-skill [category]\", or asks to update SKILLS.md.",
       "category": "skill",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/publish-skill"
     },
@@ -375,6 +385,7 @@
       "summary": "Router for all Remotion skills",
       "description": "Router for all Remotion skills",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-best-practices",
       "upstream": "remotion-dev/skills",
@@ -386,6 +397,7 @@
       "summary": "Transcribing, displaying and animating captions",
       "description": "Transcribing, displaying and animating captions",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-captions",
       "upstream": "remotion-dev/skills",
@@ -397,6 +409,7 @@
       "summary": "Create a new Remotion video",
       "description": "Create a new Remotion video",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-create",
       "upstream": "remotion-dev/skills",
@@ -408,6 +421,7 @@
       "summary": "Search Remotion documentation",
       "description": "Search Remotion documentation",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-docs",
       "upstream": "remotion-dev/skills",
@@ -419,6 +433,7 @@
       "summary": "Structure Remotion markup for interactivity",
       "description": "Structure Remotion markup for interactivity",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-interactivity",
       "upstream": "remotion-dev/skills",
@@ -430,6 +445,7 @@
       "summary": "Remotion Map animation knowledge",
       "description": "Remotion Map animation knowledge",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-maps",
       "upstream": "remotion-dev/skills",
@@ -441,6 +457,7 @@
       "summary": "Content, animation and effects best practices",
       "description": "Content, animation and effects best practices",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-markup",
       "upstream": "remotion-dev/skills",
@@ -452,6 +469,7 @@
       "summary": "Interacting with Mediabunny",
       "description": "Interacting with Mediabunny",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-multimedia",
       "upstream": "remotion-dev/skills",
@@ -463,6 +481,7 @@
       "summary": "Export a Remotion video",
       "description": "Export a Remotion video",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-render",
       "upstream": "remotion-dev/skills",
@@ -474,6 +493,7 @@
       "summary": "Build an app with Remotion",
       "description": "Build an app with Remotion",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-saas",
       "upstream": "remotion-dev/skills",
@@ -485,6 +505,7 @@
       "summary": "Preview a Remotion video",
       "description": "Preview a Remotion video",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-studio",
       "upstream": "remotion-dev/skills",
@@ -496,6 +517,7 @@
       "summary": "Upgrade Remotion, and related packages",
       "description": "Upgrade Remotion, and related packages",
       "category": "remotion",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/remotion-upgrade",
       "upstream": "remotion-dev/skills",
@@ -507,6 +529,7 @@
       "summary": "Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVE…",
       "description": "Find and restore particular files from the user's MediaMake backups on an external hard disk — finished renders, masters, anything backed up by channel (AMZ, GIZ, INVERTED-DEVILS…) — reading the backup's manifest (it works with the disk unplugged, so it can tell which disk to connect), copying the chosen files back and checking each against its SHA-256. Also makes backups: stage files by channel as clones, then copy them to the disk when it's connected. Use when the user says \"restore <x> from the backup\", \"get back the <song> render\", \"what's on the backup disk\", \"is <x> backed up\", \"back up the renders\", \"copy the backup to the hard disk\", \"/restore-backup\", or wants a file that was moved off the Mac after a backup. Not for project folders archived by cleanup-out (its own archive and restore).",
       "category": "cleanup",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/restore-backup"
     },
@@ -534,6 +557,7 @@
       "summary": "Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes…",
       "description": "Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes in between, without asking for an install code again. Use when the user says \"update browse hack\", \"update <an MCP or skill from MediaMake>\", \"update everything from MediaMake\", \"check for updates\", \"what version of <item> do I have\", \"is <item> up to date\", or pastes an \"Update <item> from MediaMake\" prompt.",
       "category": "update",
+      "internal": true,
       "location": "committed",
       "path": ".agents/skills/update-mediamake-items"
     },

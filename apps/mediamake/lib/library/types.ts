@@ -23,6 +23,8 @@ export interface SkillCategory {
   prefix?: string;
   suffix?: string;
   about: string;
+  /** Sub-skills and housekeeping: the site lists them only behind its "Internal" filter. */
+  internal?: boolean;
 }
 
 export interface RegistrySkill {
@@ -32,6 +34,11 @@ export interface RegistrySkill {
   summary: string;
   description: string;
   category: string;
+  /**
+   * A sub-skill or housekeeping skill (its category's default, or `metadata.internal` in its
+   * SKILL.md): other skills call it, or it looks after the machine. Listed behind the "Internal" filter.
+   */
+  internal?: boolean;
   /** committed: in .agents/skills; local: a folder in .claude/skills not moved yet. */
   location: 'committed' | 'local';
   /** Repo path of the skill's folder. */

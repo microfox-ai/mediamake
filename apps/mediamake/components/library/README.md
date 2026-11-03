@@ -90,7 +90,7 @@ from the library in `~/.mediamake/config.json` (`MEDIAMAKE_CONFIG` points at ano
 
 The registry is the one list of skills: `tools/skills.mjs` writes it from each SKILL.md's
 frontmatter (`check` fails when it is stale, in CI too), and the app imports it
-(`lib/skills/registry.ts`) for `/skills`, this page, the catalog's skill cards and the Public
+(`lib/skills/registry.ts`) for the skill pages (`/skills/<name>`), this page, the catalog's skill cards and the Public
 column of `/core/releases`. A
 variant says `variant-of`, and `forked-from: <base>@<commit>` when `fork` made it;
 `node tools/skills.mjs diff <variant>` shows what it changed against its base at the fork and what
@@ -110,7 +110,7 @@ Deep links: `/library?view=channels|productions|skills|media`, `&channel=<id>`,
 - `lib/library/model.ts`: the export and registry as one library (pure).
 - `lib/library/filter.ts`: search, facets and counts (pure).
 - `lib/library/history.ts`: the picked folder and settings in IndexedDB.
-- `lib/skills/registry.ts`: `skills.json` for `/skills` and `/library` (server, build time).
+- `lib/skills/registry.ts`: `skills.json` for the skill pages and `/library` (server, build time).
 - `app/api/dev-library/[...path]/route.ts`: the dev server's read-only copy.
 - `components/library/`: the zustand store and the UI. Folder helpers come from
   `lib/revisions/fs.ts`, Show in Finder from `lib/file-revisions/reveal.ts`.

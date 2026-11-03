@@ -130,13 +130,13 @@ it to you after any release (the rule is in the repo's CLAUDE.md).
 ## Archiving
 
 An item that is unused or no longer important can be **archived**: it leaves
-the homepage (every tab) and moves to a folded **archived** group at the end
-of `/skills`, but nothing else changes. It keeps its tier and access, its page
+the homepage (every tab; the Skills tab shows it only with its **Archived**
+filter on), but nothing else changes. It keeps its tier and access, its page
 and install prompt still work, and items that need or use it still install
 it. Any item can be archived, a skill from the repo too, so the archive is
 kept apart from the items, in MongoDB `catalog_archive` (`ArchiveMark`:
-when, by whom, and an optional note shown on its release page). `/skills`
-picks changes up within five minutes; the homepage and the release pages at
+when, by whom, and an optional note shown on its release page). A skill's own
+page (`/skills/<name>`) picks changes up within five minutes; the homepage and the release pages at
 once.
 
 - On the item's release page: **Archive** / **Unarchive**.
@@ -421,7 +421,7 @@ it runs (by convention under `## First: check the MCPs`):
 
 `node tools/skills.mjs index` puts the table in `skills.json` as the skill's
 `mcps` (the catalog's `uses`, also for a skill released as a package that
-declares none of its own), SKILLS.md and `/skills` show them, and `check`
+declares none of its own), SKILLS.md and each skill's page (`/skills/<name>`) show them, and `check`
 (CI) fails on a table it can't read. Each MCP is one of ours or an item made
 by others; publishing a skill that names another one warns to list it in
 `third-party.json`.

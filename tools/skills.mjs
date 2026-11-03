@@ -13,7 +13,7 @@
  * `add` moves it to .agents/skills and links it, like the others.
  *
  * skills.json (mediamake.skills/v1) is the registry: every skill's name, category, summary, where it
- * is and what it is a variant of. The /skills page and the Library page read it, and the media CLI
+ * is and what it is a variant of. The site (homepage Skills tab, /skills/<name>) and the Library page read it, and the media CLI
  * puts it in the library's export; nothing else parses SKILL.md.
  *
  * Usage: node tools/skills.mjs list [--category=<c>] [--json]
@@ -67,18 +67,23 @@ export const NEEDS = ['required', 'recommended', 'optional'];
 const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']);
 const MCP_HEADER = /^\|\s*MCP\s*\|\s*Need\s*\|\s*Used for\s*\|\s*Without it\s*\|$/i;
 
-/** Category by name prefix: what each verb means. Order is the order in SKILLS.md. */
+/**
+ * Category by name prefix: what each verb means. Order is the order in SKILLS.md. `internal`
+ * categories hold sub-skills and housekeeping (other skills call them, or they look after the
+ * machine or the skills): the site lists them only when its "Internal" filter is on. A skill
+ * overrides its category with `metadata.internal: true|false` in its SKILL.md.
+ */
 export const CATEGORIES = [
   { id: 'make', prefix: 'make-', about: 'Media making: videos and audio (the only skills that start with make-)' },
   { id: 'create', prefix: 'create-', about: 'Images and artwork' },
   { id: 'pack', prefix: 'pack-', about: 'Kits and packs that bundle several outputs' },
   { id: 'revise', prefix: 'revise-', about: 'Review loops with the user' },
-  { id: 'analyze', prefix: 'analyze-', about: 'Breaking media down for later edits' },
+  { id: 'analyze', prefix: 'analyze-', about: 'Breaking media down for later edits', internal: true },
   { id: 'write', prefix: 'write-', about: 'Text: titles, descriptions, metadata' },
-  { id: 'cleanup', prefix: 'cleanup-', about: 'Housekeeping: disk space, archives and backups' },
-  { id: 'update', prefix: 'update-', about: 'Keeping what MediaMake installed up to date' },
-  { id: 'skill', suffix: '-skill', about: 'Managing skills themselves' },
-  { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference (installed from remotion-dev/skills)' },
+  { id: 'cleanup', prefix: 'cleanup-', about: 'Housekeeping: disk space, archives and backups', internal: true },
+  { id: 'update', prefix: 'update-', about: 'Keeping what MediaMake installed up to date', internal: true },
+  { id: 'skill', suffix: '-skill', about: 'Managing skills themselves', internal: true },
+  { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference (installed from remotion-dev/skills)', internal: true },
   { id: 'other', about: 'Everything else' },
 ];
 
@@ -128,6 +133,10 @@ const decode = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;
 
 const categoryOf = (name, meta) =>
   meta.category ?? CATEGORIES.find(c => (c.prefix && name.startsWith(c.prefix)) || (c.suffix && name.endsWith(c.suffix)))?.id ?? 'other';
+
+/** Listed only behind the site's "Internal" filter: the category's default, or the SKILL.md's own say. */
+const internalOf = (category, meta) =>
+  meta.internal === 'true' ? true : meta.internal === 'false' ? false : !!CATEGORIES.find(c => c.id === category)?.internal;
 
 /** "make-video-music-remix" → "Make video music remix". */
 const humanize = name => {
@@ -214,6 +223,7 @@ export const skillAt = (name, dir, where = {}) => {
     moved: where.moved,
     linked: where.linked,
     category: categoryOf(name, fm.metadata),
+    internal: internalOf(categoryOf(name, fm.metadata), fm.metadata),
     title: fm.metadata.title,
     variantOf,
     variantRef: variantOf ? variantRefOf(name, variantOf, fm.metadata) : undefined,
@@ -357,6 +367,7 @@ const renderRegistry = skills => {
       summary: summary(s.description),
       description: decode(s.description),
       category: s.category,
+      internal: s.internal || undefined,
       location: s.moved ? 'committed' : 'local',
       path: rel(s.dir),
       variantOf: s.variantOf,
@@ -371,7 +382,7 @@ const renderRegistry = skills => {
   };
   const registry = {
     schema: REGISTRY_SCHEMA,
-    categories: CATEGORIES.map(({ id, prefix, suffix, about }) => ({ id, ...(prefix && { prefix }), ...(suffix && { suffix }), about })),
+    categories: CATEGORIES.map(({ id, prefix, suffix, about, internal }) => ({ id, ...(prefix && { prefix }), ...(suffix && { suffix }), about, ...(internal && { internal }) })),
     skills: skills.map(entry),
   };
   return `${JSON.stringify(registry, null, 2)}\n`;
