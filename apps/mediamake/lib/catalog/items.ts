@@ -103,6 +103,8 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     // In development: admins and private testers (the team) install it; anyone else needs a grant or invite
     visibility: 'private',
     status: 'beta',
+    // the card opens the step-by-step page for connecting it
+    href: '/core/mediamake-mcp',
     tags: ['mcp', 'claude'],
     releasedAt: '2026-10-24',
     install: {
@@ -114,7 +116,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
           'Claude Code: run /mcp, pick mediamake and sign in to MediaMake in the browser window that opens, then click Allow.',
           'The Claude apps: the connector asks them to sign in to MediaMake and click Allow when they first use it.',
         ],
-        guide: 'https://github.com/microfox-ai/mediamake/tree/main/packages/mediamake-mcp#readme',
+        guide: `${MEDIAMAKE_SITE}/core/mediamake-mcp`,
       },
       notes:
         "Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files (bring media in by https link). It signs in with their MediaMake account, no API key.",
