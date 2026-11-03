@@ -226,7 +226,7 @@ MCPs (check at intake which this session has):
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
-| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for `npm run transcribe --yes` | Nothing, while the connector is connected |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the

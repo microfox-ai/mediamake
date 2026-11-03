@@ -396,11 +396,13 @@ and only sometimes wants fal. Those go in `install.uses`, each with how much
 the item needs it, what for, and what the person loses without it:
 
 ```json
-{ "id": "mcp/elevenlabs", "need": "required", "for": "Sound effects for intros and end screens", "without": "No sound at all" }
+{ "id": "mcp/elevenlabs-connector", "need": "required", "for": "Sound effects for intros and end screens", "without": "No sound at all" }
 ```
 
 `need` is `required` (its main job needs it), `recommended` (it works
-without, worse or slower) or `optional`. The plan returns them as `choices`
+without, worse or slower) or `optional`. An archived MCP (`health: archived`, such as
+`mcp/elevenlabs`) is never `required`: what replaced it is, and the archived one is listed as
+`optional`, the fallback for when the replacement can't be connected. The plan returns them as `choices`
 (strongest first, each with its `reasons`), and the steps they bring, their
 own dependencies included, are marked `forChoices`. install.md asks the
 person which to add, says what each one they skip costs, and installs only
@@ -415,7 +417,8 @@ it runs (by convention under `## First: check the MCPs`):
 ```markdown
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | Sound effects for intros and end screens (`text_to_sound_effects`) | No sound at all |
+| `mcp/elevenlabs-connector` | required | Sound effects for intros and end screens (`creative_generate_in_flow`, `node_type: sfx`) | No sound at all |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted connector can't be connected or reached | Nothing, while the connector is connected |
 | `mcp/browse-hack` | recommended | Pinterest research boards and Midjourney art | Research by hand in the browser |
 ```
 
