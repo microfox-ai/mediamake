@@ -1,5 +1,15 @@
 # @microfox/mediamake-mcp
 
+## 0.3.0
+
+### Minor Changes
+
+- f7cb3dc: `catalog_set_video` and `catalog_add_video_item`: set a catalog item's YouTube video (a skill's intro, a tutorial's video, a course's lessons; fields left out keep their value, a thumbnail can be uploaded from a local file) and add tutorials and courses, from Claude.
+
+### Patch Changes
+
+- 8426264: Changes from PR #483: catalog-videos-and-courses
+
 ## 0.2.1
 
 ### Patch Changes
