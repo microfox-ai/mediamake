@@ -1,5 +1,9 @@
 # @microfox/projectsync-mcp
 
+## 0.2.0
+
+Choose a brand kit's main logo, the picture shown for its project: `update_brand_kit` takes `logo`, the path (or URL) of an image already in the kit, and `null` goes back to the automatic pick. `upload_brand_kit` reads `logo` from the kit's `brand.json` when that image goes up in the same upload, and says so when it doesn't. `get_brand_kit` and the upload summary show which image it is. If the logo's own file fails to upload, the rest of the kit is still saved, without the logo.
+
 ## 0.1.3
 
 ### Patch Changes

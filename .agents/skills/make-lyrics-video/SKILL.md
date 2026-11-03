@@ -68,7 +68,7 @@ For Remotion technique (springs, captions, audio viz, fonts, transitions, three.
 | `mcp/browse-hack` | recommended | Pinterest artwork in bulk, YouTube clips, and Midjourney outcrops and fills, in the user's Chrome (`pinterest_bulk_start`, `youtube_download`, `midjourney_outcrop`) | The user finds and drops in every picture and clip by hand |
 | `mcp/fal` | optional | Cutting a subject off its picture so graphics go behind it (`fal-ai/birefnet/v2`, paid) | No cutouts: graphics sit over the picture, never behind the subject |
 | `mcp/blender` | optional | 3D set pieces, only when the idea needs one | No 3D: the video stays 2D |
-| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for `npm run transcribe --yes` | Nothing, while the connector is connected |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).

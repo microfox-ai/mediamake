@@ -100,7 +100,8 @@ describe('registry skills', () => {
     assert.deepEqual(
       skill.install?.uses?.map(u => [u.id, u.need]),
       [
-        ['mcp/elevenlabs', 'required'],
+        ['mcp/elevenlabs-connector', 'required'],
+        ['mcp/elevenlabs', 'optional'],
         ['mcp/browse-hack', 'recommended'],
         ['mcp/fal', 'optional'],
       ],
@@ -113,7 +114,7 @@ describe('registry skills', () => {
     assert.deepEqual(skill.install?.requires, []);
   });
 
-  it('plans pack-brand-kit from the repo alone: ElevenLabs and fal as choices, Browse Hack only from the database', async () => {
+  it('plans pack-brand-kit from the repo alone: the ElevenLabs connector, its local fallback and fal as choices, Browse Hack only from the database', async () => {
     const plan = await planInstall('skill/pack-brand-kit', {
       getRecord: async id => staticRecord(id),
       canOpen: () => true,
@@ -127,8 +128,9 @@ describe('registry skills', () => {
     assert.deepEqual(
       plan.choices.map(c => [c.id, c.available]),
       [
-        ['mcp/elevenlabs', true],
+        ['mcp/elevenlabs-connector', true],
         ['mcp/browse-hack', false],
+        ['mcp/elevenlabs', true],
         ['mcp/fal', true],
       ],
     );
