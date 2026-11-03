@@ -9,6 +9,7 @@ import {
   type ArchiveMark,
   type CatalogItemRecord,
   type CatalogVideo,
+  type HealthMark,
   type ReleaseTier,
 } from '@/lib/catalog/types';
 import type { InstallPlan } from '@/lib/catalog/plan';
@@ -67,6 +68,8 @@ export interface ItemDetail {
   usedBy: UsedBy[];
   /** Set when it is archived: when, by whom, and why. */
   archive: ArchiveMark | null;
+  /** An admin's health mark on an MCP (item.health is the result, the repo's default without one). */
+  healthMark: HealthMark | null;
   /** Titles by id, for everything in the catalog. */
   names: Record<string, string>;
   installPrompt?: string;

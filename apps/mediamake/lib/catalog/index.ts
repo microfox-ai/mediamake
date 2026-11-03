@@ -1,13 +1,15 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
-import { installPromptFor } from './install-prompt';
+import { installPromptFor, updatePromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { catalogArchiveDB, catalogItemsDB, catalogVideosDB } from './store';
+import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogVideosDB } from './store';
 import { withVideos } from './video';
 import {
   effectiveVisibility,
   isInstallable,
   withArchive,
   type ArchiveMark,
+  type HealthMark,
+  withHealth,
   type CatalogEntry,
   type CatalogItem,
   type CatalogItemRecord,
@@ -19,7 +21,7 @@ import {
 } from './types';
 
 export * from './types';
-export { installPromptFor } from './install-prompt';
+export { installPromptFor, updatePromptFor } from './install-prompt';
 
 /** Strips stored-only fields (slug, versions, install spec, history) off a record. */
 export function toCard(record: CatalogItemRecord | CatalogItem): CatalogItem {
@@ -67,14 +69,20 @@ export async function listCatalog(
   let stored: CatalogItemRecord[] = [];
   let archived: ArchiveMark[] = [];
   let videos: CatalogVideo[] = [];
+  let health: HealthMark[] = [];
   try {
-    [stored, archived, videos] = await Promise.all([catalogItemsDB.list({ kind }), catalogArchiveDB.list(), catalogVideosDB.list()]);
+    [stored, archived, videos, health] = await Promise.all([
+      catalogItemsDB.list({ kind }),
+      catalogArchiveDB.list(),
+      catalogVideosDB.list(),
+      catalogHealthDB.list(),
+    ]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[]; runs: McpRuns[] }>();
-  for (const record of withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos)) {
+  for (const record of withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses, runs: mcpRunsOf(record) });
   }
 
@@ -85,11 +93,12 @@ export async function listCatalog(
       return {
         ...entry,
         ...(installable && { installPrompt: installPromptFor(entry.id) }),
-        // each MCP it works with shows where it runs and whether it is an old alternative (this list's kind may leave it out)
+        ...(installable && entry.kind === 'mcp' && { updatePrompt: updatePromptFor(entry.id) }),
+        // each MCP it works with shows where it runs, its health and whether it is an old alternative (this list's kind may leave it out)
         ...(uses?.length && {
           uses: uses.map(use => {
             const used = byId.get(use.id);
-            return used ? { ...use, runs: used.runs, alternativeTo: used.card.alternativeTo } : use;
+            return used ? { ...use, runs: used.runs, alternativeTo: used.card.alternativeTo, health: used.card.health } : use;
           }),
         }),
         ...(runs.length && { runs }),

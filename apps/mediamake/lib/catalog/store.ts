@@ -19,7 +19,9 @@ import {
   type CatalogVersion,
   type CatalogVideo,
   type GrantSubject,
+  type HealthMark,
   type InstallSpec,
+  type McpHealth,
   type Visibility,
 } from './types';
 
@@ -27,6 +29,7 @@ const COL = {
   items: 'catalog_items',
   archive: 'catalog_archive',
   videos: 'catalog_videos',
+  health: 'catalog_health',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -332,6 +335,31 @@ export const catalogArchiveDB = {
           update: { $setOnInsert: withoutUndefined({ id, at: now, by: actor }), ...(note ? { $set: { note } } : {}) },
           upsert: true,
         },
+      })),
+    );
+  },
+};
+
+// ── Health ───────────────────────────────────────────────────────────────────
+
+/** MCPs' health (see McpHealth): any MCP, one the repo defines too, so kept apart from the items. */
+export const catalogHealthDB = {
+  async list(): Promise<HealthMark[]> {
+    const db = await getDatabase();
+    return db.collection<HealthMark>(COL.health).find({}, { projection: { _id: 0 } }).toArray();
+  },
+
+  /** Marks the MCPs (a new note replaces the old one, none clears it), or with null clears the mark: back to the repo's default. */
+  async set(ids: string[], health: McpHealth | null, actor?: string, note?: string) {
+    const db = await getDatabase();
+    if (!health) {
+      await db.collection<HealthMark>(COL.health).deleteMany({ id: { $in: ids } });
+      return;
+    }
+    const at = nowISO();
+    await db.collection<HealthMark>(COL.health).bulkWrite(
+      ids.map(id => ({
+        replaceOne: { filter: { id }, replacement: withoutUndefined({ id, health, note, at, by: actor }) as HealthMark, upsert: true },
       })),
     );
   },

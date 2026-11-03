@@ -12,6 +12,7 @@ import {
   accessInvitesDB,
   accessRequestsDB,
   catalogArchiveDB,
+  catalogHealthDB,
   catalogItemsDB,
   catalogVideosDB,
   ensureCatalogIndexes,
@@ -24,6 +25,7 @@ import {
   CATALOG_KINDS,
   CATALOG_STATUSES,
   DEFAULT_GATE_DAYS,
+  MCP_HEALTH,
   NETWORK_GROUP,
   PRIVATE_GROUP,
   USE_NEEDS,
@@ -33,6 +35,7 @@ import {
   parseCatalogItemId,
   isValidSlug,
   withArchive,
+  withHealth,
   type CatalogKind,
   type CatalogStatus,
   type CatalogVideo,
@@ -68,7 +71,7 @@ async function listPeople() {
  * the repo's skills from skills.json, the third-party items from
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
  * aren't stored as items (archived ones carry `archivedAt`, ones with a
- * video `video`), live grants,
+ * video `video`, MCPs their `health`), live grants,
  * groups, invites, pending access requests, the people who hold API keys,
  * and whether public releases are open site-wide.
  */
@@ -79,7 +82,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, invites, requests, people, archived, videos] = await Promise.all([
+  const [items, grants, groups, invites, requests, people, archived, videos, health] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
@@ -88,8 +91,9 @@ export async function GET(req: NextRequest) {
     listPeople(),
     catalogArchiveDB.list(),
     catalogVideosDB.list(),
+    catalogHealthDB.list(),
   ]);
-  const marked = <T extends { id: string }>(records: T[]) => withVideos(withArchive(records, archived), videos);
+  const marked = <T extends { id: string; kind: CatalogKind }>(records: T[]) => withHealth(withVideos(withArchive(records, archived), videos), health);
   return NextResponse.json({
     items: marked(items.map(withRegistryUses)),
     skills: marked(skillRecords(items)),
@@ -380,6 +384,25 @@ export async function POST(req: NextRequest) {
       await catalogArchiveDB.set(ids, archived, adminId, body.note?.trim() || undefined);
       refreshSkillPages(ids);
       return NextResponse.json({ archived, itemIds: ids });
+    }
+
+    case 'set_health': {
+      const ids = [...new Set<string>(Array.isArray(body.itemIds) ? body.itemIds : body.itemId ? [body.itemId] : [])];
+      if (!ids.length || ids.length > 200 || ids.some(id => typeof id !== 'string')) return bad('itemIds is required: 1 to 200 MCP ids');
+      // null clears an admin's mark: the MCP goes back to the repo's default (healthy when it has none)
+      const health = body.health === null ? null : body.health;
+      if (health !== null && !MCP_HEALTH.includes(health)) return bad(`health must be one of ${MCP_HEALTH.join(', ')}, or null to clear it`);
+      if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return bad('note must be text of 500 characters or fewer');
+      const notMcps: string[] = [];
+      for (const id of ids) {
+        const item = staticRecord(id) ?? (await catalogItemsDB.get(id));
+        if (!item) return NextResponse.json({ error: `Unknown item: ${id}` }, { status: 404 });
+        if (item.kind !== 'mcp') notMcps.push(id);
+      }
+      if (notMcps.length) return bad(`Only MCPs have a health: ${notMcps.join(', ')}`);
+      await catalogHealthDB.set(ids, health, adminId, body.note?.trim() || undefined);
+      revalidatePath('/');
+      return NextResponse.json({ health, itemIds: ids });
     }
 
     case 'set_video': {

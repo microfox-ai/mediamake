@@ -163,6 +163,10 @@ export interface CatalogItem {
    * is the hosted ElevenLabs connector's.
    */
   alternativeTo?: string;
+  /** How an MCP is doing (see McpHealth): the repo's default, an admin's mark wins (see withHealth). */
+  health?: McpHealth;
+  /** Why, when an admin said so with the mark. */
+  healthNote?: string;
   /**
    * When an admin archived it (see ArchiveMark: kept apart from the item, so
    * any item can be archived, a skill from the repo too). An archived item
@@ -367,6 +371,42 @@ export function withArchive<T extends { id: string; archivedAt?: string }>(items
 }
 
 /**
+ * How an MCP is doing, shown on its card and page so nobody installs a broken
+ * one by surprise:
+ *  - healthy:     works (every MCP is, until someone says otherwise).
+ *  - inactive:    works, but nobody uses or looks after it right now.
+ *  - archived:    kept for reference, no longer maintained; another one does its job.
+ *  - not-working: broken right now: don't install it until it is fixed.
+ * Admins set it on the item's release page or with the MediaMake MCP's
+ * `catalog_set_health`; it is kept in MongoDB `catalog_health`, apart from the
+ * items like the archive, so an MCP the repo defines can have one too.
+ */
+export type McpHealth = 'healthy' | 'inactive' | 'archived' | 'not-working';
+export const MCP_HEALTH: McpHealth[] = ['healthy', 'inactive', 'archived', 'not-working'];
+
+export interface HealthMark {
+  id: string;
+  health: McpHealth;
+  note?: string;
+  at: string;
+  by?: string;
+}
+
+/** Each MCP with its health: an admin's mark, else the repo's default, else healthy. */
+export function withHealth<T extends { id: string; kind: CatalogKind; health?: McpHealth; healthNote?: string }>(
+  items: T[],
+  marks: HealthMark[],
+): T[] {
+  const byId = new Map(marks.map(mark => [mark.id, mark]));
+  return items.map(item => {
+    if (item.kind !== 'mcp') return item;
+    const mark = byId.get(item.id);
+    if (mark) return { ...item, health: mark.health, ...(mark.note ? { healthNote: mark.note } : {}) };
+    return { ...item, health: item.health ?? 'healthy' };
+  });
+}
+
+/**
  * The video of an item, in MongoDB `catalog_videos`: a skill's intro (or an
  * MCP's or app's), a tutorial, or a course. Kept apart from the items, like
  * the archive, so a skill from the repo can have one too. Every video has its
@@ -410,10 +450,12 @@ export type CatalogEntry = CatalogItem & {
   uses?: UseShown[];
   /** Where an MCP runs (see mcpRunsOf). */
   runs?: McpRuns[];
+  /** An installable MCP's update prompt (see updatePromptFor). */
+  updatePrompt?: string;
 };
 
 /** A use as pages show it: the used item's title, page, where it runs and whether it is an old alternative, when known. */
-export type UseShown = ItemUse & { title?: string; href?: string; runs?: McpRuns[]; alternativeTo?: string };
+export type UseShown = ItemUse & { title?: string; href?: string; runs?: McpRuns[]; alternativeTo?: string; health?: McpHealth };
 export type CatalogItemWithAccess = CatalogEntry;
 
 export const CATALOG_STATUSES: CatalogStatus[] = ['live', 'beta', 'coming-soon'];

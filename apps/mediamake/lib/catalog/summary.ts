@@ -23,6 +23,9 @@ export interface ItemSummary {
   status: CatalogItemRecord['status'];
   version?: string;
   archivedAt?: string;
+  /** An MCP's health (see McpHealth), and why when an admin said. */
+  health?: CatalogItemRecord['health'];
+  healthNote?: string;
   /** Where it comes from, e.g. "Our package · v0.8.0", "Open source · ElevenLabs". */
   origin: string;
   /** What it works with, e.g. "mcp/elevenlabs (required)". */
@@ -86,6 +89,8 @@ export function summarize(records: CatalogItemRecord[], now = Date.now()): ItemS
     status: record.status,
     ...((record.versions.at(-1)?.version ?? record.version) && { version: record.versions.at(-1)?.version ?? record.version }),
     ...(record.archivedAt && { archivedAt: record.archivedAt }),
+    ...(record.health && { health: record.health }),
+    ...(record.healthNote && { healthNote: record.healthNote }),
     origin: originOf(record),
     uses: (record.install?.uses ?? []).map(use => `${use.id} (${use.need})`),
     usedBy: users.get(record.id) ?? [],

@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
-import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, mcpRunsOf, slugOf, toCard, toEntry, type CatalogEntry, type CatalogVideo, type McpRuns, type UseShown } from '@/lib/catalog';
+import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, mcpRunsOf, slugOf, toCard, toEntry, withHealth, type CatalogEntry, type CatalogItemRecord, type CatalogVideo, type HealthMark, type McpRuns, type UseShown } from '@/lib/catalog';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
-import { accessRequestsDB, catalogArchiveDB, catalogVideosDB } from '@/lib/catalog/store';
+import { accessRequestsDB, catalogArchiveDB, catalogHealthDB, catalogVideosDB } from '@/lib/catalog/store';
 import { watchPath } from '@/lib/catalog/video';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
+import { HealthBadge, HEALTH } from '@/components/catalog/health';
 import { OldBadge, RunsBadges } from '@/components/catalog/runs';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
 import { AccessActions, RedeemInvite } from './access-actions';
@@ -43,12 +44,15 @@ export default async function AccessPage({
   let directoryUrl: string | undefined;
   let video: CatalogVideo | null = null;
   if (itemId) {
-    // the database's record, else one the repo defines (a registry skill, a third-party MCP)
-    const [record, mark, found] = await Promise.all([
+    // the database's record, else one the repo defines (a registry skill, a third-party MCP), with an MCP's health
+    const [fetched, mark, found, healthMarks] = await Promise.all([
       getCatalogRecord(itemId),
       catalogArchiveDB.get(itemId).catch(() => null),
       catalogVideosDB.get(itemId).catch(() => null),
+      catalogHealthDB.list().catch((): HealthMark[] => []),
     ]);
+    const healthy = (r: CatalogItemRecord) => withHealth([r], healthMarks)[0];
+    const record = fetched && healthy(fetched);
     archived = !!mark;
     if (record) {
       const entitlements = await getEntitlements(viewer);
@@ -65,9 +69,10 @@ export default async function AccessPage({
         // what it works with, named and linked when this viewer can open it, with where each one runs
         uses = await Promise.all(
           (record.install?.uses ?? []).map(async use => {
-            const used = await getCatalogRecord(use.id);
-            if (!used) return use;
-            const shown = { ...use, runs: mcpRunsOf(used), alternativeTo: used.alternativeTo };
+            const fetchedUse = await getCatalogRecord(use.id);
+            if (!fetchedUse) return use;
+            const used = healthy(fetchedUse);
+            const shown = { ...use, runs: mcpRunsOf(used), alternativeTo: used.alternativeTo, health: used.health };
             return accessLevel(entitlements, used) !== 'locked'
               ? { ...shown, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` }
               : shown;
@@ -117,6 +122,7 @@ export default async function AccessPage({
                 <Badge variant="outline" className={item.kind === 'mcp' ? 'uppercase' : 'capitalize'}>{item.kind}</Badge>
                 <RunsBadges runs={runs} />
                 {preferred && <OldBadge to={preferred.title ?? slugOf(preferred.id)} />}
+                <HealthBadge health={item.health} note={item.healthNote} />
                 {item.visibility !== 'public' && (
                   <Badge variant="secondary">{item.visibility === 'network' ? 'Community' : 'Private'}</Badge>
                 )}
@@ -134,6 +140,11 @@ export default async function AccessPage({
               <CardTitle className="text-2xl">{item.title}</CardTitle>
               {item.summary && <CardDescription>{item.summary}</CardDescription>}
               {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+              {item.health && item.health !== 'healthy' && item.healthNote && (
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{HEALTH[item.health].label}:</span> {item.healthNote}
+                </p>
+              )}
               {preferred && (
                 <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                   <span className="font-medium">Old, an alternative only.</span> Use{' '}

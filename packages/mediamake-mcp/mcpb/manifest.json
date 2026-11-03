@@ -151,6 +151,10 @@
       "description": "Admins: archive unused items (left off the homepage, still installable) or bring them back."
     },
     {
+      "name": "catalog_set_health",
+      "description": "Admins: say how MCPs are doing (healthy, inactive, archived, not working), shown on their cards and pages."
+    },
+    {
       "name": "catalog_set_stage",
       "description": "Admins: move one of our apps, MCPs, tutorials or courses between development, community, public and the vault."
     },

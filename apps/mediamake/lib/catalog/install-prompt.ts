@@ -25,6 +25,16 @@ function isVercelAppUrl(url: string): boolean {
   }
 }
 
+/**
+ * The one-line prompt that has Claude bring an installed item up to date
+ * (install.md › Update an installed item, or the update-mediamake-items skill):
+ * no install code, the install's update token covers it.
+ */
+export function updatePromptFor(itemId: string): string {
+  const site = siteUrl();
+  return `Update ${itemId} from MediaMake${site ? ` (${site})` : ''} by following ${INSTALL_GUIDE_URL}#update-an-installed-item`;
+}
+
 /** The one-line prompt that has Claude install an item and its dependencies. */
 export function installPromptFor(itemId: string, installCode?: string): string {
   const site = siteUrl();
