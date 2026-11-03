@@ -10,6 +10,10 @@
  *   knobs it declares (`withKnobs`).
  * - assets: files swapped for others (the path the project names → the replacement), applied by
  *   `asset()` and the manifest (hooks.ts).
+ * - words: sung words retimed on the editor's word lane, keyed "<line id>:<word index>"
+ *   ("line-11:2"), song seconds; lyricsOffset shifts every word first (-0.05 = 50 ms earlier).
+ *   Applied to the manifest's lyrics (`retimeManifestWords`), so useLyrics() and every scene see
+ *   them.
  *
  * Every layer can be moved as a whole (`layer:<key>`) without touching its scene.
  */
@@ -49,6 +53,14 @@ export type ElementEdit = {
   at?: number;
 };
 
+/** A sung word's new times, song seconds (after `lyricsOffset`). */
+export type WordEdit = {
+  start?: number;
+  end?: number;
+  /** the word when it was retimed, to spot an edit that lands on another word after a lyrics change */
+  text?: string;
+};
+
 export type Edits = {
   schema: typeof EDITS_SCHEMA;
   elements?: Record<string, ElementEdit>;
@@ -56,6 +68,10 @@ export type Edits = {
   props?: Record<string, Record<string, unknown>>;
   /** "slug/input/cover.jpg" → "slug/input/swaps/cover-2.jpg" */
   assets?: Record<string, string>;
+  /** "<line id>:<word index>" → new times */
+  words?: Record<string, WordEdit>;
+  /** seconds added to every lyric time before `words` (negative: earlier) */
+  lyricsOffset?: number;
 };
 
 export type EditableOptions = {
@@ -329,6 +345,21 @@ export const parseEdits = (raw: unknown): Edits => {
           ),
         )
       : {},
+    words: isObject(o.words)
+      ? Object.fromEntries(
+          Object.entries(o.words).flatMap(([key, v]) => {
+            if (!isObject(v)) return [];
+            const w: WordEdit = {};
+            if (Number.isFinite(v.start)) w.start = v.start as number;
+            if (Number.isFinite(v.end)) w.end = v.end as number;
+            if (typeof v.text === 'string') w.text = v.text;
+            return w.start === undefined && w.end === undefined ? [] : [[key, w]];
+          }),
+        )
+      : {},
+    ...(Number.isFinite(o.lyricsOffset) && o.lyricsOffset !== 0
+      ? { lyricsOffset: o.lyricsOffset as number }
+      : {}),
   };
 };
 

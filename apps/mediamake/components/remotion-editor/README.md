@@ -2,7 +2,7 @@
 
 A screen at `/remotion-editor` that opens a lyric video from `apps/lyrics_videos` as live Remotion
 (not a render) and lets the user move, scale, rotate, re-font and retype what is on screen, turn a
-scene's knobs, and swap its pictures, clips and sounds for other files. Edits are saved beside the
+scene's knobs, swap its pictures, clips and sounds for other files, and retime the sung words. Edits are saved beside the
 project as `projects/<slug>/video/edits.json`, and the lyric kit applies them in every render
 (Studio, stills, `render-project`). Live review (`/video-revision?live=<slug>`) links here with
 "Tweak it yourself" (`?source=folder` opens the folder it plays) and replays the change when its
@@ -30,6 +30,7 @@ window regains focus. The page is public (`app/(public)/`), like
 │ Assets: files   │                                     │ the layer's knobs   │
 ├─────────────────┴─────────────────────────────────────┴─────────────────────┤
 │ transport: play, time, current lyric · scrubber with sections and edit marks│
+│ beat and word lanes: bars, beats, the voice, sung words (drag to retime)    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,7 +75,16 @@ window regains focus. The page is public (`app/(public)/`), like
    `input/swaps/<YYYYMMDD-HHMMSS>-<name>` and records `assets: { "<old path>": "<new path>" }`. The
    kit applies it in `asset()` (`setAssetSwaps`) and on the manifest (`swapManifestAssets`), so a
    scene sees it only when it loads files through `asset()` or the manifest, not `staticFile()`.
-8. **Save.** Changes autosave 0.6 s after the last one (never mid-drag); ⌘S saves now. The page
+8. **Beat and word lanes** (`Lanes.tsx`, helpers in `lib/remotion-editor/lanes.ts`). A close-up of a
+   few seconds around the playhead (⌘/Ctrl scroll zooms, scroll pans; it pages along while
+   playing): bars and beats from `manifest.beats`, the vocal envelope (or the mix's loudness),
+   vocal onsets, and every sung word. Dragging a word moves it, its edges retime it, and a
+   neighbour it runs into is trimmed; Shift/⌘-click picks several to move together. Drags snap
+   to the voice's onsets, beats, ½ or ¼ beats (Alt: no snap). The video re-renders once, on
+   release. Saved as `words: { "<line id>:<word index>": { start, end, text } }` and
+   `lyricsOffset` ("All words"); the kit's `retimeManifestWords` applies them to the manifest's
+   lyrics before any scene reads them. Live review draws the same lane read-only.
+9. **Save.** Changes autosave 0.6 s after the last one (never mid-drag); ⌘S saves now. The page
    checks the disk every 2 s: changed code recompiles in place (the last good version keeps
    playing on a compile error), and an `edits.json` changed by someone else is reloaded when the
    page has no unsaved edits.

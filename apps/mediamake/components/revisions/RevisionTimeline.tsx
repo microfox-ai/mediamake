@@ -12,7 +12,9 @@ import {
 import { MaximizeIcon, XIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { beatGrid, beatsBetween, laneWords } from '@/lib/remotion-editor/lanes';
 import { formatTime, timeOfCut } from '@/lib/revisions/frames';
+import type { LiveProject } from '@/lib/revisions/live';
 import { shotAt } from '@/lib/revisions/map';
 import type {
   RevisionComment,
@@ -31,6 +33,7 @@ const RULER_H = 20;
 const SECTION_H = 18;
 const SHOT_H = 34;
 const COMMENT_H = 22;
+const BEATS_H = 30;
 const MAX_PPS = 600;
 /** Second press within this time and distance counts as a double-press. */
 const DOUBLE_MS = 400;
@@ -175,6 +178,92 @@ const Lanes = memo(function Lanes({
   );
 });
 
+/**
+ * A live project's bars, beats and sung words (as it plays them, word edits included), so a note
+ * can say "half a beat earlier". Words are retimed in /remotion-editor ("Tweak it yourself").
+ */
+const BeatWordLane = memo(function BeatWordLane({
+  live,
+  pps,
+  width,
+}: {
+  live: LiveProject;
+  pps: number;
+  width: number;
+}) {
+  const { beats, downbeats } = useMemo(() => beatGrid(live.manifest), [live]);
+  const words = useMemo(
+    () =>
+      laneWords(live.manifest, live.edits.words, live.edits.lyricsOffset ?? 0),
+    [live],
+  );
+  const beatPx =
+    beats.length > 1
+      ? ((beats[beats.length - 1] - beats[0]) / (beats.length - 1)) * pps
+      : 0;
+  const barPx = beatPx * (live.manifest.beats?.beatsPerBar ?? 4);
+  const labelEvery = barPx > 22 ? 1 : barPx > 8 ? 4 : 16;
+  return (
+    <div className="relative border-b" style={{ height: BEATS_H }}>
+      <svg
+        className="pointer-events-none absolute inset-0 h-full"
+        width={width}
+      >
+        {beatPx > 5 &&
+          beats.map((t, i) => (
+            <line
+              key={i}
+              x1={t * pps}
+              x2={t * pps}
+              y1={0}
+              y2={10}
+              className="stroke-foreground/20"
+            />
+          ))}
+        {downbeats.map((t, i) => (
+          <line
+            key={`b${i}`}
+            x1={t * pps}
+            x2={t * pps}
+            y1={0}
+            y2={BEATS_H}
+            className="stroke-foreground/25"
+          />
+        ))}
+      </svg>
+      {downbeats.map((t, i) =>
+        i % labelEvery ? null : (
+          <span
+            key={`n${i}`}
+            className="pointer-events-none absolute top-0 pl-0.5 text-[9px] leading-none text-muted-foreground tabular-nums"
+            style={{ left: t * pps }}
+          >
+            {i + 1}
+          </span>
+        ),
+      )}
+      {words.map(w => {
+        const wpx = (w.end - w.start) * pps;
+        return (
+          <div
+            key={w.key}
+            title={`${w.text} · ${formatTime(w.start)}–${formatTime(w.end)}${w.edited ? ' · retimed in the editor' : ''}`}
+            className={cn(
+              'absolute bottom-0.5 top-[11px] overflow-hidden rounded-sm border px-0.5 text-[9px] leading-tight',
+              w.edited
+                ? 'border-primary bg-primary/15'
+                : 'border-border bg-muted/60',
+            )}
+            style={{ left: w.start * pps, width: Math.max(1, wpx - 1) }}
+          >
+            {wpx > 18 && <span className="block truncate">{w.text}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
 const CommentLane = memo(function CommentLane({
   comments,
   pps,
@@ -289,6 +378,11 @@ export function RevisionTimeline() {
   const fps = useRevisionsStore(selectFps);
   const selection = useRevisionsStore(s => s.selection);
   const playing = useRevisionsStore(s => s.playing);
+  const live = useRevisionsStore(s => s.live);
+  const liveBeats = useMemo(
+    () => (live ? beatGrid(live.manifest).beats : []),
+    [live],
+  );
   const activeShotId = useRevisionsStore(
     s => shotAt(s.map, s.currentTime)?.id ?? null,
   );
@@ -532,6 +626,16 @@ export function RevisionTimeline() {
             Selection {formatTime(selection.from)} → {formatTime(selection.to)}{' '}
             · {(selection.to - selection.from).toFixed(2)} s ·{' '}
             {Math.round((selection.to - selection.from) * fps)} frames
+            {live && liveBeats.length > 1 && (
+              <>
+                {' '}
+                ·{' '}
+                {beatsBetween(liveBeats, selection.from, selection.to)!.toFixed(
+                  2,
+                )}{' '}
+                beats
+              </>
+            )}
             <Hint label="Clear the selection" keys="Esc">
               <button
                 type="button"
@@ -568,6 +672,7 @@ export function RevisionTimeline() {
         >
           <Ruler duration={duration} pps={pps} markers={map?.markers ?? []} />
           <Lanes map={map} pps={pps} activeShotId={activeShotId} />
+          {live && <BeatWordLane live={live} pps={pps} width={contentWidth} />}
           <CommentLane
             comments={comments}
             pps={pps}

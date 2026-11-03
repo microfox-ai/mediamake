@@ -116,6 +116,10 @@ range and General comments, drawing, spots and the magnifier.
   `projects/<slug>/input/swaps/`). Read `edits.json` before fixing a note: one they already fixed
   there needs no code, just say so. Bake edits into the code only when asked (make-lyrics-video,
   step 11); a swap is baked by ingesting the file into the media library (`media ingest`) first.
+- **Timing notes:** live review's timeline shows the bars, beats and sung words (retimed words
+  outlined), and a range selection gives its length in beats, so "half a beat earlier" is exact.
+  Word timing is fixed on the editor's word lane (`words` and `lyricsOffset` in `edits.json`): fix
+  a late or early word there, or tell the user it's a drag away, rather than editing the alignment.
 - **Preflight** checks a render, so it runs on the first real render, before that link.
 
 ## 2. Preflight before the link

@@ -22,6 +22,18 @@ export type Edits = {
   props: Record<string, Record<string, unknown>>;
   /** files swapped for others: the path the project names → the replacement ("slug/input/swaps/x.png") */
   assets: Record<string, string>;
+  /** sung words retimed on the word lane: "<line id>:<word index>" → song seconds */
+  words: Record<string, WordEdit>;
+  /** seconds added to every lyric time before `words` (negative: earlier) */
+  lyricsOffset?: number;
+};
+
+/** A sung word's new times (src/kit/edits.tsx). */
+export type WordEdit = {
+  start?: number;
+  end?: number;
+  /** the word when it was retimed */
+  text?: string;
 };
 
 export const emptyEdits = (): Edits => ({
@@ -29,6 +41,7 @@ export const emptyEdits = (): Edits => ({
   elements: {},
   props: {},
   assets: {},
+  words: {},
 });
 
 /** An image, clip or sound in a project, by the path staticFile() takes ("slug/input/cover.jpg"). */
@@ -76,7 +89,22 @@ export type LyricManifest = {
   artist?: string;
   audio: { src: string; duration: number };
   sections: { label: string; from: number; to: number }[];
-  lyrics: { id: string; text: string; start: number; end: number }[];
+  lyrics: {
+    id: string;
+    text: string;
+    start: number;
+    end: number;
+    words?: { text: string; start: number; end: number; conf?: number }[];
+  }[];
+  beats?: {
+    bpm: number | null;
+    list: { t: number; strength: number }[];
+    downbeats?: number[];
+    beatsPerBar?: number;
+  };
+  energy?: { rate: number; values: number[] };
+  envelopes?: { fps: number; series: Record<string, number[]> };
+  onsets?: Record<string, [number, number][]>;
   assets: Record<string, string>;
   [key: string]: unknown;
 };

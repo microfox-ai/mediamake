@@ -218,7 +218,7 @@ export function RemotionEditorWorkspace() {
         autoSaveId="remotion-editor-vertical"
         className="min-h-0 flex-1"
       >
-        <ResizablePanel defaultSize={82} minSize={40}>
+        <ResizablePanel defaultSize={74} minSize={40}>
           <ResizablePanelGroup direction="horizontal" autoSaveId="remotion-editor-horizontal">
             <ResizablePanel defaultSize={18} minSize={12} maxSize={35}>
               <LeftPanel />
@@ -234,7 +234,7 @@ export function RemotionEditorWorkspace() {
           </ResizablePanelGroup>
         </ResizablePanel>
         <ResizableHandle />
-        <ResizablePanel defaultSize={18} minSize={10} maxSize={40}>
+        <ResizablePanel defaultSize={26} minSize={14} maxSize={50}>
           <Transport />
         </ResizablePanel>
       </ResizablePanelGroup>

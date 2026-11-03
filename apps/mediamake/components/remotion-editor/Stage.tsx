@@ -319,6 +319,8 @@ export function Stage() {
   }, [live]);
   const edits = useEditor(s => (live ? null : s.edits));
   const propEdits = useEditor(s => s.edits.props);
+  const wordEdits = useEditor(s => s.edits.words);
+  const lyricsOffset = useEditor(s => s.edits.lyricsOffset);
   const durationInFrames = useEditor(s => s.durationInFrames);
   const phase = useEditor(s => s.phase);
   const error = useEditor(s => s.error);
@@ -359,11 +361,13 @@ export function Stage() {
               elements: NO_ELEMENTS,
               props: propEdits,
               assets: assetSwaps,
+              words: wordEdits,
+              lyricsOffset,
             },
             liveEdits: live,
           }
         : { manifest, edits },
-    [manifest, edits, propEdits, assetSwaps, live],
+    [manifest, edits, propEdits, assetSwaps, wordEdits, lyricsOffset, live],
   );
 
   const setPlayer = useCallback((p: PlayerRef | null) => {

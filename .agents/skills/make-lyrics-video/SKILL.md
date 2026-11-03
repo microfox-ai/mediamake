@@ -574,7 +574,9 @@ reads the repo with no picking. Give them the link with the slug filled in. It c
 in the browser from this folder, so code changes show up on their own (a file replaced on disk shows
 after Reload). Besides moving and retyping, they turn a scene's knobs in the inspector and swap
 pictures, clips and sounds in the **Assets** panel, which saves the new file under
-`projects/<slug>/input/swaps/`. Live review (`/video-revision`) opens the same page with "Tweak it
+`projects/<slug>/input/swaps/`, and retime sung words on the **word lane** under the scrubber
+(bars, beats, the voice and every word; drag a word or its edges, or shift every word with "All
+words"). Live review (`/video-revision`) opens the same page with "Tweak it
 yourself". What they change is saved to **`projects/<slug>/video/edits.json`**, and every render
 (Studio, stills, render-project) applies it on top of the code:
 
@@ -583,7 +585,9 @@ yourself". What they change is saved to **`projects/<slug>/video/edits.json`**, 
   "schema": "lyrics_videos.edits/v1",
   "elements": { "lockup:line-11": { "x": 40, "y": -120, "scale": 1.1, "rotate": -3, "font": "Anton", "label": "HALF-WORN CLOAK", "at": 38.3 } },
   "props": { "type": { "lockups.12.rows.0.1.text": "CLOAK" }, "photo": { "size": 600 } },   // layer key → props path → value
-  "assets": { "my-song/input/cover.png": "my-song/input/swaps/20261102-131514-cover-v2.png" }   // file → the one in its place
+  "assets": { "my-song/input/cover.png": "my-song/input/swaps/20261102-131514-cover-v2.png" },   // file → the one in its place
+  "words": { "line-11:2": { "start": 38.12, "end": 38.4, "text": "CLOAK" } },   // "<line id>:<word index>" → song seconds
+  "lyricsOffset": -0.05   // every word 50 ms earlier, before `words`
 }
 ```
 
@@ -593,12 +597,21 @@ yourself". What they change is saved to **`projects/<slug>/video/edits.json`**, 
   section labels, `#2` for repeats).
 - When you change cues, check `edits.json`: a `props` path is an index into the cue list, so adding
   or removing cues can move it onto another cue. Fix or drop stale entries, and say so.
+- `words` and `lyricsOffset` retime the manifest's lyrics before any scene reads them, so
+  `useLyrics()` and everything built on it follow; line starts and ends move with their first and
+  last words. A word edit's `text` says which word it was made on: when the lyrics change, check
+  that each still lands on its word.
 - `assets` swaps a file wherever the scene loads it through `asset()` or the manifest. A scene that
   still calls `staticFile()` ignores the swap: switch it to `asset()`.
 - On request, **bake** edits into the code (positions into `pos`/`dx`/`dy`, text and fonts into the
   cues, knob values into the layer's props) and remove what you baked from `edits.json`. To bake a
   swap, ingest the new file into the media library (`media ingest <path> --channel=<id>`), give the
-  project its clone (`media use`) where the old file was used, and drop the entry. Never hand-edit the file while the page has
+  project its clone (`media use`) where the old file was used, and drop the entry. To bake word
+  times into an aligned project, write each one into `analysis/fixes.json` as
+  `"<line index>:<word index>": { "start", "end" }` (the line index is its place in
+  `input/lyrics.json`, which `line-<n>` ids already give), re-run `--only align`, then
+  `prepare-project`, and drop the entries; without analysis, change the word times in
+  `input/lyrics.json` instead. `lyricsOffset` can stay in `edits.json`: renders apply it. Never hand-edit the file while the page has
   unsaved edits; when the page has none it picks up your change by itself.
 
 ## Promoting a scene into the mediamake editor

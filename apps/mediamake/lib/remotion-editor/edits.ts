@@ -1,4 +1,10 @@
-import { EDITS_SCHEMA, type Edits, type ElementEdit, type LyricManifest } from './types';
+import {
+  EDITS_SCHEMA,
+  type Edits,
+  type ElementEdit,
+  type LyricManifest,
+  type WordEdit,
+} from './types';
 
 /* Pure updates on an edits document. Every function returns a new document. */
 
@@ -81,7 +87,45 @@ export const resetPropFields = (
 export const countEdits = (edits: Edits) =>
   Object.keys(edits.elements).length +
   Object.values(edits.props).reduce((n, p) => n + Object.keys(p).length, 0) +
-  Object.keys(edits.assets ?? {}).length;
+  Object.keys(edits.assets ?? {}).length +
+  Object.keys(edits.words ?? {}).length +
+  (edits.lyricsOffset ? 1 : 0);
+
+/** The key of a sung word in `words`, as the kit's wordKey. */
+export const wordKey = (lineId: string, index: number) => `${lineId}:${index}`;
+
+/**
+ * Sets the times of several words at once (one undo step); a patch of undefined drops the word's
+ * edit. A time equal to the word's own (after the offset) is not kept.
+ */
+export function setWordEdits(
+  edits: Edits,
+  patches: Record<string, (WordEdit & { was: { start: number; end: number } }) | undefined>,
+): Edits {
+  const words = { ...(edits.words ?? {}) };
+  const offset = edits.lyricsOffset ?? 0;
+  for (const [key, p] of Object.entries(patches)) {
+    if (!p) {
+      delete words[key];
+      continue;
+    }
+    const out: WordEdit = {};
+    if (p.start !== undefined && Math.abs(p.start - (p.was.start + offset)) > 5e-4)
+      out.start = round(p.start, 3);
+    if (p.end !== undefined && Math.abs(p.end - (p.was.end + offset)) > 5e-4) out.end = round(p.end, 3);
+    if (out.start === undefined && out.end === undefined) delete words[key];
+    else words[key] = p.text ? { ...out, text: p.text } : out;
+  }
+  return { ...edits, words };
+}
+
+export function setLyricsOffset(edits: Edits, seconds: number): Edits {
+  const next = round(seconds, 3);
+  if ((edits.lyricsOffset ?? 0) === next) return edits;
+  const out: Edits = { ...edits, lyricsOffset: next };
+  if (!next) delete out.lyricsOffset;
+  return out;
+}
 
 /** The manifest with swapped files in place of the ones it names, as the kit's swapManifestAssets. */
 export function swapManifestAssets(m: LyricManifest, swaps: Record<string, string> | undefined): LyricManifest {
@@ -116,6 +160,8 @@ export const serializeEdits = (edits: Edits) =>
       ),
       // left out until there is one, so files from before swaps stay as they were
       ...(Object.keys(edits.assets ?? {}).length ? { assets: sortKeys(edits.assets) } : {}),
+      ...(Object.keys(edits.words ?? {}).length ? { words: sortKeys(edits.words) } : {}),
+      ...(edits.lyricsOffset ? { lyricsOffset: edits.lyricsOffset } : {}),
     },
     null,
     2,

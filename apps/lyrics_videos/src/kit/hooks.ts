@@ -45,6 +45,53 @@ export const swapManifestAssets = <M extends Pick<Manifest, 'audio' | 'assets'>>
   };
 };
 
+/** The key of a sung word in edits.json `words`: "<line id>:<word index>". */
+export const wordKey = (lineId: string, index: number) => `${lineId}:${index}`;
+
+/**
+ * The manifest with its sung words retimed (edits.json `lyricsOffset`, then `words`). A line keeps
+ * hold of its words: when its first word starts earlier or its last ends later, the line does too,
+ * and a line that started or ended with its word moves with it.
+ */
+export const retimeManifestWords = <M extends Pick<Manifest, 'lyrics'>>(
+  manifest: M,
+  words: Record<string, { start?: number; end?: number }> | undefined,
+  offset = 0,
+): M => {
+  const hasWords = !!words && Object.keys(words).length > 0;
+  if (!hasWords && !offset) return manifest;
+  const r = (n: number) => Math.round(n * 1000) / 1000;
+  const lyrics = manifest.lyrics.map(line => {
+    let changed = !!offset;
+    const lineStart = line.start + offset;
+    const lineEnd = line.end + offset;
+    const retimed = line.words.map((w, i) => {
+      const e = words?.[wordKey(line.id, i)];
+      if (e) changed = true;
+      const start = e?.start ?? w.start + offset;
+      const end = Math.max(start + 0.01, e?.end ?? w.end + offset);
+      return start === w.start && end === w.end ? w : { ...w, start: r(start), end: r(end) };
+    });
+    if (!changed) return line;
+    const first = line.words[0];
+    const last = line.words[line.words.length - 1];
+    let start = lineStart;
+    let end = lineEnd;
+    if (first) {
+      const was = first.start + offset;
+      const now = retimed[0].start;
+      start = Math.abs(lineStart - was) < 0.02 ? now : Math.min(lineStart, now);
+    }
+    if (last) {
+      const was = last.end + offset;
+      const now = retimed[retimed.length - 1].end;
+      end = Math.abs(lineEnd - was) < 0.02 ? now : Math.max(lineEnd, now);
+    }
+    return { ...line, start: r(start), end: r(Math.max(end, start + 0.01)), words: retimed };
+  });
+  return { ...manifest, lyrics };
+};
+
 export const useManifest = (): Manifest => {
   const manifest = useContext(ManifestContext);
   if (!manifest)

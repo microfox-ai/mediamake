@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { PauseIcon, PlayIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
+import { Lanes } from './Lanes';
 import { player, selectSettledEdits, useEditor } from './store';
 
 const fmt = (s: number) => {
@@ -43,7 +44,10 @@ function Playhead() {
   );
 }
 
-/** Play controls, the current lyric, and a scrubber with the song's sections and edit markers. */
+/**
+ * Play controls, the current lyric, a scrubber with the song's sections and edit markers, and the
+ * beat and word lanes (a close-up around the playhead).
+ */
 export function Transport() {
   const playing = useEditor(s => s.playing);
   const duration = useEditor(s => s.durationInFrames);
@@ -81,7 +85,7 @@ export function Transport() {
       </div>
       <div
         ref={barRef}
-        className="relative mx-2 mb-2 min-h-0 flex-1 cursor-pointer select-none overflow-hidden rounded bg-muted/40"
+        className="relative mx-2 mb-1 h-9 shrink-0 cursor-pointer select-none overflow-hidden rounded bg-muted/40"
         onPointerDown={e => {
           e.currentTarget.setPointerCapture(e.pointerId);
           player.current?.pause();
@@ -112,6 +116,7 @@ export function Transport() {
         )}
         <Playhead />
       </div>
+      <Lanes />
     </div>
   );
 }
