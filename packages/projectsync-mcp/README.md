@@ -70,7 +70,8 @@ the project's **trash**: it disappears from every list, and its files are kept.
   a file the project already has (same content) isn't uploaded twice.
 - **Brand kits** use the same tools as the MediaMake MCP: `upload_brand_kit` reads a `pack-brand-kit`
   folder; `finish_brand_kit_upload` adds files already PUT to their upload links (an upload that stopped
-  part way).
+  part way). The main logo (the picture shown for the project) is `logo` in `update_brand_kit` or in the
+  kit's `brand.json`: the path of an image in the kit. Without one, the server picks a still logo itself.
 
 The MediaMake routes it calls, in `apps/mediamake` (code in `lib/projectsync/`):
 

@@ -36,6 +36,7 @@ const EXTRA_MIME: Record<string, string> = {
 
 /** What a kit uploads: images (svg included), video, audio and fonts. Code and other files never are. */
 const KIT_ASSET = /\.(png|jpe?g|webp|gif|avif|svg|ico|mp4|m4v|webm|mov|wav|mp3|m4a|aac|ogg|flac|ttf|otf|woff2?)$/i;
+const KIT_IMAGE = /\.(png|jpe?g|webp|gif|avif|svg|ico)$/i;
 
 const mimeOf = (path: string) =>
   mimeFromName(path) ?? EXTRA_MIME[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
@@ -90,6 +91,7 @@ async function planKit<F extends KitFile>(
   const upload: F[] = [];
   const skipped: { path: string; reason: string }[] = [];
   const fontFiles: string[] = [];
+  let logo: string | undefined;
   for (const f of files) {
     if (only && !only.some(prefix => f.path.startsWith(prefix))) continue;
     // The brand's source: never uploaded or read, at any depth (the kit root has its own guide and colours).
@@ -109,6 +111,7 @@ async function planKit<F extends KitFile>(
           if (role === 'manifest') {
             if (typeof parsed.name === 'string') patch.name = parsed.name;
             if (Array.isArray(parsed.fonts)) patch.fonts = parsed.fonts;
+            if (typeof parsed.logo === 'string' && parsed.logo.trim()) logo = parsed.logo.trim().replace(/^\.?\//, '');
           } else patch[role] = parsed;
         }
       } catch (error) {
@@ -144,6 +147,11 @@ async function planKit<F extends KitFile>(
     );
     patch.fonts = [...families].filter(Boolean).map(family => ({ family }));
   }
+  if (logo) {
+    // brand.json's main logo goes up only with its image (the server refuses a logo that isn't in the kit)
+    if (upload.some(f => f.path === logo && KIT_IMAGE.test(logo!))) patch.logo = logo;
+    else skipped.push({ path: logo, reason: "brand.json's logo, but not an image in this upload" });
+  }
   return { patch, upload, skipped };
 }
 
@@ -164,6 +172,7 @@ function kitSummary(projectId: string, kit: any, fields: string[]) {
   return {
     projectId,
     name: kit?.name,
+    logo: kit?.logo,
     colors: kit?.colors,
     fonts: kit?.fonts,
     assetCount: kit?.assets?.length ?? 0,
@@ -181,7 +190,7 @@ export function registerBrandKitTools(server: McpServer, client: MediamakeClient
     {
       title: 'Get brand kit',
       description:
-        "Read a project's brand kit: name, colours, fonts, brand guide, channel description, thumbnail profile and every uploaded asset (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, sounds) with its URL. Projects are channels or brands; use this before making anything for one so it matches the brand. Needs community access or above.",
+        "Read a project's brand kit: name, main logo (`logo`, the path of the image that stands for the brand), colours, fonts, brand guide, channel description, thumbnail profile and every uploaded asset (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, sounds) with its URL. Projects are channels or brands; use this before making anything for one so it matches the brand. Needs community access or above.",
       inputSchema: {
         projectId: z.string(),
         assets: z
@@ -209,10 +218,15 @@ export function registerBrandKitTools(server: McpServer, client: MediamakeClient
     {
       title: 'Update brand kit',
       description:
-        "Change a project's brand kit fields. Only fields you pass change (null clears one). colors accepts [{ name, hex, role }] or a { name: '#hex' } map; fonts [{ family, role, css }]. assets [{ path, url, kind? }] are added or replaced by path; removeAssets drops paths. Use upload_brand_kit to upload files from this computer.",
+        "Change a project's brand kit fields. Only fields you pass change (null clears one). logo sets the main logo, the picture shown for the brand on its project: the path (or URL) of an image already in the kit. colors accepts [{ name, hex, role }] or a { name: '#hex' } map; fonts [{ family, role, css }]. assets [{ path, url, kind? }] are added or replaced by path; removeAssets drops paths. Use upload_brand_kit to upload files from this computer.",
       inputSchema: {
         projectId: z.string(),
         name: z.string().nullable().optional(),
+        logo: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('The main logo: path (e.g. logo/<brand>-logo.svg) or URL of an image in the kit; null goes back to the automatic pick'),
         summary: z.string().nullable().optional(),
         colors: z.any().optional(),
         fonts: z
@@ -238,7 +252,7 @@ function registerUploadBrandKit(server: McpServer, client: MediamakeClient) {
     {
       title: 'Upload brand kit',
       description:
-        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/lyrics_videos/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, every graphics/ folder at any depth (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
+        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/lyrics_videos/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts, logo: the main logo\'s path), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, every graphics/ folder at any depth (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
       inputSchema: {
         projectId: z.string(),
         folder: z.string().describe('Absolute path of the exported kit folder'),
@@ -286,6 +300,8 @@ function registerUploadBrandKit(server: McpServer, client: MediamakeClient) {
         }
       });
 
+      // a main logo whose file didn't arrive would get the whole save refused
+      if (patch.logo && !assets.some(a => a.path === patch.logo)) delete patch.logo;
       const saved = await client.put('/api/project/brand-kit', { projectId, ...patch, assets });
       return json({
         projectId,

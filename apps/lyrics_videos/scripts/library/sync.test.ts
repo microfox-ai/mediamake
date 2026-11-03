@@ -314,7 +314,7 @@ describe('brand kit', () => {
     fs.copyFileSync(path.join(fixtures, 'zoro.mp4'), write(path.join(kit, 'intros', 'intro.mp4'), ''));
     write(path.join(kit, 'brandguide.md'), '# Anime Music Zone\n\nGold on black.\n');
     write(path.join(kit, 'colors.json'), JSON.stringify({ gold: '#d4af37', black: '#000000' }));
-    write(path.join(kit, 'brand.json'), JSON.stringify({ name: 'Anime Music Zone', fonts: [{ family: 'Cinzel', role: 'display' }] }));
+    write(path.join(kit, 'brand.json'), JSON.stringify({ name: 'Anime Music Zone', fonts: [{ family: 'Cinzel', role: 'display' }], logo: 'logo/logo.png' }));
     write(path.join(kit, 'graphics', 'frame-0001.png'), 'source');
     const dry = await sync(macs.mine, 'push', ['brand'], false);
     assert.deepEqual(keys(dry.steps, 'push'), ['fields', 'intros/intro.mp4', 'logo/logo.png']);
@@ -323,6 +323,7 @@ describe('brand kit', () => {
     assert.deepEqual(keys(r.steps, 'done'), ['fields', 'intros/intro.mp4', 'logo/logo.png']);
     const saved = cloudKit();
     assert.equal(saved?.name, 'Anime Music Zone');
+    assert.equal(saved?.logo, 'logo/logo.png', "brand.json's logo is the main logo");
     assert.deepEqual(saved?.colors.map(c => c.hex), ['#d4af37', '#000000']);
     assert.equal(saved?.assets.find(a => a.path === 'logo/logo.png')?.sha256, await sha256File(path.join(kit, 'logo', 'logo.png')));
     assert.ok(!saved?.assets.some(a => a.path.includes('graphics')));
@@ -339,6 +340,7 @@ describe('brand kit', () => {
     assert.equal(await sha256File(path.join(kit, 'logo', 'logo.png')), await sha256File(path.join(fixtures, 'logo.png')));
     assert.equal(fs.readFileSync(path.join(kit, 'brandguide.md'), 'utf8'), '# Anime Music Zone\n\nGold on black.\n');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(kit, 'brand.json'), 'utf8')).name, 'Anime Music Zone');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(kit, 'brand.json'), 'utf8')).logo, 'logo/logo.png');
     assert.equal(of((await sync(macs.theirs, 'pull', ['brand'])).steps, 'done').length, 0, 'pulled once');
 
     // the teammate draws their own logo; the owner pushes a new one: their logo stays, the owner's waits beside it

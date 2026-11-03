@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { mimeOf, normalizeColors, normalizeFonts, planKitUpload, textRoleOf, type BrandKit } from '../../../mediamake/lib/brand-kit/index.ts';
+import { cleanPath, mimeOf, normalizeColors, normalizeFonts, planKitUpload, textRoleOf, type BrandKit } from '../../../mediamake/lib/brand-kit/index.ts';
 import {
   MAX_ITEMS_PER_PUSH,
   MAX_SKILL_BYTES,
@@ -136,7 +136,9 @@ const fieldText = (role: FieldRole, kit: BrandKit) => {
   if (role === 'channelDescription') return kit.channelDescription;
   if (role === 'thumbnailProfile') return kit.thumbnailProfile ? `${JSON.stringify(kit.thumbnailProfile, null, 2)}\n` : undefined;
   if (role === 'colors') return kit.colors.length ? `${JSON.stringify(kit.colors, null, 2)}\n` : undefined;
-  return kit.name || kit.fonts.length ? `${JSON.stringify({ ...(kit.name ? { name: kit.name } : {}), ...(kit.fonts.length ? { fonts: kit.fonts } : {}) }, null, 2)}\n` : undefined;
+  return kit.name || kit.fonts.length || kit.logo
+    ? `${JSON.stringify({ ...(kit.name ? { name: kit.name } : {}), ...(kit.fonts.length ? { fonts: kit.fonts } : {}), ...(kit.logo ? { logo: kit.logo } : {}) }, null, 2)}\n`
+    : undefined;
 };
 
 /** Whether a local field file says what the kit says (read the way the upload reads it). */
@@ -147,7 +149,11 @@ const sameField = (role: FieldRole, text: string, kit: BrandKit) => {
     const parsed = JSON.parse(text);
     if (role === 'thumbnailProfile') return stableStringify(parsed) === stableStringify(kit.thumbnailProfile);
     if (role === 'colors') return stableStringify(normalizeColors(parsed)) === stableStringify(kit.colors);
-    return (parsed.name ?? undefined) === kit.name && (!Array.isArray(parsed.fonts) || stableStringify(normalizeFonts(parsed.fonts)) === stableStringify(kit.fonts));
+    return (
+      (parsed.name ?? undefined) === kit.name &&
+      (!Array.isArray(parsed.fonts) || stableStringify(normalizeFonts(parsed.fonts)) === stableStringify(kit.fonts)) &&
+      (typeof parsed.logo !== 'string' || cleanPath(parsed.logo) === kit.logo)
+    );
   } catch {
     return false;
   }
@@ -212,6 +218,8 @@ const brandPush = async (ctx: Ctx): Promise<Plan> => {
           Object.assign(f.step, { action: 'failed', detail: message(err) });
         }
       });
+      // a main logo whose file didn't arrive would get the whole save refused
+      if (uploads.some(f => f.path === patch.logo && f.step.action === 'failed')) delete patch.logo;
       await ctx.cloud.put('/api/project/brand-kit', { projectId: ctx.projectId, ...patch, assets });
       if (fieldStep) fieldStep.action = 'done';
     },

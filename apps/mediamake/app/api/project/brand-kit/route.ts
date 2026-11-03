@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { getClientId } from '@/lib/auth-utils';
-import { applyBrandKitPatch, type BrandKit, type BrandKitPatch } from '@/lib/brand-kit';
+import { applyBrandKitPatch, BrandKitError, type BrandKit, type BrandKitPatch } from '@/lib/brand-kit';
 import { brandKitAccess } from '@/lib/brand-kit/access';
 
 // GET /api/project/brand-kit?projectId=... - the project's brand kit (null when it has none)
@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/project/brand-kit - { projectId, ...BrandKitPatch }: passed fields replace, assets merge by path
+// PUT /api/project/brand-kit - { projectId, ...BrandKitPatch }: passed fields replace, assets merge by path,
+// logo picks the main logo (a kit image's path or URL; 400 when it isn't one)
 export async function PUT(request: NextRequest) {
   try {
     const clientId = getClientId(request);
@@ -36,6 +37,7 @@ export async function PUT(request: NextRequest) {
     await projects.updateOne({ _id }, { $set: { brandKit, updatedAt: new Date() } });
     return NextResponse.json({ projectId, brandKit });
   } catch (error) {
+    if (error instanceof BrandKitError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error('Error saving brand kit:', error);
     return NextResponse.json({ error: 'Failed to save brand kit' }, { status: 500 });
   }
