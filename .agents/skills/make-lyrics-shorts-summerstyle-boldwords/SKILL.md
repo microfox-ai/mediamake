@@ -189,17 +189,26 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
 
 ## What it needs
 
-1. **The song** (wav preferred) and **timed words**. Look in mediamake first:
-   `mcp__Mediamake__list_transcriptions` (search the song's name) → `get_transcription` with
-   `includeWords` and `saveTo: projects/<slug>/input/lyrics.json` (free). Otherwise offer to transcribe
-   (ElevenLabs speech-to-text with word timestamps, as in make-waveform-lyric-video step 1 — paid: ask).
-   Check the transcription was made from the same mix (same length). **A published song (a YouTube
-   link, a playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and
-   transcribe *that* with ElevenLabs (the user, 2026-10-27: "use elevenlabs for transcribing") — the
-   library's transcription is usually of the Suno take, offset or edited against the upload (Yuta's was
-   18.75 s early, Higuruma's 29.1 s), and Suno's CDN links are signed now. Then respell the ElevenLabs
-   words from the library's text where the two disagree word for word (`difflib` on the word lists: the
-   library lines are the user's corrected ones — "wilts", not "wills").
+1. **The song** (wav preferred) and **timed words**, transcribed with ElevenLabs Scribe, never taken from
+   MediaMake's transcriptions (the user, 2026-11-03: "should not use mediamake mcp instead use elevenlabs
+   directly"). Separate the vocals and transcribe the vocal stem (make-waveform-lyric-video step 1). It is
+   paid: get the price and ask first.
+   - **The ElevenLabs connector** (hosted, `https://api.elevenlabs.io/v1/mcp`, its tools named
+     `creative_*`): `creative_transcribe_audio` with `estimate_only: true` for the price, then for real. A
+     file on this computer goes in through `creative_upload_flow_reference` (modality `audio`: the user
+     picks the stem in the picker), wired in with `connect_from`; a direct https link through
+     `creative_attach_reference_file`. Every word comes back with its start and end seconds in
+     `transcripts[].words` (`creative_get_flow_run_status`), the full list at `words_download_url`.
+   - **Without it**, or when this client shows no picker: Scribe's API with the key the ElevenLabs MCP runs
+     with (`ELEVENLABS_API_KEY`) and `timestamps_granularity=word` (`character` adds letter times), as in
+     make-waveform-lyric-video step 1. Not the local MCP's `speech_to_text`: it returns the text only, no
+     times.
+   Check the transcription is of the same mix (same length). **A published song (a YouTube link, a
+   playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and transcribe
+   *that* (the user, 2026-10-27: "use elevenlabs for transcribing"): an upload is often offset or edited
+   against the Suno take (Yuta's was 18.75 s off, Higuruma's 29.1 s). Then respell the ElevenLabs words
+   from the user's written lyrics (the video's description, a lyrics file) where the two disagree word for
+   word (`difflib` on the word lists: the written lyrics are the corrected ones — "wilts", not "wills").
 2. **Footage**: the user's videos (or shots from a reference video they name), one or more sources.
    With none given, gather it yourself: **twixtor packs from YouTube** (`ytsearch12:"<character> twixtor
    clips 4k"`; Wyunye's "Twixtor Clips For Edit 4K60FPS" packs are clean, no watermark; "Manga Animation"
@@ -210,11 +219,11 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    itself, a slow push-in, hard cuts, 2560×1440) — then segregated like any footage.
 3. **A style reference** (optional): a reel whose look they want; this skill's default is the one above.
 
-MCPs (check at intake which this session has; ElevenLabs transcription goes through its API directly):
+MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/mediamake` | recommended | The song's timed words from MediaMake's transcriptions, free (`list_transcriptions`, `get_transcription`) | Transcribe the song with ElevenLabs instead (paid, asked first) |
+| `mcp/elevenlabs` | required | The song's timed words: the ElevenLabs connector's `creative_transcribe_audio`, or Scribe's API with the key this MCP runs with (its own `speech_to_text` gives text only, no times) | No timed words: the user has to bring a timed `lyrics.json` |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -561,7 +570,7 @@ export const edl: LyricShortEdl = {
   bars in a 16:9 source) need a hand crop with `zoom ≈ 1.3`.
 - **Pinterest pictures can come in rotated** (EXIF orientation ignored by ffmpeg's image input): check
   the art reel's faces sheet and drop or re-export the sideways ones.
-- **Transcription respelling**: ElevenLabs and the library's text differ where a word was misheard
+- **Transcription respelling**: ElevenLabs and the written lyrics differ where a word was misheard
   ("wills"/"wilts", "fire's mind"/"fire's mine"); an equal-length difflib swap fixes most, an unequal
   one by hand in `input/lyrics.json`, then `analyze --only align` and `prepare-project` again. An ad-lib
   right after a word ("haki, (you pause)") can pull the next line's alignment beats early: drop the ad-lib
@@ -794,3 +803,9 @@ Append dated entries: what the user asked to change and the general rule behind 
   frame (`placeCaps` and `clearOf` in framing.ts; the render and `clips` share them). Tried on Red Hair's Requiem s04:
   "heart" moved off Luffy's eyes to the top, "fleets" off the ships; the faces it can't clear (a close-up filling the
   frame, a hand-set place or crop) are warned with the shot to swap.
+- 2026-11-03 — "should not use mediamake mcp instead use elevenlabs directly ( via elevenlabs mcp )" → the timed words
+  come from ElevenLabs Scribe only, never MediaMake's transcriptions (`mcp/mediamake` is off the MCP table,
+  `mcp/elevenlabs` is on it as required). The hosted ElevenLabs connector's `creative_transcribe_audio` returns every
+  word's start and end; the open-source `elevenlabs-mcp` (0.12.2) `speech_to_text` keeps only the text, so without the
+  connector Scribe's API is called with that MCP's key (word times, or letter times with `character`). Respelling now
+  follows the user's written lyrics.

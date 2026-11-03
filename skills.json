@@ -181,10 +181,10 @@
       "path": ".agents/skills/make-lyrics-shorts-summerstyle-boldwords",
       "mcps": [
         {
-          "id": "mcp/mediamake",
-          "need": "recommended",
-          "for": "The song's timed words from MediaMake's transcriptions, free (list_transcriptions, get_transcription)",
-          "without": "Transcribe the song with ElevenLabs instead (paid, asked first)"
+          "id": "mcp/elevenlabs",
+          "need": "required",
+          "for": "The song's timed words: the ElevenLabs connector's creative_transcribe_audio, or Scribe's API with the key this MCP runs with (its own speech_to_text gives text only, no times)",
+          "without": "No timed words: the user has to bring a timed lyrics.json"
         },
         {
           "id": "mcp/browse-hack",
