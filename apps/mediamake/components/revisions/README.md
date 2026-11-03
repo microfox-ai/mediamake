@@ -169,6 +169,8 @@ IndexedDB list as the editor's.
   the video paused.
 - When the window regains focus and the project's code or `video/edits.json` changed, it compiles
   again and seeks back to where it was.
+- The timeline gets a lane with the project's bars, beats and sung words, as it plays them (words
+  retimed in the editor are outlined), and a range selection shows its length in beats.
 - **Tweak it yourself** (header) opens the project in `/remotion-editor` on the same folder
   (`?source=folder`): moves, text, a scene's knobs, swapped pictures, clips and sounds. Back here, the
   reload above plays the change; swapped files are listed again when the project compiles.

@@ -22,6 +22,7 @@ import {
   asset,
   ManifestContext,
   SectionContext,
+  retimeManifestWords,
   setAssetSwaps,
   swapManifestAssets,
 } from './hooks';
@@ -46,8 +47,11 @@ export const makeProjectVideo = (
     // swapped files first: scenes read them through asset() and the manifest while rendering
     setAssetSwaps(edits?.assets);
     const manifest = useMemo(
-      () => (named ? swapManifestAssets(named, edits?.assets) : named),
-      [named, edits?.assets],
+      () =>
+        named
+          ? retimeManifestWords(swapManifestAssets(named, edits?.assets), edits?.words, edits?.lyricsOffset)
+          : named,
+      [named, edits?.assets, edits?.words, edits?.lyricsOffset],
     );
     const { fps } = useVideoConfig();
     const win = project.window;
