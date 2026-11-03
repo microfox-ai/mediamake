@@ -14,6 +14,8 @@ import {
   type CatalogKind,
   type CatalogVideo,
   type ItemUse,
+  type McpRuns,
+  mcpRunsOf,
 } from './types';
 
 export * from './types';
@@ -71,19 +73,26 @@ export async function listCatalog(
     console.error('[catalog] Could not load items from the database:', error);
   }
 
-  const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[] }>();
+  const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[]; runs: McpRuns[] }>();
   for (const record of withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos)) {
-    byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses });
+    byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses, runs: mcpRunsOf(record) });
   }
 
   return [...byId.values()]
-    .map(({ card, installable, uses }) => {
+    .map(({ card, installable, uses, runs }) => {
       const entry = toEntry(entitlements, card);
       if (entry.access === 'locked') return entry;
       return {
         ...entry,
         ...(installable && { installPrompt: installPromptFor(entry.id) }),
-        ...(uses?.length && { uses }),
+        // each MCP it works with shows where it runs and whether it is an old alternative (this list's kind may leave it out)
+        ...(uses?.length && {
+          uses: uses.map(use => {
+            const used = byId.get(use.id);
+            return used ? { ...use, runs: used.runs, alternativeTo: used.card.alternativeTo } : use;
+          }),
+        }),
+        ...(runs.length && { runs }),
       };
     })
     .filter(entry => entry.access !== 'locked')
