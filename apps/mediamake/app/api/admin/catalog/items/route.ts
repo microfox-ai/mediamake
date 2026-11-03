@@ -3,12 +3,12 @@ import { publicReleasesOpen } from '@/lib/access';
 import { requireAdmin } from '@/lib/admin-utils';
 import { catalogIndex } from '@/lib/catalog/admin-index';
 import { summarize } from '@/lib/catalog/summary';
-import { CATALOG_KINDS, RELEASE_TIERS, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
+import { CATALOG_KINDS, MCP_HEALTH, RELEASE_TIERS, type CatalogKind, type McpHealth, type ReleaseTier } from '@/lib/catalog/types';
 
 /**
- * GET /api/admin/catalog/items[?kind=skill][&tier=public][&archived=true|false][&q=brand]
+ * GET /api/admin/catalog/items[?kind=skill][&tier=public][&archived=true|false][&health=not-working][&q=brand]
  * Every catalog item in a line each (see ItemSummary): who can open it,
- * where it comes from, whether it is archived, what it works with, what uses
+ * where it comes from, whether it is archived, an MCP's health, what it works with, what uses
  * it, and its release page. What the MediaMake MCP's `catalog_items` tool
  * shows. Read-only: it settles no gates.
  */
@@ -22,9 +22,11 @@ export async function GET(req: NextRequest) {
   const kind = params.get('kind') as CatalogKind | null;
   const tier = params.get('tier') as ReleaseTier | null;
   const archived = params.get('archived');
+  const health = params.get('health') as McpHealth | null;
   const q = params.get('q')?.trim().toLowerCase();
   if (kind && !CATALOG_KINDS.includes(kind)) return NextResponse.json({ error: `kind must be one of ${CATALOG_KINDS.join(', ')}` }, { status: 400 });
   if (tier && !RELEASE_TIERS.includes(tier)) return NextResponse.json({ error: `tier must be one of ${RELEASE_TIERS.join(', ')}` }, { status: 400 });
+  if (health && !MCP_HEALTH.includes(health)) return NextResponse.json({ error: `health must be one of ${MCP_HEALTH.join(', ')}` }, { status: 400 });
 
   const { byId } = await catalogIndex();
   const items = summarize([...byId.values()])
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
         (!kind || item.kind === kind) &&
         (!tier || item.tier === tier) &&
         (archived === null || (archived === 'true') === !!item.archivedAt) &&
+        (!health || item.health === health) &&
         (!q || `${item.id} ${item.title}`.toLowerCase().includes(q)),
     )
     .sort((a, b) => CATALOG_KINDS.indexOf(a.kind) - CATALOG_KINDS.indexOf(b.kind) || a.id.localeCompare(b.id));

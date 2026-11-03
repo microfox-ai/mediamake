@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ExternalLinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { slugOf, type MadeBy, type UseNeed, type UseShown } from '@/lib/catalog/types';
+import { HealthBadge } from './health';
 import { OldBadge, RunsBadges } from './runs';
 
 /**
@@ -65,6 +66,8 @@ export function UsesList({ uses }: { uses: UseShown[] }) {
               <NeedBadge need={use.need} />
               <RunsBadges runs={use.runs} />
               {use.alternativeTo && <OldBadge to={slugOf(use.alternativeTo)} />}
+              {/* only when it isn't healthy: a healthy one needs no word */}
+              {use.health && use.health !== 'healthy' && <HealthBadge health={use.health} />}
             </div>
             <p className="text-sm text-muted-foreground">{use.for}</p>
             <p className="text-xs text-muted-foreground">
@@ -90,6 +93,7 @@ export function UsesLine({ uses, className }: { uses: UseShown[]; className?: st
           <span className="font-medium text-foreground/80">{slugOf(use.id)}</span>
           {use.need === 'required' && ' (required)'}
           {use.alternativeTo && ' (old)'}
+          {use.health === 'not-working' && ' (not working)'}
         </span>
       ))}
     </p>

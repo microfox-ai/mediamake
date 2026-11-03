@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Archive, ArchiveRestore, ArrowLeft, Check, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HEALTH, HealthBadge } from '@/components/catalog/health';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
+import { MCP_HEALTH, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type McpHealth, type ReleaseTier } from '@/lib/catalog/types';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
@@ -203,7 +205,7 @@ export function ReleaseItem({ id }: { id: string }) {
 }
 
 function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ReleaseTier; onArchived: () => void }) {
-  const { item, installPrompt, code, archive } = detail;
+  const { item, installPrompt, code, archive, healthMark } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
   const cover = item.cover ?? item.video?.thumbnail;
@@ -230,6 +232,7 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
             <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
             <TierPill tier={tier} />
             {archive && <ArchivedPill />}
+            <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />
           </div>
           <p className="text-sm text-muted-foreground">
             <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
@@ -238,6 +241,12 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
           </p>
           <About summary={item.summary} description={detail.description} />
           {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+          {healthMark && (
+            <p className="text-xs text-muted-foreground">
+              {HEALTH[healthMark.health].label} since {formatDate(healthMark.at)}
+              {healthMark.note ? `: ${healthMark.note}` : ''}.
+            </p>
+          )}
           {archive && (
             <p className="text-xs text-muted-foreground">
               Archived {formatDate(archive.at)}
@@ -249,6 +258,7 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
       <div className="flex flex-wrap gap-2 xl:shrink-0">
         {installPrompt && <CopyPrompt prompt={installPrompt} />}
         <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
+        {item.kind === 'mcp' && <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health} onDone={onArchived} />}
         {VIDEO_KINDS.includes(item.kind) ? (
           <Button variant="outline" size="sm" asChild>
             <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
@@ -294,6 +304,44 @@ function About({ summary, description }: { summary: string; description?: string
         </button>
       )}
     </p>
+  );
+}
+
+/**
+ * An MCP's health (see McpHealth), shown on its card and install page. "Default"
+ * clears the mark: back to the repo's default, healthy when it has none. A
+ * health other than healthy asks why, shown with it on its page.
+ */
+function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: McpHealth; shown?: McpHealth; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const set = async (value: string) => {
+    const health = value === 'default' ? null : (value as McpHealth);
+    const note = health && health !== 'healthy' ? window.prompt(`Why is it ${HEALTH[health].label.toLowerCase()}? Shown on its page (optional)`) : null;
+    setBusy(true);
+    try {
+      await adminCall({ type: 'set_health', itemIds: [id], health, note: note?.trim() || undefined });
+      toast.success(health ? `Health: ${HEALTH[health].label}` : 'Health back to the default');
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Select value={marked ?? 'default'} onValueChange={set} disabled={busy}>
+      <SelectTrigger size="sm" className="h-8 w-auto gap-1.5 text-xs" title="How this MCP is doing, on its card and install page">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="default">Default{!marked && shown ? ` (${HEALTH[shown].label})` : ''}</SelectItem>
+        {MCP_HEALTH.map(health => (
+          <SelectItem key={health} value={health}>
+            {HEALTH[health].label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

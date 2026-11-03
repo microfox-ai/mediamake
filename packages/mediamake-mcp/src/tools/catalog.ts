@@ -210,17 +210,18 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Catalog items (admins)',
       description:
-        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials, courses) in a line each: who can open it (tier: vault, development, community or public), where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, the MCPs it works with, what uses it, and its release page. Filter by kind, tier, archived or words in the id or title. Start here before archiving, moving or sharing items.',
+        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials, courses) in a line each: who can open it (tier: vault, development, community or public), where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, the health of an MCP (healthy, inactive, archived, not-working), the MCPs it works with, what uses it, and its release page. Filter by kind, tier, archived, health or words in the id or title. Start here before archiving, moving or sharing items.',
       inputSchema: {
         kind: KIND.optional(),
         tier: TIER.optional(),
         archived: z.boolean().optional().describe('true: only archived items; false: only the ones in use; leave out for both'),
+        health: z.enum(['healthy', 'inactive', 'archived', 'not-working']).optional().describe('Only MCPs with this health'),
         query: z.string().optional().describe('Words in the id or title'),
       },
       annotations: READ,
     },
-    safe(async ({ kind, tier, archived, query }) => {
-      const { items } = await client.get<{ items: { page: string }[] }>('/api/admin/catalog/items', { kind, tier, archived, q: query });
+    safe(async ({ kind, tier, archived, health, query }) => {
+      const { items } = await client.get<{ items: { page: string }[] }>('/api/admin/catalog/items', { kind, tier, archived, health, q: query });
       return json({
         count: items.length,
         items: items.map(item => ({ ...item, page: client.url(item.page) })),
@@ -264,6 +265,25 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     safe(async ({ items, archived, note }) => {
       await client.post('/api/admin/catalog', { type: 'set_archived', itemIds: items, archived, note });
       return json({ archived, items: items.map(id => ({ id, page: page(id) })) });
+    }),
+  );
+
+  server.registerTool(
+    'catalog_set_health',
+    {
+      title: "Set MCPs' health (admins)",
+      description:
+        "Admins only. Say how MCPs are doing, shown on their cards and install pages: healthy (works), inactive (works, but nobody uses or looks after it now), archived (kept for reference, no longer maintained) or not-working (broken: people shouldn't install it until it is fixed). default clears an admin's mark, back to the repo's default (healthy when it has none). Only MCPs have a health. catalog_items shows each MCP's health (and filters by it). Give the user the release page links it answers with.",
+      inputSchema: {
+        items: z.array(ITEM_ID).min(1).max(200),
+        health: z.enum(['healthy', 'inactive', 'archived', 'not-working', 'default']),
+        note: z.string().max(500).optional().describe("Why, shown with the health on the MCP's page (e.g. what is broken)"),
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ items, health, note }) => {
+      await client.post('/api/admin/catalog', { type: 'set_health', itemIds: items, health: health === 'default' ? null : health, note });
+      return json({ health, items: items.map(id => ({ id, page: page(id) })) });
     }),
   );
 

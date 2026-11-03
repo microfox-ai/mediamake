@@ -3,7 +3,8 @@ import { describe, it } from 'node:test';
 import { registry } from '@/lib/skills/registry';
 import { getStaticRecords, staticRecord, thirdPartyRecords } from './items';
 import { UNAVAILABLE, planInstall } from './plan';
-import { directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId } from './types';
+import { updatePromptFor } from './install-prompt';
+import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
 const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
@@ -50,6 +51,29 @@ describe('third-party.json', () => {
     const bundle = { kind: 'mcp' as const, versions: [{ version: '0.1.0', storageKey: 'k', sha256: 's', bytes: 1, publishedAt: '2026-11-03' }], install: { entry: 'x.mcpb' } };
     assert.deepEqual(mcpRunsOf(bundle), ['computer']);
     assert.deepEqual(mcpRunsOf({ ...bundle, kind: 'skill' }), []);
+  });
+
+  it("gives every MCP a health: an admin's mark, else the repo's default, else healthy", () => {
+    const elevenlabs = staticRecord('mcp/elevenlabs')!;
+    assert.equal(elevenlabs.title, 'ElevenLabs (Archived)');
+    assert.equal(elevenlabs.health, 'archived');
+    for (const item of items) if (item.health) assert.ok(MCP_HEALTH.includes(item.health), `${item.id}: ${item.health} is a health`);
+
+    const connector = staticRecord('mcp/elevenlabs-connector')!;
+    const skill = { id: 'skill/x', kind: 'skill' as const };
+    const [archived, healthy, broken, untouched] = withHealth([elevenlabs, connector, { ...connector, id: 'mcp/fal' }, skill], [
+      { id: 'mcp/fal', health: 'not-working', note: 'its API changed', at: '2026-11-03' },
+    ]);
+    assert.equal(archived.health, 'archived');
+    assert.equal(healthy.health, 'healthy');
+    assert.deepEqual([broken.health, broken.healthNote], ['not-working', 'its API changed']);
+    assert.equal('health' in untouched, false);
+    // a mark beats the repo's default
+    assert.equal(withHealth([elevenlabs], [{ id: 'mcp/elevenlabs', health: 'healthy', at: '2026-11-03' }])[0].health, 'healthy');
+  });
+
+  it('has an update prompt the update skill knows', () => {
+    assert.match(updatePromptFor('mcp/browse-hack'), /^Update mcp\/browse-hack from MediaMake .*install\.md#update-an-installed-item$/);
   });
 
   it('is shadowed by a stored item with the same id', () => {

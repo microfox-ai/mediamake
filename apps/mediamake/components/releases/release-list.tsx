@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { slugOf, type CatalogItemRecord, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 import { KIND_ICON } from './release-board';
+import { HealthBadge } from '@/components/catalog/health';
 import { ArchivedPill, TierPill } from './parts';
 import { TIER_META, TIER_ORDER, itemPath, originOf, tierOf, type AdminCatalog } from './model';
 
@@ -100,6 +101,7 @@ function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ReleaseTie
         <span className="flex flex-wrap items-center gap-1.5">
           <TierPill tier={tier} />
           {item.archivedAt && <ArchivedPill />}
+          {item.health && item.health !== 'healthy' && <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />}
         </span>
         <span className="hidden truncate text-xs text-muted-foreground md:block">{originOf(item)}</span>
         <span

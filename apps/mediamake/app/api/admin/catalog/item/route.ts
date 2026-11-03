@@ -13,7 +13,7 @@ import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, releaseTier, type CatalogI
 /**
  * GET /api/admin/catalog/item?id=mcp/browse-hack
  * One item as its release page shows it (/core/releases/<kind>/<slug>): the
- * record, where it is defined, whether it is archived, the grants and groups
+ * record, where it is defined, whether it is archived, an MCP's health mark, the grants and groups
  * that reach it, what installing it does (the plan an admin would get,
  * everything shared, no package links), what needs or uses it, and its
  * video (with the tutorials a course can play, and the courses a tutorial is in).
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required, e.g. ?id=mcp/browse-hack' }, { status: 400 });
 
-  const [{ byId, storedIds, archive, videos }, grants, groups] = await Promise.all([catalogIndex(), accessGrantsDB.list(), accessGroupsDB.list()]);
+  const [{ byId, storedIds, archive, videos, health }, grants, groups] = await Promise.all([catalogIndex(), accessGrantsDB.list(), accessGroupsDB.list()]);
   const item = byId.get(id);
   if (!item) return NextResponse.json({ error: `No item ${id}` }, { status: 404 });
 
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
     item,
     definedIn: storedIds.has(id) ? 'database' : staticOrigin(id),
     archive: archive.get(id) ?? null,
+    healthMark: health.get(id) ?? null,
     grants: grants.filter(
       grant =>
         (!grant.expiresAt || grant.expiresAt > now) &&

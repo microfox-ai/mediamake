@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Check, Copy, Lock, Unlock } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, Lock, RefreshCw, Unlock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import type { CatalogEntry } from '@/lib/catalog/types';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { watchPath } from '@/lib/catalog/video';
 import { MadeByLine, UsesLine } from '@/components/catalog/uses';
+import { HealthBadge } from '@/components/catalog/health';
 import { OldBadge, RunsBadges } from '@/components/catalog/runs';
 import { slugOf } from '@/lib/catalog/types';
 import { VideoThumb } from '@/components/catalog/video';
@@ -62,10 +63,11 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
         />
       )}
       <div className="flex flex-1 flex-col gap-4 p-5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{kindLabel[card.kind]}</Badge>
           <RunsBadges runs={card.runs} />
           {card.alternativeTo ? <OldBadge to={slugOf(card.alternativeTo)} /> : <Badge variant="secondary">{statusLabel[card.status]}</Badge>}
+          <HealthBadge health={card.health} note={card.healthNote} />
           {!locked && card.version && (
             <span className="font-mono text-xs text-muted-foreground" title="Latest release">
               v{card.version}
@@ -93,7 +95,12 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
           {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
         </div>
 
-        {!locked && card.installPrompt && <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />}
+        {!locked && card.installPrompt && (
+          <div className="flex flex-wrap gap-2">
+            <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />
+            {card.updatePrompt && <CopyUpdatePrompt prompt={card.updatePrompt} />}
+          </div>
+        )}
 
         {card.tags && card.tags.length > 0 && (
           <div className={cn('mt-auto flex flex-wrap gap-1.5', locked && 'opacity-60')}>
@@ -113,6 +120,39 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
     <Link href={href} className="block h-full">
       {body}
     </Link>
+  );
+}
+
+/**
+ * Copies the one-line prompt that has Claude bring an installed MCP up to date.
+ * It needs no install code: the update token the install left covers it.
+ */
+function CopyUpdatePrompt({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="w-fit"
+      title={prompt}
+      onClick={async (e) => {
+        // The card itself is a link to the install page.
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(prompt);
+        } catch {
+          // No clipboard access: show it to copy by hand.
+          window.prompt('Copy this update prompt and paste it into Claude:', prompt);
+          return;
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check className="size-4" /> : <RefreshCw className="size-4" />}
+      {copied ? 'Copied' : 'Copy update prompt'}
+    </Button>
   );
 }
 
