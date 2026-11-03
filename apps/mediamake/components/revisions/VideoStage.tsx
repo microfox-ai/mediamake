@@ -95,7 +95,9 @@ function EmptyState() {
   const openFolderPicker = useRevisionsStore(s => s.openFolderPicker);
   const openVideoPicker = useRevisionsStore(s => s.openVideoPicker);
   const addSourcePicker = useRevisionsStore(s => s.addSourcePicker);
-  const hasSources = useRevisionsStore(s => s.sources.length > 0);
+  const connectSource = useRevisionsStore(s => s.connectSource);
+  const sources = useRevisionsStore(s => s.sources);
+  const hasSources = sources.length > 0;
 
   if (support && !support.supported) {
     return (
@@ -131,9 +133,14 @@ function EmptyState() {
   }
 
   if (wanted) {
+    // Links name the folder by its path under lyrics_videos/out: a linked source opens all of them.
+    const locked = sources.filter(s => s.status === 'needs-permission');
+    const leaf =
+      wanted.folder.split('/').filter(Boolean).pop() ?? wanted.folder;
+    const primary = 'bg-white text-neutral-950 hover:bg-neutral-200';
     return (
       <div className="max-w-sm text-center text-sm text-neutral-300">
-        <p className="mb-4">
+        <p className="mb-2">
           This link asks for{' '}
           <span className="font-medium text-white">{wanted.folder}</span>
           {wanted.video && (
@@ -142,14 +149,55 @@ function EmptyState() {
               <span className="font-medium text-white">{wanted.video}</span>
             </>
           )}
-          . Open that folder once; after that it is one click from History.
+          .
         </p>
-        <Button
-          className="bg-white text-neutral-950 hover:bg-neutral-200"
-          onClick={() => void openWanted()}
-        >
-          <FolderOpenIcon className="size-4" /> Open {wanted.folder}
-        </Button>
+        <p className="mb-4 text-neutral-400">
+          {locked.length ? (
+            <>
+              It opens from your linked{' '}
+              <span className="text-neutral-200">{locked[0].name}</span> folder,
+              which Chrome wants one click for. Choose “Allow on every visit”
+              and links open on their own after that.
+            </>
+          ) : hasSources ? (
+            <>
+              It isn&apos;t in {sources.map(s => s.name).join(', ')}. Link the{' '}
+              <code className="text-neutral-200">out</code> folder it was
+              rendered to, or open its folder.
+            </>
+          ) : (
+            <>
+              Link your{' '}
+              <code className="text-neutral-200">lyrics_videos/out</code> folder
+              once and every review link opens from it by its path, no folder to
+              pick.
+            </>
+          )}
+        </p>
+        <div className="flex flex-col items-center gap-2">
+          {locked.map(s => (
+            <Button
+              key={s.id}
+              className={primary}
+              onClick={() => void connectSource(s.id)}
+            >
+              <FolderTreeIcon className="size-4" /> Reconnect {s.name}
+            </Button>
+          ))}
+          {!locked.length && (
+            <Button className={primary} onClick={() => void addSourcePicker()}>
+              <FolderTreeIcon className="size-4" />{' '}
+              {hasSources ? 'Link another out folder' : 'Link your out folder'}
+            </Button>
+          )}
+          <Button
+            variant="link"
+            className="h-auto p-0 text-xs text-neutral-400"
+            onClick={() => void openWanted()}
+          >
+            <FolderOpenIcon className="size-3.5" /> Open just {leaf}
+          </Button>
+        </div>
       </div>
     );
   }
