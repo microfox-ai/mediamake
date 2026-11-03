@@ -112,10 +112,15 @@ fs.writeFileSync(path.join(dir, 'video/anchors.json'), JSON.stringify(anchors));
 
 // 4. resolve (a short: its own cut list, checked over its window only)
 const shortId = opt('short');
-const short: { from: number; to: number; formats: string[]; mode?: string } | null = shortId ? JSON.parse(fs.readFileSync(path.join(dir, 'shorts', shortId, 'short.json'), 'utf8')) : null;
-if (short?.mode === 'rotate') {
+const short: { from: number; to: number; formats: string[]; mode?: string; wide?: boolean; videoFrom?: number; hook?: { from: number } } | null = shortId ? JSON.parse(fs.readFileSync(path.join(dir, 'shorts', shortId, 'short.json'), 'utf8')) : null;
+if (short?.mode === 'rotate' && !short.wide) {
   console.log(`short ${shortId} is a rotate short: it plays the finished 16:9 render, there is no cut list to check`);
   process.exit(0);
+}
+if (short?.mode === 'rotate') {
+  // a rotate short with its own stretch: its 16:9 cut list, from where the stretch starts, in landscape
+  short.from = short.videoFrom ?? short.hook?.from ?? short.from;
+  short.formats = ['16x9'];
 }
 const edl = await import(pathToFileURL(path.join(dir, shortId ? `shorts/${shortId}/edl.ts` : 'video/edl.ts')).href);
 const all = resolveAll(manifest, footage, edl.blocks, edl.words, edl.sfx ?? [], new Set(Object.keys(anchors)));
@@ -125,7 +130,7 @@ const text = all.text.filter(inWindow);
 const sfx = all.sfx.filter(s => !short || (s.at > short.from - 3 && s.at < short.to));
 if (short) {
   // a vertical frame filled by the wide picture blows it up: soft past ~1.5×
-  const sizes: Record<string, number> = { '9x16': 1920, '3x4': 1440, '4x5': 1350 };
+  const sizes: Record<string, number> = { '9x16': 1920, '3x4': 1440, '4x5': 1350, '16x9': cfg.window[1] };
   const zoom = short.formats.map(f => `${f} ×${(sizes[f] / cfg.window[1]).toFixed(1)}`).join(', ');
   console.log(`short ${shortId}: ${short.from.toFixed(2)}–${short.to.toFixed(2)} s · a full-frame reframe enlarges the ${cfg.window[0]}×${cfg.window[1]} picture ${zoom}${short.formats.some(f => sizes[f] / cfg.window[1] > 1.5) ? ' (soft: band() and stacked splits stay sharp)' : ''}\n`);
 }
@@ -183,6 +188,16 @@ if (twice.length) {
   for (const [shot, v] of twice) {
     const clash = v.some((x, k) => v.some((y, j) => j > k && x.a < y.b - 0.04 && y.a < x.b - 0.04));
     console.log(`  ${clash ? '⚠' : ' '} ${shot}  ${v.map(x => `${x.id} ${x.a.toFixed(2)}–${x.b.toFixed(2)}`).join('  ')}${clash ? '  (same frames twice)' : ''}`);
+  }
+}
+// copies across sources (fan edits reuse a film's shots): video/dupes.json, { shot: [copies in other sources] }
+const dupesFile = path.join(dir, 'video', 'dupes.json');
+if (fs.existsSync(dupesFile)) {
+  const dupes = JSON.parse(fs.readFileSync(dupesFile, 'utf8')) as Record<string, string[]>;
+  const both = Object.keys(spans).flatMap(k => (dupes[k] ?? []).filter(o => o > k && spans[o]).map(o => [k, o]));
+  if (both.length) {
+    console.log('\nthe same footage from two sources (video/dupes.json):');
+    for (const [a1, b1] of both) console.log(`  ⚠ ${a1} (${spans[a1].map(x => x.id).join(', ')}) = ${b1} (${spans[b1].map(x => x.id).join(', ')})`);
   }
 }
 if (flag('unused')) {

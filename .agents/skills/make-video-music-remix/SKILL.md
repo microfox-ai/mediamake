@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix
-description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat at the footage's own speed; the lyrics (or the music's energy) pick each shot, the footage's scenes run in order through hooks and drops; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/lyrics_videos/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.
+description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat, paced by the song's feel (long takes and slow motion for a slow, stylish track; a fast pulse for a hard one); the hero is always the subject and the cut takes his tone (comedy for a funny character); the footage's scenes run in order through every section and the lyrics only punctuate them; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/lyrics_videos/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.
 ---
 
 # make-video-music-remix
@@ -8,11 +8,13 @@ description: Re-edit existing footage to a song in Remotion — any footage (fil
 Existing footage, re-cut to a song. Four things decide every cut:
 
 - **The song decides *when*:** its beat grid, its sections (by energy, not lyric gaps), its hits.
-- **The meaning decides *what*:** the lyric line (or, without lyrics, the music's mood and energy)
-  picks the shot that says it.
-- **The footage's scenes decide *the order*** where the song soars (hooks, drops, bridges): there the
-  viewer follows one scene as it happens.
-- **The inspiration and the user's taste decide *how*:** pacing, transitions, type, sound.
+- **The hero decides *who*:** the song is his voice. Every shot is about the main character, in his
+  own tone (a funny character is cut for comedy).
+- **The footage's scenes decide *the order***: each section is one right scene, played in its own order;
+  the lyric only punctuates where a moment of it fits.
+- **The song's feel decides *the pace*:** a slow, stylish track gets long takes and slow motion at
+  times; a hard, fast one a steady beat pulse.
+- **The inspiration and the user's taste decide *how*:** transitions, type, sound.
 
 Everything lives in `apps/lyrics_videos`, next to the lyric videos: this skill shares their project
 folder, audio analysis, stills, render and shot map, so read `make-lyrics-video` steps 2, 3, 7–9
@@ -27,9 +29,123 @@ the F1 examples below come from it, the rules are meant for any footage and any 
 this look, and a dated log of every piece of feedback, numbered as the user wrote it. Read the
 lessons log at the bottom before planning. Keep what the user praised; recast around it.
 
+## The user's standing rules (read first)
+
+Said again and again across hitixf1, breakingbadxdangerous, quicksilverxkingpin and kingpinxdeadpool;
+every one of them got an edit rejected when it was broken. Check the cut list against each before any
+render.
+
+1. **No people-talking shots.** A mouth moving to words the song doesn't sing fights the vocal and
+   reads as someone else's line: interviews, people at a desk, a character mid-sentence, the two
+   headset talking heads (hitixf1), Paradox at his desk, Wade at the car lot (kingpinxdeadpool v4:
+   "do not use people talking shots, does not work well with this kind of edit"). The one exception is
+   an edit that uses the film's dialogue on purpose — then transcribe the line, place it in the mix and
+   cut the shot to it — and that is a last resort when the footage runs short. A masked hero (no mouth
+   to see) is safe.
+2. **The hero is the subject; the lyrics are his voice.** Every line is about the main character, so
+   it is cast on him: never word-match a line onto another character who happens to fit the word
+   ("silver hair hot" on Colossus's chrome, "the throne" on Cassandra, "watching" on Negasonic: "going
+   by the flow of the lyrics it is related to the main character, how can you show other characters").
+   Others appear only briefly and out of focus (quicksilverxkingpin: "don't highlight other characters";
+   breakingbadxdangerous: ~80 % the hero). The climax and the drop favour him most.
+3. **The pace follows the song's feel, not its BPM.** A slow, stylish track (Kingpin: a serene boast on
+   a half-time beat) wants long takes, holds and, at times, slow motion on the hero's moves (the film's own
+   slow-motion takes: rule 8); a fast
+   montage does not suit it ("this is slow stylistic music, fast shots does not suit, go with long slow
+   motion shots at times"). A hard, fast rap wants a steady one-beat pulse at real speed (hitixf1).
+   Decide this at intake from the song and the inspo, and ask when unsure.
+4. **The hero's character sets the tone.** A character with a sense of humour (Deadpool) is cut for
+   comedy: his poses, dance moves, deadpan beats, the fourth-wall stare, the gags of the scene — the
+   song's boasts land on his jokes. A cold one (Walter White) for menace, a speedster (Quicksilver) for
+   playful ease.
+5. **Story, not word-matching.** Each section is one right scene in its own order; a line only gets a
+   literal shot when the scene has that moment (quicksilverxkingpin v1: "the casting chased the
+   words"). You don't have to show everything: fewer, longer shots that tell the story read better
+   than every beat filled (kingpinxdeadpool rev-001: "no storytelling, moving the shots too fast … you
+   don't have to show everything").
+6. **Every section suits the hero** — the bridge too: his moment, not a side story about others
+   (kingpinxdeadpool rev-001: "the bridge … does not suit the character").
+7. **Every take once.** Never show a take twice — not a second moment of it, not the same shot from
+   another fan edit (they share footage: compare frames), not a replay (a rewind runs fresh takes
+   backwards). `npm run remix` lists repeats; the list must be empty before a render ("don't re-use a
+   shot that's already been used").
+8. **Slow motion only where it is needed.** Prefer a take long enough for its cut, or one the film shot in
+   slow motion; slow a take only when it is shorter than the cut the music asks for, and only by as much as
+   it needs (rate = take left ÷ cut length, never below ~0.5). Slowing takes that were long enough read as
+   "unnecessary slo mo" (kingpinxdeadpool v5); dropping slow motion altogether forced one-beat cuts on a slow
+   song and wrecked the pacing and the story (v6/v7: "too fast … not in sync with the musical style … the
+   previous storytelling was much better"). Never trade the pace or the story to obey a rule about one device.
+9. **Match cuts are the signature.** A cut from one subject to another at the same place and size
+   (`match`, `flow` on movement) was "excellent, do more of that": plan one into most sections — pick the
+   pairs from the anchors (subject boxes) while casting, not after.
+10. **Words that hit: lockups in one heavy face.** Many faces (v9/v10) and single highlights beside the hero (v11) read
+    "generic in style and not impactful". The lockup (`lock`) is what lands: the phrase being sung, its highlight ('*')
+    huge in a heavy condensed face (Anton), the words around it small in a lighter companion (Oswald, `fonts.small`) —
+    the bold-word shorts' lockup the user loves — the highlight slamming in on its own word (from larger, blurred,
+    white-hot, a shudder), punching on the kicks, red / acid / cyan for the punch words, a soft shade behind it on a bright
+    picture. A knockout (`ko`, the picture inside the letters, diving through one) opens each section. A word appears
+    only where its shot or its line says it ("no need to print words when the shot does not match").
+11. **Words most of the time, at near-symmetric times, on the voice.** A lockup about every 2 beats, each on its own
+    sung word and held until the next ("it should show words at a lot more of time … make words appear at symmetric
+    times, at least close to symmetric"): kingpinxdeadpool v12 had words over ~170 of 237 s (v11: ~65). The lyric lines
+    stay as captions in the bottom bar. Never start a word late to dodge a transition, and never fade it out while the
+    camera moves (v11's `start`s and fades read as "word timings seem incorrect"): lockups sit in front, in screen space,
+    still through zooms and cuts, placed where they cover least of the hero's head over every cut they span
+    (`placeLocks`) and moving round the frame. Check timing against the vocal onsets (manifest.onsets.vocal), not by eye.
+12. **The highlight acts out its meaning, on the beat.** One entrance for every word reads as routine ("play out
+    different animation on the basis of lyrical meaning"): FAST / LIGHT SPEED streak in, DROP falls, CHOP is sliced,
+    ENOUGH / NOT TODAY stamp, GOLD / SILVER shine, MILKY WAY twinkles, TEMPER shakes, FEAR shivers, DRIFTING floats,
+    HIGHER / STAFF UP rise, VISION CLEAR pulls focus, ELEGANT is written on, STORY is typed, AGAIN rewinds under VHS
+    jitter, NEVER PAST glitches, BLANK PAGE is wiped, TOP fills like a gauge, SNACK gets a bite, ORNAMENT swings, GLASS
+    shatters on the next beat, PAWN topples, KNOCKED thumps twice, YEARS flips like a split-flap board, RAGE burns,
+    DIVINE / HEAVENS get a halo, RHYTHM bounces like an equalizer (`act` on the lockup; ~50 of them). No act twice in a
+    section; acts that repeat a motion run on the song's beat grid, not a clock.
+13. **No buggy cuts.** Fan edits hide cuts and flashes inside their shots, and segregation boundaries can be a frame
+    off. Before handing over a render, scan it: frames that change sharply inside a cut (a hidden cut, a flicker
+    effect) and a stray first or last frame of another shot (compare each cut's edge frames). Retime a hidden cut onto
+    the beat (choose the offset so it falls on one), end the cut before it, or replace the take. A freeze on a tiny
+    take that then jumps reads as a glitch: let the take play and `hold` its last frame instead. A cut that plays its
+    take to the very last frame can flash the next shot's first frame (segregation boundaries are a frame off): `npm
+    run remix` warns "ends on the last frame of …" — add `hold` (it stops two frames short and holds, unseen).
+14. **Smooth: the classic techniques.** Cut on action (`flow`: the move carries across the cut), match cuts (`match`),
+    speed ramps into the hits (`ramp`: a take accelerates into the drop, the hook, the break — it needs ~1.4× the cut's
+    length of take), whips along the motion, zooms on the bars, a white flash only into a new section.
+15. **Action scenes run in the film's order.** Inside a scene every shot follows the one before it in story time; a
+    shot from later, from another angle of a moment already past, or from another scene confuses ("some shots in
+    scenes are not ordered properly, causes users to confuse as action scenes have to follow order"). A film's own
+    clip is in order by its shot index; a fan edit is not — it intercuts scenes, so group its shots by scene from the
+    frames and keep each scene's shots in their order. Cast the lyric inside that order: a highlight word goes where
+    its moment happens to fall, never a shot moved to meet a word. Static inserts of one moment (a look at us, a
+    close-up of the drawing) can sit anywhere in it.
+16. **The top bar's meter speaks the hero's language.** The bass meter in the bar is part of the look: theme it to
+    the hero (`gfx.meter`: 'deadpool' his mask with its eyes narrowing on the kicks between rows of bullets; 'bolt' a
+    speedster; 'ecg' a heart monitor), never the default rev lights on a character edit ("update the waveform at
+    center top to match deadpool aesthetics").
+17. **A symmetric timeline.** Every cut starts on the section's beat grid — 2 beats on a half-time track (the kick on 1,
+    the snare on 3): a slot holds one 2-beat cut, a pair of 1-beat cuts, or a long take over 2–3 slots; a breathing
+    bridge in 4s ("you are not making the edit symmetric in the timeline"). Odd lengths (1, 3, 5) scattered through a
+    verse read as a ragged timeline even when each cut is on a beat. The lines may start off the grid (rap pickups):
+    the words land on the voice, the cuts on the grid.
+18. **Inside a section, follow the music's own turns.** Where the beat is fast the cuts are fast; where it drops out the
+    picture slows (kingpinxdeadpool v12, intro b: "the beat starts fast at beginning, so fast cuts at first, and then
+    slow motion shots with ripple zoom in zoom outs like liquid morph" — a cut a beat, halves at the peak, then 4-beat
+    slow-motion shots joined by `ripple`: a zoom into the subject as rings run out of it and the picture melts into the
+    next shot, which lands zoomed and eases back out). Print the stems per beat (drums, bass, kick) to find the turns.
+19. **The scene's big event lands on the section's big hit.** Find each section's loudest beat (drums and bass together,
+    from the stems per beat) and put the scene's biggest moment on it — the crash, the explosion, the blow (kingpinxdeadpool
+    rev-003, on intro b's peak at beat 52, where v12 had a dark back-seat filler: "at this beat the car crash should come
+    in"). Then arrange the rest of the scene around it so its order still reads: the build-up before the hit, only the
+    aftermath after it (shots from before the event move ahead of it or drop out). Look for the event in every source,
+    including takes not used yet (the crash there was an unused take in a second fan edit).
+20. **The best hero shot waits for the drop's bass.** Find where the bass actually drops (it can come after the drop's
+    first beats: kingpinxdeadpool's flashes ride the kicks for 4 beats, then the 808 swells on 436–439) and land the
+    strongest hero shot there, still, with a punch-in on the bass's peak (`steps`). When the user praises a shot, move it
+    to the biggest moment rather than leaving it in a quiet one ("this shot is really good, put it at the d2 shot with
+    the bass drop sync"), and refill its old slot by stretching a neighbour on the grid, never with a copy.
+
 ## Principles
 
-These held across every review of the first two projects and apply to any re-edit.
+These held across every review and apply to any re-edit (the standing rules above come first).
 
 0. **The song tells one story, and its hero is on screen.** Before casting a single line, write the
    arc: one chapter per section (who the hero is, the turn, the rise, the triumph, the cost, the fall,
@@ -40,13 +156,15 @@ These held across every review of the first two projects and apply to any re-edi
    v1 there, cast line by line from two fan edits, read as "randomly stitched clips".
 1. **The intro is the hook.** No intro, no verse 1; no verse 1, nobody reaches the chorus. A strong
    open: one held, striking shot (black and white works), the title card within the first bars,
-   then a few *long continuous takes at their own speed* (3–4.5 beats each, joined by warp zooms) —
-   not a story told shot by shot, not a fast montage, not slow motion. The bar before the first
+   then a small setup story told with *few long takes* (3–4.5 beats each, joined by warp zooms, on the
+   beat) — not every moment of it, not a fast montage. Slow motion in the intro follows the song's feel
+   (standing rule 3): hitixf1's hard rap rejected it, a slow stylish track takes it. The bar before the first
    verse is the launch: a rapid run of close-ups (½ then ¼ beat, the shake rising, a riser peaking
    on the downbeat), the bars closing in, and the first verse bursting in (colour after a
    black-and-white intro). A take can run across the boundary as one action: the intro shows the
    start of it, the verse picks the same take up seconds later.
-2. **Pulse before sync.** One cut per beat, every cut on a beat, through a whole verse. When the
+2. **Pulse before sync.** A steady pulse, every cut on a beat, through a whole verse: one cut a beat on
+   a hard, fast song; two to four beats a cut, with holds, on a slow stylish one (standing rule 3). When the
    vocal starts lines off the beat, start the line's shot on the beat before it (half a beat early
    reads fine). Never chase each line with half-beat offsets: the length then changes every other
    cut and the edit stumbles (hitixf1's verse 1: 23 half cuts, "very bad", next to a steady verse 2,
@@ -62,17 +180,20 @@ These held across every review of the first two projects and apply to any re-edi
    let the lyric only punctuate where a moment of that stretch happens to fit (quicksilverxkingpin
    v1 cast verses line by line across both scenes: "bullshit"; its hook, one scene in order, was
    "excellent").
-4. **Meaning first, literally.** Every line gets the shot that says it: "axis spin" → a spinning
+4. **Meaning, through the hero.** Inside the section's scene, a line gets the moment of *the hero* that
+   says it (never another character's: standing rule 2): "axis spin" → a spinning
    wheel, "friction" → a glowing brake disc, "the static" → a picture breaking up, "every digit" →
    the timing tower, "switch lanes" → whips, "flame" → fire, "race against the minutes" → a pit stop
    under a countdown; in other footage "heartbreak" → the turned back, "rise" → the jump, "clash" →
    the blades meeting. A shot whose main action is something else (a wink in front of the map)
    doesn't say the line. If no shot says it, find more footage before settling (a second source paid
    off most). No lyrics: cast by the music's mood and energy, the same way.
-5. **The footage plays at its own speed.** Slow motion softens the picture and reads as filler. Pick
-   a longer take or a shorter cut — speeding a short take up to fill a longer cut eats *more*
-   source, not less. Speed ramps *up* into hits are juice. The one place slow motion was liked: a
-   quiet, spoken bridge, a little (0.55–0.85×), from motion-interpolated clips (see `slow`).
+5. **Speed by the song's feel.** The footage plays at its own speed. On a hard, fast song slow motion
+   softens it and reads as filler (hitixf1), and speed ramps *up* into hits are the juice. On a slow,
+   stylish track slow motion is part of the look — from the takes the film itself shot in slow motion,
+   placed on the intro, the hooks' hero moments, the bridge and the break, with long takes held across
+   several beats. Adding slow motion (`slow`, interpolated) was rejected even there ("don't unnecessarily
+   slo mo, some shots are already slow motion"): keep `slow` for a quiet bridge the user asks for.
 6. **One use per shot.** A shot seen twice reads as filler. Repeat only long takes, at other moments
    of the take. `npm run remix` lists every repeat and flags the ones that show the same frames.
 7. **Motion, not colour.** No graded slices, negatives, psychedelic backgrounds, mirrors or RGB
@@ -103,6 +224,7 @@ These held across every review of the first two projects and apply to any re-edi
 | pop, R&B | verses 1–2 beats a cut, hooks 1 beat | captions on hook lines, few big words | match cuts and warp zooms over hard cuts; pump in the hook only |
 | EDM, trap, phonk, instrumental drops | build: 2 → 1 → ½ → ¼ into the drop; drop ½ beat with ¼ runs | none, or one word per drop | riser peaking on the drop, impact, heaviest pump and shake |
 | rock, metal | cuts on the snare; whips on fills | captions in verses | shake on snares, impact frames on hits |
+| slow, stylish hip-hop (a half-time boast: Kingpin) | 2–4 beats a cut, long takes, slow motion at times on the hero's moves; a faster run only into a hit | a word acting out each punchline, captions | warp zooms and match cuts, aura on hero shots, a light pump |
 | ballad, cinematic | 2–4 beats a cut, long takes, held moments | a few lines, small | swooshes and soft impacts; pump off; slow motion only if the user asks |
 | no lyrics at all | by energy: sections from the stems | none, or the title only | as the genre above; cast by mood |
 
@@ -110,13 +232,13 @@ Sections, whatever the genre:
 
 | section | treatment |
 |---|---|
-| intro | principle 1: held opener, title, long takes, the launch bar |
-| verse | literal casting on a steady pulse; captions; light pump |
+| intro | principle 1: held opener, title, a small setup story in few long takes, the launch bar |
+| verse | the hero's scene in order on a steady pulse (its speed by the song's feel); captions; light pump |
 | pre-chorus, build | drums often drop: hold shots, black and white, bars closing in (`tension`), riser |
 | hook, chorus | one scene in order; big words; pump |
 | chant ("don't blink ×7") | one cut or one punch-in per word (`steps` on one held stare works) |
 | drop | the scene's climax in order; ½-beat cuts, shake on every cut, impact frames, heaviest pump |
-| break, bridge | let it breathe: one scene in order, black and white, a little interpolated slow motion if spoken |
+| break, bridge | let it breathe: the hero's moment in order (never a side story), slow motion, black and white if it suits |
 | outro | the walk-off; the payoff; the channel's sign-off small and wide-spaced |
 
 ## Adapting to the footage
@@ -173,7 +295,9 @@ Ask with `AskUserQuestion` only what the request leaves open, and say what you a
 (16:9 / letterboxed / 9:16; fps; full song or a cut-down; vertical shorts of a stretch are
 `make-video-music-remix-shorts`), the channel or brand it's for (its name
 may sign off the outro), how much text, footage that is off-limits (spoilers, burned-in graphics,
-people), anything they hate. Write `brief.md` and seed `prefs.md`. Register the production:
+people), anything they hate, and — unless the song makes it obvious — the pace (long takes and slow
+motion, or a fast pulse) and the tone (the hero's humour, menace, cool). Write `brief.md` and seed
+`prefs.md`. Register the production:
 `npm run media -w lyrics_videos -- production new <slug> --channel=<brand id> --skill=make-video-music-remix`.
 
 Ask too whether to pitch 3–4 looks of the first hook first, as 8 s clips side by side in one grid,
@@ -244,7 +368,9 @@ verses), juice, words, sound. Settle the intro first (principle 1).
 
 Print every lyric line with its beat, keep the shot sheets of every source open, and write each cut
 with the shot *and why* as a comment (`c(1, 'lm0052', 'impact', S), // FRICTION: the brake disc
-glowing`). Verses line by line, literal; hooks, drops and bridges by scene, in the scene's order.
+glowing`). Every section by scene, in the scene's order, the hero in every shot; a line gets a literal
+moment only where his scene has one. Before running anything, read the cut list against the standing
+rules: no talking shots, no line cast on another character, the pace the song asks for.
 Then run `npm run remix -w lyrics_videos -- <slug>` and fix, in this order:
 
 1. **block lengths** (each block must end where the next starts; the resolver stops otherwise);
@@ -684,6 +810,84 @@ Append dated entries: what the user asked to change and the general rule behind 
   that was a bad setup → a project owns its sources: footage goes into `input/` as a copy (`cp -c`), never
   a link, and is segregated from that copy. `prepare-project` and `cleanup-out scan` list any link under
   `projects/` whose file is gone; never remove one yourself (ask: put the file back, or remove the link).
+- 2026-11-02 — kingpinxdeadpool v4 ("the entire edit is bad"): the full edit rebuilt shot-a-beat from the
+  approved shorts plus new sections was rejected with four rules the user had already given on earlier
+  edits — no people-talking shots (unless the film's dialogue is used on purpose, transcribed: a last
+  resort); a slow, stylistic song wants long takes and slow motion at times, not fast shots; comedy for a
+  character with a sense of humour; no word-matching onto other characters ("silver hair" on Colossus):
+  the lyrics are the main character's voice. rev-001: the intro "no storytelling, moving the shots too
+  fast, does not match the beat, you don't have to show everything"; the bridge "does not suit the
+  character". → "The user's standing rules" at the top of this file; principles 1, 2, 4 and 5 rewritten
+  to match (pace and speed by the song's feel; meaning only through the hero).
+- 2026-11-02 — kingpinxdeadpool v5 ("its good … the overall story telling is better now"): the standing rules
+  worked. Still: added slow motion was unwanted (use the takes the film shot in slow motion), a take shown
+  twice is noticed (every take once, the rewind included), the match cut is the thing to do more of, the words
+  should be the character's own style (Deadpool: comic book), not the Quicksilver cut's, and only where the shot
+  matches; hook 2 needed its own scene. → standing rules 7–10.
+- 2026-11-02 — kingpinxdeadpool v6 build: "never a shot twice" also means never the same footage from another source —
+  fan edits reuse a film's shots (the Deadpool mask stare was in three of them, the overpass drop in three). Build
+  `video/dupes.json` before casting (normalised keyframe thumbnails compared across sources; any pair under a mean
+  difference of ~0.16 is a copy) — `npm run remix` then lists "the same footage from two sources" next to the repeats,
+  and both lists must be empty. At real speed, sub-beat fan-edit takes on one-beat cuts run into the next shot (a
+  flash of another clip): check the "runs past the end" warnings, not only the summary, and cover them with a short
+  `freeze`. A `match` / `flow` from a far-off subject into a close one used to shrink the picture to a card on black;
+  the engine now only zooms in and covers its own slide (`cover` in Remix.tsx). New word style `pow`: comic
+  sound-effect lettering on a starburst beside the subject (Deadpool's own look); `comic` caption boxes carry spoken lines.
+- 2026-11-02 — kingpinxdeadpool after v6: "use BIG WORDS and not lines, lines are bad for a smooth edit, adding a small
+  line above or below BIG words is fine" → standing rule 11; `pow` cues take `small: 'above' | 'below'` (the lyric line,
+  small, appearing with the line and lighting up word by word, the big word popping in on its own word); a second big
+  word on the same line comes in with `start` and cuts the first off.
+- 2026-11-02 — kingpinxdeadpool v7: "the intro-a is too fast, each shot is cutting not in sync with the musical style;
+  the rest of the cut and storytelling is also pretty bad, the previous storytelling was much better". v6 had applied
+  "don't unnecessarily slo mo" as "no slow motion", so every short take became a one-beat cut and the story was
+  recast around what fit. v8 went back to the liked v5 cut list and changed only what the notes named: slow motion
+  kept exactly where a take is shorter than its cut (at the rate it needs), repeats swapped for like shots, the new
+  hook scene, the words. The intro cuts on the beatbox's own bars (print the stems' energy per beat first: the
+  beatbox in on 4, the bass under the title from 12, busy from 40). Lesson: apply a note to the thing it names,
+  keep everything the user praised, and diff against the liked version before rendering (rule 8 rewritten).
+- 2026-11-02 — kingpinxdeadpool v8: "the shots are better, but some cuts are buggy; the titles … play out different
+  animation on the basis of lyrical meaning, and make sure you don't block the underlying video display; make the
+  edit more smooth (use famous editing techniques)". The scan found hidden cuts inside fan-edit takes (dx0012, kk0067,
+  kk0032, nm0082, rp0035, rp0049), a stray frame of another clip at a take's start (ab0062), a flickering take (dx0099)
+  and freeze-then-jump glitches on tiny takes. → standing rules 12–14; `pow` now acts out its word with no burst behind;
+  `scripts/remix-dupes.py` builds video/dupes.json (copies across sources).
+- 2026-11-02 — kingpinxdeadpool v9: "i still dislike the words by a lot. try out different typographies … make user
+  feel the word … sentence is not even necessary (keeping captions at bottom is more than enough); update the waveform
+  at center top to match deadpool aesthetics; some shots in scenes are not ordered properly; match cuts are great".
+  The v9 words were all one comic face with the line small beside them, so the sentence showed and its big word only
+  landed at its end; the fan edits' shots had been cast by lyric across their order (the DMX edit intercuts the
+  freeway and the junkyard; the kk mashup slips other scenes into the duel). → standing rules 10–12 rewritten, 15
+  (film order) and 16 (a themed meter) added; v10 = captions back, ~38 highlight words in 12 faces with new acts
+  (focus, write, rise, type, swing, rewind, shine), `font` takes any theme face and big words a `size` cap, the
+  'deadpool' meter, every scene re-sorted (the film clips by index, the fan edits by scene from their frames). A take
+  can also hide another shot's first second (nm0088): check the frames of any new take before using its start.
+- 2026-11-02 — kingpinxdeadpool v10 scan: re-sorting into film order changed many slow factors, and takes slowed to
+  exactly their length flashed the next shot's first frame (dx0028 → the biker, dx0136, kk0051, kk0068). The resolver
+  now warns on a cut that ends within a frame of its take; 44 cuts got `hold`. Also: highlight words placed beside the
+  subject (`beside`), clamped inside the frame and fixed on the cut they land on, since push-ins and zoom transitions
+  otherwise carry a word off the edge.
+- 2026-11-02 — kingpinxdeadpool v10: "highlight one word from each line, and each highlight should be special, prominent
+  and beat to the music, with different animation playing out based on the word meaning". v10 had ~38 highlights for 58
+  lines, several sharing an act. → rule 11 (one highlight a line) and 12 rewritten; v11 = 57 highlights + the LIGHT
+  knockout, 24 new acts (beat-grid aware via `beatOf`), `pulse` (kick punch), and the engine fades words through moving
+  transitions (a word inside the picture was flung off the frame by match/zoom cuts). A shot whose matte covers the
+  frame (a pure blur) hides a word behind it: give that cut `flat`.
+- 2026-11-02 — kingpinxdeadpool v11: "you are not making the edit symmetric in the timeline (as well as the text lines
+  make words appear at symmetric times) — it should show words at a lot more of time in lot more of places, and word
+  timings seem to be incorrect; much of the words are generic in style and not impactful; in intro b the beat starts
+  fast, so fast cuts at first, then slow motion shots with ripple zoom in zoom outs like liquid morph". The alignment was
+  right; v11's words were late because starts had been pushed past transitions and words faded while the camera moved,
+  and they were up only ~65 s of the song. → rules 10–12 rewritten, 17 (a symmetric timeline) and 18 (follow the
+  music's turns inside a section) added; engine: `lock` (lockups, placed off the head by `placeLocks`, in front in screen
+  space) and the `ripple` transition; v12 = every cut on the 2-beat grid, a lockup about every 2 beats (~170 s of words),
+  a knockout opening each section, intro b fast then slow motion with ripple zooms.
+- 2026-11-02 — kingpinxdeadpool v12: "it looks decent now" (the 2-beat grid, the lockups every ~2 beats, the section
+  knockouts, the fast-then-ripple intro b: rules 10, 11, 17 and 18 hold). rev-003: "at this beat the car crash should
+  come in" (intro b's peak, beat 52) and "this shot is really good, put it at the d2 shot with the bass drop sync" (his
+  copper-elevator pose from the break onto the drop's 808 at beat 436). → rules 19 (the scene's big event on the
+  section's big hit, the scene rearranged around it: build-up before, aftermath after) and 20 (the best hero shot on the
+  drop's bass, punching in on its peak). v13: an unused crash take (rp0069) on beat 52, the slow-motion aftermath after
+  it; the pose on 436 with a punch-in on 437; the break's opening dance stretched to 4 beats to fill the slot.
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:

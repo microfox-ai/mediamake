@@ -11,8 +11,17 @@
  *          an mp3 of each pick and picks.png (the song's waveform, its sections, the picks marked).
  *   make   scaffolds the picks the user approved as shorts/<id>/ (short.json, edl.ts, index.tsx) in
  *          the formats the user chose, and logs them in shorts/history.json. --mode=rotate makes a
- *          "rotate your phone" short instead (no edl.ts), planned back from its hit: the range's start is
- *          the hit (a drop, the drums coming in). The centre countdown (default): the short starts 14 beats
+ *          "rotate your phone" short instead, planned back from its hit: the range's start is the hit (a
+ *          drop, the drums coming in). Its 16:9 picture is the finished render (--source=edit, the default
+ *          when out/<slug>/<slug>.mp4 exists) or the stretch cut fresh from the footage for the short
+ *          (--source=fresh: an edl.ts to cast from 12 beats before the hit, rendered as <slug>-<id>-16x9).
+ *          The cue hook (default, --hook=cue): 12 beats before the hit the film's stand-in for the phone
+ *          (--cue=deadpool-mask; src/remix/gfx/cues) fades up slowly (14 beats before the hit, no song yet:
+ *          a riser), tips onto its side 4 beats later (a swoosh, a clunk as it lands), the song swells in
+ *          from just after the tip (the song starting under the cue confused viewers), the plea
+ *          (--plea="PLEASE.|Rotate your phone|(I'll wait.)") appears already turned, goes 6 beats before the
+ *          hit, the title card plays turned and slams 3 beats before it, and the edit plays turned from the
+ *          hit. --hook=center: the centre countdown: the short starts 14 beats
  *          before it on a black frame over the edit's sound alone (fading in), ROTATE YOUR PHONE / IN 3 SECS
  *          whose 3 becomes the counter 4 beats later, then 2 and 1 every 2 beats (a start light and a clunk
  *          each); the counter holds the centre and the video stays hidden until lights out, 4 beats before
@@ -28,7 +37,7 @@
  * Usage:
  *   npm run shorts -w lyrics_videos -- <slug> pick [--n=3] [--min=30] [--max=120] [--alts=3] [--extra=104.7-150.6,…]
  *          (--extra: stretches you name, on the nearest beats, scored and listed after the alternates)
- *   npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4 [--mode=rotate]
+ *   npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4 [--mode=rotate [--source=fresh|edit] [--hook=cue|center|center5|band] [--cue=<name>] [--plea="a|b|(c)"]]
  *   npm run shorts -w lyrics_videos -- <slug> make 95.2-151.0 --formats=9x16   (any stretch, seconds; on the nearest beats)
  *   npm run shorts -w lyrics_videos -- <slug> mark s02 bad --note="the verse drags"   (or mark B bad / mark 95.2-151.0 bad)
  *   npm run shorts -w lyrics_videos -- <slug> list
@@ -314,7 +323,8 @@ if (cmd === 'pick') {
   const audio = path.join(ROOT, 'projects', m.audio.src);
   for (const p of picks) {
     const dur = p.to - p.from;
-    execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', `${p.from}`, '-t', `${dur}`, '-i', audio, '-af', `afade=t=out:st=${(dur - 0.4).toFixed(2)}:d=0.4`, '-b:a', '192k', path.join(out, `${p.letter}.mp3`)]);
+    // asetnsamples pads the last frame: ffmpeg 8's lame refuses a short one (a stretch running to the song's end)
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', `${p.from}`, '-t', `${dur}`, '-i', audio, '-af', `afade=t=out:st=${(dur - 0.4).toFixed(2)}:d=0.4,asetnsamples=n=1152:p=1`, '-b:a', '192k', path.join(out, `${p.letter}.mp3`)]);
   }
   const W = 1800;
   const H = 300;
@@ -349,7 +359,9 @@ if (cmd === 'pick') {
   const parent = fs.existsSync(path.join(dir, 'video/index.tsx'));
   const parentEdl = fs.existsSync(path.join(dir, 'video/edl.ts'));
   const mode = opt('mode') === 'rotate' ? 'rotate' : 'recast';
-  if (mode === 'rotate') {
+  // a rotate short's 16:9 picture: the finished render, or the stretch cut fresh for the short
+  const source = opt('source') === 'fresh' || (mode === 'rotate' && !fs.existsSync(path.join(ROOT, 'out', slug, `${slug}.mp4`))) ? 'fresh' : 'edit';
+  if (mode === 'rotate' && source === 'edit') {
     // the finished 16:9 edit, served from the project folder (a hard link: no second copy on disk)
     const src = path.join(ROOT, 'out', slug, `${slug}.mp4`);
     const dst = path.join(dir, 'derived', 'final-16x9.mp4');
@@ -388,7 +400,27 @@ if (cmd === 'pick') {
     const sd = path.join(shortsDir, id);
     fs.mkdirSync(sd, { recursive: true });
     const spec: Record<string, unknown> = { id, from: p.from, to: p.to, fromBeat: p.fromBeat, toBeat: p.toBeat, formats, sections: p.sections };
-    if (mode === 'rotate') {
+    if (mode === 'rotate' && (opt('hook') ?? 'cue') === 'cue') {
+      // the cue hook, planned back from the hit H: the stand-in fades up from H − 14 and tips over on H − 10,
+      // the plea follows and goes on H − 6, the title card from H − 5.5 slams on H − 3, the edit from H. The
+      // song waits until the tip has landed and swells in over 3 s; until then only the hook's sounds play
+      // (kingpinxdeadpool 2026-11-02). The fresh stretch is still cast from H − 12 (videoFrom).
+      const H = p.fromBeat;
+      const r3 = (b: number) => +beatT(b).toFixed(3);
+      const from = r3(H - 14);
+      const tip = r3(H - 10);
+      const has = (f: string) => fs.existsSync(path.join(dir, 'derived', 'sfx', `${f}.wav`));
+      const sfx = [
+        { file: 'riser', at: +Math.max(from, tip - 1.85).toFixed(3), gain: 0.16 }, // builds through the fade, peaks on the tip
+        { file: 'swoosh', at: +(tip - 0.05).toFixed(3), gain: 0.3 }, // the stand-in tips over
+        { file: 'clunk', at: +(tip + 0.4).toFixed(3), gain: 0.28 }, // it lands on its side
+        { file: 'whoosh', at: +(beatT(H - 3) - 0.45).toFixed(3), gain: 0.4 }, // the title slams in
+        { file: 'impact', at: r3(H), gain: 0.15 }, // the edit comes in (it has its own hit there)
+      ].filter(x => has(x.file));
+      const plea = (opt('plea') ?? 'PLEASE.|Rotate your phone').split('|');
+      const hook = { from, style: 'cue', cue: opt('cue') ?? 'phone', tip, plea, pleaTo: r3(H - 6), title: { from: r3(H - 5.5), hit: H - 3 }, hit: r3(H), texture: 'halftone', fadeIn: 1.4, songIn: +(tip + 0.5).toFixed(3), songFade: 3, sfx };
+      Object.assign(spec, { from: p.from, fromBeat: H, mode, hook }, source === 'fresh' ? { wide: true, video: `shorts/${id}/wide.mp4`, videoFrom: r3(H - 12) } : { video: 'derived/final-16x9.mp4' });
+    } else if (mode === 'rotate') {
       // planned back from the hit H (the range's start): 3 · 2 · 1 on H − 10, H − 8, H − 6 (a clunk each),
       // lights out and the slow turn from H − 4, landing on H; a whoosh through the turn and an impact on
       // the hit. The centre style opens on the call at H − 14 and holds everything still until 0 (viewers
@@ -415,6 +447,11 @@ if (cmd === 'pick') {
     }
     fs.writeFileSync(path.join(sd, 'short.json'), `${JSON.stringify(spec, null, 1)}\n`);
     const header = `/**\n * ${m.title} — short ${id}: ${mmss(spec.from as number)}–${mmss(p.to)} of the song (beats ${p.fromBeat}–${p.toBeat}; ${p.sections.join(' · ')}).\n * make-video-music-remix-shorts. Cuts, words and sound effects are in the song's own beats.\n */\n`;
+    const castFrom = spec.wide ? beatIndex((spec.hook as { from: number }).from) : p.fromBeat;
+    if (mode === 'rotate' && spec.wide) fs.writeFileSync(
+      path.join(sd, 'edl.ts'),
+      `${header}import type { Block, Gfx, Sfx, TextCue } from '../../../../src/remix/edl.ts';\n// import { c, echo, freeze, shake, steps, streaks } from '../../../../src/remix/edl.ts';\n${parentEdl ? "import * as full from '../../video/edl.ts';\n" : ''}\n// The short's own 16:9 stretch, cast fresh from the footage: blocks run back to back from beat ${castFrom}\n// (the hook's first frame; its first 12 beats sit under the cue and the title) to beat ${p.toBeat}.\nexport const blocks: Block[] = [];\nexport const words: TextCue[] = [];\nexport const sfx: Sfx[] = [];\nexport const gfx: Gfx = { ${parentEdl ? 'title: full.gfx.title ' : ''}};\n`,
+    );
     if (mode !== 'rotate') fs.writeFileSync(
       path.join(sd, 'edl.ts'),
       parentEdl
@@ -424,8 +461,8 @@ if (cmd === 'pick') {
     const remix = JSON.parse(fs.readFileSync(path.join(dir, 'video/remix.json'), 'utf8'));
     fs.writeFileSync(
       path.join(sd, 'index.tsx'),
-      mode === 'rotate' && parent
-        ? `${header}import { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport parent from '../../video/index';\nimport short from './short.json';\n\n// a rotate short: the start-lights hook, then the finished 16:9 render turned 90° (short.json "hook")\nexport default defineShorts(parent, short as ShortSpec);\n`
+      mode === 'rotate' && parent && !spec.wide
+        ? `${header}import { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport parent from '../../video/index';\nimport short from './short.json';\n\n// a rotate short: the hook, then the finished 16:9 render turned 90° (short.json "hook")\nexport default defineShorts(parent, short as ShortSpec);\n`
         : parent
         ? `${header}import { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport parent from '../../video/index';\nimport * as edl from './edl.ts';\nimport short from './short.json';\n\nexport default defineShorts(parent, short as ShortSpec, edl);\n`
         : `${header}import type { Anchors } from '../../../../src/remix/Remix';\nimport type { Footage } from '../../../../src/remix/resolve.ts';\nimport { defineShorts, type ShortSpec } from '../../../../src/remix/shorts';\nimport anchors from '../../video/anchors.json';\nimport footage from '../../video/footage.json';\nimport { THEME } from '../../video/theme';\nimport * as edl from './edl.ts';\nimport short from './short.json';\n\nexport default defineShorts(\n  { slug: '${slug}', fps: 30, remix: { footage: footage as unknown as Footage, anchors: anchors as unknown as Anchors, window: [${remix.window[0]}, ${remix.window[1]}], theme: THEME } },\n  short as ShortSpec,\n  edl,\n);\n`,

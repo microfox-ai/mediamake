@@ -27,6 +27,8 @@ import type { SceneProps } from '../kit/contract';
 import { measure, useFontsReady } from './measure';
 import type { RemixTheme } from './Remix';
 import { StartLights } from './gfx/StartLights';
+import { RotateCue } from './RotateCue';
+import type { TitleCard as TitleCfg } from './edl.ts';
 
 /** shorts/<id>/short.json `hook` (written by `npm run shorts -- <slug> make … --mode=rotate`) */
 export type RotateHook = {
@@ -36,8 +38,26 @@ export type RotateHook = {
    *  from `turn` to `hit` (song seconds) */
   count?: number[];
   /** 'band' (default): the edit in the band throughout, the count above it; 'center': the count alone in
-   *  the middle over the edit's sound, the video fading in at 1 */
-  style?: 'band' | 'center';
+   *  the middle over the edit's sound, the video fading in at 1; 'cue' (RotateCue, the default from
+   *  2026-11-02): the film's stand-in for the phone tips onto its side, the plea, the title and the edit
+   *  appear already turned */
+  style?: 'band' | 'center' | 'cue';
+  /** 'cue': the stand-in (gfx/cues: 'deadpool-mask', 'phone', …), when it tips over (song seconds), the
+   *  plea's lines (the first one big, "(…)" an aside) in the character's voice and their look, when the cue
+   *  goes, the title card (from in song seconds, its slam on beat `hit`) and the backdrop's texture */
+  cue?: string;
+  tip?: number;
+  plea?: string[];
+  pleaStyle?: 'comic' | 'plain' | 'element';
+  pleaTo?: number;
+  title?: { from: number; hit: number };
+  texture?: 'halftone' | 'film' | 'smoke' | 'drops' | 'none';
+  /** 'cue': the opening fades up from black over `fadeIn` seconds instead of popping in, and the edit's sound
+   *  waits until `songIn` (song seconds, after the tip) and swells in over `songFade` seconds — the song
+   *  starting under the cue confused viewers (kingpinxdeadpool, 2026-11-02); until then only `sfx` play */
+  fadeIn?: number;
+  songIn?: number;
+  songFade?: number;
   /** 'center': the counter, lights and phone stay in the middle until 0 and the video only appears at the
    *  turn — viewers turned the phone the moment the counter floated up at 2. With `from` before count[0],
    *  the call is up from `from` and its number lands as the counter on count[0] */
@@ -53,8 +73,10 @@ export type RotateHook = {
 
 export type RotateShortProps = {
   slug: string;
-  /** the finished 16:9 edit under the project folder, in song time (derived/final-16x9.mp4) */
+  /** the 16:9 edit under the project folder: the finished render in song time (derived/final-16x9.mp4),
+   *  or the short's own stretch render (shorts/<id>/wide.mp4) starting at song second `videoFrom` */
   video: string;
+  videoFrom?: number;
   /** its frame size */
   size: [number, number];
   /** song seconds: the edit's first frame in the short (first version: lights out); the short ends at `end` */
@@ -65,6 +87,8 @@ export type RotateShortProps = {
   /** white-on-transparent logo above the band (the edit's title logo) */
   logo?: string;
   text?: string;
+  /** 'cue': the edit's title card (its gfx.title), shown turned before the hit */
+  title?: TitleCfg;
 };
 
 const inOut = Easing.inOut(Easing.cubic);
@@ -198,7 +222,9 @@ const CenterCount: React.FC<{ song: number; count: number[]; turn: number; theme
   );
 };
 
-export const RotateShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, slug, video, size: [vw, vh], start, end, hook, theme, logo, text = 'ROTATE YOUR PHONE' }) => {
+export const RotateShort: React.FC<SceneProps<RotateShortProps>> = props => (props.hook.style === 'cue' ? <RotateCue {...props} /> : <CountShort {...props} />);
+
+const CountShort: React.FC<SceneProps<RotateShortProps>> = ({ manifest, slug, video, size: [vw, vh], start, end, hook, theme, logo, text = 'ROTATE YOUR PHONE' }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const ready = useFontsReady(theme.ready);

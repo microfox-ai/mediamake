@@ -27,6 +27,9 @@ export type Transition =
   | 'flash' // a short white flash
   | 'impact' // a camera hit: shake burst and punch-in
   | 'liquid' // the picture melts: a flowing displacement swells into the cut and settles out of it (fast cuts, a "high")
+  | 'ripple' // ripple zoom: the out-shot zooms into its subject as rings ripple out of it and the picture melts; the in-shot lands
+  // zoomed in, rippling, and eases back out (slow-motion passages: kingpinxdeadpool v12, "slow motion shots with ripple zoom in
+  // zoom outs like liquid morph")
   | 'flow'; // match on movement: the out-shot's subject keeps moving the way it moved, smeared, and the in-shot carries the move on from the same place and size
 
 export type Fx =
@@ -64,7 +67,7 @@ export type Cut = {
 };
 export type Block = { id: string; at: number; cuts: Cut[] };
 
-const TRANSITIONS = new Set<string>(['cut', 'zoom', 'whip', 'whipr', 'whipv', 'spin', 'match', 'carry', 'pass', 'flash', 'impact', 'liquid', 'flow']);
+const TRANSITIONS = new Set<string>(['cut', 'zoom', 'whip', 'whipr', 'whipv', 'spin', 'match', 'carry', 'pass', 'flash', 'impact', 'liquid', 'ripple', 'flow']);
 const parse = (mods: (Transition | Fx)[]) => ({
   t: (mods.find(m => typeof m === 'string' && TRANSITIONS.has(m)) as Transition) ?? 'cut',
   fx: mods.filter((m): m is Fx => typeof m !== 'string'),
@@ -117,18 +120,24 @@ export type TextStyle =
   | 'map' // a circuit map drawing itself, a car dot lapping it; `text` is the circuit's name
   | 'flank' // two words either side of the subject, behind it, wide-spaced ("ATOMIC RAP": first word left, the rest right)
   | 'comic' // a punch word in a comic-book caption box (tilted, bordered, comic lettering) in the top corner away from the subject: the picture stays clear
+  | 'pow' // a comic sound-effect word (Deadpool's own look): big slanted comic lettering, yellow or red with a thick black outline and a hard shadow, on a jagged starburst, popping in beside the subject on its free side, never over the face
   | 'decal' // words printed on the subject (a chest print), following its movement; `at` places it
   | 'bar' // a punch word in the letterbox bar above the picture (in the meter's place), streaking in with afterimages: bold, and the picture stays clear
   | 'plane' // a punch word set into the shot in 3D perspective (on a wall, the floor, a board, or hanging in its depth): `at`, `size`, `tilt`; it lives on the cut it is sung on
   | 'glass' // big frosted-glass letters in front: the picture behind them blurred and lit, a thin bright edge; no cutout, so nothing flickers across fast cuts
   | 'ko' // knockout: the window goes black but for the word's letters, which show the picture; at the cue's end the letters grow until the picture fills the frame (diving through a letter)
   | 'stack' // lines (text split on '/') stacked and each fitted to the width of `area`, each slamming in on its sung word (`ws`), in front
+  | 'lock' // a lockup, in front: a phrase of the line with its highlight word (marked '*') huge and the words before it small above it,
+  // the words after it small below it; the small words wait dimmed and light up as sung, the highlight slams in on its own word;
+  // placed where it covers least of the subject's head on every cut it spans; one at a time (it shares the knockouts' layer)
   | 'flow'; // rhythmic motion typography: the line's words small at the centre (the line font), each arriving as it is sung while the row glides left, older words fading (the bottom caption steps aside)
 
 export type TextCue = {
   /** the words; '*' = the lyric line's own text */
   text: string;
-  /** lyric line [query, nth], matched case-insensitively by content; the cue starts on its word `w` */
+  /** lyric line [query, nth], matched case-insensitively by content; the cue starts on its word `w`. 'lock': without `w`
+   *  the phrase is found in the line by its words (each word of `text` is one sung word, in order; a display word may
+   *  differ from the sung one, e.g. 'X' for "cross", so the first word must match) */
   line?: [string, number?];
   w?: number;
   /** or a fixed beat index */
@@ -156,7 +165,8 @@ export type TextCue = {
   /** 'decal': where the print sits when the cue starts (window fractions); it then follows the subject.
    *  'plane': the word's centre on its surface */
   at?: [number, number];
-  /** 'decal' / 'comic' / 'plane' / 'flank': the letters' height as a fraction of the window's */
+  /** 'decal' / 'comic' / 'plane' / 'flank' / big words: the letters' height as a fraction of the window's (big words:
+   *  at most, so a highlight word leaves the picture readable around it) */
   size?: number;
   /** 'plane': the surface's turn in degrees [rx, ry, rz] — rx > 0 lays the word back toward a floor
    *  (its top farther away), ry > 0 turns it like a wall receding to the left (< 0: to the right), rz
@@ -164,8 +174,12 @@ export type TextCue = {
   tilt?: [number, number, number];
   /** 'flank': letter spacing in em (default 1.1) */
   track?: number;
-  /** big words: set in the theme's script font (fonts.script) instead of the punch font (an elegant word) */
-  font?: 'script';
+  /** big words: set in another of the theme's fonts (a key of theme.fonts) instead of the punch font: 'script'
+   *  for an elegant word, or whatever face says the word (kingpinxdeadpool v9: "try out different typographies
+   *  … make user feel the word": a horror face for FEAR, a typewriter for STORY, VHS for REWIND) */
+  font?: string;
+  /** big words: in the font's italic */
+  italic?: boolean;
   /** big words: the glyph words "X", "✓" and "▶" drawn as pen strokes (CROSS ME → X ME, TASK ✓, PLAY ▶) */
   drawX?: boolean;
   /** big and plane words act out their meaning (quicksilverxkingpin rev-003: "that cross me was excellent,
@@ -180,9 +194,28 @@ export type TextCue = {
    *  and then calms (FEAR); 'drift' letters float apart, weightless (DRIFTING); 'slide' fades in sliding a
    *  little to the left and keeps gliding (DIVINE, rev-005: "just a little left slide is enough"); 'twist'
    *  letters spin into place one after another (LIGHT YEARS on a spin cut, rev-006: "a twist matching the
-   *  video"); 'liquid' melts and wavers more and more, as if getting high (HIGH, rev-006) */
+   *  video"); 'liquid' melts and wavers more and more, as if getting high (HIGH, rev-006); 'focus' comes in out of
+   *  focus and pulls sharp (VISION CLEAR); 'write' is written on left to right like a pen stroke (ELEGANT, CLASS);
+   *  'rise' floats up letter by letter and keeps rising (HIGHER, HEAVENS); 'type' is typed out letter by letter
+   *  behind a cursor (STORY); 'swing' hangs from its top edge and swings to rest like an ornament (ORNAMENT);
+   *  'rewind' appears last letter first under VHS jitter and scanlines (REWIND); 'shine' lands plain and a light
+   *  sweeps across it like polished metal (SILVER, GOLD). kingpinxdeadpool v11 ("one highlight a line, each special,
+   *  beat to the music"): 'glow' blooms into light (GLOW); 'descend' floats down from above (HEAVEN sent); 'warp' drops
+   *  out of light speed (SPEED); 'bounce' letters dropped one per quarter beat bounce to rest (GEMS); 'knock' two thumps
+   *  (KNOCKED, KNOCKED); 'jelly' squash and stretch (SWEET); 'flip' a split-flap board (YEARS); 'breathe' swells over two
+   *  beats (PEACE); 'smear' never quite sharp (BLUR); 'echo' its shadow trails out (SHADOW); 'climb' letters step up
+   *  like stairs (HIGHER); 'slam' slams down with a shockwave (ENOUGH); 'topple' tips over after a beat (PAWN); 'snap'
+   *  there in an instant, flash and burst (INSTINCT); 'spotlight' found by a spotlight (STAGE); 'burn' on fire (RAGE);
+   *  'spin' a full turn (SPIN); 'shatter' cracks on the next beat and falls in shards (GLASS); 'halo' a halo and rays
+   *  (DIVINE, HEAVENS); 'sway' leans on the beat (FINE); 'sparkle' stars glint on the half beats (STARS); 'thread' a
+   *  silver thread drawn through it (THREAD); 'surge' lightning on every beat (POWER); 'beat' an equalizer wave through
+   *  the letters on the half beats (RHYTHM). The beat-driven ones move on the song's beat grid. */
   act?: 'streak' | 'bite' | 'slice' | 'dodge' | 'hop' | 'drop' | 'stamp' | 'shake' | 'erase' | 'gauge' | 'explode' | 'dissolve' | 'twinkle'
-    | 'push' | 'glitch' | 'shiver' | 'drift' | 'slide' | 'twist' | 'liquid';
+    | 'push' | 'glitch' | 'shiver' | 'drift' | 'slide' | 'twist' | 'liquid' | 'focus' | 'write' | 'rise' | 'type' | 'swing' | 'rewind' | 'shine'
+    | 'glow' | 'descend' | 'warp' | 'bounce' | 'knock' | 'jelly' | 'flip' | 'breathe' | 'smear' | 'echo' | 'climb' | 'slam' | 'topple' | 'snap'
+    | 'spotlight' | 'burn' | 'spin' | 'shatter' | 'halo' | 'sway' | 'sparkle' | 'thread' | 'surge' | 'beat';
+  /** big words: punch on every kick while up (a highlight that moves with the music) */
+  pulse?: boolean;
   /** act 'push': the beat the first letter arrives on */
   pushAt?: number;
   /** 'stack': the sung word (its index in the line) each '/'-separated line lands on */
@@ -193,6 +226,10 @@ export type TextCue = {
   /** 'stack': 'multiply' prints the letters into a bright part of the picture (a sky): they show over light
    *  and vanish behind anything dark in front of it (curtains, a window's frame); no dimming, flash or glow */
   blend?: 'multiply';
+  /** 'pow': the lyric line itself, small, above or below the big word — it appears as the line starts and lights up
+   *  word by word as it is sung, the big word popping in on its own word (kingpinxdeadpool v6: "use BIG WORDS and not
+   *  lines … a small line above or below BIG words is fine") */
+  small?: 'above' | 'below';
   /** 'ko': seconds the dive through the letters takes at the cue's end (default 0.3) */
   koZoom?: number;
   /** 'ko': how it ends — 'dive' through a letter into the next cut (default), or 'fall': the letters drop
@@ -209,6 +246,10 @@ export type TextCue = {
   split?: number;
   /** big words: move with the subject (its cutout's centre) from where they landed, as if carried by it */
   follow?: boolean;
+  /** big words: set in the free part of the frame beside the subject (its box when the word lands on each cut): the
+   *  wider space left or right of it, else above or below it, sized to that space; when the subject fills the frame
+   *  the word goes in front of it instead (kingpinxdeadpool v10: centred words hid behind his head on close-ups) */
+  beside?: boolean;
   /** 'plane': each word lands like a knock on a door — a thump and a shudder — instead of sliding in */
   knock?: boolean;
   /** big words: letters [at, at + len) drawn as a periodic-table element box with atomic number `n`
@@ -239,8 +280,9 @@ export type Gfx = {
   tensionStyle?: 'bars' | 'smoke';
   /** the top bar's meter: 'revs' (default) slanted rev lights on the bass; 'ecg' a heart monitor trace
    *  beating on the kicks, which flatlines from beat `flatline` on; 'bolt' a lightning bolt with speed
-   *  lines either side that charge outward with the bass and crackle on the kicks (a speedster) */
-  meter?: { kind: 'revs' | 'ecg' | 'bolt'; flatline?: number };
+   *  lines either side that charge outward with the bass and crackle on the kicks (a speedster); 'deadpool' his
+   *  mask's emblem, its eyes narrowing on the kicks, between two rows of bullets that load up with the bass */
+  meter?: { kind: 'revs' | 'ecg' | 'bolt' | 'deadpool'; flatline?: number };
   /** [from, to, amount] beat ranges where the picture box pumps on every kick like a speaker cone
    *  (it punches out by `amount`, ~0.03–0.07, with a zoom blur, and settles); skipped while a
    *  transition plays, which is the beat's move already */
