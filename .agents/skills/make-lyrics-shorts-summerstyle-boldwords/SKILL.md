@@ -193,16 +193,17 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    MediaMake's transcriptions (the user, 2026-11-03: "should not use mediamake mcp instead use elevenlabs
    directly"). Separate the vocals and transcribe the vocal stem (make-waveform-lyric-video step 1). It is
    paid: get the price and ask first.
-   - **The ElevenLabs connector** (hosted, `https://api.elevenlabs.io/v1/mcp`, its tools named
-     `creative_*`): `creative_transcribe_audio` with `estimate_only: true` for the price, then for real. A
-     file on this computer goes in through `creative_upload_flow_reference` (modality `audio`: the user
-     picks the stem in the picker), wired in with `connect_from`; a direct https link through
-     `creative_attach_reference_file`. Every word comes back with its start and end seconds in
-     `transcripts[].words` (`creative_get_flow_run_status`), the full list at `words_download_url`.
-   - **Without it**, or when this client shows no picker: Scribe's API with the key the ElevenLabs MCP runs
-     with (`ELEVENLABS_API_KEY`) and `timestamps_granularity=word` (`character` adds letter times), as in
-     make-waveform-lyric-video step 1. Not the local MCP's `speech_to_text`: it returns the text only, no
-     times.
+   - **The ElevenLabs connector** (`mcp/elevenlabs-connector`, added from
+     https://claude.ai/directory/elevenlabs, its tools named `creative_*`): `creative_transcribe_audio`
+     with `estimate_only: true` for the price, then for real. A file on this computer goes in through
+     `creative_upload_flow_reference` (modality `audio`: the user picks the stem in the picker), wired in
+     with `connect_from`; a direct https link through `creative_attach_reference_file`. Every word comes
+     back with its start and end seconds in `transcripts[].words` (`creative_get_flow_run_status`), the
+     full list at `words_download_url`.
+   - **Without it**, or when this client shows no picker: Scribe's API with an ElevenLabs API key
+     (`ELEVENLABS_API_KEY`, e.g. the local ElevenLabs MCP's) and `timestamps_granularity=word`
+     (`character` adds letter times), as in make-waveform-lyric-video step 1. Not the local MCP's
+     `speech_to_text`: it returns the text only, no times.
    Check the transcription is of the same mix (same length). **A published song (a YouTube link, a
    playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and transcribe
    *that* (the user, 2026-10-27: "use elevenlabs for transcribing"): an upload is often offset or edited
@@ -223,7 +224,7 @@ MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | The song's timed words: the ElevenLabs connector's `creative_transcribe_audio`, or Scribe's API with the key this MCP runs with (its own `speech_to_text` gives text only, no times) | No timed words: the user has to bring a timed `lyrics.json` |
+| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio`) | Scribe's API with an ElevenLabs API key instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -804,8 +805,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   "heart" moved off Luffy's eyes to the top, "fleets" off the ships; the faces it can't clear (a close-up filling the
   frame, a hand-set place or crop) are warned with the shot to swap.
 - 2026-11-03 — "should not use mediamake mcp instead use elevenlabs directly ( via elevenlabs mcp )" → the timed words
-  come from ElevenLabs Scribe only, never MediaMake's transcriptions (`mcp/mediamake` is off the MCP table,
-  `mcp/elevenlabs` is on it as required). The hosted ElevenLabs connector's `creative_transcribe_audio` returns every
+  come from ElevenLabs Scribe only, never MediaMake's transcriptions (`mcp/mediamake` is off the MCP table).
+  Then "make https://claude.ai/directory/elevenlabs as the dependency" → `mcp/elevenlabs-connector` (required). The hosted ElevenLabs connector's `creative_transcribe_audio` returns every
   word's start and end; the open-source `elevenlabs-mcp` (0.12.2) `speech_to_text` keeps only the text, so without the
   connector Scribe's API is called with that MCP's key (word times, or letter times with `character`). Respelling now
   follows the user's written lyrics.

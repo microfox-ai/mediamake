@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { registry } from '@/lib/skills/registry';
 import { getStaticRecords, staticRecord, thirdPartyRecords } from './items';
 import { UNAVAILABLE, planInstall } from './plan';
-import { isAlwaysPublic, isInstallable, parseCatalogItemId } from './types';
+import { directoryUrlOf, isAlwaysPublic, isInstallable, parseCatalogItemId } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
 const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
@@ -97,17 +97,24 @@ describe('registry skills', () => {
     const source = mcp.install?.source;
     assert.equal(source?.type, 'mcp-server');
     if (source?.type === 'mcp-server') assert.match(source.remote!.url, /\/mcp$/);
-    // the shorts skill offers it: installable for those who can open it, unavailable to the rest
-    const plan = (canOpen: (id: string) => boolean) =>
-      planInstall('skill/make-lyrics-shorts-summerstyle-boldwords', {
-        getRecord: async id => staticRecord(id),
-        canOpen: record => canOpen(record.id),
-        downloadUrl: async key => key,
-      });
-    const team = await plan(() => true);
-    assert.ok(team.ok && team.choices.find(c => c.id === 'mcp/mediamake')?.available);
-    const others = await plan(id => id !== 'mcp/mediamake');
-    assert.ok(others.ok && others.choices.find(c => c.id === 'mcp/mediamake')?.available === false);
+    // not in Claude's connector directory: no link
+    assert.equal(directoryUrlOf(source), undefined);
+  });
+
+  it("offers the shorts skill ElevenLabs' connector from Claude's directory, not the MediaMake MCP", async () => {
+    const connector = staticRecord('mcp/elevenlabs-connector')!;
+    assert.equal(directoryUrlOf(connector.install?.source), 'https://claude.ai/directory/elevenlabs');
+    const plan = await planInstall('skill/make-lyrics-shorts-summerstyle-boldwords', {
+      getRecord: async id => staticRecord(id),
+      canOpen: () => true,
+      downloadUrl: async key => key,
+    });
+    assert.ok(plan.ok);
+    if (!plan.ok) return;
+    const choice = plan.choices.find(c => c.id === 'mcp/elevenlabs-connector');
+    assert.equal(choice?.need, 'required');
+    assert.ok(choice?.available);
+    assert.ok(!plan.choices.some(c => c.id === 'mcp/mediamake'));
   });
 
   it('every static record has a card id, and installable ones a source', () => {

@@ -149,7 +149,12 @@ const sourceSchema = z.discriminatedUnion('type', [
         .object({ command: z.string().min(1), args: z.array(z.string()).optional(), env: z.array(mcpSettingSchema).optional() })
         .optional(),
       remote: z
-        .object({ url: z.string().url(), headers: z.array(mcpSettingSchema).optional(), connectorUrl: z.string().url().optional() })
+        .object({
+          url: z.string().url(),
+          headers: z.array(mcpSettingSchema).optional(),
+          connectorUrl: z.string().url().optional(),
+          directoryUrl: z.string().url().optional(),
+        })
         .optional(),
       mcpb: z.object({ repo: repoSchema, asset: z.string().min(1), tag: z.string().optional() }).optional(),
       setup: z.array(z.string().min(1)).optional(),

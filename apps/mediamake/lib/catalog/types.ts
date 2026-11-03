@@ -274,6 +274,11 @@ export type InstallSource =
         headers?: McpSetting[];
         /** The URL to add as a custom connector in the Claude apps when it differs (signs in instead of a key). */
         connectorUrl?: string;
+        /**
+         * Its page in Claude's connector directory, e.g. `https://claude.ai/directory/elevenlabs`, where the
+         * Claude apps add it in one click. Only for one that is listed there: with none, no link is shown.
+         */
+        directoryUrl?: string;
       };
       /** An `.mcpb` bundle attached to a GitHub release, for Claude Desktop. */
       mcpb?: { repo: string; asset: string; tag?: string };
@@ -282,6 +287,11 @@ export type InstallSource =
       /** Its maker's setup guide, for anything the above doesn't cover. */
       guide?: string;
     };
+
+/** A hosted MCP's page in Claude's connector directory, when it is listed there. */
+export function directoryUrlOf(source: InstallSource | undefined): string | undefined {
+  return source?.type === 'mcp-server' ? source.remote?.directoryUrl : undefined;
+}
 
 export interface InstallSpec {
   method?: InstallMethod;
