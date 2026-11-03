@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { summarizeBrandKit, type BrandKit } from '@/lib/brand-kit';
+import { canWrite, getProjectRole } from '@/lib/editor/project-access';
 
 interface ProjectDocument {
   _id?: ObjectId;
@@ -220,8 +221,15 @@ export async function PUT(request: NextRequest) {
     try {
       const objectId = new ObjectId(id);
       const query: any = { _id: objectId };
+      // owners and editors may rename and retag it
       if (clientId) {
-        query.clientId = clientId;
+        const role = await getProjectRole(db, id, clientId);
+        if (!role) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
+        if (!canWrite(role)) {
+          return NextResponse.json({ error: 'You can only read this project: the owner or an editor can change it' }, { status: 403 });
+        }
       }
       const updateData: any = {
         displayName: displayName.trim(),

@@ -443,12 +443,20 @@ function registerHostedUploadBrandKit(server: McpServer, client: MediamakeClient
     }),
   );
 
+  registerFinishBrandKitUpload(server, client);
+}
+
+/**
+ * finish_brand_kit_upload: adds files already PUT to a kit's upload links to the kit, after checking
+ * they arrived. The hosted upload ends with it; ProjectSync registers it beside the local upload.
+ */
+export function registerFinishBrandKitUpload(server: McpServer, client: MediamakeClient) {
   server.registerTool(
     'finish_brand_kit_upload',
     {
       title: 'Finish brand kit upload',
       description:
-        'Second step of upload_brand_kit on the hosted connector: after PUTting the pending files, pass the `finish` arguments it returned. Checks each file arrived and adds the ones that did to the brand kit; missing ones are listed so you can retry them.',
+        'Second step of a brand kit upload whose files were PUT to upload links (the hosted connector\'s upload_brand_kit, or one that stopped part way): pass the `finish` arguments it returned. Checks each file arrived and adds the ones that did to the brand kit; missing ones are listed so you can retry them.',
       inputSchema: {
         projectId: z.string(),
         assets: z.array(hostedAsset).min(1).max(2000),

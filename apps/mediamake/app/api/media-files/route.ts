@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
     const fields = searchParams.get('fields');
     const parentMediaId = searchParams.get('parentMediaId');
 
-    const query: any = {};
+    // what ProjectSync moved to a project's trash stays out of the library
+    const query: any = { deletedAt: { $exists: false } };
     if (clientId) query.clientId = clientId;
     if (tag) query.tags = { $in: [tag] };
     if (tags)

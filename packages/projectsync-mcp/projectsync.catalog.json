@@ -1,0 +1,13 @@
+{
+  "kind": "mcp",
+  "slug": "projectsync",
+  "title": "ProjectSync",
+  "summary": "Keep your MediaMake projects in the cloud from Claude: brand kits, productions, release kits and media, shared under each project's permissions. Needs your MediaMake API key.",
+  "status": "beta",
+  "tags": ["mcp", "sync", "projects"],
+  "install": {
+    "method": "mcpb",
+    "entry": "projectsync.mcpb",
+    "notes": "Claude Desktop asks for your MediaMake API key (MediaMake → API keys) when you install it. Cloud projects need community access or above. Setup: https://github.com/microfox-ai/mediamake/tree/main/packages/projectsync-mcp#setup"
+  }
+}
