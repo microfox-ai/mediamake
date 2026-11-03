@@ -60,7 +60,7 @@ win.
    user's choice: ask at intake, never at the end.
 10. **Preview in the Remotion editor; render only when asked.** The most important rule: renders the
     user didn't ask for waste their time. Check your own work with stills; show the user the
-    project in the Remotion editor (local) when they want to look; render a clip or the full video
+    project in the Remotion editor (https://mediamake.microfox.app) when they want to look; render a clip or the full video
     only on request. Every earlier render is kept (`out/<slug>/v<N>/`).
 11. **Ask before paying.** Transcription is a paid ElevenLabs call (~$0.03 for 3 min); fal upscales
     and edits cost money: say the estimate and wait for a yes. Segmentation, analysis and renders
@@ -256,10 +256,12 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 ## 7. Preview (the main checkpoint)
 
 - **Your own checks**: stills (`npm run stills -- <slug> <s,…> --only`) at full resolution.
-- **The user's look**: the **Remotion editor**. Start mediamake locally (`preview_start` with
-  `mediamake` from `.claude/launch.json`) and open `http://localhost:3002/remotion-editor?project=<slug>`
-  in the browser pane; prefer local, the deployed editor lags behind engine changes. Say which
-  timeline mark to jump to. The user's moves save to `video/edits.json` and every render applies them.
+- **The user's look**: the **Remotion editor** at
+  `https://mediamake.microfox.app/remotion-editor?project=<slug>`. Every link the user gets uses this
+  base URL, never `localhost` (2026-11-02: "why are you creating wrong remotion urls, always use the
+  base url - mediamake.microfox.app"); a local server (`preview_start` with `mediamake`) is only for
+  your own checks. Say which timeline mark to jump to. The user's moves save to `video/edits.json` and
+  every render applies them.
   They can also swap the cover, overlays or logo clip in the editor's Assets panel, and turn the
   cover's and logo's knobs (picture, darken, kick, motion, tint; logo box and fades) in the
   inspector, and retime sung words on the word lane (saved as `words` / `lyricsOffset`). A scene you write for a project loads its files with the kit's `asset()`, never
@@ -495,6 +497,35 @@ Append dated entries: what the user said → the rule.
   caps); an upright, wide-tracked serif stack needed StackedLyrics `leading`, `heroStroke` ≈ 0 (keep the
   hairlines), `wordSpace` and a `glint`; the centre bottom over a bright prop (a medallion) swallowed
   unsung words, so side columns only.
+- 2026-11-02 · Goten Theme (AMZ, Gregorian-chant OST, four Midjourney pictures of one frame in power
+  stages): "there are multiple variants, use them all, may be like a glitch effect … and take
+  complete use of overlays folder" → when the user gives several pictures of the same frame, align
+  them (this skill's `tools/align_states.py <project> [reference]`: ORB + similarity warp) and use them as `cover.stages`
+  (src/mediamake/Stages.tsx): a plan of which stage holds when (hard cuts on the booms, carried by a
+  gate burst; or crossfades), glitch rules on the hits (bands of another stage shoved sideways,
+  channel split, inverted now and then; `show: 'next'` in the builds, `'others'` on the strong hits),
+  and a Subject with one cutout per stage (`stages`) that draws the same bands. "The overlays folder"
+  = the library in apps/lyrics_videos/overlays: catalogue it first (three frames a clip on a contact
+  sheet), copy the picks into input/overlays and lay them out by stage with `when` windows. Before
+  showing, scan every looping clip's brightness (signalstats at 10 fps): clips that flash white at
+  their start or end flash the frame on every loop (trim with `offset` / `clipSeconds`), and some
+  carry text (the colour-glitch clip has terminal text): look at the stretch that plays. Stacked
+  `screen` clips wash a saturated picture milky: crush their grounds (`filter: 'contrast(1.4)
+  brightness(0.88)'`) and measure SATAVG against the picture.
+- 2026-11-02 · Goten Theme, after L2 was picked: "dont use the rainbow colored artwork anywhere,
+  only use it in the glitch effects, and add more old tv style visual fx, like blink out" → a stage
+  the user doesn't want held can stay in the glitches only (leave it out of `stages.plan`, name it in
+  the glitch rules' `show`, play its clips only on the hits). Engine `OldTV` (a layer over everything:
+  scanlines, hum bar, flicker, tube corners, tracking noise, snow on hits, `blinks` where the picture
+  squeezes to a bright line and opens on the change, `off` at the end). Then "add some camera slow
+  handheld shaking effect giving realistic feel, also use camera blur" → cover `handheld` (slow
+  layered noise drift ≤ 10 px with its own motion blur) and a few `defocus` moments (rack in at the
+  start, drift out before a boom and snap sharp on it, soft into a lull, melt at the end).
+- 2026-11-02 · "why are you creating wrong remotion urls, always use the base url -
+  mediamake.microfox.app - note it down in skills or wherever" → every link given to the user (the
+  Remotion editor, Revisions, File Revisions) is `https://mediamake.microfox.app/…`, never
+  `localhost:3002` (removed from this skill, revise-video and revise-image); a local dev server is
+  only for your own checks.
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
