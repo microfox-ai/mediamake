@@ -8,21 +8,24 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
+import { VIDEO_KINDS, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
+import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
 import { ArchivedPill, GroupLabel, Panel, TierPill } from './parts';
 import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, tierOf, type ItemDetail } from './model';
+import { CoursePanel, VideoPanel } from './video-panel';
 
 /**
  * One catalog item's release page (/core/releases/<kind>/<slug>): what it is,
  * who can open it, where it lives, what installing it does, what it needs and
- * what uses it, and its history. Its one action is Archive / Unarchive; moving
- * it along stays on the board, in the access sheet, in `npm run catalog` and
- * in the MediaMake MCP's catalog tools.
+ * what uses it, its video, and its history. Its actions are Archive /
+ * Unarchive and editing its video (a skill's intro, a tutorial, a course's
+ * lessons); moving it along stays on the board, in the access sheet, in
+ * `npm run catalog` and in the MediaMake MCP's catalog tools.
  */
 
-const KIND_LABEL: Record<CatalogKind, string> = { mcp: 'MCP', skill: 'Skill', app: 'App', tutorial: 'Tutorial' };
+const KIND_LABEL: Record<CatalogKind, string> = { mcp: 'MCP', skill: 'Skill', app: 'App', tutorial: 'Tutorial', course: 'Course' };
 const STATUS_LABEL: Record<CatalogItemRecord['status'], string> = { live: 'Live', beta: 'Beta', 'coming-soon': 'Coming soon' };
 
 const DEFINED_IN: Record<NonNullable<ItemDetail['definedIn']>, string> = {
@@ -56,6 +59,8 @@ function describeSource(source: InstallSource): string {
 
 /** How an item is installed, in a few words. */
 function installsAs(item: CatalogItemRecord): string {
+  if (item.kind === 'course') return 'Nothing to install: a course of tutorials';
+  if (item.kind === 'tutorial') return 'Nothing to install: a YouTube video';
   const install = item.install;
   if (install?.source?.type === 'github-skill' && !item.versions.length) return `Skill folder, from ${install.source.repo}`;
   if (install?.source && !item.versions.length) return describeSource(install.source);
@@ -165,6 +170,9 @@ export function ReleaseItem({ id }: { id: string }) {
 
   const now = Date.now();
   const tier = tierOf(detail.item, now);
+  const reload = () => setReloads(n => n + 1);
+  // a tutorial or course is its video: nothing to install, nothing it connects to
+  const isVideo = VIDEO_KINDS.includes(detail.item.kind);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
@@ -172,12 +180,17 @@ export function ReleaseItem({ id }: { id: string }) {
         <ArrowLeft className="size-4" /> Releases
       </Link>
 
-      <Header detail={detail} tier={tier} onArchived={() => setReloads(n => n + 1)} />
+      <Header detail={detail} tier={tier} onArchived={reload} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <InstallPanel detail={detail} />
-          <ConnectionsPanel detail={detail} />
+          {detail.item.kind === 'course' ? <CoursePanel detail={detail} onSaved={reload} /> : <VideoPanel detail={detail} onSaved={reload} />}
+          {!isVideo && (
+            <>
+              <InstallPanel detail={detail} />
+              <ConnectionsPanel detail={detail} />
+            </>
+          )}
           <HistoryPanel item={detail.item} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
@@ -193,14 +206,21 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
   const { item, installPrompt, code, archive } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
+  const cover = item.cover ?? item.video?.thumbnail;
   return (
     // the actions sit beside the title only when there is room for both
     <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
       <div className="flex min-w-0 items-start gap-4">
         <span className={cn('flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl', TIER_META[tier].soft)}>
-          {item.cover ? (
+          {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.cover} alt="" onError={e => (e.currentTarget.style.display = 'none')} className="size-full object-cover" />
+            <img
+              src={cover}
+              alt=""
+              onLoad={onYouTubeThumbnailLoad}
+              onError={e => (e.currentTarget.style.display = 'none')}
+              className="size-full object-cover"
+            />
           ) : (
             <Icon className="size-6 opacity-80" />
           )}
@@ -229,7 +249,13 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
       <div className="flex flex-wrap gap-2 xl:shrink-0">
         {installPrompt && <CopyPrompt prompt={installPrompt} />}
         <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
-        {installPrompt || !item.href ? (
+        {VIDEO_KINDS.includes(item.kind) ? (
+          <Button variant="outline" size="sm" asChild>
+            <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
+              {item.kind === 'course' ? 'Course page' : 'Its page'} <ExternalLink />
+            </a>
+          </Button>
+        ) : installPrompt || !item.href ? (
           <Button variant="outline" size="sm" asChild>
             <a href={`/access?item=${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer">
               Install page <ExternalLink />
@@ -621,14 +647,37 @@ function WherePanel({ detail }: { detail: ItemDetail }) {
         `v${latest.version} · ${formatBytes(latest.bytes)} · ${formatDate(latest.publishedAt)}`
       ) : (
         <span className="text-muted-foreground">
-          {item.install?.source ? 'None: it installs from its source' : item.href ? 'None: it is a page of the app' : 'None published'}
+          {item.install?.source
+            ? 'None: it installs from its source'
+            : item.href
+              ? 'None: it is a page of the app'
+              : VIDEO_KINDS.includes(item.kind)
+                ? 'None: it is a video'
+                : 'None published'}
         </span>
       ),
     ],
     ...(latest ? ([['Stored at', <code key="key" className="break-all text-xs">{latest.storageKey}</code>]] as [string, React.ReactNode][]) : []),
     ['Installs as', installsAs(item)],
     ['Defined in', definedIn ? DEFINED_IN[definedIn] : '—'],
-    detail.installPrompt || !item.href
+    ...(item.video?.youtubeId
+      ? ([
+          [
+            'Video',
+            <a key="video" href={youtubeUrl(item.video.youtubeId)} target="_blank" rel="noreferrer" className="break-all hover:underline">
+              {youtubeUrl(item.video.youtubeId).replace('https://www.', '')}
+            </a>,
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
+    VIDEO_KINDS.includes(item.kind)
+      ? [
+          'Plays at',
+          <a key="page" href={watchPath(item.id)} target="_blank" rel="noreferrer" className="break-all hover:underline">
+            {watchPath(item.id)}
+          </a>,
+        ]
+      : detail.installPrompt || !item.href
       ? [
           'Install page',
           <a key="page" href={`/access?item=${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer" className="break-all hover:underline">

@@ -41,6 +41,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   jpeg: 'image/jpeg',
   webp: 'image/webp',
   gif: 'image/gif',
+  avif: 'image/avif',
   svg: 'image/svg+xml',
   json: 'application/json',
   pdf: 'application/pdf',

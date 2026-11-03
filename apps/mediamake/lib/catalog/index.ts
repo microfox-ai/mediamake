@@ -1,7 +1,8 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
 import { installPromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { catalogArchiveDB, catalogItemsDB } from './store';
+import { catalogArchiveDB, catalogItemsDB, catalogVideosDB } from './store';
+import { withVideos } from './video';
 import {
   effectiveVisibility,
   isInstallable,
@@ -11,6 +12,7 @@ import {
   type CatalogItem,
   type CatalogItemRecord,
   type CatalogKind,
+  type CatalogVideo,
   type ItemUse,
 } from './types';
 
@@ -43,7 +45,8 @@ export function toEntry(entitlements: Entitlements, stored: CatalogItem): Catalo
  * Catalog as seen by one viewer, newest first. Only items the viewer can
  * open are returned: locked items are hidden entirely, so their names never
  * reach people without access. Installable items carry an `installPrompt`,
- * items that work with others (a skill's MCPs) their `uses`, and archived
+ * items that work with others (a skill's MCPs) their `uses`, items with a
+ * video (a skill's intro, a tutorial, a course) their `video`, and archived
  * ones `archivedAt` (the homepage leaves those out).
  *
  * Merges the items defined in ./items (public-safe cards, third-party.json
@@ -61,14 +64,15 @@ export async function listCatalog(
 
   let stored: CatalogItemRecord[] = [];
   let archived: ArchiveMark[] = [];
+  let videos: CatalogVideo[] = [];
   try {
-    [stored, archived] = await Promise.all([catalogItemsDB.list({ kind }), catalogArchiveDB.list()]);
+    [stored, archived, videos] = await Promise.all([catalogItemsDB.list({ kind }), catalogArchiveDB.list(), catalogVideosDB.list()]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[] }>();
-  for (const record of withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived)) {
+  for (const record of withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses });
   }
 

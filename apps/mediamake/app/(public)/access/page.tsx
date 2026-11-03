@@ -1,18 +1,22 @@
 import Link from 'next/link';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
-import { installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type ItemUse } from '@/lib/catalog';
+import { VIDEO_KINDS, installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type CatalogVideo, type ItemUse } from '@/lib/catalog';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
-import { accessRequestsDB, catalogArchiveDB } from '@/lib/catalog/store';
+import { accessRequestsDB, catalogArchiveDB, catalogVideosDB } from '@/lib/catalog/store';
+import { watchPath } from '@/lib/catalog/video';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
+import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
 import { AccessActions, RedeemInvite } from './access-actions';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * /access?item=skill/lyric-video  — install or download one item you have access to.
+ * /access?item=skill/lyric-video  — install or download one item you have access to,
+ *                                   and watch its video (a skill's intro, a tutorial).
  * /access?code=XXXX               — redeem an invite someone shared with you.
  */
 export default async function AccessPage({
@@ -32,9 +36,14 @@ export default async function AccessPage({
   let uses: (ItemUse & { title?: string; href?: string })[] = [];
   let archived = false;
   let pending = false;
+  let video: CatalogVideo | null = null;
   if (itemId) {
     // the database's record, else one the repo defines (a registry skill, a third-party MCP)
-    const [record, mark] = await Promise.all([getCatalogRecord(itemId), catalogArchiveDB.get(itemId).catch(() => null)]);
+    const [record, mark, found] = await Promise.all([
+      getCatalogRecord(itemId),
+      catalogArchiveDB.get(itemId).catch(() => null),
+      catalogVideosDB.get(itemId).catch(() => null),
+    ]);
     archived = !!mark;
     if (record) {
       const entitlements = await getEntitlements(viewer);
@@ -42,6 +51,7 @@ export default async function AccessPage({
       // Locked items are hidden: answer as if they don't exist.
       if (entry.access !== 'locked') {
         item = entry;
+        video = found;
         releases = releasesOf(record.versions, 20);
         installable = isInstallable(record);
         hasPackage = record.versions.length > 0;
@@ -107,17 +117,21 @@ export default async function AccessPage({
               {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
             </CardHeader>
             <CardContent className="space-y-6">
+              {video && <ItemVideoSection itemId={item.id} kind={item.kind} video={video} />}
               {uses.length > 0 && <UsesList uses={uses} />}
-              <AccessActions
-                itemId={item.id}
-                access={item.access}
-                hasPackage={hasPackage}
-                signedIn={!!viewer.clientId}
-                pending={pending}
-                installPrompt={installable ? installPromptFor(item.id) : undefined}
-                worksWith={uses.length > 0}
-                loginHref={loginHref}
-              />
+              {/* a tutorial or course is its video: nothing to install */}
+              {!(VIDEO_KINDS.includes(item.kind) && !installable) && (
+                <AccessActions
+                  itemId={item.id}
+                  access={item.access}
+                  hasPackage={hasPackage}
+                  signedIn={!!viewer.clientId}
+                  pending={pending}
+                  installPrompt={installable ? installPromptFor(item.id) : undefined}
+                  worksWith={uses.length > 0}
+                  loginHref={loginHref}
+                />
+              )}
             </CardContent>
           </Card>
         )}
@@ -160,5 +174,38 @@ export default async function AccessPage({
         </Card>
       </div>
     </main>
+  );
+}
+
+/**
+ * The item's video on its page: a skill's intro or a tutorial plays here; a
+ * course plays its lessons in order on its own page.
+ */
+function ItemVideoSection({ itemId, kind, video }: { itemId: string; kind: CatalogEntry['kind']; video: CatalogVideo }) {
+  if (kind === 'course') {
+    const lessons = video.lessons?.length ?? 0;
+    return (
+      <section className="flex flex-col gap-3">
+        <a href={watchPath(itemId)} className="block overflow-hidden rounded-xl border">
+          <VideoThumb id={itemId} title={video.title} src={video.thumbnail} />
+        </a>
+        <Button asChild className="w-fit">
+          <a href={watchPath(itemId)}>
+            Watch the course · {lessons} lesson{lessons === 1 ? '' : 's'}
+          </a>
+        </Button>
+      </section>
+    );
+  }
+  if (!video.youtubeId) return null;
+  // an intro has words of its own; a tutorial's title and first paragraph are its card's, shown above
+  const intro = kind !== 'tutorial';
+  const description = intro ? video.description : video.description.trim().split(/\n\s*\n/).slice(1).join('\n\n');
+  return (
+    <section className="flex flex-col gap-2">
+      <YouTubeEmbed youtubeId={video.youtubeId} title={video.title} />
+      {intro && <h3 className="pt-1 text-sm font-semibold">{video.title}</h3>}
+      {description && <p className="whitespace-pre-line text-sm text-muted-foreground">{description}</p>}
+    </section>
   );
 }

@@ -12,10 +12,13 @@ import {
   accessRequestsDB,
   catalogArchiveDB,
   catalogItemsDB,
+  catalogVideosDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
 import { cardRecords, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
+import { parseYouTubeId, summaryFrom, withVideos } from '@/lib/catalog/video';
+import { createPresignedUpload } from '@/lib/spaces-upload';
 import {
   CATALOG_KINDS,
   CATALOG_STATUSES,
@@ -23,6 +26,7 @@ import {
   NETWORK_GROUP,
   PRIVATE_GROUP,
   USE_NEEDS,
+  VIDEO_KINDS,
   VISIBILITIES,
   catalogItemId,
   parseCatalogItemId,
@@ -30,6 +34,7 @@ import {
   withArchive,
   type CatalogKind,
   type CatalogStatus,
+  type CatalogVideo,
   type GrantSubject,
   type UseNeed,
   type Visibility,
@@ -61,7 +66,8 @@ async function listPeople() {
  * Everything an admin needs to manage releases: items (with versions),
  * the repo's skills from skills.json, the third-party items from
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
- * aren't stored as items (archived ones carry `archivedAt`), live grants,
+ * aren't stored as items (archived ones carry `archivedAt`, ones with a
+ * video `video`), live grants,
  * groups, invites, pending access requests, the people who hold API keys,
  * and whether public releases are open site-wide.
  */
@@ -72,7 +78,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, invites, requests, people, archived] = await Promise.all([
+  const [items, grants, groups, invites, requests, people, archived, videos] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
@@ -80,12 +86,14 @@ export async function GET(req: NextRequest) {
     accessRequestsDB.list('pending'),
     listPeople(),
     catalogArchiveDB.list(),
+    catalogVideosDB.list(),
   ]);
+  const marked = <T extends { id: string }>(records: T[]) => withVideos(withArchive(records, archived), videos);
   return NextResponse.json({
-    items: withArchive(items.map(withRegistryUses), archived),
-    skills: withArchive(skillRecords(items), archived),
-    thirdParty: withArchive(thirdPartyRecords(items), archived),
-    cards: withArchive(cardRecords(items), archived),
+    items: marked(items.map(withRegistryUses)),
+    skills: marked(skillRecords(items)),
+    thirdParty: marked(thirdPartyRecords(items)),
+    cards: marked(cardRecords(items)),
     grants,
     groups,
     invites,
@@ -182,6 +190,52 @@ const itemSchema = z
     path: ['install', 'source'],
   });
 
+/**
+ * A video on an item (see CatalogVideo): its YouTube link (a course: its
+ * lessons instead), its words and, optionally, an uploaded thumbnail.
+ */
+const videoSchema = z.object({
+  url: z.string().trim().max(500).optional(),
+  title: z.string().trim().min(1, 'title is required').max(120),
+  description: z.string().trim().max(5000).default(''),
+  thumbnail: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine(value => !value || /^https:\/\/\S+$/.test(value), 'thumbnail must be an https link')
+    .optional(),
+  lessons: z.array(z.string()).max(100).optional(),
+});
+
+/**
+ * Checks a video for an item of `kind`: a YouTube link that names one video,
+ * or for a course, tutorials in the catalog (each once, in order).
+ */
+async function checkVideo(
+  kind: CatalogKind,
+  input: unknown,
+): Promise<{ video: Omit<CatalogVideo, 'id' | 'updatedAt' | 'updatedBy'> } | { error: string }> {
+  const parsed = videoSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues.map(i => `video.${i.path.join('.')}: ${i.message}`).join('; ') };
+  const { url, title, description, lessons } = parsed.data;
+  const thumbnail = parsed.data.thumbnail || undefined;
+  if (kind === 'course') {
+    if (url) return { error: 'A course plays its lessons: give lessons (tutorial ids), not a url' };
+    const ids = [...new Set(lessons ?? [])];
+    const missing: string[] = [];
+    for (const id of ids) {
+      if (parseCatalogItemId(id)?.kind !== 'tutorial' || !(staticRecord(id) ?? (await catalogItemsDB.get(id)))) missing.push(id);
+    }
+    if (missing.length) return { error: `Not tutorials in the catalog: ${missing.join(', ')}` };
+    return { video: { title, description, thumbnail, lessons: ids } };
+  }
+  if (lessons?.length) return { error: 'Only a course has lessons' };
+  if (!url) return { error: 'video.url is required: the YouTube link of the video' };
+  const youtubeId = parseYouTubeId(url);
+  if (!youtubeId) return { error: `Not a link to one YouTube video: ${url}` };
+  return { video: { youtubeId, title, description, thumbnail } };
+}
+
 const versionSchema = z.string().regex(/^[0-9A-Za-z.+-]{1,40}$/, 'version must look like 1.2.0');
 
 function subjectFrom(body: { clientId?: string; groupId?: string }): GrantSubject | null {
@@ -209,6 +263,15 @@ function daysFromNow(days?: number) {
  *  { type: 'set_archived',    itemIds: string[] (or itemId), archived: boolean, note? }
  *                             (archived items keep their access and install by link, but leave the homepage;
  *                             any item, a skill from the repo too)
+ *  { type: 'set_video',       itemId, video: { url, title, description?, thumbnail? } | null }
+ *                             (any item's video: a skill's intro, a tutorial; a course gives `lessons`,
+ *                             tutorial ids in order, instead of a url; null removes it. A tutorial's or
+ *                             course's card takes the video's title and description)
+ *  { type: 'create_video_item', kind: 'tutorial' | 'course', slug, video, visibility? }
+ *                             (a new tutorial or course with its video; it starts in development)
+ *  { type: 'create_thumbnail_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
+ *                             (a signed PUT for a thumbnail image, public once uploaded; send
+ *                             Content-Type and x-amz-acl: public-read with it)
  *  { type: 'set_tier',        clientId, tier: 'public' | 'community' | 'private' }
  *                             (moves a person between the private and network groups)
  *  { type: 'remove_item',     itemId }
@@ -310,8 +373,63 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ archived, itemIds: ids });
     }
 
+    case 'set_video': {
+      const itemId = typeof body.itemId === 'string' ? body.itemId : '';
+      const stored = itemId ? await catalogItemsDB.get(itemId) : null;
+      const item = stored ?? (itemId ? staticRecord(itemId) : null);
+      if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
+      if (body.video === null) {
+        await catalogVideosDB.remove(item.id);
+        return NextResponse.json({ video: null });
+      }
+      const checked = await checkVideo(item.kind, body.video);
+      if ('error' in checked) return bad(checked.error);
+      const video = await catalogVideosDB.set({ id: item.id, ...checked.video }, adminId);
+      // a tutorial or course is its video: its card says what the video says
+      if (stored && VIDEO_KINDS.includes(item.kind)) {
+        await catalogItemsDB.setWords(item.id, { title: video.title, summary: summaryFrom(video.description) });
+      }
+      return NextResponse.json({ video });
+    }
+
+    case 'create_video_item': {
+      const kind = body.kind as CatalogKind;
+      if (!VIDEO_KINDS.includes(kind)) return bad(`kind must be one of ${VIDEO_KINDS.join(', ')}`);
+      if (typeof body.slug !== 'string' || !isValidSlug(body.slug)) return bad('slug must be lowercase letters, digits and dashes');
+      if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) return bad(`visibility must be one of ${VISIBILITIES.join(', ')}`);
+      const id = catalogItemId(kind, body.slug);
+      if (await catalogItemsDB.get(id)) return bad(`${id} already exists: edit it on its page`);
+      const checked = await checkVideo(kind, body.video);
+      if ('error' in checked) return bad(checked.error);
+      try {
+        const item = await catalogItemsDB.upsert(
+          { id, kind, slug: body.slug, title: checked.video.title, summary: summaryFrom(checked.video.description), visibility: body.visibility },
+          adminId,
+        );
+        const video = await catalogVideosDB.set({ id, ...checked.video }, adminId);
+        return NextResponse.json({ item, video });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
+    }
+
+    case 'create_thumbnail_upload': {
+      const contentType = typeof body.contentType === 'string' ? body.contentType : '';
+      if (!/^image\/(png|jpeg|webp|gif|avif)$/.test(contentType)) return bad('contentType must be a PNG, JPEG, WebP, GIF or AVIF image');
+      if (typeof body.itemId !== 'string' || !parseCatalogItemId(body.itemId)) return bad('itemId must be a catalog id such as skill/pack-brand-kit');
+      const { uploadUrl, publicUrl } = await createPresignedUpload({
+        clientId: adminId,
+        filename: typeof body.filename === 'string' && body.filename ? body.filename : 'thumbnail',
+        contentType,
+        subPath: `catalog-thumbnails/${body.itemId}`,
+      });
+      return NextResponse.json({ uploadUrl, publicUrl });
+    }
+
     case 'remove_item': {
       await catalogItemsDB.remove(body.itemId);
+      // its video goes with it, unless the repo still defines the item (a skill keeps its intro)
+      if (!staticRecord(body.itemId)) await catalogVideosDB.remove(body.itemId);
       return NextResponse.json({ success: true });
     }
 
