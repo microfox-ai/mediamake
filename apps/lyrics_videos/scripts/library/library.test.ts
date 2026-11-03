@@ -303,6 +303,8 @@ describe('library', () => {
     const again = put('v5.mp4', path.join(downloads, '224162_small (1).mp4'));
     put('v5.mp4', path.join(projects, 'p9', 'input', 'overlays', 'fire-burst.mp4'));
     const inBoard = put('v6.mp4', path.join(downloads, 'AMZ', 'nakama-inspo', 'board', 'clip.mp4'));
+    const short = put(fresh('v10.mp4', 'red'), path.join(downloads, 'AMZ', '07-higuruma-sentence-strike-s01.mp4'));
+    const exported = put(fresh('v11.mp4', 'green'), path.join(downloads, 'AMZ', 'levi.mov'));
     await scan(lib, ['downloads', 'projects']);
     const { plan, inFolders } = planSweep(lib);
     const by = (file: string) => plan.moves.find(m => m.from === file);
@@ -314,6 +316,7 @@ describe('library', () => {
     assert.equal(by(again)?.action, 'set-aside', 'the " (1)" copy is set aside, the first one goes in');
     assert.ok(!by(inBoard) && inFolders >= 1, 'files in folders stay where they are');
     assert.ok(!by(render) && !by(unknown), "renders of yours, and loose files it can't tell, stay where they are");
+    assert.ok(!by(short) && !by(exported), "a channel folder's shorts and exports stay where they are");
     assert.equal(by(keepMe)?.action, 'move');
     const review = path.join(lib.root, '_review', `sweep-${plan.id}`);
     const tiles = (JSON.parse(fs.readFileSync(path.join(review, 'index.json'), 'utf8')) as { groups: { items: { id: string; media?: string }[] }[] }).groups.flatMap(g => g.items);

@@ -146,14 +146,19 @@ one if it doesn't.
   join the two with ffmpeg's concat demuxer as a stream copy:
 
 ```bash
-ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -c:a aac -ar 48000 -ac 2 outro-matched.mp4
+ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -video_track_timescale 90000 -c:a aac -ar 48000 -ac 2 outro-matched.mp4
 ```
 
 ```bash
 printf "file '%s'\nfile '%s'\n" "$PWD/video.mp4" "$PWD/outro-matched.mp4" > join.txt && ffmpeg -f concat -safe 0 -i join.txt -c copy final.mp4
 ```
 
-  Take the size, fps and audio settings from `ffprobe` of the video. If the stream copy refuses
+  Take the size, fps, pixel format (Remotion writes `yuvj420p`), CRF and audio settings from `ffprobe` of the video,
+  and its video **time base**: Remotion renders use 1/90000 and ffmpeg's x264 defaults to 1/15360, and with
+  different time bases the stream copy squeezes the outro's frames into the video's last instant (the file's
+  video stream then ends where the video did). `-video_track_timescale` sets it; after the join, check that the
+  video stream's duration is the video's plus the outro's. A silent outro ("without sound"): map
+  `-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000` as its audio with `-shortest`. If the stream copy refuses
   because the codec settings differ, re-encode only the outro again with the video's profile, and
   still never the video. Check the join point plays cleanly (a still on either side, and the audio
   level). The result goes in the pack as the video.
@@ -167,7 +172,9 @@ same pass.
 
 Once the user approves the pack, deliver it to the channel's folder (the user copied packs there by
 hand before): `npm run media -w lyrics_videos -- deliver <slug> --what=youtube,video` (a dry run),
-then `--yes`. It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
+then `--yes`. When the video in the pack is not `out/<slug>/<slug>.mp4` (an end screen joined after the render), deliver
+`--what=youtube --from=out/youtube/<slug>` alone: with two kinds `--from` is ignored, and `video` would replace the
+delivered final with the render that has no end screen (read every `replace` line of the dry run). It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
 and an older delivery moves to `previous/v<N>/`. Give the `open -R` line. When the user says it's
 published: `media deliver <slug> --uploaded`.
 
@@ -263,3 +270,12 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.
 - 2026-10-27 · skill · "when creating brands or creating youtube pack, run parallel threads for faster execution" → the Parallel threads section: thumbnails in their own session, the description here at the same time, the title after the thumbnail's words, the outro review and ffmpeg join and the video check in subagents; this session owns and assembles the pack.
 - 2026-11-02 · skill · "create a tool in the extension that will enable to switch accounts ( channels ) auto fill the entire vidoe upload deatils from an info.json, and also update the pack-yotube-kit sill in medimake repo to create this info.json" → step 5: every pack carries info.json for Browse Hack's youtube_fill_uploads (it switches the channel, fills Studio's form and stops before Save); the channel's handle and standing upload answers live in brands/<brand>/youtube/channel.json.
+- 2026-11-02 · kingpinxdeadpool (ATOMIC RAP) · "add endscreen without sound though" + "also need high quality render" → the
+  master rendered at CRF 10 (x264 slow), the end-marquee outro matched silent; the first join kept 7,703 frames but
+  ended the video stream at the edit's own length, because the outro's time base (1/15360) differed from Remotion's
+  (1/90000) → the end-screen step now sets `-video_track_timescale` and checks the joined duration.
+- 2026-11-02 · Deadpool x Kingpin (ATOMIC RAP) · `youtube_list_channels` and `youtube_fill_uploads` failed with "Couldn't find Switch account in YouTube Studio's account menu": the extension worked in a background Studio tab, where Chrome doesn't draw the account menu (the profile has 32 channels). The user: "it has to switch as there is no guarantee always" → never skip the switch; the extension now brings the Studio tab forward before reading or using the menu (extensions repo, branch fix/youtube-switch-in-front). The handle and the standing answers live in the brand's `channel.json` (ATOMIC RAP: @atomic-rap, profile subhakartikkireddy@gmail.com, not AI-made). The filler couldn't set the schedule's date and time or the thumbnail on that run: tell the user to set them in the tab. Three thumbnails picked → `titles.txt` and a title-per-thumbnail table in UPLOAD.md; info.json names the first (C1) and UPLOAD.md says to add the other two under A/B testing.
+- 2026-11-02 · Deadpool x Kingpin (ATOMIC RAP) · "Yes, deliver" → the dry run of `--what=youtube,video` would have replaced the
+  delivered final (with its silent end screen) by out/kingpinxdeadpool/kingpinxdeadpool.mp4, the master without it, because
+  `--from` only applies to a single kind → deliver `--what=youtube --from=<pack>` when the pack's video is a joined final,
+  and read every `replace` line of a dry run before `--yes`.
