@@ -26,6 +26,7 @@ import {
   isDirectChild,
   listFileNames,
   listFolder,
+  findLinkedFolder,
   mapCandidates,
   scanSource,
   pickFolder,
@@ -232,6 +233,7 @@ interface RevisionsState {
   openFolder: (
     handle: FileSystemDirectoryHandle,
     preferredVideo?: string,
+    from?: { sourceId: string; path: string },
   ) => Promise<void>;
   resumeRecent: (entry: RecentEntry) => Promise<void>;
   forgetRecent: (id: string) => Promise<void>;
@@ -514,14 +516,16 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
 
   /** A folder from the ready sources matching a deep link's folder (and video). */
   const findInSources = (folderName: string, videoName?: string) => {
+    const leaf = folderName.split('/').filter(Boolean).pop() ?? folderName;
     const matches = get()
       .sources.filter(source => source.status === 'ready')
       .flatMap(source => source.folders.map(folder => ({ source, folder })))
       .filter(({ source, folder }) =>
         folder.path
           ? folder.path === folderName ||
-            folder.path.split('/').pop() === folderName
-          : source.name === folderName,
+            folder.path.endsWith(`/${folderName}`) ||
+            folder.path.split('/').pop() === leaf
+          : source.name === leaf,
       );
     return (
       matches.find(
@@ -531,7 +535,30 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
     );
   };
 
-  const openFromSources = async (folderName: string, videoName?: string) => {
+  /**
+   * A deep link's folder by its path under a linked source (out/, or a folder above or inside
+   * it), opened without waiting for a scan. True when it opened.
+   */
+  const openLinked = async (folderName: string, videoName?: string) => {
+    for (const source of get().sources) {
+      if ((await queryReadWrite(source.handle)) !== 'granted') continue;
+      const hit = await findLinkedFolder(
+        source.handle,
+        folderName,
+        videoName,
+      ).catch(() => null);
+      if (!hit) continue;
+      await get().openFolder(hit.handle, videoName, {
+        sourceId: source.id,
+        path: hit.path,
+      });
+      if (get().folder?.handle === hit.handle) return true;
+    }
+    return false;
+  };
+
+  /** The same from the scanned folders, which also match a link that names only the last folder. */
+  const openScanned = async (folderName: string, videoName?: string) => {
     const hit = findInSources(folderName, videoName);
     if (!hit) return false;
     await get().openSourceVideo(
@@ -540,6 +567,23 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       videoName ?? hit.folder.videos[0]?.name ?? '',
     );
     return true;
+  };
+
+  /** A link waiting on a source (just linked or reconnected): its path first, then the scan. */
+  const openWantedFromSource = async (id: string) => {
+    const wanted = get().wanted;
+    const opened =
+      !!wanted &&
+      !get().folder &&
+      (await openLinked(wanted.folder, wanted.video));
+    await get().rescanSource(id);
+    if (opened || !wanted || get().folder) return;
+    if (await openScanned(wanted.folder, wanted.video)) return;
+    const source = get().sources.find(x => x.id === id);
+    if (source?.status === 'ready')
+      toast.warning(`${wanted.folder} is not in ${source.name}`, {
+        duration: 5000,
+      });
   };
 
   /**
@@ -638,36 +682,43 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
           folders: [],
         })),
       });
-      // Sources with a kept grant ("Allow on every visit") list their videos right away.
-      await Promise.all(
+      const params = new URLSearchParams(window.location.search);
+      const folderName = params.get('folder');
+      const videoName = params.get('video') ?? undefined;
+      // Sources with a kept grant ("Allow on every visit") list their videos right away; a link
+      // opens by its path under one of them without waiting for the scans.
+      const scans = Promise.all(
         sources.map(async entry => {
           if ((await queryReadWrite(entry.handle)) === 'granted')
             await get().rescanSource(entry.id);
         }),
       );
+      if (folderName && (await openLinked(folderName, videoName))) return;
+      await scans;
       if (get().folder) return;
+      if (folderName && (await openScanned(folderName, videoName))) return;
 
-      const params = new URLSearchParams(window.location.search);
-      const folderName = params.get('folder');
-      const videoName = params.get('video') ?? undefined;
-      if (folderName && (await openFromSources(folderName, videoName))) return;
+      const leaf = folderName?.split('/').filter(Boolean).pop() ?? folderName;
       const candidate = folderName
         ? (recent.find(
             r =>
-              r.folderName === folderName &&
+              (r.folderName === folderName || r.folderName === leaf) &&
               (!videoName || r.video === videoName),
           ) ?? recent.find(r => r.folderName === folderName))
         : recent[0];
-      if (!candidate) {
-        if (folderName)
-          set({ wanted: { folder: folderName, video: videoName } });
+      const target = videoName ?? candidate?.video;
+      // "Allow on every visit" keeps the grant, so no click is needed.
+      if (candidate && (await queryReadWrite(candidate.handle)) === 'granted') {
+        await get().openFolder(candidate.handle, target);
         return;
       }
-      const target = videoName ?? candidate.video;
-      // "Allow on every visit" keeps the grant, so no click is needed.
-      if ((await queryReadWrite(candidate.handle)) === 'granted') {
-        await get().openFolder(candidate.handle, target);
-      } else {
+      // A source waiting on a click opens this link and every later one: ask for that first.
+      const locked = get().sources.some(s => s.status === 'needs-permission');
+      if (folderName && (locked || !candidate)) {
+        set({ wanted: { folder: folderName, video: videoName } });
+        return;
+      }
+      if (candidate)
         set({
           pending: {
             kind: 'folder',
@@ -675,7 +726,6 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
             videoName: target,
           },
         });
-      }
     },
 
     openFolderPicker: async () => {
@@ -752,7 +802,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const wanted = get().wanted;
       try {
         const handle = await pickFolder();
-        if (wanted && handle.name !== wanted.folder) {
+        const leaf = wanted?.folder.split('/').filter(Boolean).pop();
+        if (wanted && handle.name !== leaf) {
           toast.warning(
             `Opened "${handle.name}", the link asked for "${wanted.folder}"`,
             { duration: 5000 },
@@ -767,7 +818,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       }
     },
 
-    openFolder: async (handle, preferredVideo) => {
+    openFolder: async (handle, preferredVideo, from) => {
       const permission = await requestReadWrite(handle);
       if (permission !== 'granted') {
         set({ pending: { kind: 'folder', handle, videoName: preferredVideo } });
@@ -799,7 +850,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         listing,
         pending: null,
         wanted: null,
-        openedFrom: null,
+        openedFrom: from ?? null,
       });
       const pick =
         listing.videos.find(v => v.name === preferredVideo) ??
@@ -821,7 +872,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
           openRevisionIds: [],
           activeRevisionId: null,
         });
-        updateUrl(handle.name, null);
+        updateUrl(from?.path || handle.name, null);
         void remember(handle);
         toast.info('No videos in this folder', { duration: 3000 });
       }
@@ -860,7 +911,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
               { ...entry, status: 'needs-permission', folders: [] },
             ],
       }));
-      await get().rescanSource(entry.id);
+      // A link that asked for a folder opens from the new source.
+      await openWantedFromSource(entry.id);
       const source = get().sources.find(x => x.id === entry.id);
       if (source?.status === 'ready') {
         const count = source.folders.reduce((n, f) => n + f.videos.length, 0);
@@ -880,11 +932,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         });
         return;
       }
-      await get().rescanSource(id);
       // A deep link that was waiting on this source can open now.
-      const wanted = get().wanted;
-      if (wanted && !get().folder)
-        await openFromSources(wanted.folder, wanted.video);
+      await openWantedFromSource(id);
     },
 
     rescanSource: async id => {
@@ -924,9 +973,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         .sources.find(x => x.id === sourceId)
         ?.folders.find(f => f.path === path);
       if (!folder) return;
-      await get().openFolder(folder.handle, video);
-      if (get().folder?.handle === folder.handle)
-        set({ openedFrom: { sourceId, path } });
+      await get().openFolder(folder.handle, video, { sourceId, path });
     },
 
     openVideo: async name => {
@@ -999,7 +1046,8 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
         highlightCommentId: null,
         sketch: null,
       });
-      updateUrl(folder.name, name);
+      // A folder from a source keeps its path, so the link opens it again from the source.
+      updateUrl(get().openedFrom?.path || folder.name, name);
       void remember(folder.handle, name, map?.source?.path);
       await loadRevisions(token);
     },

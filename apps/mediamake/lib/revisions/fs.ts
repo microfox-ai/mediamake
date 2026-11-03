@@ -336,3 +336,50 @@ export async function scanSource(
     a.path.localeCompare(b.path, undefined, { numeric: true }),
   );
 }
+
+/** The folders a source path walks through, or null when a part can't be a folder name. */
+const pathParts = (path: string): string[] | null => {
+  const parts = path.split('/').filter(p => p && p !== '.');
+  return parts.some(p => p === '..' || p.includes('\\')) ? null : parts;
+};
+
+/**
+ * The folder a review link names, found by walking its path under a source folder, without a
+ * scan. Links name the folder by its path under lyrics_videos/out
+ * ("quicksilverxkingpin/shorts/s01"), so the source can be out itself, a folder above it
+ * (lyrics_videos, the repo) or a folder inside it. `path` is the folder's path in the source, as
+ * scanSource writes it. Null when the folder isn't there, or doesn't hold `video`.
+ */
+export async function findLinkedFolder(
+  root: FileSystemDirectoryHandle,
+  linkPath: string,
+  video?: string,
+): Promise<{ path: string; handle: FileSystemDirectoryHandle } | null> {
+  const parts = pathParts(linkPath);
+  if (!parts) return null;
+  const tries = [
+    parts,
+    ['out', ...parts],
+    ['lyrics_videos', 'out', ...parts],
+    ['apps', 'lyrics_videos', 'out', ...parts],
+  ];
+  // A source inside out/ (the channel's folder): the rest of the path after its name.
+  parts.forEach((part, i) => {
+    if (part === root.name) tries.push(parts.slice(i + 1));
+  });
+  const seen = new Set<string>();
+  for (const attempt of tries) {
+    const path = attempt.join('/');
+    if (seen.has(path)) continue;
+    seen.add(path);
+    try {
+      let dir = root;
+      for (const part of attempt) dir = await dir.getDirectoryHandle(part);
+      if (video) await dir.getFileHandle(video);
+      return { path, handle: dir };
+    } catch {
+      // Not under this source this way.
+    }
+  }
+  return null;
+}

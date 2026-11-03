@@ -190,9 +190,17 @@ IndexedDB list as the editor's.
    window regains focus, so new renders show up without opening anything. Chrome asks for one
    "Reconnect" click per source per visit unless "Allow on every visit" was chosen.
 
-Deep link for Claude: `/video-revision?folder=<folder name>&video=<file name>` picks the matching
-history entry and asks for access with one click (`?live=<slug>` opens a project live). Browsers never expose absolute paths and no URL
-can grant folder access, so the first open of a folder is always the user's pick.
+Deep link for Claude: `/video-revision?folder=<path under out/>&video=<file name>` (what
+`reviewLink()` in `apps/lyrics_videos/scripts/revision-files.ts` writes, e.g.
+`folder=quicksilverxkingpin/shorts/s01`). It opens by walking that path under a linked source
+(`findLinkedFolder()`: the source can be `out` itself, `lyrics_videos` or the repo above it, or a
+channel folder inside it), with no scan and no folder to pick; with Chrome's "Allow on every visit"
+no click at all. A source that needs its click shows **Reconnect out** on the stage; with no source
+the stage offers **Link your out folder** (once), and "Open just <folder>" still picks the one
+folder. A folder opened from a source keeps its path in the URL. Without a source, a folder from
+History matches the link's last folder name and video. `?live=<slug>` opens a project live.
+Browsers never expose absolute paths and no URL can grant folder access, so the source (or the
+folder) is always the user's pick the first time.
 
 ## Interactions
 

@@ -161,10 +161,13 @@ saves comments **next to the video**. On a paused frame the user can draw (penci
 circle; red fix, green add, yellow move) and pin the exact spot, with a magnifier for small detail;
 the comment keeps the marks and a 2× crop of the spot. A **General** comment (G) is about the
 whole video and has no time. Browsers can't open a local folder from a
-link: the first time, the user picks `out/<slug>/` and allows editing; after that the link (or
-History) reopens it in one click. Better: they add `apps/lyrics_videos/out` once as a **source**
-(Sources → +); every project folder in it (and its `v<N>/` folders) is then listed on each visit
-and new renders appear on their own. You can open the link in the user's Chrome for them, but they make the folder pick.
+link, so the user links `apps/lyrics_videos/out` once as a **source** (the link's page offers "Link
+your out folder"; or Sources → +). Every link's `folder` is its path under `out/`
+(`<slug>`, `<slug>/v5`, `<channel>/shorts/s01`), so from then on every link opens straight from
+that source, with one "Reconnect out" click per visit, or none once they choose Chrome's "Allow on
+every visit"; every project folder in it is also listed on each visit and new renders appear on
+their own. Without a source they pick the video's folder ("Open just <folder>"). You can open the
+link in the user's Chrome for them, but they make the first pick.
 
 ## 4. Wait for the revision in the background
 
