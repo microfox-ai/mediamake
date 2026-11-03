@@ -67,7 +67,8 @@ away about any that is missing and what it costs. A **required** one has no subs
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | Sound effects for intros, end screens and the brand sting (`text_to_sound_effects`) | No sound at all: the kit's scenes stay silent. Don't fake it with other audio |
+| `mcp/elevenlabs-connector` | required | Sound effects for intros, end screens and the brand sting (`creative_generate_in_flow` with `node_type: sfx`, model `eleven_text_to_sound_v2`; download each take from its run) | `mcp/elevenlabs` instead, when it is installed; with neither, no sound at all: the kit's scenes stay silent. Don't fake it with other audio |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: the same sound effects as files on the computer (`text_to_sound_effects`) | Nothing, while the connector is connected |
 | `mcp/browse-hack` | recommended | Pinterest research boards (`pinterest_bulk_start`) and Midjourney logo concepts and artwork, in the user's Chrome | Research by hand in the browser and no Midjourney art: fal or the user's own pictures instead |
 | `mcp/fal` | optional | Nano Banana logo concepts that need exact lettering, and artwork when Midjourney isn't wanted (paid) | Concepts and art come from Midjourney or the user's own pictures |
 
@@ -75,7 +76,9 @@ Everything else (fonts from Google Fonts, glyphs, Remotion scenes, renders, the 
 export) runs locally and needs no MCP. To check, look for the tools named above:
 `mcp__<name>__<tool>` in Claude Code, while a connector added in the Claude app has a random
 prefix, so match on the tool's name. If they are only deferred, load them with ToolSearch
-("elevenlabs"), which also waits for servers that are still connecting. If one is missing, or the
+("elevenlabs"), which also waits for servers that are still connecting. The ElevenLabs connector
+comes first; the archived local `mcp/elevenlabs` is only the fallback, so don't ask for it while the
+connector works. If one is missing, or the
 user has no MCPs at all, say so **before starting**: what it blocks (its "Without it") and what it
 gives. Offer to install it from MediaMake ("Set up mcp/<name> from MediaMake by following
 https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
@@ -318,7 +321,8 @@ when the user has picked the intros, make "Make sound effects for them?" the tur
 message, and never skip it silently. It can be made **before or
 after** the picture, for either: audio first, then time the scene's hits to the moments the
 analysis finds in the sound; or picture first, then line the sound up with the scene's hits.
-Needs the ElevenLabs MCP (see "First: check the MCPs").
+Needs the ElevenLabs connector, or the local ElevenLabs MCP as its fallback (see "First: check the
+MCPs").
 Tools: `logoGraphics/tools/sfx.py <brand>` and `sync_check.py <brand>`, `logoGraphics/lib/Sfx.tsx`.
 Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "Sound" section of
 `scenes/storyboard.md`).
@@ -350,7 +354,7 @@ Reference: `brands/subhodayam/graphics/` (`parts/Sfx.tsx`, `sound/`, and the "So
   soft bell as the logo lands.
 - `scripts/logos.ts` renders scene MP4s with audio; transparent logo renders stay silent.
 - Lessons from INVERTED Devils (reference: `brands/inverteddevils/graphics/parts/Sfx.tsx`, `sound/`):
-  - ElevenLabs only writes into a folder that already exists: create one per sound first, then
+  - The local ElevenLabs MCP (the fallback) only writes into a folder that already exists: create one per sound first, then
     rename the files into `sound/raw/<name>.mp3`.
   - librosa's onset **lags ~0.1 s on files that start loud right away** (kicks, drops, a needle).
     Use the precise `attack` (first moment at 30% of the hit level, 1.5 ms resolution) for those,
@@ -595,3 +599,4 @@ Add entries at the bottom: date · brand · what they said → the rule.
 - 2026-10-29 · Browse Hack (a Chrome extension that lets AI use the browser; "bare minimal brand materials… reference good modern logos… blue or green (only 1 color)") · Starter built in two short rounds: three vector marks drawn as SVG paths (a browser tile with the pointer cut out, a sliced pointer, a window with the pointer breaking out), each in both candidate colours on white and ink and at 64/32/16 px real size, plus the name in four grotesks on one sheet → "b2 green, t4" picked mark, colour and font in one reply. For a product that is a browser extension, the kit also carries the extension's icons (16/32/48 from the 16 px grid drawing, 128 with Chrome's 96 px artwork, a 1024 icon.png for Plasmo). A mid green fails as text on white (2.6:1) and under white button text: ship a darker shade of the same hue for text and use ink on green buttons.
 - 2026-10-30 · anime sounds like (the channel of the bold-word lyric shorts) · "a simple logo & brandkit… should be a complicated graphic art related to anime, pick at random that suits best from available pins and generated pics" → a picture logo picked from the user's own generated stills: tile them on numbered contact sheets (436 Midjourney stills from ~/Downloads, the `u…_` and `*-midjourney-*` files) and keep the sheets visible, because the user may pick straight from them ("no, let pick 18"); leave Pinterest pins out (other artists' work, no licence) and say so. Three simple lockups of the one picture (the art in a gold ring + the name stacked; the name width-fit with the art inside the letters, as in the shorts; the art seen through waveform bars) on dark and light, with icons down to 16 px, plus taglines on the same sheet → "disk i like", and they gave their own line. A dark-haired subject inside knockout letters sinks into a black ground: give the dark version a thin edge in the brand colour. For a raster logo, cut the round crop into its own square file (one file for renders and SVGs, embedded as a data URI with `xlink:href` so librsvg reads it), size the lockup PNG to the crop's real resolution, and give the 16–48 px icons a tighter crop (the face and its most telling detail) in a heavier ring.
 - 2026-11-02 · skill · "each skill might have dependency mcps for example brandkit requires elevenlabs for soundfx generation, browsehack for pinterest search etc.. and it should automatically guide user into installing the mcps as well and what avoiding an mcp install will lose" → "First: check the connectors" became "First: check the MCPs": one `| MCP | Need | Used for | Without it |` table (ElevenLabs required, Browse Hack recommended, fal optional) that `tools/skills.mjs` puts in skills.json, so installing the skill from MediaMake offers each MCP with what skipping it costs. When the skill runs and one is missing, say what it blocks and offer its MediaMake install prompt.
+- 2026-11-03 · skill · "pack-brand-kit and make-cwc-tutorial still list the now-archived ElevenLabs MCP as required. tell that it is optional, in case hosted elvenlabs in unconnectable ( fallback basically )" → the hosted ElevenLabs connector (`mcp/elevenlabs-connector`) is the required MCP and makes the sound effects (`creative_generate_in_flow`, `node_type: sfx`); the archived local `mcp/elevenlabs` is optional, the fallback when the connector can't be connected or reached.

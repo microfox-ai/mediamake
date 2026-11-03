@@ -166,10 +166,16 @@
       ],
       "mcps": [
         {
-          "id": "mcp/elevenlabs",
+          "id": "mcp/elevenlabs-connector",
           "need": "required",
-          "for": "The voice-over in the brand voice (text_to_speech) and new sound effects (text_to_sound_effects)",
-          "without": "No episode: the series voice can't be replaced with another voice"
+          "for": "The voice-over in the brand voice (creative_generate_speech, the voice from creative_list_voices) and new sound effects (creative_generate_in_flow, node_type: sfx)",
+          "without": "mcp/elevenlabs instead, when it is installed; with neither, no episode: the series voice can't be replaced with another voice"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: the same voice and sound effects as files on the computer (text_to_speech, text_to_sound_effects)",
+          "without": "Nothing, while the connector is connected"
         }
       ]
     },
@@ -200,7 +206,7 @@
         {
           "id": "mcp/elevenlabs",
           "need": "optional",
-          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for npm run transcribe --yes",
           "without": "Nothing, while the connector is connected"
         },
         {
@@ -247,7 +253,7 @@
         {
           "id": "mcp/elevenlabs",
           "need": "optional",
-          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for npm run transcribe --yes",
           "without": "Nothing, while the connector is connected"
         }
       ]
@@ -281,14 +287,14 @@
         {
           "id": "mcp/elevenlabs-connector",
           "need": "optional",
-          "for": "Timed lyrics when the user wants text and has no lyrics.json (creative_transcribe_audio on the vocal stem's MP3)",
+          "for": "Timed lyrics when the user wants text and has no lyrics.json (creative_transcribe_audio on the vocal stem's MP3), and sound effects only when the user asks for them (creative_generate_in_flow, node_type: sfx)",
           "without": "mcp/elevenlabs's key with npm run transcribe --yes instead, or the user brings a timed lyrics.json"
         },
         {
           "id": "mcp/elevenlabs",
           "need": "optional",
-          "for": "Sound effects, only when the user asks for them (text_to_sound_effects), and its API key for npm run transcribe --yes when the connector isn't connected",
-          "without": "No sound effects: the edit runs on the song alone"
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key for npm run transcribe --yes, and sound effects (text_to_sound_effects, only when the user asks for them)",
+          "without": "Nothing, while the connector is connected (it makes sound effects too, creative_generate_in_flow with node_type: sfx)"
         }
       ]
     },
@@ -353,7 +359,7 @@
         {
           "id": "mcp/elevenlabs",
           "need": "optional",
-          "for": "Its API key, for npm run transcribe --yes when the ElevenLabs connector isn't connected",
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for npm run transcribe --yes",
           "without": "Nothing, while the connector is connected"
         }
       ]
@@ -371,10 +377,16 @@
       ],
       "mcps": [
         {
-          "id": "mcp/elevenlabs",
+          "id": "mcp/elevenlabs-connector",
           "need": "required",
-          "for": "Sound effects for intros, end screens and the brand sting (text_to_sound_effects)",
-          "without": "No sound at all: the kit's scenes stay silent. Don't fake it with other audio"
+          "for": "Sound effects for intros, end screens and the brand sting (creative_generate_in_flow with node_type: sfx, model eleven_text_to_sound_v2; download each take from its run)",
+          "without": "mcp/elevenlabs instead, when it is installed; with neither, no sound at all: the kit's scenes stay silent. Don't fake it with other audio"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "The fallback for when the hosted ElevenLabs connector can't be connected or reached: the same sound effects as files on the computer (text_to_sound_effects)",
+          "without": "Nothing, while the connector is connected"
         },
         {
           "id": "mcp/browse-hack",

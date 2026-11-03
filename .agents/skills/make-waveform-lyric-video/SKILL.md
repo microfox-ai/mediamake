@@ -85,7 +85,7 @@ MCPs (check at intake which this session has; transcription calls ElevenLabs' AP
 | `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
 | `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
-| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for `npm run transcribe --yes` | Nothing, while the connector is connected |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).

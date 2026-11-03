@@ -60,10 +60,12 @@ with what skipping it costs):
 ```markdown
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | Sound effects for intros and end screens (`text_to_sound_effects`) | No sound at all: the scenes stay silent |
+| `mcp/elevenlabs-connector` | required | Sound effects for intros and end screens (`creative_generate_in_flow`, `node_type: sfx`) | `mcp/elevenlabs` instead, when it is installed; with neither, no sound at all |
+| `mcp/elevenlabs` | optional | The fallback for when the hosted connector can't be connected or reached | Nothing, while the connector is connected |
 ```
 
-`required` only when the skill's main job can't be done without it; `recommended` when it works
+`required` only when the skill's main job can't be done without it; an archived MCP is never
+`required`: list what replaced it as required and the archived one as `optional`, the fallback; `recommended` when it works
 without, worse or slower; `optional` for extras. Name the tools in "Used for" and be concrete in
 "Without it": that line is what the person reads when deciding to skip it. Under the table, tell
 Claude to look for those tools (load deferred ones with ToolSearch), say before starting what a
