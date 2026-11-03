@@ -147,9 +147,9 @@ If either is missing, stop and tell the user before doing anything else:
   - Separate the vocals (`npm run analyze -w lyrics_videos -- <slug> --only separate`, works before
     `lyrics.json` exists, ~1 min), then `npm run transcribe -w lyrics_videos -- <slug>`: the song's
     cached words, or the stem's MP3 and the price.
-  - The ElevenLabs connector first (`creative_transcribe_audio` on `analysis/stems/vocals.mp3`, then
-    `--save=<its words JSON>`); without it, `--yes` with the ElevenLabs MCP's key. Either way
-    `input/lyrics.raw.json` gets every word's start and end.
+  - `--yes` with the ElevenLabs MCP's key first (no widget); only on the Claude web or phone app the
+    hosted ElevenLabs connector (`creative_transcribe_audio` on `analysis/stems/vocals.mp3`, then
+    `--save=<its words JSON>`). Either way `input/lyrics.raw.json` gets every word's start and end.
   - Not the MediaMake MCP's transcriptions, nor the ElevenLabs MCP's own `speech_to_text` (plain text
     only, useless for timing).
   - When the song comes as an existing lyric video, read the written lyrics off its frames: sample the

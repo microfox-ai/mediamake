@@ -4,10 +4,8 @@
   "items": [
     {
       "id": "mcp/elevenlabs",
-      "title": "ElevenLabs (Archived)",
-      "alternativeTo": "mcp/elevenlabs-connector",
-      "health": "archived",
-      "summary": "Sound effects, speech, voices, transcription and audio isolation from ElevenLabs, as files on your computer. The official open-source MCP server.",
+      "title": "ElevenLabs",
+      "summary": "Sound effects, speech, voices, transcription and audio isolation from ElevenLabs, as files on your computer. The official open-source MCP server, and the key MediaMake's npm run transcribe uses for timed words.",
       "status": "live",
       "tags": ["mcp", "audio", "sound effects"],
       "releasedAt": "2026-11-02",
@@ -42,7 +40,7 @@
     {
       "id": "mcp/elevenlabs-connector",
       "title": "ElevenLabs connector",
-      "summary": "ElevenLabs' hosted connector from Claude's directory: speech, voices and transcription with every word's start and end, plus ElevenAgents voice agents. Signs in with your ElevenLabs account: nothing to install, no key.",
+      "summary": "ElevenLabs' hosted connector from Claude's directory: speech, voices and transcription with every word's start and end, plus ElevenAgents voice agents. Signs in with your ElevenLabs account: nothing to install, no key. The alternative to the ElevenLabs MCP where nothing local runs (the Claude web and phone apps).",
       "status": "live",
       "tags": ["mcp", "audio", "transcription"],
       "releasedAt": "2026-11-03",
@@ -56,11 +54,11 @@
             "directoryUrl": "https://claude.ai/directory/elevenlabs"
           },
           "setup": [
-            "Sign in with your ElevenLabs account and click Allow. It is ready when Claude has the creative_transcribe_audio tool."
+            "Only when the ElevenLabs MCP can't run here (the Claude web or phone app): sign in with your ElevenLabs account and click Allow. It is ready when Claude has the creative_transcribe_audio tool."
           ],
           "guide": "https://elevenlabs.io/docs/eleven-agents/operate/hosted-mcp"
         },
-        "notes": "Hosted by ElevenLabs: nothing runs on your computer and it can't read your files, so a song on your computer goes in through its file picker. Needs an ElevenLabs account; every transcription or voice spends credits."
+        "notes": "Hosted by ElevenLabs: nothing runs on your computer and it can't read your files, so a song on your computer goes in through its file picker widget, and every result (a transcription, a voice, a sound effect) is a flow run to download from. No music. Needs an ElevenLabs account; every generation spends credits. On a computer the ElevenLabs MCP (an API key, files straight on the computer, no widget) comes first."
       }
     },
     {

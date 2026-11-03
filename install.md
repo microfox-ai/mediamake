@@ -121,11 +121,12 @@ id in `forChoices`.
    (it then carries an install code) brings back the ones shared with them.
 4. In step 4, install a step with `forChoices` only if they said yes to at
    least one of those ids. Steps without it are always installed.
-5. A maker's hosted connector and its local server for the same job (ElevenLabs:
-   `mcp/elevenlabs-connector` and `mcp/elevenlabs`): set up the connector first,
-   it signs in with no key. Offer the local one after it, as the fallback its
-   `for` says (its API key for MediaMake's `npm run transcribe --yes`, or what
-   the connector can't do, like sound effects for a brand kit).
+5. A maker's local server and its hosted connector for the same job (ElevenLabs:
+   `mcp/elevenlabs` and `mcp/elevenlabs-connector`): on a computer set up the
+   local server first: its API key is what MediaMake's `npm run transcribe
+   --yes` uses, and its files land straight on the computer, no widget. Offer
+   the connector only as the alternative its `for` says: where nothing local
+   can run (the Claude web or phone app), signing in with no key.
 
 When you finish, list the choices they skipped with what each costs, and the
 prompt that adds one later: "Set up <id> from MediaMake by following

@@ -194,17 +194,18 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    directly"). Separate the vocals and transcribe the vocal stem as CLAUDE.md › Transcription says
    (make-waveform-lyric-video step 1): `npm run transcribe -w lyrics_videos -- <slug>` first gives back the
    song's cached words, or makes the stem's MP3 and prints the price. It is paid: ask first.
-   - **The ElevenLabs connector, first choice** (`mcp/elevenlabs-connector`, added from
-     https://claude.ai/directory/elevenlabs, its tools named `creative_*`): `creative_transcribe_audio`
-     with `estimate_only: true` for the price, then for real. A file on this computer goes in through
-     `creative_upload_flow_reference` (modality `audio`: the user picks `analysis/stems/vocals.mp3` in the picker), wired in
-     with `connect_from`; a direct https link through `creative_attach_reference_file`. Every word comes
-     back with its start and end seconds in `transcripts[].words` (`creative_get_flow_run_status`), the
-     full list at `words_download_url`: download it, then `npm run transcribe -w lyrics_videos -- <slug>
-     --save=<that file>` writes `input/lyrics.raw.json` and keeps the words in the media library's cache.
-   - **Without it**, or when this client shows no picker: `--yes` sends the MP3 to Scribe with the local
-     ElevenLabs MCP's key (`mcp/elevenlabs`; `--letters` adds letter times). Not the local MCP's
-     `speech_to_text`: it returns the text only, no times.
+   - **The ElevenLabs MCP's key, first choice** (`mcp/elevenlabs`, the official open-source server with an
+     API key): `--yes` sends the MP3 to Scribe with it (`--letters` adds letter times), writes
+     `input/lyrics.raw.json` with every word's start and end and keeps the words in the media library's
+     cache. No widget. Not the MCP's own `speech_to_text`: it returns the text only, no times.
+   - **Only where no local MCP runs** (the Claude web or phone app), the hosted ElevenLabs connector
+     (`mcp/elevenlabs-connector`, added from https://claude.ai/directory/elevenlabs, its tools named
+     `creative_*`): `creative_transcribe_audio` with `estimate_only: true` for the price, then for real. A
+     file on this computer goes in through `creative_upload_flow_reference` (modality `audio`: the user picks
+     `analysis/stems/vocals.mp3` in the picker widget), wired in with `connect_from`; a direct https link
+     through `creative_attach_reference_file`. Every word comes back with its start and end seconds in
+     `transcripts[].words` (`creative_get_flow_run_status`), the full list at `words_download_url`: download
+     it, then `npm run transcribe -w lyrics_videos -- <slug> --save=<that file>` keeps the words the same way.
    Check the transcription is of the same mix (same length). **A published song (a YouTube link, a
    playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and transcribe
    *that* (the user, 2026-10-27: "use elevenlabs for transcribing"): an upload is often offset or edited
@@ -225,8 +226,8 @@ MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
-| `mcp/elevenlabs` | optional | The fallback for when the hosted ElevenLabs connector can't be connected or reached: its API key, for `npm run transcribe --yes` | Nothing, while the connector is connected |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -817,3 +818,8 @@ Append dated entries: what the user asked to change and the general rule behind 
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
   `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
+- 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
+  widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
+  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
+  tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
