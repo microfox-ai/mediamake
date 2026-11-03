@@ -360,7 +360,58 @@ export type EclipseProps = {
  */
 export type ShadeProps = { kind: 'shade'; at: Point; radius: number; color?: string; strength?: number; inner?: number };
 
-export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps | ShadeProps) & {
+/**
+ * Rain falling over the picture: slanted streaks in three depths (the near ones longer, faster,
+ * brighter and softer), as many as `density` says at each moment, so the rain can thin out and come
+ * back with the song. Goten Theme, 2026-11-02: the base stage's storm, alive.
+ */
+export type RainProps = {
+  kind: 'rain';
+  /** Drops on screen at full density. Default 260. */
+  count?: number;
+  /** Degrees off vertical, positive leaning right. Default 12. */
+  angle?: number;
+  /** px per second. Default [1700, 2600]. */
+  speed?: [number, number];
+  /** Streak length, px. Default [36, 120]. */
+  length?: [number, number];
+  width?: number;
+  color?: string;
+  /** [song second, 0..1] keys, linear between: how much of `count` falls. Default 1 throughout. */
+  density?: [number, number][];
+};
+
+/**
+ * A Super Saiyan aura: cel-shaded flame tongues growing from points on the subject's silhouette edge
+ * (`points`: [x, y, outward normal x, y] in frame px of the unmoved picture, e.g. from a project's
+ * tools/aura_points.py), leaning up and out (`lean`), taller the higher they sit, each growing,
+ * licking and dying on its own cycle (`rate` lives a second), swaying, stretching on the kicks; a
+ * pale core inside a gold body, a soft glow behind. Drawn behind the cutout, so their roots hide
+ * under the subject. Goten Theme, 2026-11-02: "use a good golden fire effect that suits him in the bg".
+ */
+export type AuraProps = {
+  kind: 'aura';
+  points: [number, number, number, number][];
+  /** Tongue length, px: at the lowest points and at the top. Default [30, 150]. */
+  length?: [number, number];
+  /** Half-width at the root, px. Default 15. */
+  width?: number;
+  /** 0 straight up … 1 straight out along the normal. Default 0.4. */
+  lean?: number;
+  rate?: number;
+  /** Core, body, outer edge (and glow). */
+  colors?: [string, string, string];
+  kick?: number;
+  glow?: number;
+  /** The y (frame px) where the tongues are at their tallest, and where at their shortest. Default [80, 1000]. */
+  span?: [number, number];
+  /** How solid the tongues are at the root, 0..1. Default 0.85. */
+  opacity?: number;
+  /** A soft light behind the aura at `at` (frame px), `radius` px, breathing with the music and the kicks. */
+  halo?: { at: [number, number]; radius: number; color: string; strength?: number };
+};
+
+export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps | ShadeProps | RainProps | AuraProps) & {
   /** The cover's settings (lookVideo passes them), so `at` follows the picture's motion. */
   cover?: CoverBackdropProps;
   opacity?: number;
@@ -375,7 +426,7 @@ export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProp
   dance?: 'all' | 'ripple' | 'motion';
 };
 
-export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse', 'shade'] as const;
+export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse', 'shade', 'rain', 'aura'] as const;
 
 // ---------- shared ----------
 
@@ -1455,6 +1506,167 @@ const EclipseContent: React.FC<EclipseProps & { motion: CoverMotion }> = ({
   );
 };
 
+const Rain: React.FC<RainProps> = ({
+  count = 260,
+  angle = 12,
+  speed = [1700, 2600],
+  length = [36, 120],
+  width = 1.4,
+  color = 'rgba(225,232,255,0.55)',
+  density,
+}) => {
+  const t = useSongTime();
+  const { width: W, height: H } = useVideoConfig();
+  let d = 1;
+  if (density?.length) {
+    d = density[density.length - 1][1];
+    if (t <= density[0][0]) d = density[0][1];
+    else
+      for (let i = 1; i < density.length; i++)
+        if (t <= density[i][0]) {
+          const [t0, v0] = density[i - 1];
+          const [t1, v1] = density[i];
+          d = v0 + ((v1 - v0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+          break;
+        }
+  }
+  const n = Math.round(count * Math.max(0, Math.min(1, d)));
+  const tan = Math.tan((angle * Math.PI) / 180);
+  const layers: React.ReactNode[][] = [[], [], []];
+  for (let k = 0; k < n; k++) {
+    // depth 0 far … 2 near
+    const z = k % 3;
+    const nearness = 0.55 + 0.25 * z;
+    const v = (speed[0] + (speed[1] - speed[0]) * hash(k * 1.7 + 0.2)) * nearness;
+    const len = (length[0] + (length[1] - length[0]) * hash(k * 2.9 + 0.4)) * nearness;
+    const span = H + len * 2;
+    const y = ((hash(k * 3.3 + 0.6) * span + t * v) % span) - len;
+    const x0 = hash(k * 4.1 + 0.8) * (W + H * Math.abs(tan)) - (tan > 0 ? H * tan : 0);
+    const x = x0 + y * tan;
+    layers[z].push(<line key={k} x1={x} y1={y} x2={x - len * tan} y2={y - len} />);
+  }
+  return (
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+      {layers.map((g, z) => (
+        <g
+          key={z}
+          stroke={color}
+          strokeWidth={width * (0.6 + 0.45 * z)}
+          strokeLinecap="round"
+          opacity={0.45 + 0.27 * z}
+          style={z === 2 ? { filter: 'blur(0.8px)' } : undefined}
+        >
+          {g}
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+const Aura: React.FC<AuraProps & { motion: CoverMotion }> = ({
+  points,
+  length = [30, 150],
+  width = 15,
+  lean = 0.4,
+  rate = 1.4,
+  colors = ['#fff7cf', '#ffc21a', '#ff8c00'],
+  kick: onKick = 0.35,
+  glow = 12,
+  span = [80, 1000],
+  opacity = 0.85,
+  halo,
+  motion,
+}) => {
+  const t = useSongTime();
+  const kick = Math.min(1, useHit('kick', 7));
+  const energy = useEnergy();
+  const { width: W, height: H } = useVideoConfig();
+  const id = `aura-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const sc = motion.scale;
+  const tongues = points.map(([px, py, nx, ny], i) => {
+    // up, leaning out along the normal
+    let dx = nx * lean;
+    let dy = -1 + (ny - -1) * lean * 0.5;
+    const n = Math.hypot(dx, dy) || 1;
+    dx /= n;
+    dy /= n;
+    const high = Math.max(0, Math.min(1, (span[1] - py) / (span[1] - span[0])));
+    // each tongue's own life: grows, licks, dies, reborn (two per point, half a life apart)
+    const life = (k: number) => {
+      const ph = (t * rate * (0.8 + 0.4 * hash(i * 1.3 + k)) + hash(i * 2.7 + k * 5.1)) % 1;
+      return Math.pow(Math.sin(Math.PI * ph), 0.7);
+    };
+    const grow = Math.max(life(0), life(0.5) * 0.8);
+    const long = hash(i * 7.7) > 0.82 ? 1.6 : 1;
+    const L = (length[0] + (length[1] - length[0]) * high * high) * (0.5 + 0.5 * grow) * (0.85 + 0.3 * energy) * (1 + onKick * kick) * (0.6 + 0.7 * hash(i * 3.9)) * long * sc;
+    const w = width * (0.7 + 0.5 * hash(i * 4.4)) * (0.8 + 0.3 * grow) * sc;
+    const [bx, by] = coverPoint(motion, [px - nx * 6, py - ny * 6]);
+    const sway = Math.sin(t * (5 + 3 * hash(i * 6.1)) + i * 1.7) * L * 0.18;
+    // perpendicular to the tongue
+    const qx = -dy;
+    const qy = dx;
+    const tip = [bx + dx * L + qx * sway, by + dy * L + qy * sway];
+    const path = (f: number) => {
+      const l = L * f;
+      const ww = w * f;
+      const tx = bx + dx * l + qx * sway * f;
+      const ty = by + dy * l + qy * sway * f;
+      const c = (a: number, b: number) => `${(bx + dx * l * a + qx * b).toFixed(1)},${(by + dy * l * a + qy * b).toFixed(1)}`;
+      return `M${(bx + qx * ww).toFixed(1)},${(by + qy * ww).toFixed(1)} C${c(0.35, ww * 1.1)} ${c(0.7, ww * 0.35 + sway * 0.45 * f)} ${tx.toFixed(1)},${ty.toFixed(1)} C${c(0.7, -ww * 0.35 + sway * 0.45 * f)} ${c(0.35, -ww * 1.1)} ${(bx - qx * ww).toFixed(1)},${(by - qy * ww).toFixed(1)} Z`;
+    };
+    return { outer: path(1), inner: path(0.62), tip, key: i };
+  });
+  // fills fade from the root to nothing at the tip (each path's own box, bottom to top: the tongues
+  // point mostly up), so they read as flame light rather than cut paper
+  return (
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+      <defs>
+        <filter id={`${id}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation={glow} />
+        </filter>
+        <filter id={`${id}-soft`} x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation={2.5} />
+        </filter>
+        <linearGradient id={`${id}-body`} x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor={colors[1]} stopOpacity={opacity} />
+          <stop offset="0.5" stopColor={colors[1]} stopOpacity={opacity * 0.65} />
+          <stop offset="1" stopColor={colors[2]} stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id={`${id}-core`} x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor={colors[0]} stopOpacity={0.9} />
+          <stop offset="0.7" stopColor={colors[1]} stopOpacity={0} />
+        </linearGradient>
+        {halo && (
+          <radialGradient id={`${id}-halo`}>
+            <stop offset="0" stopColor={halo.color} stopOpacity={1} />
+            <stop offset="0.45" stopColor={halo.color} stopOpacity={0.45} />
+            <stop offset="1" stopColor={halo.color} stopOpacity={0} />
+          </radialGradient>
+        )}
+      </defs>
+      {halo &&
+        (() => {
+          const [hx, hy] = coverPoint(motion, halo.at);
+          const r = halo.radius * sc * (0.92 + 0.12 * energy + 0.1 * kick);
+          return <circle cx={hx} cy={hy} r={r} fill={`url(#${id}-halo)`} opacity={Math.min(1, (halo.strength ?? 0.6) * (0.75 + 0.25 * energy + 0.35 * kick))} style={{ mixBlendMode: 'screen' }} />;
+        })()}
+      <g filter={`url(#${id}-glow)`} opacity={0.6}>
+        {tongues.map(g => (
+          <path key={g.key} d={g.outer} fill={colors[2]} />
+        ))}
+      </g>
+      <g filter={`url(#${id}-soft)`}>
+        {tongues.map(g => (
+          <path key={g.key} d={g.outer} fill={`url(#${id}-body)`} />
+        ))}
+        {tongues.map(g => (
+          <path key={`c${g.key}`} d={g.inner} fill={`url(#${id}-core)`} />
+        ))}
+      </g>
+    </svg>
+  );
+};
+
 const needsSpectrum = (kind: VisualizerProps['kind']) =>
   kind === 'halo' || kind === 'horns' || kind === 'yantra' || kind === 'flames' || kind === 'arc' || kind === 'eclipse';
 
@@ -1498,6 +1710,10 @@ export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; star
         return <EclipseContent {...props} motion={motion} />;
       case 'shade':
         return <Shade {...props} motion={motion} />;
+      case 'rain':
+        return <Rain {...props} />;
+      case 'aura':
+        return <Aura {...props} motion={motion} />;
     }
   })();
   return (

@@ -7,7 +7,7 @@ import {
   type WaveformSpectrumLineDataProps,
 } from '@microfox/remotion';
 import type { SceneProps } from '../kit/contract';
-import { useHit } from '../kit/hooks';
+import { useHit, useSongTime } from '../kit/hooks';
 import { applyContainerLayout, presetTree, runPreset } from './presets';
 import { PresetTree } from './PresetTree';
 import { Visualizer, type VisualizerProps } from './Visualizers';
@@ -134,7 +134,16 @@ export type WaveformLayerProps = (
    * visualizers behind, the strips and lines in front.
    */
   behind?: boolean;
+  /**
+   * Song seconds the wave shows in, [from, to] pairs with half-second fades (the visualizers read
+   * their own). Goten Theme: one bar layer per power stage, each in its stage's colours.
+   */
+  when?: [number, number][];
 };
+
+/** 0..1 inside the `when` windows, half-second fades round each edge. */
+const shownAt = (when: [number, number][] | undefined, t: number) =>
+  when ? Math.max(0, ...when.map(([a, b]) => Math.min(1, (t - a) / 0.5 + 1, (b - t) / 0.5 + 1))) : 1;
 
 /**
  * An audio-reactive waveform that follows the song, with mediamake's waveform atoms and presets.
@@ -144,6 +153,7 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
   const { manifest, section } = props;
   const { width: frameWidth, height: frameHeight } = useVideoConfig();
   const kickHit = useHit('kick', 9);
+  const t = useSongTime();
   // @microfox/remotion atoms call staticFile() themselves: pass the raw manifest path.
   const audio = { src: manifest.audio.src, start: section.from };
 
@@ -173,12 +183,19 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
       </AbsoluteFill>
     );
   }
+  const shown = shownAt(props.when, t);
+  if (shown <= 0) return null;
   if (props.kind === 'waveform-audio') {
     const tree = <PresetTree tree={presetNodes ?? []} duration={section.to - section.from} style={mirror} />;
-    if (!props.glow) return tree;
+    if (!props.glow && shown >= 1) return tree;
     const b = props.glowBlur ?? 8;
     return (
-      <AbsoluteFill style={{ filter: `drop-shadow(0 0 ${b}px ${props.glow}) drop-shadow(0 0 ${b * 2.5}px ${props.glow})` }}>
+      <AbsoluteFill
+        style={{
+          opacity: shown < 1 ? shown : undefined,
+          filter: props.glow ? `drop-shadow(0 0 ${b}px ${props.glow}) drop-shadow(0 0 ${b * 2.5}px ${props.glow})` : undefined,
+        }}
+      >
         {tree}
       </AbsoluteFill>
     );
@@ -195,7 +212,7 @@ export const WaveformLayer: React.FC<SceneProps<WaveformLayerProps>> = props => 
     left: box.left ?? (frameWidth - width) / 2,
     width,
     height,
-    opacity: box.opacity ?? 1,
+    opacity: (box.opacity ?? 1) * shown,
     mixBlendMode: box.mixBlendMode,
     transform:
       [box.transform, box.flip ? 'scaleY(-1)' : '', lift > 1.001 ? `scaleY(${lift.toFixed(3)})` : '']
