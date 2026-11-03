@@ -25,7 +25,7 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
 
 /** Builds the ProjectSync MCP server: the MediaMake API with a MediaMake key, and files on this computer. */
 export function createServer(client = new MediamakeClient(apiConfig())) {
-  const server = new McpServer({ name: 'projectsync', title: 'ProjectSync', version: '0.1.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'projectsync', title: 'ProjectSync', version: '0.2.0' }, { instructions: INSTRUCTIONS });
   registerBrandKitTools(server, client);
   registerProjectTools(server, client);
   registerProductionTools(server, client);

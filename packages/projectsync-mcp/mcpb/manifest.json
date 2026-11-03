@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "projectsync",
   "display_name": "ProjectSync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Keep your MediaMake projects in the cloud: brand kits, productions, release kits and media, shared under each project's permissions.",
   "long_description": "Connects Claude to your MediaMake account with a MediaMake API key, and reads and writes files on this computer. Every production (a video's code and outputs), release kit (a YouTube upload pack, a DistroKid release) and media file belongs to one project, and the project's role decides: anyone it is shared with reads, owners and editors upload and change, only the owner deletes. Claude asks you each time whether files go up as a production, a release or media, and to which project. Media is never analysed on the way in.",
   "icon": "icon.png",
