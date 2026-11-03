@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
-import { VIDEO_KINDS, installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type CatalogVideo, type ItemUse } from '@/lib/catalog';
+import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type CatalogEntry, type CatalogVideo, type ItemUse } from '@/lib/catalog';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
 import { accessRequestsDB, catalogArchiveDB, catalogVideosDB } from '@/lib/catalog/store';
@@ -36,6 +36,7 @@ export default async function AccessPage({
   let uses: (ItemUse & { title?: string; href?: string })[] = [];
   let archived = false;
   let pending = false;
+  let directoryUrl: string | undefined;
   let video: CatalogVideo | null = null;
   if (itemId) {
     // the database's record, else one the repo defines (a registry skill, a third-party MCP)
@@ -54,6 +55,7 @@ export default async function AccessPage({
         video = found;
         releases = releasesOf(record.versions, 20);
         installable = isInstallable(record);
+        directoryUrl = directoryUrlOf(record.install?.source);
         hasPackage = record.versions.length > 0;
         // what it works with, named and linked when this viewer can open it
         uses = await Promise.all(
@@ -115,6 +117,14 @@ export default async function AccessPage({
               <CardTitle className="text-2xl">{item.title}</CardTitle>
               {item.summary && <CardDescription>{item.summary}</CardDescription>}
               {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+              {directoryUrl && (
+                <p className="text-xs text-muted-foreground">
+                  In Claude&apos;s connector directory:{' '}
+                  <a href={directoryUrl} target="_blank" rel="noreferrer" className="font-medium text-foreground hover:underline">
+                    {directoryUrl.replace('https://', '')}
+                  </a>
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {video && <ItemVideoSection itemId={item.id} kind={item.kind} video={video} />}

@@ -224,6 +224,11 @@ maker); name the maker when you tell them about it, and show `notes` if set.
   show it back, and write it only into the server's config. `format` is how
   it is written (`Bearer {value}`), `default` the value when they give none;
   leave out one that comes out empty. Then add it the way that fits:
+  - A `remote` with a `directoryUrl` is listed in Claude's connector
+    directory: in the Claude apps (Desktop, the web, a phone) _Ask_ them to
+    open that page, add it there and sign in, instead of a custom connector.
+    A connector added there also reaches Claude Code signed in with the same
+    Claude account, so offer it in Claude Code too when there is no `local`.
   - Claude Code: `local` when there is one. Check its command runs first
     (`uvx` comes with uv: https://docs.astral.sh/uv/getting-started/installation/),
     then `claude mcp add --scope user <name> -e KEY=value … -- <command> <args…>`.

@@ -81,8 +81,11 @@ An entry is a card plus `madeBy` and `install.source`:
 - `install.source` (`InstallSource` in `lib/catalog/types.ts`):
   - `{ "type": "mcp-server", "name", "local"?, "remote"?, "mcpb"?, "setup"?, "guide"? }`:
     `local` runs on the person's machine (`command`, `args`, `env`), `remote`
-    is hosted (`url`, `headers`, and a `connectorUrl` when the Claude apps
-    sign in at another URL), `mcpb` is a bundle on a GitHub release. Give at
+    is hosted (`url`, `headers`, a `connectorUrl` when the Claude apps
+    sign in at another URL, and a `directoryUrl` when it is listed in
+    Claude's connector directory, e.g. `https://claude.ai/directory/elevenlabs`:
+    its release and install pages link it and install.md adds it from there;
+    with none, no link is shown), `mcpb` is a bundle on a GitHub release. Give at
     least one; install.md picks what fits the person's Claude. Each `env` /
     `headers` entry says what the value is, where to get it (`getAt`), how
     it's written (`format`, e.g. `Bearer {value}`) and whether it's a

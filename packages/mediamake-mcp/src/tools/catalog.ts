@@ -53,7 +53,15 @@ const SOURCE = z.discriminatedUnion('type', [
       .optional()
       .describe('Runs on the person\'s machine, e.g. command "uvx", args ["elevenlabs-mcp"]'),
     remote: z
-      .object({ url: z.string(), headers: z.array(MCP_SETTING).optional(), connectorUrl: z.string().optional() })
+      .object({
+        url: z.string(),
+        headers: z.array(MCP_SETTING).optional(),
+        connectorUrl: z.string().optional(),
+        directoryUrl: z
+          .string()
+          .optional()
+          .describe("Its page in Claude's connector directory (https://claude.ai/directory/<name>), only when it is listed there"),
+      })
       .optional()
       .describe('Hosted by its maker (Streamable HTTP)'),
     mcpb: z.object({ repo: z.string(), asset: z.string(), tag: z.string().optional() }).optional().describe('An .mcpb on a GitHub release'),

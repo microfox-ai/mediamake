@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { VIDEO_KINDS, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
+import { VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ReleaseTier } from '@/lib/catalog/types';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
@@ -629,6 +629,7 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ReleaseTi
 function WherePanel({ detail }: { detail: ItemDetail }) {
   const { item, definedIn, code } = detail;
   const latest = item.versions.at(-1);
+  const directoryUrl = directoryUrlOf(item.install?.source);
   const rows: [string, React.ReactNode][] = [
     ['Made by', item.madeBy ? `${item.madeBy.name}${item.madeBy.license ? ` · ${item.madeBy.license}` : ''}` : 'Us'],
     [
@@ -659,6 +660,16 @@ function WherePanel({ detail }: { detail: ItemDetail }) {
     ],
     ...(latest ? ([['Stored at', <code key="key" className="break-all text-xs">{latest.storageKey}</code>]] as [string, React.ReactNode][]) : []),
     ['Installs as', installsAs(item)],
+    ...(directoryUrl
+      ? ([
+          [
+            'Claude directory',
+            <a key="directory" href={directoryUrl} target="_blank" rel="noreferrer" className="break-all hover:underline">
+              {directoryUrl.replace('https://', '')}
+            </a>,
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
     ['Defined in', definedIn ? DEFINED_IN[definedIn] : '—'],
     ...(item.video?.youtubeId
       ? ([
