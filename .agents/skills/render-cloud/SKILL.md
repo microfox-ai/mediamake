@@ -61,11 +61,16 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
    after. Stop here if the pack stays over 500 MB: the render refuses, and the user renders locally.
 3. **Preset.** The script chooses one (printed with its reason, "Which preset" below). Override with
    `--preset=<key>` or `"preset"` in `lambda.json` only for a reason you can state.
-4. **Test a window.** Ask first, with the expected cost (a 20 s window of a 1080p lyric video with
-   two overlay clips cost $0.05; a 10 s one $0.03). Then
-   `npm run render-project -w lyrics_videos -- <slug> --lambda --window=a-b` on a stretch that shows
-   the video's heaviest look (the hook, an overlay, the title). Check the clip (a still, the audio),
-   and report the cost line and the estimate for the whole video the script prints.
+4. **Test a window, always, on the heaviest stretch.** Never go straight to the whole video, even
+   when the user says yes to it: a full render that dies on Lambda's 15 min limit costs the same as
+   one that finishes (fma-edwardeleric, 2026-11-04: $2.59 for no file). Ask first, with the expected
+   cost (a 20 s window of a 1080p lyric video with two overlay clips cost $0.05; a 10 s one $0.03).
+   Then `npm run render-project -w lyrics_videos -- <slug> --lambda --window=a-b` on the stretch with
+   the most on screen (every mask, cutout, visualizer and blur at once: the last chorus, the drop),
+   not the quiet intro. Check the clip (a still, the audio), and report the cost line, the
+   **slowest chunk's seconds a frame** and the estimate for the whole video the script prints. That
+   measurement is what sizes the full render: it goes into `out/<slug>/.renders.jsonl`, and the
+   chooser reads it (`plan` shows "Measured: … s a frame" or "Not measured yet").
 5. **The whole video, on yes.** Show the estimate and ask. On yes,
    `npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy` (the site is already up;
    drop `--skip-deploy` after a code change). A review render is `--proxy` (half size, cheaper);
@@ -146,6 +151,7 @@ prints the reason; the user, `--preset=` or `lambda.json` can overrule it.
 | The whole video with **2+ clips playing all along, or 120 MB+ downloaded per chunk**, 3000+ frames | `broadcast` | 6 GB, 900 s, 30 chunks | 30 big chunks download the media 30 times instead of 100+, and 6 GB decodes two overlays fast; for a short window it would be worse (30 chunks of a few frames each, 30 downloads), so windows stay on `complex-fast` |
 | ≤ 3 min of video with ≤ 30 MB of media (an encoded song and images, no clips) | `classic` | 3 GB, **240 s timeout**, auto split | light chunks finish well inside 4 minutes; never with clips in the pack (a 75-frame chunk with 170 MB to fetch took 178 s) |
 | Everything else: a full 1080p render with one clip, or a window of a heavy one | `complex-fast` | 3 GB, 900 s, 75 frames/Lambda, auto concurrency | the safe default: enough memory, a 15 min timeout, chunks small enough to parallelise |
+| Heavy frames: the window's slowest chunk took over **8 s a frame** on 3 GB (75 × 8 = 600 s a chunk) | `enterprise` | 10 GB, 900 s, 50 frames/Lambda | Lambda's 15 min limit is hard, for each chunk and for the whole render: more CPU per frame and fewer frames per chunk keep every chunk well under it; the cost is about the same (Lambda bills GB-seconds, and a 10 GB function renders a frame roughly as many times faster) |
 | 15–30 min of video | `complex-slow` | 3 GB, 900 s, 20 chunks at a time | a fixed 20 keeps a long render clear of AWS's concurrency limit ("Too Many Requests") |
 | Over 30 min | `enterprise` | 10 GB, 900 s, 50 frames/Lambda | the most memory and the finest split keep every chunk inside the timeout |
 | never for a lyrics project | `throttled` | 2 GB, 10 chunks at a time, 150 frames/Lambda | made for timelines that call rate-limited APIs; a lyrics render calls none, and it is slow and dear |
@@ -163,6 +169,14 @@ many (each chunk fetches the ones its frames show).
 | wakeup-waveform (song WAV 73 MB, 2 overlays 91 MB) | 177 MB | 20 s window, 1080p, `complex-fast` | 8 | 200 s | $0.052 |
 | the same | 177 MB | 10 s window | 4 | 203 s | $0.027 |
 | the same, song as AAC, source clip skipped | 99 MB | 10 s window | 4 | 195 s | $0.027 |
+| fma-edwardeleric (32 stage masks, cutouts, a particles overlay, sigils) | 190 MB | whole video, 8,429 frames, `complex-fast` | 113 | **failed at 900 s** | $2.59 |
+
+The fma row is the other lesson. The pack was fine (612 → 190 MB with the tooling sources skipped
+and the song as AAC) and 104 chunks finished, but 9 chunks of the heaviest stretch (frames
+5,025–7,574, the stage-mask section) were still running when the main function hit Lambda's hard
+15 min limit, so the whole render failed and the money was spent. Its frames take over 12 s each on
+a 3 GB function: a 75-frame chunk cannot finish. No window had been rendered on that stretch first;
+one would have shown it for $0.05 and the chooser would have taken `enterprise`.
 
 The last row is why rule 0 exists: the lighter pack uploaded faster (the re-deploy took 104 s and
 sent 6 files, 3,688 unchanged) but the chunks are render-bound (75 frames with two 1080p overlays
@@ -185,8 +199,14 @@ The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-ren
 - **"The site has no composition <slug>"**: the site is stale or another project's. Drop
   `--skip-deploy`.
 - **"The pack is N MB, over the 500 MB limit"**: rules above, or local.
-- **A chunk times out** (errors naming a frame range after ~900 s): too much to fetch per chunk; pack
-  smaller (rules 1–3) before trying a bigger preset.
+- **"The main function timed out after 899999ms", chunks missing**: Lambda's 15 min limit, hard for
+  each chunk and for the render as a whole. The missing chunks' frames were too slow for 75 frames a
+  chunk on 3 GB. Render a 20 s window on that stretch (its slowest chunk's seconds a frame goes into
+  the log), then the full render again: the chooser takes `enterprise` (10 GB, 50 frames a chunk)
+  past 8 s a frame. If a frame is slower than about 15 s even there, the project is for a local
+  render, or its heaviest layer needs to get cheaper (fewer masks at once, no full-frame blur).
+- **A chunk times out** (errors naming a frame range after ~900 s, the render goes on): the same
+  cause, one chunk at a time; same cure.
 - **The render fails on a file 404**: a scene names a path the pack doesn't hold (a `staticFile()` of
   something outside `projects/<slug>/`, or a skipped file the code does use). Un-skip it, or load it
   through `asset()` / the manifest.
@@ -205,3 +225,7 @@ The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-ren
   optimisation is time waste, unless there would be waste on timeouts". Rule 0 added; the song,
   bitrate and image rules now apply only over the 200 MB line or for a single huge file; `pack`
   says "nothing to optimise for size" under it.
+- 2026-11-04 — The full fma-edwardeleric render failed on the 15 min limit ($2.59, no file) after
+  the user said yes to it without a window test on its heaviest stretch. Step 4 is now unconditional
+  and on the heaviest stretch; the slowest chunk's seconds a frame is logged and the chooser takes
+  `enterprise` past 8 s a frame.

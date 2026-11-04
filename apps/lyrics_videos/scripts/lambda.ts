@@ -420,6 +420,15 @@ const derive = (slug: string, src: string, outRel: string, args: string[], setti
 
 export type Derived = { from: string; to: string; bytes: number; fromBytes: number; why: string };
 
+/** the slowest chunk's seconds per frame from the project's last finished Lambda render on a 3 GB function (out/<slug>/.renders.jsonl), if any */
+export const measuredSecondsPerFrame = (slug: string): { secondsPerFrame: number; at: string; frames?: [number, number | null] } | undefined => {
+  const log = path.join(ROOT, 'out', slug, '.renders.jsonl');
+  if (!fs.existsSync(log)) return undefined;
+  const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string } }[];
+  const last = entries.filter(e => e.ok && e.scale >= 1 && e.lambda?.slowestChunkSecondsPerFrame && /mem3008mb/.test(e.lambda.functionName)).at(-1);
+  return last?.lambda?.slowestChunkSecondsPerFrame ? { secondsPerFrame: last.lambda.slowestChunkSecondsPerFrame, at: last.at, frames: last.frames } : undefined;
+};
+
 export type PackCheck = { level: 'ok' | 'warn' | 'reject'; bytes: number; message: string };
 /** the pack against PACK_WARN_BYTES / PACK_MAX_BYTES */
 export const checkPack = (bytes: number): PackCheck => {
@@ -569,9 +578,14 @@ export type PresetChoice = { key: string; reason: string };
  * frame, so the number of chunks is the cost of media-heavy renders, and short chunks must still fit
  * a function's timeout. (render-cloud skill: "Which preset".)
  */
-export const choosePreset = (c: { frames: number; fps: number; scale: number; playingClips: number; playingBytes: number; packBytes: number }): PresetChoice => {
+export const choosePreset = (c: { frames: number; fps: number; scale: number; playingClips: number; playingBytes: number; packBytes: number; /** the slowest chunk of this project's last Lambda render, seconds per frame on a 3 GB function */ secondsPerFrame?: number }): PresetChoice => {
   const seconds = c.frames / c.fps;
   const media = formatBytes(c.playingBytes);
+  // Lambda's hard limit is 15 min for the whole render (the main function) and for each chunk, so a frame that
+  // takes long on a 3 GB function needs more CPU and fewer frames per chunk: enterprise (10 GB, 50 frames)
+  if (c.secondsPerFrame !== undefined && c.secondsPerFrame * 75 > 600 && c.scale >= 1) {
+    return { key: 'enterprise', reason: `the last render's slowest chunk took ${c.secondsPerFrame.toFixed(1)} s a frame on 3 GB: 75-frame chunks would run ${formatSeconds(c.secondsPerFrame * 75)} and hit the 15 min limit; 10 GB functions with 50-frame chunks keep each under it` };
+  }
   if (seconds <= 30 && c.playingClips === 0 && c.playingBytes <= 30 * MB) {
     return { key: 'lightweight', reason: `${formatSeconds(seconds)} with no clips and ${media} of media: the smallest function does it for the least` };
   }
@@ -756,9 +770,12 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0),
     packBytes: staged.bytes,
   });
-  const presetKey = req.preset ?? staged.rules?.preset ?? chosen.key;
+  const measured = measuredSecondsPerFrame(req.slug);
+  const chosenMeasured = measured ? choosePreset({ frames: framesToRender, fps: comp.fps, scale: req.scale, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes, secondsPerFrame: measured.secondsPerFrame }) : chosen;
+  if (!measured && !clip && req.scale >= 1) console.warn('  no window render of this project on Lambda yet: a 20 s window on its heaviest stretch first would measure how slow its frames are and size the chunks (render-cloud skill)');
+  const presetKey = req.preset ?? staged.rules?.preset ?? chosenMeasured.key;
   const { preset, functionName } = functionFor(presetKey);
-  console.log(`Preset ${presetKey}${presetKey === chosen.key ? `: ${chosen.reason}` : ` (${req.preset ? '--preset' : 'lambda.json'}; the chooser would take ${chosen.key}: ${chosen.reason})`}`);
+  console.log(`Preset ${presetKey}${presetKey === chosenMeasured.key ? `: ${chosenMeasured.reason}` : ` (${req.preset ? '--preset' : 'lambda.json'}; the chooser would take ${chosenMeasured.key}: ${chosenMeasured.reason})`}`);
   const framesName = frames ? `${frames.from}-${frames.to}` : '';
   const output = req.look
     ? path.join(req.outDir, 'looks', `${req.look}.mp4`)
@@ -795,6 +812,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   if (!ok) for (const e of progress.errors) console.error(`  ✗ ${e.name}: ${e.message}${e.frame != null ? ` (frame ${e.frame})` : ''}${e.stack ? `\n${e.stack.split('\n').slice(0, 6).join('\n')}` : ''}`);
   const seconds = Math.round((Date.now() - started) / 100) / 10;
   const cost = progress.costs.accruedSoFar;
+  const slowest = progress.mostExpensiveFrameRanges?.[0];
   endLine(ok ? `  ✔ ${path.relative(ROOT, output)} (${formatBytes(progress.outputSizeInBytes ?? fs.statSync(output).size)}, ${seconds} s)` : `  ✗ render failed after ${seconds} s`);
 
   try {
@@ -805,7 +823,15 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
       look: req.look,
       seconds,
       ok,
-      lambda: { region, renderId: progress.renderId, functionName, lambdas: progress.lambdasInvoked, costUsd: cost, through: req.direct ? 'aws' : 'mediamake' },
+      lambda: {
+        region,
+        renderId: progress.renderId,
+        functionName,
+        lambdas: progress.lambdasInvoked,
+        costUsd: cost,
+        through: req.direct || progress.direct ? 'aws' : 'mediamake',
+        ...(slowest ? { slowestChunkSecondsPerFrame: Math.round((slowest.timeInMilliseconds / 1000 / (slowest.frameRange[1] - slowest.frameRange[0] + 1)) * 10) / 10 } : {}),
+      },
     });
   } catch (err) {
     console.warn(`Could not log the render: ${err instanceof Error ? err.message : err}`);
@@ -823,9 +849,9 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     const full = (cost / framesToRender) * comp.durationInFrames;
     console.log(`  the whole video (${comp.durationInFrames} frames) would be about $${full.toFixed(2)} at this rate`);
   }
-  if (progress.mostExpensiveFrameRanges?.length) {
-    const top = progress.mostExpensiveFrameRanges[0];
-    console.log(`  slowest chunk: frames ${top.frameRange[0]}-${top.frameRange[1]}, ${Math.round(top.timeInMilliseconds / 1000)} s`);
+  if (slowest) {
+    const perFrame = slowest.timeInMilliseconds / 1000 / (slowest.frameRange[1] - slowest.frameRange[0] + 1);
+    console.log(`  slowest chunk: frames ${slowest.frameRange[0]}-${slowest.frameRange[1]}, ${Math.round(slowest.timeInMilliseconds / 1000)} s (${perFrame.toFixed(1)} s a frame; the next full render's preset is chosen from this)`);
   }
   return output;
 };
@@ -849,6 +875,8 @@ type RenderCall = {
 /** what both ways report back: Remotion's render progress, as far as this script reads it */
 type Progress = {
   renderId: string;
+  /** set when the render was followed on AWS directly (nothing of it in mediamake's records) */
+  direct?: boolean;
   done: boolean;
   fatalErrorEncountered: boolean;
   errors: { name?: string; message: string; frame?: number | null; stack?: string }[];
@@ -887,7 +915,7 @@ const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
       // the start call was cut off before mediamake wrote the record: the render still runs on AWS
       const { bucketName: siteBucket } = await getOrCreateBucket({ region: c.region });
       console.warn(`  render ${c.attach} is not in your mediamake render history (its start call was cut off); following it on AWS directly, so its cost is not in mediamake's records`);
-      return followDirect(c, c.attach, siteBucket, started);
+      return { ...(await followDirect(c, c.attach, siteBucket, started)), direct: true };
     }
     if (found.composition && found.composition !== c.composition) throw new Error(`Render ${c.attach} is of ${found.composition}, not ${c.composition}.`);
     renderId = found.renderId!;
@@ -1012,9 +1040,11 @@ if (isMain) {
       const full = Math.ceil(staged.manifest.audio.duration * size.fps);
       const playing = plan.media.filter(m => (m.usedSeconds ?? 0) > 0);
       const choice = (frames: number, scale: number) => choosePreset({ frames, fps: size.fps, scale, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes });
-      const whole = choice(full, 1);
+      const measured = measuredSecondsPerFrame(slug);
+      const whole = measured ? choosePreset({ frames: full, fps: size.fps, scale: 1, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes, secondsPerFrame: measured.secondsPerFrame }) : choice(full, 1);
       const review = choice(full, 0.5);
       const window = choice(20 * size.fps, 1);
+      console.log(measured ? `Measured: ${measured.secondsPerFrame} s a frame in the slowest chunk of the render on ${measured.at.slice(0, 10)}${measured.frames ? ` (frames ${measured.frames[0]}-${measured.frames[1] ?? 'end'})` : ''}` : 'Not measured yet: render a 20 s window on the heaviest stretch first (--lambda --window=a-b), its slowest chunk sizes the full render.');
       console.log(`Preset for the whole video: ${whole.key} (${whole.reason})`);
       console.log(`  a half-size review: ${review.key}; a 20 s window: ${window.key}${staged.rules?.preset ? `; lambda.json says ${staged.rules.preset}` : ''}`);
     } else if (command === 'pack') {

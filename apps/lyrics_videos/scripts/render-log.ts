@@ -24,7 +24,7 @@ export type RenderEntry = {
   seconds: number;
   ok: boolean;
   /** set when the render ran on Remotion Lambda (scripts/lambda.ts); costUsd is Lambda compute only */
-  lambda?: { region: string; renderId: string; functionName: string; lambdas: number; costUsd: number; through: 'mediamake' | 'aws' };
+  lambda?: { region: string; renderId: string; functionName: string; lambdas: number; costUsd: number; through: 'mediamake' | 'aws'; /** the slowest chunk's seconds per frame (scripts/lambda.ts sizes the next render's chunks from it) */ slowestChunkSecondsPerFrame?: number };
 };
 
 /** out/<slug>/.renders.jsonl for any file under out/<slug>/ */
