@@ -1086,8 +1086,25 @@ const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
   console.log(`  render ${renderId} started (in your mediamake render history; if this terminal drops, --attach=${renderId} picks it up)`);
   }
   let delay = 2000;
+  let notFound = 0;
   for (;;) {
-    const r = await cloud.get<{ type: 'progress' | 'done' | 'error'; message?: string; url?: string; renderInfo?: Progress }>('api/remotion/progress', { bucketName, id: renderId });
+    let r: { type: 'progress' | 'done' | 'error'; message?: string; url?: string; renderInfo?: Progress };
+    try {
+      r = await cloud.get('api/remotion/progress', { bucketName, id: renderId });
+    } catch (err) {
+      const { CloudError } = await import('./library/cloud.ts');
+      // mediamake writes the record after Lambda accepts the render; a slow or failed write shows as 404 here
+      if (err instanceof CloudError && err.status === 404 && ++notFound <= 20) {
+        line(`  waiting for mediamake's record of ${renderId} (${notFound})`);
+        await sleep(5000);
+        continue;
+      }
+      if (err instanceof CloudError && err.status === 404) {
+        endLine(`  mediamake never recorded ${renderId}; following it on AWS directly (its cost is not in mediamake's records)`);
+        return { ...(await followDirect(c, renderId, bucketName, started)), direct: true };
+      }
+      throw err;
+    }
     const info = r.renderInfo;
     if (!info) throw new Error(`mediamake answered without progress: ${r.message ?? JSON.stringify(r)}`);
     const progress: Progress = { ...info, renderId, errors: info.errors ?? [] };

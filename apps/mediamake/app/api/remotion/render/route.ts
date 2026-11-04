@@ -370,6 +370,10 @@ export const POST = async (req: NextRequest) => {
     console.log(`Lambda accepted render ${result.renderId} after ${Date.now() - startedAt} ms${req.signal.aborted ? ' (the client had already gone)' : ''}`);
 
     // The render is running now whatever happens below: never lose its record over a bookkeeping error.
+    // A pooled Mongo connection that went stale while the server sat idle answers the first write with
+    // EPIPE (seen 2026-11-04, after a 7 min deploy): try the record again before giving up on it.
+    let recorded = false;
+    for (let attempt = 1; attempt <= 3 && !recorded; attempt++) {
     try {
     if (clientId) {
       await renderRequestDB.create({
@@ -412,10 +416,13 @@ export const POST = async (req: NextRequest) => {
         await userQuotaDB.incrementUsage(clientId, 'render');
       }
     }
+      recorded = true;
     } catch (bookkeeping) {
-      console.error(`Render ${result.renderId} is running but could not be recorded:`, bookkeeping);
+      console.error(`Render ${result.renderId} is running but could not be recorded (attempt ${attempt}):`, bookkeeping);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1500 * attempt));
     }
-    console.log(`Render ${result.renderId} recorded after ${Date.now() - startedAt} ms`);
+    }
+    console.log(`Render ${result.renderId} ${recorded ? 'recorded' : 'NOT recorded'} after ${Date.now() - startedAt} ms`);
 
     return NextResponse.json({
       ...result,
