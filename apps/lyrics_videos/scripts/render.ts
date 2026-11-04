@@ -30,8 +30,12 @@
  * projects/<slug>/shorts/<id>/wide.mp4, which the turned short plays. Lyric shorts
  * (make-lyrics-shorts-summerstyle-boldwords) have their own: npm run lyric-shorts -- <slug> render <id | all>.
  *
- * To render through mediamake's /api/remotion/render or Lambda instead, pass the manifest
- * as inputProps ({ manifest }) with asset paths rewritten to public URLs.
+ * Lambda (scripts/lambda.ts): --lambda renders the same thing on Remotion Lambda through mediamake's
+ * AWS setup, into the same files. The project is bundled alone as the site lyrics-<slug> with its
+ * inputs as the site's public folder, { manifest, edits } go in as inputProps, and the cost is
+ * printed. --window=a-b is a stretch in song seconds (--frames=a-b works too); --region=, --preset=
+ * (mediamake's AWS_RENDER_CONFIGS, default complex-fast) and --skip-deploy (reuse the last site) are
+ * its own flags; --proxy/--scale, --look and --crf apply as locally. Other remotion flags don't.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -47,8 +51,14 @@ const shortId = value('short');
 const format = value('format');
 const look = value('look');
 const proxy = rest.find(f => f === '--proxy' || f.startsWith('--proxy='));
+const lambda = rest.includes('--lambda');
+const LAMBDA_FLAGS = /^--(window|region|preset)=|^--skip-deploy$|^--lambda$/;
+if (!lambda && rest.some(f => LAMBDA_FLAGS.test(f) && f !== '--lambda')) {
+  console.error('--window, --region, --preset and --skip-deploy go with --lambda.');
+  process.exit(1);
+}
 // the rest go to remotion render
-let flags = rest.filter(f => !/^--(short|format|look)=/.test(f) && f !== proxy);
+let flags = rest.filter(f => !/^--(short|format|look)=/.test(f) && f !== proxy && !LAMBDA_FLAGS.test(f));
 if (!slug) {
   console.error('Usage: npm run render-project -w lyrics_videos -- <slug> [--proxy] [--look=<id>] [flags]');
   process.exit(1);
@@ -97,11 +107,56 @@ if (look) {
 }
 
 const frames = parseFramesFlag(flags);
-const clip = frames || flags.includes('--frames');
+const windowFlag = value('window');
+const songWindow = windowFlag ? parseWindow(windowFlag) : undefined;
+const clip = frames || flags.includes('--frames') || Boolean(songWindow);
 const framesName = frames ? `${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}` : 'clip';
 
+/** --window=a-b: song seconds, b may be left out (to the end) */
+function parseWindow(raw: string): { from: number; to: number } {
+  const [a, b] = raw.split('-').map(Number);
+  if (!Number.isFinite(a) || a < 0 || (b !== undefined && !(Number.isNaN(b) || b > a))) {
+    console.error('--window takes song seconds: --window=10-30 (or --window=200- to the end)');
+    process.exit(1);
+  }
+  return { from: a, to: Number.isFinite(b) ? b : Number.MAX_SAFE_INTEGER };
+}
+
+/** the same render on Lambda, into the same file names (scripts/lambda.ts) */
+async function renderOnLambdaHere(composition: string, outDir: string, short?: MapShort): Promise<string | null> {
+  const { renderOnLambda } = await import('./lambda.ts');
+  const crfFlag = flags.find(f => f.startsWith('--crf='));
+  const started = Date.now();
+  try {
+    return await renderOnLambda({
+      slug,
+      composition,
+      outDir: path.join(ROOT, outDir),
+      name: composition,
+      frames: frames && { from: frames.from, to: frames.to },
+      window: songWindow,
+      look,
+      scale,
+      crf: crfFlag ? Number(crfFlag.slice('--crf='.length)) : undefined,
+      region: value('region'),
+      preset: value('preset'),
+      skipDeploy: rest.includes('--skip-deploy'),
+      short,
+    });
+  } catch (err) {
+    console.error(`Lambda render failed after ${Math.round((Date.now() - started) / 1000)} s: ${err instanceof Error ? err.message : err}`);
+    if (err instanceof Error && err.stack && !/^(No |The site|Nothing to|Lambda function|Region )/.test(err.message)) console.error(err.stack.split('\n').slice(1, 6).join('\n'));
+    return null;
+  }
+}
+
 /** one remotion render, logged, then its shot map; false when the render failed */
-function renderOne(composition: string, output: string, short?: MapShort): boolean {
+async function renderOne(composition: string, output: string, short?: MapShort): Promise<boolean> {
+  if (lambda) {
+    // clips/ and looks/ sit one level under the render's folder; the file is named after the composition
+    const outDir = clip || look ? path.dirname(path.dirname(output)) : path.dirname(output);
+    return (await renderOnLambdaHere(composition, outDir, short)) !== null;
+  }
   fs.mkdirSync(path.join(ROOT, path.dirname(output)), { recursive: true });
   const started = Date.now();
   const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', composition, output, ...flags], {
@@ -152,8 +207,8 @@ if (shortId) {
     const name = `${slug}-${shortId}-${f}`;
     const dir = path.join('out', slug, 'shorts', shortId);
     const output = clip ? path.join(dir, 'clips', `${name}-${framesName}.mp4`) : path.join(dir, `${name}.mp4`);
-    if (!clip) keepPrevious(path.join(ROOT, dir), name);
-    if (!renderOne(name, output, { shots, offset: short.hook?.from ?? short.from })) process.exit(1);
+    if (!clip && !lambda) keepPrevious(path.join(ROOT, dir), name);
+    if (!(await renderOne(name, output, { shots, offset: short.hook?.from ?? short.from }))) process.exit(1);
     if (f === '16x9' && wideFile && !clip) {
       // the turned short plays it from the project folder (a hard link: no second copy)
       fs.rmSync(wideFile, { force: true });
@@ -173,5 +228,5 @@ const output = look
   : clip
     ? path.join('out', slug, 'clips', `${slug}-${framesName}.mp4`)
     : path.join('out', slug, `${slug}.mp4`);
-if (!clip && !look) keepPrevious(path.join(ROOT, 'out', slug), slug);
-process.exit(renderOne(slug, output) ? 0 : 1);
+if (!clip && !look && !lambda) keepPrevious(path.join(ROOT, 'out', slug), slug);
+process.exit((await renderOne(slug, output)) ? 0 : 1);
