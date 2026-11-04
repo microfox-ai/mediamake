@@ -325,6 +325,10 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 - A dangling symlink under `projects/` used to crash every bundle (fixed in `scripts/bundle.ts` with
   timestamp snapshots); still copy footage in rather than linking it.
 - `wave-lab` bundles all of `projects/` (~30 s before the first still).
+- A clip as the cover (`cover.image: 'loop.mp4'` + `clip` seconds, a motion poster made seamless like
+  projects/mahalakshmi/tools/loop.sh) plays as a real `<video>` in the Remotion editor, which Chrome draws
+  black under an SVG filter: CoverBackdrop keeps `url(#…)` filters on a wrapper, never on the video element.
+  Renders never show this (OffthreadVideo becomes a frame image), so check clip covers in the editor too.
 
 ## Lessons log
 
@@ -537,3 +541,14 @@ Append dated entries: what the user said → the rule.
   MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
   connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
   tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
+- 2026-11-04 · WAKE UP (Get into Zone), a looping motion poster instead of a still, matched to the
+  channel's own "Chasing the Skyline": the reference's mediamake timeline (`list_timelines` search,
+  `get_timeline` full) gave its exact settings (side bars, `sub-fast-rap-static` one word at a time,
+  title texts, dust) → copy them, and check the render side by side: the preset bolds every one-word
+  sentence (use `Montserrat:500` to match its lighter look), its 0.3 s word lead is a whole word
+  ahead at ~160 BPM (halve it), its 0.5 top/bottom shade darkened a bright picture ~18 % (lighten it,
+  lift the clip). The clip plays as an `OverlayVideo` (`blendMode: 'normal'`, `follow: true`,
+  `clipSeconds` = its frames / fps) over its first frame as the cover; a video model's loop drifts and
+  snaps back to its end frame, so crossfade the tail into frame 0 (projects/wakeup-waveform/tools/loop.sh).
+- 2026-11-04 · "dont use smoke overlay, it usually looks bad" → no smoke or vapour overlays, even when
+  the reference timeline has one; dust in screen is fine.

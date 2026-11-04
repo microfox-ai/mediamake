@@ -68,7 +68,7 @@ export type SubjectProps = {
    * She trembles like she's powering up: a small fast jitter (`frequency` changes a second), its
    * amplitude in px read off [song second, px] keys, so it can rise through the song.
    */
-  tremor?: { keys: [number, number][]; frequency?: number };
+  tremor?: { keys: [number, number][]; frequency?: number | [number, number][] };
   /**
    * From `from` on, ki crackling round the silhouette: a jagged line a little outside her edge that
    * redraws every couple of frames, with a glow, flickering and flaring on the kicks.
@@ -138,10 +138,31 @@ const keyed = (keys: [number, number][], t: number) => {
   return keys[keys.length - 1][1];
 };
 
+/** The phase (cycles) at t of a frequency keyed by song second: the integral of the keyed curve. */
+const phaseOf = (keys: [number, number][], t: number) => {
+  let phase = 0;
+  let [t0, f0] = keys[0];
+  if (t <= t0) return t * f0;
+  phase += t0 * f0;
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, f1] = keys[i];
+    if (t <= t1) {
+      const f = f0 + ((f1 - f0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+      return phase + ((f0 + f) / 2) * (t - t0);
+    }
+    phase += ((f0 + f1) / 2) * (t1 - t0);
+    [t0, f0] = [t1, f1];
+  }
+  return phase + f0 * (t - t0);
+};
+
 /** The tremor's offset at song time t: smoothed random steps at `frequency`, scaled by the keys. */
 const tremorAt = (tremor: NonNullable<SubjectProps['tremor']>, t: number): [number, number] => {
   const a = keyed(tremor.keys, t);
-  const phase = t * (tremor.frequency ?? 14);
+  // (Fullmetal Gregorian, 2026-11-04: "vibrate at different frequencies and amplitudes based on the
+  // sections of music" → the frequency can be keyed by song second too; the phase integrates it)
+  const freq = tremor.frequency ?? 14;
+  const phase = typeof freq === 'number' ? t * freq : phaseOf(freq, t);
   const i = Math.floor(phase);
   const f = phase - i;
   const e = f * f * (3 - 2 * f);

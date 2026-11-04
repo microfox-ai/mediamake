@@ -46,8 +46,11 @@ export type PictureLook = {
   vignette?: number;
   /** A light leak blooming in from `at` (0..1 of the frame), drifting along the edge. */
   leak?: { color: string; at: [number, number]; strength: number; size?: number; drift?: number };
-  /** God rays from a picture point (frame px), turning slowly, stronger with the bass. */
-  rays?: { at: [number, number]; color: string; strength: number; count?: number; spin?: number };
+  /**
+   * God rays from a picture point (frame px), turning slowly, stronger with the bass. `behind`: a mask
+   * asset (RGBA, transparent where the subject is) that keeps the rays off her, so they come from behind her.
+   */
+  rays?: { at: [number, number]; color: string; strength: number; count?: number; spin?: number; behind?: string };
   /** Embers drifting up through the frame. */
   embers?: { count: number; color?: string; size?: number; rise?: number };
   halftone?: { size: number; strength: number; color?: string };
@@ -265,7 +268,9 @@ export const PictureTexture: React.FC<{
   low: number;
   snare?: number;
   rayAt?: [number, number];
-}> = ({ look, t, pulse, low, snare = 0, rayAt }) => {
+  /** The rays' `behind` mask resolved to a URL, with the picture's transform so it moves with the cover. */
+  rayMask?: { src: string; transform: string; origin?: string };
+}> = ({ look, t, pulse, low, snare = 0, rayAt, rayMask }) => {
   const frame = useCurrentFrame();
   const { width: W, height: H } = useVideoConfig();
   const layers: React.ReactNode[] = [];
@@ -279,19 +284,49 @@ export const PictureTexture: React.FC<{
     const [x, y] = rayAt;
     const rot = t * spin;
     const mask = `radial-gradient(circle at ${x}px ${y}px, black 0%, rgba(0,0,0,0.6) 25%, transparent 70%)`;
-    layers.push(
+    const rays = (
       <AbsoluteFill
         key="rays"
         style={{
           background: `repeating-conic-gradient(from ${rot}deg at ${x}px ${y}px, ${color} 0deg, transparent ${step * 0.35}deg, transparent ${step * 0.65}deg, ${color} ${step}deg)`,
           WebkitMaskImage: mask,
           maskImage: mask,
-          mixBlendMode: 'screen',
+          mixBlendMode: rayMask ? undefined : 'screen',
           opacity: strength * (0.55 + 0.45 * low + 0.25 * pulse),
           filter: 'blur(6px)',
         }}
-      />,
+      />
     );
+    if (rayMask) {
+      // the mask moves with the picture (outer), the rays stay in frame space (inner, counter-moved)
+      const inverse = rayMask.transform
+        .split(/\s+(?=[a-z]+\()/)
+        .reverse()
+        .map(fn => {
+          const m = fn.match(/^(scale|translate)\((.*)\)$/);
+          if (!m) return fn;
+          if (m[1] === 'scale') return `scale(${(1 / parseFloat(m[2])).toFixed(6)})`;
+          const [dx, dy] = m[2].split(',').map(v => -parseFloat(v));
+          return `translate(${dx}px, ${dy}px)`;
+        })
+        .join(' ');
+      layers.push(
+        <AbsoluteFill
+          key="rays-behind"
+          style={{
+            transform: rayMask.transform,
+            transformOrigin: rayMask.origin,
+            WebkitMaskImage: `url("${rayMask.src}")`,
+            maskImage: `url("${rayMask.src}")`,
+            WebkitMaskSize: '100% 100%',
+            maskSize: '100% 100%',
+            mixBlendMode: 'screen',
+          }}
+        >
+          <AbsoluteFill style={{ transform: inverse, transformOrigin: rayMask.origin }}>{rays}</AbsoluteFill>
+        </AbsoluteFill>,
+      );
+    } else layers.push(rays);
   }
   if (look.leak) {
     const { color, at, strength, size = 45, drift = 0.06 } = look.leak;

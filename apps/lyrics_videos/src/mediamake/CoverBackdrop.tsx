@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { AbsoluteFill, Img, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, Loop, OffthreadVideo, useVideoConfig } from 'remotion';
 import type { SceneProps } from '../kit/contract';
 import { withKnobs } from '../kit/knobs';
 import type { Manifest } from '../kit/manifest';
@@ -8,8 +8,14 @@ import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilte
 import { FlowFilter, StageSlices, useStageState, type Stages } from './Stages';
 
 export type CoverBackdropProps = {
-  /** A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/. */
+  /**
+   * A manifest asset name ("cover.png"), a manifest path or a URL. Default: the first picture in input/.
+   * A clip (.mp4 / .webm: a motion poster) plays muted in the picture's place, looping every `clip` seconds,
+   * with the same motion, look and texture over it.
+   */
   image?: string;
+  /** Seconds the clip runs before it loops (its frames / fps), when `image` is a clip. */
+  clip?: number;
   /**
    * Slow loop on the picture, like mediamake's zoom-loop / pan-loop image effects; or 'push', one
    * slow push-in from `push.from` to `push.to` (scales) over `push.seconds`, never pulling back.
@@ -121,6 +127,10 @@ export type Jolt = {
   zoomGap?: number;
   /** Motion blur per px/frame of speed. Default 0.8. */
   blur?: number;
+  /** Song seconds the jolt is live in, as [from, to] pairs. Default always. */
+  when?: [number, number][];
+  /** The amount scaled by song second ([second, ×] keys, linear between): a jolt that grows through the song. */
+  scale?: [number, number][];
 };
 
 export type Defocus = { from: number; to: number; amount: number; ease?: number };
@@ -212,7 +222,18 @@ const punches = (list: [number, number][], j: Jolt) => {
 };
 
 /** The jolt's offset and extra zoom at song time t: the last strong onset's damped swing. */
+const joltScale = (keys: [number, number][] | undefined, t: number) => {
+  if (!keys?.length) return 1;
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [t0, v0] = keys[i - 1];
+    const [t1, v1] = keys[i];
+    if (t <= t1) return v0 + ((v1 - v0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+  }
+  return keys[keys.length - 1][1];
+};
 const joltAt = (m: Manifest, j: Jolt, t: number) => {
+  if (j.when && !j.when.some(([a, b]) => t >= a && t <= b)) return { dx: 0, dy: 0, zoom: 0 };
   const list = m.onsets?.[j.on ?? 'kick'] ?? [];
   const decay = j.decay ?? 7;
   for (let i = list.length - 1; i >= 0; i--) {
@@ -222,7 +243,7 @@ const joltAt = (m: Manifest, j: Jolt, t: number) => {
     if (age > 6 / decay) break;
     if (s < (j.threshold ?? 0.7)) continue;
     const dir = hash(i + 0.37) * Math.PI * 2;
-    const amp = j.amount * Math.min(1, s) * Math.exp(-age * decay) * Math.cos(age * (j.swing ?? 5) * Math.PI * 2);
+    const amp = j.amount * joltScale(j.scale, ot) * Math.min(1, s) * Math.exp(-age * decay) * Math.cos(age * (j.swing ?? 5) * Math.PI * 2);
     const punch = s >= (j.zoomFrom ?? 0) && punches(list, j).has(ot) ? (j.zoom ?? 0) : 0;
     return { dx: Math.cos(dir) * amp, dy: Math.sin(dir) * amp, zoom: punch * Math.exp(-age * decay * 1.5) };
   }
@@ -512,6 +533,25 @@ const wobble = (t: number, seed: number) =>
   (Math.sin(t * 1.0 + seed) + Math.sin(t * 2.31 + seed * 1.7) * 0.6 + Math.sin(t * 4.17 + seed * 2.3) * 0.3) / 1.9;
 
 /** Cover art or key art behind the lyrics: a slow zoom or pan loop that kicks on the beat. */
+const VIDEO_SRC = /\.(mp4|webm|mov|m4v)(\?.*)?$/i;
+
+/**
+ * The picture: an image, or a muted clip looping every `clip` seconds (a motion poster). In the Player
+ * the clip is a real <video>, which Chrome draws black under an SVG filter (`url(#…)`: the look's sharpen,
+ * duotone, heat, motion blur), so those go on a wrapper and only the native filters stay on the element.
+ */
+const Picture: React.FC<{ src: string; style: React.CSSProperties; clip?: number }> = ({ src, style, clip }) => {
+  const { fps } = useVideoConfig();
+  if (!VIDEO_SRC.test(src)) return <Img src={src} style={style} />;
+  const { filter, ...rest } = style;
+  const parts = String(filter ?? '').split(/\s+(?=[a-z-]+\()/).filter(Boolean);
+  const svg = parts.filter(f => f.startsWith('url('));
+  const native = parts.filter(f => !f.startsWith('url('));
+  const video = <OffthreadVideo src={src} muted style={{ ...rest, filter: native.join(' ') || undefined }} />;
+  const looped = clip ? <Loop durationInFrames={Math.max(1, Math.round(clip * fps))}>{video}</Loop> : video;
+  return svg.length ? <AbsoluteFill style={{ filter: svg.join(' ') }}>{looped}</AbsoluteFill> : looped;
+};
+
 export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => {
   const { manifest, image, origin, fit = 'cover', dim = 0.35, fadeBottom = true, tint, look } = props;
   const t = useSongTime();
@@ -532,6 +572,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   const flowId = `cover-flow-${uid}`;
   const spin = props.stages?.spin;
   const spinMasks = spin?.masks.map(n => (n ? asset(manifest.assets[n] ?? n) : null));
+  const clip = props.clip;
   const name = image || Object.keys(manifest.assets).find(k => /\.(jpe?g|png|webp|avif)$/i.test(k));
   if (!name && !stageSrcs) throw new Error(`CoverBackdrop: no picture in ${manifest.slug}/input/`);
   const src = stageSrcs && stage ? stageSrcs[stage.i] : asset(manifest.assets[name!] ?? name!);
@@ -561,8 +602,9 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
       {fit === 'contain' && (
-        <Img
+        <Picture
           src={src}
+          clip={clip}
           style={{
             ...picture,
             objectFit: 'cover',
@@ -580,7 +622,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
       {/* under the warp, a slightly bigger copy fills what it pulls in from past the picture's edge */}
       {dance.filter && (
         <AbsoluteFill style={{ transform: dance.transform, transformOrigin: dance.origin }}>
-          <Img src={src} style={{ ...picture, transform: `scale(${m.scale * 1.08}) translate(${m.dx}px, ${m.dy}px)` }} />
+          <Picture src={src} clip={clip} style={{ ...picture, transform: `scale(${m.scale * 1.08}) translate(${m.dx}px, ${m.dy}px)` }} />
         </AbsoluteFill>
       )}
       <AbsoluteFill style={{ transform: dance.transform, transformOrigin: dance.origin, filter: dance.filter || undefined }}>
@@ -644,7 +686,7 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
             )}
           />
         ) : (
-          <Img src={src} style={picture} />
+          <Picture src={src} clip={clip} style={picture} />
         )}
       </AbsoluteFill>
       {tint && <AbsoluteFill style={{ backgroundColor: tint, mixBlendMode: 'color' }} />}
@@ -656,6 +698,11 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
           low={low}
           snare={snareHit}
           rayAt={look.rays && coverPoint(m, look.rays.at)}
+          rayMask={
+            look.rays?.behind
+              ? { src: asset(manifest.assets[look.rays.behind] ?? look.rays.behind), transform: picture.transform as string, origin }
+              : undefined
+          }
         />
       )}
       <AbsoluteFill style={{ backgroundColor: `rgba(0,0,0,${Math.max(0, dim - energy * 0.1)})` }} />
@@ -671,7 +718,8 @@ export const CoverBackdrop: React.FC<SceneProps<CoverBackdropProps>> = props => 
 };
 
 withKnobs(CoverBackdrop, {
-  image: { type: 'asset', accept: 'image', label: 'Picture', hint: 'Default: the first picture in input/' },
+  image: { type: 'asset', accept: 'image', label: 'Picture', hint: 'Default: the first picture in input/ (a looping clip works too, with Clip seconds)' },
+  clip: { type: 'number', min: 1, max: 60, step: 0.5, unit: 's', label: 'Clip seconds', hint: 'When the picture is a clip: its length, so it loops without a jump' },
   fit: { type: 'select', options: ['cover', 'contain'], label: 'Fit', default: 'cover' },
   motion: { type: 'select', options: ['zoom-loop', 'pan-loop', 'push', 'still'], label: 'Motion', default: 'zoom-loop' },
   loopSeconds: { type: 'number', min: 4, max: 60, step: 1, unit: 's', label: 'Seconds per loop', default: 20 },
