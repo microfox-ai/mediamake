@@ -421,10 +421,22 @@ const derive = (slug: string, src: string, outRel: string, args: string[], setti
 export type Derived = { from: string; to: string; bytes: number; fromBytes: number; why: string };
 
 /** the slowest chunk's seconds per frame from the project's last finished Lambda render on a 3 GB function (out/<slug>/.renders.jsonl), if any */
-export const measuredSecondsPerFrame = (slug: string): { secondsPerFrame: number; at: string; frames?: [number, number | null] } | undefined => {
+export type Measurement = {
+  /** one tab on 3 GB, the chooser's unit (worked back from the tier it was measured on) */
+  secondsPerFrame: number;
+  /** as measured: seconds a frame in the slowest chunk on that function with that many tabs */
+  effective: number;
+  memory: number;
+  tabs: number;
+  /** USD per frame the measuring render cost, every chunk averaged */
+  costPerFrame?: number;
+  at: string;
+  frames?: [number, number | null];
+};
+export const measuredSecondsPerFrame = (slug: string): Measurement | undefined => {
   const log = path.join(ROOT, 'out', slug, '.renders.jsonl');
   if (!fs.existsSync(log)) return undefined;
-  const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string; config?: { concurrencyPerLambda?: number } } }[];
+  const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string; costUsd?: number; config?: { concurrencyPerLambda?: number } } }[];
   const last = entries.filter(e => e.ok && e.scale >= 1 && e.lambda?.slowestChunkSecondsPerFrame).at(-1);
   if (!last?.lambda?.slowestChunkSecondsPerFrame) return undefined;
   // back to "one tab on 3 GB": the chooser's unit (the same gains it assumes, in reverse)
@@ -432,7 +444,16 @@ export const measuredSecondsPerFrame = (slug: string): { secondsPerFrame: number
   const tabs = last.lambda.config?.concurrencyPerLambda ?? 1;
   const singleTabGain = Math.min(2, Math.max(0.6, (memory / 3008) ** 0.5));
   const perChunkFrame = last.lambda.slowestChunkSecondsPerFrame;
-  return { secondsPerFrame: Math.round(perChunkFrame * singleTabGain * (1 + (tabs - 1) * TAB_GAIN) * 10) / 10, at: last.at, frames: last.frames };
+  const frames = last.frames ? (last.frames[1] ?? 0) - last.frames[0] + 1 : undefined;
+  return {
+    secondsPerFrame: Math.round(perChunkFrame * singleTabGain * (1 + (tabs - 1) * TAB_GAIN) * 10) / 10,
+    effective: perChunkFrame,
+    memory,
+    tabs,
+    costPerFrame: last.lambda.costUsd && frames && last.frames?.[1] ? last.lambda.costUsd / frames : undefined,
+    at: last.at,
+    frames: last.frames,
+  };
 };
 
 export type PackCheck = { level: 'ok' | 'warn' | 'reject'; bytes: number; message: string };
@@ -670,9 +691,10 @@ export const chooseConfig = (c: {
   region: AwsRegion;
   deployed: { functionName: string; memorySizeInMb: number; diskSizeInMb: number; timeoutInSeconds: number }[];
   secondsPerFrame?: number;
+  measurement?: Measurement;
 }): RenderConfig => {
-  const measured = c.secondsPerFrame !== undefined;
-  const base = c.secondsPerFrame ?? ASSUMED_SECONDS_PER_FRAME;
+  const measured = c.secondsPerFrame !== undefined || c.measurement !== undefined;
+  const base = c.measurement?.secondsPerFrame ?? c.secondsPerFrame ?? ASSUMED_SECONDS_PER_FRAME;
   // a smaller frame is cheaper in proportion to its pixels
   const perFrame = base * Math.max(0.2, c.scale * c.scale);
   // the function: 2 GB for light frames, 3 GB for ordinary ones, 10 GB with three tabs for heavy ones
@@ -684,7 +706,9 @@ export const chooseConfig = (c: {
   const tabs = fn.memorySizeInMb >= 6144 ? want.tabs : 1;
   // on a bigger function a single tab is somewhat faster too (the CPU scales with the memory, Chrome uses a few threads)
   const singleTabGain = Math.min(2, Math.max(0.6, (fn.memorySizeInMb / 3008) ** 0.5));
-  const effective = perFrame / singleTabGain / (1 + (tabs - 1) * TAB_GAIN);
+  // measured on this very tier at full size: that number, not the model's
+  const sameTier = c.measurement && c.measurement.memory === fn.memorySizeInMb && c.measurement.tabs === tabs && c.scale >= 1;
+  const effective = sameTier ? c.measurement!.effective : perFrame / singleTabGain / (1 + (tabs - 1) * TAB_GAIN);
   // frames per chunk: as many as fit the budget (fewer chunks, less overhead), within Remotion's 150, never past the worst case
   let framesPerLambda = Math.max(10, Math.min(150, Math.floor((CHUNK_BUDGET_SECONDS - CHUNK_OVERHEAD_SECONDS) / effective)));
   framesPerLambda = Math.min(framesPerLambda, Math.max(10, Math.floor((CHUNK_WORST_SECONDS - CHUNK_OVERHEAD_SECONDS) / (perFrame / singleTabGain))));
@@ -699,7 +723,7 @@ export const chooseConfig = (c: {
     }
   }
   const expectedChunkSeconds = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * effective);
-  const worstChunkSeconds = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * (perFrame / singleTabGain));
+  const worstChunkSeconds = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * (sameTier ? effective * 1.5 : perFrame / singleTabGain));
   // the bill: every chunk's expected time, plus the main function waiting for the slowest and concatenating
   const estimatedCost = estimatePrice({
     region: c.region,
@@ -708,7 +732,10 @@ export const chooseConfig = (c: {
     lambdasInvoked: chunks + 1,
     durationInMilliseconds: (chunks * expectedChunkSeconds + expectedChunkSeconds + 60 + c.frames / 100) * 1000,
   });
-  const reason = `${measured ? `measured ${base.toFixed(1)}` : `assumed ${base}`} s a frame on 3 GB${c.scale < 1 ? ` (${Math.round(c.scale * 100)}% size: ${perFrame.toFixed(1)} s)` : ''}; ${Math.round(fn.memorySizeInMb / 1024)} GB${tabs > 1 ? ` with ${tabs} frames at a time` : ''} brings a frame to ~${effective.toFixed(1)} s, so ${framesPerLambda} frames a chunk run ~${expectedChunkSeconds} s (worst ${worstChunkSeconds} s, inside the 15 min), ${chunks} chunks`;
+  const atRate = c.measurement?.costPerFrame && c.scale >= 1 ? `; at the window's average rate $${(c.measurement.costPerFrame * c.frames).toFixed(2)}` : '';
+  const reason = sameTier
+    ? `measured ${effective.toFixed(1)} s a frame in the slowest chunk on this very function (${Math.round(fn.memorySizeInMb / 1024)} GB, ${tabs} at a time), so ${framesPerLambda} frames a chunk run ~${expectedChunkSeconds} s (worst ${worstChunkSeconds} s, inside the 15 min), ${chunks} chunks${atRate}`
+    : `${measured ? `measured ${base.toFixed(1)}` : `assumed ${base}`} s a frame on 3 GB${c.scale < 1 ? ` (${Math.round(c.scale * 100)}% size: ${perFrame.toFixed(1)} s)` : ''}; ${Math.round(fn.memorySizeInMb / 1024)} GB${tabs > 1 ? ` with ${tabs} frames at a time` : ''} brings a frame to ~${effective.toFixed(1)} s, so ${framesPerLambda} frames a chunk run ~${expectedChunkSeconds} s (worst ${worstChunkSeconds} s, inside the 15 min), ${chunks} chunks${atRate}`;
   return { memory: fn.memorySizeInMb, disk: fn.diskSizeInMb, timeout: fn.timeoutInSeconds, framesPerLambda, concurrencyPerLambda: tabs, functionName: fn.functionName, chunks, expectedChunkSeconds, worstChunkSeconds, secondsPerFrame: base, measured, estimatedCost, reason };
 };
 
@@ -880,7 +907,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   const presetKey = req.preset ?? staged.rules?.preset;
   const config = presetKey
     ? configFromPreset(presetKey, (() => { const p = AWS_RENDER_CONFIGS[presetKey]; if (!p) throw new Error(`No preset ${presetKey}. One of: ${Object.keys(AWS_RENDER_CONFIGS).join(', ')}`); return p; })(), framesToRender, region, deployed, (measured?.secondsPerFrame ?? ASSUMED_SECONDS_PER_FRAME) * Math.max(0.2, req.scale * req.scale))
-    : chooseConfig({ frames: framesToRender, scale: req.scale, region, deployed, secondsPerFrame: measured?.secondsPerFrame });
+    : chooseConfig({ frames: framesToRender, scale: req.scale, region, deployed, measurement: measured });
   if (!measured && !clip && req.scale >= 1) console.warn(`  not measured yet: sized for ${ASSUMED_SECONDS_PER_FRAME} s a frame (the slowest seen); a 20 s window on the heaviest stretch first would measure it (render-cloud skill)`);
   console.log(`Configuration: ${describeConfig(config)}\n  ${config.reason}`);
   const functionName = config.functionName;
@@ -1152,13 +1179,13 @@ if (isMain) {
       const playing = plan.media.filter(m => (m.usedSeconds ?? 0) > 0);
       const choice = (frames: number, scale: number) => choosePreset({ frames, fps: size.fps, scale, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes });
       const measured = measuredSecondsPerFrame(slug);
-      console.log(measured ? `Measured: ${measured.secondsPerFrame} s a frame (one tab on 3 GB) in the slowest chunk of the render on ${measured.at.slice(0, 10)}${measured.frames ? ` (frames ${measured.frames[0]}-${measured.frames[1] ?? 'end'})` : ''}` : `Not measured yet: sized for ${ASSUMED_SECONDS_PER_FRAME} s a frame, the slowest seen. Render a 20 s window on the heaviest stretch first (--lambda --window=a-b); its slowest chunk sizes the full render.`);
+      console.log(measured ? `Measured: ${measured.effective} s a frame in the slowest chunk on ${Math.round(measured.memory / 1024)} GB with ${measured.tabs} at a time (${measured.secondsPerFrame} s for one tab on 3 GB), render of ${measured.at.slice(0, 10)}${measured.frames ? ` (frames ${measured.frames[0]}-${measured.frames[1] ?? 'end'})` : ''}` : `Not measured yet: sized for ${ASSUMED_SECONDS_PER_FRAME} s a frame, the slowest seen. Render a 20 s window on the heaviest stretch first (--lambda --window=a-b); its slowest chunk sizes the full render.`);
       try {
         loadAwsEnv();
         const region = await pickRegion(rest.find(f => f.startsWith('--region='))?.slice('--region='.length));
         const deployed = await getFunctions({ region, compatibleOnly: true });
         const show = (label: string, frames: number, scale: number) => {
-          const r = chooseConfig({ frames, scale, region, deployed, secondsPerFrame: measured?.secondsPerFrame });
+          const r = chooseConfig({ frames, scale, region, deployed, measurement: measured });
           console.log(`${label}: ${describeConfig(r)}\n  ${r.reason}`);
         };
         show('Whole video', full, 1);

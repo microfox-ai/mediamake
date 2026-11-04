@@ -201,6 +201,7 @@ near it (a little under when frames vary, a little over when retries happen).
 | the same | 177 MB | 10 s window | 4 | 203 s | $0.027 |
 | the same, song as AAC, source clip skipped | 99 MB | 10 s window | 4 | 195 s | $0.027 |
 | fma-edwardeleric (32 stage masks, cutouts, a particles overlay, sigils) | 190 MB | whole video, 8,429 frames, `complex-fast` | 113 | **failed at 900 s** | $2.59 |
+| the same, heaviest 10 s (frames 5,025–5,324) | 190 MB | 10 GB, 3 at a time, 103 frames a chunk | 3 | 548 s (slowest chunk 481 s, 4.7 s a frame) | $0.17 |
 
 The fma row is the other lesson. The pack was fine (612 → 190 MB with the tooling sources skipped
 and the song as AAC) and 104 chunks finished, but 9 chunks of the heaviest stretch (frames
