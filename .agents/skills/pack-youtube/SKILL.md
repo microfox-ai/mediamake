@@ -36,7 +36,7 @@ selected). Never open Finder yourself.
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/browse-hack` | recommended | Filling YouTube Studio's upload form from info.json on the brand's channel (`youtube_fill_uploads`, `youtube_list_channels`) | The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md |
+| `mcp/browse-hack` | recommended | Filling YouTube Studio's upload form from info.json on the brand's channel (`youtube_fill_uploads`, `youtube_list_channels`), and a shorts pack's shorts (`youtube_bulk_upload_shorts`, MCP 0.13.0) | The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -340,9 +340,16 @@ out/youtube/<slug>-shorts/
 - **Days:** ask the time once per channel (save it in `channel.json` as `shortsTime`) and leave
   `scheduleAt` out, so each short gets the next empty day; `schedule.from` (YYYY-MM-DD) starts later than
   tomorrow. A short that must go out on a set day carries its own `scheduleAt`.
-- Check it parses and every video it names is in `shorts/`. Tell the user to open the popup's YouTube
-  Studio tab → Bulk Upload Shorts and choose this folder (with "Click Schedule for me" on, it schedules
-  each; off, each waits in its own tab).
+- Check it parses and every video it names is in `shorts/`. The user can upload it from the popup's
+  YouTube Studio tab → Bulk Upload Shorts (with "Click Schedule for me" on, it schedules each; off, each
+  waits in its own tab).
+- **Upload only when the user asks** ("upload the shorts"): call Browse Hack's `youtube_bulk_upload_shorts`
+  with the pack folder (MCP 0.13.0 and Browse Hack 0.16.0; call `use_profile` first). It does what the
+  popup does: it checks every short, reads the channel's Shorts tab for the empty days, and uploads each
+  short in its own Studio tab, stopping on Visibility with its day and time filled in. Pass
+  `clickSchedule: true` only when the user asked for them to be scheduled. Report each short's day,
+  `filled` and every warning, and tell the user to click Schedule in each tab when it didn't. Running it
+  again uploads the shorts again.
 
 Shorts the user drags into Studio themselves stay drafts: the same tab's **Autofill Shorts** fills each
 draft from the channel's most similar filled-in short (its title too) and schedules it on the next empty
@@ -375,3 +382,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-11-04 · The Honoured One (Anime Music Zone) · "there is an issue with youtube upload setup (some missing info and some missing clicks)": `youtube_fill_uploads` stopped on Details ("Your video needs a monetisation setting") and the thumbnail failed, so the user finished the upload by hand while Browse Hack recorded it: Monetisation On, Ad suitability None of the above + Submit rating, end screen imported from Full Metal Heart with its playlist element pointed at the Jujutsu Kaisen playlist, a channel card to Get into Zone ("Music on Get into Zone"), then the schedule → info.json carries `monetization`, `adSuitability`, `endScreen` and `cards` (step 5, questions 5–7), and Browse Hack 0.13.0 fills them (extensions PR #29).
 - 2026-11-04 · WAKE UP (Get into Zone) · "it stuck at monetisation again, and its not upload A/b thumbnail pack": Browse Hack 0.13.0 set monetisation and ticked None of the above, but pressed Submit rating before Studio had rated the answers, so Studio stayed on Ad suitability; the thumbnail it handed over from its isolated world previewed and then failed to upload; and info.json named only D1 of the three → info.json carries `abTest` from `titles.txt` (thumbnail + title per variant), and Browse Hack 0.14.0 sets the A/B test, uploads thumbnails from Studio's own page and checks the rating went in.
 - 2026-11-04 · skill · "in extension popup add youtube studio tab … Autofill Shorts … Bulk Upload Shorts - autofill details from … a shorts-pack.json … generated as part of youtube-pack for multivariant shorts" → step 6: a production with more than one short gets `out/youtube/<slug>-shorts/` with shorts-pack.json (shared defaults, one entry per short, each on the next empty day) for the popup's Bulk Upload Shorts (Browse Hack 0.15.0); drafts uploaded by hand go through Autofill Shorts, which copies the most similar short's title and details.
+- 2026-11-04 · Quicksilver x Kingpin shorts (ATOMIC RAP) · "is this action not triggerable via tool in mcp bridge ? if not, add the tool." (Bulk Upload Shorts only ran from the popup) → Browse Hack's MCP got `youtube_bulk_upload_shorts` (extensions PR #32): step 6 calls it with the pack folder when the user asks to upload the shorts.

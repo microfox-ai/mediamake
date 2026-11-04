@@ -414,7 +414,7 @@
         {
           "id": "mcp/browse-hack",
           "need": "recommended",
-          "for": "Filling YouTube Studio's upload form from info.json on the brand's channel (youtube_fill_uploads, youtube_list_channels)",
+          "for": "Filling YouTube Studio's upload form from info.json on the brand's channel (youtube_fill_uploads, youtube_list_channels), and a shorts pack's shorts (youtube_bulk_upload_shorts, MCP 0.13.0)",
           "without": "The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md"
         }
       ]
