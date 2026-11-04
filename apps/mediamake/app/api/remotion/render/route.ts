@@ -55,7 +55,37 @@ export const POST = async (req: NextRequest) => {
       // Still image position. `frame` is a 0-based index and wins over `frameTime`.
       frame,
       frameTime,
+      // A lyrics_videos project's own site (`lyrics-<slug>[-<region>]`, deployed by
+      // apps/lyrics_videos/scripts/lambda.ts) instead of the app's site.
+      siteName,
+      // Video only: a stretch of frames (inclusive), a size factor, a quality.
+      frameRange,
+      scale,
+      crf,
     } = await req.json();
+
+    const lyricsSite = parseLyricsSite(siteName);
+    if (siteName !== undefined && !lyricsSite) {
+      return NextResponse.json(
+        { type: 'error', message: 'siteName must be a lyrics_videos site: lyrics-<slug> or lyrics-<slug>-<region>.' },
+        { status: 400 },
+      );
+    }
+    const range = parseFrameRange(frameRange);
+    if (frameRange !== undefined && !range) {
+      return NextResponse.json(
+        { type: 'error', message: 'frameRange must be [from, to], whole frame numbers with to >= from >= 0.' },
+        { status: 400 },
+      );
+    }
+    const videoScale = scale === undefined ? undefined : Number(scale);
+    if (videoScale !== undefined && !(videoScale > 0 && videoScale <= 1)) {
+      return NextResponse.json({ type: 'error', message: 'scale must be above 0 and at most 1.' }, { status: 400 });
+    }
+    const videoCrf = crf === undefined ? undefined : Number(crf);
+    if (videoCrf !== undefined && !(Number.isInteger(videoCrf) && videoCrf >= 1 && videoCrf <= 51)) {
+      return NextResponse.json({ type: 'error', message: 'crf must be a whole number from 1 to 51.' }, { status: 400 });
+    }
 
     // Files on the user's computer are served by their browser's service
     // worker; Lambda can never fetch them.
@@ -197,9 +227,10 @@ export const POST = async (req: NextRequest) => {
       : fallbackRegion) as AwsRegion;
 
     const serveUrl =
-      effectiveRegion === DEFAULT_REGION
+      lyricsSite ??
+      (effectiveRegion === DEFAULT_REGION
         ? SITE_NAME
-        : `${SITE_NAME}-${effectiveRegion}`;
+        : `${SITE_NAME}-${effectiveRegion}`);
 
     console.log('==========================================');
     console.log('REMOTION LAMBDA RENDER');
@@ -207,6 +238,7 @@ export const POST = async (req: NextRequest) => {
     console.log('Region:', effectiveRegion);
     console.log('Config Mode:', configMode);
     console.log('Composition:', id);
+    console.log('Site:', serveUrl);
     console.log('Codec:', codec);
     console.log('Audio Codec:', audioCodec);
     console.log('Render Type:', renderType);
@@ -234,6 +266,10 @@ export const POST = async (req: NextRequest) => {
         fileName: isDownloadable ? fileName || 'video.mp4' : null,
       },
     };
+
+    if (range) renderOptions.frameRange = range;
+    if (videoScale !== undefined) renderOptions.scale = videoScale;
+    if (videoCrf !== undefined) renderOptions.crf = videoCrf;
 
     // Only set one of concurrency or framesPerLambda
     if (config.concurrency !== undefined) {
@@ -342,6 +378,7 @@ export const POST = async (req: NextRequest) => {
         regionUsed: effectiveRegion,
         projectId: safeProjectId,
         tags: safeTags,
+        ...(lyricsSite ? { siteName: lyricsSite } : {}),
         // Store configuration details
         configMode,
         awsRenderPreset: configMode === 'preset' ? awsRenderPreset : undefined,
@@ -438,4 +475,18 @@ function validateCustomConfig(config: CustomLambdaConfig): CustomLambdaConfig {
     framesPerLambda,
     timeoutInMilliseconds: timeout * 1000,
   };
+}
+
+/** `lyrics-<slug>` or `lyrics-<slug>-<region>`: the sites apps/lyrics_videos/scripts/lambda.ts deploys. */
+function parseLyricsSite(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return /^lyrics-[a-z0-9][a-z0-9._-]{0,120}$/i.test(value) ? value : null;
+}
+
+/** [from, to], inclusive whole frames. */
+function parseFrameRange(value: unknown): [number, number] | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [from, to] = value.map(Number);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from) return null;
+  return [from, to];
 }

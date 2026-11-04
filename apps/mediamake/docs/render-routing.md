@@ -19,6 +19,16 @@ Two cases leave no choice: media from the user's computer (`/__local-media/…`)
 
 "Local" means the user's machine: the Browser tab in the editor (or Local Render when the app runs locally), or `remotion render` and the `lyrics_videos` scripts from a terminal.
 
+The limits and the weighing live in `lib/render-routing/limits.ts`, a file with no imports, so the `lyrics_videos` scripts can import it as a file and weigh a project the same way; `plan.ts` walks timelines and builds on it.
+
+## lyrics_videos projects
+
+A lyrics project (`apps/lyrics_videos/projects/<slug>`) renders on Lambda from one command, `npm run render-project -w lyrics_videos -- <slug> --lambda [--window=a-b]` (`apps/lyrics_videos/scripts/lambda.ts`, documented in that app's README). It uses the same bucket, regions and function presets as the app (`config.mjs`), with its own site per project, `lyrics-<slug>`, whose public folder carries the project's inputs; the manifest goes in as inputProps.
+
+The render goes through `POST /api/remotion/render` with `siteName: "lyrics-<slug>[-<region>]"` (only sites of that shape are accepted; `frameRange: [from, to]`, `scale` and `crf` are the video options it takes) and `GET /api/remotion/progress` until it is done, so it is a mediamake render like any other: Lambda access is checked, the render is in the user's history (`siteName` stored on it, tags `lyrics_videos` and the slug), the cost lands in the platform's cost usage and the quota is counted. The script's `--direct` goes straight to AWS with the keys on the machine instead, outside those records.
+
+Its plan comes from the project's manifest rather than a timeline, with the same limits (`weighMedia`): the song plays for the whole video; a clip the project's code names (by its manifest key or path) counts as playing all along, since overlays loop under everything; a clip the manifest lists but nothing names is uploaded but not counted; images are reported, not counted (a chunk fetches only the ones its frames show). `npm run lambda -w lyrics_videos -- plan <slug>` shows the plan without spending anything; a render prints it before it starts. `--lambda` is the user's pick, so a heavy project still renders on Lambda when asked, with the reason shown.
+
 ## Who may use Lambda
 
 Lambda is billed to us, so `/api/remotion/render` and `/api/remotion/render/preset` refuse with 403 (and `renderTarget: "local"`) unless the client has render access (`lib/render-routing/lambda-access.ts`):

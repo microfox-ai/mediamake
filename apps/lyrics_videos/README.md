@@ -92,6 +92,68 @@ Other flags pass through too (`--concurrency`, `--image-format=png`).
 The full list is at https://www.remotion.dev/docs/cli/render. Every render is logged in
 `out/<slug>/.renders.jsonl` (when, which file, scale, seconds).
 
+### On Lambda
+
+`--lambda` renders the same thing on Remotion Lambda through mediamake, into the same files, and
+prints what it cost. The render itself goes through mediamake's API (`/api/remotion/render` and
+`/api/remotion/progress`), so it sits in your render history with its cost in the platform's cost
+usage and the quota counted, like a render from the editor; the site and the key are the media
+library's cloud login (`MEDIAMAKE_API_URL` / `MEDIAMAKE_API_KEY`, else `url` in
+`~/.mediamake/config.json` and the Keychain; a local dev server needs no key). Deploying the
+project's site and reading the composition's length use the AWS keys in `apps/mediamake/.env`
+(`REMOTION_AWS_*`, with `config.mjs` for the bucket, regions and function presets); `--direct`
+renders with those keys too, outside mediamake's books. Lambda renders are billed, so check the plan
+first and start with a short window.
+
+```bash
+# the routing plan alone: what would go up, which way it leans and why (nothing is spent)
+npm run lambda -w lyrics_videos -- plan <slug>
+
+# a 20 s stretch (song seconds) → out/<slug>/clips/<slug>-<a>-<b>.mp4, with the cost and an estimate for the whole video
+npm run render-project -w lyrics_videos -- <slug> --lambda --window=10-30
+
+# the whole video (the previous render kept in v<N>/), at half size for a review, or a look
+npm run render-project -w lyrics_videos -- <slug> --lambda
+npm run render-project -w lyrics_videos -- <slug> --lambda --proxy
+npm run render-project -w lyrics_videos -- <slug> --lambda --look=B --window=0-8
+
+# a short, another region or function preset, or the site as it was last deployed (no bundle, no upload)
+npm run render-project -w lyrics_videos -- <slug> --short=s01 --lambda
+npm run render-project -w lyrics_videos -- <slug> --lambda --region=us-east-1 --preset=basic-fast
+npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy
+
+# straight to AWS with the keys on this machine (no render record, cost usage or quota in mediamake)
+npm run render-project -w lyrics_videos -- <slug> --lambda --direct
+
+# deploy the site without rendering; what is deployed in the region
+npm run lambda -w lyrics_videos -- deploy <slug>
+npm run lambda -w lyrics_videos -- sites
+npm run lambda -w lyrics_videos -- functions
+```
+
+How it works (`scripts/lambda.ts`): the project is bundled alone (`ONLY_PROJECT`) and uploaded as
+its own site, `lyrics-<slug>` (`lyrics-<slug>-<region>` outside the default region), next to the
+app's `mediamake` site. Its inputs travel as that site's public folder: exactly the files the
+project needs are cloned (APFS, no space taken) into `out/<slug>/.lambda/public/<slug>/` (the
+manifest, `video/edits.json`, the song, every file `assets` names, every file edits.json swaps in,
+`fonts/`, `derived/`, any `'<slug>/…'` path written in the code), so on Lambda
+`staticFile('<slug>/input/x.png')` finds the same file and the manifest goes in as inputProps
+unchanged, swaps and all. `deploySite` compares the bucket by content, so a second deploy uploads
+only what changed (the bundle after a code change, not the inputs). Scenes must load files through
+`asset()` or the manifest; a `staticFile()` of a path outside `projects/<slug>/` has nothing to find
+on the site. `--window`, `--region`, `--preset`, `--skip-deploy` and `--direct` are the Lambda path's own flags;
+`--frames`, `--proxy`/`--scale`, `--look` and `--crf` apply as locally; other `remotion render`
+flags don't.
+
+The cost printed is Lambda compute as Remotion accounts it (S3 storage and transfer come on top);
+the `.renders.jsonl` line keeps it (`lambda.costUsd`). Before anything is spent, the routing plan
+(`apps/mediamake/docs/render-routing.md`) weighs the project's media against the heavy limits and
+says which way it leans and why: the song plays all along, a clip the code names counts as playing
+all along (overlays loop under everything), images are reported but not counted. A heavy project
+still renders when asked (`--lambda` is the pick), with the reason shown; every Lambda chunk
+downloads the clips it touches in full, so a video with long overlay clips costs more there than on
+this machine.
+
 ## Review loop
 
 The `revise-video` skill drives it; these scripts are its parts.
