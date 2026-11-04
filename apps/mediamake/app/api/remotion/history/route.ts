@@ -25,6 +25,8 @@ function formatDoc(doc: RenderRequestDocument) {
     renderId: doc.renderId,
     renderType: doc.renderType,
     audioCodec: doc.audioCodec,
+    regionUsed: doc.regionUsed,
+    siteName: doc.siteName,
     configMode: doc.configMode,
     awsRenderPreset: doc.awsRenderPreset,
     customConfig: doc.customConfig,
