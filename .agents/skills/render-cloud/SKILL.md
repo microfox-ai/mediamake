@@ -1,6 +1,6 @@
 ---
 name: render-cloud
-description: Render a lyrics_videos project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud first (the song encoded, oversized clips re-encoded or cut to the stretch that plays, unused files out, never more than 500 MB), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use when the user says "render it on Lambda / in the cloud", "cloud render", "render this on AWS", "how much would it cost to render on Lambda", "/render-cloud <slug>", or a full-size render is too slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). Append new user feedback to the log at the bottom.
+description: Render a lyrics_videos project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud only as far as the limits need (never more than 500 MB; unused files out, a long clip cut to the stretch that plays, the song encoded or a clip re-encoded only when the pack is over 200 MB or the clip is bigger than the export), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use when the user says "render it on Lambda / in the cloud", "cloud render", "render this on AWS", "how much would it cost to render on Lambda", "/render-cloud <slug>", or a full-size render is too slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). Append new user feedback to the log at the bottom.
 metadata:
   category: other
 ---
@@ -22,10 +22,13 @@ the cost printed and logged (`out/<slug>/.renders.jsonl`, `lambda.costUsd`). The
 `apps/lyrics_videos/scripts/lambda.ts` and are documented in `apps/lyrics_videos/README.md` › Render ›
 On Lambda. This skill is the judgement around them: what to pack, which function, when to spend.
 
-**Lambda renders cost money.** Every Lambda chunk downloads the media it plays (the song, every
-overlay clip) in full before it renders a frame, so the pack's size is the cost. Nothing in this skill
-spends without the user's yes: `plan` and `pack` are free, a window is the test, the whole video
-comes after the estimate.
+**Lambda renders cost money, and the cost is the frames, not the pack.** A chunk downloads the
+media it plays once and then renders its 60–150 frames; on a lyric video with overlays and a
+visualizer a frame takes a second or two, so the download is a small part of a chunk's time. The
+pack's size matters for three things only: the upload, the 500 MB line, and a chunk's timeout.
+Optimising it beyond that is time spent for nothing (measured: the same window cost $0.027 with the
+song as a 73 MB WAV and as an 8 MB AAC). Nothing in this skill spends without the user's yes:
+`plan` and `pack` are free, a window is the test, the whole video comes after the estimate.
 
 ## What it needs
 
@@ -49,12 +52,13 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
    is "heavy" by the limits (minutes of video played) and still fine on Lambda once the pack is
    trimmed; say so rather than refusing.
 2. **Pack (free).** `npm run lambda -w lyrics_videos -- pack <slug>`: every file that would go up,
-   with what it is and what to do about it. Apply the rules below: the ones the tool can do go in
-   `projects/<slug>/lambda.json` (`pack --write` writes its suggestions; edit by hand for more), the
-   ones that change the project (a cut clip, a dropped file) are edits to `input/` and the storyboard,
-   then `npm run prepare-project` again. Run `pack` once more and show the before → after
-   (`177 MB → 99 MB`). Stop here if the pack stays over 500 MB: the render refuses, and the user
-   renders locally.
+   with what it is and its verdict. Under 200 MB it says so and suggests nothing but the zero-cost
+   things (a file nothing uses, a clip taller than the export): take those, skip the rest, move on.
+   Over 200 MB, apply the rules below cheapest first until it is under: the ones the tool can do go
+   in `projects/<slug>/lambda.json` (`pack --write` writes its suggestions; edit by hand for more),
+   the ones that change the project (a cut clip, a dropped file) are edits to `input/` and the
+   storyboard, then `npm run prepare-project` again. Run `pack` once more and show the before →
+   after. Stop here if the pack stays over 500 MB: the render refuses, and the user renders locally.
 3. **Preset.** The script chooses one (printed with its reason, "Which preset" below). Override with
    `--preset=<key>` or `"preset"` in `lambda.json` only for a reason you can state.
 4. **Test a window.** Ask first, with the expected cost (a 20 s window of a 1080p lyric video with
@@ -78,42 +82,48 @@ every file the manifest's `assets` names, every file `edits.json` swaps in, `fon
 any `'<slug>/…'` path the code writes. `lambda.json` changes what goes up for Lambda only; local
 renders, Studio and the editor keep the originals.
 
-1. **The song: encode it, don't downgrade it.** A lossless song (WAV, FLAC, AIFF: 50–80 MB for four
-   minutes) goes up as AAC 256 kbps (`"audio": { "codec": "aac", "bitrate": "256k" }`): about a tenth
-   of the size and transparent to the ear at this bitrate. Never lower than 192k, never re-encode a
-   song that is already lossy (MP3, M4A: the tool leaves those). The local master still renders with
-   the WAV; the final mix the user hears on YouTube is AAC anyway. Any clip's own soundtrack that the
-   video plays follows the same rule.
-2. **Clips: the export's size, no more.** A clip taller than the export (4K footage for a 1080p
-   video) or far over its bitrate (above 12 Mbps) and over 40 MB is re-encoded to the export's height
-   at h264 crf 20 (`"videos": { "overlays/dust.mp4": { "height": 1080, "crf": 20 } }`): the same
-   frames the render would scale down anyway. A clip with transparency (an alpha WebM, ProRes 4444)
-   is never re-encoded: h264 would lose the alpha; keep it, or cut it (rule 3).
-3. **Only the stretch that plays.** When a scene plays a stretch of a long clip (a 2-minute clip
-   trimmed to 10 s with `from`/`to`, `startFrom`/`endAt` or a shot's in/out, not looped), cut that
-   stretch with ffmpeg and let the project name the cut, not the whole file. This is a project edit,
-   not a `lambda.json` rule, because the scene's own offset changes with it:
+0. **Optimise for the limits, not for the bill.** Encoding and re-encoding cost minutes of ffmpeg
+   here and a little quality there, and they do not make the render cheaper: a chunk's time is its
+   frames. So the pack is touched for three reasons only: it is over **200 MB** (the warning line:
+   the upload and every chunk's fetch grow for nothing), it is over **500 MB** (the render refuses),
+   or a clip makes every frame decode more than it shows. `pack` applies this itself: under 200 MB
+   its verdict is "nothing to optimise for size", and the song, the bitrate of a clip and big images
+   are reported as kept. Don't overrule it to be tidy.
+1. **Nothing the video doesn't use (always, it costs nothing).** `prepare-project` puts every file
+   under `input/` in the manifest's `assets`, so a source clip, a swapped-out picture or a Suno stem
+   that was never deleted goes up with the rest. `pack` marks files nothing in the code names: read
+   the project's code before trusting it (a computed name is not a literal), then skip it for Lambda
+   (`"skip": ["source/loop-source.mp4"]`) or, better, move it out of `input/` for good (to
+   `projects/<slug>/unused/`, or the media library) and `prepare-project` again.
+2. **A clip taller than the export (always: it is per-frame work).** 4K footage under a 1080p video
+   makes every frame decode four times the pixels it shows, on every chunk. Re-encode it to the
+   export's height at h264 crf 20 (`"videos": { "input path": { "height": 1080, "crf": 20 } }`): the
+   same frames the render would scale down anyway. A clip with transparency (an alpha WebM, ProRes
+   4444) is never re-encoded: h264 would lose the alpha; keep it, or cut it (rule 3).
+3. **Only the stretch that plays (when the pack is over the line, or the clip is huge).** When a
+   scene plays a stretch of a long clip (a 2-minute clip trimmed to 10 s with `from`/`to`,
+   `startFrom`/`endAt` or a shot's in/out, not looped), cut that stretch with ffmpeg and let the
+   project name the cut. This is a project edit, because the scene's own offset changes with it:
    `ffmpeg -ss <in> -to <out> -i input/clip.mp4 -c:v libx264 -crf 18 -preset medium -c:a aac
    input/clip.<in>-<out>.mp4` (re-encode, so the cut starts exactly on `<in>`; `-c copy` would snap
    to a keyframe), then point the storyboard at the new file with its offset set to 0, move the whole
-   clip out of `input/` (rule 5), `prepare-project`, and check the scene in Studio. `pack` flags
+   clip out of `input/` (rule 1), `prepare-project`, and check the scene in Studio. `pack` flags
    every clip over a minute with this question; a clip that loops under the whole video (an overlay)
    is used whole and stays.
-4. **Reasonable is reasonable.** Don't optimise what doesn't need it: a 16 MB 8 s loop at 16 Mbps, a
-   75 MB 1080p overlay at 5.5 Mbps already at the export's size, a 1 MB cover. `pack` says "kept"
-   for those. Re-encoding costs minutes here and quality there for nothing.
-5. **Nothing the video doesn't use.** `prepare-project` puts every file under `input/` in the
-   manifest's `assets`, so a source clip, a swapped-out picture or a Suno stem that was never
-   deleted goes up with the rest. `pack` marks files nothing in the code names ("skip it, check the
-   code first"): read the project's code before trusting it (a computed name is not a literal), then
-   either skip it for Lambda (`"skip": ["source/loop-source.mp4"]`) or, better, move it out of
-   `input/` for good (to `projects/<slug>/unused/`, or the media library) and `prepare-project`
-   again. Images are never skipped by the tool (a chunk fetches only the ones its frames show), but a
-   big PNG photo that the code names is worth a JPEG at quality 90 when it is the kind of file a
-   project has dozens of (stage images): change the file and the name together.
-6. **The limits.** Over **200 MB** the render goes ahead with a warning (run `pack` and see what it
-   finds). Over **500 MB** the render refuses: every chunk would download that much, and the user's
-   machine renders it for free. Trim the pack with the rules above, or render locally. These
+4. **The song: encode it, never downgrade it (over the line, or over 100 MB on its own).** A
+   lossless song (WAV, FLAC, AIFF: 50–80 MB for four minutes) goes up as AAC 256 kbps
+   (`"audio": { "codec": "aac", "bitrate": "256k" }`): a tenth of the size and transparent to the
+   ear at this bitrate. Never lower than 192k, never re-encode a song that is already lossy (MP3,
+   M4A: the tool leaves those). The local master still renders with the WAV. This is the cheapest
+   big saving when the pack has to shrink, and pointless when it doesn't.
+5. **A clip over the export's bitrate (over the line, or over 100 MB on its own).** A 1080p clip at
+   40 Mbps and 300 MB re-encodes to crf 20 at a fraction of the size; the same clip at 5 Mbps and
+   75 MB is at the export's size and bitrate and stays. `pack` draws the line at 12 Mbps and 40 MB,
+   and only once the pack needs it.
+6. **Reasonable is reasonable.** A 16 MB 8 s loop at 16 Mbps, a 75 MB 1080p overlay, a 1 MB cover,
+   a 73 MB WAV in a 177 MB pack: `pack` says "kept" for all of them, and that is the answer.
+7. **The limits.** Over **200 MB** the render goes ahead with a warning. Over **500 MB** the render
+   refuses: trim with the rules above (cheapest first: 1, 4, 3, then 5), or render locally. These
    thresholds are `PACK_WARN_BYTES` / `PACK_MAX_BYTES` in `scripts/lambda.ts`.
 
 Each derivative is made once (ffmpeg, into `out/<slug>/.lambda/derived/`, remembered by the source's
@@ -154,12 +164,11 @@ many (each chunk fetches the ones its frames show).
 | the same | 177 MB | 10 s window | 4 | 203 s | $0.027 |
 | the same, song as AAC, source clip skipped | 99 MB | 10 s window | 4 | 195 s | $0.027 |
 
-The last row is the lesson: a lighter pack uploads faster (the re-deploy took 104 s and sent 6 files,
-3,688 unchanged) but this project's chunks are render-bound, not download-bound (75 frames with two
-1080p overlays decoding under a waveform take about 175 s either way), so the cost stayed. Packing
-rules protect the upload, the limits and the chunk timeouts; the cost of a render comes from what
-each frame has to do. A heavy frame (two clips, a visualizer, blurs) is where `--proxy` for the
-review rounds saves real money.
+The last row is why rule 0 exists: the lighter pack uploaded faster (the re-deploy took 104 s and
+sent 6 files, 3,688 unchanged) but the chunks are render-bound (75 frames with two 1080p overlays
+decoding under a waveform take about 175 s either way), so the cost stayed, and the WAV encode was
+time spent for nothing. What saves money on a heavy frame (two clips, a visualizer, blurs) is
+`--proxy` for the review rounds and a window for the test, not a smaller pack.
 
 The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-render with
 `--skip-deploy` starts at once, and a deploy after a code change uploads only the bundle.
@@ -188,3 +197,7 @@ The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-ren
   over-optimising of reasonable files (loop.mp4), unused manifest entries removed, only the played
   stretch of a long clip, a warning past 200 MB and a refusal past 500 MB, and a reasoned preset
   choice per kind of render.
+- 2026-11-04 — After the measurement (same cost with the song as WAV and as AAC): "unnecessary
+  optimisation is time waste, unless there would be waste on timeouts". Rule 0 added; the song,
+  bitrate and image rules now apply only over the 200 MB line or for a single huge file; `pack`
+  says "nothing to optimise for size" under it.

@@ -142,7 +142,9 @@ encodes a lossless song for the cloud (a tenth of the size), `"videos": { "<inpu
 transparency), `"skip": ["<input path>"]` keeps files the manifest lists but nothing uses out, and
 `"preset"` fixes the function preset. Derivatives are made once into `out/<slug>/.lambda/derived/`
 and swapped into the manifest and edits the render gets. Over 200 MB the pack renders with a warning,
-over 500 MB the render refuses (every Lambda chunk downloads the media it plays). The function preset
+over 500 MB the render refuses. `pack` suggests the song and bitrate encodes only past the 200 MB
+line (or for a single file over 100 MB): a lighter pack does not make the render cheaper, its chunks
+are render-bound; a clip taller than the export and a file nothing uses are flagged regardless. The function preset
 is chosen from the render unless `--preset` or `lambda.json` says (`plan` shows the choice; the
 render-cloud skill has the table). The skill `render-cloud` is the judgement around all this: what to
 pack, which preset, when to spend.

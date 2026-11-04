@@ -24,9 +24,10 @@
  * uploads the bundle, not the 600 MB of inputs).
  *
  * The pack (what goes up) has rules, projects/<slug>/lambda.json (`lambda pack --write` writes the
- * suggestions): the lossless song encoded to AAC 256 kbps, a clip bigger than the export re-encoded
- * to the export's height (never one with transparency), files the manifest lists but nothing names
- * skipped. Derivatives are made once into out/<slug>/.lambda/derived/ and swapped in for the render
+ * suggestions, and suggests only what the limits need: a render is render-bound, so a lighter pack
+ * does not cut the cost): the lossless song encoded to AAC 256 kbps, a clip bigger than the export
+ * re-encoded to the export's height (never one with transparency), files the manifest lists but
+ * nothing names skipped. Derivatives are made once into out/<slug>/.lambda/derived/ and swapped in for the render
  * only; local renders keep the originals. Over 200 MB the render warns, over 500 MB it refuses.
  * The function preset is chosen from the render (choosePreset) unless --preset or lambda.json says.
  *
@@ -86,9 +87,18 @@ const MB = 1024 * 1024;
 export const PACK_WARN_BYTES = 200 * MB;
 /** ... and no render past this: every Lambda chunk downloads the media it plays, so a pack this big costs more than it is worth */
 export const PACK_MAX_BYTES = 500 * MB;
-/** lossless audio above this is encoded for Lambda (AAC 256 kbps: a tenth of the size, transparent to the ear) */
+/**
+ * Optimising is only worth its time when it keeps the pack under the limits, a chunk clear of its timeout,
+ * or cuts what every frame has to do: a lyrics render is render-bound (wakeup-waveform, 2026-11-04: 75
+ * frames with two 1080p overlays took ~175 s with the song as a 73 MB WAV and as an 8 MB AAC alike).
+ * So `pack` suggests encoding the song, re-encoding a clip for its bitrate or skipping unused files
+ * only once the pack is over PACK_WARN_BYTES, or a single file over FILE_ENCODE_OVER; a clip taller
+ * than the export is the one thing suggested on sight, since every frame decodes it.
+ */
+const FILE_ENCODE_OVER = 100 * MB;
+/** lossless audio above this is worth encoding when the pack needs it (AAC 256 kbps: a tenth of the size, transparent to the ear) */
 const AUDIO_ENCODE_OVER = 20 * MB;
-/** a clip above this that is bigger than the export (taller, or over the bitrate) is re-encoded to the export's size */
+/** a clip above this that is over the export's bitrate is worth re-encoding when the pack needs it */
 const VIDEO_ENCODE_OVER = 40 * MB;
 const VIDEO_BITRATE_LIMIT = 12_000_000;
 const DEFAULT_CRF = 20;
@@ -479,12 +489,15 @@ export const planProject = (staged: Staged): ProjectPlan => {
 export type PackAdvice = { rel: string; bytes: number; kind: string; note: string; rule?: Partial<LambdaRules> };
 
 /** every file in the pack with what it is and what to do about it; the rules the advice adds up to */
-export const packReport = (staged: Staged): { advice: PackAdvice[]; suggested: LambdaRules } => {
+export const packReport = (staged: Staged): { advice: PackAdvice[]; suggested: LambdaRules; needed: boolean; verdict: string } => {
   const { slug } = staged;
   const size = exportSize(slug);
   const advice: PackAdvice[] = [];
   const suggested: LambdaRules = { schema: RULES_SCHEMA, ...(staged.rules ?? {}) };
   const inputRel = (rel: string) => rel.replace(`${slug}/input/`, '');
+  // the pack needs slimming only past the warning line; a single huge file is worth it on its own
+  const needed = staged.bytes > PACK_WARN_BYTES;
+  const later = ' (not needed while the pack is under ' + formatBytes(PACK_WARN_BYTES) + ': it would not cut the cost, the render is render-bound)';
   for (const f of staged.files) {
     const src = path.join(ROOT, 'projects', f.rel);
     const isMedia = AUDIO_EXT.test(f.rel) || VIDEO_EXT.test(f.rel);
@@ -494,7 +507,7 @@ export const packReport = (staged: Staged): { advice: PackAdvice[]; suggested: L
       continue;
     }
     if (!isMedia) {
-      if (IMAGE_EXT.test(f.rel) && f.bytes > 8 * MB) advice.push({ rel: f.rel, bytes: f.bytes, kind: 'image', note: 'a big image: if it is a PNG photo, a JPEG at quality 90 is a fraction of it (the project must name the new file)' });
+      if (IMAGE_EXT.test(f.rel) && f.bytes > 8 * MB) advice.push({ rel: f.rel, bytes: f.bytes, kind: 'image', note: `a big image${needed ? ': if it is a PNG photo, a JPEG at quality 90 is a fraction of it (the project must name the new file)' : ', fine while the pack is under the limit'}` });
       else advice.push({ rel: f.rel, bytes: f.bytes, kind: IMAGE_EXT.test(f.rel) ? 'image' : 'file', note: '' });
       continue;
     }
@@ -503,28 +516,35 @@ export const packReport = (staged: Staged): { advice: PackAdvice[]; suggested: L
     const isSong = f.rel === staged.manifest.audio?.src;
     const unused = !isSong && !staged.named.has(f.rel);
     if (unused) {
-      advice.push({ rel: f.rel, bytes: f.bytes, kind: info.kind, note: 'the manifest lists it but nothing in the code names it: skip it (check the code first)', rule: { skip: [inputRel(f.rel)] } });
+      // no ffmpeg, no time: always worth doing, once the code confirms it
+      advice.push({ rel: f.rel, bytes: f.bytes, kind: info.kind, note: 'the manifest lists it but nothing in the code names it: skip it, or move it out of input/ (check the code first)', rule: { skip: [inputRel(f.rel)] } });
       suggested.skip = [...new Set([...(suggested.skip ?? []), inputRel(f.rel)])];
       continue;
     }
     if (info.kind === 'audio') {
-      if (LOSSLESS_AUDIO.test(info.codec) && f.bytes > AUDIO_ENCODE_OVER) {
+      const lossless = LOSSLESS_AUDIO.test(info.codec) && f.bytes > AUDIO_ENCODE_OVER;
+      if (lossless && (needed || f.bytes > FILE_ENCODE_OVER)) {
         const est = Math.round((info.duration * 256_000) / 8);
         advice.push({ rel: f.rel, bytes: f.bytes, kind: 'audio', note: `${info.codec} ${Math.round(info.bitrate / 1000)} kbps: encode to AAC 256 kbps for Lambda (about ${formatBytes(est)}; the local master keeps the ${path.extname(f.rel).slice(1)})`, rule: { audio: { codec: 'aac', bitrate: '256k' } } });
         if (!suggested.audio) suggested.audio = { codec: 'aac', bitrate: '256k' };
-      } else advice.push({ rel: f.rel, bytes: f.bytes, kind: 'audio', note: `${info.codec} ${Math.round(info.bitrate / 1000)} kbps: fine as it is` });
+      } else advice.push({ rel: f.rel, bytes: f.bytes, kind: 'audio', note: `${info.codec} ${Math.round(info.bitrate / 1000)} kbps: ${lossless ? `lossless, kept${later}` : 'fine as it is'}` });
       continue;
     }
     const dims = `${info.width}×${info.height}, ${(info.bitrate / 1e6).toFixed(1)} Mbps, ${formatSeconds(info.duration)}`;
-    const oversized = (info.height ?? 0) > size.height || info.bitrate > VIDEO_BITRATE_LIMIT;
+    const taller = (info.height ?? 0) > size.height;
+    const bitrateHeavy = info.bitrate > VIDEO_BITRATE_LIMIT && f.bytes > VIDEO_ENCODE_OVER;
     const long = info.duration > 60 ? ` ${formatSeconds(info.duration)} long: if a scene plays only a stretch of it, cut that stretch (render-cloud skill) instead of uploading it all.` : '';
     if (info.alpha) advice.push({ rel: f.rel, bytes: f.bytes, kind: 'video', note: `${dims}, with transparency: kept as it is (h264 would lose the alpha).${long}` });
-    else if (f.bytes > VIDEO_ENCODE_OVER && oversized) {
-      advice.push({ rel: f.rel, bytes: f.bytes, kind: 'video', note: `${dims}: bigger than the ${size.height}p export needs; re-encode to ≤${size.height}p h264 crf ${DEFAULT_CRF}.${long}`, rule: { videos: { [inputRel(f.rel)]: { height: size.height, crf: DEFAULT_CRF } } } });
+    else if (taller || (bitrateHeavy && (needed || f.bytes > FILE_ENCODE_OVER))) {
+      const why = taller ? `taller than the ${size.height}p export: every frame decodes more than it shows` : `over ${VIDEO_BITRATE_LIMIT / 1e6} Mbps`;
+      advice.push({ rel: f.rel, bytes: f.bytes, kind: 'video', note: `${dims}: ${why}; re-encode to ≤${size.height}p h264 crf ${DEFAULT_CRF}.${long}`, rule: { videos: { [inputRel(f.rel)]: { height: size.height, crf: DEFAULT_CRF } } } });
       suggested.videos = { ...(suggested.videos ?? {}), [inputRel(f.rel)]: { height: size.height, crf: DEFAULT_CRF } };
-    } else advice.push({ rel: f.rel, bytes: f.bytes, kind: 'video', note: `${dims}: ${f.bytes > VIDEO_ENCODE_OVER ? 'already at the export\'s size and bitrate, kept' : 'a reasonable size, kept'}.${long}` });
+    } else advice.push({ rel: f.rel, bytes: f.bytes, kind: 'video', note: `${dims}: ${bitrateHeavy ? `over the export's bitrate, kept${later}` : 'at the export\'s size, kept'}.${long}` });
   }
-  return { advice, suggested };
+  const verdict = needed
+    ? `Over ${formatBytes(PACK_WARN_BYTES)}: slim it with the suggestions (cheapest first: skips, the song, cuts; re-encodes last).`
+    : `Under ${formatBytes(PACK_WARN_BYTES)}: nothing to optimise for size. A lighter pack would not cut the cost (the render is render-bound); only a clip taller than the export, or a file nothing uses, is worth touching.`;
+  return { advice, suggested, needed, verdict };
 };
 
 export const writeRules = (slug: string, rules: LambdaRules) => {
@@ -967,12 +987,12 @@ if (isMain) {
     } else if (command === 'pack') {
       if (!slug) usage();
       const staged = stageProject(slug);
-      const { advice, suggested } = packReport(staged);
+      const { advice, suggested, verdict } = packReport(staged);
       const size = exportSize(slug);
       console.log(`Pack for ${slug}: ${staged.files.length} files, ${formatBytes(staged.bytes)}${staged.rules ? ' with lambda.json applied' : ''}; the export is ${size.width}×${size.height}${size.guessed ? ' (guessed)' : ''}`);
       for (const a of advice.sort((x, y) => y.bytes - x.bytes)) console.log(`  ${formatBytes(a.bytes).padStart(8)}  ${a.kind.padEnd(5)}  ${a.rel.replace(`${slug}/`, '')}${a.note ? `\n              ${a.note}` : ''}`);
       if (staged.missing.length) console.log(`  missing: ${staged.missing.join(', ')}`);
-      console.log(`${staged.check.level === 'ok' ? '✔' : staged.check.level === 'warn' ? '⚠' : '✗'} ${staged.check.message}`);
+      console.log(`${staged.check.level === 'ok' ? '✔' : staged.check.level === 'warn' ? '⚠' : '✗'} ${staged.check.message}. ${verdict}`);
       const changes = advice.filter(a => a.rule);
       if (changes.length) {
         if (rest.includes('--write') || slug === '--write') {
