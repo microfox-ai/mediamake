@@ -1,5 +1,11 @@
 # @microfox/projectsync-mcp
 
+## 0.1.4
+
+### Patch Changes
+
+- 5fb8f09: Changes from PR #506: shared-project-assets
+
 ## 0.3.0
 
 A project's shared assets: the library files a team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, title, tags), so everyone on the project can download them. `list_shared_assets` lists them with the project's sharing limit; `download_shared_assets` saves them into a folder, checked against their sha256, with a `.source.json` beside each that the media library's `media ingest` reads (save into the library's inbox to have them filed); `share_assets` uploads files from this computer with their kind, subject and tags (owners and editors, under the limit, 100 MB in all by default); `unshare_assets` stops sharing; `set_shared_limit` changes the limit (owner only). Any project can hold shared assets, a channel's or one made just to share files with a team; they are the same files `media share --project=<id>` and `media sync --project=<id>` move in the media CLI.
