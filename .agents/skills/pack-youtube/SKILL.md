@@ -253,8 +253,20 @@ Then write `<pack>/info.json`:
 - Every path is relative to the pack, so the delivered copy (`Downloads/<CHANNEL>/<slug>/youtube/`,
   which holds the video clone too) uploads the same way.
 - `titleFile` and `descriptionFile` point at the pack's own files, so a later edit to them is what
-  goes up. With three thumbnails (A/B test), name the first in `thumbnail` and tell the user to add
-  the other two under Thumbnail → A/B testing: Browse Hack sets one.
+  goes up.
+- **Three thumbnails (A/B test):** write `abTest` from `titles.txt`, one variant per line in its
+  order, each the thumbnail and the title paired with it; Browse Hack sets Studio's A/B testing to
+  Title and thumbnail and clicks Set test. Name the first variant's thumbnail in `thumbnail` too.
+  Thumbnails only (no titles.txt): variants with just `thumbnail`. 2 or 3 variants, every one with
+  the same kinds.
+
+```json
+"abTest": [
+  { "thumbnail": "thumbnails/wakeup-waveform-D1.jpg", "title": "WAKE UP - by Get into Zone ( Official Lyric Video )" },
+  { "thumbnail": "thumbnails/wakeup-waveform-E1.jpg", "title": "WAKE UP - by Get into Zone | Stop Running From the Mirror ( Official Lyric Video )" },
+  { "thumbnail": "thumbnails/wakeup-waveform-G2.jpg", "title": "WAKE UP - by Get into Zone | We All Live Inside a Dream ( Official Lyric Video )" }
+]
+```
 - `tags`: the hashtags' words without `#`, plus the song, artist and film or anime names, 500
   characters at most in all. `language`: the lyrics' language code (`te` for a Telugu song, `ja`
   for Japanese).
@@ -281,7 +293,8 @@ end screen video or card channel it couldn't find, a step Studio wouldn't leave,
 couldn't set), then tell the user to review the tab and click Save, Publish or Schedule themselves;
 never press it for them. Monetisation, Ad suitability, the end screen and cards need Browse Hack
 0.13.0 (MCP 0.11.0): an older one stops on Details with "Your video needs a monetisation setting",
-so offer `update_browse_hack`. After they publish: `media deliver <slug> --uploaded`.
+so offer `update_browse_hack`. `abTest`, thumbnails that go up and a submitted Ad suitability need
+0.14.0 (MCP 0.12.0). After they publish: `media deliver <slug> --uploaded`.
 
 ## Feedback log
 
@@ -308,3 +321,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
   `--from` only applies to a single kind → deliver `--what=youtube --from=<pack>` when the pack's video is a joined final,
   and read every `replace` line of a dry run before `--yes`.
 - 2026-11-04 · The Honoured One (Anime Music Zone) · "there is an issue with youtube upload setup (some missing info and some missing clicks)": `youtube_fill_uploads` stopped on Details ("Your video needs a monetisation setting") and the thumbnail failed, so the user finished the upload by hand while Browse Hack recorded it: Monetisation On, Ad suitability None of the above + Submit rating, end screen imported from Full Metal Heart with its playlist element pointed at the Jujutsu Kaisen playlist, a channel card to Get into Zone ("Music on Get into Zone"), then the schedule → info.json carries `monetization`, `adSuitability`, `endScreen` and `cards` (step 5, questions 5–7), and Browse Hack 0.13.0 fills them (extensions PR #29).
+- 2026-11-04 · WAKE UP (Get into Zone) · "it stuck at monetisation again, and its not upload A/b thumbnail pack": Browse Hack 0.13.0 set monetisation and ticked None of the above, but pressed Submit rating before Studio had rated the answers, so Studio stayed on Ad suitability; the thumbnail it handed over from its isolated world previewed and then failed to upload; and info.json named only D1 of the three → info.json carries `abTest` from `titles.txt` (thumbnail + title per variant), and Browse Hack 0.14.0 sets the A/B test, uploads thumbnails from Studio's own page and checks the rating went in.
