@@ -49,3 +49,34 @@ An API key alone isn't enough, because every signed-in user logs in with one and
 - Successful Lambda renders include `routing: { recommended, reason }` in the response.
 
 The editor's render dialog checks the file sizes, opens on the suggested tab, marks it with a green dot, and shows the reason under the tabs with a one-click switch. Every tab stays available. The MCP has `plan_render`, and `render` defaults to `target: "auto"`.
+
+## To do: a render worker on a rented server
+
+Lambda is the right place for light lyrics projects (a picture, a song and type: wakeup-waveform's
+whole video is about $0.70 and takes about 4 minutes against 12 on an M3 Pro), for quick parallel
+review rounds, and for teammates without a strong machine. For heavy ones it is not: on 2026-11-04 the
+fma-edwardeleric video (32 stage masks, cutouts, an overlay) cost $3.97 and took 17 minutes on Lambda,
+154 chunks on 10 GB functions, while the user's Mac renders it in 10–19 minutes for nothing. Every
+chunk boots its own Chrome, downloads the pack and warms the fonts and images again, three tabs on one
+function contend for the CPU, and a Lambda core is slower than a laptop core: per render, Lambda
+compute is roughly 20–30 times what a rented box's would be. A Hetzner dedicated 8-core box (~$100 a
+month) breaks even at about one heavy render a day; an EC2 c6i.4xlarge started per job and stopped
+after costs about $0.20 a render.
+
+The plan, when cloud renders become routine (the portal task "Figure out cloud renders"):
+
+- a worker (`apps/lyrics_videos/scripts/render-worker.ts`) on a Linux box with Node, Chrome and
+  ffmpeg that pulls render jobs from mediamake: a worker route next to `/api/remotion/render`, the
+  same render history and cost usage as Lambda renders, the box's hourly price recorded as the cost;
+- the project's pack fetched the way the Lambda path stages it (`stageProject` in
+  `apps/lyrics_videos/scripts/lambda.ts`: the staged folder uploaded once, synced to the worker), the
+  bundle built with `ONLY_PROJECT`, the render through `@remotion/renderer` at the machine's
+  concurrency, the file uploaded to the Lambda bucket or the media store;
+- a provisioning script or Dockerfile for the box, with start/stop automation if it is EC2;
+- `render-project -- <slug> --worker` on the lyrics side, polling and downloading like `--lambda`;
+- docs here and in `apps/lyrics_videos/README.md`, and a note in the `render-cloud` skill on when
+  to pick which.
+
+Ask before renting anything (price per hour, estimated per-render cost). Done means wakeup-waveform
+renders end to end through the worker on a real box with its cost recorded in mediamake, the numbers
+reported next to Lambda's, and a PR open.
