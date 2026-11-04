@@ -94,10 +94,16 @@ The full list is at https://www.remotion.dev/docs/cli/render. Every render is lo
 
 ### On Lambda
 
-`--lambda` renders the same thing on Remotion Lambda through mediamake's AWS setup
-(`apps/mediamake/config.mjs`: the bucket, the regions, the function presets; the keys in
-`apps/mediamake/.env` as `REMOTION_AWS_*`), into the same files, and prints what it cost.
-Lambda renders are billed, so check the plan first and start with a short window.
+`--lambda` renders the same thing on Remotion Lambda through mediamake, into the same files, and
+prints what it cost. The render itself goes through mediamake's API (`/api/remotion/render` and
+`/api/remotion/progress`), so it sits in your render history with its cost in the platform's cost
+usage and the quota counted, like a render from the editor; the site and the key are the media
+library's cloud login (`MEDIAMAKE_API_URL` / `MEDIAMAKE_API_KEY`, else `url` in
+`~/.mediamake/config.json` and the Keychain; a local dev server needs no key). Deploying the
+project's site and reading the composition's length use the AWS keys in `apps/mediamake/.env`
+(`REMOTION_AWS_*`, with `config.mjs` for the bucket, regions and function presets); `--direct`
+renders with those keys too, outside mediamake's books. Lambda renders are billed, so check the plan
+first and start with a short window.
 
 ```bash
 # the routing plan alone: what would go up, which way it leans and why (nothing is spent)
@@ -116,6 +122,9 @@ npm run render-project -w lyrics_videos -- <slug> --short=s01 --lambda
 npm run render-project -w lyrics_videos -- <slug> --lambda --region=us-east-1 --preset=basic-fast
 npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy
 
+# straight to AWS with the keys on this machine (no render record, cost usage or quota in mediamake)
+npm run render-project -w lyrics_videos -- <slug> --lambda --direct
+
 # deploy the site without rendering; what is deployed in the region
 npm run lambda -w lyrics_videos -- deploy <slug>
 npm run lambda -w lyrics_videos -- sites
@@ -132,7 +141,7 @@ manifest, `video/edits.json`, the song, every file `assets` names, every file ed
 unchanged, swaps and all. `deploySite` compares the bucket by content, so a second deploy uploads
 only what changed (the bundle after a code change, not the inputs). Scenes must load files through
 `asset()` or the manifest; a `staticFile()` of a path outside `projects/<slug>/` has nothing to find
-on the site. `--window`, `--region`, `--preset` and `--skip-deploy` are the Lambda path's own flags;
+on the site. `--window`, `--region`, `--preset`, `--skip-deploy` and `--direct` are the Lambda path's own flags;
 `--frames`, `--proxy`/`--scale`, `--look` and `--crf` apply as locally; other `remotion render`
 flags don't.
 

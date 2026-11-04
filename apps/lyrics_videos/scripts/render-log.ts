@@ -24,7 +24,7 @@ export type RenderEntry = {
   seconds: number;
   ok: boolean;
   /** set when the render ran on Remotion Lambda (scripts/lambda.ts); costUsd is Lambda compute only */
-  lambda?: { region: string; renderId: string; functionName: string; lambdas: number; costUsd: number };
+  lambda?: { region: string; renderId: string; functionName: string; lambdas: number; costUsd: number; through: 'mediamake' | 'aws' };
 };
 
 /** out/<slug>/.renders.jsonl for any file under out/<slug>/ */

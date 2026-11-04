@@ -22,6 +22,13 @@
  * content: a second deploy uploads only the files that changed (a re-run after a code change
  * uploads the bundle, not the 600 MB of inputs).
  *
+ * The render goes through mediamake's API by default (/api/remotion/render on the project's site,
+ * /api/remotion/progress until it is done), so it sits in the user's render history, its cost in the
+ * platform's cost usage and the quota counted, the same as a render from the editor; the site and
+ * the key come from the media library's cloud login (scripts/library/cloud.ts). Deploying the site
+ * and reading the composition's length still use the AWS keys on this machine; --direct renders
+ * with them too, outside mediamake's books.
+ *
  * The render itself follows render-project's rules: out/<slug>/<slug>.mp4 (the previous one kept
  * in v<N>/), clips/<slug>-<a>-<b>.mp4 for a window, looks/<id>.mp4 for a look; the shot map beside
  * it; a line in out/<slug>/.renders.jsonl with the cost. The cost printed is what Lambda charged
@@ -357,6 +364,8 @@ export type LambdaRenderRequest = {
   preset?: string;
   /** reuse the last deployed site instead of staging and deploying again */
   skipDeploy?: boolean;
+  /** straight to AWS, not through mediamake's API (no render record, cost usage or quota there) */
+  direct?: boolean;
   short?: MapShort;
 };
 
@@ -425,51 +434,24 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     `Render ${req.composition}: ${framesToRender} of ${comp.durationInFrames} frames at ${comp.fps} fps, ${w}×${h}, preset ${presetKey} (${preset.memory} MB, ${preset.framesPerLambda ? `${preset.framesPerLambda} frames per Lambda` : `concurrency ${preset.concurrency}`})`,
   );
 
-  // 4. render, poll, download
+  // 4. render, poll, download: through mediamake (its render records, cost usage and quota), or AWS directly
   const started = Date.now();
-  const { renderId, bucketName } = await renderMediaOnLambda({
-    region,
-    functionName,
-    serveUrl: site.serveUrl,
+  const request = {
     composition: req.composition,
     inputProps,
-    codec: 'h264',
-    audioCodec: 'aac',
-    imageFormat: 'jpeg',
-    ...(req.crf !== undefined ? { crf: req.crf } : {}),
+    frames,
     scale: req.scale,
-    ...(frames ? { frameRange: [frames.from, frames.to] as [number, number] } : {}),
-    // Remotion takes one of the two
-    ...(preset.concurrency !== undefined ? { concurrency: preset.concurrency } : preset.framesPerLambda ? { framesPerLambda: preset.framesPerLambda } : {}),
-    timeoutInMilliseconds: preset.timeoutInMilliseconds,
-    privacy: 'private',
-    deleteAfter: '1-day',
-    maxRetries: 2,
-    downloadBehavior: { type: 'download', fileName: path.basename(output) },
-  });
-  console.log(`  render ${renderId} started`);
-
-  let progress;
-  let delay = 2000;
-  for (;;) {
-    progress = await getRenderProgress({ renderId, bucketName, functionName, region });
-    const pct = Math.round((progress.framesRendered / framesToRender) * 100);
-    line(
-      `  ${progress.framesRendered}/${framesToRender} frames (${pct}%) · ${progress.lambdasInvoked} Lambdas · ${progress.costs.displayCost} · ${Math.round((Date.now() - started) / 1000)} s${progress.encodingStatus ? ` · encoding ${progress.encodingStatus.framesEncoded}` : ''}`,
-    );
-    if (progress.fatalErrorEncountered) {
-      endLine('');
-      for (const e of progress.errors) console.error(`  ✗ ${e.name}: ${e.message}${e.frame !== null ? ` (frame ${e.frame})` : ''}${e.stack ? `\n${e.stack.split('\n').slice(0, 6).join('\n')}` : ''}`);
-      break;
-    }
-    if (progress.done) break;
-    await sleep(delay);
-    delay = Math.min(5000, delay + 500);
-  }
+    crf: req.crf,
+    output,
+    region,
+    functionName,
+    presetKey,
+    preset,
+    site,
+  };
+  const progress = req.direct ? await renderDirect(request) : await renderThroughMediamake(request);
   const ok = progress.done && !progress.fatalErrorEncountered;
-  if (ok) {
-    await downloadMedia({ region, bucketName, renderId, outPath: output, onProgress: ({ percent }) => line(`  downloading ${Math.round(percent * 100)}%`) });
-  }
+  if (!ok) for (const e of progress.errors) console.error(`  ✗ ${e.name}: ${e.message}${e.frame != null ? ` (frame ${e.frame})` : ''}${e.stack ? `\n${e.stack.split('\n').slice(0, 6).join('\n')}` : ''}`);
   const seconds = Math.round((Date.now() - started) / 100) / 10;
   const cost = progress.costs.accruedSoFar;
   endLine(ok ? `  ✔ ${path.relative(ROOT, output)} (${formatBytes(progress.outputSizeInBytes ?? fs.statSync(output).size)}, ${seconds} s)` : `  ✗ render failed after ${seconds} s`);
@@ -482,7 +464,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
       look: req.look,
       seconds,
       ok,
-      lambda: { region, renderId, functionName, lambdas: progress.lambdasInvoked, costUsd: cost },
+      lambda: { region, renderId: progress.renderId, functionName, lambdas: progress.lambdasInvoked, costUsd: cost, through: req.direct ? 'aws' : 'mediamake' },
     });
   } catch (err) {
     console.warn(`Could not log the render: ${err instanceof Error ? err.message : err}`);
@@ -505,6 +487,134 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     console.log(`  slowest chunk: frames ${top.frameRange[0]}-${top.frameRange[1]}, ${Math.round(top.timeInMilliseconds / 1000)} s`);
   }
   return output;
+};
+
+type RenderCall = {
+  composition: string;
+  inputProps: Record<string, unknown>;
+  frames?: { from: number; to: number };
+  scale: number;
+  crf?: number;
+  output: string;
+  region: AwsRegion;
+  functionName: string;
+  presetKey: string;
+  preset: RenderPreset;
+  site: SiteInfo;
+};
+
+/** what both ways report back: Remotion's render progress, as far as this script reads it */
+type Progress = {
+  renderId: string;
+  done: boolean;
+  fatalErrorEncountered: boolean;
+  errors: { name?: string; message: string; frame?: number | null; stack?: string }[];
+  framesRendered: number;
+  lambdasInvoked: number;
+  costs: { accruedSoFar: number; displayCost: string };
+  outputSizeInBytes: number | null;
+  mostExpensiveFrameRanges?: { frameRange: [number, number]; timeInMilliseconds: number }[] | null;
+};
+
+const framesIn = (c: RenderCall) => (c.frames ? c.frames.to - c.frames.from + 1 : undefined);
+const progressLine = (p: Progress, total: number | undefined, started: number, extra = '') =>
+  line(`  ${p.framesRendered}${total ? `/${total}` : ''} frames${total ? ` (${Math.round((p.framesRendered / total) * 100)}%)` : ''} · ${p.lambdasInvoked} Lambdas · ${p.costs.displayCost} · ${Math.round((Date.now() - started) / 1000)} s${extra}`);
+
+/**
+ * The default: mediamake's /api/remotion/render starts the render on the project's site, its
+ * /api/remotion/progress reports and records it (the render in the user's history, the cost in the
+ * platform's cost usage, the quota counted), and the file comes back from Lambda's public URL. The
+ * site is MEDIAMAKE_API_URL or `url` in ~/.mediamake/config.json; the key is MEDIAMAKE_API_KEY or the
+ * one `media cloud login` keeps in the Keychain (none needed for a local dev server).
+ */
+const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
+  const { connect, keySource } = await import('./library/cloud.ts');
+  const cloud = connect();
+  console.log(`  through ${cloud.url} (key: ${keySource(cloud.url)})`);
+  const started = Date.now();
+  const startResponse = await cloud.post<{ type?: string; message?: string; renderId?: string; bucketName?: string; routing?: { recommended: string; reason: string } }>('api/remotion/render', {
+    id: c.composition,
+    inputProps: c.inputProps,
+    isDownloadable: true,
+    fileName: path.basename(c.output),
+    codec: 'h264',
+    audioCodec: 'aac',
+    renderType: 'video',
+    configMode: 'preset',
+    awsRenderPreset: c.presetKey,
+    region: c.region,
+    siteName: c.site.siteName,
+    ...(c.frames ? { frameRange: [c.frames.from, c.frames.to] } : {}),
+    ...(c.scale !== 1 ? { scale: c.scale } : {}),
+    ...(c.crf !== undefined ? { crf: c.crf } : {}),
+    tags: ['lyrics_videos', c.site.siteName.replace(/^lyrics-/, '').replace(new RegExp(`-${c.region}$`), '')],
+  });
+  if (startResponse.type === 'error' || !startResponse.renderId || !startResponse.bucketName) {
+    throw new Error(`mediamake did not start the render: ${startResponse.message ?? JSON.stringify(startResponse)}`);
+  }
+  const { renderId, bucketName } = startResponse;
+  console.log(`  render ${renderId} started (in your mediamake render history)`);
+  let delay = 2000;
+  for (;;) {
+    const r = await cloud.get<{ type: 'progress' | 'done' | 'error'; message?: string; url?: string; renderInfo?: Progress }>('api/remotion/progress', { bucketName, id: renderId });
+    const info = r.renderInfo;
+    if (!info) throw new Error(`mediamake answered without progress: ${r.message ?? JSON.stringify(r)}`);
+    const progress: Progress = { ...info, renderId, errors: info.errors ?? [] };
+    progressLine(progress, framesIn(c), started);
+    if (r.type === 'error' || progress.fatalErrorEncountered) {
+      endLine('');
+      if (!progress.errors.length && r.message) progress.errors.push({ message: r.message });
+      return { ...progress, done: false, fatalErrorEncountered: true };
+    }
+    if (r.type === 'done' && r.url) {
+      line('  downloading');
+      await cloud.download(r.url, c.output);
+      return { ...progress, done: true };
+    }
+    await sleep(delay);
+    delay = Math.min(5000, delay + 500);
+  }
+};
+
+/** --direct: straight to AWS with the keys on this machine; nothing of it reaches mediamake's records. */
+const renderDirect = async (c: RenderCall): Promise<Progress> => {
+  const started = Date.now();
+  const { renderId, bucketName } = await renderMediaOnLambda({
+    region: c.region,
+    functionName: c.functionName,
+    serveUrl: c.site.serveUrl,
+    composition: c.composition,
+    inputProps: c.inputProps,
+    codec: 'h264',
+    audioCodec: 'aac',
+    imageFormat: 'jpeg',
+    ...(c.crf !== undefined ? { crf: c.crf } : {}),
+    scale: c.scale,
+    ...(c.frames ? { frameRange: [c.frames.from, c.frames.to] as [number, number] } : {}),
+    // Remotion takes one of the two
+    ...(c.preset.concurrency !== undefined ? { concurrency: c.preset.concurrency } : c.preset.framesPerLambda ? { framesPerLambda: c.preset.framesPerLambda } : {}),
+    timeoutInMilliseconds: c.preset.timeoutInMilliseconds,
+    privacy: 'private',
+    deleteAfter: '1-day',
+    maxRetries: 2,
+    downloadBehavior: { type: 'download', fileName: path.basename(c.output) },
+  });
+  console.log(`  render ${renderId} started (directly on AWS)`);
+  let delay = 2000;
+  for (;;) {
+    const p = await getRenderProgress({ renderId, bucketName, functionName: c.functionName, region: c.region });
+    progressLine(p, framesIn(c), started, p.encodingStatus ? ` · encoding ${p.encodingStatus.framesEncoded}` : '');
+    if (p.fatalErrorEncountered) {
+      endLine('');
+      return p;
+    }
+    if (p.done) {
+      await downloadMedia({ region: c.region, bucketName, renderId, outPath: c.output, onProgress: ({ percent }) => line(`  downloading ${Math.round(percent * 100)}%`) });
+      return p;
+    }
+    await sleep(delay);
+    delay = Math.min(5000, delay + 500);
+  }
 };
 
 // ---------- CLI ----------

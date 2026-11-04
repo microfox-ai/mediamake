@@ -33,9 +33,11 @@
  * Lambda (scripts/lambda.ts): --lambda renders the same thing on Remotion Lambda through mediamake's
  * AWS setup, into the same files. The project is bundled alone as the site lyrics-<slug> with its
  * inputs as the site's public folder, { manifest, edits } go in as inputProps, and the cost is
- * printed. --window=a-b is a stretch in song seconds (--frames=a-b works too); --region=, --preset=
- * (mediamake's AWS_RENDER_CONFIGS, default complex-fast) and --skip-deploy (reuse the last site) are
- * its own flags; --proxy/--scale, --look and --crf apply as locally. Other remotion flags don't.
+ * printed. The render goes through mediamake's API (render history, cost usage, quota) with the media
+ * library's cloud login; --direct goes straight to AWS instead. --window=a-b is a stretch in song
+ * seconds (--frames=a-b works too); --region=, --preset= (mediamake's AWS_RENDER_CONFIGS, default
+ * complex-fast) and --skip-deploy (reuse the last site) are its own flags; --proxy/--scale, --look and
+ * --crf apply as locally. Other remotion flags don't.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -52,9 +54,9 @@ const format = value('format');
 const look = value('look');
 const proxy = rest.find(f => f === '--proxy' || f.startsWith('--proxy='));
 const lambda = rest.includes('--lambda');
-const LAMBDA_FLAGS = /^--(window|region|preset)=|^--skip-deploy$|^--lambda$/;
+const LAMBDA_FLAGS = /^--(window|region|preset)=|^--skip-deploy$|^--direct$|^--lambda$/;
 if (!lambda && rest.some(f => LAMBDA_FLAGS.test(f) && f !== '--lambda')) {
-  console.error('--window, --region, --preset and --skip-deploy go with --lambda.');
+  console.error('--window, --region, --preset, --skip-deploy and --direct go with --lambda.');
   process.exit(1);
 }
 // the rest go to remotion render
@@ -141,6 +143,7 @@ async function renderOnLambdaHere(composition: string, outDir: string, short?: M
       region: value('region'),
       preset: value('preset'),
       skipDeploy: rest.includes('--skip-deploy'),
+      direct: rest.includes('--direct'),
       short,
     });
   } catch (err) {
