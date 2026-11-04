@@ -36,7 +36,7 @@ selected). Never open Finder yourself.
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/browse-hack` | recommended | Filling YouTube Studio's upload form from info.json on the brand's channel (`youtube_fill_uploads`, `youtube_list_channels`) | The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md |
+| `mcp/browse-hack` | recommended | Filling YouTube Studio's upload form from info.json on the brand's channel (`youtube_fill_uploads`, `youtube_list_channels`), and a shorts pack's shorts (`youtube_bulk_upload_shorts`, MCP 0.13.0) | The pack is still made in full; the user uploads by hand in YouTube Studio, following UPLOAD.md |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -146,14 +146,19 @@ one if it doesn't.
   join the two with ffmpeg's concat demuxer as a stream copy:
 
 ```bash
-ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -c:a aac -ar 48000 -ac 2 outro-matched.mp4
+ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -video_track_timescale 90000 -c:a aac -ar 48000 -ac 2 outro-matched.mp4
 ```
 
 ```bash
 printf "file '%s'\nfile '%s'\n" "$PWD/video.mp4" "$PWD/outro-matched.mp4" > join.txt && ffmpeg -f concat -safe 0 -i join.txt -c copy final.mp4
 ```
 
-  Take the size, fps and audio settings from `ffprobe` of the video. If the stream copy refuses
+  Take the size, fps, pixel format (Remotion writes `yuvj420p`), CRF and audio settings from `ffprobe` of the video,
+  and its video **time base**: Remotion renders use 1/90000 and ffmpeg's x264 defaults to 1/15360, and with
+  different time bases the stream copy squeezes the outro's frames into the video's last instant (the file's
+  video stream then ends where the video did). `-video_track_timescale` sets it; after the join, check that the
+  video stream's duration is the video's plus the outro's. A silent outro ("without sound"): map
+  `-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000` as its audio with `-shortest`. If the stream copy refuses
   because the codec settings differ, re-encode only the outro again with the video's profile, and
   still never the video. Check the join point plays cleanly (a still on either side, and the audio
   level). The result goes in the pack as the video.
@@ -167,7 +172,9 @@ same pass.
 
 Once the user approves the pack, deliver it to the channel's folder (the user copied packs there by
 hand before): `npm run media -w lyrics_videos -- deliver <slug> --what=youtube,video` (a dry run),
-then `--yes`. It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
+then `--yes`. When the video in the pack is not `out/<slug>/<slug>.mp4` (an end screen joined after the render), deliver
+`--what=youtube --from=out/youtube/<slug>` alone: with two kinds `--from` is ignored, and `video` would replace the
+delivered final with the render that has no end screen (read every `replace` line of the dry run). It lands in `Downloads/<CHANNEL>/<slug>/youtube/` and the video beside it as clones,
 and an older delivery moves to `previous/v<N>/`. Give the `open -R` line. When the user says it's
 published: `media deliver <slug> --uploaded`.
 
@@ -175,8 +182,10 @@ published: `media deliver <slug> --uploaded`.
 
 Every finished pack carries `info.json`: YouTube Studio's upload form as data. Browse Hack's
 `youtube_fill_uploads` (its MCP) reads it, switches the Chrome profile's YouTube to the channel,
-picks the video, fills the form and stops on the Visibility step for the user to click Save,
-Publish or Schedule. Every field and its default:
+picks the video and fills every step of the form: Details, then on a channel in the Partner
+Programme Monetisation and Ad suitability, then the end screen and cards under Video elements. It
+stops on the Visibility step with the schedule set, for the user to click Save, Publish or Schedule.
+Every field and its default:
 https://github.com/microfox-ai/extensions/blob/main/mcp/README.md#infojson-for-youtube-uploads.
 
 **The channel's handle.** info.json names the channel by its `@handle`, kept in the brand kit at
@@ -184,7 +193,9 @@ https://github.com/microfox-ai/extensions/blob/main/mcp/README.md#infojson-for-y
 
 ```json
 { "handle": "@anime-music-zone", "chromeProfile": "<the Google account email>",
-  "upload": { "playlists": ["OST Tracks"], "alteredContent": true, "category": "Music", "language": "en" } }
+  "upload": { "playlists": ["OST Tracks"], "alteredContent": true, "category": "Music", "language": "en",
+    "monetization": true, "adSuitability": "none",
+    "cards": [{ "channel": "@get-into-zone", "message": "Music on Get into Zone", "teaser": "Music on Get into Zone" }] } }
 ```
 
 When the brand has no `channel.json`, call `youtube_list_channels` (Browse Hack asks which Chrome
@@ -203,6 +214,17 @@ the channel; `chromeProfile` is the profile to suggest first when Browse Hack as
    of the video): yes for Suno or other AI songs, no for the user's own recordings. Ask the first
    time for each channel and save the answer in `channel.json`; never decide it yourself.
 4. **Made for Kids:** no, unless the user says the channel is for kids.
+5. **Monetisation and ad suitability**, for a channel in the Partner Programme (Studio adds a
+   Monetisation step after Details, and Ad suitability once it's on): monetisation On (recommended)
+   or Off; Ad suitability None of the above (recommended when the video has none of Studio's
+   listed content: violence, adult themes, shocking or drug content…) or "I'll answer it in
+   Studio" (`skip`). Ask the first time for each channel and save both in `channel.json`.
+6. **End screen:** import it from the channel's latest video that has its end screen (usually the
+   previous pack's title), and for a series playlist, point its playlist element at this video's
+   (the anime's playlist on Anime Music Zone). Recommend that pairing; the user can name another
+   video or leave the end screen to do by hand.
+7. **Cards:** the channel's standing cards (Anime Music Zone: a channel card to Get into Zone,
+   "Music on Get into Zone"). Ask the first time for each channel and save them in `channel.json`.
 
 Then write `<pack>/info.json`:
 
@@ -220,18 +242,41 @@ Then write `<pack>/info.json`:
   "language": "en",
   "tags": ["goten theme", "dragon ball", "gregorian chant", "anime ost"],
   "visibility": "scheduled",
-  "scheduleAt": "2026-11-09T18:30"
+  "scheduleAt": "2026-11-09T18:30",
+  "monetization": true,
+  "adSuitability": "none",
+  "endScreen": { "importFrom": "Full Metal Heart - Edward Elric 「 AMZ 」( Lyric Video )", "playlist": "OST Tracks" },
+  "cards": [{ "channel": "@get-into-zone", "message": "Music on Get into Zone", "teaser": "Music on Get into Zone" }]
 }
 ```
 
 - Every path is relative to the pack, so the delivered copy (`Downloads/<CHANNEL>/<slug>/youtube/`,
   which holds the video clone too) uploads the same way.
 - `titleFile` and `descriptionFile` point at the pack's own files, so a later edit to them is what
-  goes up. With three thumbnails (A/B test), name the first in `thumbnail` and tell the user to add
-  the other two under Thumbnail → A/B testing: Browse Hack sets one.
+  goes up.
+- **Three thumbnails (A/B test):** write `abTest` from `titles.txt`, one variant per line in its
+  order, each the thumbnail and the title paired with it; Browse Hack sets Studio's A/B testing to
+  Title and thumbnail and clicks Set test. Name the first variant's thumbnail in `thumbnail` too.
+  Thumbnails only (no titles.txt): variants with just `thumbnail`. 2 or 3 variants, every one with
+  the same kinds.
+
+```json
+"abTest": [
+  { "thumbnail": "thumbnails/wakeup-waveform-D1.jpg", "title": "WAKE UP - by Get into Zone ( Official Lyric Video )" },
+  { "thumbnail": "thumbnails/wakeup-waveform-E1.jpg", "title": "WAKE UP - by Get into Zone | Stop Running From the Mirror ( Official Lyric Video )" },
+  { "thumbnail": "thumbnails/wakeup-waveform-G2.jpg", "title": "WAKE UP - by Get into Zone | We All Live Inside a Dream ( Official Lyric Video )" }
+]
+```
 - `tags`: the hashtags' words without `#`, plus the song, artist and film or anime names, 500
   characters at most in all. `language`: the lyrics' language code (`te` for a Telugu song, `ja`
   for Japanese).
+- `monetization` and `adSuitability` only matter on a channel in the Partner Programme; Browse Hack
+  turns monetisation On and answers None of the above when they're left out there, and warns.
+- `endScreen.importFrom` is the exact title of a video already on the channel (Studio lists the
+  latest; Browse Hack searches for older ones), and its `playlist` must exist on the channel. Leave
+  `endScreen` out when the video doesn't end on the channel's end screen.
+- `cards`: channel cards only, each `message` and `teaser` 30 characters at most (the teaser
+  defaults to the message).
 - Leave out what the user didn't choose: YouTube's defaults stay. No video yet (a pack made before
   the render): leave `video` out and add it when the video lands in the pack.
 
@@ -243,10 +288,72 @@ folder".
 **Upload only when the user asks** ("upload it", "fill the YouTube upload"). Call
 `youtube_fill_uploads` with the pack folder (or the delivered `youtube/` folder). Picking the video
 starts the upload, so a private draft exists on the channel from then on. Report what it `filled`
-and every line of `warnings` (a thumbnail on a channel that isn't phone-verified, a playlist that
-doesn't exist, a schedule it couldn't set), then tell the user to review the tab and click Save,
-Publish or Schedule themselves; never press it for them. After they publish:
-`media deliver <slug> --uploaded`.
+and every line of `warnings` (a thumbnail Studio refused and why, a playlist that doesn't exist, an
+end screen video or card channel it couldn't find, a step Studio wouldn't leave, a schedule it
+couldn't set), then tell the user to review the tab and click Save, Publish or Schedule themselves;
+never press it for them. Monetisation, Ad suitability, the end screen and cards need Browse Hack
+0.13.0 (MCP 0.11.0): an older one stops on Details with "Your video needs a monetisation setting",
+so offer `update_browse_hack`. `abTest`, thumbnails that go up and a submitted Ad suitability need
+0.14.0 (MCP 0.12.0). After they publish: `media deliver <slug> --uploaded`.
+
+## 6. Shorts pack (more than one short)
+
+When the production has more than one short (the shorts skills make three a run:
+`out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`), pack them together for Browse Hack's **Bulk Upload
+Shorts** (the popup's YouTube Studio tab, Browse Hack 0.15.0), which uploads them one after another and
+puts each on the next day that has no short on the channel:
+
+```
+out/youtube/<slug>-shorts/
+  shorts-pack.json   the channel, the schedule, the fields every short shares, one entry per short
+  shorts/            the 9:16 renders, APFS clones (`cp -c`), named <slug>-<id>.mp4
+  description.txt    the shorts' shared description (write-youtube-metadata, short form, with #shorts)
+  UPLOAD.md          each short with its title, and how the days are picked
+```
+
+```json
+{
+  "channel": "@atomic-rap",
+  "schedule": { "time": "18:30" },
+  "defaults": {
+    "descriptionFile": "description.txt",
+    "tags": ["deadpool", "aura edit", "get into zone"],
+    "madeForKids": false,
+    "alteredContent": false,
+    "category": "Entertainment",
+    "language": "en",
+    "monetization": true,
+    "adSuitability": "none"
+  },
+  "shorts": [
+    { "video": "shorts/deadpool-s01.mp4", "title": "Deadpool Aura Edit #deadpool" },
+    { "video": "shorts/deadpool-s02.mp4", "title": "Deadpool Aura Edit #deadpool" },
+    { "video": "shorts/deadpool-s03.mp4", "title": "Deadpool Aura Edit #deadpool" }
+  ]
+}
+```
+
+- `defaults` takes any info.json field (step 5): the channel's standing answers from `channel.json`'s
+  `upload`, the shared description and tags. A short's own fields win over them.
+- **Titles:** the channel's shorts title style. Atomic Rap repeats one title per film ("Deadpool Aura Edit
+  #deadpool"); otherwise one title a short from `write-youtube-metadata`, with `#shorts` or the film's tag.
+- **Days:** ask the time once per channel (save it in `channel.json` as `shortsTime`) and leave
+  `scheduleAt` out, so each short gets the next empty day; `schedule.from` (YYYY-MM-DD) starts later than
+  tomorrow. A short that must go out on a set day carries its own `scheduleAt`.
+- Check it parses and every video it names is in `shorts/`. The user can upload it from the popup's
+  YouTube Studio tab → Bulk Upload Shorts (with "Click Schedule for me" on, it schedules each; off, each
+  waits in its own tab).
+- **Upload only when the user asks** ("upload the shorts"): call Browse Hack's `youtube_bulk_upload_shorts`
+  with the pack folder (MCP 0.13.0 and Browse Hack 0.16.0; call `use_profile` first). It does what the
+  popup does: it checks every short, reads the channel's Shorts tab for the empty days, and uploads each
+  short in its own Studio tab, stopping on Visibility with its day and time filled in. Pass
+  `clickSchedule: true` only when the user asked for them to be scheduled. Report each short's day,
+  `filled` and every warning, and tell the user to click Schedule in each tab when it didn't. Running it
+  again uploads the shorts again.
+
+Shorts the user drags into Studio themselves stay drafts: the same tab's **Autofill Shorts** fills each
+draft from the channel's most similar filled-in short (its title too) and schedules it on the next empty
+day. A shorts pack isn't needed for that.
 
 ## Feedback log
 
@@ -263,3 +370,16 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-10-27 · Nakama! (Anime Music Zone) · "if doing 3 thumbnail variations, then give three YouTube titles as well" → a three-thumbnail pack carries three titles (titles.txt), paired in UPLOAD.md.
 - 2026-10-27 · skill · "when creating brands or creating youtube pack, run parallel threads for faster execution" → the Parallel threads section: thumbnails in their own session, the description here at the same time, the title after the thumbnail's words, the outro review and ffmpeg join and the video check in subagents; this session owns and assembles the pack.
 - 2026-11-02 · skill · "create a tool in the extension that will enable to switch accounts ( channels ) auto fill the entire vidoe upload deatils from an info.json, and also update the pack-yotube-kit sill in medimake repo to create this info.json" → step 5: every pack carries info.json for Browse Hack's youtube_fill_uploads (it switches the channel, fills Studio's form and stops before Save); the channel's handle and standing upload answers live in brands/<brand>/youtube/channel.json.
+- 2026-11-02 · kingpinxdeadpool (ATOMIC RAP) · "add endscreen without sound though" + "also need high quality render" → the
+  master rendered at CRF 10 (x264 slow), the end-marquee outro matched silent; the first join kept 7,703 frames but
+  ended the video stream at the edit's own length, because the outro's time base (1/15360) differed from Remotion's
+  (1/90000) → the end-screen step now sets `-video_track_timescale` and checks the joined duration.
+- 2026-11-02 · Deadpool x Kingpin (ATOMIC RAP) · `youtube_list_channels` and `youtube_fill_uploads` failed with "Couldn't find Switch account in YouTube Studio's account menu": the extension worked in a background Studio tab, where Chrome doesn't draw the account menu (the profile has 32 channels). The user: "it has to switch as there is no guarantee always" → never skip the switch; the extension now brings the Studio tab forward before reading or using the menu (extensions repo, branch fix/youtube-switch-in-front). The handle and the standing answers live in the brand's `channel.json` (ATOMIC RAP: @atomic-rap, profile subhakartikkireddy@gmail.com, not AI-made). The filler couldn't set the schedule's date and time or the thumbnail on that run: tell the user to set them in the tab. Three thumbnails picked → `titles.txt` and a title-per-thumbnail table in UPLOAD.md; info.json names the first (C1) and UPLOAD.md says to add the other two under A/B testing.
+- 2026-11-02 · Deadpool x Kingpin (ATOMIC RAP) · "Yes, deliver" → the dry run of `--what=youtube,video` would have replaced the
+  delivered final (with its silent end screen) by out/kingpinxdeadpool/kingpinxdeadpool.mp4, the master without it, because
+  `--from` only applies to a single kind → deliver `--what=youtube --from=<pack>` when the pack's video is a joined final,
+  and read every `replace` line of a dry run before `--yes`.
+- 2026-11-04 · The Honoured One (Anime Music Zone) · "there is an issue with youtube upload setup (some missing info and some missing clicks)": `youtube_fill_uploads` stopped on Details ("Your video needs a monetisation setting") and the thumbnail failed, so the user finished the upload by hand while Browse Hack recorded it: Monetisation On, Ad suitability None of the above + Submit rating, end screen imported from Full Metal Heart with its playlist element pointed at the Jujutsu Kaisen playlist, a channel card to Get into Zone ("Music on Get into Zone"), then the schedule → info.json carries `monetization`, `adSuitability`, `endScreen` and `cards` (step 5, questions 5–7), and Browse Hack 0.13.0 fills them (extensions PR #29).
+- 2026-11-04 · WAKE UP (Get into Zone) · "it stuck at monetisation again, and its not upload A/b thumbnail pack": Browse Hack 0.13.0 set monetisation and ticked None of the above, but pressed Submit rating before Studio had rated the answers, so Studio stayed on Ad suitability; the thumbnail it handed over from its isolated world previewed and then failed to upload; and info.json named only D1 of the three → info.json carries `abTest` from `titles.txt` (thumbnail + title per variant), and Browse Hack 0.14.0 sets the A/B test, uploads thumbnails from Studio's own page and checks the rating went in.
+- 2026-11-04 · skill · "in extension popup add youtube studio tab … Autofill Shorts … Bulk Upload Shorts - autofill details from … a shorts-pack.json … generated as part of youtube-pack for multivariant shorts" → step 6: a production with more than one short gets `out/youtube/<slug>-shorts/` with shorts-pack.json (shared defaults, one entry per short, each on the next empty day) for the popup's Bulk Upload Shorts (Browse Hack 0.15.0); drafts uploaded by hand go through Autofill Shorts, which copies the most similar short's title and details.
+- 2026-11-04 · Quicksilver x Kingpin shorts (ATOMIC RAP) · "is this action not triggerable via tool in mcp bridge ? if not, add the tool." (Bulk Upload Shorts only ran from the popup) → Browse Hack's MCP got `youtube_bulk_upload_shorts` (extensions PR #32): step 6 calls it with the pack folder when the user asks to upload the shorts.

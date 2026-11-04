@@ -80,6 +80,18 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     releasedAt: '2026-10-22',
   },
   {
+    id: 'app/remaster-revision',
+    kind: 'app',
+    title: 'Remaster Revisions',
+    summary: 'Compare the versions of a remaster by ear from one shared playhead, loop a part, pick the final and leave notes, saved beside the files for Claude.',
+    visibility: 'public',
+    openToAll: true,
+    status: 'beta',
+    href: '/remaster-revision',
+    tags: ['review', 'audio'],
+    releasedAt: '2026-11-04',
+  },
+  {
     // the id stays: it keys the stored item and its grants
     id: 'app/skill-library',
     kind: 'app',

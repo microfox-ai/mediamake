@@ -81,6 +81,12 @@ folder (`"animemusiczone": "AMZ"`) or, once linked to its team's MediaMake cloud
      with `media channel limit`).
    - A teammate's items show in `media find` as remote; `media sync pull --ids=<id> --yes` brings
      a file here and files it.
+   - **Any project can hold shared assets**, not just a channel's: overlays and other files every
+     team uses go to the project the user names, `media share <id…> --project=<projectId> --yes`
+     (`media channel list` shows the projects), and `media sync status|pull --project=<id>
+     --what=media` then `--ids=` brings a project's assets here. The owner raises a project's limit
+     with `media channel limit <projectId> <MB> --yes`. Teammates without the media CLI use
+     ProjectSync's `list_shared_assets`, `download_shared_assets` and `share_assets`.
 
 ## What lives where
 

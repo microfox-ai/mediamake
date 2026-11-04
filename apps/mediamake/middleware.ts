@@ -178,10 +178,11 @@ export const config = {
    * - dev-lyrics (development-only file access for the public /remotion-editor page)
    * - dev-reveal (development-only "Show in Finder" for the public /file-revision page)
    * - dev-library (development-only media library export for the public /library page)
+   * - dev-ladder (development-only folder access for the public /remaster-revision page)
    * - catalog (product catalog: browsable signed out; the routes resolve the
    *   viewer themselves and never trust x-client-id, see lib/access)
    *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics|dev-reveal|dev-library|catalog).*)',
+  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog).*)',
 };

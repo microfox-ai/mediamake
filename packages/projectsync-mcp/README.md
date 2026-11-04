@@ -12,6 +12,7 @@ writes your files, and it signs in to MediaMake with your **MediaMake API key**.
 | Production | A video: its code files and outputs (renders, stills). Its inputs go up only when they come to **200 MB or less** in all | `list_productions`, `get_production`, `create_production`, `update_production`, `delete_production` |
 | Release | A complete release kit: a YouTube upload pack, a DistroKid release, … | `list_releases`, `get_release`, `create_release`, `update_release`, `delete_release` |
 | Media | Single files (pictures, songs, clips; usually inputs), stored as they are, **never analysed** | `list_media`, `search_media`, `get_media`, `upload_media`, `delete_media` |
+| Shared assets | The library files a project's team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, tags), so everyone on the project can download them | `list_shared_assets`, `download_shared_assets`, `share_assets`, `unshare_assets`, `set_shared_limit` |
 
 Whether something goes up as a production, a release or media is **your choice**: Claude asks you each
 time, and which project, and shows you what would go up (a dry run) before uploading.
@@ -68,6 +69,13 @@ the project's **trash**: it disappears from every list, and its files are kept.
   `saveTo` download a version into a folder, skipping files already there unchanged.
 - **Media** goes into the project's media library as it is (no image description, no audio analysis);
   a file the project already has (same content) isn't uploaded twice.
+- **Shared assets** are the files the media CLI's `media share` and `media sync` move
+  (`apps/lyrics_videos/scripts/library`): `share_assets` sends each file's details (kind, subject, title,
+  tags, size) and then the file, under the project's sharing limit (100 MB in all by default; the owner
+  raises it with `set_shared_limit`); `download_shared_assets` checks every download against its sha256
+  and writes a `<file>.source.json` beside it, so saving into the library's inbox
+  (`<inbox>/mediamake-sync/<project>`) has `media ingest` file them with their kind and subject. Any
+  project can hold shared assets, a channel's or one made just to share files with a team.
 - **Brand kits** use the same tools as the MediaMake MCP: `upload_brand_kit` reads a `pack-brand-kit`
   folder; `finish_brand_kit_upload` adds files already PUT to their upload links (an upload that stopped
   part way). The main logo (the picture shown for the project) is `logo` in `update_brand_kit` or in the
@@ -80,6 +88,7 @@ The MediaMake routes it calls, in `apps/mediamake` (code in `lib/projectsync/`):
 | `GET/POST/PUT/DELETE /api/project/productions`, `POST …/finish` | List, read (with signed links), create, change or add a version, move to the trash; `finish` checks a version's files arrived |
 | `GET/POST/PUT/DELETE /api/project/releases`, `POST …/finish` | The same for release kits |
 | `GET/POST/DELETE /api/project/media`, `POST …/upload` | List and search, record uploaded files, move to the trash; `upload` hands out upload links |
+| `GET/PUT /api/channel-sync`, `GET/PUT …/items`, `POST/PUT/DELETE …/files` | Shared assets (code in `lib/channel-sync/`): the project's limit and role, each asset's details, upload links, confirmations and withdrawals |
 | `GET/POST/PUT /api/project`, `/api/project/brand-kit` | Projects and brand kits (owners and editors may rename a project) |
 
 ## Development

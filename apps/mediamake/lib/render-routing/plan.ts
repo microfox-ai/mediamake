@@ -24,34 +24,21 @@
  */
 
 import { containsLocalMedia } from "../local-media/urls";
+import {
+  formatBytes,
+  formatSeconds,
+  heavyReason,
+  weighMedia,
+  type MediaSource,
+  type RenderType,
+  type RenderWeight,
+} from "./limits";
+
+// The limits and the weighing live in limits.ts (no imports, so lyrics_videos can use them too).
+export { HEAVY_LIMITS, formatBytes, formatSeconds, weighMedia } from "./limits";
+export type { MediaSource, RenderType, RenderWeight } from "./limits";
 
 export type RenderTarget = "lambda" | "local";
-export type RenderWeight = "heavy" | "light";
-export type RenderType = "video" | "audio" | "still";
-
-const MB = 1024 * 1024;
-const GB = 1024 * MB;
-
-/** Reaching any one of these makes a render heavy. */
-export const HEAVY_LIMITS = {
-  /** Any single video or audio file. */
-  fileBytes: 1 * GB,
-  /** All video and audio files together. */
-  totalBytes: 500 * MB,
-  /** Seconds of video the composition plays, summed over clips. */
-  videoSeconds: 5 * 60,
-  /** Seconds of audio the composition plays, summed over tracks. */
-  audioSeconds: 30 * 60,
-} as const;
-
-export interface MediaSource {
-  kind: "video" | "audio";
-  src: string;
-  /** Seconds the composition plays this file, summed over its uses. */
-  usedSeconds?: number;
-  /** File size, when known. */
-  bytes?: number;
-}
 
 export interface RenderLoad {
   weight: RenderWeight;
@@ -181,19 +168,6 @@ function parseProps(inputProps: unknown): unknown {
   }
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes >= GB) return `${(bytes / GB).toFixed(1)} GB`;
-  return `${Math.max(1, Math.round(bytes / MB))} MB`;
-}
-
-export function formatSeconds(seconds: number): string {
-  const s = Math.round(seconds);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  const rest = s % 60;
-  return rest ? `${m}m ${rest}s` : `${m}m`;
-}
-
 /**
  * Walks a timeline (DataMotion inputProps, or any props object) and measures
  * its media: which files, how long each plays and, with `sizes` (src →
@@ -277,48 +251,19 @@ export function analyzeRenderLoad(
     return { ...m, bytes, usedSeconds: used };
   });
 
-  const sum = (kind: MediaSource["kind"]) =>
-    list.filter(m => m.kind === kind).reduce((t, m) => t + (m.usedSeconds ?? 0), 0);
-  const videoSecondsUsed = sum("video");
-  const audioSecondsUsed = sum("audio") + anonymousAudioSeconds;
+  const weighed = weighMedia(list, renderType, anonymousAudioSeconds);
   const known = list.filter(m => m.bytes !== undefined);
-  const mediaBytes = known.reduce((t, m) => t + (m.bytes ?? 0), 0);
-  const largest = known.reduce<MediaSource | undefined>(
-    (a, m) => (!a || (m.bytes ?? 0) > (a.bytes ?? 0) ? m : a),
-    undefined,
-  );
-  const largestFileBytes = largest?.bytes ?? 0;
-
-  const heavyBecause: string[] = [];
-  if (renderType !== "still") {
-    if (largestFileBytes >= HEAVY_LIMITS.fileBytes) {
-      heavyBecause.push(`one ${largest!.kind} file is ${formatBytes(largestFileBytes)}`);
-    } else if (mediaBytes >= HEAVY_LIMITS.totalBytes) {
-      heavyBecause.push(`the media adds up to ${formatBytes(mediaBytes)}`);
-    }
-    if (videoSecondsUsed >= HEAVY_LIMITS.videoSeconds) {
-      heavyBecause.push(`it plays ${formatSeconds(videoSecondsUsed)} of video`);
-    }
-    if (audioSecondsUsed >= HEAVY_LIMITS.audioSeconds) {
-      heavyBecause.push(`it plays ${formatSeconds(audioSecondsUsed)} of audio`);
-    }
-  }
 
   return {
-    weight: heavyBecause.length ? "heavy" : "light",
+    ...weighed,
     media: list,
     videoSources: list.filter(m => m.kind === "video").length,
     audioSources: list.filter(m => m.kind === "audio").length + anonymousAudio,
     imageSources: Math.max(images, urls.image.size),
     graphicLayers,
-    videoSecondsUsed,
-    audioSecondsUsed,
-    mediaBytes,
-    largestFileBytes,
     unknownSizes: list.length - known.length,
     hasLocalMedia: containsLocalMedia(props),
     durationSeconds,
-    heavyBecause,
   };
 }
 
@@ -340,10 +285,6 @@ export function describeMedia(load: RenderLoad): string {
   let text = parts.join(" and ");
   if (load.mediaBytes && load.audioSources && load.videoSources) text += `, ${formatBytes(load.mediaBytes)} in all`;
   return text;
-}
-
-function joinReasons(reasons: string[]) {
-  return reasons.length <= 1 ? reasons.join("") : `${reasons.slice(0, -1).join(", ")} and ${reasons[reasons.length - 1]}`;
 }
 
 /** Suggests where a render should run, and says why. */
@@ -381,7 +322,7 @@ export function planRender({
     return {
       ...base,
       target: "local",
-      reason: `Local suggested: ${joinReasons(load.heavyBecause)}. Every Lambda chunk downloads and decodes that media again, so it costs far more there than on your machine. Lambda still works if you need it fast.`,
+      reason: heavyReason(load.heavyBecause),
     };
   }
   if (renderType === "still") {

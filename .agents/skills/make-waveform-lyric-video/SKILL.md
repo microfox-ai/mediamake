@@ -540,7 +540,7 @@ Append dated entries: what the user said → the rule.
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
   MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
   connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
-  tool is built around a file-picker widget and a flow canvas, and it has no sound effects.
+  tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
 - 2026-11-04 · WAKE UP (Get into Zone), a looping motion poster instead of a still, matched to the
   channel's own "Chasing the Skyline": the reference's mediamake timeline (`list_timelines` search,
   `get_timeline` full) gave its exact settings (side bars, `sub-fast-rap-static` one word at a time,
