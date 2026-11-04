@@ -202,8 +202,14 @@ near it (a little under when frames vary, a little over when retries happen).
 | the same, song as AAC, source clip skipped | 99 MB | 10 s window | 4 | 195 s | $0.027 |
 | fma-edwardeleric (32 stage masks, cutouts, a particles overlay, sigils) | 190 MB | whole video, 8,429 frames, `complex-fast` | 113 | **failed at 900 s** | $2.59 |
 | the same, heaviest 10 s (frames 5,025–5,324) | 190 MB | 10 GB, 3 at a time, 103 frames a chunk | 3 | 548 s (slowest chunk 481 s, 4.7 s a frame) | $0.17 |
+| the same, whole video from that measurement | 190 MB | 10 GB, 3 at a time, 55 frames a chunk | 154 | 1,021 s, **arrived** (slowest chunk 444 s, 8.1 s a frame: the ending, not the stretch the window measured) | $3.97 (estimated $4.70–5.90) |
 
-The fma row is the other lesson. The pack was fine (612 → 190 MB with the tooling sources skipped
+The last row is how it is meant to go: measured, sized with margin, arrived, at the window's
+rate. Its slowest chunk was the ending (8.1 s a frame), not the stretch the window had measured
+(4.7 s): a window's stretch is a guess at the heaviest, so the chunk budget (300 s of the 900)
+is what carried it. Keep that margin.
+
+The failed row is the other lesson. The pack was fine (612 → 190 MB with the tooling sources skipped
 and the song as AAC) and 104 chunks finished, but 9 chunks of the heaviest stretch (frames
 5,025–7,574, the stage-mask section) were still running when the main function hit Lambda's hard
 15 min limit, so the whole render failed and the money was spent. Its frames take over 12 s each on
@@ -261,3 +267,7 @@ The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-ren
   the user said yes to it without a window test on its heaviest stretch. Step 4 is now unconditional
   and on the heaviest stretch; the slowest chunk's seconds a frame is logged and the chooser takes
   `enterprise` past 8 s a frame.
+- 2026-11-04 — "Going with the presets might be bad: the information in the repo is false; configure
+  the render yourself every time, output first, cost next, speed next." The preset table became
+  "Configuring the render" (chooseConfig: memory, frames at once, frames a chunk from the measured
+  slowest frame). The full fma video then arrived: $3.97, 154 chunks of 55 frames on 10 GB × 3.
