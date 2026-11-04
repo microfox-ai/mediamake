@@ -30,7 +30,8 @@ if (!renderId || !clientId) {
   process.exit(1);
 }
 
-const { getRenderProgress, getOrCreateBucket, speculateFunctionName } = await import('@remotion/lambda');
+const { getRenderProgress, getOrCreateBucket } = await import('@remotion/lambda');
+const { speculateFunctionName } = await import('@remotion/lambda/client');
 const { DEFAULT_REGION, AWS_RENDER_CONFIGS } = await import('../config.mjs');
 const { renderRequestDB } = await import('../lib/render-mongodb');
 const { platformCostUsageDB } = await import('../lib/cost-usage-mongodb');
