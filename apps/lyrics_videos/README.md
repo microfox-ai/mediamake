@@ -125,11 +125,27 @@ npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy
 # straight to AWS with the keys on this machine (no render record, cost usage or quota in mediamake)
 npm run render-project -w lyrics_videos -- <slug> --lambda --direct
 
+# the pack: every file that would go up, with advice; --write keeps the advice as projects/<slug>/lambda.json
+npm run lambda -w lyrics_videos -- pack <slug>
+npm run lambda -w lyrics_videos -- pack <slug> --write
+
 # deploy the site without rendering; what is deployed in the region
 npm run lambda -w lyrics_videos -- deploy <slug>
 npm run lambda -w lyrics_videos -- sites
 npm run lambda -w lyrics_videos -- functions
 ```
+
+The pack has rules, `projects/<slug>/lambda.json` (`lyrics_videos.lambda/v1`), applied to every
+Lambda render and deploy and never to a local render: `"audio": { "codec": "aac", "bitrate": "256k" }`
+encodes a lossless song for the cloud (a tenth of the size), `"videos": { "<input path>": { "height",
+"crf" } }` re-encodes a clip bigger than the export to the export's height (never one with
+transparency), `"skip": ["<input path>"]` keeps files the manifest lists but nothing uses out, and
+`"preset"` fixes the function preset. Derivatives are made once into `out/<slug>/.lambda/derived/`
+and swapped into the manifest and edits the render gets. Over 200 MB the pack renders with a warning,
+over 500 MB the render refuses (every Lambda chunk downloads the media it plays). The function preset
+is chosen from the render unless `--preset` or `lambda.json` says (`plan` shows the choice; the
+render-cloud skill has the table). The skill `render-cloud` is the judgement around all this: what to
+pack, which preset, when to spend.
 
 How it works (`scripts/lambda.ts`): the project is bundled alone (`ONLY_PROJECT`) and uploaded as
 its own site, `lyrics-<slug>` (`lyrics-<slug>-<region>` outside the default region), next to the
