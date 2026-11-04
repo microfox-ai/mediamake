@@ -681,6 +681,8 @@ export type LambdaRenderRequest = {
   skipDeploy?: boolean;
   /** straight to AWS, not through mediamake's API (no render record, cost usage or quota there) */
   direct?: boolean;
+  /** a render mediamake already started (its renderId, from the render history): follow and download it, start nothing */
+  attach?: string;
   short?: MapShort;
 };
 
@@ -777,6 +779,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   const request = {
     composition: req.composition,
     inputProps,
+    attach: req.attach,
     frames,
     scale: req.scale,
     crf: req.crf,
@@ -830,6 +833,8 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
 type RenderCall = {
   composition: string;
   inputProps: Record<string, unknown>;
+  /** follow this render instead of starting one (through mediamake only) */
+  attach?: string;
   frames?: { from: number; to: number };
   scale: number;
   crf?: number;
@@ -870,6 +875,26 @@ const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
   const cloud = connect();
   console.log(`  through ${cloud.url} (key: ${keySource(cloud.url)})`);
   const started = Date.now();
+  let renderId: string;
+  let bucketName: string;
+  if (c.attach) {
+    // the render is already running (a dropped connection, a second terminal): find it in the history
+    type Record = { renderId?: string; bucketName?: string; composition?: string; status?: string };
+    const history = await cloud.get<Record[] | { renders?: Record[]; items?: Record[]; data?: Record[] }>('api/remotion/history');
+    const list = Array.isArray(history) ? history : (history.renders ?? history.items ?? history.data ?? []);
+    const found = list.find(r => r.renderId === c.attach);
+    if (!found?.bucketName) {
+      // the start call was cut off before mediamake wrote the record: the render still runs on AWS
+      const { bucketName: siteBucket } = await getOrCreateBucket({ region: c.region });
+      console.warn(`  render ${c.attach} is not in your mediamake render history (its start call was cut off); following it on AWS directly, so its cost is not in mediamake's records`);
+      return followDirect(c, c.attach, siteBucket, started);
+    }
+    if (found.composition && found.composition !== c.composition) throw new Error(`Render ${c.attach} is of ${found.composition}, not ${c.composition}.`);
+    renderId = found.renderId!;
+    bucketName = found.bucketName;
+    console.log(`  following render ${renderId} (${found.status})`);
+  } else {
+  // starting a render uploads the props and invokes the function: minutes, not seconds
   const startResponse = await cloud.post<{ type?: string; message?: string; renderId?: string; bucketName?: string; routing?: { recommended: string; reason: string } }>('api/remotion/render', {
     id: c.composition,
     inputProps: c.inputProps,
@@ -886,12 +911,14 @@ const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
     ...(c.scale !== 1 ? { scale: c.scale } : {}),
     ...(c.crf !== undefined ? { crf: c.crf } : {}),
     tags: ['lyrics_videos', c.site.siteName.replace(/^lyrics-/, '').replace(new RegExp(`-${c.region}$`), '')],
-  });
+  }, 10 * 60_000);
   if (startResponse.type === 'error' || !startResponse.renderId || !startResponse.bucketName) {
     throw new Error(`mediamake did not start the render: ${startResponse.message ?? JSON.stringify(startResponse)}`);
   }
-  const { renderId, bucketName } = startResponse;
-  console.log(`  render ${renderId} started (in your mediamake render history)`);
+  renderId = startResponse.renderId;
+  bucketName = startResponse.bucketName;
+  console.log(`  render ${renderId} started (in your mediamake render history; if this terminal drops, --attach=${renderId} picks it up)`);
+  }
   let delay = 2000;
   for (;;) {
     const r = await cloud.get<{ type: 'progress' | 'done' | 'error'; message?: string; url?: string; renderInfo?: Progress }>('api/remotion/progress', { bucketName, id: renderId });
@@ -938,6 +965,11 @@ const renderDirect = async (c: RenderCall): Promise<Progress> => {
     downloadBehavior: { type: 'download', fileName: path.basename(c.output) },
   });
   console.log(`  render ${renderId} started (directly on AWS)`);
+  return followDirect(c, renderId, bucketName, started);
+};
+
+/** polls a render on AWS with the keys here and downloads it (the --direct path, and --attach when mediamake has no record) */
+const followDirect = async (c: RenderCall, renderId: string, bucketName: string, started: number): Promise<Progress> => {
   let delay = 2000;
   for (;;) {
     const p = await getRenderProgress({ renderId, bucketName, functionName: c.functionName, region: c.region });

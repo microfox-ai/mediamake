@@ -125,6 +125,9 @@ npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy
 # straight to AWS with the keys on this machine (no render record, cost usage or quota in mediamake)
 npm run render-project -w lyrics_videos -- <slug> --lambda --direct
 
+# follow a render mediamake already started (the id it printed, or from the render history) after a dropped connection
+npm run render-project -w lyrics_videos -- <slug> --lambda --attach=<renderId>
+
 # the pack: every file that would go up, with advice; --write keeps the advice as projects/<slug>/lambda.json
 npm run lambda -w lyrics_videos -- pack <slug>
 npm run lambda -w lyrics_videos -- pack <slug> --write
@@ -159,7 +162,7 @@ manifest, `video/edits.json`, the song, every file `assets` names, every file ed
 unchanged, swaps and all. `deploySite` compares the bucket by content, so a second deploy uploads
 only what changed (the bundle after a code change, not the inputs). Scenes must load files through
 `asset()` or the manifest; a `staticFile()` of a path outside `projects/<slug>/` has nothing to find
-on the site. `--window`, `--region`, `--preset`, `--skip-deploy` and `--direct` are the Lambda path's own flags;
+on the site. `--window`, `--region`, `--preset`, `--skip-deploy`, `--direct` and `--attach` are the Lambda path's own flags;
 `--frames`, `--proxy`/`--scale`, `--look` and `--crf` apply as locally; other `remotion render`
 flags don't.
 

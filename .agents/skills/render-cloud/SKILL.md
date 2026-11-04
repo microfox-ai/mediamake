@@ -178,6 +178,10 @@ The site deploy (bundle + pack, 263 s to Ohio for 177 MB) happens once; a re-ren
 - **403 from the API, "Lambda renders are for mediamake API keys with render access"**: the key has
   no cloud rendering access. Say so; render locally, or the user asks an admin for access. Never
   work around it with `--direct` unless the user asks for that.
+- **The terminal dropped, or the start call timed out, after "render … started"**: the render goes
+  on in the cloud. `--attach=<renderId>` (the id printed, or from the render history) follows it and
+  downloads it; start nothing new until that render is accounted for. Starting a render can take a
+  couple of minutes (the props go to S3, the function spins up): the start call waits 10 minutes.
 - **"The site has no composition <slug>"**: the site is stale or another project's. Drop
   `--skip-deploy`.
 - **"The pack is N MB, over the 500 MB limit"**: rules above, or local.
