@@ -5,7 +5,10 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {};
+// A pooled connection left idle for minutes (a server waiting on a long Lambda deploy) is dropped by
+// the far end and answers its next write with EPIPE (2026-11-04: a render ran with no record). Let the
+// pool close idle connections itself first, and retry writes (the driver's default, said out loud).
+const options = { maxIdleTimeMS: 60_000, retryWrites: true };
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient> = Promise.resolve(null as any);

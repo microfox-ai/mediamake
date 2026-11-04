@@ -142,3 +142,11 @@ Remotion reference (installed from remotion-dev/skills)
 | [`remotion-saas`](.agents/skills/remotion-saas/SKILL.md) | public | Build an app with Remotion |
 | [`remotion-studio`](.agents/skills/remotion-studio/SKILL.md) | public | Preview a Remotion video |
 | [`remotion-upgrade`](.agents/skills/remotion-upgrade/SKILL.md) | public | Upgrade Remotion, and related packages |
+
+## other
+
+Everything else
+
+| Skill | Visibility | What it does |
+|---|---|---|
+| [`render-cloud`](.agents/skills/render-cloud/SKILL.md) | public | Render a lyrics_videos project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with… |

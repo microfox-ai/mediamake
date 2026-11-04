@@ -54,7 +54,7 @@ export const connect = (opts: { url?: string; key?: string } = {}) => {
   const key = opts.key ?? (process.env.MEDIAMAKE_API_KEY?.trim() || keychainKey(url));
   if (!key && !isLocal(url)) throw new Error(`Not signed in to ${url}: run media cloud login (or set MEDIAMAKE_API_KEY)`);
 
-  const request = async <T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', route: string, opts: { query?: Record<string, string | undefined>; body?: unknown } = {}): Promise<T> => {
+  const request = async <T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', route: string, opts: { query?: Record<string, string | undefined>; body?: unknown; timeoutMs?: number } = {}): Promise<T> => {
     const u = new URL(route, `${url}/`);
     for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== '') u.searchParams.set(k, v);
     const headers: Record<string, string> = { Accept: 'application/json' };
@@ -62,7 +62,7 @@ export const connect = (opts: { url?: string; key?: string } = {}) => {
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
     let res: Response;
     try {
-      res = await fetch(u, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body), signal: AbortSignal.timeout(120_000) });
+      res = await fetch(u, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body), signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000) });
     } catch (err) {
       throw new CloudError(`${url} didn't answer (${err instanceof Error ? err.message : err})`, 0);
     }
@@ -85,7 +85,8 @@ export const connect = (opts: { url?: string; key?: string } = {}) => {
     url,
     get: <T = any>(route: string, query?: Record<string, string | undefined>) => request<T>('GET', route, { query }),
     put: <T = any>(route: string, body: unknown) => request<T>('PUT', route, { body }),
-    post: <T = any>(route: string, body: unknown) => request<T>('POST', route, { body }),
+    /** timeoutMs for a route that works before it answers (starting a Lambda render takes minutes) */
+    post: <T = any>(route: string, body: unknown, timeoutMs?: number) => request<T>('POST', route, { body, timeoutMs }),
     del: <T = any>(route: string, query?: Record<string, string | undefined>) => request<T>('DELETE', route, { query }),
     /** PUT a file to a presigned storage URL (signed public-read, so the header must match). */
     upload: async (uploadUrl: string, file: string, contentType: string) => {

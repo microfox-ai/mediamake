@@ -125,11 +125,38 @@ npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy
 # straight to AWS with the keys on this machine (no render record, cost usage or quota in mediamake)
 npm run render-project -w lyrics_videos -- <slug> --lambda --direct
 
+# follow a render mediamake already started (the id it printed, or from the render history) after a dropped connection
+npm run render-project -w lyrics_videos -- <slug> --lambda --attach=<renderId>
+
+# the pack: every file that would go up, with advice; --write keeps the advice as projects/<slug>/lambda.json
+npm run lambda -w lyrics_videos -- pack <slug>
+npm run lambda -w lyrics_videos -- pack <slug> --write
+
 # deploy the site without rendering; what is deployed in the region
 npm run lambda -w lyrics_videos -- deploy <slug>
 npm run lambda -w lyrics_videos -- sites
 npm run lambda -w lyrics_videos -- functions
 ```
+
+The pack has rules, `projects/<slug>/lambda.json` (`lyrics_videos.lambda/v1`), applied to every
+Lambda render and deploy and never to a local render: `"audio": { "codec": "aac", "bitrate": "256k" }`
+encodes a lossless song for the cloud (a tenth of the size), `"videos": { "<input path>": { "height",
+"crf" } }` re-encodes a clip bigger than the export to the export's height (never one with
+transparency), `"skip": ["<input path>"]` keeps files the manifest lists but nothing uses out, and
+`"preset"` fixes the function preset. Derivatives are made once into `out/<slug>/.lambda/derived/`
+and swapped into the manifest and edits the render gets. Over 200 MB the pack renders with a warning,
+over 500 MB the render refuses. `pack` suggests the song and bitrate encodes only past the 200 MB
+line (or for a single file over 100 MB): a lighter pack does not make the render cheaper, its chunks
+are render-bound; a clip taller than the export and a file nothing uses are flagged regardless.
+
+The Lambda configuration (the function's memory, frames rendered at once, frames a chunk) is worked
+out per render from how long the project's slowest frame takes (measured by its last Lambda render,
+`.renders.jsonl` › `lambda.slowestChunkSecondsPerFrame`; the slowest seen so far assumed until then)
+so that every chunk stays well inside Lambda's 15 min limit, and printed with its reason and
+Remotion's price estimate before anything is spent (`plan` shows it for the whole video, a half-size
+review and a 20 s window). `--preset=<key>` or `"preset"` in `lambda.json` takes one of mediamake's
+`AWS_RENDER_CONFIGS` instead. The skill `render-cloud` is the judgement around all this: what to pack,
+how a render is configured, when to spend.
 
 How it works (`scripts/lambda.ts`): the project is bundled alone (`ONLY_PROJECT`) and uploaded as
 its own site, `lyrics-<slug>` (`lyrics-<slug>-<region>` outside the default region), next to the
@@ -141,7 +168,7 @@ manifest, `video/edits.json`, the song, every file `assets` names, every file ed
 unchanged, swaps and all. `deploySite` compares the bucket by content, so a second deploy uploads
 only what changed (the bundle after a code change, not the inputs). Scenes must load files through
 `asset()` or the manifest; a `staticFile()` of a path outside `projects/<slug>/` has nothing to find
-on the site. `--window`, `--region`, `--preset`, `--skip-deploy` and `--direct` are the Lambda path's own flags;
+on the site. `--window`, `--region`, `--preset`, `--skip-deploy`, `--direct` and `--attach` are the Lambda path's own flags;
 `--frames`, `--proxy`/`--scale`, `--look` and `--crf` apply as locally; other `remotion render`
 flags don't.
 
