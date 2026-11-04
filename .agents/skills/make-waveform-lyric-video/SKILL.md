@@ -60,7 +60,7 @@ win.
    user's choice: ask at intake, never at the end.
 10. **Preview in the Remotion editor; render only when asked.** The most important rule: renders the
     user didn't ask for waste their time. Check your own work with stills; show the user the
-    project in the Remotion editor (local) when they want to look; render a clip or the full video
+    project in the Remotion editor (https://mediamake.microfox.app) when they want to look; render a clip or the full video
     only on request. Every earlier render is kept (`out/<slug>/v<N>/`).
 11. **Ask before paying.** Transcription is a paid ElevenLabs call (~$0.03 for 3 min); fal upscales
     and edits cost money: say the estimate and wait for a yes. Segmentation, analysis and renders
@@ -82,10 +82,10 @@ MCPs (check at intake which this session has; transcription calls ElevenLabs' AP
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs-connector` | required | The song's timed words, every word's start and end (`creative_transcribe_audio` on the vocal stem's MP3) | `mcp/elevenlabs`'s key with `npm run transcribe --yes` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
 | `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
-| `mcp/elevenlabs` | optional | Its API key, for `npm run transcribe --yes` when the ElevenLabs connector isn't connected | Nothing, while the connector is connected |
+| `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -122,13 +122,14 @@ is paid: the first run only gives back the song's cached words or prints the pri
 
 ```bash
 npm run transcribe -w lyrics_videos -- <slug>                      # cached words, or the MP3 and the price
-npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # after the ElevenLabs connector (first choice)
-npm run transcribe -w lyrics_videos -- <slug> --yes                # no connector: Scribe with the MCP's key
+npm run transcribe -w lyrics_videos -- <slug> --yes                # first choice: Scribe with the ElevenLabs MCP's key
+npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # web only: after the ElevenLabs connector's widget
 ```
 
-The ElevenLabs connector's `creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks
-it in its file picker); `--save` keeps the words it gives in `input/lyrics.raw.json` and the media
-library's cache. Every word comes with its start and end (`--lang=<code>` for a non-English song).
+`--yes` writes every word's start and end to `input/lyrics.raw.json` and the media library's cache
+(`--lang=<code>` for a non-English song). Only where no local MCP runs, the hosted ElevenLabs connector's
+`creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks it in its file picker widget)
+and `--save` keeps the words it gives the same way.
 
 Re-cut into lines with a small script in the project (`tools/recut.py`, copy Devil in the Details'):
 a list of lines, each its `htmlText` with the hero word in `<b>` and its rows split with `<br/>`; the
@@ -256,10 +257,12 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 ## 7. Preview (the main checkpoint)
 
 - **Your own checks**: stills (`npm run stills -- <slug> <s,…> --only`) at full resolution.
-- **The user's look**: the **Remotion editor**. Start mediamake locally (`preview_start` with
-  `mediamake` from `.claude/launch.json`) and open `http://localhost:3002/remotion-editor?project=<slug>`
-  in the browser pane; prefer local, the deployed editor lags behind engine changes. Say which
-  timeline mark to jump to. The user's moves save to `video/edits.json` and every render applies them.
+- **The user's look**: the **Remotion editor** at
+  `https://mediamake.microfox.app/remotion-editor?project=<slug>`. Every link the user gets uses this
+  base URL, never `localhost` (2026-11-02: "why are you creating wrong remotion urls, always use the
+  base url - mediamake.microfox.app"); a local server (`preview_start` with `mediamake`) is only for
+  your own checks. Say which timeline mark to jump to. The user's moves save to `video/edits.json` and
+  every render applies them.
   They can also swap the cover, overlays or logo clip in the editor's Assets panel, and turn the
   cover's and logo's knobs (picture, darken, kick, motion, tint; logo box and fades) in the
   inspector, and retime sung words on the word lane (saved as `words` / `lyricsOffset`). A scene you write for a project loads its files with the kit's `asset()`, never
@@ -322,6 +325,10 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 - A dangling symlink under `projects/` used to crash every bundle (fixed in `scripts/bundle.ts` with
   timestamp snapshots); still copy footage in rather than linking it.
 - `wave-lab` bundles all of `projects/` (~30 s before the first still).
+- A clip as the cover (`cover.image: 'loop.mp4'` + `clip` seconds, a motion poster made seamless like
+  projects/mahalakshmi/tools/loop.sh) plays as a real `<video>` in the Remotion editor, which Chrome draws
+  black under an SVG filter: CoverBackdrop keeps `url(#…)` filters on a wrapper, never on the video element.
+  Renders never show this (OffthreadVideo becomes a frame image), so check clip covers in the editor too.
 
 ## Lessons log
 
@@ -495,8 +502,53 @@ Append dated entries: what the user said → the rule.
   caps); an upright, wide-tracked serif stack needed StackedLyrics `leading`, `heroStroke` ≈ 0 (keep the
   hairlines), `wordSpace` and a `glint`; the centre bottom over a bright prop (a medallion) swallowed
   unsung words, so side columns only.
+- 2026-11-02 · Goten Theme (AMZ, Gregorian-chant OST, four Midjourney pictures of one frame in power
+  stages): "there are multiple variants, use them all, may be like a glitch effect … and take
+  complete use of overlays folder" → when the user gives several pictures of the same frame, align
+  them (this skill's `tools/align_states.py <project> [reference]`: ORB + similarity warp) and use them as `cover.stages`
+  (src/mediamake/Stages.tsx): a plan of which stage holds when (hard cuts on the booms, carried by a
+  gate burst; or crossfades), glitch rules on the hits (bands of another stage shoved sideways,
+  channel split, inverted now and then; `show: 'next'` in the builds, `'others'` on the strong hits),
+  and a Subject with one cutout per stage (`stages`) that draws the same bands. "The overlays folder"
+  = the library in apps/lyrics_videos/overlays: catalogue it first (three frames a clip on a contact
+  sheet), copy the picks into input/overlays and lay them out by stage with `when` windows. Before
+  showing, scan every looping clip's brightness (signalstats at 10 fps): clips that flash white at
+  their start or end flash the frame on every loop (trim with `offset` / `clipSeconds`), and some
+  carry text (the colour-glitch clip has terminal text): look at the stretch that plays. Stacked
+  `screen` clips wash a saturated picture milky: crush their grounds (`filter: 'contrast(1.4)
+  brightness(0.88)'`) and measure SATAVG against the picture.
+- 2026-11-02 · Goten Theme, after L2 was picked: "dont use the rainbow colored artwork anywhere,
+  only use it in the glitch effects, and add more old tv style visual fx, like blink out" → a stage
+  the user doesn't want held can stay in the glitches only (leave it out of `stages.plan`, name it in
+  the glitch rules' `show`, play its clips only on the hits). Engine `OldTV` (a layer over everything:
+  scanlines, hum bar, flicker, tube corners, tracking noise, snow on hits, `blinks` where the picture
+  squeezes to a bright line and opens on the change, `off` at the end). Then "add some camera slow
+  handheld shaking effect giving realistic feel, also use camera blur" → cover `handheld` (slow
+  layered noise drift ≤ 10 px with its own motion blur) and a few `defocus` moments (rack in at the
+  start, drift out before a boom and snap sharp on it, soft into a lull, melt at the end).
+- 2026-11-02 · "why are you creating wrong remotion urls, always use the base url -
+  mediamake.microfox.app - note it down in skills or wherever" → every link given to the user (the
+  Remotion editor, Revisions, File Revisions) is `https://mediamake.microfox.app/…`, never
+  `localhost:3002` (removed from this skill, revise-video and revise-image); a local dev server is
+  only for your own checks.
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
   `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
+- 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
+  widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
+  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
+  tool is built around a file-picker widget and a flow canvas, and it has no sound effects.
+- 2026-11-04 · WAKE UP (Get into Zone), a looping motion poster instead of a still, matched to the
+  channel's own "Chasing the Skyline": the reference's mediamake timeline (`list_timelines` search,
+  `get_timeline` full) gave its exact settings (side bars, `sub-fast-rap-static` one word at a time,
+  title texts, dust) → copy them, and check the render side by side: the preset bolds every one-word
+  sentence (use `Montserrat:500` to match its lighter look), its 0.3 s word lead is a whole word
+  ahead at ~160 BPM (halve it), its 0.5 top/bottom shade darkened a bright picture ~18 % (lighten it,
+  lift the clip). The clip plays as an `OverlayVideo` (`blendMode: 'normal'`, `follow: true`,
+  `clipSeconds` = its frames / fps) over its first frame as the cover; a video model's loop drifts and
+  snaps back to its end frame, so crossfade the tail into frame 0 (projects/wakeup-waveform/tools/loop.sh).
+- 2026-11-04 · "dont use smoke overlay, it usually looks bad" → no smoke or vapour overlays, even when
+  the reference timeline has one; dust in screen is fine.

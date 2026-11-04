@@ -24,6 +24,10 @@ import { hash } from './PictureLook';
 import { loadBoth, localFamily, type LyricFont } from './StackedLyrics';
 
 /**
+ * slam: stamped in like the editor's sub-vertical-float "aggressive-pulse-shake-float" (the user's own
+ * rock stamp, 2026-11-04): the whole word lands oversized through a motion blur, vibrates side to side
+ * as it settles, and flashes bright on the hit ·
+ * snap: the whole word at once with a tiny settle (for screens too short to read a slower motion) ·
  * stamp: lands on the beat with a scroll divider traced under it · echo: stamps, outline ghosts
  * ripple out, divider · rise / fall: letters slide in through a mask from below / above · glow: a word
  * of light blooming in · stretch: letters drift apart as it's held · burn: burnished in left to right
@@ -46,7 +50,9 @@ export type Fx =
   | 'cut'
   | 'type'
   | 'bend'
-  | 'shatter';
+  | 'shatter'
+  | 'snap'
+  | 'slam';
 
 export type KineticLyricsProps = {
   /** `caps` for the small words, `hero` for the <b> word. Fonts are files in the project. */
@@ -77,6 +83,38 @@ export type KineticLyricsProps = {
   };
   /** The hero's motion when a line names none. Default 'rise'. */
   fx?: Fx;
+  /**
+   * A screen shorter than `under` seconds (from its first word to its leaving) gets `fx` instead of its
+   * own, so the word can be read (Fullmetal Gregorian, 2026-11-04: "some words go too fast like
+   * cinders having wipe … place a simple animation that makes the word appear faster"). Default none.
+   */
+  quick?: { under: number; fx?: Fx };
+  /** Every hero takes this motion, whatever its line names (Fullmetal Gregorian, 2026-11-04: "use the impact animation on every word regardless"). */
+  force?: Fx;
+  /**
+   * What a stamped / echoed hero traces under itself: the Victorian 'scroll' (default, Cadence) or an
+   * 'alchemy' rule, a rule out to each side ending in a circled triangle, a tick on the way (Fullmetal
+   * Gregorian, 2026-11-04: "you can also use path trace animations anywhere you want").
+   */
+  ornament?: 'scroll' | 'alchemy';
+  /**
+   * Lines marked `metadata.place: 'center'` skip the side columns: the whole line at the centre bottom
+   * in the hero face, its words at `size` and the hero at `heroSize`, wrapped in `width`, the stack's
+   * bottom at `y` (Fullmetal Gregorian, 2026-11-04: "for some lines that go hard like FULL METAL HEART,
+   * FULL METAL ALCHEMIST and other important lines, skip the left and right text placements and do it
+   * at center bottom (like how we did in devil in details)").
+   */
+  center?: {
+    x: number;
+    y: number;
+    width: number;
+    size: number;
+    heroSize: number;
+    /** When set, every line sits at the centre bottom (the marked ones big, the rest at the usual sizes and faces). */
+    all?: boolean;
+    /** Letter spacing of a big line's small words, em. Default 0 ("put spacing only for big words"). */
+    tracking?: number;
+  };
   /** How much a screen swells on a kick. Default 0.03. */
   pulse?: number;
   /**
@@ -95,6 +133,8 @@ type WordBox = {
   start: number;
   end: number;
   face: Face;
+  /** The face it is drawn with when that differs from its role (a centre line's small words in the hero face). */
+  font?: Face;
   size: number;
   /** Each letter's x from the word's left at its own tracking, and its width. */
   xs: number[];
@@ -173,6 +213,15 @@ const SCROLL = [
   'M 0.2 0 C 0.28 0.065 0.4 0.075 0.445 0.035 C 0.465 0.015 0.45 -0.005 0.43 0.005',
 ];
 const DIAMOND = 'M 0 -0.055 L 0.04 0 L 0 0.055 L -0.04 0 Z';
+/**
+ * An alchemical rule, the right half in units of its half width: a long rule, a tick across it, and a
+ * small circle (four cubic arcs, so pathLength traces it) with a triangle inscribed at its end.
+ */
+const ALCHEMY = [
+  'M 0.05 0 L 0.76 0',
+  'M 0.78 0 C 0.78 -0.0387 0.8113 -0.07 0.85 -0.07 C 0.8887 -0.07 0.92 -0.0387 0.92 0 C 0.92 0.0387 0.8887 0.07 0.85 0.07 C 0.8113 0.07 0.78 0.0387 0.78 0',
+  'M 0.85 -0.048 L 0.891 0.024 L 0.809 0.024 Z M 0.56 -0.03 L 0.56 0.03',
+];
 /** A unit path placed at (x, y), `hw` px per unit, mirrored when `side` is -1. */
 const place = (d: string, x: number, y: number, hw: number, side = 1) =>
   d.replace(/(-?\d*\.?\d+) (-?\d*\.?\d+)/g, (_, a, b) => `${(x + side * Number(a) * hw).toFixed(1)} ${(y + Number(b) * hw).toFixed(1)}`);
@@ -196,46 +245,58 @@ const layoutScreen = (
   measure: ReturnType<typeof measurer>,
 ): Screen => {
   const tracking = p.tracking ?? { caps: 0.3, hero: 0.1 };
-  const meta = (line.metadata ?? {}) as { htmlText?: string; fx?: Fx; tone?: string };
+  const meta = (line.metadata ?? {}) as { htmlText?: string; fx?: Fx; tone?: string; place?: 'center' | 'side' };
   const parsed = parseCaptionHtmlText(meta.htmlText, line.words);
   const heroIdx = new Set(parsed?.highlightedWordIndices ?? []);
-  const col = index % 2 ? p.columns.right : p.columns.left;
-  const fx: Fx = meta.fx ?? p.fx ?? 'rise';
+  const big = !!p.center && meta.place === 'center';
+  const centered = big || !!p.center?.all;
+  const col = centered ? { x: p.center!.x - p.center!.width / 2, width: p.center!.width } : index % 2 ? p.columns.right : p.columns.left;
+  const capsSize = big ? p.center!.size : p.size.caps;
+  const heroSize = big ? p.center!.heroSize : p.size.hero;
+  const capsFont: Face = big ? 'hero' : 'caps';
+  let fx: Fx = p.force ?? meta.fx ?? p.fx ?? 'rise';
+  if (p.quick && !p.force) {
+    const first0 = line.words[0].start;
+    const last0 = line.words[line.words.length - 1].end;
+    const next0 = next?.words[0]?.start ?? Infinity;
+    const span = Math.min(next0 - 0.04, last0 + (p.hold ?? 0.55)) - first0;
+    if (span < p.quick.under) fx = p.quick.fx ?? 'snap';
+  }
   const shown = (face: Face, t: string) => {
     const s = t.replace(/[.,!?;:]+$/u, '');
     const c = p.fonts[face].case ?? 'upper';
     return c === 'upper' ? s.toUpperCase() : c === 'lower' ? s.toLowerCase() : s;
   };
-  const box = (i: number, face: Face, size: number): WordBox => {
+  const box = (i: number, face: Face, size: number, font: Face = face): WordBox => {
     const w = line.words[i];
-    const text = shown(face, w.text);
+    const text = shown(font, w.text);
     const k = size / REF;
-    const track = tracking[face] * size;
+    const track = (big && face === 'caps' ? (p.center!.tracking ?? 0) : tracking[face]) * size;
     const chars = [...text];
     const xs: number[] = [];
     const ws: number[] = [];
     let acc = '';
     chars.forEach((ch, j) => {
-      xs.push(measure(face, acc).width * k + j * track);
+      xs.push(measure(font, acc).width * k + j * track);
       acc += ch;
-      ws.push(measure(face, ch).width * k);
+      ws.push(measure(font, ch).width * k);
     });
-    const width = measure(face, text).width * k + track * Math.max(0, chars.length - 1);
-    return { text, start: w.start, end: w.end, face, size, xs, ws, width, x: 0, baseline: 0, cap: measure(face, 'H').cap * k };
+    const width = measure(font, text).width * k + track * Math.max(0, chars.length - 1);
+    return { text, start: w.start, end: w.end, face, font: font === face ? undefined : font, size, xs, ws, width, x: 0, baseline: 0, cap: measure(font, 'H').cap * k };
   };
   // the hero, shrunk only to fit its column — a stretching word fitted at its widest, fully spread
   // (Cadence: "PATIENCE" ran off the frame's edge as it stretched)
   const heroI = [...heroIdx][0];
-  let hero = heroI !== undefined ? box(heroI, 'hero', p.size.hero) : undefined;
+  let hero = heroI !== undefined ? box(heroI, 'hero', heroSize) : undefined;
   if (hero) {
-    const spread = fx === 'stretch' ? STRETCH * p.size.hero * Math.max(0, hero.xs.length - 1) : 0;
-    if (hero.width + spread > col.width) hero = box(heroI, 'hero', (p.size.hero * col.width) / (hero.width + spread));
+    const spread = fx === 'stretch' ? STRETCH * heroSize * Math.max(0, hero.xs.length - 1) : 0;
+    if (hero.width + spread > col.width) hero = box(heroI, 'hero', (heroSize * col.width) / (hero.width + spread));
   }
-  const space = (p.size.caps * ((p.wordSpace ?? 0.4) + 0.3)) | 0;
+  const space = (capsSize * ((p.wordSpace ?? 0.4) + 0.3)) | 0;
   // caps before and after the hero, wrapped in the column in rows of even width (never a lone "a"
   // on a row of its own)
   const wrap = (idx: number[]) => {
-    const boxes = idx.map(i => box(i, 'caps', p.size.caps));
+    const boxes = idx.map(i => box(i, 'caps', capsSize, capsFont));
     const total = boxes.reduce((n, b) => n + b.width, 0) + space * Math.max(0, boxes.length - 1);
     const count = Math.max(1, Math.ceil(total / col.width));
     const target = Math.min(col.width, total / count + space);
@@ -261,10 +322,10 @@ const layoutScreen = (
   const rows: WordBox[][] = [...before, ...(hero ? [[hero]] : []), ...after];
   const ornamented = !!hero && ORNAMENTED.includes(fx);
   // stack: caps rows a little apart, more air round the hero, room for a divider under a stamped one
-  const capH = p.size.caps * 0.72;
-  const gap = p.size.caps * 0.75;
-  const heroGap = p.size.caps * 1.0;
-  const ornGap = p.size.caps * 1.5;
+  const capH = capsSize * 0.72;
+  const gap = capsSize * (big ? 0.45 : 0.75);
+  const heroGap = capsSize * (big ? 0.6 : 1.0);
+  const ornGap = capsSize * 1.5;
   let y = 0;
   const baselines: number[] = [];
   let ornY = 0;
@@ -274,10 +335,10 @@ const layoutScreen = (
     if (i) y += prevHero && ornamented ? ornGap + heroGap : isHero || prevHero ? heroGap : gap;
     y += isHero ? r[0].cap : capH;
     baselines.push(y);
-    if (isHero) ornY = y + p.size.caps * 0.95;
+    if (isHero) ornY = y + capsSize * 0.95;
   });
   if (ornamented && rows[rows.length - 1][0].face === 'hero') y += ornGap;
-  const top = p.y - y / 2;
+  const top = centered ? p.center!.y - y : p.y - y / 2;
   rows.forEach((r, i) => {
     const rw = r.reduce((n, b) => n + b.width, 0) + space * (r.length - 1);
     let x = col.x + (col.width - rw) / 2;
@@ -304,7 +365,7 @@ const layoutScreen = (
     show: first - lead,
     leave,
     cx,
-    cy: p.y,
+    cy: centered ? p.center!.y - y / 2 : p.y,
     ornament: ornamented && hero ? { x: hero.x + hero.width / 2, y: top + ornY, hw: Math.min(col.width / 2, hero.width * 0.62) } : undefined,
     tone: meta.tone,
   };
@@ -327,6 +388,15 @@ const heroLetter = (fx: Fx, k: number, n: number, age: number, dur: number, fram
       const a = age - k * 0.03;
       s.dy = -w.size * 0.95 * (1 - easeOutBack(a / 0.42, 0.9));
       s.op = a > 0 ? 1 : 0;
+      break;
+    }
+    case 'slam': {
+      s.op = age >= 0 ? 1 : 0;
+      break;
+    }
+    case 'snap': {
+      s.op = clamp01(age / 0.04);
+      s.sx = s.sy = 1 + 0.08 * (1 - easeOut(age / 0.1));
       break;
     }
     case 'glow': {
@@ -446,7 +516,7 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
               style={{ filter: exitP > 0.02 ? `blur(${(6 * exitP).toFixed(2)}px)` : undefined }}
             >
               {sc.words.map((w, wi) => {
-                const common = { fontFamily: family(w.face), fontSize: w.size };
+                const common = { fontFamily: family(w.font ?? w.face), fontSize: w.size };
                 if (w.face === 'caps') {
                   // the small words rise in letter by letter on their own start
                   return (
@@ -462,7 +532,7 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
                             x={w.x + w.xs[k]}
                             y={w.baseline + 14 * (1 - easeOut(q))}
                             {...common}
-                            fill={colors.caps}
+                            fill={w.font === 'hero' ? 'url(#kl-metal)' : colors.caps}
                             opacity={q}
                             style={{ filter: blur > 0.3 ? `blur(${blur.toFixed(2)}px)` : undefined }}
                           >
@@ -505,7 +575,30 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
                 let skew = 0;
                 let wBlur = 0;
                 let wOp = 1;
-                if (fx === 'stamp' || fx === 'echo') {
+                let wDx = 0;
+                let wBright = 0;
+                if (fx === 'slam') {
+                  // lands from 1.6× in 0.14 s with a hard ease, blurred on the way in; then the rock
+                  // vibration (-5, +6, -3, +3, 0 over 0.2 s) and a bright hit that fades over 0.35 s
+                  const q = easeOutQuint(hAge / 0.14);
+                  ws = 1.6 - 0.6 * q;
+                  wBlur = 8 * (1 - q);
+                  wOp = clamp01(hAge / 0.04);
+                  const v = hAge - 0.1;
+                  if (v >= 0 && v < 0.2) {
+                    const pts: [number, number][] = [[0, -5], [0.3, 6], [0.6, -3], [0.8, 3], [1, 0]];
+                    const pr = v / 0.2;
+                    for (let i = 1; i < pts.length; i++) {
+                      if (pr <= pts[i][0]) {
+                        const [p0, v0] = pts[i - 1];
+                        const [p1, v1] = pts[i];
+                        wDx = (v0 + ((v1 - v0) * (pr - p0)) / (p1 - p0)) * 1.3;
+                        break;
+                      }
+                    }
+                  }
+                  wBright = Math.max(0, 1 - hAge / 0.35);
+                } else if (fx === 'stamp' || fx === 'echo') {
                   const q = easeOut(hAge / 0.16);
                   ws = 1 + 0.45 * (1 - q);
                   wBlur = 3 * (1 - q);
@@ -545,8 +638,10 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
                       </text>
                     );
                   });
-                const wordT = `translate(${cx} ${cy}) scale(${ws}) skewX(${skew}) translate(${-cx} ${-cy})`;
-                const wordStyle = { filter: wBlur > 0.3 ? `blur(${wBlur.toFixed(2)}px)` : undefined };
+                const wordT = `translate(${cx + wDx} ${cy}) scale(${ws}) skewX(${skew}) translate(${-cx} ${-cy})`;
+                const wordStyle = {
+                  filter: [wBlur > 0.3 ? `blur(${wBlur.toFixed(2)}px)` : '', wBright > 0.02 ? `brightness(${(1 + wBright * 0.9).toFixed(2)}) contrast(${(1 + wBright * 0.25).toFixed(2)}) drop-shadow(0 0 ${(14 * wBright).toFixed(1)}px rgba(255,236,200,${(0.9 * wBright).toFixed(2)}))` : ''].filter(Boolean).join(' ') || undefined,
+                };
                 const top = w.baseline - w.cap - w.size * 0.3;
                 const bottom = w.baseline + w.size * 0.25;
                 const left = w.x - 50;
@@ -557,7 +652,7 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
                 const g = gA / gDur;
                 const band = w.width * 0.28;
                 const gx = left + (right - left + band) * easeInOut(g) - band / 2;
-                const glintOn = g > 0 && g < 1 && fx !== 'bleed' && fx !== 'crumble' && fx !== 'bend';
+                const glintOn = g > 0 && g < 1 && fx !== 'bleed' && fx !== 'crumble' && fx !== 'bend' && fx !== 'slam';
                 // the body of the word, by motion
                 let body: React.ReactNode;
                 if (fx === 'rise' || fx === 'fall') {
@@ -732,7 +827,7 @@ export const KineticLyrics: React.FC<SceneProps<KineticLyricsProps>> = props => 
                         return (
                           <g filter="url(#kl-trace-glow)">
                             {[1, -1].map(side =>
-                              SCROLL.map((d, i) => {
+                              (props.ornament === 'alchemy' ? ALCHEMY : SCROLL).map((d, i) => {
                                 const q = draw(i ? 0.18 : 0, i ? 0.5 : 0.75);
                                 if (q <= 0) return null;
                                 return (

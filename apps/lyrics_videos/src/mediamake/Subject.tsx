@@ -13,6 +13,7 @@ import type { Manifest } from '../kit/manifest';
 import { asset, useBeat, useHit, useSongTime } from '../kit/hooks';
 import { MotionBlur, motionBlurCss, useCoverMotion, useDance, type CoverBackdropProps } from './CoverBackdrop';
 import { exposureCss, gradeCss, hash, hasPictureFilter, HeatFilter, PictureFilter, type PictureLook } from './PictureLook';
+import { flowMap, StageSlices, useStageState } from './Stages';
 
 type Hits = 'kick' | 'snare' | 'beat' | 'downbeat';
 
@@ -67,7 +68,7 @@ export type SubjectProps = {
    * She trembles like she's powering up: a small fast jitter (`frequency` changes a second), its
    * amplitude in px read off [song second, px] keys, so it can rise through the song.
    */
-  tremor?: { keys: [number, number][]; frequency?: number };
+  tremor?: { keys: [number, number][]; frequency?: number | [number, number][] };
   /**
    * From `from` on, ki crackling round the silhouette: a jagged line a little outside her edge that
    * redraws every couple of frames, with a glow, flickering and flaring on the kicks.
@@ -85,6 +86,35 @@ export type SubjectProps = {
    * over `life` s. Cadence, 2026-10-31: "make her eye shine red, at peak beats".
    */
   flare?: { at: [number, number]; color: string; size?: number; on?: Hits; threshold?: number; minGap?: number; life?: number };
+  /**
+   * One cutout per picture of the cover's `stages`, in the same order: she changes with the world
+   * and breaks into the same glitch bands. `image` is then unused.
+   */
+  stages?: string[];
+  /**
+   * A fire aura behind her, like a Super Saiyan's: rising upright noise (`size` px across, `stretch`
+   * times taller, rising `rise` px/s, morphing every `morph` s) times a falloff round the silhouette
+   * (`masks`, one per stage of the cover's `stages` or null; white, alpha = how far the fire reaches),
+   * cut into two crisp bands (`color` outside, `core` inside) with a little glow, flickering and
+   * swelling on the kicks, inside the `when` windows. Goten Theme, 2026-11-02: "use a good golden fire effect that
+   * suits him in the bg".
+   */
+  fireAura?: {
+    masks: (string | null)[];
+    when?: [number, number][];
+    color?: string;
+    core?: string;
+    size?: number;
+    /** How much taller than wide the noise is: upright tongues. Default 2.6. */
+    stretch?: number;
+    rise?: number;
+    morph?: number;
+    /** px of soft light round the flames. Default 5. */
+    glow?: number;
+    strength?: number;
+    kick?: number;
+    blend?: React.CSSProperties['mixBlendMode'];
+  };
   /** The cover's settings (lookVideo passes them), so she moves with the picture. */
   cover?: CoverBackdropProps;
 };
@@ -108,10 +138,31 @@ const keyed = (keys: [number, number][], t: number) => {
   return keys[keys.length - 1][1];
 };
 
+/** The phase (cycles) at t of a frequency keyed by song second: the integral of the keyed curve. */
+const phaseOf = (keys: [number, number][], t: number) => {
+  let phase = 0;
+  let [t0, f0] = keys[0];
+  if (t <= t0) return t * f0;
+  phase += t0 * f0;
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, f1] = keys[i];
+    if (t <= t1) {
+      const f = f0 + ((f1 - f0) * (t - t0)) / Math.max(1e-6, t1 - t0);
+      return phase + ((f0 + f) / 2) * (t - t0);
+    }
+    phase += ((f0 + f1) / 2) * (t1 - t0);
+    [t0, f0] = [t1, f1];
+  }
+  return phase + f0 * (t - t0);
+};
+
 /** The tremor's offset at song time t: smoothed random steps at `frequency`, scaled by the keys. */
 const tremorAt = (tremor: NonNullable<SubjectProps['tremor']>, t: number): [number, number] => {
   const a = keyed(tremor.keys, t);
-  const phase = t * (tremor.frequency ?? 14);
+  // (Fullmetal Gregorian, 2026-11-04: "vibrate at different frequencies and amplitudes based on the
+  // sections of music" → the frequency can be keyed by song second too; the phase integrates it)
+  const freq = tremor.frequency ?? 14;
+  const phase = typeof freq === 'number' ? t * freq : phaseOf(freq, t);
   const i = Math.floor(phase);
   const f = phase - i;
   const e = f * f * (3 - 2 * f);
@@ -158,6 +209,8 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   aura,
   liquid = true,
   flare,
+  stages,
+  fireAura,
   cover = {},
 }) => {
   const t = useSongTime();
@@ -171,7 +224,9 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
   const lookId = `subject-look-${uid}`;
   const blurId = `subject-blur-${uid}`;
   const heatId = `subject-heat-${uid}`;
-  const src = asset(manifest.assets[image] ?? image);
+  const stage = useStageState(manifest, stages && cover.stages);
+  const stageSrcs = stages?.map(n => asset(manifest.assets[n] ?? n));
+  const src = stageSrcs && stage ? stageSrcs[stage.i] : asset(manifest.assets[image] ?? image);
 
   const { motion: m, blur: camBlur, defocus } = useCoverMotion(cover);
   const dance = useDance(cover);
@@ -344,6 +399,83 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
     );
   })();
 
+  // the fire aura: its shape for the stage showing, warped into rising tongues, behind her
+  const fireAuraEl = (() => {
+    if (!fireAura) return null;
+    const mask = fireAura.masks[stage?.i ?? 0];
+    const shown = fireAura.when
+      ? Math.max(0, ...fireAura.when.map(([a, b]) => Math.min(1, (t - a) / 0.4 + 1, (b - t) / 0.4 + 1)))
+      : 1;
+    if (!mask || shown <= 0) return null;
+    const src = asset(manifest.assets[mask] ?? mask);
+    const W = size.width;
+    const H = size.height;
+    const region = { x: -W * 0.15, y: -H * 0.35, width: W * 1.3, height: H * 1.5 };
+    const cells = W / (fireAura.size ?? 70);
+    const phase = t / (fireAura.morph ?? 0.7);
+    const k = Math.floor(phase);
+    const f = phase - k;
+    const ca = Math.cos((f * Math.PI) / 2);
+    const cb = Math.sin((f * Math.PI) / 2);
+    // the noise tile stretched tall (upright tongues), scrolling up through the region
+    const tileH = region.height * (fireAura.stretch ?? 2.6);
+    const off = (t * (fireAura.rise ?? 260)) % tileH;
+    const id = `subject-fire-${uid}`;
+    const tile = (seed: number, name: string) => (
+      <>
+        <feImage href={flowMap(seed, cells)} x={region.x} y={region.y - off} width={region.width} height={tileH} preserveAspectRatio="none" result={`${name}1`} />
+        <feImage href={flowMap(seed, cells)} x={region.x} y={region.y - off + tileH} width={region.width} height={tileH} preserveAspectRatio="none" result={`${name}2`} />
+        <feMerge result={name}>
+          <feMergeNode in={`${name}1`} />
+          <feMergeNode in={`${name}2`} />
+        </feMerge>
+      </>
+    );
+    const flicker = 0.88 + 0.12 * hash(Math.floor(frameNo / 2) * 2.3 + 0.7);
+    return (
+      <>
+        <svg width={0} height={0} style={{ position: 'absolute' }}>
+          <defs>
+            <filter id={id} filterUnits="userSpaceOnUse" {...region} colorInterpolationFilters="sRGB">
+              {tile(k + 11, 'a')}
+              {tile(k + 12, 'b')}
+              <feComposite in="a" in2="b" operator="arithmetic" k1={0} k2={ca} k3={cb} k4={0.5 * (1 - ca - cb)} result="noise" />
+              {/* fire as noise: the rising, upright noise (its red) times the aura's falloff round him,
+                  cut at two levels, so tongues form, rise, break apart and die out away from him */}
+              <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.25 0 0 0 -0.1" result="noiseA" />
+              <feComposite in="noiseA" in2="SourceGraphic" operator="arithmetic" k1={1} k2={0} k3={0} k4={0} result="tongues" />
+              <feComponentTransfer in="tongues" result="shape">
+                <feFuncA type="linear" slope={6} intercept={-1.5} />
+              </feComponentTransfer>
+              <feFlood floodColor={fireAura.color ?? '#ffa800'} result="ink" />
+              <feComposite in="ink" in2="shape" operator="in" result="flame" />
+              <feGaussianBlur in="flame" stdDeviation={fireAura.glow ?? 5} result="glow" />
+              <feComponentTransfer in="tongues" result="inner">
+                <feFuncA type="linear" slope={6} intercept={-3.3} />
+              </feComponentTransfer>
+              <feFlood floodColor={fireAura.core ?? '#fff3bf'} result="coreInk" />
+              <feComposite in="coreInk" in2="inner" operator="in" result="core" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="flame" />
+                <feMergeNode in="core" />
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+        <div
+          style={{
+            ...frame,
+            mixBlendMode: fireAura.blend,
+            opacity: Math.min(1, shown * ((fireAura.strength ?? 0.9) * flicker + (fireAura.kick ?? 0.3) * Math.min(1, kickHit))),
+          }}
+        >
+          <Img src={src} style={{ ...fill, filter: `url(#${id})` }} />
+        </div>
+      </>
+    );
+  })();
+
   const outlineEl = outline ? (
     <>
       <svg width={0} height={0} style={{ position: 'absolute' }}>
@@ -377,9 +509,24 @@ export const Subject: React.FC<SceneProps<SubjectProps>> = ({
       {/* she dances with the poster: the same bounce, sway and liquid warp as the cover */}
       <div style={{ position: 'absolute', inset: 0, transform: dance.transform, transformOrigin: dance.origin, filter: (liquid && dance.filter) || undefined }}>
       {echoes}
-      <div style={frame}>
-        <Img src={src} style={{ ...fill, filter: filter || undefined }} />
-      </div>
+      {fireAuraEl}
+      {stageSrcs && stage ? (
+        <StageSlices
+          srcs={stageSrcs}
+          state={stage}
+          height={size.height}
+          splitId={`subject-split-${uid}`}
+          render={s => (
+            <div style={frame}>
+              <Img src={s} style={{ ...fill, filter: filter || undefined }} />
+            </div>
+          )}
+        />
+      ) : (
+        <div style={frame}>
+          <Img src={src} style={{ ...fill, filter: filter || undefined }} />
+        </div>
+      )}
       {wash && (
         <div style={{ ...frame, ...mask, background: wash.color, mixBlendMode: wash.blend ?? 'soft-light', opacity: wash.opacity }} />
       )}
