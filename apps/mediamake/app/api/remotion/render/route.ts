@@ -29,6 +29,8 @@ interface CustomLambdaConfig {
   concurrency: number | 'auto';
   framesPerLambda: number | 'auto';
   timeoutInMilliseconds: number;
+  /** frames rendered at once inside one Lambda (browser tabs); 1 unless the function has the CPU for more */
+  concurrencyPerLambda?: number;
 }
 
 export const POST = async (req: NextRequest) => {
@@ -142,6 +144,7 @@ export const POST = async (req: NextRequest) => {
       concurrency: number | undefined;
       timeoutInMilliseconds: number;
       framesPerLambda: number | undefined;
+      concurrencyPerLambda?: number;
     };
 
     if (configMode === 'custom' && customConfig) {
@@ -155,6 +158,7 @@ export const POST = async (req: NextRequest) => {
         concurrency: validatedCustomConfig.concurrency === 'auto' ? undefined : validatedCustomConfig.concurrency,
         timeoutInMilliseconds: validatedCustomConfig.timeoutInMilliseconds,
         framesPerLambda: validatedCustomConfig.framesPerLambda === 'auto' ? undefined : validatedCustomConfig.framesPerLambda,
+        concurrencyPerLambda: validatedCustomConfig.concurrencyPerLambda,
       };
     } else {
       // Use preset configuration
@@ -268,6 +272,7 @@ export const POST = async (req: NextRequest) => {
     };
 
     if (range) renderOptions.frameRange = range;
+    if (config.concurrencyPerLambda && config.concurrencyPerLambda > 1) renderOptions.concurrencyPerLambda = config.concurrencyPerLambda;
     if (videoScale !== undefined) renderOptions.scale = videoScale;
     if (videoCrf !== undefined) renderOptions.crf = videoCrf;
 
@@ -360,8 +365,12 @@ export const POST = async (req: NextRequest) => {
       });
     }
 
+    const startedAt = Date.now();
     const result = await renderMediaOnLambda(renderOptions);
+    console.log(`Lambda accepted render ${result.renderId} after ${Date.now() - startedAt} ms${req.signal.aborted ? ' (the client had already gone)' : ''}`);
 
+    // The render is running now whatever happens below: never lose its record over a bookkeeping error.
+    try {
     if (clientId) {
       await renderRequestDB.create({
         clientId,
@@ -403,6 +412,10 @@ export const POST = async (req: NextRequest) => {
         await userQuotaDB.incrementUsage(clientId, 'render');
       }
     }
+    } catch (bookkeeping) {
+      console.error(`Render ${result.renderId} is running but could not be recorded:`, bookkeeping);
+    }
+    console.log(`Render ${result.renderId} recorded after ${Date.now() - startedAt} ms`);
 
     return NextResponse.json({
       ...result,
@@ -466,7 +479,11 @@ function validateCustomConfig(config: CustomLambdaConfig): CustomLambdaConfig {
   if (config.framesPerLambda !== 'auto' && typeof config.framesPerLambda === 'number') {
     framesPerLambda = Math.min(FRAMES_PER_LAMBDA_LIMITS.max, Math.max(FRAMES_PER_LAMBDA_LIMITS.min, config.framesPerLambda));
   }
-  
+  const concurrencyPerLambda =
+    typeof config.concurrencyPerLambda === 'number' && Number.isFinite(config.concurrencyPerLambda)
+      ? Math.min(8, Math.max(1, Math.round(config.concurrencyPerLambda)))
+      : undefined;
+
   return {
     memory,
     disk,
@@ -474,6 +491,7 @@ function validateCustomConfig(config: CustomLambdaConfig): CustomLambdaConfig {
     concurrency,
     framesPerLambda,
     timeoutInMilliseconds: timeout * 1000,
+    concurrencyPerLambda,
   };
 }
 

@@ -105,13 +105,17 @@ export const GET = async (req: NextRequest) => {
       ? storedRegion
       : fallbackRegion) as AwsRegion;
 
-    const renderProgress = await getRenderProgress({
-      bucketName: bucketName,
-      functionName: speculateFunctionName({
+    // the function the render ran on (a custom configuration has no preset); the preset's only for older records
+    const functionName =
+      renderRequest.functionNameUsed ||
+      speculateFunctionName({
         diskSizeInMb: config.disk,
         memorySizeInMb: config.memory,
         timeoutInSeconds: config.timeout,
-      }),
+      });
+    const renderProgress = await getRenderProgress({
+      bucketName: bucketName,
+      functionName,
       region: effectiveRegion,
       renderId: id,
     });

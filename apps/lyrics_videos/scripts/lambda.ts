@@ -67,7 +67,7 @@ import {
   renderMediaOnLambda,
   type AwsRegion,
 } from '@remotion/lambda';
-import { speculateFunctionName } from '@remotion/lambda/client';
+import { estimatePrice, speculateFunctionName } from '@remotion/lambda/client';
 import {
   formatBytes,
   formatSeconds,
@@ -424,9 +424,15 @@ export type Derived = { from: string; to: string; bytes: number; fromBytes: numb
 export const measuredSecondsPerFrame = (slug: string): { secondsPerFrame: number; at: string; frames?: [number, number | null] } | undefined => {
   const log = path.join(ROOT, 'out', slug, '.renders.jsonl');
   if (!fs.existsSync(log)) return undefined;
-  const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string } }[];
-  const last = entries.filter(e => e.ok && e.scale >= 1 && e.lambda?.slowestChunkSecondsPerFrame && /mem3008mb/.test(e.lambda.functionName)).at(-1);
-  return last?.lambda?.slowestChunkSecondsPerFrame ? { secondsPerFrame: last.lambda.slowestChunkSecondsPerFrame, at: last.at, frames: last.frames } : undefined;
+  const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string; config?: { concurrencyPerLambda?: number } } }[];
+  const last = entries.filter(e => e.ok && e.scale >= 1 && e.lambda?.slowestChunkSecondsPerFrame).at(-1);
+  if (!last?.lambda?.slowestChunkSecondsPerFrame) return undefined;
+  // back to "one tab on 3 GB": the chooser's unit (the same gains it assumes, in reverse)
+  const memory = Number(last.lambda.functionName.match(/mem(\d+)mb/)?.[1]) || 3008;
+  const tabs = last.lambda.config?.concurrencyPerLambda ?? 1;
+  const singleTabGain = Math.min(2, Math.max(0.6, (memory / 3008) ** 0.5));
+  const perChunkFrame = last.lambda.slowestChunkSecondsPerFrame;
+  return { secondsPerFrame: Math.round(perChunkFrame * singleTabGain * (1 + (tabs - 1) * TAB_GAIN) * 10) / 10, at: last.at, frames: last.frames };
 };
 
 export type PackCheck = { level: 'ok' | 'warn' | 'reject'; bytes: number; message: string };
@@ -607,6 +613,123 @@ export const choosePreset = (c: { frames: number; fps: number; scale: number; pl
   return { key: 'complex-fast', reason: `${formatSeconds(seconds)}, ${c.playingClips} clip${c.playingClips === 1 ? '' : 's'} playing, ${media} per chunk: 75-frame chunks on 3 GB functions with a 15 min timeout, the safe default` };
 };
 
+// ---------- the render configuration ----------
+
+/**
+ * One Lambda render's configuration, worked out per render rather than picked from a preset
+ * (render-cloud skill, "Configuring the render"). In order: the output must arrive, then the cost,
+ * then the speed.
+ *
+ * What Lambda imposes: 15 minutes is the hard limit for each chunk and for the main function that
+ * waits for all of them; the CPU scales with the memory (1769 MB = 1 vCPU, 10240 MB ≈ 6); a Chrome
+ * tab renders one frame at a time, so a function with CPU to spare renders more frames at once with
+ * concurrencyPerLambda (more tabs); every chunk pays a fixed overhead (the function's start, Chrome,
+ * the media download); the bill is GB-seconds, so more memory for proportionally less time costs
+ * the same, and fewer chunks cost less overhead.
+ *
+ * What the project tells: how long its slowest frame takes on a 3 GB function with one tab,
+ * measured by its last Lambda render (a window on the heaviest stretch); unmeasured, the worst seen
+ * so far is assumed, so an unmeasured full render is sized to arrive, not to be cheap.
+ */
+export type RenderConfig = {
+  memory: number;
+  disk: number;
+  timeout: number;
+  framesPerLambda: number;
+  concurrencyPerLambda: number;
+  /** the function that runs it (deployed) */
+  functionName: string;
+  chunks: number;
+  /** seconds a chunk is expected to take, and in the worst case (no gain from the extra tabs) */
+  expectedChunkSeconds: number;
+  worstChunkSeconds: number;
+  /** seconds per frame assumed for this render (on a 3 GB function, one tab, full size) */
+  secondsPerFrame: number;
+  measured: boolean;
+  /** USD, Remotion's price for the Lambdas' time */
+  estimatedCost: number;
+  reason: string;
+};
+
+/** the slowest frames seen on a lyrics project so far (fma-edwardeleric's stage masks, 2026-11-04): assumed when nothing is measured */
+const ASSUMED_SECONDS_PER_FRAME = 12;
+/** a chunk's fixed cost: the function starting, Chrome, the pack's media downloading */
+const CHUNK_OVERHEAD_SECONDS = 25;
+/** a chunk is sized to finish in this time: a third of the 15 min, leaving room for a retry and for the main function's final concat */
+const CHUNK_BUDGET_SECONDS = 300;
+/** and never past this even if the extra tabs bring nothing */
+const CHUNK_WORST_SECONDS = 700;
+/** chunks running at once that an account is sure to allow (113 ran on 2026-11-04); past this a render leans on Remotion's retries */
+const CHUNKS_AT_ONCE = 200;
+/** how much of the extra tabs' parallelism arrives in practice */
+const TAB_GAIN = 0.8;
+
+export const chooseConfig = (c: {
+  frames: number;
+  scale: number;
+  region: AwsRegion;
+  deployed: { functionName: string; memorySizeInMb: number; diskSizeInMb: number; timeoutInSeconds: number }[];
+  secondsPerFrame?: number;
+}): RenderConfig => {
+  const measured = c.secondsPerFrame !== undefined;
+  const base = c.secondsPerFrame ?? ASSUMED_SECONDS_PER_FRAME;
+  // a smaller frame is cheaper in proportion to its pixels
+  const perFrame = base * Math.max(0.2, c.scale * c.scale);
+  // the function: 2 GB for light frames, 3 GB for ordinary ones, 10 GB with three tabs for heavy ones
+  const want = perFrame <= 1.5 ? { memory: 2048, tabs: 1 } : perFrame <= 4 ? { memory: 3008, tabs: 1 } : { memory: 10240, tabs: 3 };
+  // the deployed function nearest above it (timeout 900, the biggest disk)
+  const candidates = c.deployed.filter(f => f.timeoutInSeconds >= 900).sort((a, b) => a.memorySizeInMb - b.memorySizeInMb);
+  if (!candidates.length) throw new Error(`No Lambda function with a 900 s timeout in ${c.region}. Deploy mediamake's functions: npm run deploy -w mediamake`);
+  const fn = candidates.find(f => f.memorySizeInMb >= want.memory) ?? candidates[candidates.length - 1];
+  const tabs = fn.memorySizeInMb >= 6144 ? want.tabs : 1;
+  // on a bigger function a single tab is somewhat faster too (the CPU scales with the memory, Chrome uses a few threads)
+  const singleTabGain = Math.min(2, Math.max(0.6, (fn.memorySizeInMb / 3008) ** 0.5));
+  const effective = perFrame / singleTabGain / (1 + (tabs - 1) * TAB_GAIN);
+  // frames per chunk: as many as fit the budget (fewer chunks, less overhead), within Remotion's 150, never past the worst case
+  let framesPerLambda = Math.max(10, Math.min(150, Math.floor((CHUNK_BUDGET_SECONDS - CHUNK_OVERHEAD_SECONDS) / effective)));
+  framesPerLambda = Math.min(framesPerLambda, Math.max(10, Math.floor((CHUNK_WORST_SECONDS - CHUNK_OVERHEAD_SECONDS) / (perFrame / singleTabGain))));
+  framesPerLambda = Math.min(framesPerLambda, c.frames);
+  let chunks = Math.ceil(c.frames / framesPerLambda);
+  // too many chunks at once: bigger ones, as long as they stay inside the budget's double
+  if (chunks > CHUNKS_AT_ONCE) {
+    const bigger = Math.min(150, Math.ceil(c.frames / CHUNKS_AT_ONCE));
+    if (CHUNK_OVERHEAD_SECONDS + bigger * effective <= CHUNK_BUDGET_SECONDS * 2 && CHUNK_OVERHEAD_SECONDS + bigger * (perFrame / singleTabGain) <= CHUNK_WORST_SECONDS) {
+      framesPerLambda = bigger;
+      chunks = Math.ceil(c.frames / framesPerLambda);
+    }
+  }
+  const expectedChunkSeconds = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * effective);
+  const worstChunkSeconds = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * (perFrame / singleTabGain));
+  // the bill: every chunk's expected time, plus the main function waiting for the slowest and concatenating
+  const estimatedCost = estimatePrice({
+    region: c.region,
+    memorySizeInMb: fn.memorySizeInMb,
+    diskSizeInMb: fn.diskSizeInMb,
+    lambdasInvoked: chunks + 1,
+    durationInMilliseconds: (chunks * expectedChunkSeconds + expectedChunkSeconds + 60 + c.frames / 100) * 1000,
+  });
+  const reason = `${measured ? `measured ${base.toFixed(1)}` : `assumed ${base}`} s a frame on 3 GB${c.scale < 1 ? ` (${Math.round(c.scale * 100)}% size: ${perFrame.toFixed(1)} s)` : ''}; ${Math.round(fn.memorySizeInMb / 1024)} GB${tabs > 1 ? ` with ${tabs} frames at a time` : ''} brings a frame to ~${effective.toFixed(1)} s, so ${framesPerLambda} frames a chunk run ~${expectedChunkSeconds} s (worst ${worstChunkSeconds} s, inside the 15 min), ${chunks} chunks`;
+  return { memory: fn.memorySizeInMb, disk: fn.diskSizeInMb, timeout: fn.timeoutInSeconds, framesPerLambda, concurrencyPerLambda: tabs, functionName: fn.functionName, chunks, expectedChunkSeconds, worstChunkSeconds, secondsPerFrame: base, measured, estimatedCost, reason };
+};
+
+/** a preset, in the same shape (for --preset and lambda.json "preset") */
+const configFromPreset = (key: string, preset: RenderPreset, frames: number, region: AwsRegion, deployed: { functionName: string }[], perFrame: number): RenderConfig => {
+  const functionName = speculateFunctionName({ memorySizeInMb: preset.memory, diskSizeInMb: preset.disk, timeoutInSeconds: preset.timeout });
+  if (!deployed.some(f => f.functionName === functionName)) throw new Error(`Lambda function ${functionName} (preset ${key}) is not deployed in ${region}. Deploy mediamake's functions: npm run deploy -w mediamake`);
+  const framesPerLambda = preset.framesPerLambda ?? (preset.concurrency ? Math.ceil(frames / preset.concurrency) : Math.max(10, Math.min(150, Math.ceil(frames / 20))));
+  const chunks = Math.ceil(frames / framesPerLambda);
+  const expected = Math.round(CHUNK_OVERHEAD_SECONDS + framesPerLambda * perFrame);
+  return {
+    memory: preset.memory, disk: preset.disk, timeout: preset.timeout, framesPerLambda, concurrencyPerLambda: 1, functionName, chunks,
+    expectedChunkSeconds: expected, worstChunkSeconds: expected, secondsPerFrame: perFrame, measured: false,
+    estimatedCost: estimatePrice({ region, memorySizeInMb: preset.memory, diskSizeInMb: preset.disk, lambdasInvoked: chunks + 1, durationInMilliseconds: (chunks + 1) * expected * 1000 }),
+    reason: `preset ${key} as mediamake's config.mjs defines it (${preset.description})`,
+  };
+};
+
+export const describeConfig = (r: RenderConfig) =>
+  `${Math.round(r.memory / 1024)} GB, ${r.framesPerLambda} frames a chunk${r.concurrencyPerLambda > 1 ? `, ${r.concurrencyPerLambda} at a time` : ''}, ${r.chunks} chunk${r.chunks === 1 ? '' : 's'} of ~${formatSeconds(r.expectedChunkSeconds)} (worst ${formatSeconds(r.worstChunkSeconds)}), about $${r.estimatedCost.toFixed(2)}`;
+
 // ---------- the site ----------
 
 export type SiteInfo = {
@@ -708,15 +831,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   const { AWS_RENDER_CONFIGS } = await mediamakeConfig();
   const region = await pickRegion(req.region);
   const deployed = await getFunctions({ region, compatibleOnly: true });
-  const functionFor = (key: string) => {
-    const preset = AWS_RENDER_CONFIGS[key];
-    if (!preset) throw new Error(`No preset ${key}. One of: ${Object.keys(AWS_RENDER_CONFIGS).join(', ')}`);
-    const functionName = speculateFunctionName({ memorySizeInMb: preset.memory, diskSizeInMb: preset.disk, timeoutInSeconds: preset.timeout });
-    if (!deployed.some(f => f.functionName === functionName)) {
-      throw new Error(`Lambda function ${functionName} (preset ${key}) is not deployed in ${region}. Deploy mediamake's functions: npm run deploy -w mediamake`);
-    }
-    return { preset, functionName };
-  };
+  if (!deployed.length) throw new Error(`No Lambda functions in ${region}. Deploy mediamake's functions: npm run deploy -w mediamake`);
 
   // 1. the project's files (lambda.json applied), the pack's size, the plan
   const staged = stageProject(req.slug);
@@ -742,8 +857,8 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     edits: req.short ? null : staged.edits,
     ...(req.look ? { look: req.look } : {}),
   };
-  // any deployed function reads the compositions; the render's own is chosen once the length is known
-  const metaFunction = functionFor(req.preset ?? staged.rules?.preset ?? 'complex-fast').functionName;
+  // any deployed function reads the compositions; the render's own is worked out once the length is known
+  const metaFunction = [...deployed].sort((a, b) => b.memorySizeInMb - a.memorySizeInMb).find(f => f.timeoutInSeconds >= 900)?.functionName ?? deployed[0].functionName;
   // envVariables must be an object: Remotion 4.0.496 measures JSON.stringify(envVariables).length
   const compositions = await getCompositionsOnLambda({ region, functionName: metaFunction, serveUrl: site.serveUrl, inputProps, envVariables: {} });
   const comp = compositions.find(c => c.id === req.composition);
@@ -760,22 +875,16 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   const framesToRender = frames ? frames.to - frames.from + 1 : comp.durationInFrames;
   const clip = Boolean(frames);
 
-  // the function preset: --preset, else lambda.json, else chosen from the render
-  const playing = plan.media.filter(m => (m.usedSeconds ?? 0) > 0);
-  const chosen = choosePreset({
-    frames: framesToRender,
-    fps: comp.fps,
-    scale: req.scale,
-    playingClips: playing.filter(m => m.kind === 'video').length,
-    playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0),
-    packBytes: staged.bytes,
-  });
+  // the render's configuration: worked out from the frames (and the project's last measurement), unless --preset or lambda.json says
   const measured = measuredSecondsPerFrame(req.slug);
-  const chosenMeasured = measured ? choosePreset({ frames: framesToRender, fps: comp.fps, scale: req.scale, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes, secondsPerFrame: measured.secondsPerFrame }) : chosen;
-  if (!measured && !clip && req.scale >= 1) console.warn('  no window render of this project on Lambda yet: a 20 s window on its heaviest stretch first would measure how slow its frames are and size the chunks (render-cloud skill)');
-  const presetKey = req.preset ?? staged.rules?.preset ?? chosenMeasured.key;
-  const { preset, functionName } = functionFor(presetKey);
-  console.log(`Preset ${presetKey}${presetKey === chosenMeasured.key ? `: ${chosenMeasured.reason}` : ` (${req.preset ? '--preset' : 'lambda.json'}; the chooser would take ${chosenMeasured.key}: ${chosenMeasured.reason})`}`);
+  const presetKey = req.preset ?? staged.rules?.preset;
+  const config = presetKey
+    ? configFromPreset(presetKey, (() => { const p = AWS_RENDER_CONFIGS[presetKey]; if (!p) throw new Error(`No preset ${presetKey}. One of: ${Object.keys(AWS_RENDER_CONFIGS).join(', ')}`); return p; })(), framesToRender, region, deployed, (measured?.secondsPerFrame ?? ASSUMED_SECONDS_PER_FRAME) * Math.max(0.2, req.scale * req.scale))
+    : chooseConfig({ frames: framesToRender, scale: req.scale, region, deployed, secondsPerFrame: measured?.secondsPerFrame });
+  if (!measured && !clip && req.scale >= 1) console.warn(`  not measured yet: sized for ${ASSUMED_SECONDS_PER_FRAME} s a frame (the slowest seen); a 20 s window on the heaviest stretch first would measure it (render-cloud skill)`);
+  console.log(`Configuration: ${describeConfig(config)}\n  ${config.reason}`);
+  const functionName = config.functionName;
+
   const framesName = frames ? `${frames.from}-${frames.to}` : '';
   const output = req.look
     ? path.join(req.outDir, 'looks', `${req.look}.mp4`)
@@ -784,12 +893,9 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
       : path.join(req.outDir, `${req.name}.mp4`);
   if (!clip && !req.look) keepPrevious(req.outDir, req.name);
   fs.mkdirSync(path.dirname(output), { recursive: true });
-
   const w = Math.round(comp.width * req.scale);
   const h = Math.round(comp.height * req.scale);
-  console.log(
-    `Render ${req.composition}: ${framesToRender} of ${comp.durationInFrames} frames at ${comp.fps} fps, ${w}×${h}, preset ${presetKey} (${preset.memory} MB, ${preset.framesPerLambda ? `${preset.framesPerLambda} frames per Lambda` : `concurrency ${preset.concurrency}`})`,
-  );
+  console.log(`Render ${req.composition}: ${framesToRender} of ${comp.durationInFrames} frames at ${comp.fps} fps, ${w}×${h}`);
 
   // 4. render, poll, download: through mediamake (its render records, cost usage and quota), or AWS directly
   const started = Date.now();
@@ -804,7 +910,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
     region,
     functionName,
     presetKey,
-    preset,
+    config,
     site,
   };
   const progress = req.direct ? await renderDirect(request) : await renderThroughMediamake(request);
@@ -830,6 +936,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
         lambdas: progress.lambdasInvoked,
         costUsd: cost,
         through: req.direct || progress.direct ? 'aws' : 'mediamake',
+        config: { memory: config.memory, framesPerLambda: config.framesPerLambda, concurrencyPerLambda: config.concurrencyPerLambda, chunks: config.chunks, estimatedCost: Math.round(config.estimatedCost * 100) / 100 },
         ...(slowest ? { slowestChunkSecondsPerFrame: Math.round((slowest.timeInMilliseconds / 1000 / (slowest.frameRange[1] - slowest.frameRange[0] + 1)) * 10) / 10 } : {}),
       },
     });
@@ -867,8 +974,8 @@ type RenderCall = {
   output: string;
   region: AwsRegion;
   functionName: string;
-  presetKey: string;
-  preset: RenderPreset;
+  presetKey?: string;
+  config: RenderConfig;
   site: SiteInfo;
 };
 
@@ -931,8 +1038,12 @@ const renderThroughMediamake = async (c: RenderCall): Promise<Progress> => {
     codec: 'h264',
     audioCodec: 'aac',
     renderType: 'video',
-    configMode: 'preset',
-    awsRenderPreset: c.presetKey,
+    ...(c.presetKey
+      ? { configMode: 'preset', awsRenderPreset: c.presetKey }
+      : {
+          configMode: 'custom',
+          customConfig: { memory: c.config.memory, disk: c.config.disk, timeout: c.config.timeout, concurrency: 'auto', framesPerLambda: c.config.framesPerLambda, concurrencyPerLambda: c.config.concurrencyPerLambda, timeoutInMilliseconds: c.config.timeout * 1000 },
+        }),
     region: c.region,
     siteName: c.site.siteName,
     ...(c.frames ? { frameRange: [c.frames.from, c.frames.to] } : {}),
@@ -984,9 +1095,9 @@ const renderDirect = async (c: RenderCall): Promise<Progress> => {
     ...(c.crf !== undefined ? { crf: c.crf } : {}),
     scale: c.scale,
     ...(c.frames ? { frameRange: [c.frames.from, c.frames.to] as [number, number] } : {}),
-    // Remotion takes one of the two
-    ...(c.preset.concurrency !== undefined ? { concurrency: c.preset.concurrency } : c.preset.framesPerLambda ? { framesPerLambda: c.preset.framesPerLambda } : {}),
-    timeoutInMilliseconds: c.preset.timeoutInMilliseconds,
+    framesPerLambda: c.config.framesPerLambda,
+    ...(c.config.concurrencyPerLambda > 1 ? { concurrencyPerLambda: c.config.concurrencyPerLambda } : {}),
+    timeoutInMilliseconds: c.config.timeout * 1000,
     privacy: 'private',
     deleteAfter: '1-day',
     maxRetries: 2,
@@ -1041,12 +1152,21 @@ if (isMain) {
       const playing = plan.media.filter(m => (m.usedSeconds ?? 0) > 0);
       const choice = (frames: number, scale: number) => choosePreset({ frames, fps: size.fps, scale, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes });
       const measured = measuredSecondsPerFrame(slug);
-      const whole = measured ? choosePreset({ frames: full, fps: size.fps, scale: 1, playingClips: playing.filter(m => m.kind === 'video').length, playingBytes: playing.reduce((t, m) => t + (m.bytes ?? 0), 0), packBytes: staged.bytes, secondsPerFrame: measured.secondsPerFrame }) : choice(full, 1);
-      const review = choice(full, 0.5);
-      const window = choice(20 * size.fps, 1);
-      console.log(measured ? `Measured: ${measured.secondsPerFrame} s a frame in the slowest chunk of the render on ${measured.at.slice(0, 10)}${measured.frames ? ` (frames ${measured.frames[0]}-${measured.frames[1] ?? 'end'})` : ''}` : 'Not measured yet: render a 20 s window on the heaviest stretch first (--lambda --window=a-b), its slowest chunk sizes the full render.');
-      console.log(`Preset for the whole video: ${whole.key} (${whole.reason})`);
-      console.log(`  a half-size review: ${review.key}; a 20 s window: ${window.key}${staged.rules?.preset ? `; lambda.json says ${staged.rules.preset}` : ''}`);
+      console.log(measured ? `Measured: ${measured.secondsPerFrame} s a frame (one tab on 3 GB) in the slowest chunk of the render on ${measured.at.slice(0, 10)}${measured.frames ? ` (frames ${measured.frames[0]}-${measured.frames[1] ?? 'end'})` : ''}` : `Not measured yet: sized for ${ASSUMED_SECONDS_PER_FRAME} s a frame, the slowest seen. Render a 20 s window on the heaviest stretch first (--lambda --window=a-b); its slowest chunk sizes the full render.`);
+      try {
+        loadAwsEnv();
+        const region = await pickRegion(rest.find(f => f.startsWith('--region='))?.slice('--region='.length));
+        const deployed = await getFunctions({ region, compatibleOnly: true });
+        const show = (label: string, frames: number, scale: number) => {
+          const r = chooseConfig({ frames, scale, region, deployed, secondsPerFrame: measured?.secondsPerFrame });
+          console.log(`${label}: ${describeConfig(r)}\n  ${r.reason}`);
+        };
+        show('Whole video', full, 1);
+        show('Half-size review', full, 0.5);
+        show('20 s window', 20 * size.fps, 1);
+      } catch (err) {
+        console.log(`(no AWS keys here, so no configuration: ${err instanceof Error ? err.message : err})`);
+      }
     } else if (command === 'pack') {
       if (!slug) usage();
       const staged = stageProject(slug);

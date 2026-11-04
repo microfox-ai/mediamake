@@ -59,8 +59,10 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
    the ones that change the project (a cut clip, a dropped file) are edits to `input/` and the
    storyboard, then `npm run prepare-project` again. Run `pack` once more and show the before →
    after. Stop here if the pack stays over 500 MB: the render refuses, and the user renders locally.
-3. **Preset.** The script chooses one (printed with its reason, "Which preset" below). Override with
-   `--preset=<key>` or `"preset"` in `lambda.json` only for a reason you can state.
+3. **Configuration.** The script works it out and prints it with its reason and an estimate
+   ("Configuring the render" below): the function's memory, frames at once, frames a chunk, the
+   chunk count and time. Read it before the render starts; a worst chunk near 15 minutes means the
+   project is too heavy as it is. Never pick a preset instead unless you can say why.
 4. **Test a window, always, on the heaviest stretch.** Never go straight to the whole video, even
    when the user says yes to it: a full render that dies on Lambda's 15 min limit costs the same as
    one that finishes (fma-edwardeleric, 2026-11-04: $2.59 for no file). Ask first, with the expected
@@ -70,7 +72,7 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
    not the quiet intro. Check the clip (a still, the audio), and report the cost line, the
    **slowest chunk's seconds a frame** and the estimate for the whole video the script prints. That
    measurement is what sizes the full render: it goes into `out/<slug>/.renders.jsonl`, and the
-   chooser reads it (`plan` shows "Measured: … s a frame" or "Not measured yet").
+   configuration reads it (`plan` shows "Measured: … s a frame" or "Not measured yet").
 5. **The whole video, on yes.** Show the estimate and ask. On yes,
    `npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy` (the site is already up;
    drop `--skip-deploy` after a code change). A review render is `--proxy` (half size, cheaper);
@@ -135,32 +137,61 @@ Each derivative is made once (ffmpeg, into `out/<slug>/.lambda/derived/`, rememb
 size, date and settings) and swapped into the manifest and `edits.json` the render gets, so a scene
 that names the original path by hand still finds it. Local renders never see any of this.
 
-## Which preset
+## Configuring the render
 
-MediaMake's Lambda functions come in presets (`apps/mediamake/config.mjs`, `AWS_RENDER_CONFIGS`).
-What matters for a lyrics project is that **every chunk downloads the media it plays before its first
-frame**, so the number of chunks drives the cost of a media-heavy render, and a chunk's download plus
-its frames must fit the function's timeout. More memory is also more CPU on Lambda (frames render and
-decode faster), at a higher price per second. The script picks from this table (`choosePreset`) and
-prints the reason; the user, `--preset=` or `lambda.json` can overrule it.
+The script works out each render's Lambda configuration itself (`chooseConfig` in
+`scripts/lambda.ts`) and prints it with its reason before anything is spent:
 
-| Render | Preset | Function | Why |
+```
+Configuration: 10 GB, 103 frames a chunk, 3 at a time, 82 chunks of ~4m 43s (worst 11m 35s), about $3.16
+  assumed 12 s a frame on 3 GB; 10 GB with 3 frames at a time brings a frame to ~2.5 s, …
+```
+
+Don't pick from mediamake's presets (`config.mjs`, `AWS_RENDER_CONFIGS`): their descriptions
+("Classic: social clips under 3 minutes", "Complex Fast: handles any duration safely") were written
+for the editor's timelines and are wrong for a lyrics project, whose frames can take ten times
+longer. `--preset=` and `"preset"` in `lambda.json` still exist for a deliberate override; say why
+when you use one. The order of concerns is fixed: **the output must arrive, then the cost, then the
+speed.**
+
+**What Lambda imposes** (Remotion's Lambda docs, confirmed on 2026-11-04):
+
+- 15 minutes is a hard limit, for each chunk and for the main function that waits for all of them
+  and joins the file. A render whose slowest chunk is still running at 15 minutes fails whole, and
+  the money is spent.
+- The CPU scales with the memory: 1769 MB is one vCPU, 10240 MB about six. One Chrome tab renders
+  one frame at a time, so a big function renders more frames at once with `concurrencyPerLambda`
+  (more tabs); that is where the extra memory pays.
+- Every chunk pays a fixed overhead: the function starting, Chrome, the pack's media downloading
+  (about 25 s). Fewer chunks mean less overhead.
+- The bill is GB-seconds (`estimatePrice`): twice the memory for half the time costs the same, so
+  memory is free when the CPU is used. What costs is work done twice (retries, overhead) and
+  renders that fail.
+- The main function invokes every chunk at once; 113 ran together without throttling. Past about
+  200 at once a render leans on Remotion's retries against the account's concurrency limit.
+
+**What the project tells**: how long its slowest frame takes on a 3 GB function with one tab,
+measured by its last Lambda render (the slowest chunk's seconds a frame, in
+`out/<slug>/.renders.jsonl`, normalised to that unit). Unmeasured, the slowest frame seen so far
+(12 s, fma-edwardeleric's stage masks) is assumed, so an unmeasured full render is sized to arrive,
+not to be cheap. A 20 s window on the heaviest stretch is what measures it: $0.05–0.30.
+
+**The rule** (seconds a frame → the function, the tabs, the chunk):
+
+| Frame on 3 GB, one tab | Function | Frames at once | Chunk |
 |---|---|---|---|
-| ≤ 30 s, no clips, ≤ 30 MB of media (a motion test, a title, a still-image look) | `lightweight` | 1 GB, 2 GB disk, 180 s timeout, 150 frames/Lambda | the smallest function does it for the least; its 3 min timeout only fits a render with nothing to download |
-| A review render (`--proxy`, any scale below 1) | `basic-fast` | 2 GB, 900 s, 100 frames/Lambda, auto concurrency | half-size frames need little memory; the long timeout leaves room for the download each chunk makes |
-| The whole video with **2+ clips playing all along, or 120 MB+ downloaded per chunk**, 3000+ frames | `broadcast` | 6 GB, 900 s, 30 chunks | 30 big chunks download the media 30 times instead of 100+, and 6 GB decodes two overlays fast; for a short window it would be worse (30 chunks of a few frames each, 30 downloads), so windows stay on `complex-fast` |
-| ≤ 3 min of video with ≤ 30 MB of media (an encoded song and images, no clips) | `classic` | 3 GB, **240 s timeout**, auto split | light chunks finish well inside 4 minutes; never with clips in the pack (a 75-frame chunk with 170 MB to fetch took 178 s) |
-| Everything else: a full 1080p render with one clip, or a window of a heavy one | `complex-fast` | 3 GB, 900 s, 75 frames/Lambda, auto concurrency | the safe default: enough memory, a 15 min timeout, chunks small enough to parallelise |
-| Heavy frames: the window's slowest chunk took over **8 s a frame** on 3 GB (75 × 8 = 600 s a chunk) | `enterprise` | 10 GB, 900 s, 50 frames/Lambda | Lambda's 15 min limit is hard, for each chunk and for the whole render: more CPU per frame and fewer frames per chunk keep every chunk well under it; the cost is about the same (Lambda bills GB-seconds, and a 10 GB function renders a frame roughly as many times faster) |
-| 15–30 min of video | `complex-slow` | 3 GB, 900 s, 20 chunks at a time | a fixed 20 keeps a long render clear of AWS's concurrency limit ("Too Many Requests") |
-| Over 30 min | `enterprise` | 10 GB, 900 s, 50 frames/Lambda | the most memory and the finest split keep every chunk inside the timeout |
-| never for a lyrics project | `throttled` | 2 GB, 10 chunks at a time, 150 frames/Lambda | made for timelines that call rate-limited APIs; a lyrics render calls none, and it is slow and dear |
+| ≤ 1.5 s (images, a song, a waveform) | 2 GB | 1 | as many frames as fit 300 s, up to 150 |
+| ≤ 4 s (an overlay clip or two under the type) | 3 GB | 1 | the same |
+| heavier (masks, cutouts, a visualizer, blurs together) | 10 GB | 3 | the same, and never a chunk past 700 s even if the extra tabs bring nothing |
 
-Reading a cost line: `$0.052 for 600 frames on 8 Lambdas` is $0.0065 per Lambda-chunk of 75 frames
-with 170 MB to fetch each; the same 600 frames with the pack at 99 MB cost less because each chunk
-fetched less. The "whole video would be about $X" line scales the window linearly; the real number
-comes in a little under when the pack is light and a little over when the cutouts and stage images are
-many (each chunk fetches the ones its frames show).
+A half-size review (`--proxy`) counts a frame at a quarter of its time. Chunks are sized to 300 s
+(a third of the limit: room for one retry and the final join) and the count is kept under 200;
+the estimate counts every chunk's expected time plus the main function's. After a window, `plan`
+shows "Measured: … s a frame" and the whole video's configuration from it.
+
+**Reading the cost line** at the end: `$0.052 for 600 frames on 8 Lambdas`. The "whole video would
+be about $X" line scales the window linearly; with the same configuration the full render lands
+near it (a little under when frames vary, a little over when retries happen).
 
 ## What the numbers looked like (2026-11-04, us-east-2)
 
