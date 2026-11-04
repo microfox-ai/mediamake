@@ -182,8 +182,10 @@ published: `media deliver <slug> --uploaded`.
 
 Every finished pack carries `info.json`: YouTube Studio's upload form as data. Browse Hack's
 `youtube_fill_uploads` (its MCP) reads it, switches the Chrome profile's YouTube to the channel,
-picks the video, fills the form and stops on the Visibility step for the user to click Save,
-Publish or Schedule. Every field and its default:
+picks the video and fills every step of the form: Details, then on a channel in the Partner
+Programme Monetisation and Ad suitability, then the end screen and cards under Video elements. It
+stops on the Visibility step with the schedule set, for the user to click Save, Publish or Schedule.
+Every field and its default:
 https://github.com/microfox-ai/extensions/blob/main/mcp/README.md#infojson-for-youtube-uploads.
 
 **The channel's handle.** info.json names the channel by its `@handle`, kept in the brand kit at
@@ -191,7 +193,9 @@ https://github.com/microfox-ai/extensions/blob/main/mcp/README.md#infojson-for-y
 
 ```json
 { "handle": "@anime-music-zone", "chromeProfile": "<the Google account email>",
-  "upload": { "playlists": ["OST Tracks"], "alteredContent": true, "category": "Music", "language": "en" } }
+  "upload": { "playlists": ["OST Tracks"], "alteredContent": true, "category": "Music", "language": "en",
+    "monetization": true, "adSuitability": "none",
+    "cards": [{ "channel": "@get-into-zone", "message": "Music on Get into Zone", "teaser": "Music on Get into Zone" }] } }
 ```
 
 When the brand has no `channel.json`, call `youtube_list_channels` (Browse Hack asks which Chrome
@@ -210,6 +214,17 @@ the channel; `chromeProfile` is the profile to suggest first when Browse Hack as
    of the video): yes for Suno or other AI songs, no for the user's own recordings. Ask the first
    time for each channel and save the answer in `channel.json`; never decide it yourself.
 4. **Made for Kids:** no, unless the user says the channel is for kids.
+5. **Monetisation and ad suitability**, for a channel in the Partner Programme (Studio adds a
+   Monetisation step after Details, and Ad suitability once it's on): monetisation On (recommended)
+   or Off; Ad suitability None of the above (recommended when the video has none of Studio's
+   listed content: violence, adult themes, shocking or drug content…) or "I'll answer it in
+   Studio" (`skip`). Ask the first time for each channel and save both in `channel.json`.
+6. **End screen:** import it from the channel's latest video that has its end screen (usually the
+   previous pack's title), and for a series playlist, point its playlist element at this video's
+   (the anime's playlist on Anime Music Zone). Recommend that pairing; the user can name another
+   video or leave the end screen to do by hand.
+7. **Cards:** the channel's standing cards (Anime Music Zone: a channel card to Get into Zone,
+   "Music on Get into Zone"). Ask the first time for each channel and save them in `channel.json`.
 
 Then write `<pack>/info.json`:
 
@@ -227,7 +242,11 @@ Then write `<pack>/info.json`:
   "language": "en",
   "tags": ["goten theme", "dragon ball", "gregorian chant", "anime ost"],
   "visibility": "scheduled",
-  "scheduleAt": "2026-11-09T18:30"
+  "scheduleAt": "2026-11-09T18:30",
+  "monetization": true,
+  "adSuitability": "none",
+  "endScreen": { "importFrom": "Full Metal Heart - Edward Elric 「 AMZ 」( Lyric Video )", "playlist": "OST Tracks" },
+  "cards": [{ "channel": "@get-into-zone", "message": "Music on Get into Zone", "teaser": "Music on Get into Zone" }]
 }
 ```
 
@@ -239,6 +258,13 @@ Then write `<pack>/info.json`:
 - `tags`: the hashtags' words without `#`, plus the song, artist and film or anime names, 500
   characters at most in all. `language`: the lyrics' language code (`te` for a Telugu song, `ja`
   for Japanese).
+- `monetization` and `adSuitability` only matter on a channel in the Partner Programme; Browse Hack
+  turns monetisation On and answers None of the above when they're left out there, and warns.
+- `endScreen.importFrom` is the exact title of a video already on the channel (Studio lists the
+  latest; Browse Hack searches for older ones), and its `playlist` must exist on the channel. Leave
+  `endScreen` out when the video doesn't end on the channel's end screen.
+- `cards`: channel cards only, each `message` and `teaser` 30 characters at most (the teaser
+  defaults to the message).
 - Leave out what the user didn't choose: YouTube's defaults stay. No video yet (a pack made before
   the render): leave `video` out and add it when the video lands in the pack.
 
@@ -250,10 +276,12 @@ folder".
 **Upload only when the user asks** ("upload it", "fill the YouTube upload"). Call
 `youtube_fill_uploads` with the pack folder (or the delivered `youtube/` folder). Picking the video
 starts the upload, so a private draft exists on the channel from then on. Report what it `filled`
-and every line of `warnings` (a thumbnail on a channel that isn't phone-verified, a playlist that
-doesn't exist, a schedule it couldn't set), then tell the user to review the tab and click Save,
-Publish or Schedule themselves; never press it for them. After they publish:
-`media deliver <slug> --uploaded`.
+and every line of `warnings` (a thumbnail Studio refused and why, a playlist that doesn't exist, an
+end screen video or card channel it couldn't find, a step Studio wouldn't leave, a schedule it
+couldn't set), then tell the user to review the tab and click Save, Publish or Schedule themselves;
+never press it for them. Monetisation, Ad suitability, the end screen and cards need Browse Hack
+0.13.0 (MCP 0.11.0): an older one stops on Details with "Your video needs a monetisation setting",
+so offer `update_browse_hack`. After they publish: `media deliver <slug> --uploaded`.
 
 ## Feedback log
 
@@ -279,3 +307,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
   delivered final (with its silent end screen) by out/kingpinxdeadpool/kingpinxdeadpool.mp4, the master without it, because
   `--from` only applies to a single kind → deliver `--what=youtube --from=<pack>` when the pack's video is a joined final,
   and read every `replace` line of a dry run before `--yes`.
+- 2026-11-04 · The Honoured One (Anime Music Zone) · "there is an issue with youtube upload setup (some missing info and some missing clicks)": `youtube_fill_uploads` stopped on Details ("Your video needs a monetisation setting") and the thumbnail failed, so the user finished the upload by hand while Browse Hack recorded it: Monetisation On, Ad suitability None of the above + Submit rating, end screen imported from Full Metal Heart with its playlist element pointed at the Jujutsu Kaisen playlist, a channel card to Get into Zone ("Music on Get into Zone"), then the schedule → info.json carries `monetization`, `adSuitability`, `endScreen` and `cards` (step 5, questions 5–7), and Browse Hack 0.13.0 fills them (extensions PR #29).
