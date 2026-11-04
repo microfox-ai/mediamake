@@ -296,6 +296,58 @@ never press it for them. Monetisation, Ad suitability, the end screen and cards 
 so offer `update_browse_hack`. `abTest`, thumbnails that go up and a submitted Ad suitability need
 0.14.0 (MCP 0.12.0). After they publish: `media deliver <slug> --uploaded`.
 
+## 6. Shorts pack (more than one short)
+
+When the production has more than one short (the shorts skills make three a run:
+`out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`), pack them together for Browse Hack's **Bulk Upload
+Shorts** (the popup's YouTube Studio tab, Browse Hack 0.15.0), which uploads them one after another and
+puts each on the next day that has no short on the channel:
+
+```
+out/youtube/<slug>-shorts/
+  shorts-pack.json   the channel, the schedule, the fields every short shares, one entry per short
+  shorts/            the 9:16 renders, APFS clones (`cp -c`), named <slug>-<id>.mp4
+  description.txt    the shorts' shared description (write-youtube-metadata, short form, with #shorts)
+  UPLOAD.md          each short with its title, and how the days are picked
+```
+
+```json
+{
+  "channel": "@atomic-rap",
+  "schedule": { "time": "18:30" },
+  "defaults": {
+    "descriptionFile": "description.txt",
+    "tags": ["deadpool", "aura edit", "get into zone"],
+    "madeForKids": false,
+    "alteredContent": false,
+    "category": "Entertainment",
+    "language": "en",
+    "monetization": true,
+    "adSuitability": "none"
+  },
+  "shorts": [
+    { "video": "shorts/deadpool-s01.mp4", "title": "Deadpool Aura Edit #deadpool" },
+    { "video": "shorts/deadpool-s02.mp4", "title": "Deadpool Aura Edit #deadpool" },
+    { "video": "shorts/deadpool-s03.mp4", "title": "Deadpool Aura Edit #deadpool" }
+  ]
+}
+```
+
+- `defaults` takes any info.json field (step 5): the channel's standing answers from `channel.json`'s
+  `upload`, the shared description and tags. A short's own fields win over them.
+- **Titles:** the channel's shorts title style. Atomic Rap repeats one title per film ("Deadpool Aura Edit
+  #deadpool"); otherwise one title a short from `write-youtube-metadata`, with `#shorts` or the film's tag.
+- **Days:** ask the time once per channel (save it in `channel.json` as `shortsTime`) and leave
+  `scheduleAt` out, so each short gets the next empty day; `schedule.from` (YYYY-MM-DD) starts later than
+  tomorrow. A short that must go out on a set day carries its own `scheduleAt`.
+- Check it parses and every video it names is in `shorts/`. Tell the user to open the popup's YouTube
+  Studio tab → Bulk Upload Shorts and choose this folder (with "Click Schedule for me" on, it schedules
+  each; off, each waits in its own tab).
+
+Shorts the user drags into Studio themselves stay drafts: the same tab's **Autofill Shorts** fills each
+draft from the channel's most similar filled-in short (its title too) and schedules it on the next empty
+day. A shorts pack isn't needed for that.
+
 ## Feedback log
 
 Add entries at the bottom: date · song / channel · what they said → the rule.
@@ -322,3 +374,4 @@ Add entries at the bottom: date · song / channel · what they said → the rule
   and read every `replace` line of a dry run before `--yes`.
 - 2026-11-04 · The Honoured One (Anime Music Zone) · "there is an issue with youtube upload setup (some missing info and some missing clicks)": `youtube_fill_uploads` stopped on Details ("Your video needs a monetisation setting") and the thumbnail failed, so the user finished the upload by hand while Browse Hack recorded it: Monetisation On, Ad suitability None of the above + Submit rating, end screen imported from Full Metal Heart with its playlist element pointed at the Jujutsu Kaisen playlist, a channel card to Get into Zone ("Music on Get into Zone"), then the schedule → info.json carries `monetization`, `adSuitability`, `endScreen` and `cards` (step 5, questions 5–7), and Browse Hack 0.13.0 fills them (extensions PR #29).
 - 2026-11-04 · WAKE UP (Get into Zone) · "it stuck at monetisation again, and its not upload A/b thumbnail pack": Browse Hack 0.13.0 set monetisation and ticked None of the above, but pressed Submit rating before Studio had rated the answers, so Studio stayed on Ad suitability; the thumbnail it handed over from its isolated world previewed and then failed to upload; and info.json named only D1 of the three → info.json carries `abTest` from `titles.txt` (thumbnail + title per variant), and Browse Hack 0.14.0 sets the A/B test, uploads thumbnails from Studio's own page and checks the rating went in.
+- 2026-11-04 · skill · "in extension popup add youtube studio tab … Autofill Shorts … Bulk Upload Shorts - autofill details from … a shorts-pack.json … generated as part of youtube-pack for multivariant shorts" → step 6: a production with more than one short gets `out/youtube/<slug>-shorts/` with shorts-pack.json (shared defaults, one entry per short, each on the next empty day) for the popup's Bulk Upload Shorts (Browse Hack 0.15.0); drafts uploaded by hand go through Autofill Shorts, which copies the most similar short's title and details.
