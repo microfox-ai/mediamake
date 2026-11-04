@@ -388,9 +388,10 @@ export const probe = (file: string): Probe => {
 export const exportSize = (slug: string): { width: number; height: number; fps: number; guessed: boolean } => {
   const file = path.join(ROOT, 'projects', slug, 'video', 'index.tsx');
   const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  const w = text.match(/\bwidth:\s*(\d+)/)?.[1];
-  const h = text.match(/\bheight:\s*(\d+)/)?.[1];
-  const f = text.match(/\bfps:\s*(\d+)/)?.[1];
+  // a frame size has 3–5 digits; a stroke width or a column width is not it
+  const w = text.match(/\bwidth:\s*(\d{3,5})\b/)?.[1];
+  const h = text.match(/\bheight:\s*(\d{3,5})\b/)?.[1];
+  const f = text.match(/\bfps:\s*(\d{2,3})\b/)?.[1];
   return { width: Number(w) || 1920, height: Number(h) || 1080, fps: Number(f) || 30, guessed: !(w && h) };
 };
 
