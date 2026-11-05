@@ -113,6 +113,46 @@
         },
         "notes": "Needs Blender 3.0 or newer and uv. Blender has to be open, with the add-on's server running, whenever Claude uses it."
       }
+    },
+    {
+      "id": "mcp/gemini",
+      "title": "Gemini",
+      "summary": "Google's Gemini 3 models from Claude: image generation and editing up to 4K (Nano Banana Pro), Veo video, speech with 30 voices, Google Search with citations, deep research, YouTube and document analysis, code execution and a second opinion from Gemini Pro or Flash. Open source, runs on your computer with a Google AI Studio key.",
+      "status": "live",
+      "tags": ["mcp", "images", "video", "research"],
+      "releasedAt": "2026-11-06",
+      "madeBy": { "name": "RLabs Inc", "repo": "RLabs-Inc/gemini-mcp", "license": "MIT", "homepage": "https://www.npmjs.com/package/@rlabs-inc/gemini-mcp" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "gemini",
+          "local": {
+            "command": "npx",
+            "args": ["-y", "@rlabs-inc/gemini-mcp"],
+            "env": [
+              {
+                "name": "GEMINI_API_KEY",
+                "description": "Your Google Gemini API key from Google AI Studio (Get API key > Create API key; free, takes seconds). The server checks it when it starts, so a wrong key stops it.",
+                "getAt": "https://aistudio.google.com/apikey",
+                "secret": true,
+                "required": true
+              },
+              {
+                "name": "GEMINI_OUTPUT_DIR",
+                "description": "The folder its images, videos and audio are saved to (~/.config/gemini-mcp/output/<folder hash> when unset). With MediaMake's media library set up, point it at the library's inbox (~/Downloads/_INBOX/gemini) so `media ingest` files what it makes.",
+                "required": false
+              },
+              {
+                "name": "GEMINI_TOOL_PRESET",
+                "description": "Which of its 37 tools to load, to keep Claude's context small: minimal, text, image, research, media or full (all 18 tool groups, the default). GEMINI_ENABLED_TOOLS adds tool groups to a preset, e.g. search,image-gen.",
+                "required": false
+              }
+            ]
+          },
+          "guide": "https://github.com/RLabs-Inc/gemini-mcp#readme"
+        },
+        "notes": "Needs Node 18 or newer (npx comes with it) and a Google AI Studio API key; the free tier works but is rate-limited (429s: set GEMINI_MODEL=gemini-3-flash-preview or move to a paid plan). Images, video, speech and research spend your Google API quota. Also installs the gcli command (npm install -g @rlabs-inc/gemini-mcp) for the same tools from a terminal."
+      }
     }
   ]
 }
