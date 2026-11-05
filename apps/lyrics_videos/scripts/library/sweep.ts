@@ -18,7 +18,8 @@
  *
  * Never proposed: delivered outputs (a video that matches a render in out/, anything in release/,
  * youtube/, remaster/ or previous/ folders, final masters, a channel folder's thumbnails, posters,
- * numbered shorts and .mov exports), the config's excluded folders,
+ * numbered shorts and .mov exports), songs and their stems in a channel folder (the user keeps
+ * them there; the catalog indexes them where they are), the config's excluded folders,
  * personal captures, files changed in the last 15 minutes. Exact copies of library files are set
  * aside in _INBOX/_duplicates/ (never deleted). Projects, out/ and brands/ are not swept.
  */
@@ -99,6 +100,8 @@ export const planSweep = (lib: Lib, o: { limit?: number } = {}) => {
     }
     if (isPersonal(name) || segs.slice(0, -1).some(s => DELIVERED_DIRS.has(s.toLowerCase())) || MASTER.test(name)) continue;
     if (segs.length === 2 && (FINISHED.test(path.parse(name).name) || EXPORT.test(name))) continue;
+    // the user's songs live in their channel folder (2026-11-05): songs and their stems, " (1)" copies too, stay there
+    if (r.role === 'downloads' && segs.length === 2 && ['audio', 'archive'].includes(mediaTypeOf(name) ?? '')) continue;
     if (Date.now() - fs.statSync(abs).mtimeMs < RECENT) continue;
     // a video that is also a render (in out/, or archived from it by cleanup-out) is a delivered final: it stays
     if (mediaTypeOf(name) === 'video' && (roles(r.item_id).includes('out') || renders.has(r.item_id))) continue;
@@ -109,7 +112,7 @@ export const planSweep = (lib: Lib, o: { limit?: number } = {}) => {
 
   const moves: Move[] = [];
   const planned = new Set<string>();
-  let unknown = 0;
+  const unknown: { id: string; path: string; guess: string | null }[] = [];
   for (const r of candidates) {
     const n = moves.length + 1;
     if (planned.has(r.item_id) || roles(r.item_id).includes('library')) {
@@ -136,7 +139,7 @@ export const planSweep = (lib: Lib, o: { limit?: number } = {}) => {
     if (!c.kind) continue;
     // neither what it shows nor which tool made it is known: it stays (personal photos and work graphics hide among these)
     if (c.kind === '_unsorted' && !c.tool && !SURE.has(c.guess ?? '')) {
-      unknown++;
+      unknown.push({ id: r.item_id, path: r.abs, guess: c.guess ?? null });
       continue;
     }
     planned.add(r.item_id);
@@ -148,8 +151,10 @@ export const planSweep = (lib: Lib, o: { limit?: number } = {}) => {
   const id = now().slice(0, 16).replace(/[-:T]/g, '');
   const plan: Plan = { schema: 'mediamake.library-sweep/v1', id, at: now(), moves };
   writeJson(path.join(sweepDir(lib, id), 'plan.json'), plan);
+  // what it couldn't tell, for a hand sort when the user asks for one (cleanup-downloads step 4b)
+  writeJson(path.join(sweepDir(lib, id), 'unknown.json'), unknown);
   const { review } = writeReview(lib, plan);
-  return { plan, review, inFolders, unknown };
+  return { plan, review, inFolders, unknown: unknown.length };
 };
 
 /**

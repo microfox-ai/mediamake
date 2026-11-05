@@ -43,8 +43,11 @@ All commands: `npm run media -w lyrics_videos -- <command>` (`media …` below).
      - the user's own renders (`<slug>-<13-digit time>.mp4`, delivered finals)
      - loose files it can't tell (no subject and no known tool; personal photos and work
        graphics hide among them)
+     - the user's songs in a channel folder (finals, remasters, stems zips, their " (1)"
+       copies): songs stay in their channel folder, indexed where they are
      - `release/`, `youtube/` and `remaster/` folders, final masters, personal captures,
        excluded folders, and anything changed in the last 15 minutes
+   - The loose files it couldn't tell are listed in `.catalog/sweeps/<id>/unknown.json`, for step 4b.
    - Before sending, look at a sample sheet of each big group (48 tiles) and tell the user what
      you saw. A person's photo or a brand graphic in a group means the rules need a fix first.
    - Send the review link: https://mediamake.microfox.app/file-revision?job=sweep-<id> (the
@@ -123,3 +126,9 @@ Append dated entries: what the user said → the rule.
 - 2026-11-02 · second pass: "solstice zone files are for now kept in AMZ only" + "mark shots like this into
   chainreaction project folder" → a channel the user isn't running yet folds into its parent channel; a comment
   naming a project folder gets `<CHANNEL>/<project>/` with the whole series of those shots and the project's song.
+- 2026-11-05 · "keep my songs in the channel folder, keep it in preference as well" → the sweep never proposes
+  audio or stems zips loose in a channel folder (rule in `sweep.ts`, tested): the user's songs stay in
+  `Downloads/<CHANNEL>/`, duplicates of them are left to `media dedupe`. Never move them by hand either.
+- 2026-11-05 · "identify the 639 loose files as well, segregate them into an UNKNOWN folder each segregated by your
+  most possible guess" → step 4b for what the sweep can't tell: `unknown.json` lists them; they go to
+  `Downloads/UNKNOWN/<best guess>/`, every move logged so `--undo` works, with a review set by guess.
