@@ -112,6 +112,8 @@ folder (`"animemusiczone": "AMZ"`) or, once linked to its team's MediaMake cloud
 - `brands/` and `apps/mediamake/out` are never replaced.
 - Personal captures (phone, WhatsApp, screen recordings), non-media files and the folders in
   `exclude` are never touched.
+- The user's songs in a channel folder (finals, remasters, stems) stay there: the catalog indexes them
+  where they are, and the sweep never proposes them.
 - Backups copy, never move: every copy to a disk and every restore is read back and checked against
   its SHA-256, a restore never overwrites a file, and the originals stay until the user says otherwise.
 

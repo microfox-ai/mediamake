@@ -420,7 +420,7 @@ const main = async () => {
         for (const [g, count] of [...groups].sort((a, b) => b[1] - a[1])) console.log(`${String(count).padStart(5)}  → ${g}`);
         console.log(`\nSweep ${r.plan.id}: ${r.plan.moves.length} loose files. Review: ${r.review} (/file-revision; Drop = leave it where it is)`);
         if (r.inFolders) console.log(`${r.inFolders} files inside folders are left as they are (folders keep their sets and boards).`);
-        if (r.unknown) console.log(`${r.unknown} loose files it can't tell (no subject, no known tool) stay where they are.`);
+        if (r.unknown) console.log(`${r.unknown} loose files it can't tell (no subject, no known tool) stay where they are (listed in .catalog/sweeps/${r.plan.id}/unknown.json).`);
         return console.log(`Then: media sweep --apply=${r.plan.id} (dry run) and --yes. Nothing has moved.`);
       }
       if (flag('review')) {

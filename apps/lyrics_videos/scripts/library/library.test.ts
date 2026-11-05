@@ -305,6 +305,9 @@ describe('library', () => {
     const inBoard = put('v6.mp4', path.join(downloads, 'AMZ', 'nakama-inspo', 'board', 'clip.mp4'));
     const short = put(fresh('v10.mp4', 'red'), path.join(downloads, 'AMZ', '07-higuruma-sentence-strike-s01.mp4'));
     const exported = put(fresh('v11.mp4', 'green'), path.join(downloads, 'AMZ', 'levi.mov'));
+    ff(['-f', 'lavfi', '-i', 'sine=frequency=330:duration=1', path.join(fixtures, 's2.wav')]);
+    const ownSong = put('s2.wav', path.join(downloads, 'AMZ', 'levi - kill machine - FINAL.wav'));
+    const ownSongAgain = put('s2.wav', path.join(downloads, 'AMZ', 'levi - kill machine - FINAL (1).wav'));
     await scan(lib, ['downloads', 'projects']);
     const { plan, inFolders } = planSweep(lib);
     const by = (file: string) => plan.moves.find(m => m.from === file);
@@ -317,6 +320,7 @@ describe('library', () => {
     assert.ok(!by(inBoard) && inFolders >= 1, 'files in folders stay where they are');
     assert.ok(!by(render) && !by(unknown), "renders of yours, and loose files it can't tell, stay where they are");
     assert.ok(!by(short) && !by(exported), "a channel folder's shorts and exports stay where they are");
+    assert.ok(!by(ownSong) && !by(ownSongAgain), 'songs in a channel folder stay there, copies too');
     assert.equal(by(keepMe)?.action, 'move');
     const review = path.join(lib.root, '_review', `sweep-${plan.id}`);
     const tiles = (JSON.parse(fs.readFileSync(path.join(review, 'index.json'), 'utf8')) as { groups: { items: { id: string; media?: string }[] }[] }).groups.flatMap(g => g.items);

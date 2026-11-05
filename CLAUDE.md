@@ -14,6 +14,8 @@ media library and reused by every production. Where it is on this machine is in
 - Register a production at intake (`media production new <slug> --channel=…`).
 - Deliver to the channel folders in Downloads only what the user approved (`media deliver`).
 - Never move or rename library files by hand (`media mv`).
+- The user's own songs (finals, remasters, stems) stay in their channel folder in Downloads, indexed
+  where they are; never move them into the library.
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
 - Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only ProjectSync use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
 
