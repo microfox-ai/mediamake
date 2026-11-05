@@ -11,6 +11,14 @@
         "MEDIAMAKE_API_URL": "${MEDIAMAKE_API_URL:-http://localhost:3000}",
         "MEDIAMAKE_API_KEY": "${MEDIAMAKE_API_KEY:-}"
       }
+    },
+    "gemini": {
+      "command": "npx",
+      "args": ["-y", "@rlabs-inc/gemini-mcp"],
+      "env": {
+        "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
+        "GEMINI_OUTPUT_DIR": "${GEMINI_OUTPUT_DIR:-}"
+      }
     }
   }
 }
