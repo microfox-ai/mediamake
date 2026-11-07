@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { Hint, isTextField } from '@/components/revisions/keyboard';
 import { clock } from '@/lib/file-revisions/revision-file';
 import type { ImageAction, ImageComment } from '@/lib/file-revisions/types';
-import { Badges, Still, useFormat } from './FileGrid';
+import { ActionMarks, Badges, Still, useFormat } from './FileGrid';
 import { playable, selectActiveRevision, useFileRevisionsStore } from './store';
 
 const LOUPE = 260;
@@ -549,6 +549,8 @@ export function ZoomView() {
           )}
         </div>
 
+        <ActionMarks id={id} size="lg" className="absolute left-3 top-3 z-20" />
+
         {/* pins, the loupe and the comment box sit over the picture at its zoom, but keep their own size */}
         {plays?.kind !== 'audio' &&
           pins.map(c => (
@@ -709,7 +711,7 @@ export function ZoomView() {
                 >
                   <span className={cn('relative flex h-12 w-full items-center justify-center overflow-hidden rounded bg-black ring-2', current ? 'ring-amber-400' : 'ring-transparent')}>
                     {renders[t] && <Still render={renders[t]} alt={t} className="max-h-full max-w-full object-contain" />}
-                    <ActionDot id={t} />
+                    <ActionMarks id={t} size="sm" className="absolute right-0.5 top-0.5" />
                   </span>
                   <span className={cn('block truncate text-[10px] leading-tight', current ? 'font-semibold text-amber-400' : 'text-white/70')}>{shortId(t)}</span>
                 </button>
@@ -726,9 +728,3 @@ export function ZoomView() {
   );
 }
 
-/** A dot on a filmstrip thumbnail: final, keep or drop. */
-function ActionDot({ id }: { id: string }) {
-  const revision = useFileRevisionsStore(selectActiveRevision);
-  const color = revision?.final.includes(id) ? 'bg-amber-400' : revision?.keep.includes(id) ? 'bg-emerald-400' : revision?.drop.includes(id) ? 'bg-neutral-400' : null;
-  return color ? <span className={cn('absolute right-1 top-1 size-2 rounded-full ring-1 ring-black', color)} /> : null;
-}
