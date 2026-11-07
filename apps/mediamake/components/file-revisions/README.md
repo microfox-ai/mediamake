@@ -17,7 +17,8 @@ page is public (`app/(public)/`): no sign-in, no API calls.
 │  recent        │   double-click = zoom, small-size toggle)   │ selection actions│
 │                │                                             │ comments         │
 └────────────────┴─────────────────────────────────────────────┴──────────────────┘
-zoom view (full window): magnifier · click to pin a comment · small-size copy · filmstrip
+zoom view (full window): fit · zoom (scroll, pinch, + − 0) and pan · W fills the width · magnifier ·
+                         click to pin a comment · small-size copy (V) · filmstrip
                          a video or song: player bar (play, time, scrubber with the comments, mute)
 ```
 

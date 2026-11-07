@@ -33,6 +33,8 @@ const SHORTCUTS: [string, string][] = [
   ['In zoom: Space / M', 'Play or pause / mute a video or audio'],
   ['In zoom: ⇧ ← →', '5 s back / ahead'],
   ['In zoom: L / V', 'Magnifier / feed-size preview'],
+  ['In zoom: scroll, pinch, + / − / 0', 'Zoom in, out, back to fit (drag to move around)'],
+  ['In zoom: W', 'Fill the window\'s width'],
   ['?', 'Show these shortcuts'],
 ];
 
