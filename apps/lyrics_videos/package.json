@@ -24,6 +24,8 @@
     "remix": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/remix.ts",
     "shorts": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/shorts.ts",
     "lyric-shorts": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/lyric-shorts.ts",
+    "amv": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/amv.ts",
+    "amv-lab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/amv-lab.ts",
     "image-index": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/image-index.ts",
     "sync-presets": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/sync-presets.ts",
     "fetch-inputs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/fetch-inputs.ts",

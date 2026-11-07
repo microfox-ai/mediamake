@@ -43,6 +43,7 @@ Media making: videos and audio (the only skills that start with make-)
 
 | Skill | Visibility | What it does |
 |---|---|---|
+| [`make-anime-music-video`](.agents/skills/make-anime-music-video/SKILL.md) | public | Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. MCPs: browse-hack (required), elevenlabs (required), elevenlabs-connector (optional). |
 | [`make-cwc-tutorial`](.agents/skills/make-cwc-tutorial/SKILL.md) | public | Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episod… MCPs: elevenlabs (required), elevenlabs-connector (optional). |
 | [`make-kinetictype`](.agents/skills/make-kinetictype/SKILL.md) | public | Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type,… MCPs: browse-hack (required), elevenlabs (optional), fal (optional). |
 | [`make-kinetictype-like-screamingtowin`](.agents/skills/make-kinetictype-like-screamingtowin/SKILL.md) (variant of `make-kinetictype`) | public | Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them… MCPs: browse-hack (required), elevenlabs (optional), fal (optional). |

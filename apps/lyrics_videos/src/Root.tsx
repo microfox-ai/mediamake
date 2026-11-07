@@ -3,6 +3,7 @@ import { Composition } from 'remotion';
 import type { ProjectDefinition } from './kit/contract';
 import { makeCalculateMetadata, makeProjectVideo } from './kit/ProjectVideo';
 import { WaveLab, waveLabMetadata } from './mediamake/WaveLab';
+import { AmvLab, amvLabMetadata } from './amv/Lab';
 
 // Every projects/<slug>/video/index.tsx becomes a composition, and every short cut from it,
 // projects/<slug>/shorts/<id>/index.tsx, one per format it is made in (make-video-music-remix-shorts:
@@ -59,6 +60,17 @@ export const Root: React.FC = () => (
       durationInFrames={1}
       defaultProps={{ manifest: null, look: null, label: null }}
       calculateMetadata={waveLabMetadata}
+    />
+    {/* one GPU device of the AMV engine on a project's footage: npm run amv -- <slug> --lab */}
+    <Composition
+      id="amv-lab"
+      component={AmvLab}
+      fps={30}
+      width={1920}
+      height={1080}
+      durationInFrames={30}
+      defaultProps={{ slug: null, device: null, a: null }}
+      calculateMetadata={amvLabMetadata}
     />
   </>
 );
