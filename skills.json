@@ -152,6 +152,40 @@
       "path": ".agents/skills/fork-skill"
     },
     {
+      "name": "make-anime-music-video",
+      "title": "Make anime music video",
+      "summary": "Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character.",
+      "description": "Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. Research comes first: popular edits on YouTube and Pinterest, downloaded as references and cut into technique clips, on a File Revisions board the user picks from. The song is read as the character's story, and the edit matches the song's feel. An epic, slow song gets the story edit: twixtor takes throughout, one shot per sung phrase cut on the beat, white stacked bold captions (the summerstyle shorts' type, font picked from snaps), each moving the way its words mean (motion typography researched on Pinterest: masks, cut-outs, trembles, echoes, dust, shatters, all with motion blur), Goten band glitches and old-TV blinks, aura on the power shots. Its full-speed drum fills (drum map) get a shot on every hit, bass-drop punches, match cuts and morphs. A fast, driving song gets UnClonable's flowing edit: match-cut runs framed by a match finder, mask cuts, portals, liquid morphs, heavy in-scene type. Every transition on a beat, every take once across packs. Reviewed at half size through Revisions (revise-video). Builds in apps/lyrics_videos with src/amv and scripts/amv.ts. Use when the user says \"make an AMV / anime music video / anime edit of <character> to <song>\", \"research anime edits and make a music video\", \"/make-anime-music-video\", or asks to change a project with a video/cut.ts. Not for lyric videos from artwork (make-lyrics-video, make-waveform-lyric-video), footage re-edits of films (make-video-music-remix) or shorts. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-anime-music-video",
+      "dependsOn": [
+        "analyze-video",
+        "revise-image",
+        "revise-video"
+      ],
+      "mcps": [
+        {
+          "id": "mcp/browse-hack",
+          "need": "required",
+          "for": "The research: reference edits from YouTube (youtube_download) and Pinterest boards (pinterest_bulk_start) in the user's Chrome",
+          "without": "No research board: the user brings the references by hand"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "required",
+          "for": "Its API key: the song's timed words (npm run transcribe --yes, Scribe on the vocal stem's MP3; not its own speech_to_text)",
+          "without": "The hosted ElevenLabs connector's creative_transcribe_audio then --save instead, or the user brings a timed lyrics.json"
+        },
+        {
+          "id": "mcp/elevenlabs-connector",
+          "need": "optional",
+          "for": "The alternative where no local MCP runs (the Claude web or phone app): creative_transcribe_audio on the vocal stem's MP3, then --save",
+          "without": "Nothing, while the ElevenLabs MCP's key is set up"
+        }
+      ]
+    },
+    {
       "name": "make-cwc-tutorial",
       "title": "Make cwc tutorial",
       "summary": "Make a \"Cook with Claude\" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episod…",
