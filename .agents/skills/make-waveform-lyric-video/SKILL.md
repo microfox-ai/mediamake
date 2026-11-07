@@ -552,3 +552,76 @@ Append dated entries: what the user said → the rule.
   snaps back to its end frame, so crossfade the tail into frame 0 (projects/wakeup-waveform/tools/loop.sh).
 - 2026-11-04 · "dont use smoke overlay, it usually looks bad" → no smoke or vapour overlays, even when
   the reference timeline has one; dust in screen is fine.
+- 2026-11-06 · Postcards from Tomorrow (INVERTED Devils, a pale white-haired girl with golden ring-irises,
+  a square Midjourney picture outcropped to 16:9 in two framings and Subtle-upscaled): the ideas were shown
+  as four quick grades of the poster (a steel-duotone negative with the eyes kept gold, a warm glow, sepia,
+  bleach) beside a 24-pin Pinterest type board in four directions; picked **Spiral** (the irises as the
+  visualizer) and **telegram typewriter** type. Lessons: (1) wave-lab's look clips render the Look alone,
+  without the project's own layers (the lyric scene): complete looks with the type are
+  `render-project --look=<id> --frames=a-b --proxy` (video/index.tsx reads `look` from `getInputProps()`,
+  guarded with try/catch — it throws in the mediamake editor's Player) plus `look-grid`; (2) a visualizer's
+  colour pairs must be hex (an rgba in `halo.colors` made every ray invisible); (3) god rays + bloom on a
+  bright picture wash it out (YAVG 205 vs 173): measure, then drop them; (4) "i like the beat warp, dont
+  like yellow box, simple typing effect is best, and even hero word should be small for subtle
+  minimalistic effect (this song style is like that)" → for a minimal track the type stays minimal: plain
+  typing, the hero word at the line's size in bold, no stamp, no header, no eye visualizer at all
+  ("None: just the warp"); (5) "create a 6 s loop motion poster with h3 max … the eyes looping endlessly"
+  → fal `minimax/h3-max/image-to-video` ($0.035/s), 1080P, the poster as image_url AND end_image_url,
+  prompt expansion off, looped with the Mahalakshmi crossfade (the model still drifts off the pinned end
+  frame), then `cover.image: 'loop.mp4'` + `clip` — re-run prepare so the manifest lists the clip, or
+  stills 404 on it; a radially symmetric iris shows no motion even when a model "turns" it, so the
+  engine's new `iris` visualizer draws concentric rings sliding inward endlessly inside the eyelids'
+  opening (and `rings` gained `rings`/`spacing`/`band`/`blur`); (6) a bone-white logo on a pale picture:
+  start the frame black (a BlackIn scene) and fade the picture in as the logo sting fades.
+- 2026-11-06 · Postcards from Tomorrow, "put some particle overlay as well": on a near-white picture
+  `screen` shows nothing, and OverlayVideo's luma `key` left the clip's black ground as a dark sheet in
+  the renders (with and without feather, with a full-frame box: it isn't the render path Genki Dama's
+  keyed clips were judged in). What works: invert the clip and `multiply` it (`filter: 'invert(1) …'`),
+  so bright specks become soft dark dust; a gold-bokeh clip that way reads as yellow freckles on a face,
+  fine snow-on-black reads as dust in the air. Check one frame of each variant through
+  `render-project --look=<id> --frames=a-b` (wave-lab's look stills failed on this storyboard) before
+  the review render.
+- 2026-11-06 · Postcards from Tomorrow, review notes: "always put the text on the right side … since its
+  rap its hard to follow the lyrics, they should appear 0.3sec early and also the unplayed words should
+  be visible still just not highlighted yet … put the text shadow … add waveform on the left side like
+  wake up … the initial inverted devils is too long (just play it at top right corner, the image should
+  be there from the start)" → then "make it like a sheet going up like a typewriter sheet with each
+  line getting highlighted at center and they fade away as they go up or down. also keep all lettering
+  small lettered as if its a letter". For a rap: the whole line visible ahead (dim), words lit 0.3 s
+  early, one side only, a dark shadow; a lyric scene can be a **sheet** — every line under the last in
+  one column, feeding up so the sung line sits at the band's centre (eased scroll as each line arrives),
+  lines fading over ~300 px above and below, the whole sheet gone over music-only stretches, lower case
+  like a letter (projects/postcardsfromtomorrow/video/scenes/TelegramLyrics.tsx `reveal: 'sheet'`). A
+  channel's side bars (WAKE UP's `waveform-audio` settings) recoloured to the picture's ink read on a
+  pale picture; a logo sting can sit small in a corner over the picture from frame one instead of a
+  black intro.
+- 2026-11-07 · Postcards from Tomorrow, the bill strip: "remove the circles … use text width fitting
+  and different font size for hero words, basically all of it should appear on vertical white bill
+  strip" → "make it even more narrow" → "you have picked the wrong hero word, you must pick something
+  small words so that they expand to fit width, and there should be a strange symmetry: if you are
+  writing the first line with every in separate line, make sure you do the same for the next. filled
+  with / every / joy / and / every / sorrow". The rows of a width-fitted stack are authored by hand in
+  the recut (`<br/>` per row): short content words alone so they grow to the width, repeated phrases
+  cut the same way, both choruses identical, the `<b>` on the small word that grows; the scene fits
+  each authored row to the strip (project TelegramLyrics `strip`, no cap below ~150 px). The recut's
+  words must match the alignment letter for letter (case, commas): one changed capital makes prepare
+  drop every line's htmlText silently and the rows fall back to a plain wrap.
+- 2026-11-07 · "it looks ugly, analyse, should give me a good visual aesthetics along with feeling like
+  typelettered" (the width-fitted mono stack on the strip) → analyse before building: width-fitting a
+  monospaced face makes function words the biggest, a typewriter face at 170 px is chunky, four greys
+  read as mud, a flat rectangle isn't paper. A typed page is one letter size, steady rhythm, margins,
+  emphasis by double-strike or a red ribbon (the channel's red), slightly uneven ink; cream paper with
+  grain and a red margin line. Built as TelegramLyrics `strip.fit: false` + `paper` (grain, margin,
+  per-letter jitter and ink variation) with the hero word alone in red bold; directions shot as single
+  full-size frames through `render-project --look=L0 --props='{"type":"T2"}' --frames=a-a+1` (a project
+  input prop choosing a props table), far cheaper than clips. "shift the video visual a bit to the left
+  centering her face in between strip and left border" → CoverBackdrop `offset` (engine): a fixed
+  shift everything following the cover takes; a strip on one side then runs to the frame's edge.
+- 2026-11-07 · Postcards from Tomorrow, motion-poster loops: "dont do stupid blends (just abrupt cut)" → a
+  loop of an image-to-video take is the take as the model made it, cut straight back to frame 0: never a
+  crossfade of the tail into frame 0 (the earlier entries' crossfade is retired). Drop the final frame
+  only when it is the model's pinned copy of frame 0, so no frame shows twice; measure the cut (last
+  frame vs frame 0) against a normal step and say which takes jump. For a walking loop: a tracking shot
+  (she walks in place, the city slides past), the picture as first AND last frame; H3 Max walks and
+  returns to the end frame, FLUX 3 Max barely moves or ignores end_image_url.
+- 2026-11-07 · Postcards from Tomorrow, on a picture with a black side ("remove the black strip, overlay on top of video … put the text scrolling at the center of the available black space … for highlighting last words if the line has 2 words in the appearance, highlight 2 words … in postcards from tomorrow all words should highlight") → when the picture leaves its own empty space, set the lyrics straight on it (no panel), centred in that space measured across every loop frame; take the highlight colour from the picture; pick hero words from the rows as they display (the whole last row when it is two words) and light the song's title phrase whole wherever it is sung.

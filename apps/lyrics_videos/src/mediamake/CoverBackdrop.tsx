@@ -31,6 +31,12 @@ export type CoverBackdropProps = {
   loopSeconds?: number;
   /** The point the zoom and kick grow from (CSS transform-origin), e.g. '73% 72%' to hold a spark in place. Default the centre. */
   origin?: string;
+  /**
+   * A fixed shift of the picture, frame px (everything that follows the cover shifts with it): e.g.
+   * [-195, 0] to centre a face between the left edge and a strip on the right (Postcards from
+   * Tomorrow, 2026-11-07). Default none.
+   */
+  offset?: [number, number];
   /** Picture fills the frame (cover), or sits centered over a blurred copy of itself (contain). */
   fit?: 'cover' | 'contain';
   /** 0..1 black over the picture so text reads. Default 0.35. */
@@ -167,7 +173,7 @@ const handheldAt = ({ amount, speed = 0.22, tremble = 0.12 }: NonNullable<CoverB
  * frame px. Effects locked to a point of the picture move with it through `coverPoint`.
  */
 export const coverMotion = (
-  { motion = 'zoom-loop', loopSeconds = 20, origin, beatKick = 0.4, shake = false, handheld, push, zooms }: CoverBackdropProps,
+  { motion = 'zoom-loop', loopSeconds = 20, origin, beatKick = 0.4, shake = false, handheld, push, zooms, offset }: CoverBackdropProps,
   size: { width: number; height: number },
   t: number,
   pulse: number,
@@ -199,7 +205,7 @@ export const coverMotion = (
     const n = parseFloat(v);
     return v.endsWith('%') ? (n / 100) * (i ? size.height : size.width) : n;
   });
-  return { scale, dx: sx, dy: pan + sy, ox, oy };
+  return { scale, dx: sx + (offset?.[0] ?? 0), dy: pan + sy + (offset?.[1] ?? 0), ox, oy };
 };
 
 /** The pulse the cover kicks with (`kickOn`): the beat grid's, or the kick drum's. */

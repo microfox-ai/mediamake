@@ -260,6 +260,16 @@ export type RingsProps = {
   squash?: number;
   /** A flash at the centre on each ring. */
   flash?: string;
+  /**
+   * Concentric rings per hit, `spacing` px apart (at full size), the inner ones following the first:
+   * the pattern of an iris (Postcards from Tomorrow, 2026-11-06). Default 1.
+   */
+  rings?: number;
+  spacing?: number;
+  /** A soft wide band of light under each ring: its width px (0 = none) and its opacity. */
+  band?: { width: number; opacity?: number; blur?: number };
+  /** The thin ring's own blur, px. Default 5. */
+  blur?: number;
 };
 
 export type BoltProps = {
@@ -358,7 +368,20 @@ export type EclipseProps = {
  * Cadence, 2026-11-01: "use a black radial gradient from the center, making the background lines feel
  * more fleshed out away from the character and circle, then it will feel natural".
  */
-export type ShadeProps = { kind: 'shade'; at: Point; radius: number; color?: string; strength?: number; inner?: number };
+export type ShadeProps = {
+  kind: 'shade';
+  at: Point;
+  radius: number;
+  color?: string;
+  strength?: number;
+  inner?: number;
+  /**
+   * A horizontal gradient instead of the radial one: `strength` of `color` at x1 fading to nothing at
+   * x2 (frame px), e.g. a black-to-transparent band up the left edge under the bars (Postcards from
+   * Tomorrow, 2026-11-07). `at` and `radius` are ignored.
+   */
+  linear?: { x1: number; x2: number };
+};
 
 /**
  * Rain falling over the picture: slanted streaks in three depths (the near ones longer, faster,
@@ -411,7 +434,40 @@ export type AuraProps = {
   halo?: { at: [number, number]; radius: number; color: string; strength?: number };
 };
 
-export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps | ShadeProps | RainProps | AuraProps) & {
+/**
+ * An iris of concentric gold rings drawing inward endlessly (Postcards from Tomorrow, 2026-11-06: the
+ * picture's ring-irises, "the eyes looping endlessly, mesmerising"; a video model leaves a radially
+ * symmetric iris still): rings born at the edge and swallowed at the pupil, `speed` ring-spacings a
+ * second, painted over the eye at `at` inside a feathered opening (`open`: the eyelids' half-extents),
+ * shaded darker to the edge with a soft highlight, following the picture and its dance. A kick can give
+ * the rings a small pull.
+ */
+export type IrisProps = {
+  kind: 'iris';
+  at: Point;
+  /** The iris's radius, frame px. */
+  radius: number;
+  /** The visible opening between the eyelids: half-width and half-height, frame px. Default the radius. */
+  open?: [number, number];
+  /** Rings across the radius. Default 15. */
+  rings?: number;
+  /** Ring spacings a second, inward when positive. Default 0.6. */
+  speed?: number;
+  /** The lit crest, the ring's body, the gap between rings. */
+  colors?: [string, string, string];
+  /** The opening's soft edge, 0..1 of its half-height. Default 0.22. */
+  feather?: number;
+  /** A soft highlight at (x, y) × the radius from the centre. */
+  highlight?: { at: [number, number]; strength?: number };
+  /** The pupil's radius, × the radius. Default 0.1. */
+  pupil?: number;
+  /** Darkening toward the edge, 0..1. Default 0.5. */
+  shade?: number;
+  /** Extra inward pull on kicks, in spacings. Default 0. */
+  kick?: number;
+};
+
+export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProps | GatherProps | ArcProps | RingsProps | BoltProps | FlamesProps | EclipseProps | ShadeProps | RainProps | AuraProps | IrisProps) & {
   /** The cover's settings (lookVideo passes them), so `at` follows the picture's motion. */
   cover?: CoverBackdropProps;
   opacity?: number;
@@ -426,7 +482,7 @@ export type VisualizerProps = (HaloProps | HornsProps | YantraProps | SparksProp
   dance?: 'all' | 'ripple' | 'motion';
 };
 
-export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse', 'shade', 'rain', 'aura'] as const;
+export const VISUALIZER_KINDS = ['halo', 'horns', 'yantra', 'sparks', 'gather', 'arc', 'rings', 'bolt', 'flames', 'eclipse', 'shade', 'rain', 'aura', 'iris'] as const;
 
 // ---------- shared ----------
 
@@ -974,6 +1030,10 @@ const Rings: React.FC<RingsProps & { motion: CoverMotion }> = ({
   width = 3,
   squash = 0.42,
   flash,
+  rings = 1,
+  spacing = 26,
+  band,
+  blur = 5,
   motion,
 }) => {
   const t = useSongTime();
@@ -982,16 +1042,39 @@ const Rings: React.FC<RingsProps & { motion: CoverMotion }> = ({
   const [cx, cy] = coverPoint(motion, at);
   const s = motion.scale;
   const live = hitsOf(m, on).filter(([h, k]) => k >= threshold && h <= t && t - h < life);
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const glowId = `rings-glow-${uid}`;
+  const bandId = `rings-band-${uid}`;
   return (
     <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
-      <defs>{glowFilter('rings-glow', 5)}</defs>
-      <g filter="url(#rings-glow)">
-        {live.map(([h, k], i) => {
+      <defs>
+        {glowFilter(glowId, blur)}
+        {band && glowFilter(bandId, band.blur ?? Math.max(8, band.width * 0.6))}
+      </defs>
+      {band && band.width > 0 && (
+        <g filter={`url(#${bandId})`}>
+          {live.flatMap(([h, k], i) => {
+            const p = (t - h) / life;
+            const r0 = maxRadius * (1 - Math.pow(1 - p, 3)) * s * (0.6 + 0.4 * k);
+            return Array.from({ length: rings }, (_, j) => {
+              const r = Math.max(0, r0 - j * spacing * s);
+              return (
+                <ellipse key={`b${i}-${j}`} cx={cx} cy={cy} rx={r} ry={r * squash} fill="none" stroke={color} strokeWidth={band.width * s} opacity={Math.pow(1 - p, 1.5) * k * (band.opacity ?? 0.35) * (1 - j * 0.18)} />
+              );
+            });
+          })}
+        </g>
+      )}
+      <g filter={`url(#${glowId})`}>
+        {live.flatMap(([h, k], i) => {
           const p = (t - h) / life;
-          const r = maxRadius * (1 - Math.pow(1 - p, 3)) * s * (0.6 + 0.4 * k);
-          return (
-            <ellipse key={i} cx={cx} cy={cy} rx={r} ry={r * squash} fill="none" stroke={color} strokeWidth={width * (1 - p) * 2 + 0.5} opacity={Math.pow(1 - p, 1.5) * k} />
-          );
+          const r0 = maxRadius * (1 - Math.pow(1 - p, 3)) * s * (0.6 + 0.4 * k);
+          return Array.from({ length: rings }, (_, j) => {
+            const r = Math.max(0, r0 - j * spacing * s);
+            return (
+              <ellipse key={`${i}-${j}`} cx={cx} cy={cy} rx={r} ry={r * squash} fill="none" stroke={color} strokeWidth={(width * (1 - p) * 2 + 0.5) * (1 - j * 0.15)} opacity={Math.pow(1 - p, 1.5) * k * (1 - j * 0.2)} />
+            );
+          });
         })}
       </g>
       {flash &&
@@ -1290,11 +1373,24 @@ const FlamesContent: React.FC<FlamesProps> = ({
 
 // ---------- shade ----------
 
-const Shade: React.FC<ShadeProps & { motion: CoverMotion }> = ({ at, radius, color = '#000000', strength = 0.9, inner = 0.3, motion }) => {
+const Shade: React.FC<ShadeProps & { motion: CoverMotion }> = ({ at, radius, color = '#000000', strength = 0.9, inner = 0.3, linear, motion }) => {
   const { width: W, height: H } = useVideoConfig();
   const id = `shade-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [cx, cy] = coverPoint(motion, at);
   const r = radius * motion.scale;
+  if (linear)
+    return (
+      <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+        <defs>
+          <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={linear.x1} y1={0} x2={linear.x2} y2={0}>
+            <stop offset={0} stopColor={color} stopOpacity={strength} />
+            <stop offset={0.45} stopColor={color} stopOpacity={strength * 0.5} />
+            <stop offset={1} stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <rect x={0} y={0} width={W} height={H} fill={`url(#${id})`} />
+      </svg>
+    );
   return (
     <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
       <defs>
@@ -1306,6 +1402,76 @@ const Shade: React.FC<ShadeProps & { motion: CoverMotion }> = ({ at, radius, col
         </radialGradient>
       </defs>
       <rect x={0} y={0} width={W} height={H} fill={`url(#${id})`} />
+    </svg>
+  );
+};
+
+// ---------- iris ----------
+
+const Iris: React.FC<IrisProps & { motion: CoverMotion }> = ({
+  at,
+  radius,
+  open,
+  rings = 15,
+  speed = 0.6,
+  colors = ['#ffdc96', '#c48f3c', '#4a2308'],
+  feather = 0.22,
+  highlight = { at: [-0.35, -0.42], strength: 0.45 },
+  pupil = 0.1,
+  shade = 0.5,
+  kick: pull = 0,
+  motion,
+}) => {
+  const t = useSongTime();
+  const k = pull ? Math.min(1, useHit('kick', 6)) : 0;
+  const { width: W, height: H } = useVideoConfig();
+  const id = `iris-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const [cx, cy] = coverPoint(motion, at);
+  const sc = motion.scale;
+  const R = radius * sc;
+  const [ox, oy] = open ? [open[0] * sc, open[1] * sc] : [R, R];
+  const spacing = R / rings;
+  // 0..1 of a spacing: every ring slides inward by one spacing per cycle, so the pattern loops
+  const phase = ((((t * speed + pull * k) % 1) + 1) % 1);
+  const circles: { r: number; o: number }[] = [];
+  for (let i = 0; i <= rings; i++) {
+    const r = spacing * (i + 1 - phase);
+    if (r <= R * pupil * 0.8 || r > R) continue;
+    // born at the edge, swallowed at the pupil
+    const o = Math.min(1, (R - r) / (spacing * 1.2) + 0.15, (r - R * pupil * 0.8) / (spacing * 1.2));
+    circles.push({ r, o: Math.max(0, o) });
+  }
+  const [hx, hy] = [cx + highlight.at[0] * R, cy + highlight.at[1] * R];
+  return (
+    <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }}>
+      <defs>
+        <filter id={`${id}-soft`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation={Math.max(0.5, feather * oy)} />
+        </filter>
+        <mask id={`${id}-m`} maskUnits="userSpaceOnUse" x={cx - R * 1.3} y={cy - R * 1.3} width={R * 2.6} height={R * 2.6}>
+          <ellipse cx={cx} cy={cy} rx={ox * (1 - feather * 0.5)} ry={oy * (1 - feather * 0.5)} fill="#fff" filter={`url(#${id}-soft)`} />
+        </mask>
+        <radialGradient id={`${id}-shade`} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={R}>
+          <stop offset={0.4} stopColor="#000" stopOpacity={0} />
+          <stop offset={1} stopColor="#000" stopOpacity={shade} />
+        </radialGradient>
+        <radialGradient id={`${id}-hi`} gradientUnits="userSpaceOnUse" cx={hx} cy={hy} r={R * 0.7}>
+          <stop offset={0} stopColor="#fff" stopOpacity={highlight.strength ?? 0.45} />
+          <stop offset={1} stopColor="#fff" stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      <g mask={`url(#${id}-m)`}>
+        <circle cx={cx} cy={cy} r={R} fill={colors[2]} />
+        {circles.map((c, i) => (
+          <circle key={`b${i}`} cx={cx} cy={cy} r={c.r} fill="none" stroke={colors[1]} strokeWidth={spacing * 0.55} opacity={c.o} />
+        ))}
+        {circles.map((c, i) => (
+          <circle key={`c${i}`} cx={cx} cy={cy} r={c.r - spacing * 0.08} fill="none" stroke={colors[0]} strokeWidth={spacing * 0.22} opacity={c.o * 0.85} />
+        ))}
+        <circle cx={cx} cy={cy} r={R * pupil} fill={colors[2]} />
+        <circle cx={cx} cy={cy} r={R} fill={`url(#${id}-shade)`} />
+        <circle cx={cx} cy={cy} r={R} fill={`url(#${id}-hi)`} />
+      </g>
     </svg>
   );
 };
@@ -1714,6 +1880,8 @@ export const Visualizer: React.FC<VisualizerProps & { audio: { src: string; star
         return <Rain {...props} />;
       case 'aura':
         return <Aura {...props} motion={motion} />;
+      case 'iris':
+        return <Iris {...props} motion={motion} />;
     }
   })();
   return (
