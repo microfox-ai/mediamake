@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
 import { formatOf } from '@/lib/file-revisions/types';
-import { playable, selectActiveRevision, useFileRevisionsStore, type Render } from './store';
+import { keptIds, playable, selectActiveRevision, useFileRevisionsStore, type Render } from './store';
 
 /** Thumbnails, posters or any set of files: aspect, small preview size, final count. */
 export const useFormat = () => formatOf(useFileRevisionsStore(s => s.job?.index));
@@ -249,6 +249,9 @@ export function FileGrid() {
   const clearSelection = useFileRevisionsStore(s => s.clearSelection);
   const openZoom = useFileRevisionsStore(s => s.openZoom);
   const format = useFormat();
+  const keepMode = useFileRevisionsStore(s => s.keepMode);
+  const toggleKeepMode = useFileRevisionsStore(s => s.toggleKeepMode);
+  const kept = keptIds(useFileRevisionsStore(selectActiveRevision));
   const contentRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
@@ -342,6 +345,11 @@ export function FileGrid() {
         </Hint>
         <span className="hidden truncate text-muted-foreground 2xl:inline">Click to open · the circle, ⌘ click or a box to select · ⇧ click a range · while selecting, a click adds</span>
         <div className="ml-auto flex items-center gap-2">
+          <Hint label="Keep Mode: show only what is kept or final" keys="P">
+            <Button variant={keepMode ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2 text-xs', keepMode && 'bg-emerald-500 text-black hover:bg-emerald-400')} onClick={toggleKeepMode}>
+              <LockIcon className="size-3.5" /> Keep Mode{keepMode ? ` · ${kept.size}` : ''}
+            </Button>
+          </Hint>
           <Hint label={format.smallHint}>
             <Button variant={tile === format.small ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setTile(tile === format.small ? 300 : format.small)}>
               <SmartphoneIcon className="size-3.5" /> {format.smallLabel}
@@ -368,7 +376,21 @@ export function FileGrid() {
         <ScrollArea className="h-full">
           <div ref={contentRef} className="relative space-y-6 p-4">
             {box && <div className="pointer-events-none absolute z-10 rounded-sm border border-primary bg-primary/15" style={{ left: box.x, top: box.y, width: box.w, height: box.h }} />}
-            {job.index.styles.map(style => (
+            {keepMode && (
+              <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs">
+                <LockIcon className="size-3.5 text-emerald-500" />
+                <span>
+                  <b>Keep Mode</b>: showing the {kept.size} kept or final {kept.size === 1 ? 'file' : format.noun}.
+                </span>
+                <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={toggleKeepMode}>
+                  Show all (P)
+                </Button>
+              </div>
+            )}
+            {job.index.styles
+              .map(style => (keepMode ? { ...style, variants: style.variants.filter(v => kept.has(v.id)) } : style))
+              .filter(style => style.variants.length)
+              .map(style => (
               <section key={style.id}>
                 <h3 className="mb-2 text-sm font-semibold">
                   {/* a one-group set made from a folder has nothing to label */}

@@ -25,6 +25,7 @@ const SHORTCUTS: [string, string][] = [
   ['F / K / D', 'Final / keep / drop the selection'],
   ['C or Enter', 'Write a comment'],
   ['Mod Enter', 'Add the comment'],
+  ['P', 'Keep Mode: show only what is kept or final (here and in zoom)'],
   ['N', 'New revision'],
   ['Mod S', 'Save now'],
   ['In zoom: ← →', 'Previous / next group (or file, in a set of one group)'],
@@ -99,6 +100,10 @@ function useShortcuts() {
         case 'n':
         case 'N':
           void store.newRevision();
+          break;
+        case 'p':
+        case 'P':
+          store.toggleKeepMode();
           break;
         case '?':
           store.setShortcutsOpen(!store.shortcutsOpen);
