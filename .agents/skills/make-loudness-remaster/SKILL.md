@@ -106,8 +106,8 @@ PY="$(uv tool dir)/reaper-mcp-server/bin/python"; SK=.claude/skills/make-loudnes
 
 ## Things to know
 
-- **Their taste so far:** Honored One, I am the Demon and Inexorable (2026-10-30/31) all ended at
-  **-9 LUFS**. They lean loud ("loud volume is better", "I need even more volume"), so the ladder
+- **Their taste so far:** Honored One, I am the Demon, Inexorable (2026-10-30/31) and WAKE UP
+  (2026-11-03) all ended at **-9 LUFS**. They lean loud ("loud volume is better", "I need even more volume"), so the ladder
   goes down to -8 by default; the pick is theirs.
 - **Don't over-master.** No EQ, compressor, clipper, stem remix or noise cleanup by default. If the
   user asks for one of them, do just that one, as a new version beside the ladder, and compare it
@@ -153,3 +153,9 @@ User feedback, newest last. Add an entry whenever the user corrects or confirms 
   ("try-8.5-…") as "try-8" plus an extension, and round() named -8.5 after -8 → temp names use
   "8p5", half steps keep their ".5". When a song arrives louder than usual (gain alone gets past
   -10), offer half steps in the loud range.
+- 2026-11-03 (WAKE UP, a Suno stems download): only the stems folder sat in the song's folder; the
+  full mix was already in the media library (the sweep had filed the Suno download), found with
+  `mdfind -name` / `media find`. The usual ladder (-14.8 LUFS in, gain alone -12.5, -8 halved the
+  build-up), and the user picked **-9** again. The production's channel (getintozone) differed from
+  the sweep's guess (animemusiczone, from the Suno workspace name): the master and stems were
+  ingested to the production's channel and the mix moved there with `media mv`.

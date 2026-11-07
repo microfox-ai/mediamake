@@ -142,26 +142,36 @@ one if it doesn't.
   (`npm run image-index -w lyrics_videos -- <folder> --workflow=pack-youtube`). Send the review link
   (`https://mediamake.microfox.app/file-revision?job=<set>`) and read the pick with `revise-image`.
 - **Attach it without re-rendering the video.** Never render the whole video again just to add the
-  outro. Match only the outro to the video (size, fps, pixel format, audio rate and channels), then
+  outro. Encode only the outro to match the video, the encoder settings as well as the format, then
   join the two with ffmpeg's concat demuxer as a stream copy:
 
 ```bash
-ffmpeg -i outro.mp4 -vf "scale=1920:1080,fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -video_track_timescale 90000 -c:a aac -ar 48000 -ac 2 outro-matched.mp4
+head -c 3000000 video.mp4 | strings | grep -m1 'x264 - core'    # the video's x264 settings (ref=, subme=, crf=…)
+```
+
+```bash
+ffmpeg -i outro.mp4 -vf "fps=30,scale=1920:1080,format=yuvj420p" -c:v libx264 -preset medium -crf 16 -profile:v high -x264-params chromaloc=1 -color_range pc -colorspace bt470bg -video_track_timescale 90000 -c:a aac -ar 48000 -ac 2 outro-matched.mp4
 ```
 
 ```bash
 printf "file '%s'\nfile '%s'\n" "$PWD/video.mp4" "$PWD/outro-matched.mp4" > join.txt && ffmpeg -f concat -safe 0 -i join.txt -c copy final.mp4
 ```
 
-  Take the size, fps, pixel format (Remotion writes `yuvj420p`), CRF and audio settings from `ffprobe` of the video,
-  and its video **time base**: Remotion renders use 1/90000 and ffmpeg's x264 defaults to 1/15360, and with
-  different time bases the stream copy squeezes the outro's frames into the video's last instant (the file's
-  video stream then ends where the video did). `-video_track_timescale` sets it; after the join, check that the
-  video stream's duration is the video's plus the outro's. A silent outro ("without sound"): map
-  `-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000` as its audio with `-shortest`. If the stream copy refuses
-  because the codec settings differ, re-encode only the outro again with the video's profile, and
-  still never the video. Check the join point plays cleanly (a still on either side, and the audio
-  level). The result goes in the pack as the video.
+  - **The encoder settings must be the video's.** An MP4 keeps one set of H.264 headers (SPS and PPS) for the
+    whole track, the first file's. QuickTime and Finder decode the outro with them, so an outro made with other x264
+    settings plays in ffmpeg and on YouTube but not in QuickTime ("Cannot Decode": the end screen never shows).
+    A Remotion render is x264 `preset medium` with `chromaloc=1`, full-range `yuvj420p` and `bt470bg`; take the
+    CRF and anything else from the line `strings` prints. Compare the two files' SPS and PPS bytes before the join
+    (`-c copy -bsf:v h264_mp4toannexb -f h264`, NAL types 7 and 8): they must be identical.
+  - **The time base:** Remotion renders use 1/90000 and ffmpeg's x264 defaults to 1/15360. With different time
+    bases the stream copy squeezes the outro's frames into the video's last instant (the file's video stream then
+    ends where the video did). `-video_track_timescale` sets it. After the join, check that the video stream's
+    duration is the video's plus the outro's.
+  - **A silent outro** ("without sound"): map `-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000` as its
+    audio with `-shortest`.
+  - **Check it the way the user will watch it:** pull a frame of the outro through AVFoundation, QuickTime's
+    decoder (`swift scripts/avf-frames.swift final.mp4 <prefix> 3 8`: seconds counted back from the end), as well as
+    a still on either side of the join and the audio level. The result goes in the pack as the video.
 
 When both are settled, assemble the folder (the video clone, the end-screen guide, UPLOAD.md;
 earlier rounds moved into `history/`), update `pack.json` (`thumbnails` with the picked IDs and
@@ -383,3 +393,8 @@ Add entries at the bottom: date · song / channel · what they said → the rule
 - 2026-11-04 · WAKE UP (Get into Zone) · "it stuck at monetisation again, and its not upload A/b thumbnail pack": Browse Hack 0.13.0 set monetisation and ticked None of the above, but pressed Submit rating before Studio had rated the answers, so Studio stayed on Ad suitability; the thumbnail it handed over from its isolated world previewed and then failed to upload; and info.json named only D1 of the three → info.json carries `abTest` from `titles.txt` (thumbnail + title per variant), and Browse Hack 0.14.0 sets the A/B test, uploads thumbnails from Studio's own page and checks the rating went in.
 - 2026-11-04 · skill · "in extension popup add youtube studio tab … Autofill Shorts … Bulk Upload Shorts - autofill details from … a shorts-pack.json … generated as part of youtube-pack for multivariant shorts" → step 6: a production with more than one short gets `out/youtube/<slug>-shorts/` with shorts-pack.json (shared defaults, one entry per short, each on the next empty day) for the popup's Bulk Upload Shorts (Browse Hack 0.15.0); drafts uploaded by hand go through Autofill Shorts, which copies the most similar short's title and details.
 - 2026-11-04 · Quicksilver x Kingpin shorts (ATOMIC RAP) · "is this action not triggerable via tool in mcp bridge ? if not, add the tool." (Bulk Upload Shorts only ran from the popup) → Browse Hack's MCP got `youtube_bulk_upload_shorts` (extensions PR #32): step 6 calls it with the pack folder when the user asks to upload the shorts.
+- 2026-11-04 · Full Metal Heart (Anime Music Zone) · `youtube_fill_uploads` forgot the session's profile after `use_profile` + `youtube_list_channels` (asked again for the profile): call `use_profile` again right before it. On @anime-music-zone the filler couldn't set the thumbnail ("Upload file") and Studio stayed on Details because the channel is monetised ("Your video needs a monetisation setting"): tell the user to set the thumbnail (and A/B ones), the monetisation setting and the visibility in the tab.
+- 2026-11-04 · The Honoured One (Anime Music Zone) · "there is no amz end screen in the final video": the AMZ end screen was encoded with `-preset slow` (ref=5, no chroma location) while the Remotion master is `preset medium` with `chromaloc=1`; the MP4 kept the master's SPS, so QuickTime couldn't decode the outro ("Cannot Decode"), although ffmpeg, the frame count and the durations all passed → the end-screen step encodes the outro with the video's own x264 settings, compares the SPS and PPS bytes before the join, and checks a frame of the outro through AVFoundation (`scripts/avf-frames.swift`).
+- 2026-11-04 · The Honoured One (Anime Music Zone) · `youtube_fill_uploads` filled the video, title, description, both playlists, AI use, tags, language and category, but warned "Thumbnail …: Upload file" (not set) and "Stayed on Details: Studio wouldn't go on to Visibility (Your video needs a monetisation setting)" → AMZ is monetised: Studio's Monetisation step needs the user's on/off before Visibility, which the filler doesn't set, so the schedule is left to the user too; report both and tell the user to upload the thumbnail, pick monetisation and set the schedule in the tab.
+- 2026-11-04 · Full Metal Heart v2 (Anime Music Zone) · Browse Hack 0.14.0's filler now sets Studio's monetisation step on a monetised channel: info.json `monetization` (true/false) and `adSuitability` ("none" = None of the above, "skip" to leave it) — without them it turns monetisation on and answers none, and reaches Visibility (private) and returns `videoUrl`. The thumbnail still fails on @anime-music-zone ("Upload file" by hand). Re-uploading a changed video = a new video (the published one stays): the user unlists or deletes the old one.
+- 2026-11-04 · दीप जले, माँ लक्ष्मी आएँ (Omkara Swar) · The board was answered mid-turn by ID ("g but shift title to a bit down"), then G3 picked, lyrics kept, public now, AI-made → Omkara Swar's `channel.json` written (@omkara-swar, profile subhakartikkireddy@gmail.com, alteredContent true, language hi). `youtube_fill_uploads` filled everything and reached Visibility (public) but Studio refused the thumbnail with no reason (the channel has no subscribers; probably not phone-verified): tell the user to add it under Thumbnail → Upload file before Publish.
