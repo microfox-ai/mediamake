@@ -16,11 +16,10 @@ import { formatOf } from '@/lib/file-revisions/types';
 import { useFileRevisionsStore } from './store';
 
 const SHORTCUTS: [string, string][] = [
-  ['Click', 'Select only that one'],
-  ['Mod click', 'Add / remove it'],
-  ['⇧ click', 'Select a range (Mod ⇧ adds it)'],
+  ['Click', 'Open it in the zoom view'],
+  ['The circle / Mod click', 'Select it, or add / remove it (while selecting, a click does too)'],
+  ['⇧ click', 'Add a range'],
   ['Drag', 'Select with a box (⇧ or Mod adds)'],
-  ['Double-click', 'Zoom in on it'],
   ['Mod A / Esc', 'Select all / none'],
   ['Space or Z', 'Zoom in on the selection'],
   ['F / K / D', 'Final / keep / drop the selection'],
@@ -28,11 +27,15 @@ const SHORTCUTS: [string, string][] = [
   ['Mod Enter', 'Add the comment'],
   ['N', 'New revision'],
   ['Mod S', 'Save now'],
-  ['In zoom: ← →', 'Previous / next file'],
+  ['In zoom: ← →', 'Previous / next group (or file, in a set of one group)'],
+  ['In zoom: ↑ ↓', 'Previous / next file in the group, then on into the next group'],
+  ['In zoom: Space', 'Keep a picture as it is (plays a video or song)'],
   ['In zoom: click', 'Pin a comment to that spot (and time)'],
-  ['In zoom: Space / M', 'Play or pause / mute a video or audio'],
+  ['In zoom: Space / M', 'Play or pause / mute a video or audio (K keeps it)'],
   ['In zoom: ⇧ ← →', '5 s back / ahead'],
   ['In zoom: L / V', 'Magnifier / feed-size preview'],
+  ['In zoom: scroll, pinch, + / − / 0', 'Zoom in, out, back to fit (drag to move around)'],
+  ['In zoom: W', 'Fill the window\'s width'],
   ['?', 'Show these shortcuts'],
 ];
 

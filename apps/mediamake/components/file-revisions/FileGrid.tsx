@@ -80,6 +80,8 @@ function Tile({ id, file, note, width }: { id: string; file: string; note?: stri
   const click = useFileRevisionsStore(s => s.click);
   const openZoom = useFileRevisionsStore(s => s.openZoom);
   const index = useFileRevisionsStore(s => s.job?.index);
+  // once something is selected, a plain click adds or removes a file instead of opening it
+  const selecting = useFileRevisionsStore(s => s.selection.length > 0);
   // a set of one size shares its shape; a mixed set shows each image's own
   const format = useFormat();
   const aspect = format.aspect ?? (render?.size ? `${render.size[0]} / ${render.size[1]}` : '4 / 3');
@@ -94,13 +96,12 @@ function Tile({ id, file, note, width }: { id: string; file: string; note?: stri
         onClick={e => {
           if (boxed) return;
           e.stopPropagation();
-          click(id, { shift: e.shiftKey, toggle: e.metaKey || e.ctrlKey });
+          // a click opens the file; ⌘ or ⇧ click, the circle, or any click while selecting, selects
+          if (e.shiftKey || e.metaKey || e.ctrlKey) click(id, { shift: e.shiftKey, toggle: true });
+          else if (selecting) click(id, { toggle: true });
+          else openZoom(id);
         }}
         style={{ aspectRatio: aspect }}
-        onDoubleClick={() => {
-          click(id);
-          openZoom(id);
-        }}
         className={cn(
           'group relative block w-full overflow-hidden rounded-md bg-muted outline-none ring-offset-2 ring-offset-background transition',
           selected ? 'ring-[3px] ring-primary' : 'hover:ring-2 hover:ring-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary',
@@ -117,12 +118,28 @@ function Tile({ id, file, note, width }: { id: string; file: string; note?: stri
           </span>
         )}
         <span
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Select ${id}`}
+          data-no-box
+          onClick={e => {
+            if (boxed) return;
+            e.stopPropagation();
+            click(id, { shift: e.shiftKey, toggle: true });
+          }}
           className={cn(
-            'absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full border-2 transition',
-            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-white/70 bg-black/30 opacity-0 group-hover:opacity-100',
+            'absolute left-1 top-1 flex size-7 cursor-pointer items-center justify-center rounded-full transition',
+            !selected && !selecting && 'opacity-0 group-hover:opacity-100',
           )}
         >
-          {selected && <CheckIcon className="size-3.5" />}
+          <span
+            className={cn(
+              'flex size-5 items-center justify-center rounded-full border-2 transition',
+              selected ? 'border-primary bg-primary text-primary-foreground' : 'border-white/80 bg-black/40 hover:border-white hover:bg-black/60',
+            )}
+          >
+            {selected && <CheckIcon className="size-3.5" />}
+          </span>
         </span>
         <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
           <Hint label={absolutePath(index) ? 'Show in Finder (copies the path when it can\'t)' : 'Copy the folder name (no path recorded)'}>
@@ -298,7 +315,7 @@ export function FileGrid() {
             <ZoomInIcon className="size-3.5" /> Zoom
           </Button>
         </Hint>
-        <span className="hidden truncate text-muted-foreground 2xl:inline">Click to select · ⌘ click to add · ⇧ click a range · drag a box · double-click to zoom</span>
+        <span className="hidden truncate text-muted-foreground 2xl:inline">Click to open · the circle, ⌘ click or a box to select · ⇧ click a range · while selecting, a click adds</span>
         <div className="ml-auto flex items-center gap-2">
           <Hint label={format.smallHint}>
             <Button variant={tile === format.small ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setTile(tile === format.small ? 300 : format.small)}>
