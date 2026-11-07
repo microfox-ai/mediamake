@@ -28,8 +28,8 @@ import { cn } from '@/lib/utils';
 import { Hint, isTextField } from '@/components/revisions/keyboard';
 import { clock } from '@/lib/file-revisions/revision-file';
 import type { ImageAction, ImageComment } from '@/lib/file-revisions/types';
-import { Badges, Still, useFormat } from './FileGrid';
-import { playable, selectActiveRevision, useFileRevisionsStore } from './store';
+import { ActionMarks, Badges, Still, useFormat } from './FileGrid';
+import { keptIds, playable, selectActiveRevision, useFileRevisionsStore } from './store';
 
 const LOUPE = 260;
 const LOUPE_ZOOM = 3;
@@ -146,7 +146,6 @@ export function ZoomView() {
   const renders = useFileRevisionsStore(s => s.renders);
   const revision = useFileRevisionsStore(selectActiveRevision);
   const closeZoom = useFileRevisionsStore(s => s.closeZoom);
-  const zoomStep = useFileRevisionsStore(s => s.zoomStep);
   const toggleAction = useFileRevisionsStore(s => s.toggleAction);
   const addComment = useFileRevisionsStore(s => s.addComment);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -181,7 +180,12 @@ export function ZoomView() {
       : { aspect: '4 / 3', ratio: 4 / 3 };
   const pins = (revision?.comments ?? []).filter(c => c.pin?.image === id);
   // the set's groups (sections), each holding the files of this zoom in order; a file in no group gets one of its own
-  const groups = groupsOf(job?.index.styles ?? [], zoom?.ids ?? []);
+  // Keep Mode (P) shows only what is kept or final; the file on screen stays until you move on
+  const keepMode = useFileRevisionsStore(s => s.keepMode);
+  const toggleKeepMode = useFileRevisionsStore(s => s.toggleKeepMode);
+  const kept = keptIds(revision);
+  const ids = keepMode ? (zoom?.ids ?? []).filter(t => kept.has(t) || t === id) : (zoom?.ids ?? []);
+  const groups = groupsOf(job?.index.styles ?? [], ids);
   const groupAt = Math.max(0, groups.findIndex(g => id !== null && g.ids.includes(id)));
   const group = groups[groupAt];
   const go = (target: string | undefined) => {
@@ -189,9 +193,14 @@ export function ZoomView() {
     const i = zoom.ids.indexOf(target);
     if (i >= 0) useFileRevisionsStore.setState({ zoom: { ...zoom, index: i } });
   };
+  /** The previous or next file that shows. */
+  const stepFile = (delta: number) => {
+    const at = id ? ids.indexOf(id) : -1;
+    if (ids.length) go(ids[(at + delta + ids.length) % ids.length]);
+  };
   /** ← →: the previous or next group (its first file). A set of one group steps through its files instead. */
   const stepGroup = (delta: number) => {
-    if (groups.length < 2) return zoomStep(delta);
+    if (groups.length < 2) return stepFile(delta);
     go(groups[(groupAt + delta + groups.length) % groups.length].ids[0]);
   };
   /** ↑ ↓: the previous or next file in the group; past its end, into the next or previous group. */
@@ -274,6 +283,13 @@ export function ZoomView() {
   // a resize keeps the zoom but re-centres, so the picture never drifts off the stage
   useEffect(() => setView(v => (v.z === 1 ? v : { ...v, x: 0, y: 0 })), [stage.w, stage.h]);
 
+  useEffect(() => {
+    if (!keepMode || !id || kept.has(id)) return;
+    const first = zoom?.ids.find(t => kept.has(t));
+    if (first) go(first);
+    // only when Keep Mode turns on
+  }, [keepMode]);
+
   const seekPin = (c: ImageComment) => {
     if (!media || c.pin?.t === undefined) return;
     media.pause();
@@ -340,6 +356,10 @@ export function ZoomView() {
         case 'W':
           fitWidth();
           break;
+        case 'p':
+        case 'P':
+          toggleKeepMode();
+          break;
         case 'f':
         case 'F':
           act('final');
@@ -368,7 +388,7 @@ export function ZoomView() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [zoom, id, draft, media, plays, closeZoom, zoomStep, toggleAction, groups, groupAt, group]);
+  }, [zoom, id, draft, media, plays, closeZoom, toggleAction, toggleKeepMode, groups, groupAt, group]);
 
   if (!zoom || !id) return null;
   const view = viewState;
@@ -451,8 +471,13 @@ export function ZoomView() {
         </span>
         <span className="shrink-0 text-xs tabular-nums text-white/50">
           {groups.length > 1 && group ? `${group.ids.indexOf(id) + 1} / ${group.ids.length} in ${group.label} · ` : ''}
-          {zoom.index + 1} / {zoom.ids.length}
+          {ids.indexOf(id) + 1} / {ids.length}
         </span>
+        {keepMode && (
+          <button type="button" onClick={toggleKeepMode} title="Keep Mode: only kept or final files (P to show all)" className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-black hover:bg-emerald-400">
+            <LockIcon className="size-3" /> Keep Mode
+          </button>
+        )}
         <Badges id={id} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {actionButton('final', format.poster ? 'Cover (the one to upload)' : 'Final (pick for upload)', 'F', <StarIcon className="size-3.5" />, !!revision?.final.includes(id))}
@@ -548,6 +573,8 @@ export function ZoomView() {
             />
           )}
         </div>
+
+        <ActionMarks id={id} size="lg" className="absolute left-3 top-3 z-20" />
 
         {/* pins, the loupe and the comment box sit over the picture at its zoom, but keep their own size */}
         {plays?.kind !== 'audio' &&
@@ -696,7 +723,7 @@ export function ZoomView() {
         )}
         <div className="flex items-end gap-4 px-4 py-2">
           <div ref={stripRef} className="flex min-w-0 flex-1 items-end gap-1.5 overflow-x-auto pb-1">
-            {(group?.ids ?? zoom.ids).map(t => {
+            {(group?.ids ?? ids).map(t => {
               const current = t === id;
               return (
                 <button
@@ -709,7 +736,7 @@ export function ZoomView() {
                 >
                   <span className={cn('relative flex h-12 w-full items-center justify-center overflow-hidden rounded bg-black ring-2', current ? 'ring-amber-400' : 'ring-transparent')}>
                     {renders[t] && <Still render={renders[t]} alt={t} className="max-h-full max-w-full object-contain" />}
-                    <ActionDot id={t} />
+                    <ActionMarks id={t} size="sm" className="absolute right-0.5 top-0.5" />
                   </span>
                   <span className={cn('block truncate text-[10px] leading-tight', current ? 'font-semibold text-amber-400' : 'text-white/70')}>{shortId(t)}</span>
                 </button>
@@ -718,7 +745,7 @@ export function ZoomView() {
           </div>
           <span className="hidden max-w-xs shrink-0 pb-2 text-right text-[11px] leading-snug text-white/40 xl:block">
             Click to comment · scroll to zoom · drag to move · W fill width · {groups.length > 1 ? '← → group · ↑ ↓ file' : '← → or ↑ ↓ file'}
-            {plays ? ' · Space play · K keep · ⇧ ← → 5 s' : ' · Space keep'} · Esc close
+            {plays ? ' · Space play · K keep · ⇧ ← → 5 s' : ' · Space keep'} · P Keep Mode · Esc close
           </span>
         </div>
       </div>
@@ -726,9 +753,3 @@ export function ZoomView() {
   );
 }
 
-/** A dot on a filmstrip thumbnail: final, keep or drop. */
-function ActionDot({ id }: { id: string }) {
-  const revision = useFileRevisionsStore(selectActiveRevision);
-  const color = revision?.final.includes(id) ? 'bg-amber-400' : revision?.keep.includes(id) ? 'bg-emerald-400' : revision?.drop.includes(id) ? 'bg-neutral-400' : null;
-  return color ? <span className={cn('absolute right-1 top-1 size-2 rounded-full ring-1 ring-black', color)} /> : null;
-}

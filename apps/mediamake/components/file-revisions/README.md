@@ -121,7 +121,8 @@ version). Editing a resolved revision starts a new one.
    `rev-001`; everything autosaves.
 3. **Zoom** (click a tile, or Space for the selection): the selection (or everything) one at a
    time, in the set's groups: ← → switch groups, ↑ ↓ step through a group's files and on into the
-   next group, and Space keeps a picture as it is. A magnifier under the pointer, a small-size copy
+   next group, and Space keeps a picture as it is. P turns on Keep Mode (here and in the grid): only the files kept
+   or picked as final show. A magnifier under the pointer, a small-size copy
    (YouTube's feed for thumbnails, a streaming list for posters). Click the picture to pin a comment to that spot. A video or
    song plays here (Space, ⇧ ← → 5 s, M mute); clicking the picture pauses it and pins the comment
    to that spot and time, and the comments show on the scrubber (click one to go back to it).

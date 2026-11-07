@@ -130,6 +130,8 @@ interface FileRevisionsState {
   zoom: { ids: string[]; index: number } | null;
   /** Tile width in px. */
   tile: number;
+  /** Keep Mode (P): only the files kept or picked as final show, in the grid and the zoom view. */
+  keepMode: boolean;
   composerFocus: number;
   shortcutsOpen: boolean;
 
@@ -156,6 +158,7 @@ interface FileRevisionsState {
   setTile: (px: number) => void;
   requestComposerFocus: () => void;
   setShortcutsOpen: (open: boolean) => void;
+  toggleKeepMode: () => void;
 
   newRevision: () => Promise<string | null>;
   openRevision: (id: string) => void;
@@ -179,6 +182,9 @@ function errorMessage(err: unknown): string {
 /** Every variant ID in the order of the sheet (styles, then variants). */
 export const allIds = (index: ImageSetIndex | null | undefined): string[] =>
   (index?.styles ?? []).flatMap(s => s.variants.map(v => v.id));
+
+/** What Keep Mode shows: the files kept or picked as final in a revision. */
+export const keptIds = (revision: { final: string[]; keep: string[] } | null | undefined) => new Set([...(revision?.final ?? []), ...(revision?.keep ?? [])]);
 
 export const selectActiveRevision = (s: FileRevisionsState) =>
   s.activeRevisionId ? (s.revisions[s.activeRevisionId] ?? null) : null;
@@ -325,6 +331,7 @@ export const useFileRevisionsStore = create<FileRevisionsState>((set, get) => {
     anchor: null,
     zoom: null,
     tile: 300,
+    keepMode: false,
     composerFocus: 0,
     shortcutsOpen: false,
 
@@ -477,7 +484,12 @@ export const useFileRevisionsStore = create<FileRevisionsState>((set, get) => {
       if (next.length === current.length && next.every((x, i) => x === current[i])) return;
       set({ selection: next, anchor: ids[ids.length - 1] ?? get().anchor });
     },
-    selectAll: () => set(s => ({ selection: allIds(s.job?.index) })),
+    selectAll: () =>
+      set(s => {
+        // in Keep Mode, all means all that shows
+        const kept = keptIds(selectActiveRevision(s));
+        return { selection: allIds(s.job?.index).filter(id => !s.keepMode || kept.has(id)) };
+      }),
     clearSelection: () => set({ selection: [], anchor: null }),
 
     openZoom: at => {
@@ -496,6 +508,14 @@ export const useFileRevisionsStore = create<FileRevisionsState>((set, get) => {
     },
     requestComposerFocus: () => set(s => ({ composerFocus: s.composerFocus + 1 })),
     setShortcutsOpen: open => set({ shortcutsOpen: open }),
+    toggleKeepMode: () => {
+      const s = get();
+      if (!s.keepMode && !keptIds(selectActiveRevision(s)).size) {
+        toast.message('Nothing is kept or final yet');
+        return;
+      }
+      set({ keepMode: !s.keepMode });
+    },
 
     newRevision: async () => {
       const { job, revisionIds } = get();
