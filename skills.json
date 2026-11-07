@@ -180,6 +180,75 @@
       ]
     },
     {
+      "name": "make-kinetictype",
+      "title": "Make kinetictype",
+      "summary": "Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type,…",
+      "description": "Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type, words as windows onto the art, cracked words, a letter-by-letter hero word on the drop, faces on the bass hits, impact frames, sound effects on every hit, and a seamless loop — as a Short or as a section inside a longer video. It records the workflow and the user's fundamental choices from the first one (\"Screaming to Win\", a Blue Lock page, 2026-11-08) and runs on a shared engine (src/kinetictype: the edit is data, video/edit.json) and one tool (npm run kinetictype: pick a stretch from a long instrumental, map its hits, crop, cut out, storyboard, sound effects). Reviewed through revise-video. Use when the user says \"kinetic typography / kinetic type edit\", \"make a kinetictype video / short\", \"an inspirational / motivational edit of this quote over this picture\", \"type that moves with the music\", \"/make-kinetictype\", or asks to change a project whose video/edit.json is a kinetic edit. For the exact Screaming-to-Win look from an image, a quote and a song (making what's missing), use make-kinetictype-like-screamingtowin. Not for lyric videos of a sung song (make-lyrics-video, make-waveform-lyric-video) or footage edits (make-video-music-remix, make-anime-music-video). Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-kinetictype",
+      "dependsOn": [
+        "revise-video",
+        "revise-image"
+      ],
+      "mcps": [
+        {
+          "id": "mcp/browse-hack",
+          "need": "required",
+          "for": "Midjourney restyles and upscales of the picture and its close-ups (midjourney_generate with editImage, midjourney_upscale), Pinterest type research (pinterest_bulk_start), the YouTube upload (youtube_fill_uploads), a new instrumental from Suno when there is none (suno_create)",
+          "without": "No restyled art (the edit runs on the one picture), no research boards, the user uploads by hand"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "Sound effects the media library doesn't have (text_to_sound_effects, paid: ask with the price), and a voice-over only if the user asks for one (text_to_speech; Scribe word times through npm run transcribe)",
+          "without": "The library's sounds only; no voice-over"
+        },
+        {
+          "id": "mcp/fal",
+          "need": "optional",
+          "for": "A new picture or an upscale when Midjourney isn't available (Ideogram and FLUX.2 klein first; paid: ask with the price)",
+          "without": "Pictures come from Midjourney or the user"
+        }
+      ]
+    },
+    {
+      "name": "make-kinetictype-like-screamingtowin",
+      "title": "Make kinetictype like screamingtowin",
+      "summary": "Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them…",
+      "description": "Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 24 s 9:16 kinetic-type Short like that one, end to end with the same utilities and MCPs. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, npm run kinetictype). Use when the user says \"make one like Screaming to Win\", \"a kinetic type short like the Blue Lock one\", \"here's a picture / quote / song, make that style\", \"make a kinetictype short from this <picture | quote | song>\", \"/make-kinetictype-like-screamingtowin\", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.",
+      "category": "make",
+      "location": "committed",
+      "path": ".agents/skills/make-kinetictype-like-screamingtowin",
+      "variantOf": "make-kinetictype",
+      "variantRef": "screamingtowin",
+      "forkedFrom": "make-kinetictype@9bc49b5343d3",
+      "dependsOn": [
+        "revise-video",
+        "revise-image"
+      ],
+      "mcps": [
+        {
+          "id": "mcp/browse-hack",
+          "need": "required",
+          "for": "Midjourney restyles and upscales of the picture and its close-ups (midjourney_generate with editImage, midjourney_upscale), Pinterest type research (pinterest_bulk_start), the YouTube upload (youtube_fill_uploads), a new instrumental from Suno when there is none (suno_create)",
+          "without": "No restyled art (the edit runs on the one picture), no research boards, the user uploads by hand"
+        },
+        {
+          "id": "mcp/elevenlabs",
+          "need": "optional",
+          "for": "Sound effects the media library doesn't have (text_to_sound_effects, paid: ask with the price), and a voice-over only if the user asks for one (text_to_speech; Scribe word times through npm run transcribe)",
+          "without": "The library's sounds only; no voice-over"
+        },
+        {
+          "id": "mcp/fal",
+          "need": "optional",
+          "for": "A new picture or an upscale when Midjourney isn't available (Ideogram and FLUX.2 klein first; paid: ask with the price)",
+          "without": "Pictures come from Midjourney or the user"
+        }
+      ]
+    },
+    {
       "name": "make-loudness-remaster",
       "title": "Make loudness remaster",
       "summary": "Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make…",
