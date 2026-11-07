@@ -35,7 +35,8 @@
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",
     "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts",
     "transcribe": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/transcribe.ts",
-    "kinetictype": "uv run --project analysis python scripts/kinetictype/cli.py"
+    "kinetictype": "uv run --project analysis python scripts/kinetictype/cli.py",
+    "yt-grab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/youtube-grab.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

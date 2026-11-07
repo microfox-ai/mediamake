@@ -55,6 +55,8 @@ npm run wait-revision -w lyrics_videos -- <slug>    # wait until a revision is s
 npm run look-grid -w lyrics_videos -- <a.mp4> <b.mp4> …   # 2–4 look previews side by side, labelled
 npm run loop-stats -w lyrics_videos                 # rounds, notes and renders per video, from the review files
 npm run cleanup-out -w lyrics_videos -- scan       # what fills the disk; clean, archive to a hard disk, restore (cleanup-out skill)
+npm run yt-grab -w lyrics_videos -- @handle | <playlist|video URL> | --search "…" [--popular --limit 40 --out <dir>]
+                                                    # every video's title, description + transcript into one folder (yt-dlp; no key needed; research/<channel>/ style)
 npm run type-check -w lyrics_videos
 ```
 
