@@ -112,6 +112,23 @@ const GUTTER = 16;
 type View = { z: number; x: number; y: number };
 const FIT: View = { z: 1, x: 0, y: 0 };
 
+type ZoomGroup = { key: string; name: string; label: string; ids: string[] };
+
+/** The set's groups with the files of this zoom in each, in the zoom's order; files in no group are put together. */
+function groupsOf(styles: { id: string; name: string; variants: { id: string }[] }[], ids: string[]): ZoomGroup[] {
+  const groups: ZoomGroup[] = [];
+  const placed = new Set<string>();
+  for (const style of styles) {
+    const own = new Set(style.variants.map(v => v.id));
+    const in_ = ids.filter(i => own.has(i) && !placed.has(i));
+    in_.forEach(i => placed.add(i));
+    if (in_.length) groups.push({ key: style.id, name: style.name, label: style.id === 'all' || style.id === style.name ? style.name : `${style.id} ${style.name}`, ids: in_ });
+  }
+  const rest = ids.filter(i => !placed.has(i));
+  if (rest.length) groups.push({ key: '__rest', name: 'Other', label: 'Other', ids: rest });
+  return groups;
+}
+
 /** The last part of an ID (`2-storyboard-pages/board-1` → `board-1`), for labels with little room. */
 const shortId = (id: string) => id.split('/').filter(Boolean).pop() ?? id;
 
@@ -163,6 +180,28 @@ export function ZoomView() {
       ? { aspect: `${render.size[0]} / ${render.size[1]}`, ratio: render.size[0] / render.size[1] }
       : { aspect: '4 / 3', ratio: 4 / 3 };
   const pins = (revision?.comments ?? []).filter(c => c.pin?.image === id);
+  // the set's groups (sections), each holding the files of this zoom in order; a file in no group gets one of its own
+  const groups = groupsOf(job?.index.styles ?? [], zoom?.ids ?? []);
+  const groupAt = Math.max(0, groups.findIndex(g => id !== null && g.ids.includes(id)));
+  const group = groups[groupAt];
+  const go = (target: string | undefined) => {
+    if (!zoom || !target) return;
+    const i = zoom.ids.indexOf(target);
+    if (i >= 0) useFileRevisionsStore.setState({ zoom: { ...zoom, index: i } });
+  };
+  /** ← →: the previous or next group (its first file). A set of one group steps through its files instead. */
+  const stepGroup = (delta: number) => {
+    if (groups.length < 2) return zoomStep(delta);
+    go(groups[(groupAt + delta + groups.length) % groups.length].ids[0]);
+  };
+  /** ↑ ↓: the previous or next file in the group; past its end, into the next or previous group. */
+  const stepInGroup = (delta: number) => {
+    if (!group || !id) return;
+    const at = group.ids.indexOf(id) + delta;
+    if (at >= 0 && at < group.ids.length) return go(group.ids[at]);
+    const next = groups[(groupAt + delta + groups.length) % groups.length];
+    go(delta > 0 ? next.ids[0] : next.ids[next.ids.length - 1]);
+  };
 
   // the picture's fitted size: as large as the stage allows, keeping its shape
   const boxW = Math.max(0, Math.min(stage.w - 2 * GUTTER, (stage.h - 2 * GUTTER) * shape.ratio));
@@ -261,9 +300,10 @@ export function ZoomView() {
       }
       switch (e.key) {
         case ' ':
-          if (!media) return;
           e.preventDefault();
-          if (media.paused) void media.play();
+          // a video or song plays; a picture is kept as it is
+          if (!media) act('keep');
+          else if (media.paused) void media.play();
           else media.pause();
           break;
         case 'm':
@@ -278,7 +318,12 @@ export function ZoomView() {
         case 'ArrowLeft':
         case 'ArrowRight':
           e.preventDefault();
-          zoomStep(e.key === 'ArrowRight' ? 1 : -1);
+          stepGroup(e.key === 'ArrowRight' ? 1 : -1);
+          break;
+        case 'ArrowUp':
+        case 'ArrowDown':
+          e.preventDefault();
+          stepInGroup(e.key === 'ArrowDown' ? 1 : -1);
           break;
         case '+':
         case '=':
@@ -323,7 +368,7 @@ export function ZoomView() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [zoom, id, draft, media, plays, closeZoom, zoomStep, toggleAction]);
+  }, [zoom, id, draft, media, plays, closeZoom, zoomStep, toggleAction, groups, groupAt, group]);
 
   if (!zoom || !id) return null;
   const view = viewState;
@@ -405,12 +450,13 @@ export function ZoomView() {
           {variant?.note && <span className="text-white/60"> · {variant.note}</span>}
         </span>
         <span className="shrink-0 text-xs tabular-nums text-white/50">
+          {groups.length > 1 && group ? `${group.ids.indexOf(id) + 1} / ${group.ids.length} in ${group.label} · ` : ''}
           {zoom.index + 1} / {zoom.ids.length}
         </span>
         <Badges id={id} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {actionButton('final', format.poster ? 'Cover (the one to upload)' : 'Final (pick for upload)', 'F', <StarIcon className="size-3.5" />, !!revision?.final.includes(id))}
-          {actionButton('keep', 'Keep as it is', 'K', <LockIcon className="size-3.5" />, !!revision?.keep.includes(id))}
+          {actionButton('keep', 'Keep as it is', plays ? 'K' : 'Space', <LockIcon className="size-3.5" />, !!revision?.keep.includes(id))}
           {actionButton('drop', 'Drop', 'D', <XIcon className="size-3.5" />, !!revision?.drop.includes(id))}
           <span className="mx-1 h-5 w-px bg-white/20" />
           <Hint label="Show this file in Finder (copies the path when it can't)" side="bottom">
@@ -569,10 +615,10 @@ export function ZoomView() {
           </div>
         )}
 
-        <button type="button" aria-label="Previous" onClick={() => zoomStep(-1)} onPointerDown={e => e.stopPropagation()} className={cn('absolute left-3 top-1/2 z-20 -translate-y-1/2 p-2 hover:bg-neutral-800', floating)}>
+        <button type="button" aria-label="Previous file" title="Previous file (↑)" onClick={() => stepInGroup(-1)} onPointerDown={e => e.stopPropagation()} className={cn('absolute left-3 top-1/2 z-20 -translate-y-1/2 p-2 hover:bg-neutral-800', floating)}>
           <ChevronLeftIcon className="size-5" />
         </button>
-        <button type="button" aria-label="Next" onClick={() => zoomStep(1)} onPointerDown={e => e.stopPropagation()} className={cn('absolute right-3 top-1/2 z-20 -translate-y-1/2 p-2 hover:bg-neutral-800', floating)}>
+        <button type="button" aria-label="Next file" title="Next file (↓)" onClick={() => stepInGroup(1)} onPointerDown={e => e.stopPropagation()} className={cn('absolute right-3 top-1/2 z-20 -translate-y-1/2 p-2 hover:bg-neutral-800', floating)}>
           <ChevronRightIcon className="size-5" />
         </button>
 
@@ -630,31 +676,51 @@ export function ZoomView() {
         </div>
       )}
 
-      <div className="flex shrink-0 items-end gap-4 border-t border-white/10 px-4 py-2">
-        <div ref={stripRef} className="flex min-w-0 flex-1 items-end gap-1.5 overflow-x-auto pb-1">
-          {zoom.ids.map((t, i) => {
-            const current = i === zoom.index;
-            return (
+      <div className="flex shrink-0 flex-col border-t border-white/10">
+        {groups.length > 1 && (
+          <div className="flex items-center gap-1 overflow-x-auto px-4 pt-2">
+            <span className="mr-1 shrink-0 text-[10px] uppercase tracking-wide text-white/40">← → groups</span>
+            {groups.map((g, i) => (
               <button
-                key={t}
+                key={g.key}
                 type="button"
-                title={t}
-                data-current={current}
-                onClick={() => useFileRevisionsStore.setState({ zoom: { ...zoom, index: i } })}
-                className={cn('group flex w-16 shrink-0 flex-col gap-1 rounded-md p-1 text-left', current ? 'bg-white/10' : 'opacity-60 hover:bg-white/5 hover:opacity-100')}
+                title={g.name}
+                onClick={() => go(g.ids.includes(id) ? id : g.ids[0])}
+                className={cn('flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs', i === groupAt ? 'bg-amber-400 font-semibold text-black' : 'text-white/70 hover:bg-white/10 hover:text-white')}
               >
-                <span className={cn('relative flex h-12 w-full items-center justify-center overflow-hidden rounded bg-black ring-2', current ? 'ring-amber-400' : 'ring-transparent')}>
-                  {renders[t] && <Still render={renders[t]} alt={t} className="max-h-full max-w-full object-contain" />}
-                  <ActionDot id={t} />
-                </span>
-                <span className={cn('block truncate text-[10px] leading-tight', current ? 'font-semibold text-amber-400' : 'text-white/70')}>{shortId(t)}</span>
+                <span className="max-w-48 truncate">{g.label}</span>
+                <span className={cn('tabular-nums', i === groupAt ? 'text-black/60' : 'text-white/40')}>{g.ids.length}</span>
               </button>
-            );
-          })}
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-4 px-4 py-2">
+          <div ref={stripRef} className="flex min-w-0 flex-1 items-end gap-1.5 overflow-x-auto pb-1">
+            {(group?.ids ?? zoom.ids).map(t => {
+              const current = t === id;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  title={t}
+                  data-current={current}
+                  onClick={() => go(t)}
+                  className={cn('group flex w-16 shrink-0 flex-col gap-1 rounded-md p-1 text-left', current ? 'bg-white/10' : 'opacity-60 hover:bg-white/5 hover:opacity-100')}
+                >
+                  <span className={cn('relative flex h-12 w-full items-center justify-center overflow-hidden rounded bg-black ring-2', current ? 'ring-amber-400' : 'ring-transparent')}>
+                    {renders[t] && <Still render={renders[t]} alt={t} className="max-h-full max-w-full object-contain" />}
+                    <ActionDot id={t} />
+                  </span>
+                  <span className={cn('block truncate text-[10px] leading-tight', current ? 'font-semibold text-amber-400' : 'text-white/70')}>{shortId(t)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="hidden max-w-xs shrink-0 pb-2 text-right text-[11px] leading-snug text-white/40 xl:block">
+            Click to comment · scroll to zoom · drag to move · W fill width · {groups.length > 1 ? '← → group · ↑ ↓ file' : '← → or ↑ ↓ file'}
+            {plays ? ' · Space play · K keep · ⇧ ← → 5 s' : ' · Space keep'} · Esc close
+          </span>
         </div>
-        <span className="hidden max-w-xs shrink-0 pb-2 text-right text-[11px] leading-snug text-white/40 xl:block">
-          Click to comment · scroll to zoom · drag to move · W fill width{plays ? ' · Space play · ⇧ ← → 5 s' : ''} · ← → next · Esc close
-        </span>
       </div>
     </div>
   );

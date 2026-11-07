@@ -13,8 +13,8 @@ page is public (`app/(public)/`): no sign-in, no API calls.
 ```
 ┌ header: set title · set · N files · save state ────────────────────────────────┐
 │ sets panel     │ grid: one row per group, tiles with IDs     │ revision tabs [+]│
-│  open / sources│  (click, ⌘ click, ⇧ range, drag a box,      │ submit to Claude │
-│  recent        │   double-click = zoom, small-size toggle)   │ selection actions│
+│  open / sources│  (click = zoom; the circle, ⌘ click, ⇧ range,│ submit to Claude │
+│  recent        │   a box = select; small-size toggle)        │ selection actions│
 │                │                                             │ comments         │
 └────────────────┴─────────────────────────────────────────────┴──────────────────┘
 zoom view (full window): fit · zoom (scroll, pinch, + − 0) and pan · W fills the width · magnifier ·
@@ -119,9 +119,10 @@ version). Editing a resolved revision starts a new one.
    drag a box over tiles, ⇧ or ⌘ while dragging adds; a click on empty space clears), then
    **Final** (F), **Keep** (K), **Drop** (D) or a comment (C, ⌘Enter). The first action creates
    `rev-001`; everything autosaves.
-3. **Zoom** (Space, or double-click a tile): the selection (or everything) one at a time, a
-   magnifier under the pointer, a small-size copy (YouTube's feed for thumbnails, a streaming
-   list for posters), ← → to move. Click the picture to pin a comment to that spot. A video or
+3. **Zoom** (click a tile, or Space for the selection): the selection (or everything) one at a
+   time, in the set's groups: ← → switch groups, ↑ ↓ step through a group's files and on into the
+   next group, and Space keeps a picture as it is. A magnifier under the pointer, a small-size copy
+   (YouTube's feed for thumbnails, a streaming list for posters). Click the picture to pin a comment to that spot. A video or
    song plays here (Space, ⇧ ← → 5 s, M mute); clicking the picture pauses it and pins the comment
    to that spot and time, and the comments show on the scrubber (click one to go back to it).
 4. **Submit to Claude**: status `ready`, and the message to send is copied.
