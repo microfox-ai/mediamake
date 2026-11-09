@@ -10,12 +10,15 @@
  *   mm link [--dir=<bin>]   puts `mm` on your PATH (in npm's global bin folder), once per machine
  *
  * Without the link, run it from the repo as `npm run mm -- <command> [args…]`.
- * After pulling the rename from apps/lyrics_videos: `mm migrate` (a dry run), then `mm migrate --yes`.
+ * Your work out of the checkout, into ~/MediaMake (and, after the rename, out of apps/lyrics_videos):
+ * `mm migrate` (a dry run), then `mm migrate --yes`.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { NOT_WORK, STUDIO_FOLDERS, withWork, workspaceSetting } from '../../../tools/workspace.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(APP, '..', '..');
@@ -44,7 +47,7 @@ const ABOUT = {
   preflight: 'machine checks of a render before the user reviews it',
   media: 'the shared media library (mm media help)',
   golden: 'fixed frames of the fixtures compared with another commit',
-  migrate: 'moves your work from apps/lyrics_videos into apps/studio (dry run; --yes to move)',
+  migrate: 'moves your projects, renders and brand kits into your workspace, ~/MediaMake (dry run; --yes to move)',
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
 };
@@ -83,21 +86,40 @@ const link = args => {
   if (!onPath) console.log(`  ${dir} is not on your PATH yet: add it, or run mm as \`npm run mm -- <command>\` from the repo.`);
 };
 
-/** Work still in the old folder after pulling the rename: say how to move it, every time. */
+/** A day: how often the hint to move your work out of the checkout comes back. */
+const HINT_EVERY = 24 * 3600 * 1000;
+const HINT_FILE = path.join(os.homedir(), '.mediamake', '.migrate-hint');
+
+/**
+ * Work in a folder the workspace replaced: say how to move it. Every time while nothing sees it (it is
+ * in apps/lyrics_videos, or in apps/studio while the workspace is elsewhere); once a day while it is
+ * in apps/studio with no workspace set yet.
+ */
 const remindMigrate = cmd => {
-  if (cmd === 'migrate') return;
-  const old = path.join(REPO, 'apps', 'lyrics_videos');
-  const hasWork = ['projects', 'out', 'brands'].some(d => {
-    try {
-      return fs.readdirSync(path.join(old, d)).some(n => !n.startsWith('.'));
-    } catch {
-      return false;
-    }
-  });
-  if (hasWork) {
+  if (cmd === 'migrate' || cmd === 'workspace') return;
+  if (withWork(path.join(REPO, 'apps', 'lyrics_videos'), ['projects', 'out', 'brands']).length) {
     console.error('⚠ Your projects, renders or brand kits are still in apps/lyrics_videos, which is now apps/studio.');
     console.error('  Move them: mm migrate (shows what moves), then mm migrate --yes.\n');
+    return;
   }
+  const found = withWork(APP, STUDIO_FOLDERS, NOT_WORK);
+  if (!found.length) return;
+  const set = workspaceSetting();
+  const list = found.map(d => `${d}/`).join(', ');
+  if (set && path.resolve(set.root) !== APP) {
+    console.error(`⚠ apps/studio still has ${list}, but your workspace is ${set.root}, so nothing sees them there.`);
+    console.error('  Move them: mm migrate (shows what moves), then mm migrate --yes.\n');
+    return;
+  }
+  if (set) return;
+  try {
+    if (Date.now() - fs.statSync(HINT_FILE).mtimeMs < HINT_EVERY) return;
+  } catch {}
+  console.error(`ℹ Your work (${list}) is inside the checkout, in apps/studio. mm migrate moves it to ~/MediaMake, out of git's way (it lists what would move first).\n`);
+  try {
+    fs.mkdirSync(path.dirname(HINT_FILE), { recursive: true });
+    fs.writeFileSync(HINT_FILE, `${new Date().toISOString()}\n`);
+  } catch {}
 };
 
 const main = () => {

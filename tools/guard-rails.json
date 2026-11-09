@@ -8,7 +8,8 @@
     "areas: the first one whose paths match a file gives its hint. A path ending in / is a folder,",
     "* matches inside one folder and ** across folders. allow: committed files that may still change",
     "on a protected branch. leftovers: old folders that may still hold the user's work after a move,",
-    "with the command that moves it. When a folder moves, change it here."
+    "with the command that moves it (untilWorkspace: folders the workspace takes over once one is set,",
+    "a nudge until then; ignore: names in them that aren't the user's). When a folder moves, change it here."
   ],
   "protectedBranches": ["main", "master"],
   "allow": [],
@@ -18,6 +19,16 @@
       "dirs": ["projects", "out", "brands"],
       "what": "Work from before the rename to apps/studio",
       "fix": "`mm migrate` lists what would move; `mm migrate --yes` moves it, once the user agrees."
+    },
+    {
+      "path": "apps/studio",
+      "dirs": ["projects", "out", "brands", "thumbnails/jobs", "overlays"],
+      "ignore": ["sample-pulse", "MOVED.md"],
+      "untilWorkspace": true,
+      "what": "The user's projects, renders or brand kits are inside the checkout, in {where}.",
+      "fix": "`mm migrate` lists what would move to the workspace (~/MediaMake, outside the checkout, out of git's way); `mm migrate --yes` moves it, once the user agrees.",
+      "whatOnceSet": "The user's projects, renders or brand kits are still in {where}, but the workspace is {workspace}: nothing reads them there.",
+      "fixOnceSet": "`mm migrate` lists what would move into the workspace; `mm migrate --yes` moves it, once the user agrees."
     }
   ],
   "areas": [

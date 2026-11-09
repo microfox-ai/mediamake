@@ -9,7 +9,8 @@
  *   - main ahead of GitHub (local commits) or behind it (needs a pull)
  *   - on a branch: commits not pushed, how far behind main it is, and whether it was merged
  *   - a detached HEAD, stashes, and other local branches holding commits that aren't on GitHub
- *   - work left in an old folder after a move (leftovers in tools/guard-rails.json: apps/lyrics_videos)
+ *   - work left in an old folder after a move (leftovers in tools/guard-rails.json: apps/lyrics_videos),
+ *     and work still inside the checkout until it moves to the workspace (apps/studio → ~/MediaMake)
  * Files git ignores (projects/, out/, brands/ …) are the user's work and never count as dirty.
  *
  *   node tools/git-health.mjs              the report, exit 1 when something needs fixing
@@ -24,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { git, loadRules } from './guard-rails.mjs';
+import { withWork, workspaceSetting } from './workspace.mjs';
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_LISTED = 8;
@@ -242,18 +244,17 @@ export function inspect(dir, { fetch = true } = {}) {
     }
   }
 
-  // Old folders still holding the user's work after a move (the rename to apps/studio).
+  // Old folders still holding the user's work after a move (the rename to apps/studio), and
+  // apps/studio's own until the workspace takes them (`untilWorkspace`): a nudge while none is set,
+  // a warning once one is set elsewhere, since nothing reads them there any more.
+  const set = workspaceSetting();
   for (const l of rules?.leftovers ?? []) {
-    const dirs = (l.dirs ?? ['.']).filter(d => {
-      try {
-        return fs
-          .readdirSync(path.join(top, l.path, d))
-          .some(n => !n.startsWith('.'));
-      } catch {
-        return false;
-      }
-    });
-    if (dirs.length) r.leftovers.push({ ...l, found: dirs });
+    const dirs = withWork(path.join(top, l.path), l.dirs ?? ['.'], l.ignore ?? []);
+    if (!dirs.length) continue;
+    if (!l.untilWorkspace) r.leftovers.push({ ...l, found: dirs, level: 'warn' });
+    else if (!set) r.leftovers.push({ ...l, found: dirs, level: 'info' });
+    else if (path.resolve(set.root) !== path.join(top, l.path))
+      r.leftovers.push({ ...l, found: dirs, level: 'warn', what: l.whatOnceSet ?? l.what, fix: l.fixOnceSet ?? l.fix, workspace: set.root });
   }
 
   r.issues = issuesOf(r);
@@ -385,9 +386,14 @@ function issuesOf(r) {
   }
 
   for (const l of r.leftovers) {
+    const where = `${l.path} (${l.found.map(d => `${d}/`).join(', ')})`;
+    // `what` is a name ("Work from before the rename") or a sentence with {where} and {workspace} in it
+    const what = l.what ?? 'Work';
     add(
-      'warn',
-      `${l.what ?? 'Work'} is still in ${l.path} (${l.found.map(d => `${d}/`).join(', ')}).`,
+      l.level ?? 'warn',
+      what.includes('{where}')
+        ? what.replace('{where}', where).replace('{workspace}', l.workspace ?? '')
+        : `${what} is still in ${where}.`,
       l.fix ?? '',
     );
   }

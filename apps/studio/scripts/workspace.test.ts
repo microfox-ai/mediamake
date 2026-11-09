@@ -12,8 +12,10 @@ import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import * as app from '../../mediamake/lib/remotion-editor/server/workspace.ts';
+// @ts-expect-error: plain JS, no types (tools/workspace.mjs)
+import * as tools from '../../../tools/workspace.mjs';
 import { overlayAliases, workspaceWebpack } from './workspace-webpack.ts';
-import { WORKSPACE_FOLDERS, fromStudioPath, isWorkspaceSet, toStudioPath, workspaceDir, workspaceDirs, workspaceRoot, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
+import { STUDIO_FOLDERS, WORKSPACE_FOLDERS, fromStudioPath, isWorkspaceSet, toStudioPath, workspaceDir, workspaceDirs, workspaceRoot, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 const STUDIO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOME = os.homedir();
@@ -109,6 +111,16 @@ test("the app's dev routes follow the same rule (apps/mediamake/lib/remotion-edi
       assert.equal(app.toStudioPath(fromStudioPath(rel, STUDIO), STUDIO), rel, `${c.name}: back to ${rel}`);
     }
   }
+});
+
+test('the plain-JS tools follow the same rule (tools/workspace.mjs: git-health, mm)', () => {
+  for (const c of CASES) {
+    writeConfig(c.config ?? {});
+    if (c.env) process.env.MEDIAMAKE_WORKSPACE = c.env;
+    else delete process.env.MEDIAMAKE_WORKSPACE;
+    assert.deepEqual(tools.workspaceSetting(), workspaceSetting(), c.name);
+  }
+  assert.deepEqual(tools.STUDIO_FOLDERS, STUDIO_FOLDERS.map(f => WORKSPACE_FOLDERS[f]));
 });
 
 const python = spawnSync('python3', ['--version']).status === 0;
