@@ -1,0 +1,78 @@
+{
+  "$comment": [
+    "The one list of MediaMake's guard rails, read by tools/guard-rails.mjs (the pre-edit guard in",
+    ".claude/settings.json) and tools/git-health.mjs (the session-start check).",
+    "On a protected branch, every file git would track is a framework file: Claude may not edit it",
+    "or commit there, and the guard says where the change belongs. Your own work is what git ignores",
+    "(projects/, out/, brands/, thumbnails/jobs/, overlays/), so it is never blocked.",
+    "areas: the first one whose paths match a file gives its hint. A path ending in / is a folder,",
+    "* matches inside one folder and ** across folders. allow: committed files that may still change",
+    "on a protected branch. leftovers: old folders that may still hold the user's work after a move,",
+    "with the command that moves it. When a folder moves, change it here."
+  ],
+  "protectedBranches": ["main", "master"],
+  "allow": [],
+  "leftovers": [
+    {
+      "path": "apps/lyrics_videos",
+      "dirs": ["projects", "out", "brands"],
+      "what": "Work from before the rename to apps/studio",
+      "fix": "`mm migrate` lists what would move; `mm migrate --yes` moves it, once the user agrees."
+    }
+  ],
+  "areas": [
+    {
+      "name": "generated file",
+      "paths": ["SKILLS.md", "skills.json", "apps/studio/src/mediamake/presets.json"],
+      "branch": "chore/<what>",
+      "where": "It is generated, never edited by hand: SKILLS.md and skills.json come from `node tools/skills.mjs index`, presets.json from `mm sync-presets`. Regenerate it on the branch of the change that needs it."
+    },
+    {
+      "name": "lockfile",
+      "paths": ["package-lock.json", "**/package-lock.json"],
+      "branch": "deps/<what>",
+      "where": "The lockfile changes only in a PR that changes dependencies. To install on main, use `npm ci`, which leaves it as it is."
+    },
+    {
+      "name": "skill file",
+      "paths": [".agents/skills/", ".claude/skills/", "skills-lock.json"],
+      "branch": "skill/<skill>-<what>",
+      "where": "Skills are shared by everyone who pulls. A lesson from the user goes in your notes, never the skill: `mm notes add <skill> \"…\"` (outside the repo; `mm notes promote <skill>` offers them to the skill's log as a PR). Feedback for this production goes in its own projects/<slug>/prefs.md (git ignores it). A fix to the skill itself, or a variant from fork-skill, goes on a branch and a PR."
+    },
+    {
+      "name": "production graphic or catalog entry",
+      "paths": ["apps/studio/src/remix/gfx/", "apps/studio/catalog/", "apps/studio/logoGraphics/"],
+      "branch": "engine/<what>",
+      "where": "Anything made for one production belongs in its own folder, apps/studio/projects/<slug>/, which git ignores. Only a graphic or entry every production should get goes into the engine, on a branch and a PR."
+    },
+    {
+      "name": "video engine file",
+      "paths": ["apps/studio/"],
+      "branch": "engine/<what>",
+      "where": "The user's work in apps/studio (projects/, out/, brands/, thumbnails/jobs/, overlays/) is ignored by git and can change on any branch. A change to the engine, its scripts or the sample project goes on a branch and a PR; when one production needs it, say which in the PR."
+    },
+    {
+      "name": "MediaMake app file",
+      "paths": ["apps/"],
+      "branch": "feat/<what>",
+      "where": "App changes go on a branch and a PR (feat/… or fix/…)."
+    },
+    {
+      "name": "package or MCP server file",
+      "paths": ["packages/"],
+      "branch": "feat/<package>-<what>",
+      "where": "Packages and MCP servers are released from main, so a change goes on a branch and a PR."
+    },
+    {
+      "name": "repo setup file",
+      "paths": [".claude/", ".github/", "tools/", "scripts/", "CLAUDE.md", "install.md", "README.md", "package.json", ".gitignore", ".mcp.json"],
+      "branch": "chore/<what>",
+      "where": "Repo setup, CI and rules for every session go on a branch and a PR."
+    }
+  ],
+  "default": {
+    "name": "framework file",
+    "branch": "<type>/<what>",
+    "where": "Every file git tracks is shared by everyone who pulls, so a change to it goes on a branch and a PR."
+  }
+}
