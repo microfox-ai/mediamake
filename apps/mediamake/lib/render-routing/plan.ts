@@ -16,7 +16,7 @@
  * we do.
  *
  * "Local" is the user's own machine: the in-browser renderer in the editor,
- * or `remotion render` / the lyrics_videos scripts from a terminal.
+ * or `remotion render` / the studio scripts from a terminal.
  *
  * Pure and isomorphic: the editor runs it on every props change, the API runs
  * it to answer /api/remotion/render/plan. File sizes come from the caller
@@ -34,7 +34,7 @@ import {
   type RenderWeight,
 } from "./limits";
 
-// The limits and the weighing live in limits.ts (no imports, so lyrics_videos can use them too).
+// The limits and the weighing live in limits.ts (no imports, so studio can use them too).
 export { HEAVY_LIMITS, formatBytes, formatSeconds, weighMedia } from "./limits";
 export type { MediaSource, RenderType, RenderWeight } from "./limits";
 

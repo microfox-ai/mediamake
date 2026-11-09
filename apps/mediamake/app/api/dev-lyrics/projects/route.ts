@@ -7,7 +7,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-/** Lyric projects in apps/lyrics_videos (development only). */
+/** Lyric projects in apps/studio (development only). */
 export async function GET() {
   if (!isDevFilesEnabled()) return notFound();
   return Response.json({ root: LYRICS_ROOT, projects: await listProjects() });

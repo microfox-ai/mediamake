@@ -99,7 +99,7 @@ function SourceMenu() {
         >
           <Icon className="size-3.5 shrink-0" />
           <span className="truncate">
-            {source ? (source.kind === 'repo' ? 'Local repo · apps/lyrics_videos' : source.label) : 'Open a folder'}
+            {source ? (source.kind === 'repo' ? 'Local repo · apps/studio' : source.label) : 'Open a folder'}
           </span>
           <ChevronDownIcon className="size-3 shrink-0" />
         </Button>

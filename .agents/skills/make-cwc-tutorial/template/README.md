@@ -1,6 +1,6 @@
 # Episode template (Cook with Claude ep. 1, final cut)
 
-`video/` is the code of `apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit/video` as
+`video/` is the code of `apps/studio/projects/cookwithclaude-pack-brand-kit/video` as
 signed off on 2 Nov 2026. Copy it to `projects/<slug>/video/` for a new episode; its relative imports
 (`../../../src/kit`, `../../../../brands/cookwithclaude/graphics/…`, `../input/…`) resolve from there.
 

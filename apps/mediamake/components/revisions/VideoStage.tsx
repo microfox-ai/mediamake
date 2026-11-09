@@ -133,7 +133,7 @@ function EmptyState() {
   }
 
   if (wanted) {
-    // Links name the folder by its path under lyrics_videos/out: a linked source opens all of them.
+    // Links name the folder by its path under studio/out: a linked source opens all of them.
     const locked = sources.filter(s => s.status === 'needs-permission');
     const leaf =
       wanted.folder.split('/').filter(Boolean).pop() ?? wanted.folder;
@@ -168,7 +168,7 @@ function EmptyState() {
           ) : (
             <>
               Link your{' '}
-              <code className="text-neutral-200">lyrics_videos/out</code> folder
+              <code className="text-neutral-200">studio/out</code> folder
               once and every review link opens from it by its path, no folder to
               pick.
             </>
@@ -240,7 +240,7 @@ function EmptyState() {
             onClick={() => void addSourcePicker()}
           >
             <FolderTreeIcon className="size-3.5" /> Add a source folder (e.g.
-            lyrics_videos/out) to list all projects
+            studio/out) to list all projects
           </Button>
         </Hint>
       )}

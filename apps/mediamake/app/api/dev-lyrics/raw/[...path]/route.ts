@@ -18,7 +18,7 @@ type Params = { params: Promise<{ path: string[] }> };
 const relFrom = async (params: Params['params']) => (await params).path.join('/');
 
 /**
- * Serves any file under apps/lyrics_videos (development only): what staticFile() resolves to in
+ * Serves any file under apps/studio (development only): what staticFile() resolves to in
  * /remotion-editor. Supports Range requests, which audio and video seeking needs.
  */
 async function serve(request: Request, params: Params['params'], head: boolean) {

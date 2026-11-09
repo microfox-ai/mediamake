@@ -11,7 +11,7 @@ import { READ, WRITE } from './annotations.js';
 /**
  * A project's shared assets: the library files its team shares (overlays, footage, art, pictures,
  * references), each with what the media library knows about it (kind, subject, title, tags). They
- * are the same files `media share` and `media sync` move in apps/lyrics_videos; here anyone on the
+ * are the same files `media share` and `media sync` move in apps/studio; here anyone on the
  * project lists, downloads and shares them with ProjectSync alone. The routes are /api/channel-sync
  * (apps/mediamake/lib/channel-sync): every project can hold shared assets, a channel's or one made
  * just to share files with a team, under the project's limit (100 MB in all by default).

@@ -140,7 +140,7 @@ its window regains focus and every 5 s while visible, so those edits show up wit
 (a revision with unsaved edits in the page keeps the page's version).
 
 Comments keep any extra field when the page saves them. Machine notes written by
-`apps/lyrics_videos/scripts/preflight.ts` (checks run on a render before the user sees it) are
+`apps/studio/scripts/preflight.ts` (checks run on a render before the user sees it) are
 ordinary range comments with `source: "preflight"`, the `check` that found them (`black`, `freeze`,
 `silence`, …) and text starting with `Preflight ·`. They open the video's next revision, so the
 user's own comments land beside them. `preflight.json` in the same folder (effects marked intended)
@@ -149,13 +149,13 @@ is not a revision and is ignored.
 ## Live review (no render)
 
 A lyric project can also be reviewed straight from its code: **Live projects** in the files panel
-(or `/video-revision?live=<slug>`) asks once for the `apps/lyrics_videos` folder (or the repo), lists
+(or `/video-revision?live=<slug>`) asks once for the `apps/studio` folder (or the repo), lists
 its projects, and plays the chosen one in a Remotion Player, compiled in the browser the way
 `/remotion-editor` does it (`lib/remotion-editor/compile.ts`). The folder is remembered in the same
 IndexedDB list as the editor's.
 
 - The shot map is built from the project (`lib/revisions/live-map.ts`, a port of
-  `apps/lyrics_videos/scripts/map.ts`): `video/shots.json`, or one shot per lyric line, so the IDs
+  `apps/studio/scripts/map.ts`): `video/shots.json`, or one shot per lyric line, so the IDs
   match the ones a render of it gets.
 - Revisions go in `out/<slug>/live.revisions/` (created when missing) and carry
   `"live": {"project": "<slug>"}`; the `.md` says it was a live review.
@@ -164,7 +164,7 @@ IndexedDB list as the editor's.
 - A Player shows DOM, not pixels, so a point comment's still renders that frame again with
   `@remotion/web-renderer`, in the background: the comment is added at once and its still follows a
   few seconds later. That renderer misses some CSS (radial gradients, some filters), so every live
-  comment in the `.md` also gets a `npm run stills` line to render its frames for real.
+  comment in the `.md` also gets a `mm stills` line to render its frames for real.
 - The magnifier shows the frame as DOM (a Remotion `<Thumbnail>` at 3×), so it is exact; it needs
   the video paused.
 - When the window regains focus and the project's code or `video/edits.json` changed, it compiles
@@ -185,15 +185,15 @@ IndexedDB list as the editor's.
 4. Every control has a tooltip naming its shortcut. Comments autosave (debounced). `⌘S` saves now.
 5. History (IndexedDB, per browser + origin) remembers folders and the last video, so reopening is
    one click plus a permission prompt (none with Chrome's "Allow on every visit").
-6. **Sources**: add a folder of project folders once (e.g. `apps/lyrics_videos/out`). Every
+6. **Sources**: add a folder of project folders once (e.g. `apps/studio/out`). Every
    folder up to 3 levels down that holds a video is listed on each visit and rescanned when the
    window regains focus, so new renders show up without opening anything. Chrome asks for one
    "Reconnect" click per source per visit unless "Allow on every visit" was chosen.
 
 Deep link for Claude: `/video-revision?folder=<path under out/>&video=<file name>` (what
-`reviewLink()` in `apps/lyrics_videos/scripts/revision-files.ts` writes, e.g.
+`reviewLink()` in `apps/studio/scripts/revision-files.ts` writes, e.g.
 `folder=quicksilverxkingpin/shorts/s01`). It opens by walking that path under a linked source
-(`findLinkedFolder()`: the source can be `out` itself, `lyrics_videos` or the repo above it, or a
+(`findLinkedFolder()`: the source can be `out` itself, `studio` or the repo above it, or a
 channel folder inside it), with no scan and no folder to pick; with Chrome's "Allow on every visit"
 no click at all. A source that needs its click shows **Reconnect out** on the stage; with no source
 the stage offers **Link your out folder** (once), and "Open just <folder>" still picks the one
@@ -273,6 +273,6 @@ draws the marks too. Picking a colour with no tool on brings back the last tool.
 - `components/revisions/*Panel.tsx`, `VideoStage.tsx`, `RevisionTimeline.tsx` — the UI.
 - `lib/revisions/marks.ts` — how marks look, are drawn (the overlay and the saved still share it)
   and read in the `.md`; `components/revisions/MarkupLayer.tsx` — drawing and the magnifier.
-- `apps/lyrics_videos/scripts/map.ts` writes the map after `render-project`.
+- `apps/studio/scripts/map.ts` writes the map after `render-project`.
 - `lib/revisions/live.ts`, `live-map.ts`, `components/revisions/LivePlayer.tsx`, `live-media.ts` —
   live review.

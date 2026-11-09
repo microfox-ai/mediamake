@@ -370,7 +370,7 @@ export const useFileRevisionsStore = create<FileRevisionsState>((set, get) => {
         if (!jobs.length) {
           // any other folder of images opens as it is
           if (await readIndex(handle, { fromFiles: true })) return get().openJob(handle);
-          toast.error(`Nothing to review in ${handle.name}: pick a folder of images, videos or audio, or apps/lyrics_videos/out`, { duration: 6000 });
+          toast.error(`Nothing to review in ${handle.name}: pick a folder of images, videos or audio, or apps/studio/out`, { duration: 6000 });
           return;
         }
         const entry = await addSource(handle);

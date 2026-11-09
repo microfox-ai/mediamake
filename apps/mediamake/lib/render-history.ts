@@ -48,7 +48,7 @@ export interface RenderRequest {
 
   /** AWS region used for this render (when using Lambda). */
   regionUsed?: string;
-  /** A lyrics_videos project's own Lambda site (`lyrics-<slug>`), when the render used one instead of the app's. */
+  /** A studio project's own Lambda site (`lyrics-<slug>`), when the render used one instead of the app's. */
   siteName?: string;
 
   /** Where the render was executed. Undefined implies AWS Lambda (legacy docs). */

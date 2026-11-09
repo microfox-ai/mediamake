@@ -1,6 +1,6 @@
 ---
 name: make-waveform-lyric-video
-description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/lyrics_videos with src/mediamake and scripts/wave-lab.ts. Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). Append new user feedback to the log at the bottom.
+description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/studio with src/mediamake and scripts/wave-lab.ts. Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). Append new user feedback to the log at the bottom.
 ---
 
 # make-waveform-lyric-video
@@ -11,7 +11,7 @@ of this skill — catalog menus, three separate picks (wave → fonts → captio
 produced round after round of "bland", "doesn't match", "yours is bad". What finally landed is the
 workflow below. Read the rules first; they are the user's own words turned into practice.
 
-Everything lives in `apps/lyrics_videos`; the engine is `src/mediamake` (read its `README.md`).
+Everything lives in `apps/studio`; the engine is `src/mediamake` (read its `README.md`).
 Project folder, analysis, prepare, stills, Studio, render, the shot map, Revisions and the Remotion
 editor are shared with `make-lyrics-video` (its steps 1–3 and 7–11). Each project keeps a taste doc
 `projects/<slug>/prefs.md` (intake, picks, a dated log of every note): read the lessons log at the
@@ -82,7 +82,7 @@ MCPs (check at intake which this session has; transcription calls ElevenLabs' AP
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`mm transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
 | `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
@@ -116,14 +116,14 @@ Write the answers to `brief.md`, start `prefs.md`.
 ## 1. Lyrics
 
 Copy the song and picture into `projects/<slug>/input/` (slug rules as make-lyrics-video step 1).
-Separate the vocals first (`npm run analyze -w lyrics_videos -- <slug> --only separate`, ~1 min,
+Separate the vocals first (`mm analyze <slug> --only separate`, ~1 min,
 free) and **transcribe the vocal stem** with ElevenLabs Scribe, as CLAUDE.md › Transcription says. It
 is paid: the first run only gives back the song's cached words or prints the price; show it and ask.
 
 ```bash
-npm run transcribe -w lyrics_videos -- <slug>                      # cached words, or the MP3 and the price
-npm run transcribe -w lyrics_videos -- <slug> --yes                # first choice: Scribe with the ElevenLabs MCP's key
-npm run transcribe -w lyrics_videos -- <slug> --save=<words.json>  # web only: after the ElevenLabs connector's widget
+mm transcribe <slug>                      # cached words, or the MP3 and the price
+mm transcribe <slug> --yes                # first choice: Scribe with the ElevenLabs MCP's key
+mm transcribe <slug> --save=<words.json>  # web only: after the ElevenLabs connector's widget
 ```
 
 `--yes` writes every word's start and end to `input/lyrics.raw.json` and the media library's cache
@@ -144,8 +144,8 @@ held across lines, a power-word outro.
 ## 2. Analysis and prepare
 
 ```bash
-npm run analyze -w lyrics_videos -- <slug> --plots          # background: stems, beat grid, CTC alignment
-npm run prepare-project -w lyrics_videos -- <slug>
+mm analyze <slug> --plots          # background: stems, beat grid, CTC alignment
+mm prepare <slug>
 ```
 
 Read the report (make-lyrics-video step 2): tempo, downbeats, lines marked `<-- check` — zoom into
@@ -184,7 +184,7 @@ as clips. **When they chose the whole video**, build it as one look from the sam
 the lyrics (step 6) and the editor preview (step 7), where the user judges it in the whole song.
 
 ```bash
-npm run wave-lab -w lyrics_videos -- <slug> looks --only=L1,L2 --clip=6     # stills + 6 s clips + a reel + a grid of 2–4
+mm wave-lab <slug> looks --only=L1,L2 --clip=6     # stills + 6 s clips + a reel + a grid of 2–4
 ```
 
 Pick the shoot moment (`at.looks`) just after a strong kick and snare in the hook so hit-driven
@@ -216,7 +216,7 @@ set `floor` / `gain` from the numbers, not by eye.
 (`pinterest_*` tools, the user's chosen profile), YouTube lyric videos of the genre, kinetic
 typography work — collected into a small labelled board in `out/<slug>/<slug>-type-inspo/` (an
 image set for `/file-revision`). Show it, ask what they like, then design. The caption presets
-(`catalog/captions.ts`, `npm run wave-lab -- catalog captions`) are part of that inspiration, not the
+(`catalog/captions.ts`, `mm wave-lab catalog captions`) are part of that inspiration, not the
 answer.
 
 The engine's **`StackedLyrics`** is one proven design (layer it in `video/index.tsx`; set the storyboard's caption
@@ -256,7 +256,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 
 ## 7. Preview (the main checkpoint)
 
-- **Your own checks**: stills (`npm run stills -- <slug> <s,…> --only`) at full resolution.
+- **Your own checks**: stills (`mm stills <slug> <s,…> --only`) at full resolution.
 - **The user's look**: the **Remotion editor** at
   `https://mediamake.microfox.app/remotion-editor?project=<slug>`. Every link the user gets uses this
   base URL, never `localhost` (2026-11-02: "why are you creating wrong remotion urls, always use the
@@ -267,7 +267,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
   cover's and logo's knobs (picture, darken, kick, motion, tint; logo box and fades) in the
   inspector, and retime sung words on the word lane (saved as `words` / `lyricsOffset`). A scene you write for a project loads its files with the kit's `asset()`, never
   `staticFile()`, and declares its knobs with `withKnobs` (see make-lyrics-video).
-- **Clips and renders only when asked** (rule 10): `npm run render-project -w lyrics_videos -- <slug>
+- **Clips and renders only when asked** (rule 10): `mm render <slug>
   --frames=<a>-<b> --proxy` (half size, faster than the ≈ 1 min for 24 s at full size).
 
 ## 8. Render and deliver (only when asked)
@@ -277,8 +277,8 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
    `at: { from: 0.2, to: 4.2 }`, `box` half size over the subject's body), so it has faded before
    the first line's entrance (its start − 0.35 s). Check stills before, during and after.
 2. **Render**: a render the user asked for to review is a half-size review render
-   (`npm run render-project -w lyrics_videos -- <slug> --proxy`); the master is
-   `npm run render-project -w lyrics_videos -- <slug>` (≈ 10 min for 3 min, in the background; retry
+   (`mm render <slug> --proxy`); the master is
+   `mm render <slug>` (≈ 10 min for 3 min, in the background; retry
    once on a font timeout), once they sign off (`revise-video` step 1). The previous render moves to
    `v<N>/` by itself. The end screen, the cover and the packs come from the master.
 3. **End screen**: keep the raw render in `v<N>/` first, then join the channel's end screen with
@@ -287,7 +287,7 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
    — and add an `end screen` section to the map.
 4. **Check the file**: duration, loudness of the song part unchanged (`ebur128`), frames across the
    song (intro logo, verse, chorus, interlude empty, outro, end card), and
-   `npm run preflight -w lyrics_videos -- <slug> --source=projects/<slug>/input/<picture>` (black or
+   `mm preflight <slug> --source=projects/<slug>/input/<picture>` (black or
    frozen frames, the sound, and rule 6 over the whole video: a render darker or duller than the
    picture). Fix or answer what it finds, then give the `open -R` block and the Revisions link
    (`revise-video`).
@@ -342,9 +342,9 @@ Append dated entries: what the user said → the rule.
   a poster or an artwork … storyboard into 3 steps: waveform choice … font choice set … captions
   animation … create templates and screenshots" → intake is the song and a picture only (the skill
   transcribes); the storyboard is three stopped steps, each shown from the catalog plus new designs on
-  the song's own picture until the user is satisfied; the catalog (`apps/lyrics_videos/catalog`: 28
+  the song's own picture until the user is satisfied; the catalog (`apps/studio/catalog`: 28
   waves, 30 font sets, 31 caption setups distilled from 185 waveform and 184 caption tracks, with
-  screenshots) and `npm run wave-lab` keep this cheap every time; picked new designs go back into the
+  screenshots) and `mm wave-lab` keep this cheap every time; picked new designs go back into the
   catalog. Timelines may be deprecated: never depend on them.
 - 2026-10-26 · "remove the outputs, they are not needed" (of the committed catalog screenshots) →
   the shots, gallery and index live in `out/waveform-catalog/`, never in git; the repo keeps only the
@@ -368,7 +368,7 @@ Append dated entries: what the user said → the rule.
   `metadata.htmlText` with `<br/>` — at a phrase boundary, rows of balanced width (hero words count
   at their scale; a short row on top reads as a pyramid), never inside a name, no row starting on a
   particle (सी, की, को, है, में…), short lines on one row — and centre them in a box centred on the
-  picture's free area. lyrics_videos' runPreset now injects the editor's htmlText helpers (synced
+  picture's free area. studio' runPreset now injects the editor's htmlText helpers (synced
   to src/mediamake/html-text.ts): before that, `<b>` marks were silently ignored (auto-highlight
   picked the longest word) and `<br/>` only worked in one special case.
 - 2026-10-26 · after v1 of Mahishasura Mardini: "i dont like the caption effects … blur is bad, gold
@@ -510,7 +510,7 @@ Append dated entries: what the user said → the rule.
   gate burst; or crossfades), glitch rules on the hits (bands of another stage shoved sideways,
   channel split, inverted now and then; `show: 'next'` in the builds, `'others'` on the strong hits),
   and a Subject with one cutout per stage (`stages`) that draws the same bands. "The overlays folder"
-  = the library in apps/lyrics_videos/overlays: catalogue it first (three frames a clip on a contact
+  = the library in apps/studio/overlays: catalogue it first (three frames a clip on a contact
   sheet), copy the picks into input/overlays and lay them out by stage with `when` windows. Before
   showing, scan every looping clip's brightness (signalstats at 10 fps): clips that flash white at
   their start or end flash the frame on every loop (trim with `offset` / `clipSeconds`), and some
@@ -534,11 +534,11 @@ Append dated entries: what the user said → the rule.
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
-  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  `mm transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
 - 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
-  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  MCP's key (`mm transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
   connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
   tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
 - 2026-11-04 · WAKE UP (Get into Zone), a looping motion poster instead of a still, matched to the

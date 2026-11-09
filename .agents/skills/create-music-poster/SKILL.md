@@ -1,11 +1,11 @@
 ---
 name: create-music-poster
-description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options for a poster job under apps/lyrics_videos/thumbnails/jobs/. Append new user feedback to the log at the bottom.
+description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options for a poster job under apps/studio/thumbnails/jobs/. Append new user feedback to the log at the bottom.
 ---
 
 # create-music-poster
 
-Album artwork built with the stills engine in `apps/lyrics_videos/thumbnails/` (the same one
+Album artwork built with the stills engine in `apps/studio/thumbnails/` (the same one
 `create-thumbnail` uses). **Read `thumbnails/README.md` once** ("thumbs.json", "Posters",
 "Treatments"). A poster job is `thumbnails/jobs/<job>/poster.json` (`"kind": "poster"`), designed on
 a 1000×1000 canvas and rendered at 3× to **3000×3000** into `out/posters/<job>/`. Jobs and renders
@@ -72,7 +72,7 @@ session), or go ahead without it.
    by default; see step 7).
 
 ```bash
-npm run thumbs -w lyrics_videos -- init <slug>-cover --poster [--brand=<brand>] [--title="…"] [--mood=bright|balanced|dark]
+mm thumbs init <slug>-cover --poster [--brand=<brand>] [--title="…"] [--mood=bright|balanced|dark]
 ```
 
 Write the answers into the job's `brief.md`.
@@ -89,11 +89,11 @@ Measure it (`sips -g pixelWidth -g pixelHeight`) and look at it (Read). Then:
   `fal-ai/seedvr/upscale/image`, faithful, `upscale_factor` to reach ≥ 3000 px on the crop's short
   side; Midjourney images: Upscale Subtle). `render` warns when a picture is blown up past its pixels.
   Paid once, kept for good:
-  - Before asking to pay, check `npm run media -w lyrics_videos -- cache get <picture> upscale --params=<model>`.
+  - Before asking to pay, check `mm media cache get <picture> upscale --params=<model>`.
   - After it runs, `media cache put <picture> upscale <result> --params=<model> --tool=fal`.
   - The same applies to outcrops (`outcrop`) and cutouts (`cutout`).
 - **A cutout** (for placement, devices behind the subject, text behind her):
-  `npm run thumbs -w lyrics_videos -- cutout <job> input/<file> --model=birefnet-general`
+  `mm thumbs cutout <job> input/<file> --model=birefnet-general`
   (`birefnet-portrait` for people, `isnet-anime` for drawn art), or a project's BiRefNet tool with
   fill polygons for missed parts. Check it at full size: a missed hand or horn looks cut off.
 
@@ -125,7 +125,7 @@ costs and made only on a yes.
 look), `"scale": 1` in `poster.json` (1000 px tiles):
 
 ```bash
-npm run thumbs -w lyrics_videos -- render <job>          # → out/posters/<job>/sheet.jpg
+mm thumbs render <job>          # → out/posters/<job>/sheet.jpg
 ```
 
 Send the sheet (SendUserFile) with one plain-words line per ID and ask which 1–3 to develop
@@ -145,7 +145,7 @@ pair; `tune` adjusts strength (`{ "duotone": { "duotone": [colours from the pict
 ## 5. Check before showing
 
 ```bash
-npm run thumbs -w lyrics_videos -- render <job> [IDs]
+mm thumbs render <job> [IDs]
 ```
 
 - Fix every warning `render` prints (blown-up picture, text that breaks DistroKid's rules, every cover
@@ -181,10 +181,10 @@ pick).
   new IDs; IDs never change once seen. `thumbs keep <job> <ID>` locks one the user likes.
 - A ready revision from `/file-revision` (`out/posters/<job>/<job>.revisions/rev-NNN.md`): follow
   `revise-image`.
-- The cover: `npm run thumbs -w lyrics_videos -- pick <job> <ID> [--to=<release folder>]` →
+- The cover: `mm thumbs pick <job> <ID> [--to=<release folder>]` →
   `out/posters/<job>/final/<job>-<ID>.jpg` and `cover.jpg` in the release folder (ask before replacing
   one). Then `pack-distrokid` takes over. The picked cover is also delivered to the channel's folder:
-  `npm run media -w lyrics_videos -- deliver <slug> --what=poster` (a dry run, then `--yes`).
+  `mm media deliver <slug> --what=poster` (a dry run, then `--yes`).
 - Log what you learned in `brief.md` (this job) and the feedback log below (general taste).
 
 ## 7. Spotify Canvas (only when asked)
@@ -200,7 +200,7 @@ with what each cost.
   "embers": 55, "glow": "#…" }`, see `thumbnails/SpotifyCanvas.tsx`): a breathing push, the
   cut-out subject drifting a few px for depth, rising embers, a pulsing light, grain. Every motion
   repeats once per clip, so it loops with no seam.
-  `npm run thumbs -w lyrics_videos -- canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`.
+  `mm thumbs canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`.
 - **fal video model** (paid: ask first, quote the price): image-to-video with the start frame as
   **both first and last frame**, so it loops. **Generate at the 720p tier, not 1080p**: 720 px
   tall is enough for a Canvas, and it's cheaper and faster (`minimax/h3-max/image-to-video`:

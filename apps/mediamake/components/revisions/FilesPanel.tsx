@@ -451,7 +451,7 @@ function SourceTree({ source }: { source: SourceState }) {
   );
 }
 
-/** Lyric projects to review live, from the lyrics_videos folder (no render needed). */
+/** Lyric projects to review live, from the studio folder (no render needed). */
 function LiveSection() {
   const support = useRevisionsStore(s => s.support);
   const liveFolder = useRevisionsStore(s => s.liveFolder);
@@ -480,7 +480,7 @@ function LiveSection() {
               </IconAction>
             )}
             <IconAction
-              label="Pick the lyrics_videos folder (or the repo)"
+              label="Pick the studio folder (or the repo)"
               onClick={() => void pickLiveFolder()}
             >
               <FolderOpenIcon className="size-3.5" />
@@ -513,7 +513,7 @@ function LiveSection() {
             {liveProgress ??
               (reconnect
                 ? `Reconnect ${reconnect.name} to review its projects live`
-                : 'Review a project before rendering it: pick lyrics_videos')}
+                : 'Review a project before rendering it: pick studio')}
           </Button>
         </div>
       ) : liveFolder.projects.length === 0 ? (
@@ -632,7 +632,7 @@ export function FilesPanel() {
               disabled={disabled}
               onClick={() => void addSourcePicker()}
             >
-              Add a source folder (e.g. lyrics_videos/out) to list every project
+              Add a source folder (e.g. studio/out) to list every project
             </Button>
           </div>
         ) : (

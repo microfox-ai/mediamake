@@ -142,7 +142,7 @@ export async function compileProject(
   const kit = Object.assign({}, ...KIT_FILES.map(load)) as KitApi;
   if (typeof kit.makeProjectVideo !== 'function' || typeof kit.layerKeys !== 'function') {
     throw new CompileError(
-      'This lyrics_videos kit has no edit support yet (src/kit/edits.tsx). Update apps/lyrics_videos.',
+      'This studio kit has no edit support yet (src/kit/edits.tsx). Update apps/studio.',
     );
   }
   return {

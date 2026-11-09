@@ -13,7 +13,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
 
 /**
  * Reads several code or JSON files in one request (development only).
- * Body: { paths: string[] } relative to apps/lyrics_videos. Missing files come back as null.
+ * Body: { paths: string[] } relative to apps/studio. Missing files come back as null.
  */
 export async function POST(request: Request) {
   if (!isDevFilesEnabled()) return notFound();

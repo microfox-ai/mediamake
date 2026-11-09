@@ -108,8 +108,8 @@ async function getOne(client: MediamakeClient, kind: Kind, args: { projectId: st
 
 export function registerProductionTools(server: McpServer, client: MediamakeClient) {
   const fileArgs = {
-    code: z.array(z.string()).optional().describe('Folders or files with the video\'s code (e.g. apps/lyrics_videos/projects/<slug>); an input/ folder inside counts as inputs'),
-    outputs: z.array(z.string()).optional().describe('Folders or files with its outputs (renders, stills), e.g. apps/lyrics_videos/out/<slug>'),
+    code: z.array(z.string()).optional().describe('Folders or files with the video\'s code (e.g. apps/studio/projects/<slug>); an input/ folder inside counts as inputs'),
+    outputs: z.array(z.string()).optional().describe('Folders or files with its outputs (renders, stills), e.g. apps/studio/out/<slug>'),
     inputs: z.array(z.string()).optional().describe('More input folders or files (songs, footage)'),
     includeInputs: z.boolean().default(true).describe('false: never send inputs. Otherwise they go up only when they come to 200 MB or less in all'),
     dryRun: z.boolean().default(false).describe('Only list what would go up (do this first and show the user)'),
@@ -196,7 +196,7 @@ export function registerProductionTools(server: McpServer, client: MediamakeClie
 export function registerReleaseTools(server: McpServer, client: MediamakeClient) {
   const platform = z.enum(['youtube', 'distrokid', 'other']).describe('Where it is released: a YouTube upload pack, a DistroKid release, or other');
   const fileArgs = {
-    folder: z.string().optional().describe('The release kit folder, e.g. apps/lyrics_videos/out/youtube/<slug> or a DistroKid release folder; uploaded as it is'),
+    folder: z.string().optional().describe('The release kit folder, e.g. apps/studio/out/youtube/<slug> or a DistroKid release folder; uploaded as it is'),
     files: z.array(z.string()).optional().describe('Single files to add at its top (a master, a cover)'),
     dryRun: z.boolean().default(false).describe('Only list what would go up (do this first and show the user)'),
     note: z.string().optional().describe('What this version is'),

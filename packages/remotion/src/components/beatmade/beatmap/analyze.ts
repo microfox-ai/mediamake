@@ -1,5 +1,5 @@
 /**
- * Beatmap analysis, after the lyric-video pipeline (apps/lyrics_videos/analysis)
+ * Beatmap analysis, after the lyric-video pipeline (apps/studio/analysis)
  * but without Demucs, so it runs in the browser and inside a render:
  *
  * 1. Mono, resampled to 22.05 kHz. 1024-point STFT, 10 ms hop (100 fps), 64 mel bands.

@@ -32,9 +32,9 @@ A set is a folder of images, videos or audio. To review it here:
 2. **Better: write `<folder>/index.json`**, the image-set contract below. Then the folder is listed
    from a source on every visit, images are grouped and labelled, and the revision tells Claude
    which workflow made them and where their sources live, so it can act on the comments. Any
-   folder: `npm run image-index -w lyrics_videos -- <folder> [--title=… --workflow=<skill> --source=<path>]`.
+   folder: `mm image-index <folder> [--title=… --workflow=<skill> --source=<path>]`.
    **Workflows that render images with Remotion write it themselves** (the stills engine,
-   `apps/lyrics_videos/scripts/thumbs.ts`, does on every render). A new image skill should do the
+   `apps/studio/scripts/thumbs.ts`, does on every render). A new image skill should do the
    same, or call `image-index` at the end of each round.
 
 ```jsonc
@@ -45,9 +45,9 @@ A set is a folder of images, videos or audio. To review it here:
   "kind": "poster", // thumbnail and poster get their rules (A/B finals, one cover); anything else is a plain set
   "title": "You Can Have the Kingdom",
   "workflow": "create-music-poster", // the skill that made it: Claude acts on revisions the way it works
-  "source": "apps/lyrics_videos/thumbnails/jobs/kingdom-cover/poster.json", // what to change
-  "location": "apps/lyrics_videos/out/posters/kingdom-cover", // where this folder is (browsers can't tell)
-  "path": "/Users/…/apps/lyrics_videos/out/posters/kingdom-cover", // absolute: Show in Finder / Copy path
+  "source": "apps/studio/thumbnails/jobs/kingdom-cover/poster.json", // what to change
+  "location": "apps/studio/out/posters/kingdom-cover", // where this folder is (browsers can't tell)
+  "path": "/Users/…/apps/studio/out/posters/kingdom-cover", // absolute: Show in Finder / Copy path
   "sourcePath": "/Users/…/thumbnails/jobs/kingdom-cover/poster.json", // absolute path of the source
   "size": [3000, 3000], // when every image shares a size; otherwise each tile takes its image's shape
   "pick": { "max": 1, "label": "Cover" }, // optional: how many finals, and what one is called
@@ -111,7 +111,7 @@ version). Editing a resolved revision starts a new one.
 
 ## Flow
 
-1. **Open a folder**: pick any folder of images, videos or audio, or `apps/lyrics_videos/out`, which is kept as a
+1. **Open a folder**: pick any folder of images, videos or audio, or `apps/studio/out`, which is kept as a
    **source**: every set in it (folders with an `index.json`) is listed on each visit (one
    "Reconnect" click per visit unless Chrome's "Allow on every visit" was chosen). Recent sets are
    remembered in IndexedDB.
@@ -144,4 +144,4 @@ for one click). Browsers never expose absolute paths, so the first open is the u
 - `SetsPanel.tsx`, `FileGrid.tsx` (tiles, box selection), `ZoomView.tsx` (magnifier, player), `RevisionPanel.tsx`, `FileRevisionsWorkspace.tsx`: the UI.
 - `lib/file-revisions/reveal.ts` + `app/api/dev-reveal/route.ts`: Show in Finder / Copy path (the route is exempt from API auth in `middleware.ts`, like `dev-lyrics`).
 - Folder IO, `Hint` and shortcut helpers are shared with `/video-revision` (`lib/revisions/fs.ts`, `components/revisions/keyboard.tsx`).
-- `apps/lyrics_videos/scripts/image-index.ts` writes the contract for any folder; `scripts/thumbs.ts` writes it for thumbnails and posters; the library sweep (`scripts/library/sweep.ts`, `media sweep --review=<id>` to rebuild) for its moves, with a clone of each video and song.
+- `apps/studio/scripts/image-index.ts` writes the contract for any folder; `scripts/thumbs.ts` writes it for thumbnails and posters; the library sweep (`scripts/library/sweep.ts`, `media sweep --review=<id>` to rebuild) for its moves, with a clone of each video and song.

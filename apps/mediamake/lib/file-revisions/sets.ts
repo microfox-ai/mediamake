@@ -94,7 +94,7 @@ const SKIP = (name: string) =>
   name.startsWith('.') || name === 'node_modules' || name.endsWith('.revisions') || name === 'final' || name === 'kept';
 
 /**
- * Every set under `root`, a few levels down (e.g. lyrics_videos/out → thumbnails/<job>,
+ * Every set under `root`, a few levels down (e.g. studio/out → thumbnails/<job>,
  * posters/<job>). Only folders with an index.json are listed, so render and still folders don't
  * flood the list; any other folder of images opens directly.
  */
