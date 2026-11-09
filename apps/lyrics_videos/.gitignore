@@ -15,3 +15,6 @@ __pycache__/
 
 # stock overlay clips (particles, flashes, light leaks): local media, too big for git
 overlays/
+
+# golden stills (scripts/golden.ts): fixtures staged for a bundle
+.golden/

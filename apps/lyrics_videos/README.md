@@ -57,6 +57,7 @@ npm run loop-stats -w lyrics_videos                 # rounds, notes and renders 
 npm run cleanup-out -w lyrics_videos -- scan       # what fills the disk; clean, archive to a hard disk, restore (cleanup-out skill)
 npm run yt-grab -w lyrics_videos -- @handle | <playlist|video URL> | --search "…" [--popular --limit 40 --out <dir>]
                                                     # every video's title, description + transcript into one folder (yt-dlp; no key needed; research/<channel>/ style)
+npm run golden -w lyrics_videos -- check            # fixed frames of fixtures/ vs origin/main (--against=<ref>): a refactor changed no picture
 npm run type-check -w lyrics_videos
 ```
 

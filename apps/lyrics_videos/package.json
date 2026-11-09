@@ -31,6 +31,7 @@
     "fetch-inputs": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/fetch-inputs.ts",
     "wave-lab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wave-lab.ts",
     "preflight": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/preflight.ts",
+    "golden": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/golden.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",
     "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts",
