@@ -225,7 +225,7 @@ const mac = (name: keyof typeof macs, key: string, links: Record<string, string>
     exclude: [],
   };
   for (const d of ['projects', 'brands', 'skills']) fs.mkdirSync(path.join(dir, d), { recursive: true });
-  const lib = openLibrary({ cfg, projects: path.join(dir, 'projects'), out: path.join(dir, 'out'), brands: path.join(dir, 'brands'), overlays: path.join(dir, 'overlays'), skills: path.join(dir, 'skills'), quiet: true });
+  const lib = openLibrary({ cfg, projects: path.join(dir, 'projects'), out: path.join(dir, 'out'), brands: path.join(dir, 'brands'), overlays: path.join(dir, 'overlays'), skills: path.join(dir, 'skills'), userSkills: path.join(dir, 'claude-skills'), quiet: true });
   return { lib, cloud: connect({ url: base, key }), dir };
 };
 
@@ -385,11 +385,13 @@ describe('skill variants', () => {
     assert.deepEqual(shared.files.map(f => f.path).sort(), ['SKILL.md', 'refs/notes.md'], 'text files only, no .env');
   });
 
-  test('pull installs them into .claude/skills/<name>/; a file changed here gets a .theirs', async () => {
+  test("pull installs new ones as yours (the workspace), linked where sessions load them; a file changed here gets a .theirs", async () => {
     const t = macs.theirs;
     write(path.join(t.lib.skills, 'make-lyrics-video-like-nakama', 'refs', 'notes.md'), 'My own notes.\n');
     const r = await sync(t, 'pull', ['skills']);
     assert.ok(fs.existsSync(path.join(t.lib.skills, 'create-thumbnail-like-goten', 'SKILL.md')));
+    assert.equal(fs.realpathSync(path.join(t.dir, 'claude-skills', 'create-thumbnail-like-goten')), fs.realpathSync(path.join(t.lib.skills, 'create-thumbnail-like-goten')), 'a new one is linked');
+    assert.ok(!fs.existsSync(path.join(t.dir, 'claude-skills', 'make-lyrics-video-like-nakama')), 'one that was here already is left as it was');
     assert.equal(fs.readFileSync(path.join(t.lib.skills, 'make-lyrics-video-like-nakama', 'refs', 'notes.md'), 'utf8'), 'My own notes.\n');
     assert.equal(fs.readFileSync(path.join(t.lib.skills, 'make-lyrics-video-like-nakama', 'refs', 'notes.md.theirs'), 'utf8'), 'Beat cuts on the chorus.\n');
     assert.ok(fs.existsSync(path.join(t.lib.skills, 'make-lyrics-video-like-nakama', 'SKILL.md')), 'the file it lacked is written');

@@ -525,8 +525,8 @@
     {
       "name": "publish-skill",
       "title": "Publish skill",
-      "summary": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for…",
-      "description": "Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then move it to .agents/skills (committed, linked from .claude/skills) and update SKILLS.md. Also lists every skill. Use when the user says \"publish a skill\", \"add <skill> to the repo\", \"commit my new skill\", \"list the skills\", \"/publish-skill [category]\", or asks to update SKILLS.md.",
+      "summary": "Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the wor…",
+      "description": "Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then send it as a pull request into .agents/skills (linked from .claude/skills, listed in SKILLS.md) without touching the checkout. Also lists every skill. Use when the user says \"publish a skill\", \"publish my variant\", \"add <skill> to the repo\", \"commit my new skill\", \"list the skills\", \"/publish-skill [category]\", or asks to update SKILLS.md.",
       "category": "skill",
       "internal": true,
       "location": "committed",

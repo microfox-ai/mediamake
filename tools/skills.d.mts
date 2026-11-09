@@ -24,3 +24,8 @@ export function checks(skill: SkillInfo): { problems: string[]; notes: string[] 
 export function lineProblems(line: string): string[];
 export function lessonProblems(skill: SkillInfo): string[];
 export const NOTES_LINE: string;
+export function workspaceRoot(): string;
+export function ownSkillsDir(): string;
+export function userSkillsDir(): string;
+export function ownSkills(): (SkillInfo & { own: true })[];
+export function linkOwn(name: string): string;
