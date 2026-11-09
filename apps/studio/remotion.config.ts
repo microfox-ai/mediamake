@@ -5,6 +5,7 @@ import { Config } from '@remotion/cli/config';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { onlyProject } from './scripts/only-project.ts';
 import { timestampSnapshots } from './scripts/snapshots.ts';
+import { studioCache } from './scripts/webpack-cache.ts';
 
 // Every project's input/ and manifest.json are served via staticFile('<slug>/...').
 Config.setPublicDir('./projects');
@@ -14,12 +15,12 @@ Config.setDelayRenderTimeoutInMilliseconds(100000);
 Config.setChromiumOpenGlRenderer('angle');
 // mediamake presets and @microfox/remotion atoms style themselves with Tailwind classes.
 // Snapshots by timestamp: hashing read all of projects/ and killed the bundle at ~63 % (scripts/snapshots.ts).
-// ONLY_PROJECT=<slug> (set by render-project) bundles that project alone (scripts/only-project.ts), without
-// webpack's cache: the cache doesn't know which project a bundle was narrowed to, so two sessions rendering two
-// projects at once got each other's bundle ("Could not find composition with ID honoredone. Available
-// compositions: wakeup-waveform…", 2026-11-04).
-if (process.env.ONLY_PROJECT) Config.setCachingEnabled(false);
+// ONLY_PROJECT=<slug> (mm preview <slug>, or a `remotion render src/index.ts` by hand) bundles that project
+// alone (scripts/only-project.ts) under a webpack cache of its own. `mm render` and `mm stills` don't bundle
+// here: they reuse the project's kept bundle (scripts/project-bundle.ts) and hand the CLI its folder.
+// The caches live in node_modules/.cache/mediamake/webpack, out of reach of the CLI's cache clearing
+// (scripts/webpack-cache.ts).
 Config.overrideWebpackConfig(async config => {
   const styled = timestampSnapshots(await enableTailwind(config));
-  return process.env.ONLY_PROJECT ? onlyProject(styled, process.env.ONLY_PROJECT) : styled;
+  return studioCache(process.env.ONLY_PROJECT ? onlyProject(styled, process.env.ONLY_PROJECT) : styled);
 });

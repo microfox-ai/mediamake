@@ -82,7 +82,7 @@ Review loops with the user
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`revise-image`](.agents/skills/revise-image/SKILL.md) | public | Review and revise a set of images with the user through mediamake's File Revisions screen (/file-revision) — make the set reviewable (index.json), give them the review… |
-| [`revise-video`](.agents/skills/revise-video/SKILL.md) | public | Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders for review at half size (the full-size master on… |
+| [`revise-video`](.agents/skills/revise-video/SKILL.md) | public | Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders 10-second previews for review, around what chang… |
 
 ## analyze
 

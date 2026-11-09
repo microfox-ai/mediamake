@@ -8,6 +8,10 @@ and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- lin
 root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
 the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
 
+Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
+has the rest). The whole video is rendered only when the user asks to review all of it, and the master
+once, after they sign off.
+
 ## Git: main stays a clean copy of GitHub
 
 What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,

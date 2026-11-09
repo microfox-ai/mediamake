@@ -571,13 +571,13 @@ edits; after re-running prepare, reload the page to refetch the manifest.
 ## 9. Render — only when the user asks
 
 ```bash
-mm render <slug> --proxy   # review render, half size → apps/studio/out/<slug>/<slug>.mp4
+mm render <slug> --preview   # review: 10 s stretches around what changed, half size → out/<slug>/preview/<slug>.mp4
 mm render <slug>           # the master, once the user signs off
-mm preflight <slug>                # after every render the user will watch
+mm preflight <slug>                # after every render the user will watch (--video=<the preview>)
 ```
 
-A render for review is a half-size **review render** (`--proxy`); the full-size **master** renders
-once, after the user signs off (`revise-video` step 1). Extra `remotion render` flags pass through
+A render for review is a **preview**: 10 s stretches at half size around what changed, never the whole
+video; the full-size **master** renders once, after the user signs off (`revise-video` step 1). Extra `remotion render` flags pass through
 (e.g. `--crf=18`, `--frames=0-299` for a test clip). Full renders take minutes (≈ 20 min for 4 min
 at 1080p60; a half-size review render takes roughly a third of that): run them in the background and keep the Mac
 awake. After the render, check the changed shots in the file with exact ffmpeg seeks, then run
