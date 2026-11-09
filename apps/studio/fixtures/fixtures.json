@@ -1,0 +1,18 @@
+{
+  "schema": "mediamake.golden/v1",
+  "about": "Projects scripts/golden.ts renders at fixed seconds to check that a change to the engine leaves existing videos as they were. Add one per engine as it gains a fixture. Paths are relative to this app.",
+  "fixtures": [
+    {
+      "name": "sample-pulse",
+      "from": "projects/sample-pulse",
+      "about": "src/kit: layers, sections, beat hooks, kinetic lyrics, Google fonts",
+      "seconds": [1, 4.2, 9, 14, 18.5, 25, 30]
+    },
+    {
+      "name": "waveform-basic",
+      "from": "fixtures/waveform-basic",
+      "about": "src/mediamake: lyricVideo(), cover backdrop, waveform layer, sub-vertical-float captions, text overlay",
+      "seconds": [0.6, 2.2, 5, 8.9, 11.6]
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 ---
 name: make-cwc-tutorial
-description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/lyrics_videos/projects. Append new user feedback to the log at the bottom.
+description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/studio/projects. Append new user feedback to the log at the bottom.
 metadata:
   depends-on: revise-video, create-thumbnail, pack-youtube
-  reference: apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
+  reference: apps/studio/projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
 ---
 
 # make-cwc-tutorial
@@ -13,7 +13,7 @@ metadata:
 of its story and three rounds of review notes, was signed off on 2 Nov 2026 ("yup this is final") and
 went up on YouTube on 3 Nov. This skill is its formula; `reference/ep01.md` tells the episode from
 brief to upload. `template/` holds its code, `tools/` the voice and checking scripts, and the finished
-project is `apps/lyrics_videos/projects/cookwithclaude-pack-brand-kit` on the user's machine (projects
+project is `apps/studio/projects/cookwithclaude-pack-brand-kit` on the user's machine (projects
 are gitignored; the template is the committed copy).
 
 ## The rules (the user's own notes, turned into practice)
@@ -52,7 +52,7 @@ away about any that is missing and what it costs. A **required** one has no subs
 | `mcp/elevenlabs` | required | The voice-over in the brand voice and new sound effects, as files on the computer (`text_to_speech`, `text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; with neither, no episode: the series voice can't be replaced with another voice |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): the same voice and sound effects as flow runs to download (`creative_generate_speech` with the voice from `creative_list_voices`, `creative_generate_in_flow` with `node_type: sfx`) | Nothing, while the ElevenLabs MCP is installed |
 
-Everything else (Remotion, three.js, ffmpeg, whisper in `apps/lyrics_videos/analysis/.venv`, the
+Everything else (Remotion, three.js, ffmpeg, whisper in `apps/studio/analysis/.venv`, the
 media library, the built-in browser for Pexels) runs locally. To check, look for the tools named
 above: `mcp__<name>__<tool>` in Claude Code; a connector added in the Claude app has a random prefix,
 so match on the tool's name. If they are only deferred, load them with ToolSearch. The local ElevenLabs
@@ -115,7 +115,7 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
   `media use <path> <slug> --as=input/vo-rN/<line>.mp3` for the picks.
 - **Checking without listening:** `tools/vo_check.py` (whisper transcript vs script, speaker
   similarity against the episode's existing voice, pace, pauses, loudness; run with
-  `uv run --project apps/lyrics_videos/analysis --with speechbrain python -I tools/vo_check.py …`).
+  `uv run --project apps/studio/analysis --with speechbrain python -I tools/vo_check.py …`).
   Pick by word accuracy first, then similarity.
 - **Cutting and timing:** `tools/cut_reads.py` (the light chain, −16 LUFS) writes the chunks and the
   voice list; `tools/voice_onsets.py` gives each sentence's true onset (silences; whisper places words
@@ -186,17 +186,17 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
    `theme.ts` (slug, prompts, the user's notes), `timeline.ts` (read starts, `W` onset tables, beats,
    shelf order) and rewrite the scenes' content for the item. `input/bed.wav` is silence of the
    video's length (`audio: false`), `input/project.json` has one section per beat, `video/shots.json`
-   one shot per beat with ids that stay stable across renders; `npm run prepare-project -w
-   lyrics_videos -- <slug>`.
-7. **Stills** at every beat's busiest moment and on every new word (`npm run stills -w lyrics_videos
+   one shot per beat with ids that stay stable across renders; `mm prepare
+   <slug>`.
+7. **Stills** at every beat's busiest moment and on every new word (`mm stills
    -- <slug> <t,…> --only`), tiled into sheets: words on their beats, text clear of objects and
    faces, nothing private, loops clear of their boxes.
-8. **Review render** at half size (`npm run render-project -w lyrics_videos -- <slug> --proxy
-   --concurrency=3`), `npm run preflight -w lyrics_videos -- <slug>` (answer the meant holds
+8. **Review render** at half size (`mm render <slug> --proxy
+   --concurrency=3`), `mm preflight <slug>` (answer the meant holds
    `--intended`: the blank-page pause, the typed ask, the breath after "Voice.", the 20 s end card),
    `tools/place_check.py` for the voice, then the link
    `https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4` and the background
-   watcher (`npm run wait-revision -w lyrics_videos -- <slug>`). Work every revision with
+   watcher (`mm wait-revision <slug>`). Work every revision with
    `revise-video`.
 9. **Master** once the user signs off (`render-project` without `--proxy`), preflight it, then
    `media deliver <slug> --what=video --yes` (set a clean `--title` on the production first: the

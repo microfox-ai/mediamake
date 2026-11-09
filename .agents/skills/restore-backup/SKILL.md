@@ -10,8 +10,8 @@ metadata:
 Backups keep copies of finished work on an external disk, classified by channel, and a manifest
 of every file with its SHA-256. This skill reads that manifest, finds what the user asks for, and
 copies it back, checked. The command is the media library's
-(`apps/lyrics_videos/scripts/library/backup.ts`); run everything from the repo root as
-`npm run media -w lyrics_videos -- <command>` (`media …` below).
+(`apps/studio/scripts/library/backup.ts`); run everything from the repo root as
+`mm media <command>` (`media …` below).
 
 ## Where things are
 

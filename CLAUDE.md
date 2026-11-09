@@ -1,8 +1,16 @@
 # MediaMake
 
+## Videos: apps/studio and `mm`
+
+Every video is made in `apps/studio` (it was `apps/lyrics_videos` until 2026-11). Its scripts run from
+any folder as `mm <command>` (`mm help` lists them; `mm render` and `mm prepare` are the `render-project`
+and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- link` once from the repo
+root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
+the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
+
 ## Git: main stays a clean copy of GitHub
 
-What git ignores is the user's work (`apps/lyrics_videos/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
+What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
 `overlays/`, `.claude/settings.local.json`); every file git tracks is the framework, shared by everyone who
 pulls. The guard rails in `.claude/settings.json` hold to this, with their paths and hints in one list,
 `tools/guard-rails.json` (change it there when a folder moves).
@@ -25,7 +33,7 @@ pulls. The guard rails in `.claude/settings.json` hold to this, with their paths
 Footage, pins, generated art, songs, stems, sound effects, overlays and fonts are kept once in the
 media library and reused by every production. Where it is on this machine is in
 `~/.mediamake/config.json` (`library`); the rules and commands are in
-`apps/lyrics_videos/scripts/library/README.md` (`npm run media -w lyrics_videos -- help`).
+`apps/studio/scripts/library/README.md` (`mm media help`).
 
 - Search the library before downloading or generating anything (`media find`).
 - Downloads go to the inbox, then `media ingest`.
@@ -42,9 +50,9 @@ media library and reused by every production. Where it is on this machine is in
 ## Transcription: the ElevenLabs MCP first
 
 Every skill gets a song's timed words the same way: ElevenLabs Scribe on the vocal stem, around
-`npm run transcribe -w lyrics_videos -- <slug>` (`apps/lyrics_videos/scripts/transcribe.ts`).
+`mm transcribe <slug>` (`apps/studio/scripts/transcribe.ts`).
 
-1. Run it with no flags first (free; the stem comes from `npm run analyze -w lyrics_videos -- <slug> --only separate`).
+1. Run it with no flags first (free; the stem comes from `mm analyze <slug> --only separate`).
    It gives back the song's words from the media library's cache when they are there (done), else makes the
    stem's mono MP3 (`analysis/stems/vocals.mp3`, a tenth of the WAV) and prints the price. Show it and ask.
 2. First choice, the local ElevenLabs MCP's key (`mcp/elevenlabs`, the official open-source server with an API

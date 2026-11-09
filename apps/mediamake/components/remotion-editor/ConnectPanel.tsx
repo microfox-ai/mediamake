@@ -47,10 +47,10 @@ export function ConnectPanel() {
       ) : (
         <div>
           <p className="mb-1 text-base font-medium text-white">
-            {source ? `No lyric projects in ${source.label}` : 'Open your lyrics_videos folder'}
+            {source ? `No lyric projects in ${source.label}` : 'Open your studio folder'}
           </p>
           <p className="mb-5 text-neutral-400">
-            Pick <code className="text-neutral-200">apps/lyrics_videos</code> (or the repo). Projects
+            Pick <code className="text-neutral-200">apps/studio</code> (or the repo). Projects
             compile here in the browser; nothing is uploaded. Edits are saved beside each project as{' '}
             <code className="text-neutral-200">video/edits.json</code>, and renders pick them up.
           </p>

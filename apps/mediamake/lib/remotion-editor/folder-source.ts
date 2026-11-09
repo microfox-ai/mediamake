@@ -80,14 +80,15 @@ export const pickDirectory = () =>
   });
 
 /**
- * The lyrics_videos folder inside what the user picked: the folder itself, its lyrics_videos
- * child, or apps/lyrics_videos when they picked the repo. Null when none of those has
+ * The studio folder inside what the user picked: the folder itself, its studio
+ * child, or apps/studio when they picked the repo. Null when none of those has
  * projects/ and src/kit/.
  */
 export async function findLyricsRoot(
   picked: FileSystemDirectoryHandle,
 ): Promise<FileSystemDirectoryHandle | null> {
-  for (const parts of [[], ['lyrics_videos'], ['apps', 'lyrics_videos']]) {
+  // lyrics_videos: the folder's name before it became studio (2026-11), in checkouts not yet updated
+  for (const parts of [[], ['studio'], ['apps', 'studio'], ['lyrics_videos'], ['apps', 'lyrics_videos']]) {
     const dir = await dirAt(picked, parts);
     if (dir && (await dirAt(dir, ['projects'])) && (await fileAt(dir, 'src/kit/index.ts'))) {
       return dir;

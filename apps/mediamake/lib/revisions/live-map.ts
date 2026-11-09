@@ -3,7 +3,7 @@ import { MAP_SCHEMA, type MapShot, type VideoMap } from './types';
 
 /*
  * The shot map of a lyric project reviewed live (never rendered), built in the browser the way
- * apps/lyrics_videos/scripts/map.ts builds `<video>.map.json` after a render, so shot ids match
+ * apps/studio/scripts/map.ts builds `<video>.map.json` after a render, so shot ids match
  * the ones a render of the same project gets: shots from video/shots.json when the project has
  * one, otherwise one shot per lyric line inside each manifest section. Keep the two in step.
  */

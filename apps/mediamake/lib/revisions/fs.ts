@@ -345,9 +345,9 @@ const pathParts = (path: string): string[] | null => {
 
 /**
  * The folder a review link names, found by walking its path under a source folder, without a
- * scan. Links name the folder by its path under lyrics_videos/out
+ * scan. Links name the folder by its path under studio/out
  * ("quicksilverxkingpin/shorts/s01"), so the source can be out itself, a folder above it
- * (lyrics_videos, the repo) or a folder inside it. `path` is the folder's path in the source, as
+ * (studio, the repo) or a folder inside it. `path` is the folder's path in the source, as
  * scanSource writes it. Null when the folder isn't there, or doesn't hold `video`.
  */
 export async function findLinkedFolder(
@@ -360,6 +360,9 @@ export async function findLinkedFolder(
   const tries = [
     parts,
     ['out', ...parts],
+    ['studio', 'out', ...parts],
+    ['apps', 'studio', 'out', ...parts],
+    // the folder's name before it became studio (2026-11)
     ['lyrics_videos', 'out', ...parts],
     ['apps', 'lyrics_videos', 'out', ...parts],
   ];

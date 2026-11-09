@@ -1,7 +1,7 @@
 /**
  * Channel team sync: what a channel's team shares through its MediaMake cloud project, so everyone
  * working on one channel has the same brand kit (lib/brand-kit), skill variants, productions and
- * footage. The media CLI pushes and pulls (`media sync`, apps/lyrics_videos/scripts/library/sync.ts);
+ * footage. The media CLI pushes and pulls (`media sync`, apps/studio/scripts/library/sync.ts);
  * the routes under /api/channel-sync keep it. Everything here is pure, for those routes and for the
  * CLI, whose tests run these same checks against a stand-in server.
  *

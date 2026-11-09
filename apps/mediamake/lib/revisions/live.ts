@@ -83,7 +83,7 @@ export async function loadLiveProject(
   const manifestText = texts[`${base}/manifest.json`];
   if (!manifestText) {
     throw new Error(
-      `${slug} has no manifest. Run: npm run prepare-project -w lyrics_videos -- ${slug}`,
+      `${slug} has no manifest. Run: mm prepare ${slug}`,
     );
   }
   const manifest = JSON.parse(manifestText) as LyricManifest;

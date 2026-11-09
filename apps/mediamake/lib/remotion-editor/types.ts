@@ -1,5 +1,5 @@
 /*
- * Shapes shared with the lyric kit (apps/lyrics_videos/src/kit/edits.tsx). The editor never
+ * Shapes shared with the lyric kit (apps/studio/src/kit/edits.tsx). The editor never
  * imports the kit at build time: it compiles the kit from the project folder, so these mirror it.
  */
 
@@ -60,7 +60,7 @@ const MEDIA_KINDS: [RegExp, MediaFile['kind']][] = [
 export const mediaKindOf = (path: string): MediaFile['kind'] | null =>
   MEDIA_KINDS.find(([re]) => re.test(path))?.[1] ?? null;
 
-/** A scene's knobs (apps/lyrics_videos/src/kit/knobs.ts): props a person tweaks, with how to show them. */
+/** A scene's knobs (apps/studio/src/kit/knobs.ts): props a person tweaks, with how to show them. */
 export type Knob = { label?: string; hint?: string } & (
   | { type: 'number'; min?: number; max?: number; step?: number; unit?: string; default?: number }
   | { type: 'color'; default?: string }

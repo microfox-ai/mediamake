@@ -1,6 +1,6 @@
 ---
 name: make-anime-music-video
-description: Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. Research comes first: popular edits on YouTube and Pinterest, downloaded as references and cut into technique clips, on a File Revisions board the user picks from. The song is read as the character's story, and the edit matches the song's feel. An epic, slow song gets the story edit: twixtor takes throughout, one shot per sung phrase cut on the beat, white stacked bold captions (the summerstyle shorts' type, font picked from snaps), each moving the way its words mean (motion typography researched on Pinterest: masks, cut-outs, trembles, echoes, dust, shatters, all with motion blur), Goten band glitches and old-TV blinks, aura on the power shots. Its full-speed drum fills (drum map) get a shot on every hit, bass-drop punches, match cuts and morphs. A fast, driving song gets UnClonable's flowing edit: match-cut runs framed by a match finder, mask cuts, portals, liquid morphs, heavy in-scene type. Every transition on a beat, every take once across packs. Reviewed at half size through Revisions (revise-video). Builds in apps/lyrics_videos with src/amv and scripts/amv.ts. Use when the user says "make an AMV / anime music video / anime edit of <character> to <song>", "research anime edits and make a music video", "/make-anime-music-video", or asks to change a project with a video/cut.ts. Not for lyric videos from artwork (make-lyrics-video, make-waveform-lyric-video), footage re-edits of films (make-video-music-remix) or shorts. Append new user feedback to the log at the bottom.
+description: Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. Research comes first: popular edits on YouTube and Pinterest, downloaded as references and cut into technique clips, on a File Revisions board the user picks from. The song is read as the character's story, and the edit matches the song's feel. An epic, slow song gets the story edit: twixtor takes throughout, one shot per sung phrase cut on the beat, white stacked bold captions (the summerstyle shorts' type, font picked from snaps), each moving the way its words mean (motion typography researched on Pinterest: masks, cut-outs, trembles, echoes, dust, shatters, all with motion blur), Goten band glitches and old-TV blinks, aura on the power shots. Its full-speed drum fills (drum map) get a shot on every hit, bass-drop punches, match cuts and morphs. A fast, driving song gets UnClonable's flowing edit: match-cut runs framed by a match finder, mask cuts, portals, liquid morphs, heavy in-scene type. Every transition on a beat, every take once across packs. Reviewed at half size through Revisions (revise-video). Builds in apps/studio with src/amv and scripts/amv.ts. Use when the user says "make an AMV / anime music video / anime edit of <character> to <song>", "research anime edits and make a music video", "/make-anime-music-video", or asks to change a project with a video/cut.ts. Not for lyric videos from artwork (make-lyrics-video, make-waveform-lyric-video), footage re-edits of films (make-video-music-remix) or shorts. Append new user feedback to the log at the bottom.
 metadata:
   category: make
   depends-on: analyze-video, revise-image, revise-video
@@ -20,7 +20,7 @@ Loose inspiration only from the older video skills; nothing here depends on thei
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/browse-hack` | required | The research: reference edits from YouTube (`youtube_download`) and Pinterest boards (`pinterest_bulk_start`) in the user's Chrome | No research board: the user brings the references by hand |
-| `mcp/elevenlabs` | required | Its API key: the song's timed words (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words (`mm transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -37,13 +37,13 @@ https://github.com/microfox-ai/mediamake/blob/main/install.md"), or go ahead wit
 - **Register the production:** `media production new <slug> --channel=<brand> --title=… --artist=… --skill=make-anime-music-video`,
   then `media use <song id> <slug> --as=input/<slug>.wav` and `input/project.json` (`audio`, `title`, `artist`).
 - **The lyrics:** ask for the written lyrics first (Suno's lyric sheet: the text on screen comes from
-  it). Run `npm run analyze -w lyrics_videos -- <slug> --only decode,separate`, then transcribe the
-  vocal stem with **ElevenLabs Scribe** the house way: `npm run transcribe -w lyrics_videos -- <slug>`
+  it). Run `mm analyze <slug> --only decode,separate`, then transcribe the
+  vocal stem with **ElevenLabs Scribe** the house way: `mm transcribe <slug>`
   first (free: the media library's cached words, else the stem's MP3 and the price, ~40 credits a
   minute), quote the price, then `--yes` (`--lang=en`); never a request with the key by hand, and not
   the MCP's own `speech_to_text` (no timings). Write `input/lyrics.json` as the written
   lines on Scribe's times (lines a take repeats or skips follow the audio, not the sheet), then
-  `npm run analyze -w lyrics_videos -- <slug> --plots` (beat grid + word alignment). Where the aligner
+  `mm analyze <slug> --plots` (beat grid + word alignment). Where the aligner
   and Scribe disagree by more than ~0.3 s, check the stem's energy (lead and backing stems separately:
   choirs live on the backing stem) and place that line with fixed times in the cut.
 
@@ -200,10 +200,10 @@ Rules that held:
 - In honoredone's cut.ts, `fast()` runs after the whole story is placed and skips any clip the story
   uses or its twin. Copy that pattern.
 
-`npm run amv -w lyrics_videos -- <slug> --list` prints every shot (with its framing, matte, aura,
+`mm amv <slug> --list` prints every shot (with its framing, matte, aura,
 worlds) and the warnings, writes `video/shots.json` (the Revisions shot map) and `video/overlays.json`;
 `--stills` grabs the frames pieces use; `--matte` cuts the subject mattes the cut asks for (BiRefNet,
-`scripts/matte.py`, ~3 frames/s). Never run `npm run map` by hand for a clip: it rewrites the main
+`scripts/matte.py`, ~3 frames/s). Never run `mm map` by hand for a clip: it rewrites the main
 render's map (`render-project` maps clips itself).
 
 ## 6. The engine (`src/amv`)
@@ -290,7 +290,7 @@ render's map (`render-project` maps clips itself).
     - The box goes where it covers least of him, his head counted three times. It also avoids bright
       patches, and shrinks to 58 % of its size if it has to. The map behind this is `video/space.json`.
     - To make that map: render the composition with `--props='{"clean":true}'` (no words, quarter size)
-      into `analysis/clean/clean.mp4`. Then run `npm run amv -- <slug> --captions`, then
+      into `analysis/clean/clean.mp4`. Then run `mm amv <slug> --captions`, then
       `uv run --script scripts/amv-space.py <slug> --sheet`. Redo it whenever captions move.
   - **The xl `look`:**
     - `outline`: a fine stroke, the picture showing through.
@@ -319,7 +319,7 @@ render's map (`render-project` maps clips itself).
   grades with their GPU twins (`CC`), the energy colours (`ENERGY`), SVG filters.
 - `fonts.ts` — Anton, Exo 2 italic, Knewave (brush), Dela Gothic One (kanji slams), Montserrat, Cinzel,
   Cormorant Garamond, Shippori Mincho B1.
-- `Lab.tsx` + `npm run amv-lab -w lyrics_videos -- <jobs.json> [--video]` — one GPU device on any
+- `Lab.tsx` + `mm amv-lab <jobs.json> [--video]` — one GPU device on any
   footage, many tests per bundle (stills side by side, or a clip): tune a shader here before the cut
   uses it.
 
@@ -328,17 +328,17 @@ render's map (`render-project` maps clips itself).
 0. **A new direction starts with a proof:** one stretch (the pre-chorus and first hook) built to the
    standard and rendered at half size as a clip (`render-project <slug> --proxy --frames=a-b`), before
    the whole song is re-cut.
-1. `npx tsc --noEmit -p apps/lyrics_videos` clean.
+1. `npx tsc --noEmit -p apps/studio` clean.
 2. **Cut-outs, checked twice:** composite each matte over magenta at four times (`-c:v libvpx-vp9`
    decoder so the alpha survives, accurate seek with `trim`), look at the edges and the coverage
    (`<id>.stats.json` area per frame).
-3. `npm run stills -w lyrics_videos -- <slug> <seconds…> --only` at every device; fix what reads badly
+3. `mm stills <slug> <seconds…> --only` at every device; fix what reads badly
    (dark words, washed-out lines on bright frames, blown-out grades, burned-in text) and re-render those.
 4. Render in chunks (full renders die on memory): `remotion render … --frames=a-b --muted
    --concurrency=4 --offthreadvideo-cache-size-in-bytes=800000000` per 1,200 frames with retries (~2 min
-   each), the audio mixed once with ffmpeg (`npm run amv -w lyrics_videos -- <slug> --audio=<file>.m4a`),
+   each), the audio mixed once with ffmpeg (`mm amv <slug> --audio=<file>.m4a`),
    joined with `ffmpeg -f concat … -c copy` into `out/<slug>/<slug>.mp4`;
-   an older render moves to `out/<slug>/v<N>/` first. `npm run map -w lyrics_videos -- <slug>` for the shot map.
+   an older render moves to `out/<slug>/v<N>/` first. `mm map <slug>` for the shot map.
 5. Review renders at half size, preflight, then the link (revise-video):
    `https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4`
    (a clip: `folder=<slug>/clips&video=<clip>.mp4`)
@@ -360,7 +360,7 @@ Append dated entries: what the user said → the rule.
   "Kyrie eleison") + "use elevenlabs for transcription, its fast and better" → written lyrics before
   any timing, ElevenLabs Scribe for the times; the character's famous lines get their own moment.
 - 2026-11-02 · honoredone render: the Remotion `--codec=aac` audio pass ran the whole composition again
-  (15+ min) → mix the song and the cut's sound effects with ffmpeg (`npm run amv -- <slug> --audio=…`,
+  (15+ min) → mix the song and the cut's sound effects with ffmpeg (`mm amv <slug> --audio=…`,
   one limiter at -1 dBFS) and join it to the chunks.
 - 2026-11-02 · honoredone v2: "do not like it one bit… the references I gave is only for parts of the
   music where a highly detailed edit is needed, the rest is primarily full-fledged match cut or mask cut
@@ -428,7 +428,7 @@ Append dated entries: what the user said → the rule.
   center".
   The rules:
   - Never darken a shot for the words: no pools, no dim, no aura dim. Use masks (cutout like Hit It,
-    windows), or blend one of the user's overlays (apps/lyrics_videos/overlays: survey them with a contact
+    windows), or blend one of the user's overlays (apps/studio/overlays: survey them with a contact
     sheet, `media use` them in) with the mode the overlay and the clip need.
   - No old-TV collapse.
   - No decode-scramble or twinkle text effects: they're hard to read and not smooth.

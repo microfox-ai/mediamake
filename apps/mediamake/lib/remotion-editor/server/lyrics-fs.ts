@@ -2,14 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 /*
- * File access to apps/lyrics_videos for /remotion-editor, development only (`next dev`). The
+ * File access to apps/studio for /remotion-editor, development only (`next dev`). The
  * browser compiles the project itself; these routes only list, read and serve files, and write a
  * project's video/edits.json. Nothing outside the lyrics folder, under node_modules or starting
  * with a dot is reachable.
  */
 
 export const LYRICS_ROOT = path.resolve(
-  process.env.LYRICS_VIDEOS_DIR ?? path.join(process.cwd(), '..', 'lyrics_videos'),
+  process.env.STUDIO_DIR ?? process.env.LYRICS_VIDEOS_DIR ?? path.join(process.cwd(), '..', 'studio'),
 );
 
 export const isDevFilesEnabled = () => process.env.NODE_ENV === 'development';

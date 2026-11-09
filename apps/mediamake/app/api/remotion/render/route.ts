@@ -57,8 +57,8 @@ export const POST = async (req: NextRequest) => {
       // Still image position. `frame` is a 0-based index and wins over `frameTime`.
       frame,
       frameTime,
-      // A lyrics_videos project's own site (`lyrics-<slug>[-<region>]`, deployed by
-      // apps/lyrics_videos/scripts/lambda.ts) instead of the app's site.
+      // A studio project's own site (`lyrics-<slug>[-<region>]`, deployed by
+      // apps/studio/scripts/lambda.ts) instead of the app's site.
       siteName,
       // Video only: a stretch of frames (inclusive), a size factor, a quality.
       frameRange,
@@ -69,7 +69,7 @@ export const POST = async (req: NextRequest) => {
     const lyricsSite = parseLyricsSite(siteName);
     if (siteName !== undefined && !lyricsSite) {
       return NextResponse.json(
-        { type: 'error', message: 'siteName must be a lyrics_videos site: lyrics-<slug> or lyrics-<slug>-<region>.' },
+        { type: 'error', message: 'siteName must be a studio site: lyrics-<slug> or lyrics-<slug>-<region>.' },
         { status: 400 },
       );
     }
@@ -502,7 +502,7 @@ function validateCustomConfig(config: CustomLambdaConfig): CustomLambdaConfig {
   };
 }
 
-/** `lyrics-<slug>` or `lyrics-<slug>-<region>`: the sites apps/lyrics_videos/scripts/lambda.ts deploys. */
+/** `lyrics-<slug>` or `lyrics-<slug>-<region>`: the sites apps/studio/scripts/lambda.ts deploys. */
 function parseLyricsSite(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   return /^lyrics-[a-z0-9][a-z0-9._-]{0,120}$/i.test(value) ? value : null;

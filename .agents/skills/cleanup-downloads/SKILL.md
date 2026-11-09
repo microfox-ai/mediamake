@@ -7,12 +7,12 @@ metadata:
 
 # cleanup-downloads
 
-The media library (`apps/lyrics_videos/scripts/library/README.md`) keeps every source once, sorted
+The media library (`apps/studio/scripts/library/README.md`) keeps every source once, sorted
 by kind and subject, and skills reuse it. This skill brings what already lies around into it, and
 keeps Downloads tidy afterwards. Nothing is deleted. Nothing moves before the user has looked,
 unless they hand the sort over (step 4b). Every sort can be undone.
 
-All commands: `npm run media -w lyrics_videos -- <command>` (`media …` below).
+All commands: `mm media <command>` (`media …` below).
 
 ## Steps
 
@@ -83,7 +83,7 @@ All commands: `npm run media -w lyrics_videos -- <command>` (`media …` below).
    - `media find --kind=… --limit=60 --sheet` over `_unsorted/` gives contact sheets; look at them
      and propose kinds and subjects in one message.
    - On the user's OK, run `media mv <id> --kind=… --subject=…` for each.
-   - New franchises or characters go into `apps/lyrics_videos/scripts/library/taxonomy.json`, so
+   - New franchises or characters go into `apps/studio/scripts/library/taxonomy.json`, so
      the next files sort themselves.
 7. **Paths in memory and notes.** Memory entries and project notes that name a moved path (e.g.
    `Downloads/AMZ/honoredone/…`) get the new one. `media where "<old path>"` finds it.

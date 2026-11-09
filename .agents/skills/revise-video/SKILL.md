@@ -7,7 +7,7 @@ metadata:
 
 # revise-video
 
-The review loop for every rendered video in `apps/lyrics_videos`. The making skill builds and
+The review loop for every rendered video in `apps/studio`. The making skill builds and
 renders; this skill renders for review, checks the render before the user sees it, takes the user's
 notes back from the **Video Revision** screen, fixes them in the project, and closes the loop.
 The making skill's own rules (its principles, its `prefs.md`, its render command) still apply to
@@ -27,7 +27,7 @@ list in its own file):
   size, sections and every shot with a stable ID and its time range in the video's own time.
   `render-project` writes both (from `video/shots.json` or the cut list). A video made some other
   way (renamed, moved, ffmpeg concat, a splice) gets its map from
-  `npm run map -w lyrics_videos -- <slug> --video=out/<slug>/v5/<slug>.mp4`.
+  `mm map <slug> --video=out/<slug>/v5/<slug>.mp4`.
 - **Kept versions:** before a full render replaces the main file, the previous video, its map and
   its `.revisions/` folder are copied into `out/<slug>/v<N>/` (`render-project` does it; a `--frames`
   clip goes to `out/<slug>/clips/`). Never write into `out/<slug>/` by hand.
@@ -54,8 +54,8 @@ To make them, build each look on the same stretch with the project reading the l
 (`getInputProps().look`), render each one at half size, then put them in one labelled grid:
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --look=A --frames=<a>-<b> --proxy   # → out/<slug>/looks/A.mp4
-npm run look-grid -w lyrics_videos -- out/<slug>/looks/A.mp4 out/<slug>/looks/B.mp4 out/<slug>/looks/C.mp4 out/<slug>/looks/D.mp4
+mm render <slug> --look=A --frames=<a>-<b> --proxy   # → out/<slug>/looks/A.mp4
+mm look-grid out/<slug>/looks/A.mp4 out/<slug>/looks/B.mp4 out/<slug>/looks/C.mp4 out/<slug>/looks/D.mp4
 ```
 
 `look-grid` labels each tile with its look ID (two side by side, three or four in a 2×2), keeps the
@@ -70,8 +70,8 @@ A render the user will review is a **review render**. `--proxy` renders at half 
 map stay the same; each round paints a quarter of the pixels and takes roughly a third of the time:
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --proxy     # review render
-npm run render-project -w lyrics_videos -- <slug>             # the master, once the user signs off
+mm render <slug> --proxy     # review render
+mm render <slug>             # the master, once the user signs off
 ```
 
 Every review round uses review renders. Render the **master** once, when the user signs off ("final",
@@ -89,7 +89,7 @@ the user can leave notes on a video that was never rendered:
 https://mediamake.microfox.app/video-revision?live=<slug>
 ```
 
-The first time, the user picks the `apps/lyrics_videos` folder (or the repo) and allows editing;
+The first time, the user picks the `apps/studio` folder (or the repo) and allows editing;
 after that the link reopens it, and the left panel lists every project under **Live projects**.
 Everything else works as for a render: shots from `video/shots.json` (or one per lyric line, the IDs
 a render gets), point, range and General comments, drawing, spots and the magnifier.
@@ -103,7 +103,7 @@ a render gets), point, range and General comments, drawing, spots and the magnif
   The watcher (step 4) watches that folder too.
 - **Stills** are rendered in the browser a few seconds after a comment is added, and can miss some
   effects (radial gradients, some filters and blend modes). Every comment in the `.md` has a
-  `Render:` line, `npm run stills -w lyrics_videos -- <slug> <seconds> --only --scale=1` (times are
+  `Render:` line, `mm stills <slug> <seconds> --only --scale=1` (times are
   the video's own, output in `out/<slug>/stills/`): run it when the look matters, when a still
   looks off, and for range comments, which have no still.
 - **Fixes** go in the project as usual; the open page recompiles when the code or `video/edits.json`
@@ -127,7 +127,7 @@ Machines check, the user judges: the user should never be the one who finds a bl
 every render the user will watch:
 
 ```bash
-npm run preflight -w lyrics_videos -- <slug>     # --video=<mp4> for a short, a clip or a grid; --source=<their picture>
+mm preflight <slug>     # --video=<mp4> for a short, a clip or a grid; --source=<their picture>
 ```
 
 It checks black and frozen frames, a missing or short sound track, dropouts, clipping and a quiet
@@ -138,7 +138,7 @@ the top of the video's next revision, where the user will see them beside their 
 - Fix each finding, re-render, and run preflight again: it closes what is gone and pins the
   revision to the new render.
 - A finding that is meant (a black beat, an impact freeze): answer it with
-  `npm run preflight -w lyrics_videos -- <slug> --intended=c02 --why="a black beat before the drop"`.
+  `mm preflight <slug> --intended=c02 --why="a black beat before the drop"`.
   The note closes with that reply and later runs on this video skip it.
 - Give the link only when no machine note is open, and say in one line what preflight caught.
 - Fades from or to black of up to 1 s at either end and a still end card of up to 2 s are printed
@@ -162,7 +162,7 @@ saves comments **next to the video**. On a paused frame the user can draw (penci
 circle; red fix, green add, yellow move) and pin the exact spot, with a magnifier for small detail;
 the comment keeps the marks and a 2× crop of the spot. A **General** comment (G) is about the
 whole video and has no time. Browsers can't open a local folder from a
-link, so the user links `apps/lyrics_videos/out` once as a **source** (the link's page offers "Link
+link, so the user links `apps/studio/out` once as a **source** (the link's page offers "Link
 your out folder"; or Sources → +). Every link's `folder` is its path under `out/`
 (`<slug>`, `<slug>/v5`, `<channel>/shorts/s01`), so from then on every link opens straight from
 that source, with one "Reconnect out" click per visit, or none once they choose Chrome's "Allow on
@@ -176,7 +176,7 @@ Right after giving the link, start the watcher as a background command (Bash
 `run_in_background: true`, with the longest timeout your shell allows, up to 2 hours):
 
 ```bash
-npm run wait-revision -w lyrics_videos -- <slug>     # --video=<mp4> to watch one video only
+mm wait-revision <slug>     # --video=<mp4> to watch one video only
 ```
 
 It watches every `.revisions/` folder under `out/<slug>/`, `live.revisions/` included (not the kept `v<N>/` copies), and exits
@@ -307,7 +307,7 @@ the project's `prefs.md`, dated and numbered as the user wrote them; general one
 project) go in the making skill's lessons/feedback log; lessons about the review loop itself go in
 the log below.
 
-**How the loop is going:** `npm run loop-stats -w lyrics_videos -- [slug …] [--since=<date>]` prints,
+**How the loop is going:** `mm loop-stats [slug …] [--since=<date>]` prints,
 per video, the rounds, the user's notes per round (point / range / general, how many done; live
 reviews show as `<slug>/live (no render)`), machine notes and
 kept versions, and per production the logged renders (master / review / clip or look) and their

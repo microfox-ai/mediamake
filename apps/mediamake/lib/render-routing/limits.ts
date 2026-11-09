@@ -1,7 +1,7 @@
 /**
  * The heavy limits of render routing, and the weighing of a render's media against them.
  *
- * Kept free of imports so that the lyrics_videos scripts (another workspace, run with Node's
+ * Kept free of imports so that the studio scripts (another workspace, run with Node's
  * type stripping) can import it as a file (`../../mediamake/lib/render-routing/limits.ts`) and
  * weigh a project's manifest the same way the editor weighs a timeline. plan.ts walks timelines
  * and builds on this.

@@ -153,7 +153,7 @@ function shotsLabel(c: RevisionComment): string {
 
 /** The lyric kit's stills script for these seconds of a live-reviewed project, at full size. */
 const stillsLine = (project: string, seconds: number[]) =>
-  `\`npm run stills -w lyrics_videos -- ${project} ${seconds.map(t => t.toFixed(2)).join(',')} --only --scale=1\``;
+  `\`mm stills ${project} ${seconds.map(t => t.toFixed(2)).join(',')} --only --scale=1\``;
 
 function quote(text: string): string {
   return text

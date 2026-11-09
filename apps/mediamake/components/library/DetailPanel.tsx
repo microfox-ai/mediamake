@@ -538,7 +538,7 @@ function ItemDetail({ item }: { item: MediaItem }) {
             : 'Missing from where the catalog has it',
     ],
   ];
-  const pull = `npm run media -w lyrics_videos -- sync pull --ids=${item.id.slice(0, 10)} --yes`;
+  const pull = `mm media sync pull --ids=${item.id.slice(0, 10)} --yes`;
 
   return (
     <div className="space-y-6">

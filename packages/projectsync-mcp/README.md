@@ -70,7 +70,7 @@ the project's **trash**: it disappears from every list, and its files are kept.
 - **Media** goes into the project's media library as it is (no image description, no audio analysis);
   a file the project already has (same content) isn't uploaded twice.
 - **Shared assets** are the files the media CLI's `media share` and `media sync` move
-  (`apps/lyrics_videos/scripts/library`): `share_assets` sends each file's details (kind, subject, title,
+  (`apps/studio/scripts/library`): `share_assets` sends each file's details (kind, subject, title,
   tags, size) and then the file, under the project's sharing limit (100 MB in all by default; the owner
   raises it with `set_shared_limit`); `download_shared_assets` checks every download against its sha256
   and writes a `<file>.source.json` beside it, so saving into the library's inbox

@@ -1,0 +1,713 @@
+/**
+ * lyric-shorts: vertical lyric shorts with stacked, width-fit words that the footage plays inside
+ * (make-lyrics-shorts-summerstyle-boldwords skill; engine in src/lyricshorts/).
+ *
+ *   pick   scores every stretch of 15–45 s that starts on a sung line and ends after one: how much of it
+ *          is sung, how much of that comes back elsewhere in the song (the hook), the vocal and the
+ *          drive, a clean start (no line cut in half, little dead air) and a clean end (bonus when an
+ *          instrumental hit follows: the short can dive into the footage on it). Stretches the user
+ *          called bad (shorts/history.json, shared with make-video-music-remix-shorts) never come back.
+ *          Writes shorts/lyric-picks.json and out/<slug>/shorts/lyric-picks-<run>/ (an mp3 per pick,
+ *          picks.png: the waveform with the sections and the picks).
+ *   new    scaffolds shorts/<id>/ (short.json, edl.ts with the stretch's words listed, index.tsx) for a
+ *          pick letter or a from-to in seconds (snapped to downbeats), and logs it in shorts/history.json.
+ *   clips  resolves shorts/<id>/edl.ts against the song, cuts every footage clip it needs (9:16, cropped
+ *          at the cut's x, at the short's fps) into derived/lyricshorts/, writes shorts/<id>/shots.json
+ *          for the Revisions map, prints the timeline and the warnings, and draws
+ *          out/<slug>/shorts/<id>/cuts.jpg (each cut's middle frame as it will be framed).
+ *   render bundles the project once (alone, public dir linked, snapshots by timestamp) and renders the shorts one
+ *          at a time → out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4 (the previous render kept in v<N>/), each with
+ *          its Revisions map and a count of dark frames (watermark corner cropped). --frames=a-b renders a clip into
+ *          clips/ instead. Use it, not render-project, for lyric shorts.
+ *
+ * Usage:
+ *   mm lyric-shorts <slug> pick [--n=3] [--min=15] [--max=45]
+ *   mm lyric-shorts <slug> new B [--formats=9x16] [--lead=1] [--loop]   (lead: bars before the first line)
+ *   mm lyric-shorts <slug> new 211.3-244.5
+ *   mm lyric-shorts <slug> clips s01
+ *   mm lyric-shorts <slug> render s01 [s02 …] | all [--concurrency=3] [--crf=18] [--format=9x16] [--frames=a-b]
+ *   mm lyric-shorts <slug> brand <brand> [--label="Music by"] [--at=top-right]   (a watermark on every short)
+ *   mm lyric-shorts <slug> credit "<artist>" [--label="Music by"]              (an artist credit, no logo)
+ *
+ * Footage sources: projects/<slug>/shorts/footage.json { sources: [{ id, prefix, source, segregation }] }
+ * (source relative to the project; segregation = the analyze-video output folder). Without it, the
+ * first video in input/footage/ with its segregation in footage/ (prefix sh).
+ */
+import { execFileSync, spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import opentype from 'opentype.js';
+import { aimOf, frameCuts, inkOf, LUMA_BANDS, placeCaps, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
+import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
+import { solveLockup, type Lockup } from '../src/lyricshorts/lockup.ts';
+import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2);
+const [slug, cmd, what] = args.filter(a => !a.startsWith('--'));
+const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
+if (!slug || !cmd) {
+  console.error('usage: mm lyric-shorts <slug> pick | new <letter | from-to> | clips <id> | render <id …> | all');
+  process.exit(1);
+}
+const dir = path.join(ROOT, 'projects', slug);
+const shortsDir = path.join(dir, 'shorts');
+const manifestFile = path.join(dir, 'manifest.json');
+if (!fs.existsSync(manifestFile)) throw new Error(`No manifest. Run: mm prepare ${slug}`);
+type Manifest = SongLike & {
+  title: string;
+  audio: { src: string; duration: number };
+  sections: { label: string; from: number; to: number }[];
+  beats: { list: { t: number }[]; downbeats?: number[]; beatsPerBar?: number };
+  envelopes?: { fps: number; series: Record<string, number[]> };
+  energy: { rate: number; values: number[] };
+  lyrics: { text: string; start: number; end: number; words: { text: string; start: number; end: number }[] }[];
+};
+const m = JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as Manifest;
+const mmss = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+const today = () => new Date().toLocaleDateString('sv');
+
+type HistoryEntry = { id: string; from: number; to: number; fromBeat: number; toBeat: number; sections: string[]; run: number; date: string; status: 'made' | 'bad' | 'liked'; note?: string; formats?: string[]; skill?: string };
+const historyFile = path.join(shortsDir, 'history.json');
+const readHistory = (): { shorts: HistoryEntry[] } => (fs.existsSync(historyFile) ? JSON.parse(fs.readFileSync(historyFile, 'utf8')) : { shorts: [] });
+const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) / Math.min(a1 - a0, b1 - b0);
+const sectionsIn = (a: number, b: number) => m.sections.filter(s => s.to > a + 0.5 && s.from < b - 0.5).map(s => s.label);
+
+// ------------------------------------------------------------------ the song as words and bars
+
+const words = m.lyrics.flatMap(l => l.words).sort((a, b) => a.start - b.start);
+const keys = words.map(w => norm(w.text));
+const downbeats = m.beats.downbeats?.length ? m.beats.downbeats : m.beats.list.filter((_, k) => k % (m.beats.beatsPerBar ?? 4) === 0).map(b => b.t);
+const bars = [...downbeats, m.audio.duration].filter((t, k, a) => k === 0 || t > a[k - 1] + 0.2);
+const barAt = (t: number) => bars.reduce((best, b, k) => (Math.abs(b - t) < Math.abs(bars[best] - t) ? k : best), 0);
+const barBefore = (t: number) => {
+  let k = 0;
+  while (k + 1 < bars.length && bars[k + 1] <= t + 1e-3) k++;
+  return k;
+};
+// a word is part of the hook when the 3 words from it come back elsewhere in the song
+const gram = (k: number) => keys.slice(k, k + 3).join(' ');
+const gramCount = new Map<string, number>();
+for (let k = 0; k + 3 <= keys.length; k++) gramCount.set(gram(k), (gramCount.get(gram(k)) ?? 0) + 1);
+const hookWord = keys.map((_, k) => [k, k - 1, k - 2].some(j => j >= 0 && j + 3 <= keys.length && (gramCount.get(gram(j)) ?? 0) > 1));
+const env = (name: string) => {
+  const s = m.envelopes?.series[name];
+  const fps = s ? m.envelopes!.fps : m.energy.rate;
+  const v = s ?? m.energy.values;
+  return (a: number, b: number) => {
+    let sum = 0;
+    let n = 0;
+    for (let i = Math.max(0, Math.floor(a * fps)); i < Math.min(v.length, Math.ceil(b * fps)); i++) {
+      sum += v[i];
+      n++;
+    }
+    return n ? sum / n : 0;
+  };
+};
+const vocal = env('vocal');
+const drums = env(m.envelopes?.series.drums ? 'drums' : 'rms');
+const bass = env(m.envelopes?.series.bass ? 'bass' : 'rms');
+
+// ------------------------------------------------------------------ pick
+
+if (cmd === 'pick') {
+  const n = Number(opt('n') ?? 3);
+  const min = Number(opt('min') ?? 15);
+  const max = Number(opt('max') ?? 45);
+  const history = readHistory();
+  // per-bar z-scores of drive and vocal over the whole song
+  const barStats = bars.slice(0, -1).map((t, k) => ({ drive: drums(t, bars[k + 1]) + bass(t, bars[k + 1]), vox: vocal(t, bars[k + 1]) }));
+  const z = (xs: number[]) => {
+    const mu = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mu) ** 2, 0) / xs.length) || 1;
+    return xs.map(x => (x - mu) / sd);
+  };
+  const driveZ = z(barStats.map(b => b.drive));
+  // the words each short already made sings, as 3-word grams
+  const madeGrams = history.shorts
+    .filter(h => h.status !== 'bad')
+    .map(h => ({ id: h.id, grams: new Set(words.map((w, k) => ({ w, k })).filter(({ w }) => w.start >= h.from - 0.05 && w.start < h.to).map(({ k }) => gram(k))) }));
+  const voxZ = z(barStats.map(b => b.vox));
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+  // phrases, not the transcription's lines (often cut by length): a sentence or clause ends at
+  // punctuation or a breath; starts are the downbeat at or before a phrase's first word
+  const endsPhrase = words.map((w, k) => /[.!?]$/.test(w.text) || (k + 1 < words.length && words[k + 1].start - w.end > 0.8));
+  const startsPhrase = words.map((_, k) => k === 0 || endsPhrase[k - 1] || /[,;]$/.test(words[k - 1].text));
+  const starts = [...new Set(words.filter((_, k) => startsPhrase[k]).map(w => barBefore(w.start)))];
+  const ends = [...new Set(words.filter((_, k) => endsPhrase[k]).map(w => barBefore(w.end) + 1))].filter(b => b < bars.length);
+  type Cand = { a: number; b: number; from: number; to: number; s: number; why: string[]; first: string; last: string };
+  const cands: Cand[] = [];
+  for (const a0 of starts)
+    for (const b0 of ends) {
+      for (const tail of [0, 1, 2, 3, 4]) {
+        const a = a0;
+        const b = Math.min(bars.length - 1, b0 + tail);
+        const from = bars[a];
+        const to = bars[b];
+        const dur = to - from;
+        if (b <= a || dur < min || dur > max) continue;
+        const inside = words.map((w, k) => ({ w, k })).filter(({ w }) => w.start >= from - 0.05 && w.start < to);
+        if (inside.length < 6) continue;
+        const why: string[] = [];
+        let s = 0;
+        // sung coverage: words per second, capped
+        const sungTime = inside.reduce((acc, { w }) => acc + Math.min(1.2, w.end - w.start), 0);
+        s += 1.2 * Math.min(1, sungTime / dur / 0.55);
+        const hook = mean(inside.map(({ k }) => (hookWord[k] ? 1 : 0)));
+        s += 1.6 * hook;
+        if (hook > 0.4) why.push(`${Math.round(hook * 100)} % hook words`);
+        s += 0.5 * mean(voxZ.slice(a, b)) + 0.4 * mean(driveZ.slice(a, b));
+        // a clean start: no word in the second before (a line cut in half) and the first word soon
+        const before = words.filter(w => w.end > from - 0.6 && w.start < from - 0.05);
+        if (before.length) {
+          s -= 1.5;
+          why.push(`cuts into "${before.map(w => w.text).join(' ')}"`);
+        }
+        const k0 = inside[0].k;
+        if (!startsPhrase[k0]) {
+          s -= 1;
+          why.push('starts mid-sentence');
+        }
+        const kz = inside[inside.length - 1].k;
+        if (!endsPhrase[kz]) {
+          s -= 1;
+          why.push('ends mid-sentence');
+        }
+        const dead = inside[0].w.start - from;
+        if (dead > 2.2) s -= 0.4 * (dead - 2.2);
+        // a clean end: no word running over the end, a bonus when an instrumental hit follows
+        const over = words.filter(w => w.start < to && w.end > to + 0.25);
+        if (over.length) {
+          s -= 0.8;
+          why.push(`ends inside "${over.map(w => w.text).join(' ')}"`);
+        }
+        const nextHit = b < driveZ.length ? driveZ[b] - mean(driveZ.slice(Math.max(a, b - 2), b)) : 0;
+        const nextSung = words.some(w => w.start >= to && w.start < bars[Math.min(bars.length - 1, b + 1)]);
+        if (tail > 0 && !nextSung) {
+          const tailHit = mean(driveZ.slice(b - tail, b));
+          if (tailHit > 0.5) {
+            s += 0.5;
+            why.push('ends on an instrumental hit (dive into the footage there)');
+          } else s -= 0.15 * tail;
+        }
+        if (tail === 0 && nextHit > 0.8) s += 0.2;
+        // the end on a 4-bar unit of its section (the user, on s01: "it stops mid rhythm")
+        const sec = m.sections.find(x => x.from <= bars[b - 1] + 1e-3 && bars[b - 1] < x.to);
+        if (sec && (b - barAt(sec.from)) % 4 !== 0) s -= 0.6;
+        const secs = sectionsIn(from, to);
+        if (secs.some(x => /chorus|hook/.test(x))) s += 0.4;
+        // 20–40 s is the sweet spot
+        s -= 0.03 * Math.max(0, Math.abs(dur - 30) - 10);
+        if (history.shorts.some(h => h.status === 'bad' && overlap(from, to, h.from, h.to) > 0.3)) continue;
+        const made = history.shorts.find(h => h.status !== 'bad' && overlap(from, to, h.from, h.to) > 0.5);
+        if (made) {
+          s -= 0.8;
+          why.push(`re-cut of ${made.id}`);
+        } else {
+          // the same words sung elsewhere (a chorus that comes back) are a re-cut too: a short that sings
+          // what another one already sings repeats it, wherever it sits in the song
+          const twin = madeGrams.find(g => mean(inside.map(({ k }) => (g.grams.has(gram(k)) ? 1 : 0))) > 0.5);
+          if (twin) {
+            s -= 1.2;
+            why.push(`sings the same words as ${twin.id}`);
+          }
+        }
+        cands.push({ a, b, from, to, s, why, first: inside.slice(0, 5).map(x => x.w.text).join(' '), last: inside.slice(-4).map(x => x.w.text).join(' ') });
+      }
+    }
+  cands.sort((x, y) => y.s - x.s);
+  const chosen: Cand[] = [];
+  for (const c of cands) {
+    if (chosen.length >= n + 3) break;
+    if (chosen.some(o => overlap(c.from, c.to, o.from, o.to) > (chosen.length < n ? 0.35 : 0.6))) continue;
+    chosen.push(c);
+  }
+  const prev = path.join(shortsDir, 'lyric-picks.json');
+  const run = (fs.existsSync(prev) ? JSON.parse(fs.readFileSync(prev, 'utf8')).run : 0) + 1;
+  const picks = chosen.map((c, k) => ({
+    letter: 'ABCDEFGH'[k],
+    from: +c.from.toFixed(3),
+    to: +c.to.toFixed(3),
+    fromBeat: Math.round(beatAt(m, c.from)),
+    toBeat: Math.round(beatAt(m, c.to)),
+    sections: sectionsIn(c.from, c.to),
+    score: +c.s.toFixed(2),
+    why: c.why,
+    first: c.first,
+    last: c.last,
+  }));
+  fs.mkdirSync(shortsDir, { recursive: true });
+  fs.writeFileSync(prev, `${JSON.stringify({ run, date: today(), n, picks }, null, 1)}\n`);
+  const out = path.join(ROOT, 'out', slug, 'shorts', `lyric-picks-${run}`);
+  fs.mkdirSync(out, { recursive: true });
+  const audio = path.join(ROOT, 'projects', m.audio.src);
+  for (const p of picks) {
+    const d = p.to - p.from;
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', `${p.from}`, '-t', `${d}`, '-i', audio, '-af', `afade=t=out:st=${(d - 0.4).toFixed(2)}:d=0.4`, '-b:a', '192k', path.join(out, `${p.letter}.mp3`)]);
+  }
+  const W = 1800;
+  const H = 300;
+  const x = (t: number) => Math.round((t / m.audio.duration) * W);
+  const COLORS = ['0xFF3B8B', '0x34C759', '0x0A84FF', '0xFFD60A', '0xBF5AF2', '0xFF9F0A'];
+  const marks = [
+    ...m.sections.map(s => `drawbox=x=${x(s.from)}:y=0:w=2:h=${H}:color=white@0.35:t=fill,drawtext=text='${s.label.replace(/'/g, '')}':x=${x(s.from) + 4}:y=${H - 18}:fontsize=13:fontcolor=white@0.8`),
+    ...picks.map((p, k) => {
+      const main = k < n;
+      const y = main ? k * 40 : n * 40 + (k - n) * 26;
+      return `drawbox=x=${x(p.from)}:y=${y}:w=${x(p.to) - x(p.from)}:h=${main ? 36 : 22}:color=${main ? COLORS[k % COLORS.length] : '0x888888'}@${main ? 0.85 : 0.6}:t=fill,drawtext=text='${p.letter}  ${p.from.toFixed(1)}–${p.to.toFixed(1)} s':x=${x(p.from) + 6}:y=${y + (main ? 9 : 4)}:fontsize=${main ? 18 : 13}:fontcolor=white`;
+    }),
+  ].join(',');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', audio, '-filter_complex', `[0:a]aformat=channel_layouts=mono,showwavespic=s=${W}x${H}:colors=0x4a4f55:scale=sqrt[w];color=c=0x111111:s=${W}x${H}[bg];[bg][w]overlay=format=auto,${marks}`, '-frames:v', '1', '-update', '1', path.join(out, 'picks.png')]);
+  console.log(`${m.title} · lyric picks run ${run} · ${cands.length} stretches scored\n`);
+  picks.forEach((p, k) => {
+    if (k === n) console.log('\nalternates:');
+    console.log(`${p.letter}  ${mmss(p.from)}–${mmss(p.to)}  ${(p.to - p.from).toFixed(1).padStart(5)} s  beats ${p.fromBeat}–${p.toBeat}  score ${p.score.toFixed(2)}  ${p.sections.join(' · ')}`);
+    console.log(`   "${p.first} …" → "… ${p.last}"${p.why.length ? `  (${p.why.join('; ')})` : ''}`);
+  });
+  console.log(`\n✔ shorts/lyric-picks.json · out/${slug}/shorts/lyric-picks-${run}/ (A.mp3 …, picks.png)`);
+  process.exit(0);
+}
+
+// ------------------------------------------------------------------ new
+
+if (cmd === 'new') {
+  if (!what) throw new Error('new which stretch? a letter from shorts/lyric-picks.json, or from-to in seconds');
+  const formats = (opt('formats') ?? '9x16').split(',');
+  const picksFile = path.join(shortsDir, 'lyric-picks.json');
+  const picks = fs.existsSync(picksFile) ? JSON.parse(fs.readFileSync(picksFile, 'utf8')) : { run: 0, picks: [] };
+  let from: number;
+  let to: number;
+  const p = picks.picks.find((x: { letter: string }) => x.letter === what.toUpperCase());
+  if (p) [from, to] = [p.from, p.to];
+  else if (/^[\d.]+-[\d.]+$/.test(what)) [from, to] = what.split('-').map(Number).map(t => bars[barAt(t)]);
+  else throw new Error(`no pick "${what}" (run pick first) and not a from-to`);
+  from = bars[Math.max(0, barAt(from) - Number(opt('lead') ?? 0))];
+  const history = readHistory();
+  const used = new Set(history.shorts.map(h => h.id));
+  let k = 1;
+  const idOf = (i: number) => `s${String(i).padStart(2, '0')}`;
+  while (used.has(idOf(k)) || fs.existsSync(path.join(shortsDir, idOf(k)))) k++;
+  const id = opt('id') ?? idOf(k);
+  const sd = path.join(shortsDir, id);
+  fs.mkdirSync(sd, { recursive: true });
+  // --loop: made to loop (no fade in, a click-free 20 ms out, the engine keeps the seam clean)
+  const loop = args.includes('--loop');
+  fs.writeFileSync(path.join(sd, 'short.json'), `${JSON.stringify({ id, from: +from.toFixed(3), to: +to.toFixed(3), formats, fps: 30, ...(loop ? { fadeIn: 0, fadeOut: 0.02, loop: true } : {}) }, null, 1)}\n`);
+  // the stretch's words with their beats, to cast rows from
+  const inside = words.filter(w => w.start >= from - 0.05 && w.start < to);
+  const lines: string[] = [];
+  let cur: string[] = [];
+  let lastEnd = -1;
+  for (const w of inside) {
+    if (cur.length && w.start - lastEnd > 0.6) {
+      lines.push(cur.join(' '));
+      cur = [];
+    }
+    cur.push(`${w.text}@${beatAt(m, w.start).toFixed(1)}`);
+    lastEnd = w.end;
+  }
+  if (cur.length) lines.push(cur.join(' '));
+  const header = `/**\n * ${m.title} — lyric short ${id}: ${mmss(from)}–${mmss(to)} of the song (beats ${beatAt(m, from).toFixed(0)}–${beatAt(m, to).toFixed(0)}; ${sectionsIn(from, to).join(' · ')}).\n * make-lyrics-shorts-summerstyle-boldwords. Beats are indices of manifest.beats.list.\n *\n * Sung words (word@beat):\n${lines.map(l => ` *   ${l}`).join('\n')}\n */\n`;
+  fs.writeFileSync(
+    path.join(sd, 'edl.ts'),
+    `${header}import { cut, full, stack, type LyricShortEdl } from '../../../../src/lyricshorts/spec.ts';\n\nexport const edl: LyricShortEdl = {\n  // the footage under everything: a cut per beat range (shot, seconds into it, crop centre x)\n  cuts: [\n    // cut(${beatAt(m, from).toFixed(0)}, 'sh0002', { in: 0, x: 0.5 }),\n  ],\n  // what is on screen: a phrase a screen, filling the frame (the layout picks the rows), full-frame footage\n  screens: [\n    // stack('first words of the phrase', { exit: 'through' }),\n    // full(${beatAt(m, to).toFixed(0)}),\n  ],\n};\n`,
+  );
+  fs.writeFileSync(
+    path.join(sd, 'index.tsx'),
+    `${header}import { defineLyricShort, type LyricShortSpec } from '../../../../src/lyricshorts/define';\nimport type { Faces, Luma } from '../../../../src/lyricshorts/framing';\n// the footage's subjects (mark them: SKILL.md, step 2) and each clip's brightness (written by \`clips\`)\nimport faces from '../../footage/faces.json';\nimport { THEME } from '../theme';\nimport { edl } from './edl.ts';\nimport luma from './luma.json';\nimport short from './short.json';\n\nexport default defineLyricShort({ slug: '${slug}', short: short as LyricShortSpec, edl, theme: THEME, faces: faces as unknown as Faces, luma: luma as unknown as Luma });\n`,
+  );
+  fs.writeFileSync(path.join(sd, 'luma.json'), '{}\n');
+  const facesFile = path.join(dir, 'footage', 'faces.json');
+  if (!fs.existsSync(facesFile)) {
+    fs.mkdirSync(path.dirname(facesFile), { recursive: true });
+    fs.writeFileSync(facesFile, `${JSON.stringify({ aspect: 16 / 9, shots: {} }, null, 1)}\n`);
+    console.log('  · mark the footage\'s subjects in footage/faces.json (SKILL.md, step 2): every cut frames on them');
+  }
+  if (!fs.existsSync(path.join(shortsDir, 'theme.ts'))) console.log('  · write shorts/theme.ts (the project\'s LyricShortTheme) before opening Studio');
+  history.shorts.push({ id, from, to, fromBeat: Math.round(beatAt(m, from)), toBeat: Math.round(beatAt(m, to)), sections: sectionsIn(from, to), run: picks.run, date: today(), status: 'made', formats, skill: 'make-lyrics-shorts-summerstyle-boldwords' });
+  fs.writeFileSync(historyFile, `${JSON.stringify(history, null, 1)}\n`);
+  console.log(`✔ shorts/${id}/  ${mmss(from)}–${mmss(to)}  ${formats.map(f => `${slug}-${id}-${f}`).join(', ')}`);
+  process.exit(0);
+}
+
+// ------------------------------------------------------------------ font
+
+if (cmd === 'font') {
+  // the stack is drawn from the font's outlines, so the theme needs the font file itself: Google Fonts
+  // hands a TTF to clients that don't ask for woff2
+  const family = what;
+  const weight = opt('weight') ?? '900';
+  if (!family) throw new Error('font <Family> [--weight=900]');
+  const css = execFileSync('curl', ['-s', `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@${weight}`], { encoding: 'utf8' });
+  const url = css.match(/url\((https:[^)]+\.ttf)\)/)?.[1];
+  if (!url) throw new Error(`Google Fonts has no ${family} ${weight} (${css.slice(0, 200)})`);
+  const rel = `shorts/fonts/${family.replace(/\s+/g, '')}-${weight}.ttf`;
+  fs.mkdirSync(path.join(dir, 'shorts/fonts'), { recursive: true });
+  execFileSync('curl', ['-s', '-o', path.join(dir, rel), url]);
+  console.log(`✔ ${rel} — in shorts/theme.ts: type.font = '${slug}/${rel}'`);
+  process.exit(0);
+}
+
+// ------------------------------------------------------------------ brand
+
+if (cmd === 'brand') {
+  // a brand's watermark on the shorts (user, 2026-10-28: "put a watermark at top right, Music by + the Get into
+  // Zone logo … this skill should also accept a brand if it wants a watermark on the shorts"): copies the brand's
+  // credit logo and its small-label font from its kit (brands/<brand>/thumbnail.json) into shorts/brand/ and sets
+  // theme.watermark. --logo=<file in the kit> picks another logo, --label, --at (top-right · top-left ·
+  // bottom-right · bottom-left), --width (fraction of the frame's width)
+  const brand = what;
+  if (!brand) throw new Error('brand <name> [--logo=logo/<file>] [--label="Music by"] [--at=top-right] [--width=0.2]');
+  const kit = path.join(ROOT, 'brands', brand);
+  if (!fs.existsSync(path.join(kit, 'thumbnail.json'))) throw new Error(`no brands/${brand}/thumbnail.json (pack-brand-kit writes it)`);
+  type Profile = { name: string; logos: { file: string; as?: string }[]; fonts?: { family: string; weight: number; file: string; role?: string }[]; palette?: Record<string, string> };
+  const prof = JSON.parse(fs.readFileSync(path.join(kit, 'thumbnail.json'), 'utf8')) as Profile;
+  // the brand's compact mark (what a thumbnail job copies as mark.png: Get into Zone's Frame — the user,
+  // 2026-10-28: "don't use the strip logo, use the frame logo"), else the artist credit, else the first
+  const logo = opt('logo') ?? (prof.logos.find(l => l.as === 'mark.png') ?? prof.logos.find(l => l.as === 'logo.png') ?? prof.logos[0]).file;
+  const font = (prof.fonts ?? []).find(f => /label/i.test(f.role ?? '')) ?? (prof.fonts ?? []).find(f => /small/i.test(f.role ?? '')) ?? prof.fonts?.[0];
+  const out = path.join(shortsDir, 'brand');
+  fs.mkdirSync(out, { recursive: true });
+  const logoRel = `shorts/brand/logo${path.extname(logo)}`;
+  fs.copyFileSync(path.join(kit, logo), path.join(dir, logoRel));
+  const fontRel = font ? `shorts/brand/label${path.extname(font.file)}` : null;
+  if (font) fs.copyFileSync(path.join(kit, font.file), path.join(dir, fontRel!));
+  const label = opt('label') ?? 'Music by';
+  const entry = `  // the brand's watermark (mm lyric-shorts ${slug} brand ${brand}): ${prof.name}\n  watermark: { brand: '${brand}', logo: '${slug}/${logoRel}', label: ${JSON.stringify(label)}, ${fontRel ? `labelFont: '${slug}/${fontRel}', ` : ''}at: '${opt('at') ?? 'top-right'}', width: ${opt('width') ?? 0.2}, color: '${prof.palette?.ink ?? '#FFFFFF'}' },\n`;
+  const themeFile = path.join(shortsDir, 'theme.ts');
+  let th = fs.readFileSync(themeFile, 'utf8');
+  th = th.replace(/  \/\/ the (brand's watermark|artist's credit)[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
+  const end = th.lastIndexOf('};');
+  th = th.slice(0, end) + entry + th.slice(end);
+  fs.writeFileSync(themeFile, th);
+  console.log(`✔ ${prof.name}: ${logo} + "${label}"${font ? ` in ${font.family} ${font.weight}` : ''} → shorts/brand/, theme.watermark set`);
+  process.exit(0);
+}
+
+if (cmd === 'credit') {
+  // an artist's credit with no logo (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not
+  // available"): the label above the artist's name in capitals, set in the shorts' own faces (the label in
+  // type.small, the name in type.font), still over every frame like a brand's watermark
+  const name = what;
+  if (!name) throw new Error('credit <artist name> [--label="Music by"] [--at=top-right] [--width=0.2] [--color=#FFFFFF]');
+  const label = opt('label') ?? 'Music by';
+  const themeFile = path.join(shortsDir, 'theme.ts');
+  let th = fs.readFileSync(themeFile, 'utf8');
+  const small = th.match(/small:\s*'([^']+)'/)?.[1];
+  const entry = `  // the artist's credit, no logo (mm lyric-shorts ${slug} credit ${JSON.stringify(name)})\n  watermark: { name: ${JSON.stringify(name)}, label: ${JSON.stringify(label)}, ${small ? `labelFont: '${small}', ` : ''}at: '${opt('at') ?? 'top-right'}', width: ${opt('width') ?? 0.2}, color: '${opt('color') ?? '#FFFFFF'}' },\n`;
+  th = th.replace(/  \/\/ the (brand's watermark|artist's credit)[^\n]*\n  watermark: \{[^\n]*\},\n/, '');
+  const end = th.lastIndexOf('};');
+  th = th.slice(0, end) + entry + th.slice(end);
+  fs.writeFileSync(themeFile, th);
+  console.log(`✔ "${label}" + ${name.toUpperCase()} → theme.watermark set`);
+  process.exit(0);
+}
+
+// ------------------------------------------------------------------ clips
+
+if (cmd === 'clips') {
+  const id = what;
+  if (!id) throw new Error('clips <id>');
+  const sd = path.join(shortsDir, id);
+  const short = JSON.parse(fs.readFileSync(path.join(sd, 'short.json'), 'utf8')) as { from: number; to: number; fps?: number; loop?: boolean };
+  const { edl } = (await import(pathToFileURL(path.join(sd, 'edl.ts')).href)) as { edl: LyricShortEdl };
+  const fps = short.fps ?? 30;
+  const { screens, cuts: resolvedCuts, whole, warnings } = resolveShort(m, short, edl);
+
+  // footage sources and their shots
+  const cfgFile = path.join(shortsDir, 'footage.json');
+  type Source = { id: string; prefix: string; source: string; segregation: string };
+  let sources: Source[];
+  if (fs.existsSync(cfgFile)) sources = JSON.parse(fs.readFileSync(cfgFile, 'utf8')).sources;
+  else {
+    const vids = fs.existsSync(path.join(dir, 'input/footage')) ? fs.readdirSync(path.join(dir, 'input/footage')).filter(f => /\.(mp4|mov|mkv|webm)$/i.test(f)) : [];
+    if (!vids.length) throw new Error('no footage: put a video in input/footage/ or write shorts/footage.json');
+    sources = [{ id: 'main', prefix: 'sh', source: `input/footage/${vids[0]}`, segregation: 'footage' }];
+  }
+  type Shot = { id: string; start: number; end: number; duration: number; kind: string };
+  const shots = new Map<string, { shot: Shot; src: Source; w: number; h: number }>();
+  const srcFps = new Map<string, number>();
+  for (const src of sources) {
+    const seg = JSON.parse(fs.readFileSync(path.join(dir, src.segregation, 'segregation.json'), 'utf8')) as { shots: Shot[]; video: { width: number; height: number; fps: number } };
+    srcFps.set(src.id, seg.video.fps);
+    for (const s of seg.shots) shots.set(src.prefix === 'sh' ? s.id : s.id.replace(/^sh/, src.prefix), { shot: s, src, w: seg.video.width, h: seg.video.height });
+  }
+
+  // timeline, with each stack laid out as the render will (rows, vertical word, how far the letters stretch)
+  const { THEME } = (await import(pathToFileURL(path.join(shortsDir, 'theme.ts')).href)) as { THEME: { type: TypeStyle } };
+  const fontBuf = fs.readFileSync(path.join(ROOT, 'projects', THEME.type.font));
+  const font = opentype.parse(fontBuf.buffer.slice(fontBuf.byteOffset, fontBuf.byteOffset + fontBuf.byteLength));
+  const smallBuf = THEME.type.small ? fs.readFileSync(path.join(ROOT, 'projects', THEME.type.small)) : fontBuf;
+  const smallFont = opentype.parse(smallBuf.buffer.slice(smallBuf.byteOffset, smallBuf.byteOffset + smallBuf.byteLength));
+  const b = (t: number) => beatAt(m, t).toFixed(1).padStart(6);
+  console.log(`${m.title} · ${id} · ${mmss(short.from)}–${mmss(short.to)} (${(short.to - short.from).toFixed(1)} s)\n`);
+  console.log('screens');
+  const layouts = solveShort(screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack'), font, THEME.type, 1080, 1920);
+  const lockups = new Map<number, Lockup>();
+  for (const s of screens) {
+    if (s.kind === 'full') console.log(`  ${b(s.start)}–${b(s.end)}  full frame`);
+    else if (s.kind === 'cap') {
+      // a lockup over the footage: the highlight word, and where the small words went
+      const lk = solveLockup(s, font, smallFont, THEME.type, 1080, 1920);
+      lockups.set(s.index, lk);
+      const wait = Math.max(...s.words.map(w => w.show)) - s.start;
+      console.log(`  ${b(s.start)}–${b(s.end)}  over the footage: ${s.words.map((w, i) => (i === s.hi ? w.text.toUpperCase() : w.text)).join(' ')}   (${Math.round(lk.size)} px / ${Math.round(lk.small)} px; small words ${lk.where}; all words in by +${wait.toFixed(1)} s)`);
+      console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
+    }
+    else {
+      const lay = layouts.get(s.index)!;
+      // how the stack meets the frame: letters stretched (only if the theme allows it), then black above
+      // and below (the stack is centred) or, too tall, shrunk evenly
+      const [s0, s1] = THEME.type.stretch;
+      const sy = Math.min(s1, Math.max(s0, lay.stretch));
+      const rest = lay.stretch / sy;
+      const fit = `${sy !== 1 ? `letters ×${sy.toFixed(2)} tall, ` : ''}${rest >= 1 ? `fills ${Math.round(100 / rest)} % of the height` : `shrunk to ${Math.round(100 * rest)} %`}`;
+      // a mask that fills under ~75 % of the height leaves black bands: a lockup reads better (2026-10-28)
+      const off = (rest > 1 / 0.75 || rest < 0.8) && (lay.flip === undefined || lay.flip < s.end);
+      // a row stays black until its word is sung: a screen whose words take long to arrive reads as a
+      // black screen (the user on v7's 6–10-word screens: "seeing black screen for a lot of time")
+      const wait = Math.max(...s.words.map(w => w.show)) - s.start;
+      // black words over the footage until the flip: the wait isn't black
+      const slow = wait > 2.2 && lay.flip === undefined;
+      console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${lay.flip !== undefined ? `  ◐ black words, the mask from ${b(lay.flip).trim()}` : ''}${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow ? '  ⚠' : ''}`);
+      if (off) warnings.push(`screen ${s.index} (${lay.label}) ${rest > 1 ? `fills only ${Math.round(100 / rest)} % as a mask: make it a lockup (cap) or fold a neighbouring clause in` : 'is too tall and shrinks a lot: regroup its words'}`);
+      // the user, 2026-11-02: "the black text on the screen is looking ugly, instead either go with mask or … 1
+      // highlight word and fitting text above and/or bottom"
+      if (lay.flip !== undefined) warnings.push(`screen ${s.index} (${lay.label}) starts as words over the footage (reverse): the user rejected them — a mask that fills, or a lockup (cap)`);
+      if (slow) warnings.push(`screen ${s.index} (${lay.label}) waits ${wait.toFixed(1)} s for its last word: its lower rows sit black that long — split it`);
+      console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
+    }
+  }
+  // every cut framed on its subject (footage/faces.json, per source), as the render frames it
+  const faces: Faces = { aspect: 16 / 9, shots: {} };
+  for (const src of sources) {
+    const f = path.join(dir, src.segregation, 'faces.json');
+    if (!fs.existsSync(f)) continue;
+    const doc = JSON.parse(fs.readFileSync(f, 'utf8')) as Faces;
+    faces.aspect = doc.aspect;
+    for (const [shot, box] of Object.entries(doc.shots)) faces.shots[src.prefix === 'sh' ? shot : shot.replace(/^sh/, src.prefix)] = box;
+  }
+  // each lockup where its text keeps the faces under it clear; the cuts under it framed clear of the text
+  const caps = placeCaps(resolvedCuts, screens, lockups, faces, 1080, 1920);
+  const cuts = frameCuts(resolvedCuts, screens, layouts, faces, 1080, 1920, short.loop, caps);
+  if (caps.size) {
+    console.log('\nlockups (place · how much of the faces under it the text covers)');
+    for (const s of screens) {
+      const p = s.kind === 'cap' ? caps.get(s.index) : undefined;
+      if (s.kind !== 'cap' || !p) continue;
+      console.log(`  ${b(s.start)}  ${s.words[s.hi].text.toUpperCase().padEnd(14)} ${p.place.padEnd(4)}${s.place === 'auto' ? '' : ' (by hand)'}  ${Math.round(p.cover * 100)} %${p.worst ? `  (most: ${p.worst.shot} ${Math.round(p.worst.cover * 100)} %)` : ''}`);
+      // a face under the text is the one thing a lockup mustn't do (user, 2026-11-02)
+      if (p.worst && p.worst.cover > 0.15)
+        warnings.push(`the lockup "${s.words[s.hi].text}" (${b(s.start).trim()}) covers ${Math.round(p.worst.cover * 100)} % of ${p.worst.shot}'s face: set its place by hand, crop the cut by hand (y / zoom) or pick another shot`);
+    }
+  }
+  console.log('\ncuts');
+  const outDir = path.join(dir, 'derived', 'lyricshorts');
+  fs.mkdirSync(outDir, { recursive: true });
+  const jobs: { file: string; argv: string[] }[] = [];
+  const usage = new Map<string, [number, number, number][]>();
+  for (const [i, c] of cuts.entries()) {
+    const found = shots.get(c.shot);
+    if (!found) throw new Error(`cut ${i + 1}: no shot ${c.shot} in ${sources.map(s => s.segregation).join(', ')}`);
+    const { shot, src, w, h } = found;
+    // the shot this cut shows, speed ramps included (clipTime); the clip holds that plus the tail
+    const needs = clipTime(c, c.end - c.start);
+    if (shot.kind !== 'picture') warnings.push(`cut ${i + 1} (${c.shot}) is a ${shot.kind} shot`);
+    if (c.in + needs > shot.duration + 0.02) warnings.push(`cut ${i + 1} (${c.shot}) runs ${(c.in + needs - shot.duration).toFixed(2)} s past the shot's end: a shorter cut, an earlier 'in' or a faster rate`);
+    const range: [number, number, number] = [c.in, c.in + needs, i + 1];
+    for (const [a, z, j] of usage.get(c.shot) ?? []) if (Math.min(z, range[1]) - Math.max(a, range[0]) > 0.1) warnings.push(`cut ${i + 1} shows the same frames of ${c.shot} as cut ${j}`);
+    usage.set(c.shot, [...(usage.get(c.shot) ?? []), range]);
+    const ch = Math.round(h / c.zoom / 2) * 2;
+    const cw = Math.round((ch * 9) / 16 / 2) * 2;
+    const cx = Math.round(Math.min(w - cw, Math.max(0, c.x * w - cw / 2)));
+    const cy = Math.round(Math.min(h - ch, Math.max(0, c.y * h - ch / 2)));
+    const file = path.join(outDir, c.file);
+    // at the source's own speed and frame rate (up to 60): speed ramps and slow motion pick frames in the render
+    // a camera move made of the crop (pan / tilt): the window travels across the source over the cut's
+    // seconds of clip, centred on the framed position, then holds; clamped to the frame
+    let cropX = String(cx);
+    let cropY = String(cy);
+    if (c.pan || c.tilt) {
+      const ds = Math.max(0.05, clipTime(c, c.end - c.start));
+      const x0 = c.x * w - cw / 2 - (c.pan * w) / 2;
+      const y0 = c.y * h - ch / 2 - (c.tilt * h) / 2;
+      cropX = `min(max(0\\,${x0.toFixed(1)}+${((c.pan * w) / ds).toFixed(2)}*min(t\\,${ds.toFixed(3)}))\\,${w - cw})`;
+      cropY = `min(max(0\\,${y0.toFixed(1)}+${((c.tilt * h) / ds).toFixed(2)}*min(t\\,${ds.toFixed(3)}))\\,${h - ch})`;
+    }
+    const vf = [`crop=${cw}:${ch}:${cropX}:${cropY}`, 'scale=1080:1920:flags=lanczos', `fps=${Math.min(60, srcFps.get(src.id) ?? 30)}`, c.mono ? 'hue=s=0' : '', 'format=yuv420p'].filter(Boolean).join(',');
+    if (!fs.existsSync(file)) jobs.push({ file, argv: ['-v', 'error', '-y', '-ss', (shot.start + c.in).toFixed(3), '-i', path.join(dir, src.source), '-t', c.span.toFixed(3), '-vf', vf, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '14', `${file}.part.mp4`] });
+    const trs = [c.tr.kind !== 'cut' ? c.tr.kind + (c.tr.dir ? ` ${c.tr.dir}` : '') : '', c.flash ? 'flash' : '', c.shake ? `shake ${c.shake}` : ''].filter(Boolean).join(' + ') + (whole.includes(i) ? '  (whole frame: the screen changes here)' : '');
+    console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920, caps, c.face ?? faces.shots[c.shot] ?? undefined).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
+  }
+  // decoding 4K AV1 is heavy: a few at a time
+  const parallel = Math.max(1, Math.min(4, Math.floor(os.cpus().length / 3)));
+  let next = 0;
+  const run = async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      await new Promise<void>((res, rej) => {
+        const p = spawn('ffmpeg', job.argv, { stdio: ['ignore', 'ignore', 'inherit'] });
+        p.on('exit', code => (code === 0 ? res() : rej(new Error(`ffmpeg failed on ${path.basename(job.file)}`))));
+      });
+      fs.renameSync(`${job.file}.part.mp4`, job.file);
+    }
+  };
+  if (jobs.length) {
+    const t0 = Date.now();
+    await Promise.all(Array.from({ length: parallel }, run));
+    console.log(`\n  cut ${jobs.length} clips in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  }
+
+  // each clip's brightness in bands down its middle frame, for the words over the footage: black on
+  // bright shots, white on dark (luma.json, read by the render)
+  const luma: Luma = {};
+  for (const c of cuts) {
+    const raw = execFileSync('ffmpeg', ['-v', 'error', '-ss', ((c.end - c.start) / 2).toFixed(3), '-i', path.join(outDir, c.file), '-frames:v', '1', '-vf', `scale=1:${LUMA_BANDS}:flags=area,format=gray`, '-f', 'rawvideo', '-']);
+    luma[c.file] = [...raw.subarray(0, LUMA_BANDS)];
+  }
+  fs.writeFileSync(path.join(sd, 'luma.json'), `${JSON.stringify(luma, null, 1)}\n`);
+  const reversed = screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack' && layouts.get(s.index)!.flip !== undefined);
+  if (reversed.length) {
+    console.log('\nwords over the footage');
+    for (const s of reversed) {
+      const flip = layouts.get(s.index)!.flip!;
+      const c = cuts.find(x => (s.start + flip) / 2 >= x.start && (s.start + flip) / 2 < x.end);
+      const ink = inkOf(s, layouts.get(s.index)!, flip, cuts, luma, 1920, THEME.type.reverse?.white);
+      console.log(`  ${b(s.start)}–${b(flip)}  ${layouts.get(s.index)!.label}: ${ink} words${c ? ` over ${c.shot} (bands, top to bottom: ${luma[c.file].join(' ')})` : ''}${s.ink ? ' (by hand)' : ''}`);
+    }
+  }
+
+  // the Revisions map: one shot per cut, named by the words on screen over it
+  const onScreen = (a: number, z: number) =>
+    screens
+      .filter(s => s.kind !== 'full' && s.end > a && s.start < z)
+      .flatMap(s => (s.kind !== 'full' ? s.words.filter(w => w.show < z && w.show >= Math.min(a, s.start)).map(w => w.text) : []))
+      .join(' ');
+  const shotList = cuts.map((c, i) => ({ id: `${id}.${i + 1}`, from: +c.start.toFixed(3), to: +c.end.toFixed(3), label: c.shot, lyric: onScreen(c.start, c.end) || undefined }));
+  fs.writeFileSync(path.join(sd, 'shots.json'), `${JSON.stringify(shotList, null, 1)}\n`);
+
+  // cuts.jpg: every cut's middle frame as framed, numbered
+  const sheetDir = path.join(ROOT, 'out', slug, 'shorts', id);
+  fs.mkdirSync(sheetDir, { recursive: true });
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lyricshorts-'));
+  cuts.forEach((c, i) => {
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', ((c.end - c.start) / 2).toFixed(3), '-i', path.join(outDir, c.file), '-frames:v', '1', '-vf', `scale=216:384,drawtext=text='${i + 1} ${c.shot}':x=6:y=6:fontsize=18:fontcolor=white:box=1:boxcolor=black@0.6`, path.join(tmp, `${String(i).padStart(3, '0')}.png`)]);
+  });
+  const cols = Math.min(8, cuts.length);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-pattern_type', 'glob', '-i', path.join(tmp, '*.png'), '-vf', `tile=${cols}x${Math.ceil(cuts.length / cols)}:padding=4:color=0x111111`, '-frames:v', '1', '-update', '1', path.join(sheetDir, 'cuts.jpg')]);
+  fs.rmSync(tmp, { recursive: true, force: true });
+
+  if (warnings.length) {
+    console.log('\nwarnings');
+    for (const w of warnings) console.log(`  ⚠ ${w}`);
+  }
+  console.log(`\n✔ derived/lyricshorts/ (${cuts.length} clips) · shorts/${id}/shots.json · out/${slug}/shorts/${id}/cuts.jpg`);
+  process.exit(0);
+}
+
+// ------------------------------------------------------------------ render
+
+if (cmd === 'render') {
+  // one bundle, then the shorts one at a time (user, 2026-11-02: the Mac overheats with many heavy jobs): this project
+  // alone (ONLY_PROJECT), the public dir linked, never copied (tempBundle), snapshots by timestamp — hashing read all
+  // of projects/ and killed the CLI bundle at ~63 % (scripts/snapshots.ts). Each short renders to <name>.part.mp4; only
+  // a finished render replaces <name>.mp4, the previous one kept in v<N>/ (render-project's rule). Then its Revisions
+  // map and a scan for dark frames.
+  const { renderMedia, selectComposition } = await import('@remotion/renderer');
+  const { enableTailwind } = await import('@remotion/tailwind-v4');
+  const { removeBundle, tempBundle } = await import('./bundle.ts');
+  const { keepPrevious, parseFramesFlag, writeVideoMap } = await import('./map.ts');
+  const isLyricShort = (id: string) => fs.existsSync(path.join(shortsDir, id, 'index.tsx')) && fs.readFileSync(path.join(shortsDir, id, 'index.tsx'), 'utf8').includes('defineLyricShort');
+  const asked = args.filter(a => !a.startsWith('--')).slice(2);
+  if (!asked.length) throw new Error('render <id …> | all [--format=9x16] [--frames=a-b] [--concurrency=3] [--crf=18]');
+  const ids = asked.includes('all') ? fs.readdirSync(shortsDir).filter(d => /^[^_.]/.test(d) && isLyricShort(d)).sort() : asked;
+  // everything a short needs before anything renders: its cut clips (`clips` writes luma.json with one entry per clip)
+  for (const id of ids) {
+    if (!isLyricShort(id)) throw new Error(`no lyric short ${id} (shorts/${id}/index.tsx with defineLyricShort)`);
+    const lumaFile = path.join(shortsDir, id, 'luma.json');
+    if (!fs.existsSync(lumaFile)) throw new Error(`${id} has no clips yet. Run: mm lyric-shorts ${slug} clips ${id}`);
+    const missing = Object.keys(JSON.parse(fs.readFileSync(lumaFile, 'utf8'))).filter(f => !fs.existsSync(path.join(dir, 'derived', 'lyricshorts', f)));
+    if (missing.length) throw new Error(`${id}: ${missing.length} clips missing from derived/lyricshorts/ (${missing.slice(0, 3).join(', ')}…). Run: mm lyric-shorts ${slug} clips ${id}`);
+  }
+  const concurrency = Number(opt('concurrency') ?? 3);
+  const crf = Number(opt('crf') ?? 18);
+  const frames = parseFramesFlag(args);
+  // the watermark's corner is cropped off the dark-frame scan: its logo stays lit over a black frame
+  const mark = fs.readFileSync(path.join(shortsDir, 'theme.ts'), 'utf8').match(/\n\s*watermark:\s*\{[^\n]*/)?.[0];
+  const crop = !mark ? '' : /at:\s*'[a-z]+-left'/.test(mark) ? 'crop=iw*0.7:ih:iw*0.3:0,' : 'crop=iw*0.7:ih:0:0,';
+  /** spans of frames with nothing lit (YMAX < 40), in the video's own seconds */
+  const darkSpans = (file: string, fps: number) => {
+    const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-vf', `${crop}signalstats,metadata=print:key=lavfi.signalstats.YMAX:file=-`, '-an', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 256 << 20 });
+    const dark = [...raw.matchAll(/frame:(\d+)[^\n]*\n[^\n]*YMAX=([\d.]+)/g)].filter(x => Number(x[2]) < 40).map(x => Number(x[1]));
+    const spans: [number, number][] = [];
+    for (const f of dark) spans.length && f === spans[spans.length - 1][1] + 1 ? (spans[spans.length - 1][1] = f) : spans.push([f, f]);
+    return { count: dark.length, spans: spans.map(([a, z]) => `${(a / fps).toFixed(2)}${z > a ? `–${((z + 1) / fps).toFixed(2)}` : ''} s`) };
+  };
+
+  process.env.ONLY_PROJECT = slug;
+  const t0 = Date.now();
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'src/index.ts'), publicDir: path.join(ROOT, 'projects'), webpackOverride: enableTailwind });
+  console.log(`bundled ${slug} in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  // as remotion.config.ts sets for the CLI (the Node API doesn't read it): ANGLE for WebGL, a long delayRender
+  const chromiumOptions = { gl: 'angle' as const };
+  const timeoutInMilliseconds = 100000;
+  const done: string[] = [];
+  const failed: string[] = [];
+  try {
+    for (const id of ids) {
+      const short = JSON.parse(fs.readFileSync(path.join(shortsDir, id, 'short.json'), 'utf8')) as { from: number; formats: string[] };
+      for (const f of opt('format') ? [opt('format')!] : short.formats) {
+        const name = `${slug}-${id}-${f}`;
+        const outDir = path.join(ROOT, 'out', slug, 'shorts', id);
+        const output = frames ? path.join(outDir, 'clips', `${name}-${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}.mp4`) : path.join(outDir, `${name}.mp4`);
+        const part = output.replace(/\.mp4$/, '.part.mp4');
+        fs.mkdirSync(path.dirname(output), { recursive: true });
+        const t = Date.now();
+        let fps = 30;
+        // a Chrome that times out starting or a font fetch that fails passes on a second try (2026-11-01)
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const composition = await selectComposition({ serveUrl, id: name, chromiumOptions, timeoutInMilliseconds });
+            fps = composition.fps;
+            let shown = -10;
+            await renderMedia({
+              serveUrl, composition, codec: 'h264', crf, imageFormat: 'jpeg', concurrency, chromiumOptions, timeoutInMilliseconds, outputLocation: part,
+              frameRange: frames ? [frames.from, Math.min(frames.to, composition.durationInFrames - 1)] : null,
+              onProgress: ({ progress }) => {
+                const p = Math.floor(progress * 100);
+                if (p >= shown + 10) console.log(`  ${name} ${(shown = p - (p % 10))} %`);
+              },
+            });
+            break;
+          } catch (err) {
+            fs.rmSync(part, { force: true });
+            console.warn(`  ✗ ${name}, try ${attempt}: ${err instanceof Error ? err.message.split('\n')[0] : err}`);
+            if (attempt === 2) failed.push(name);
+          }
+        }
+        if (!fs.existsSync(part)) continue;
+        if (!frames) keepPrevious(outDir, name);
+        fs.renameSync(part, output);
+        console.log(`✔ ${path.relative(ROOT, output)} in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+        try {
+          const shots = fs.existsSync(path.join(shortsDir, id, 'shots.json')) ? `shorts/${id}/shots.json` : 'video/shots.json';
+          writeVideoMap(slug, output, frames, { shots, offset: short.from });
+        } catch (err) {
+          console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
+        }
+        const dark = darkSpans(output, fps);
+        console.log(`  dark frames (YMAX < 40${crop ? ', watermark corner cropped' : ''}): ${dark.count}${dark.count ? ` at ${dark.spans.slice(0, 8).join(', ')}${dark.spans.length > 8 ? ' …' : ''}` : ''}`);
+        done.push(`${path.relative(ROOT, output)}${dark.count ? ` (${dark.count} dark frames)` : ''}`);
+      }
+    }
+  } finally {
+    removeBundle(serveUrl);
+  }
+  console.log(`\n${done.length} rendered${done.length ? `:\n  ${done.join('\n  ')}` : ''}${failed.length ? `\n${failed.length} failed: ${failed.join(', ')}` : ''}`);
+  process.exit(failed.length ? 1 : 0);
+}
+
+console.error(`unknown command ${cmd}`);
+process.exit(1);

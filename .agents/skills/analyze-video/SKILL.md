@@ -50,8 +50,8 @@ uv run --script .claude/skills/analyze-video/scripts/segregate.py "<video>"
 - Output goes next to the video as `<video name>_segregation/` unless you pass `--out <dir>`. If the
   video is in the repo (e.g. a project's `input/`), put the output somewhere gitignored.
 - **Analyse a file once.** The media library caches segregations by the file's content
-  (`apps/lyrics_videos/scripts/library/README.md`).
-  - Before a run: `npm run media -w lyrics_videos -- cache get "<video>" segregation --into=<out dir>`.
+  (`apps/studio/scripts/library/README.md`).
+  - Before a run: `mm media cache get "<video>" segregation --into=<out dir>`.
     It exits 3 when there's none.
   - After a run: `media cache put "<video>" segregation <out dir> --tool=analyze-video --target=footage/{name}`.
   - Another production of the same footage then gets it back in seconds (`media use … --with=segregation`).

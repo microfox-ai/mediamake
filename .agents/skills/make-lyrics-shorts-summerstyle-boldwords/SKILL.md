@@ -1,6 +1,6 @@
 ---
 name: make-lyrics-shorts-summerstyle-boldwords
-description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
+description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/studio/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
 ---
 
 # make-lyrics-shorts-summerstyle-boldwords
@@ -35,13 +35,13 @@ anatomy is the default look:
   leaks) with no type. A new sentence starts on a fresh black frame (a hard cut). `into` runs the
   dive backwards: full-frame footage pulls back out of a letter into a new stack.
 
-Everything lives in `apps/lyrics_videos`. Engine (committed): `src/lyricshorts/` — `spec.ts` (the cut
+Everything lives in `apps/studio`. Engine (committed): `src/lyricshorts/` — `spec.ts` (the cut
 list language and the resolver, Node-safe), `layout.ts` (the type set from the font's own outlines with
 opentype.js; `solveStack` tries every way to break a phrase into rows, with or without a vertical
 word, and keeps the one that fills the frame best with the biggest letters, then centres it; one SVG
 path per word; the dive point = centre of the row's thickest stroke), `LyricShort.tsx` (the scene: footage → tint → leaks → grain → the mask
 multiplied over it; solid letters on top), `define.ts` (`defineLyricShort`); the script
-`scripts/lyric-shorts.ts` (`npm run lyric-shorts`: pick, new, font, clips, render). Shorts are discovered
+`scripts/lyric-shorts.ts` (`mm lyric-shorts`: pick, new, font, clips, render). Shorts are discovered
 through the shared shorts path (`Root.tsx`, `stills --short`) and rendered with `lyric-shorts render`, the path
 make-video-music-remix-shorts set up — keep using it, don't fork it.
 
@@ -192,7 +192,7 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
 1. **The song** (wav preferred) and **timed words**, transcribed with ElevenLabs Scribe, never taken from
    MediaMake's transcriptions (the user, 2026-11-03: "should not use mediamake mcp instead use elevenlabs
    directly"). Separate the vocals and transcribe the vocal stem as CLAUDE.md › Transcription says
-   (make-waveform-lyric-video step 1): `npm run transcribe -w lyrics_videos -- <slug>` first gives back the
+   (make-waveform-lyric-video step 1): `mm transcribe <slug>` first gives back the
    song's cached words, or makes the stem's MP3 and prints the price. It is paid: ask first.
    - **The ElevenLabs MCP's key, first choice** (`mcp/elevenlabs`, the official open-source server with an
      API key): `--yes` sends the MP3 to Scribe with it (`--letters` adds letter times), writes
@@ -205,7 +205,7 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
      `analysis/stems/vocals.mp3` in the picker widget), wired in with `connect_from`; a direct https link
      through `creative_attach_reference_file`. Every word comes back with its start and end seconds in
      `transcripts[].words` (`creative_get_flow_run_status`), the full list at `words_download_url`: download
-     it, then `npm run transcribe -w lyrics_videos -- <slug> --save=<that file>` keeps the words the same way.
+     it, then `mm transcribe <slug> --save=<that file>` keeps the words the same way.
    Check the transcription is of the same mix (same length). **A published song (a YouTube link, a
    playlist)**: download its audio (`uvx yt-dlp --js-runtimes node -x --audio-format wav`) and transcribe
    *that* (the user, 2026-10-27: "use elevenlabs for transcribing"): an upload is often offset or edited
@@ -226,7 +226,7 @@ MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`mm transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 | `mcp/browse-hack` | optional | Twixtor packs from YouTube and Pinterest pictures straight into the library inbox, skipping what the library has (`youtube_download`, `pinterest_bulk_start`) | yt-dlp and gallery-dl fetch them instead, without the library's check for files it already has |
 
@@ -257,10 +257,10 @@ previews unless the user asks for them (`revise-video` › Previews or the whole
 ### 1. Project, song, words
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json`, `footage/`, `inspiration/`.
-Register the production (`npm run media -w lyrics_videos -- production new <slug> --channel=<brand id>
+Register the production (`mm media production new <slug> --channel=<brand id>
 --skill=make-lyrics-shorts-summerstyle-boldwords`).
 
-**The media library first** (`apps/lyrics_videos/scripts/library/README.md`):
+**The media library first** (`apps/studio/scripts/library/README.md`):
 - `media find "<character> twixtor" --kind=footage --sheet` and `media find "<character> <scene>"
   --kind=images` before any download or Pinterest round. The One Piece run fetched the same Zoro
   packs twice.
@@ -269,7 +269,7 @@ Register the production (`npm run media -w lyrics_videos -- production new <slug
 - Every file in `input/` is a clone, never a symlink: `media use <id> <slug>
   --as=input/footage/<name>.mp4`. A link into ~/Downloads broke eyesofpink.
 
-Then make-lyrics-video steps 2–3: `npm run analyze -w lyrics_videos -- <slug>
+Then make-lyrics-video steps 2–3: `mm analyze <slug>
 --plots` (stems, beat grid, CTC word alignment; ~1 min with models cached) and `prepare-project`.
 **Set real sections**: print each bar's drums / bass / other / vocal envelope with its lyric (see the
 eyesofpink session) and write intro / verse / pre-chorus / chorus / break / bridge / build / outro to
@@ -309,7 +309,7 @@ index.tsx). The faces sheets double as the casting sheets.
 ### 3. Pick stretches — check with the user
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> pick [--n=3] [--min=15] [--max=45]
+mm lyric-shorts <slug> pick [--n=3] [--min=15] [--max=45]
 ```
 
 Scores sentence-aligned stretches (sung share, hook words that come back elsewhere, vocal and drive,
@@ -320,13 +320,13 @@ come out messy (mid-sentence, too long), choose by the song's structure instead 
 two on 4-bar units — and scaffold with `new <from>-<to> --loop`. Writes
 `shorts/lyric-picks.json` and `out/<slug>/shorts/lyric-picks-<run>/` (A.mp3…, picks.png). Show the
 picks (first and last words, length, why) and the png; ask which to make unless the user said to just
-go. The generic `npm run shorts … pick` scores drive only and favours instrumental drops — not for
+go. The generic `mm shorts … pick` scores drive only and favours instrumental drops — not for
 lyric shorts.
 
 ### 4. Scaffold and cast — `shorts/<id>/edl.ts`
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> new A            # or a from-to in seconds; --lead=1 adds a bar before
+mm lyric-shorts <slug> new A            # or a from-to in seconds; --lead=1 adds a bar before
 ```
 
 Writes `short.json` (window, formats, fps), `edl.ts` (the stretch's words as `word@beat` in its header)
@@ -334,7 +334,7 @@ and `index.tsx`. The project's look is `shorts/theme.ts` (shared by its shorts; 
 type is drawn from the font file, so fetch it once per project (any Google font; Google hands curl a TTF):
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> font Figtree --weight=900   # → shorts/fonts/Figtree-900.ttf
+mm lyric-shorts <slug> font Figtree --weight=900   # → shorts/fonts/Figtree-900.ttf
 ```
 
 Make a casting sheet of candidate shots with an x-ruler (`drawgrid=w=48` over 480-px keyframes) and read
@@ -344,7 +344,7 @@ reference below).
 ### A brand's watermark
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> brand <brand> [--label="Music by"] [--at=top-right] [--width=0.2] [--logo=logo/<file>]
+mm lyric-shorts <slug> brand <brand> [--label="Music by"] [--at=top-right] [--width=0.2] [--logo=logo/<file>]
 ```
 
 Puts a brand's watermark on every short of the project (user, 2026-10-28: "put a watermark at top right,
@@ -359,7 +359,7 @@ mark, flush with the corner, a soft shadow.
 **An artist with no logo** (user, 2026-10-31: "logo watermark 'Music by - Virelia' since logo is not available"):
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> credit "<Artist>" [--label="Music by"] [--at=top-right] [--width=0.2]
+mm lyric-shorts <slug> credit "<Artist>" [--label="Music by"] [--at=top-right] [--width=0.2]
 ```
 
 sets `theme.watermark` with a `name` instead of a `logo`: the label above, the artist's name in capitals
@@ -368,7 +368,7 @@ logo's place. Fonts come from the theme, so it needs no brand kit.
 
 ### 5. Clips and checks
 
-Tools for the checks (all in `scripts/`, run from `apps/lyrics_videos`): `screens.mjs <slug> <id>` (each
+Tools for the checks (all in `scripts/`, run from `apps/studio`): `screens.mjs <slug> <id>` (each
 screen's kind, words, fill and beats), `framed.mjs <slug> <id>` (each cut's clip and its start / middle / end
 clip times — tile those frames to see the subject through the whole shot), `motion.py <video> <footage dir>`
 (each shot's camera motion → motion.json) and `continuity.py` (cuts moving against the one before).
@@ -376,7 +376,7 @@ clip times — tile those frames to see the subject through the whole shot), `mo
 lines, lockups, beat effects, camera runs) — then check its highlights and framing by eye.
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> clips s01
+mm lyric-shorts <slug> clips s01
 ```
 
 Prints the timeline (every screen with its rows and each word's beat; every cut), cuts the missing
@@ -387,7 +387,7 @@ same frames twice, words after their screen ends) and any framing that misses th
 the moments that matter, tiled into one sheet:
 
 ```bash
-npm run stills -w lyrics_videos -- <slug> 0.4,1.1,4.1,… --only --short=<id>    # seconds of the short
+mm stills <slug> 0.4,1.1,4.1,… --only --short=<id>    # seconds of the short
 ```
 
 Look for: every row's footage readable (not black), the face behind the big row, the solid row
@@ -398,7 +398,7 @@ and buttons), and no screen sitting half empty for long while a giant last word 
 ### 6. Render and review
 
 ```bash
-npm run lyric-shorts -w lyrics_videos -- <slug> render s01        # or: render s01 s03 · render all
+mm lyric-shorts <slug> render s01        # or: render s01 s03 · render all
 ```
 
 Bundles the project once (this project alone, the public folder linked — nothing copied into `$TMPDIR`,
@@ -418,14 +418,14 @@ file whole — 20+ GB of footage until macOS killed it. `remotion.config.ts` and
 snapshot by timestamp (`scripts/snapshots.ts`); if a bundle dies silently again, look for a webpack override
 that skips `timestampSnapshots`. Bundles link the public folder; only `npx remotion bundle` copies all of
 `projects/` — don't use it, and don't copy bundle or render scripts into a project. Before the links,
-run preflight on each short (`npm run preflight -w lyrics_videos -- <slug>
+run preflight on each short (`mm preflight <slug>
 --video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`: frozen frames and the sound, which the dark-frame
 scan doesn't cover) and fix or answer what it finds. Review with
 **`revise-video`**: `/video-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time), then start the watcher
-(`npm run wait-revision -w lyrics_videos -- <slug>` covers every short). Log every note in `prefs.md`, the
+(`mm wait-revision <slug>` covers every short). Log every note in `prefs.md`, the
 general rule in the lessons log here. A liked or rejected stretch:
-`npm run shorts -w lyrics_videos -- <slug> mark <id> liked|bad`. Footage the user called wrong or bad
+`mm shorts <slug> mark <id> liked|bad`. Footage the user called wrong or bad
 ("the twixtors look bad"): `media rate <id> bad --note="…" --production=<slug>`. Approved shorts go
 to the channel's folder: `media deliver <slug> --what=shorts` (a dry run), then `--yes`, and give the
 `open -R` line.
@@ -504,7 +504,7 @@ export const edl: LyricShortEdl = {
   with its edge. White with a soft shadow and a faint scrim; `place` unset lets the engine keep the heads
   under it clear (0b), or set it by hand: low (under the faces), high, mid; `color` tints the highlight (the
   theme's accent). The small words use `type.small` (the face at 700:
-  `npm run lyric-shorts -- <slug> font Figtree --weight=700`), at least 62 px.
+  `mm lyric-shorts <slug> font Figtree --weight=700`), at least 62 px.
 - **No wide black bands.** A mask screen that fills under ~75 % of the height becomes a lockup (`clips` warns
   with the fill).
 - **Twixtor on the beat** (per cut): `ramp` (0..1, a burst of speed as each beat lands gliding into slow
@@ -816,10 +816,10 @@ Append dated entries: what the user asked to change and the general rule behind 
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
-  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  `mm transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
 - 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
-  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  MCP's key (`mm transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
   connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
   tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.

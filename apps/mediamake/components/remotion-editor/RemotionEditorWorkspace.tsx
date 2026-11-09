@@ -242,7 +242,7 @@ export function RemotionEditorWorkspace() {
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="rounded-lg border-2 border-dashed border-primary px-8 py-6 text-sm font-medium">
-            Drop the lyrics_videos folder to open its projects
+            Drop the studio folder to open its projects
           </div>
         </div>
       )}

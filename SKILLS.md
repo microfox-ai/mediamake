@@ -44,12 +44,12 @@ Media making: videos and audio (the only skills that start with make-)
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`make-anime-music-video`](.agents/skills/make-anime-music-video/SKILL.md) | public | Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. MCPs: browse-hack (required), elevenlabs (required), elevenlabs-connector (optional). |
-| [`make-cwc-tutorial`](.agents/skills/make-cwc-tutorial/SKILL.md) | public | Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/lyrics_videos, built on episod… MCPs: elevenlabs (required), elevenlabs-connector (optional). |
+| [`make-cwc-tutorial`](.agents/skills/make-cwc-tutorial/SKILL.md) | public | Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/p… MCPs: elevenlabs (required), elevenlabs-connector (optional). |
 | [`make-kinetictype`](.agents/skills/make-kinetictype/SKILL.md) | public | Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type,… MCPs: browse-hack (required), elevenlabs (optional), fal (optional). |
 | [`make-kinetictype-like-screamingtowin`](.agents/skills/make-kinetictype-like-screamingtowin/SKILL.md) (variant of `make-kinetictype`) | public | Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them… MCPs: browse-hack (required), elevenlabs (optional), fal (optional). |
 | [`make-loudness-remaster`](.agents/skills/make-loudness-remaster/SKILL.md) | public | Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make… |
 | [`make-lyrics-shorts-summerstyle-boldwords`](.agents/skills/make-lyrics-shorts-summerstyle-boldwords/SKILL.md) | public | Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a sho… MCPs: elevenlabs (required), elevenlabs-connector (optional), browse-hack (optional). |
-| [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the us… MCPs: elevenlabs (recommended), browse-hack (recommended), fal (optional), blender (optional), elevenlabs-connector (optional). |
+| [`make-lyrics-video`](.agents/skills/make-lyrics-video/SKILL.md) | public | Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/studio — start with a short intake of the song's theme and the user's ta… MCPs: elevenlabs (recommended), browse-hack (recommended), fal (optional), blender (optional), elevenlabs-connector (optional). |
 | [`make-lyrics-video-like-nakama`](.agents/skills/make-lyrics-video-like-nakama/SKILL.md) (variant of `make-lyrics-video`) | public | Variant of make-lyrics-video in the style of the Nakama! lyric video (projects/nakama, Anime Music Zone, finished 2026-10-27): the song as a captain's logbook lying on… |
 | [`make-video-music-remix`](.agents/skills/make-video-music-remix/SKILL.md) | public | Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrume… MCPs: browse-hack (recommended), elevenlabs (optional), elevenlabs-connector (optional). |
 | [`make-video-music-remix-like-f1xhitit`](.agents/skills/make-video-music-remix-like-f1xhitit/SKILL.md) (variant of `make-video-music-remix`) | public | Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or h… |
@@ -72,7 +72,7 @@ Kits and packs that bundle several outputs
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo an… MCPs: elevenlabs (required), elevenlabs-connector (optional), browse-hack (recommended), fal (optional). |
+| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation… MCPs: elevenlabs (required), elevenlabs-connector (optional), browse-hack (recommended), fal (optional). |
 | [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio… MCPs: browse-hack (recommended). |
 
 ## revise
@@ -98,7 +98,7 @@ Text: titles, descriptions, metadata
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/lyrics_videos/brands/, e.g. INVERTED Devils, Subhodayam) fro… |
+| [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/studio/brands/, e.g. INVERTED Devils, Subhodayam) from the s… |
 
 ## cleanup
 
@@ -152,4 +152,4 @@ Everything else
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`render-cloud`](.agents/skills/render-cloud/SKILL.md) | public | Render a lyrics_videos project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with… |
+| [`render-cloud`](.agents/skills/render-cloud/SKILL.md) | public | Render a studio project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the co… |

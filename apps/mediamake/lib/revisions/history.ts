@@ -17,7 +17,7 @@ export interface RecentEntry {
 }
 
 /**
- * A folder of project folders (e.g. lyrics_videos/out). Every video in it,
+ * A folder of project folders (e.g. studio/out). Every video in it,
  * a few levels down, is listed on each visit without opening folders again.
  */
 export interface SourceEntry {

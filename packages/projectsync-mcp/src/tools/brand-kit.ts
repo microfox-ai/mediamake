@@ -252,7 +252,7 @@ function registerUploadBrandKit(server: McpServer, client: MediamakeClient) {
     {
       title: 'Upload brand kit',
       description:
-        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/lyrics_videos/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts, logo: the main logo\'s path), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, every graphics/ folder at any depth (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
+        'Upload a brand kit folder from this computer to a project, the folder `pack-brand-kit` exports (apps/studio/brands/<brand>/). brandguide.md, colors.json, brand.json (name, fonts, logo: the main logo\'s path), youtube/channel-description.md and brand/thumbnail.json fill the kit fields; every other file is uploaded as an asset, its kind taken from its folder (logo/, intros/, outros/, youtube/, fonts/, …). Skips hidden files, every graphics/ folder at any depth (the source) and, unless includeMasters, .mov ProRes masters. Files with the same path replace the stored ones.',
       inputSchema: {
         projectId: z.string(),
         folder: z.string().describe('Absolute path of the exported kit folder'),

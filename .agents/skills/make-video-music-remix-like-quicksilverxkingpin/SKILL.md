@@ -73,7 +73,7 @@ Existing footage, re-cut to a song. Four things decide every cut:
   viewer follows one scene as it happens.
 - **The inspiration and the user's taste decide *how*:** pacing, transitions, type, sound.
 
-Everything lives in `apps/lyrics_videos`, next to the lyric videos: this skill shares their project
+Everything lives in `apps/studio`, next to the lyric videos: this skill shares their project
 folder, audio analysis, stills, render and shot map, so read `make-lyrics-video` steps 2, 3, 7–9
 once and use them as written; reviews go through the `revise-video` skill. This file covers what is
 different.
@@ -110,7 +110,7 @@ These held across every review of the first two projects and apply to any re-edi
    reads fine). Never chase each line with half-beat offsets: the length then changes every other
    cut and the edit stumbles (hitixf1's verse 1: 23 half cuts, "very bad", next to a steady verse 2,
    "very good"). Half beats only as pairs inside one beat, on punchlines; quarter beats only in
-   builds. `npm run remix` prints each block's rhythm: watch the one-beat count and the length
+   builds. `mm remix` prints each block's rhythm: watch the one-beat count and the length
    changes.
 3. **Continuity where the song soars.** Verses may jump shot to shot as the words ask. Hooks, drops
    and bridges follow *one scene in its own order* — the start, the battle, the crash, the pit stop;
@@ -133,7 +133,7 @@ These held across every review of the first two projects and apply to any re-edi
    source, not less. Speed ramps *up* into hits are juice. The one place slow motion was liked: a
    quiet, spoken bridge, a little (0.55–0.85×), from motion-interpolated clips (see `slow`).
 6. **One use per shot.** A shot seen twice reads as filler. Repeat only long takes, at other moments
-   of the take. `npm run remix` lists every repeat and flags the ones that show the same frames.
+   of the take. `mm remix` lists every repeat and flags the ones that show the same frames.
 7. **Motion, not colour.** No graded slices, negatives, psychedelic backgrounds, mirrors or RGB
    glitches: they read as cheap. The picture stays natural with a light film finish; black and white
    only for whole passages (an intro, a bridge). The style lives in the moves — the user loved
@@ -199,15 +199,15 @@ Sections, whatever the genre:
 
 1. **The song** (wav/flac preferred) and, if words will be shown, **its timed transcription**
    (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe it as CLAUDE.md ›
-   Transcription says (`npm run transcribe … --yes` with the ElevenLabs MCP's key; the hosted connector only on the web; paid: ask first).
+   Transcription says (`mm transcribe … --yes` with the ElevenLabs MCP's key; the hosted connector only on the web; paid: ask first).
    No words at all: skip the text layer (an instrumental edit is untested end to end here — check
    that `prepare-project` accepts the project before relying on it).
 2. **Footage**: one or more videos (each its own source), ideally edits or highlight reels.
 3. **An inspiration edit** (optional): a short reel whose style the user wants.
 
 Tools: ffmpeg, uv. Engine (committed): `src/remix/` (cut-list language `edl.ts`, `resolve.ts`,
-renderer `Remix.tsx`, `gfx/`), `scripts/remix.ts` (`npm run remix`), `scripts/matte.py` (BiRefNet
-cutouts + subject anchors), `scripts/render.ts` (`npm run render-project`). Sound effects: the
+renderer `Remix.tsx`, `gfx/`), `scripts/remix.ts` (`mm remix`), `scripts/matte.py` (BiRefNet
+cutouts + subject anchors), `scripts/render.ts` (`mm render`). Sound effects: the
 ElevenLabs MCP (`text_to_sound_effects`, files on the computer; the hosted connector only as the web alternative).
 
 ## Workflow
@@ -256,7 +256,7 @@ A shot sheet of candidates (3 frames each, 15/50/85 %) settles doubts before cas
 
 ### 4. Map the song
 
-`npm run analyze -w lyrics_videos -- <slug> --plots`, then `prepare-project` (make-lyrics-video 2–3).
+`mm analyze <slug> --plots`, then `prepare-project` (make-lyrics-video 2–3).
 
 - **Sections from energy, not lyric gaps:** print each stem's mean envelope per bar and cut where
   drums or bass drop out or return. Write them to `input/project.json`, re-run prepare.
@@ -279,7 +279,7 @@ verses), juice, words, sound. Settle the intro first (principle 1).
 Print every lyric line with its beat, keep the shot sheets of every source open, and write each cut
 with the shot *and why* as a comment (`c(1, 'lm0052', 'impact', S), // FRICTION: the brake disc
 glowing`). Verses line by line, literal; hooks, drops and bridges by scene, in the scene's order.
-Then run `npm run remix -w lyrics_videos -- <slug>` and fix, in this order:
+Then run `mm remix <slug>` and fix, in this order:
 
 1. **block lengths** (each block must end where the next starts; the resolver stops otherwise);
 2. **`runs … past the end` warnings** — a shorter cut or a longer take, never a rate change;
@@ -293,10 +293,10 @@ to `video/archive/storyboard.v<N>.md` (`.txt` keeps the type-check clean).
 ### 7. Media
 
 ```bash
-npm run remix -w lyrics_videos -- <slug>            # footage table, plates, anchors, slow-motion clips, resolve + checks, shots.json, jobs
-npm run remix -w lyrics_videos -- <slug> --matte    # + cutouts for the shots that have none yet (background)
-npm run remix -w lyrics_videos -- <slug> --unused   # + the shots not used yet, with their lengths
-npm run remix -w lyrics_videos -- <slug> --animatic # + out/<slug>/animatic/<section>.jpg: every cut's middle frame
+mm remix <slug>            # footage table, plates, anchors, slow-motion clips, resolve + checks, shots.json, jobs
+mm remix <slug> --matte    # + cutouts for the shots that have none yet (background)
+mm remix <slug> --unused   # + the shots not used yet, with their lengths
+mm remix <slug> --animatic # + out/<slug>/animatic/<section>.jpg: every cut's middle frame
 ```
 
 `video/remix.json`: `sources` (each `{ id, prefix, source, segregation, crop, matteFps }`: the first
@@ -337,10 +337,10 @@ See the reference below. Sound once the cut is settled:
 `video/index.tsx` is one layer: `Remix` at `'all'` with `{ slug, blocks, words, sfx, gfx, footage,
 anchors, window, theme }`; `theme.ts` loads the fonts and palette and sets the HUD.
 
-In this order: the animatic (`npm run remix -w lyrics_videos -- <slug> --animatic`: the middle frame of
+In this order: the animatic (`mm remix <slug> --animatic`: the middle frame of
 every cut, a sheet per section in `out/<slug>/animatic/`) — read it as the audience will: does each
 section tell its chapter, does the hero stay on screen, does it build; then `npm run type-check`; the title/graphic cuts frame by frame across their animation;
-stills at every changed moment (`npm run stills -- <slug> t1,t2,… --only`, a contact sheet);
+stills at every changed moment (`mm stills <slug> t1,t2,… --only`, a contact sheet);
 one late cut per source against `ffmpeg -ss <t> -i <source>` (catches timing bugs); half-scale
 `--frames` clips of the densest and the slowed passages as frame sheets (`select='between(n\,a\,b)'`,
 `tile=8x6`) — a zoom reads as a blur ramp into the cut and a decelerating landing out of it; slow
@@ -351,10 +351,10 @@ no stutter, no burned-in graphics, every sound on its picture.
 ### 10. Render and review
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
-npm run render-project -w lyrics_videos -- <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
-npm run render-project -w lyrics_videos -- <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
-npm run preflight -w lyrics_videos -- <slug>                         # before every link: black or frozen frames, sound
+mm render <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
+mm render <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
+mm render <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
+mm preflight <slug>                         # before every link: black or frozen frames, sound
 ```
 
 Every review round is a half-size review render; the full-size master renders once, after sign-off
