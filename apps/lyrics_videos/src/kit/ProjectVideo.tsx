@@ -94,11 +94,14 @@ export const makeProjectVideo = (
                 </Sequence>
               );
             })}
-            {/* frames here are song frames (the window's shift is undone): fade in after `start`, out before `end` */}
+            {/* `volume` gets the frames since the audio became audible, not useCurrentFrame()'s song frames:
+                @remotion/media adds the window's negative `from` back (cumulatedNegativeFrom), in Studio and in
+                renders alike. So 0 is the window's first frame and `end - start` its length: fade in from 0,
+                out before the length. (Counting from `start` kept a window that starts after 0 s silent.) */}
             {project.audio !== false && (
               <Audio
                 src={asset(manifest.audio.src)}
-                volume={win ? f => Math.min(1, fadeIn > 0 ? Math.max(0, (f - start) / fadeIn) : 1, fadeOut > 0 ? Math.max(0, (end - f) / fadeOut) : 1) : undefined}
+                volume={win ? f => Math.min(1, fadeIn > 0 ? Math.max(0, f / fadeIn) : 1, fadeOut > 0 ? Math.max(0, (end - start - f) / fadeOut) : 1) : undefined}
               />
             )}
       </>
