@@ -35,7 +35,7 @@ It opens on the deployed app, no local server needed. **Always this base URL,
 `https://mediamake.microfox.app`, never a `localhost` link** (2026-11-02: "always use the base url -
 mediamake.microfox.app"), even while a local dev server runs. (`/thumbnail-revision` still redirects.)
 
-The first time, the user opens `apps/studio/out` there (kept as a source: every thumbnail
+The first time, the user opens the workspace's `out` folder there (`mm workspace` gives its path, e.g. ~/MediaMake/out) (kept as a source: every thumbnail
 and poster set is listed after that) or the set's own folder. There they select files (click; ⌘
 click adds; ⇧ click a range; or drag a box), pick finals (a thumbnail: 1, or up to 3 for YouTube's A/B test; a poster: one **Cover**),
 keep, drop and comment, zoom in and pin comments to small mistakes (on a video or song the comment

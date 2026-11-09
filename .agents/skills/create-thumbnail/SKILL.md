@@ -1,6 +1,6 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/studio/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: pack-brand-kit
 ---
@@ -77,12 +77,12 @@ folder already answers and say what you assumed):
    the **transcript** if they have one (optional; save it as `input/transcript.txt`).
 2. **The picture:** their image(s) (best), frames from the video, a concept to generate, or a
    type-only thumbnail. See step 2.
-3. **The channel and its logo(s):** which channel (a brand under `apps/studio/brands/`?)
+3. **The channel and its logo(s):** which channel (a brand under `brands/`?)
    and **which logos this video needs**: the channel's, plus any franchise / show / game / artist /
    sponsor logos. They can hand over files, or name them and you fetch them (step 4).
 3a. **Watermarks: always ask which channel or channels to put on the thumbnail** (a song can belong
    to more than one: the channel that posts it and the artist's channel, e.g. Anime Music Zone +
-   Get into Zone). Offer the brands under `apps/studio/brands/` as options (multi-select),
+   Get into Zone). Offer the brands under `brands/` as options (multi-select),
    plus "none". For each one picked, use the brand's logo that reads on any ground: a transparent
    logo in black or white chosen per picture (dark logo on light corners, light on dark), or a solid
    cut of a picture logo; never a tile with its own background unless they ask. Two channels go on
@@ -274,7 +274,7 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 
 ## Brands
 
-A brand under `apps/studio/brands/<brand>/` hands its thumbnail material to jobs through
+A brand under `brands/<brand>/` hands its thumbnail material to jobs through
 `graphics/brand/thumbnail.json` (gitignored, like the rest of the brand): `logos` (kit files and
 the names they get in `assets/`), `fonts` (files + family, weight, role), `palette`, default
 `params` and the brand's thumbnail `rules` (copied into each job's `brief.md`). INVERTED Devils

@@ -480,7 +480,7 @@ function LiveSection() {
               </IconAction>
             )}
             <IconAction
-              label="Pick the studio folder (or the repo)"
+              label="Pick your workspace (~/MediaMake) or the studio folder (or the repo)"
               onClick={() => void pickLiveFolder()}
             >
               <FolderOpenIcon className="size-3.5" />
@@ -513,7 +513,7 @@ function LiveSection() {
             {liveProgress ??
               (reconnect
                 ? `Reconnect ${reconnect.name} to review its projects live`
-                : 'Review a project before rendering it: pick studio')}
+                : 'Review a project before rendering it: pick your workspace or studio')}
           </Button>
         </div>
       ) : liveFolder.projects.length === 0 ? (

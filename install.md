@@ -169,7 +169,7 @@ start Claude Code in that folder:
 
 ```bash
 gh repo clone microfox-ai/mediamake ~/mediamake
-cd ~/mediamake && npm ci && npm run mm -- link
+cd ~/mediamake && npm ci && npm run mm -- link && npm run mm -- migrate --yes
 ```
 
 They use the skill from Claude Code started in `~/mediamake`
@@ -184,7 +184,12 @@ instead. Use `gh repo clone <repo> <path>` (works for private repos the
 person can see). If the repo's README says to install dependencies, do it
 (`npm ci` at the repo root for mediamake, which installs exactly what the lockfile says and never
 rewrites it, then `npm run mm -- link`, which puts
-the `mm` command the skills use on their PATH). Remember the path; later
+the `mm` command the skills use on their PATH). For mediamake, then set up the
+workspace, where their projects, renders and brand kits live, outside the
+checkout (`~/MediaMake`): on a fresh clone run `npm run mm -- migrate --yes`
+(nothing moves; it names the workspace and sets it up). On a checkout that was
+already there, run `npm run mm -- migrate` and show them what it would move;
+run it with `--yes` only once they agree. Remember the path; later
 steps' INSTALL.md files may refer to it as `$MEDIAMAKE_REPO`.
 
 ### `type: "github-release"`: a file from a GitHub release

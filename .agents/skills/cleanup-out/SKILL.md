@@ -79,7 +79,7 @@ re-render, `version` to compare an old cut).
   - **work**: everything else (clips, stills, parts, previews, storyboards, picks).
 - **On the disk**: files sit at `MediaMake Archive/<repo path>`, next to `archive.json` (the disk's
   id) and `ledger.jsonl` (every copy with its SHA-256). A copy of the ledger is kept in
-  `apps/studio/out/.cleanup/ledger.jsonl`, and `scan` uses it for the "on disk" column. A copy
+  `out/.cleanup/ledger.jsonl` (in the workspace), and `scan` uses it for the "on disk" column. A copy
   that's already on the disk and hashes the same isn't copied again, so a stopped run can be started
   again.
 - **APFS clones**: the YouTube pack's video is a clone of the final (`cp -c`), so du counts it twice

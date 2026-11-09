@@ -537,6 +537,35 @@ describe('the session-start check', () => {
     );
   });
 
+  test('work inside apps/studio: a nudge to mm migrate, a warning once a workspace is set elsewhere', () => {
+    const t = setup();
+    const env = { config: process.env.MEDIAMAKE_CONFIG, ws: process.env.MEDIAMAKE_WORKSPACE };
+    process.env.MEDIAMAKE_CONFIG = path.join(t.root, 'no-config.json');
+    delete process.env.MEDIAMAKE_WORKSPACE;
+    try {
+      // the framework's example and mm migrate's note are not the user's work
+      write(t.work, 'apps/studio/projects/MOVED.md', 'moved\n');
+      assert.equal(find(inspect(t.work), /apps\/studio \(/), undefined);
+
+      write(t.work, 'apps/studio/projects/my-song/brief.md', 'mine\n');
+      write(t.work, 'apps/studio/out/my-song/v1.mp4', 'video\n');
+      let issue = find(inspect(t.work), /apps\/studio \(/);
+      assert.equal(issue.level, 'info');
+      assert.match(issue.text, /inside the checkout, in apps\/studio \(projects\/, out\/\)/);
+      assert.match(issue.fix, /mm migrate --yes/);
+
+      process.env.MEDIAMAKE_WORKSPACE = path.join(t.root, 'MediaMake');
+      issue = find(inspect(t.work), /apps\/studio \(/);
+      assert.equal(issue.level, 'warn');
+      assert.match(issue.text, new RegExp(`the workspace is ${path.join(t.root, 'MediaMake')}: nothing reads them there`));
+    } finally {
+      for (const [k, v] of [['MEDIAMAKE_CONFIG', env.config], ['MEDIAMAKE_WORKSPACE', env.ws]]) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
   test('GitHub out of reach: says so and keeps going', () => {
     const t = setup();
     ok(t.work, 'remote', 'set-url', 'origin', path.join(t.root, 'nowhere.git'));

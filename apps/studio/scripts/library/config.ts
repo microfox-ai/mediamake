@@ -4,6 +4,7 @@
  * touches the library reads it: this CLI, Browse Hack's MCP, the Library page's dev routes.
  *
  *   { "url": "<the MediaMake site>",
+ *     "workspace": "~/MediaMake",   (where your projects, renders and brand kits are: scripts/workspace.ts)
  *     "library": { "root": "~/Downloads/_LIBRARY", "inbox": "~/Downloads/_INBOX", "deliverRoot": "~/Downloads",
  *                  "channels": { "<channel id>": "<its folder in deliverRoot>" | { "folder": "…", "projectId": "<cloud project>" } },
  *                  "exclude": ["<folders in deliverRoot the sweep never opens>"] } }
@@ -106,6 +107,9 @@ export const cloudUrl = () => {
 };
 
 export const saveCloudUrl = (url: string) => writeAll({ ...readAll(), url: url.trim().replace(/\/+$/, '') });
+
+/** Where your work lives (scripts/workspace.ts reads it): written by mm migrate, kept as typed (~/MediaMake). */
+export const saveWorkspace = (dir: string) => writeAll({ ...readAll(), workspace: dir });
 
 /** The channel whose folder this is (Downloads/AMZ → animemusiczone). */
 export const channelOfFolder = (cfg: LibraryConfig, folder: string) =>

@@ -12,9 +12,16 @@ import {
   forgetFolder as forgetStoredFolder,
   loadFolders,
   rememberFolder,
+  rememberedEngine,
   type FolderEntry,
 } from '@/lib/remotion-editor/folder-history';
-import { FolderSource, findLyricsRoot, pickDirectory } from '@/lib/remotion-editor/folder-source';
+import {
+  FolderSource,
+  findEngineRoot,
+  pickDirectory,
+  pickEngineDirectory,
+  studioFolders,
+} from '@/lib/remotion-editor/folder-source';
 import { repoSource, type ProjectSource } from '@/lib/remotion-editor/source';
 import {
   emptyEdits,
@@ -60,6 +67,8 @@ type State = {
   folders: FolderEntry[];
   /** a folder that needs a click before Chrome gives access again */
   pendingFolder: FolderEntry | null;
+  /** a workspace (~/MediaMake) opened without its engine: the studio folder is picked next */
+  pendingEngine: FileSystemDirectoryHandle | null;
   projects: ProjectEntry[];
   projectsLoaded: boolean;
   projectsError: string | null;
@@ -104,6 +113,8 @@ type State = {
   /** Opens the folder picker (needs a click). */
   pickFolder: () => Promise<void>;
   openFolder: (handle: FileSystemDirectoryHandle) => Promise<void>;
+  /** Opens the picker for the studio whose engine the pending workspace uses (needs a click). */
+  pickEngine: () => Promise<void>;
   forgetFolder: (id: string) => Promise<void>;
   /** Handles from a drop on the page: the first folder is opened. */
   openDropped: (handles: FileSystemHandle[]) => Promise<void>;
@@ -203,6 +214,7 @@ export const useEditor = create<State>((set, get) => {
     support: null,
     folders: [],
     pendingFolder: null,
+    pendingEngine: null,
     projects: [],
     projectsLoaded: false,
     projectsError: null,
@@ -279,18 +291,51 @@ export const useEditor = create<State>((set, get) => {
         }
         return;
       }
-      const root = await findLyricsRoot(handle).catch(() => null);
-      if (!root) {
+      const found = await studioFolders(handle, await rememberedEngine(handle)).catch(() => null);
+      if (!found) {
         toast.error(
-          `"${handle.name}" has no projects/ and src/kit/. Pick apps/studio (or the repo).`,
+          `"${handle.name}" has no projects/. Pick your workspace (~/MediaMake) or apps/studio (or the repo).`,
           { duration: 8000 },
         );
         return;
       }
+      if ('workspace' in found) {
+        // its projects import the engine, which is in the studio: one more pick, remembered with it
+        set({ pendingFolder: null, pendingEngine: handle });
+        if (get().source) {
+          toast(`${handle.name} has your projects. Pick the studio (apps/studio, or the repo) for the engine.`, {
+            duration: 20000,
+            action: { label: 'Pick the studio', onClick: () => void get().pickEngine() },
+          });
+        }
+        return;
+      }
       await rememberFolder(handle).catch(() => null);
-      set({ pendingFolder: null, folders: await loadFolders().catch(() => get().folders) });
+      set({
+        pendingFolder: null,
+        pendingEngine: null,
+        folders: await loadFolders().catch(() => get().folders),
+      });
       localStorage.setItem(LAST_SOURCE, 'folder');
-      await switchSource(new FolderSource(root, handle));
+      await switchSource(new FolderSource(found.root, handle, found.engine));
+    },
+
+    pickEngine: async () => {
+      const workspace = get().pendingEngine;
+      if (!workspace) return;
+      try {
+        const picked = await pickEngineDirectory();
+        if (!(await findEngineRoot(picked).catch(() => null))) {
+          toast.error(`"${picked.name}" has no src/kit/. Pick apps/studio (or the repo).`, { duration: 8000 });
+          return;
+        }
+        await rememberFolder(workspace, picked);
+        await get().openFolder(workspace);
+      } catch (e) {
+        if (!isAbortError(e)) {
+          toast.error(`Could not open the folder: ${message(e)}`, { duration: 6000 });
+        }
+      }
     },
 
     forgetFolder: async id => {

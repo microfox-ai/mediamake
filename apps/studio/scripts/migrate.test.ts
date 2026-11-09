@@ -1,6 +1,7 @@
 /**
  * mm migrate on throwaway folders: what moves whole, what merges, what is dropped or left, the
- * venv's scripts and the text files that name the old folder, and the catalog's paths.
+ * venv's scripts and the text files that name the old folder, and the catalog's paths; then the
+ * move into the workspace: files git tracks staying, links, which folders move, the workspace's setup.
  *
  *   mm test:migrate
  */
@@ -10,7 +11,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { openDb } from './library/db.ts';
-import { applyMigration, catalogPaths, planMigration } from './migrate.ts';
+import { applyMigration, catalogPaths, outsideLinks, planMigration, relinkOutside, workspaceJobs } from './migrate.ts';
+import { setupWorkspace } from './workspace-setup.ts';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-migrate-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -95,4 +97,108 @@ test('catalog: absolute paths under the old folder point at the new one', () => 
   assert.equal((db.prepare("SELECT path FROM productions WHERE slug = 'nakama'").get() as { path: string }).path, path.join(to, 'projects', 'nakama'));
   assert.deepEqual(catalogPaths(db, pairs, false), [], 'a second run finds nothing');
   db.close();
+});
+
+// ── into the workspace
+const studio = path.join(tmp, 'checkout', 'apps', 'studio');
+const ws = path.join(tmp, 'MediaMake');
+
+test('workspace: files git tracks stay, the folders around them are walked, links follow their targets', () => {
+  put(studio, 'projects/demo/video/index.tsx', 'tracked');
+  put(studio, 'projects/demo/analysis/beats.json', '[]');
+  put(studio, 'projects/nakama/input/song.mp3', 'song');
+  put(studio, 'out/nakama/nakama.mp4', 'video');
+  put(studio, 'src/kit/index.ts', 'engine');
+  fs.symlinkSync('../../src/kit', path.join(studio, 'projects/nakama/kit')); // the engine: stays behind
+  fs.symlinkSync('../../out/nakama', path.join(studio, 'projects/nakama/renders')); // moves along
+  fs.symlinkSync(path.join(studio, 'out/nakama/nakama.mp4'), path.join(studio, 'projects/nakama/final.mp4'));
+  fs.symlinkSync('input/song.mp3', path.join(studio, 'projects/nakama/song.mp3')); // inside what moves
+  const pairs: [string, string][] = ['projects', 'out'].map(f => [path.join(studio, f), path.join(ws, f)]);
+  const keep = new Set([path.join('demo', 'video', 'index.tsx'), 'MOVED.md']);
+  const plan = planMigration(path.join(studio, 'projects'), path.join(ws, 'projects'), pairs, keep);
+  assert.deepEqual(plan.moves.map(m => m.rel), [path.join('demo', 'analysis'), 'nakama']);
+  assert.deepEqual(plan.kept, [path.join('demo', 'video', 'index.tsx')]);
+  assert.deepEqual(plan.links.sort(), [path.join('nakama', 'final.mp4'), path.join('nakama', 'kit')]);
+
+  assert.deepEqual(applyMigration(plan, pairs), []);
+  applyMigration(planMigration(path.join(studio, 'out'), path.join(ws, 'out'), pairs), pairs);
+  const at = (r: string) => path.join(ws, 'projects', 'nakama', r);
+  assert.equal(fs.readlinkSync(at('kit')), path.join(studio, 'src', 'kit'));
+  assert.equal(fs.readlinkSync(at('renders')), '../../out/nakama');
+  assert.equal(fs.readlinkSync(at('final.mp4')), path.join(ws, 'out', 'nakama', 'nakama.mp4'));
+  assert.equal(fs.readlinkSync(at('song.mp3')), 'input/song.mp3');
+  assert.equal(fs.readFileSync(at('renders/nakama.mp4'), 'utf8'), 'video');
+  assert.equal(fs.readFileSync(path.join(studio, 'projects/demo/video/index.tsx'), 'utf8'), 'tracked');
+  assert.equal(fs.readFileSync(path.join(ws, 'projects/demo/analysis/beats.json'), 'utf8'), '[]');
+  assert.ok(!fs.existsSync(path.join(studio, 'out')), 'an emptied folder is gone');
+});
+
+test('workspace: which folders move where', () => {
+  const env = { config: process.env.MEDIAMAKE_CONFIG, ws: process.env.MEDIAMAKE_WORKSPACE, home: process.env.HOME };
+  try {
+    const home = path.join(tmp, 'home');
+    process.env.HOME = home;
+    process.env.MEDIAMAKE_CONFIG = path.join(home, '.mediamake', 'config.json');
+    delete process.env.MEDIAMAKE_WORKSPACE;
+    const s = path.join(tmp, 'jobs', 'studio');
+    put(s, 'projects/a/index.tsx', 'a');
+    put(s, 'thumbnails/jobs/a/job.json', '{}');
+    put(home, 'MediaMake/notes/make-lyrics-video.md', 'a lesson');
+    const elsewhere = path.join(tmp, 'jobs', 'MediaMake');
+    const names = (target: string) => workspaceJobs(target, s).map(j => `${j.name}:${path.relative(tmp, j.from)}`);
+    assert.deepEqual(names(elsewhere), [`projects:${path.join('jobs', 'studio', 'projects')}`, `thumbnailJobs:${path.join('jobs', 'studio', 'thumbnails', 'jobs')}`, `notes:${path.join('home', 'MediaMake', 'notes')}`]);
+    // ~/MediaMake itself: its notes are where they belong already
+    assert.deepEqual(names(path.join(home, 'MediaMake')), [`projects:${path.join('jobs', 'studio', 'projects')}`, `thumbnailJobs:${path.join('jobs', 'studio', 'thumbnails', 'jobs')}`]);
+    // a workspace already set: it moves too, when you name another
+    process.env.MEDIAMAKE_WORKSPACE = elsewhere;
+    put(elsewhere, 'out/a/a.mp4', 'v');
+    assert.ok(names(path.join(tmp, 'jobs', 'Other')).includes(`out:${path.join('jobs', 'MediaMake', 'out')}`));
+  } finally {
+    for (const [k, v] of [['MEDIAMAKE_CONFIG', env.config], ['MEDIAMAKE_WORKSPACE', env.ws], ['HOME', env.home]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+});
+
+test('workspace: links to your skill variants in ~/.claude/skills follow the skills folder', () => {
+  const t = path.join(tmp, 'variants');
+  const oldSkills = path.join(t, 'MediaMake', 'skills');
+  const newSkills = path.join(t, 'Elsewhere', 'skills');
+  const links = path.join(t, 'claude-skills');
+  put(oldSkills, 'mine/SKILL.md', '---\nname: mine\n---\n');
+  put(t, 'repo/.agents/skills/theirs/SKILL.md', 'x');
+  fs.mkdirSync(links, { recursive: true });
+  fs.symlinkSync(path.join(oldSkills, 'mine'), path.join(links, 'mine'));
+  fs.symlinkSync('../repo/.agents/skills/theirs', path.join(links, 'theirs'));
+  const pairs: [string, string][] = [[oldSkills, newSkills]];
+  const found = outsideLinks(pairs, [links]);
+  assert.deepEqual(found.map(l => [path.basename(l.link), l.to]), [['mine', path.join(newSkills, 'mine')]]);
+  fs.mkdirSync(path.dirname(newSkills), { recursive: true });
+  fs.renameSync(oldSkills, newSkills);
+  relinkOutside(found);
+  assert.equal(fs.readlinkSync(path.join(links, 'mine')), path.join(newSkills, 'mine'));
+  assert.ok(fs.existsSync(path.join(links, 'mine', 'SKILL.md')));
+  assert.equal(fs.readlinkSync(path.join(links, 'theirs')), '../repo/.agents/skills/theirs');
+  assert.deepEqual(outsideLinks(pairs, [links]), []);
+});
+
+test('workspace setup: a node_modules link and a tsconfig, kept current, your own tsconfig kept', () => {
+  const s = path.join(tmp, 'setup', 'repo', 'apps', 'studio');
+  const root = path.join(tmp, 'setup', 'ws');
+  fs.mkdirSync(path.join(tmp, 'setup', 'repo', 'node_modules'), { recursive: true });
+  assert.equal(setupWorkspace(root, s, false).length, 2);
+  assert.ok(!fs.existsSync(root), 'a dry run changes nothing');
+  assert.equal(setupWorkspace(root, s, true).length, 2);
+  assert.equal(fs.readlinkSync(path.join(root, 'node_modules')), path.join(tmp, 'setup', 'repo', 'node_modules'));
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(root, 'tsconfig.json'), 'utf8'));
+  assert.equal(tsconfig.extends, path.join(s, 'tsconfig.json'));
+  assert.deepEqual(tsconfig.compilerOptions.rootDirs, ['.', s]);
+  assert.deepEqual(setupWorkspace(root, s, true), [], 'nothing left to do');
+  // the checkout moved: both follow
+  const moved = path.join(tmp, 'setup', 'repo2', 'apps', 'studio');
+  assert.equal(setupWorkspace(root, moved, true).length, 2);
+  fs.writeFileSync(path.join(root, 'tsconfig.json'), '{ "mine": true }\n');
+  assert.equal(setupWorkspace(root, s, true).length, 1, 'only the link: your own tsconfig stays');
+  assert.equal(fs.readFileSync(path.join(root, 'tsconfig.json'), 'utf8'), '{ "mine": true }\n');
 });

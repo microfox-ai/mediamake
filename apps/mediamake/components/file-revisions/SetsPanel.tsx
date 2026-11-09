@@ -70,7 +70,7 @@ export function SetsPanel() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b p-2">
-        <Hint label="Pick any folder of images, videos or audio, or apps/studio/out to list every thumbnail and poster set">
+        <Hint label="Pick any folder of images, videos or audio, or your out folder (~/MediaMake/out) to list every thumbnail and poster set">
           <Button size="sm" className="w-full" onClick={() => void pickJob()}>
             <FolderOpenIcon className="size-4" /> Open a folder
           </Button>
@@ -83,7 +83,7 @@ export function SetsPanel() {
               <IconAction label="Rescan sources" onClick={() => void rescanSources()}>
                 <RefreshCwIcon className="size-3.5" />
               </IconAction>
-              <IconAction label="Add a source folder (e.g. apps/studio/out)" onClick={() => void addSource()}>
+              <IconAction label="Add a source folder (e.g. ~/MediaMake/out)" onClick={() => void addSource()}>
                 <PlusIcon className="size-3.5" />
               </IconAction>
             </span>
@@ -93,7 +93,7 @@ export function SetsPanel() {
         </SectionTitle>
         {!sources.length && (
           <p className="px-3 pb-2 text-xs text-muted-foreground">
-            Add <code>apps/studio/out</code> once: every set in it (folders with an index.json) is listed on each visit.
+            Add your <code>out</code> folder once (<code>~/MediaMake/out</code>; <code>mm workspace</code> says where it is): every set in it (folders with an index.json) is listed on each visit.
           </p>
         )}
         {sources.map(source => (

@@ -436,7 +436,7 @@ When the user wants them shared, `mm notes promote make-anime-music-video` offer
   center".
   The rules:
   - Never darken a shot for the words: no pools, no dim, no aura dim. Use masks (cutout like Hit It,
-    windows), or blend one of the user's overlays (apps/studio/overlays: survey them with a contact
+    windows), or blend one of the user's overlays (the workspace's overlays/: survey them with a contact
     sheet, `media use` them in) with the mode the overlay and the clip need.
   - No old-TV collapse.
   - No decode-scramble or twinkle text effects: they're hard to read and not smooth.

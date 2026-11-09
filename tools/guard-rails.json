@@ -8,7 +8,8 @@
     "areas: the first one whose paths match a file gives its hint. A path ending in / is a folder,",
     "* matches inside one folder and ** across folders. allow: committed files that may still change",
     "on a protected branch. leftovers: old folders that may still hold the user's work after a move,",
-    "with the command that moves it. When a folder moves, change it here."
+    "with the command that moves it (untilWorkspace: folders the workspace takes over once one is set,",
+    "a nudge until then; ignore: names in them that aren't the user's). When a folder moves, change it here."
   ],
   "protectedBranches": ["main", "master"],
   "allow": [],
@@ -18,6 +19,16 @@
       "dirs": ["projects", "out", "brands"],
       "what": "Work from before the rename to apps/studio",
       "fix": "`mm migrate` lists what would move; `mm migrate --yes` moves it, once the user agrees."
+    },
+    {
+      "path": "apps/studio",
+      "dirs": ["projects", "out", "brands", "thumbnails/jobs", "overlays"],
+      "ignore": ["sample-pulse", "MOVED.md"],
+      "untilWorkspace": true,
+      "what": "The user's projects, renders or brand kits are inside the checkout, in {where}.",
+      "fix": "`mm migrate` lists what would move to the workspace (~/MediaMake, outside the checkout, out of git's way); `mm migrate --yes` moves it, once the user agrees.",
+      "whatOnceSet": "The user's projects, renders or brand kits are still in {where}, but the workspace is {workspace}: nothing reads them there.",
+      "fixOnceSet": "`mm migrate` lists what would move into the workspace; `mm migrate --yes` moves it, once the user agrees."
     }
   ],
   "areas": [
@@ -37,13 +48,13 @@
       "name": "production graphic or catalog entry",
       "paths": ["apps/studio/src/remix/gfx/", "apps/studio/catalog/", "apps/studio/logoGraphics/"],
       "branch": "engine/<what>",
-      "where": "Anything made for one production belongs in its own folder, apps/studio/projects/<slug>/, which git ignores. Only a graphic or entry every production should get goes into the engine, on a branch and a PR."
+      "where": "Anything made for one production belongs in its own folder, projects/<slug>/ in the workspace (`mm workspace`), which git never sees. Only a graphic or entry every production should get goes into the engine, on a branch and a PR."
     },
     {
       "name": "video engine file",
       "paths": ["apps/studio/"],
       "branch": "engine/<what>",
-      "where": "The user's work in apps/studio (projects/, out/, brands/, thumbnails/jobs/, overlays/) is ignored by git and can change on any branch. A change to the engine, its scripts or the sample project goes on a branch and a PR; when one production needs it, say which in the PR."
+      "where": "The user's work (projects/, out/, brands/, thumbnails/jobs/, overlays/) is in the workspace (`mm workspace`), or ignored by git while it is still in apps/studio, and can change on any branch. A change to the engine, its scripts or the sample project goes on a branch and a PR; when one production needs it, say which in the PR."
     },
     {
       "name": "MediaMake app file",

@@ -7,6 +7,10 @@ import { mediaKindOf, type CodeFile, type MediaFile, type ProjectEntry } from '.
  * /revisions opens folders. Works on the deployed site: files are read in the browser and nothing
  * is uploaded. The only writes are a project's video/edits.json and files the user swaps in
  * (input/swaps/).
+ *
+ * The projects and the engine they import (src/, catalog/) are side by side in apps/studio. Once
+ * `mm migrate` has moved the projects to the workspace (~/MediaMake), they are in two folders: the
+ * user picks the workspace, then the studio once for its engine (remembered with the workspace).
  */
 
 type IterableDir = FileSystemDirectoryHandle & {
@@ -97,6 +101,72 @@ export async function findLyricsRoot(
   return null;
 }
 
+/** A workspace in what the user picked (the folder itself, or its MediaMake child): projects/ with no engine beside it. */
+export async function findWorkspaceRoot(
+  picked: FileSystemDirectoryHandle,
+): Promise<FileSystemDirectoryHandle | null> {
+  for (const parts of [[], ['MediaMake']]) {
+    const dir = await dirAt(picked, parts);
+    if (dir && (await dirAt(dir, ['projects'])) && !(await fileAt(dir, 'src/kit/index.ts'))) return dir;
+  }
+  return null;
+}
+
+/** The studio's engine in what the user picked: apps/studio, the repo, or the folder holding studio/. */
+export async function findEngineRoot(
+  picked: FileSystemDirectoryHandle,
+): Promise<FileSystemDirectoryHandle | null> {
+  for (const parts of [[], ['studio'], ['apps', 'studio'], ['lyrics_videos'], ['apps', 'lyrics_videos']]) {
+    const dir = await dirAt(picked, parts);
+    if (dir && (await fileAt(dir, 'src/kit/index.ts'))) return dir;
+  }
+  return null;
+}
+
+type ReadableHandle = FileSystemDirectoryHandle & {
+  queryPermission?: (d: { mode: 'read' }) => Promise<PermissionState>;
+  requestPermission?: (d: { mode: 'read' }) => Promise<PermissionState>;
+};
+
+/** Read access to a remembered folder (a prompt needs the click that opened the workspace). */
+async function canRead(handle: FileSystemDirectoryHandle): Promise<boolean> {
+  const h = handle as ReadableHandle;
+  try {
+    if (!h.queryPermission || (await h.queryPermission({ mode: 'read' })) === 'granted') return true;
+    return (await h.requestPermission?.({ mode: 'read' })) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What a pick stands for: { root, engine } to open (the same folder for apps/studio or the repo;
+ * a workspace and the studio picked for its engine, `engine`), { workspace } when a workspace still
+ * needs its studio picked, null when it is neither.
+ */
+export async function studioFolders(
+  picked: FileSystemDirectoryHandle,
+  engine?: FileSystemDirectoryHandle,
+): Promise<
+  | { root: FileSystemDirectoryHandle; engine: FileSystemDirectoryHandle }
+  | { workspace: FileSystemDirectoryHandle }
+  | null
+> {
+  const studio = await findLyricsRoot(picked);
+  if (studio) return { root: studio, engine: studio };
+  const workspace = await findWorkspaceRoot(picked);
+  if (!workspace) return null;
+  const engineRoot = engine && (await canRead(engine)) ? await findEngineRoot(engine).catch(() => null) : null;
+  return engineRoot ? { root: workspace, engine: engineRoot } : { workspace };
+}
+
+/** The picker for the studio a workspace takes its engine from (needs a click). */
+export const pickEngineDirectory = () =>
+  (window as PickerWindow).showDirectoryPicker!({
+    id: 'mediamake-studio-engine',
+    mode: 'read',
+  });
+
 export class FolderSource implements ProjectSource {
   readonly kind = 'folder' as const;
   readonly label: string;
@@ -107,9 +177,12 @@ export class FolderSource implements ProjectSource {
   private warned = new Set<string>();
 
   constructor(
+    /** where projects/ (and out/) are: apps/studio, or the workspace */
     readonly root: FileSystemDirectoryHandle,
     /** what the user picked (root may be inside it) */
     readonly picked: FileSystemDirectoryHandle,
+    /** where the engine is (src/, catalog/): root itself, or the studio picked for a workspace */
+    readonly engine: FileSystemDirectoryHandle = root,
   ) {
     this.label = picked === root ? root.name : `${picked.name} › ${root.name}`;
   }
@@ -154,10 +227,10 @@ export class FolderSource implements ProjectSource {
         out.push({ path: `${prefix}/${path}`, mtime: (await handle.getFile()).lastModified });
       }
     };
-    const src = await dirAt(this.root, ['src']);
+    const src = await dirAt(this.engine, ['src']);
     if (src) await walk(src, new Set(), collect('src'));
     // the waveform catalog (waves, font sets, caption setups): src/mediamake/look.ts imports it
-    const catalog = await dirAt(this.root, ['catalog']);
+    const catalog = await dirAt(this.engine, ['catalog']);
     if (catalog) await walk(catalog, new Set(), collect('catalog'));
     const project = await dirAt(this.root, ['projects', slug]);
     if (project) await walk(project, NOT_CODE, collect(`projects/${slug}`));
@@ -169,7 +242,7 @@ export class FolderSource implements ProjectSource {
     await Promise.all(
       paths.map(async path => {
         out[path] = CODE.test(path)
-          ? await fileAt(this.root, path)
+          ? await fileAt(path.startsWith('projects/') ? this.root : this.engine, path)
               .then(f => f?.text() ?? null)
               .catch(() => null)
           : null;

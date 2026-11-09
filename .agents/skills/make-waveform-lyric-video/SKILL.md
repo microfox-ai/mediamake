@@ -519,7 +519,7 @@ When the user wants them shared, `mm notes promote make-waveform-lyric-video` of
   gate burst; or crossfades), glitch rules on the hits (bands of another stage shoved sideways,
   channel split, inverted now and then; `show: 'next'` in the builds, `'others'` on the strong hits),
   and a Subject with one cutout per stage (`stages`) that draws the same bands. "The overlays folder"
-  = the library in apps/studio/overlays: catalogue it first (three frames a clip on a contact
+  = the library in the workspace's overlays/: catalogue it first (three frames a clip on a contact
   sheet), copy the picks into input/overlays and lay them out by stage with `when` windows. Before
   showing, scan every looping clip's brightness (signalstats at 10 fps): clips that flash white at
   their start or end flash the frame on every loop (trim with `offset` / `clipSeconds`), and some

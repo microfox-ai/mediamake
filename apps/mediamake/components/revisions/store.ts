@@ -72,12 +72,15 @@ import {
 } from '@/lib/revisions/live';
 import {
   FolderSource,
-  findLyricsRoot,
+  findEngineRoot,
   pickDirectory,
+  pickEngineDirectory,
+  studioFolders,
 } from '@/lib/remotion-editor/folder-source';
 import {
   loadFolders,
   rememberFolder,
+  rememberedEngine,
   type FolderEntry,
 } from '@/lib/remotion-editor/folder-history';
 import type { ProjectEntry } from '@/lib/remotion-editor/types';
@@ -303,6 +306,8 @@ interface RevisionsState {
   /** Opens the folder picker for the studio folder (needs a click). */
   pickLiveFolder: () => Promise<void>;
   connectLiveFolder: (handle: FileSystemDirectoryHandle) => Promise<boolean>;
+  /** For a workspace (~/MediaMake): picks the studio its projects take the engine from (needs a click). */
+  pickLiveEngine: (workspace: FileSystemDirectoryHandle) => Promise<void>;
   openLive: (slug: string) => Promise<void>;
   /** Compiles the live project again when its code or edits changed on disk. */
   reloadLive: (force?: boolean) => Promise<void>;
@@ -1609,18 +1614,26 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
           );
         return false;
       }
-      const root = await findLyricsRoot(handle).catch(() => null);
-      if (!root) {
+      const found = await studioFolders(handle, await rememberedEngine(handle)).catch(() => null);
+      if (!found) {
         toast.error(
-          `"${handle.name}" has no projects/ and src/kit/. Pick apps/studio (or the repo).`,
+          `"${handle.name}" has no projects/. Pick your workspace (~/MediaMake) or apps/studio (or the repo).`,
           { duration: 8000 },
         );
+        return false;
+      }
+      if ('workspace' in found) {
+        // its projects import the engine, which is in the studio: one more pick, remembered with it
+        toast(`${handle.name} has your projects. Pick the studio (apps/studio, or the repo) for the engine.`, {
+          duration: 20000,
+          action: { label: 'Pick the studio', onClick: () => void get().pickLiveEngine(handle) },
+        });
         return false;
       }
       const prev = get().liveFolder;
       if (prev && prev.handle !== handle && get().live?.source !== prev.source)
         prev.source.dispose();
-      const source = new FolderSource(root, handle);
+      const source = new FolderSource(found.root, handle, found.engine);
       set({ livePending: null, liveProgress: 'Listing projects…' });
       try {
         const projects = await source.listProjects();
@@ -1635,6 +1648,21 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       await rememberFolder(handle).catch(() => null);
       set({ liveFolders: await loadFolders().catch(() => get().liveFolders) });
       return true;
+    },
+
+    pickLiveEngine: async workspace => {
+      try {
+        const picked = await pickEngineDirectory();
+        if (!(await findEngineRoot(picked).catch(() => null))) {
+          toast.error(`"${picked.name}" has no src/kit/. Pick apps/studio (or the repo).`, { duration: 8000 });
+          return;
+        }
+        await rememberFolder(workspace, picked);
+        await get().connectLiveFolder(workspace);
+      } catch (err) {
+        if (!isAbortError(err))
+          toast.error(`Could not open the folder: ${errorMessage(err)}`, { duration: 6000 });
+      }
     },
 
     openLive: async slug => {

@@ -185,7 +185,7 @@ IndexedDB list as the editor's.
 4. Every control has a tooltip naming its shortcut. Comments autosave (debounced). `⌘S` saves now.
 5. History (IndexedDB, per browser + origin) remembers folders and the last video, so reopening is
    one click plus a permission prompt (none with Chrome's "Allow on every visit").
-6. **Sources**: add a folder of project folders once (e.g. `apps/studio/out`). Every
+6. **Sources**: add a folder of project folders once (e.g. the workspace's `out`, `~/MediaMake/out`). Every
    folder up to 3 levels down that holds a video is listed on each visit and rescanned when the
    window regains focus, so new renders show up without opening anything. Chrome asks for one
    "Reconnect" click per source per visit unless "Allow on every visit" was chosen.
