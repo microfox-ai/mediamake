@@ -4,6 +4,12 @@
  * scripts write it first (`node tools/skills.mjs index`, from .agents/skills). It is imported, so every
  * build (pages and server routes alike) carries the copy it was built with. The registry is the one
  * list of skills; a skill's own page (/skills/<name>) only shows its SKILL.md text, read from GitHub.
+ *
+ * On Vercel the build runs through turbo (`turbo build`), whose cache can hand back the last .next
+ * without running the build script. Its traces still name this file, so turbo.json runs the
+ * `skills-index` task before every build and never caches it: the file is there either way. A change to
+ * a skill (.agents/skills, tools/skills.mjs) is in turbo.json's globalDependencies, so it builds again
+ * instead of reusing a .next made from the old list.
  */
 import registryJson from '../../../../skills.json';
 import { REGISTRY_SCHEMA, type RegistrySkill, type SkillsRegistry } from '@/lib/library/types';

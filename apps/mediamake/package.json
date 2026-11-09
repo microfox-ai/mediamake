@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node ../../tools/skills.mjs index --quiet && next dev",
     "build": "node ../../tools/skills.mjs index --quiet && next build",
+    "skills-index": "node ../../tools/skills.mjs index --quiet",
     "start": "next start",
     "lint": "eslint",
     "remotion": "remotion studio components/remotion/index.ts",
