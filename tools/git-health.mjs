@@ -9,6 +9,7 @@
  *   - main ahead of GitHub (local commits) or behind it (needs a pull)
  *   - on a branch: commits not pushed, how far behind main it is, and whether it was merged
  *   - a detached HEAD, stashes, and other local branches holding commits that aren't on GitHub
+ *   - work left in an old folder after a move (leftovers in tools/guard-rails.json: apps/lyrics_videos)
  * Files git ignores (projects/, out/, brands/ …) are the user's work and never count as dirty.
  *
  *   node tools/git-health.mjs              the report, exit 1 when something needs fixing
@@ -118,6 +119,7 @@ export function inspect(dir, { fetch = true } = {}) {
     orphanCommits: 0,
     stashes: [],
     unpushedBranches: [],
+    leftovers: [],
     fetch: { tried: false, ok: false, error: null, lastFetch: null },
     issues: [],
   };
@@ -238,6 +240,20 @@ export function inspect(dir, { fetch = true } = {}) {
       if (n.code === 0 && Number(n.out) > 0)
         r.unpushedBranches.push({ name: b, commits: Number(n.out) });
     }
+  }
+
+  // Old folders still holding the user's work after a move (the rename to apps/studio).
+  for (const l of rules?.leftovers ?? []) {
+    const dirs = (l.dirs ?? ['.']).filter(d => {
+      try {
+        return fs
+          .readdirSync(path.join(top, l.path, d))
+          .some(n => !n.startsWith('.'));
+      } catch {
+        return false;
+      }
+    });
+    if (dirs.length) r.leftovers.push({ ...l, found: dirs });
   }
 
   r.issues = issuesOf(r);
@@ -365,6 +381,14 @@ function issuesOf(r) {
       'info',
       `Local branches with commits that aren't on GitHub: ${listed(r.unpushedBranches.map(b => `${b.name} (${b.commits})`))}.`,
       'Push the ones still needed and open PRs; ask the user about the rest.',
+    );
+  }
+
+  for (const l of r.leftovers) {
+    add(
+      'warn',
+      `${l.what ?? 'Work'} is still in ${l.path} (${l.found.map(d => `${d}/`).join(', ')}).`,
+      l.fix ?? '',
     );
   }
 

@@ -22,6 +22,10 @@ packages/*/codegen-report.md
 apps/**/public/assets/*
 apps/**/out/**
 
+# The studio's old folder (apps/studio was apps/lyrics_videos until 2026-11). What is left there after
+# pulling the rename is the user's work until `mm migrate` moves it, so git never offers to commit it.
+/apps/lyrics_videos/
+
 # SLS
 env.json
 .build

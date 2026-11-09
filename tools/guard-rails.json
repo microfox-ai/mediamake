@@ -7,16 +7,25 @@
     "(projects/, out/, brands/, thumbnails/jobs/, overlays/), so it is never blocked.",
     "areas: the first one whose paths match a file gives its hint. A path ending in / is a folder,",
     "* matches inside one folder and ** across folders. allow: committed files that may still change",
-    "on a protected branch. When a folder moves (apps/lyrics_videos to apps/studio), change it here."
+    "on a protected branch. leftovers: old folders that may still hold the user's work after a move,",
+    "with the command that moves it. When a folder moves, change it here."
   ],
   "protectedBranches": ["main", "master"],
   "allow": [],
+  "leftovers": [
+    {
+      "path": "apps/lyrics_videos",
+      "dirs": ["projects", "out", "brands"],
+      "what": "Work from before the rename to apps/studio",
+      "fix": "`mm migrate` lists what would move; `mm migrate --yes` moves it, once the user agrees."
+    }
+  ],
   "areas": [
     {
       "name": "generated file",
-      "paths": ["SKILLS.md", "skills.json", "apps/lyrics_videos/src/mediamake/presets.json"],
+      "paths": ["SKILLS.md", "skills.json", "apps/studio/src/mediamake/presets.json"],
       "branch": "chore/<what>",
-      "where": "It is generated, never edited by hand: SKILLS.md and skills.json come from `node tools/skills.mjs index`, presets.json from `npm run sync-presets -w lyrics_videos`. Regenerate it on the branch of the change that needs it."
+      "where": "It is generated, never edited by hand: SKILLS.md and skills.json come from `node tools/skills.mjs index`, presets.json from `mm sync-presets`. Regenerate it on the branch of the change that needs it."
     },
     {
       "name": "lockfile",
@@ -32,15 +41,15 @@
     },
     {
       "name": "production graphic or catalog entry",
-      "paths": ["apps/lyrics_videos/src/remix/gfx/", "apps/lyrics_videos/catalog/", "apps/lyrics_videos/logoGraphics/"],
+      "paths": ["apps/studio/src/remix/gfx/", "apps/studio/catalog/", "apps/studio/logoGraphics/"],
       "branch": "engine/<what>",
-      "where": "Anything made for one production belongs in its own folder, apps/lyrics_videos/projects/<slug>/, which git ignores. Only a graphic or entry every production should get goes into the engine, on a branch and a PR."
+      "where": "Anything made for one production belongs in its own folder, apps/studio/projects/<slug>/, which git ignores. Only a graphic or entry every production should get goes into the engine, on a branch and a PR."
     },
     {
       "name": "video engine file",
-      "paths": ["apps/lyrics_videos/"],
+      "paths": ["apps/studio/"],
       "branch": "engine/<what>",
-      "where": "The user's work in apps/lyrics_videos (projects/, out/, brands/, thumbnails/jobs/, overlays/) is ignored by git and can change on any branch. A change to the engine, its scripts or the sample project goes on a branch and a PR; when one production needs it, say which in the PR."
+      "where": "The user's work in apps/studio (projects/, out/, brands/, thumbnails/jobs/, overlays/) is ignored by git and can change on any branch. A change to the engine, its scripts or the sample project goes on a branch and a PR; when one production needs it, say which in the PR."
     },
     {
       "name": "MediaMake app file",

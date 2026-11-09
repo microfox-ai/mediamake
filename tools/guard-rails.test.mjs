@@ -80,17 +80,18 @@ function setup({ rules = true } = {}) {
     seed,
     '.gitignore',
     [
-      'apps/lyrics_videos/projects/*',
-      '!apps/lyrics_videos/projects/sample-pulse/',
-      'apps/lyrics_videos/out/',
+      'apps/studio/projects/*',
+      '!apps/studio/projects/sample-pulse/',
+      'apps/studio/out/',
       '.claude/*',
       '!.claude/skills/',
       '!.claude/settings.json',
+      '/apps/lyrics_videos/',
       '',
     ].join('\n'),
   );
-  write(seed, 'apps/lyrics_videos/src/engine.ts', 'export const x = 1;\n');
-  write(seed, 'apps/lyrics_videos/projects/sample-pulse/brief.md', 'sample\n');
+  write(seed, 'apps/studio/src/engine.ts', 'export const x = 1;\n');
+  write(seed, 'apps/studio/projects/sample-pulse/brief.md', 'sample\n');
   write(seed, '.agents/skills/make-x/SKILL.md', '# make-x\n');
   fs.mkdirSync(path.join(seed, '.claude/skills'), { recursive: true });
   fs.symlinkSync(
@@ -105,7 +106,7 @@ function setup({ rules = true } = {}) {
   ok(root, 'clone', '-q', origin, work);
   const upstream = (
     msg = 'upstream change',
-    file = 'apps/lyrics_videos/src/engine.ts',
+    file = 'apps/studio/src/engine.ts',
   ) => {
     write(
       seed,
@@ -123,8 +124,8 @@ const find = (r, re) => r.issues.find(i => re.test(i.text));
 
 describe('matches', () => {
   test('folders, exact paths and globs', () => {
-    assert.ok(matches('apps/lyrics_videos/', 'apps/lyrics_videos/src/a.ts'));
-    assert.ok(!matches('apps/lyrics_videos/', 'apps/lyrics_videos_old/a.ts'));
+    assert.ok(matches('apps/studio/', 'apps/studio/src/a.ts'));
+    assert.ok(!matches('apps/studio/', 'apps/studio_old/a.ts'));
     assert.ok(matches('SKILLS.md', 'SKILLS.md'));
     assert.ok(!matches('SKILLS.md', 'docs/SKILLS.md'));
     assert.ok(matches('**/package-lock.json', 'package-lock.json'));
@@ -164,16 +165,14 @@ describe('the pre-edit guard', () => {
   ok(t.work, 'worktree', 'add', '-q', '-b', 'engine/thing', otherBranch);
 
   test('stops an edit to a committed engine file on main, with where it belongs', () => {
-    const why = checkEdit(
-      path.join(t.work, 'apps/lyrics_videos/src/engine.ts'),
-    );
+    const why = checkEdit(path.join(t.work, 'apps/studio/src/engine.ts'));
     assert.match(why, /video engine file \(committed\)/);
     assert.match(why, /git switch -c engine\/<what>/);
     assert.match(why, /git worktree add -b engine\/<what>/);
   });
 
   test('stops a new file git would commit, by relative path from the cwd', () => {
-    const why = checkEdit('apps/lyrics_videos/src/new.ts', t.work);
+    const why = checkEdit('apps/studio/src/new.ts', t.work);
     assert.match(why, /a new file git would commit/);
   });
 
@@ -192,7 +191,7 @@ describe('the pre-edit guard', () => {
     );
     assert.match(
       checkEdit(
-        path.join(t.work, 'apps/lyrics_videos/projects/sample-pulse/brief.md'),
+        path.join(t.work, 'apps/studio/projects/sample-pulse/brief.md'),
       ),
       /video engine/,
     );
@@ -201,15 +200,12 @@ describe('the pre-edit guard', () => {
   test("lets the user's ignored work through", () => {
     assert.equal(
       checkEdit(
-        path.join(
-          t.work,
-          'apps/lyrics_videos/projects/my-song/video/index.tsx',
-        ),
+        path.join(t.work, 'apps/studio/projects/my-song/video/index.tsx'),
       ),
       null,
     );
     assert.equal(
-      checkEdit(path.join(t.work, 'apps/lyrics_videos/out/my-song/v1.mp4')),
+      checkEdit(path.join(t.work, 'apps/studio/out/my-song/v1.mp4')),
       null,
     );
     assert.equal(
@@ -220,13 +216,13 @@ describe('the pre-edit guard', () => {
 
   test('lets edits through on another branch, in a worktree, outside the repo and in other repos', () => {
     assert.equal(
-      checkEdit(path.join(otherBranch, 'apps/lyrics_videos/src/engine.ts')),
+      checkEdit(path.join(otherBranch, 'apps/studio/src/engine.ts')),
       null,
     );
     assert.equal(checkEdit(path.join(t.root, 'notes.md')), null);
     const other = setup({ rules: false });
     assert.equal(
-      checkEdit(path.join(other.work, 'apps/lyrics_videos/src/engine.ts')),
+      checkEdit(path.join(other.work, 'apps/studio/src/engine.ts')),
       null,
     );
   });
@@ -320,7 +316,7 @@ describe('the pre-edit guard', () => {
     const denied = run({
       tool_name: 'Write',
       cwd: t.work,
-      tool_input: { file_path: 'apps/lyrics_videos/src/engine.ts' },
+      tool_input: { file_path: 'apps/studio/src/engine.ts' },
     });
     assert.equal(denied.status, 0);
     const out = JSON.parse(denied.stdout);
@@ -333,7 +329,7 @@ describe('the pre-edit guard', () => {
     const allowed = run({
       tool_name: 'Write',
       cwd: t.work,
-      tool_input: { file_path: 'apps/lyrics_videos/projects/a/b.ts' },
+      tool_input: { file_path: 'apps/studio/projects/a/b.ts' },
     });
     assert.equal(allowed.status, 0);
     assert.equal(allowed.stdout, '');
@@ -377,12 +373,12 @@ describe('the session-start check', () => {
 
   test('framework edits on main (changed and new files), but never the ignored work', () => {
     const t = setup();
-    write(t.work, 'apps/lyrics_videos/src/engine.ts', 'export const x = 2;\n');
-    write(t.work, 'apps/lyrics_videos/src/added.ts', 'new\n');
-    write(t.work, 'apps/lyrics_videos/projects/my-song/brief.md', 'mine\n');
+    write(t.work, 'apps/studio/src/engine.ts', 'export const x = 2;\n');
+    write(t.work, 'apps/studio/src/added.ts', 'new\n');
+    write(t.work, 'apps/studio/projects/my-song/brief.md', 'mine\n');
     const r = inspect(t.work);
-    assert.deepEqual(r.changed, ['apps/lyrics_videos/src/engine.ts']);
-    assert.deepEqual(r.untracked, ['apps/lyrics_videos/src/added.ts']);
+    assert.deepEqual(r.changed, ['apps/studio/src/engine.ts']);
+    assert.deepEqual(r.untracked, ['apps/studio/src/added.ts']);
     const issue = find(r, /framework edits/);
     assert.equal(issue.level, 'warn');
     assert.match(issue.fix, /git switch -c local\//);
@@ -390,7 +386,7 @@ describe('the session-start check', () => {
 
   test('local commits on main, and diverged once GitHub moves on', () => {
     const t = setup();
-    write(t.work, 'apps/lyrics_videos/src/mine.ts', 'mine\n');
+    write(t.work, 'apps/studio/src/mine.ts', 'mine\n');
     commitAll(t.work, 'local');
     let r = inspect(t.work);
     assert.match(
@@ -407,40 +403,24 @@ describe('the session-start check', () => {
 
   test('a merge left half done, with its conflict', () => {
     const t = setup();
-    write(
-      t.work,
-      'apps/lyrics_videos/src/engine.ts',
-      'export const x = "mine";\n',
-    );
+    write(t.work, 'apps/studio/src/engine.ts', 'export const x = "mine";\n');
     commitAll(t.work, 'mine');
-    write(
-      t.seed,
-      'apps/lyrics_videos/src/engine.ts',
-      'export const x = "theirs";\n',
-    );
+    write(t.seed, 'apps/studio/src/engine.ts', 'export const x = "theirs";\n');
     commitAll(t.seed, 'theirs');
     ok(t.seed, 'push', '-q', 'origin', 'main');
     assert.notEqual(g(t.work, 'pull', '--no-rebase', '-q').code, 0);
     const r = inspect(t.work);
     assert.equal(r.operation, 'merge');
-    assert.deepEqual(r.conflicts, ['apps/lyrics_videos/src/engine.ts']);
+    assert.deepEqual(r.conflicts, ['apps/studio/src/engine.ts']);
     assert.equal(levels(r)[0], 'stop');
     assert.match(r.issues[0].fix, /git merge --abort/);
   });
 
   test('a rebase left half done is not reported as a detached HEAD', () => {
     const t = setup();
-    write(
-      t.work,
-      'apps/lyrics_videos/src/engine.ts',
-      'export const x = "mine";\n',
-    );
+    write(t.work, 'apps/studio/src/engine.ts', 'export const x = "mine";\n');
     commitAll(t.work, 'mine');
-    write(
-      t.seed,
-      'apps/lyrics_videos/src/engine.ts',
-      'export const x = "theirs";\n',
-    );
+    write(t.seed, 'apps/studio/src/engine.ts', 'export const x = "theirs";\n');
     commitAll(t.seed, 'theirs');
     ok(t.seed, 'push', '-q', 'origin', 'main');
     ok(t.work, 'fetch', '-q');
@@ -454,7 +434,7 @@ describe('the session-start check', () => {
   test('a detached HEAD with a commit on no branch', () => {
     const t = setup();
     ok(t.work, 'switch', '-q', '--detach');
-    write(t.work, 'apps/lyrics_videos/src/engine.ts', 'export const x = 3;\n');
+    write(t.work, 'apps/studio/src/engine.ts', 'export const x = 3;\n');
     commitAll(t.work, 'lost');
     const r = inspect(t.work);
     assert.match(find(r, /detached/).text, /1 commit on no branch/);
@@ -478,7 +458,7 @@ describe('the session-start check', () => {
   test('a branch: unpushed commits, behind main, then merged and its GitHub branch gone', () => {
     const t = setup();
     ok(t.work, 'switch', '-q', '-c', 'engine/thing');
-    write(t.work, 'apps/lyrics_videos/src/thing.ts', 'thing\n');
+    write(t.work, 'apps/studio/src/thing.ts', 'thing\n');
     commitAll(t.work, 'thing');
     let r = inspect(t.work);
     assert.match(find(r, /not pushed/).fix, /git push -u origin engine\/thing/);
@@ -507,6 +487,27 @@ describe('the session-start check', () => {
     assert.match(
       find(r, /already in main/).text,
       /merged\) and its GitHub branch is gone/,
+    );
+  });
+
+  test('work left in the old apps/lyrics_videos folder: says to run mm migrate', () => {
+    const t = setup();
+    write(t.work, 'apps/lyrics_videos/projects/my-song/brief.md', 'mine\n');
+    write(t.work, 'apps/lyrics_videos/out/my-song/v1.mp4', 'video\n');
+    const r = inspect(t.work);
+    assert.deepEqual(r.untracked, []);
+    const issue = find(r, /apps\/lyrics_videos/);
+    assert.equal(issue.level, 'warn');
+    assert.match(
+      issue.text,
+      /before the rename to apps\/studio is still in apps\/lyrics_videos \(projects\/, out\/\)/,
+    );
+    assert.match(issue.fix, /mm migrate --yes/);
+    assert.equal(
+      checkEdit(
+        path.join(t.work, 'apps/lyrics_videos/projects/my-song/brief.md'),
+      ),
+      null,
     );
   });
 

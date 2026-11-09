@@ -70,6 +70,7 @@ export function loadRules(top) {
     return {
       protectedBranches: rules.protectedBranches ?? ['main'],
       allow: rules.allow ?? [],
+      leftovers: rules.leftovers ?? [],
       areas: rules.areas ?? [],
       default: rules.default ?? {
         name: 'framework file',
