@@ -1,6 +1,6 @@
 ---
 name: publish-skill
-description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then send it as a pull request into .agents/skills (linked from .claude/skills, listed in SKILLS.md) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update SKILLS.md.
+description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then send it as a pull request into .agents/skills (linked from .claude/skills) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update the skills list.
 metadata:
   category: skill
 ---
@@ -19,12 +19,13 @@ outside the repo) and are linked from `~/.claude/skills/<name>`, so every sessio
 loads them and making one never changes a file git tracks. Publishing is how one becomes public:
 a pull request, never an edit on main.
 
-`SKILLS.md` at the repo root lists every skill by category; the mediamake app shows it at
-`/skills` (https://mediamake.microfox.app/skills, rebuilt on every deploy; locally
-http://localhost:3002/skills reads the file live). `node tools/skills.mjs check` fails when
-`SKILLS.md` is out of date or any skill holds a key, a token or a path on this machine. A Claude
-Code hook runs it at session start and after a tool call that touches a skill, and CI runs it on
-every pull request.
+The mediamake app lists every skill by category at `/skills`
+(https://mediamake.microfox.app/skills, rebuilt on every deploy) from `skills.json`, the registry.
+That file is built, never committed: the app's `build` and `dev` scripts write it from
+`.agents/skills` (`node tools/skills.mjs index`), so a new skill needs no index change in its PR.
+`node tools/skills.mjs check` fails when any skill holds a key, a token or a path on this machine,
+an MCP table it can't read, or a log that tells sessions to edit it; CI runs it on every pull
+request.
 
 All of it goes through one script, run from the repo root:
 
@@ -34,8 +35,8 @@ node tools/skills.mjs publish <name>                # the checks only (a dry run
 node tools/skills.mjs publish <name> --yes          # a branch with it from origin/main, pushed, and a PR
 node tools/skills.mjs tidy [--yes]                  # after the PR merged and you pulled: drops your copy
 node tools/skills.mjs add <name> | --all            # on a branch you are on: moves or copies it in, links it
-node tools/skills.mjs index                         # rewrites SKILLS.md and skills.json
-node tools/skills.mjs check                         # exit 1 when SKILLS.md is stale or a skill leaks
+node tools/skills.mjs index                         # builds skills.json (the app's build does it)
+node tools/skills.mjs check                         # exit 1 when a skill leaks or breaks a rule
 ```
 
 ## 1. Find the new skills
@@ -91,9 +92,9 @@ uses (copy one from `pack-brand-kit`), with `mm notes add <name> "…"` and `mm 
 
 Ask before this step: once pushed, the files are on GitHub and stay in its history.
 `node tools/skills.mjs publish <name> --yes` makes a branch `skill/<name>-<time>` from `origin/main`
-in a temporary worktree, with the skill in `.agents/skills/<name>`, linked from `.claude/skills` and
-listed in `SKILLS.md` and `skills.json`, one commit, pushed, and a pull request (with `gh` signed
-in; otherwise it prints the link that opens one). The user's checkout, branch and edits are never
+in a temporary worktree, with the skill in `.agents/skills/<name>` linked from `.claude/skills`, one
+commit, pushed, and a pull request (with `gh` signed in; otherwise it prints the link that opens
+one). The user's checkout, branch and edits are never
 touched, so it is safe on main. `--no-push` keeps the commit on a local branch instead.
 
 Give the user the PR link, and once it merges the skill's release page,
@@ -102,7 +103,7 @@ pull the merge; then `node tools/skills.mjs tidy --yes` drops it (only when the 
 same; a copy that differs is kept, and `list` warns that it shadows the repo's).
 
 `add` is the older way, for a branch you are already on: it moves a `.claude/skills` folder (or
-copies one of the user's) into `.agents/skills`, links it and rewrites `SKILLS.md`, and you commit it.
+copies one of the user's) into `.agents/skills` and links it, and you commit it.
 
 ## Naming and categories
 

@@ -7,6 +7,8 @@
     "mm": "bin/mm.mjs"
   },
   "scripts": {
+    "postinstall": "node scripts/generated.mjs --soft --quiet",
+    "prepreview": "node scripts/generated.mjs --soft",
     "preview": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/studio.ts",
     "analyze": "uv run --project analysis python analysis/pipeline.py",
     "prepare-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/prepare.ts",
@@ -21,6 +23,7 @@
     "cleanup-out": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/cleanup-out.ts",
     "media": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/media.ts",
     "test:library": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/library/*.test.ts",
+    "pretype-check": "node scripts/generated.mjs --soft",
     "type-check": "tsc --noEmit",
     "logos": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/logos.ts",
     "logos-studio": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/brand-public.ts && node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/remotion-studio.ts logos",
@@ -49,7 +52,8 @@
     "test:migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/migrate.test.ts",
     "workspace": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/workspace-cli.ts",
     "test:workspace": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/workspace.test.ts",
-    "test:notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/notes.test.ts"
+    "test:notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/notes.test.ts",
+    "test:generated": "node --test scripts/generated.test.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

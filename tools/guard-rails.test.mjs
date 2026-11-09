@@ -13,6 +13,7 @@ import {
   decide,
   gitCalls,
   matches,
+  npmLockWrites,
 } from './guard-rails.mjs';
 import { hookOutput, inspect } from './git-health.mjs';
 
@@ -159,6 +160,20 @@ describe('gitCalls', () => {
   });
 });
 
+describe('npmLockWrites', () => {
+  test('the npm calls that rewrite the lockfile, following cd, --prefix and options with values', () => {
+    const subs = c => npmLockWrites(c, '/r').map(x => `${x.sub}@${x.dir}`);
+    assert.deepEqual(subs('npm install'), ['install@/r']);
+    assert.deepEqual(subs('cd apps/studio && npm i -D zod'), ['i@/r/apps/studio']);
+    assert.deepEqual(subs('npm --prefix /x update'), ['update@/x']);
+    assert.deepEqual(subs('npm -w studio install three; npm audit fix'), ['install@/r', 'audit@/r']);
+    assert.deepEqual(subs('FOO=1 npm uninstall left-pad'), ['uninstall@/r']);
+    for (const c of ['npm ci', 'npm run build', 'npm audit', 'npm install -g x', 'npm i --no-save x', 'npm install --dry-run', 'npx some install', 'npm unlink', 'echo npm install']) {
+      assert.deepEqual(subs(c), [], c);
+    }
+  });
+});
+
 describe('the pre-edit guard', () => {
   const t = setup();
   const otherBranch = path.join(t.root, 'feature');
@@ -176,14 +191,10 @@ describe('the pre-edit guard', () => {
     assert.match(why, /a new file git would commit/);
   });
 
-  test('names the area: skills (through the .claude/skills link), generated files, the lockfile', () => {
+  test('names the area: skills (through the .claude/skills link), the lockfile, the engine', () => {
     assert.match(
       checkEdit(path.join(t.work, '.claude/skills/make-x/SKILL.md')),
       /\.agents\/skills\/make-x\/SKILL\.md is a skill file/,
-    );
-    assert.match(
-      checkEdit(path.join(t.work, 'SKILLS.md')),
-      /is a generated file/,
     );
     assert.match(
       checkEdit(path.join(t.work, 'package-lock.json')),
@@ -263,6 +274,21 @@ describe('the pre-edit guard', () => {
     assert.equal(checkBash('echo commit', t.work), null);
   });
 
+  test('stops npm install and friends on main, says npm ci; a branch, a global install and ignored folders go ahead', () => {
+    const why = checkBash('npm install', t.work);
+    assert.match(why, /`npm install` rewrites package-lock\.json/);
+    assert.match(why, /npm ci/);
+    assert.match(why, /git switch -c deps\/<what>/);
+    assert.match(checkBash(`cd ${t.work}/apps/studio && npm i three`, t.root), /npm i/);
+    assert.match(checkBash(`npm --prefix ${t.work} update`, t.root), /npm update/);
+    assert.equal(checkBash('npm ci', t.work), null);
+    assert.equal(checkBash('npm install -g mediamake-thing', t.work), null);
+    assert.equal(checkBash('npm install', otherBranch), null);
+    fs.mkdirSync(path.join(t.work, 'apps/studio/projects/my-song'), { recursive: true });
+    assert.equal(checkBash('cd apps/studio/projects/my-song && npm install', t.work), null, "a project of the user's");
+    assert.equal(checkBash('npm install', t.root), null, 'not a checkout');
+  });
+
   test('stops git clean -x and -X on any branch', () => {
     assert.match(
       checkBash('git clean -fdx', t.work),
@@ -280,16 +306,16 @@ describe('the pre-edit guard', () => {
     const input = {
       tool_name: 'Edit',
       cwd: t.work,
-      tool_input: { file_path: 'SKILLS.md' },
+      tool_input: { file_path: 'package-lock.json' },
     };
-    assert.match(decide(input), /generated file/);
+    assert.match(decide(input), /lockfile/);
     assert.match(
       decide({
         tool_name: 'NotebookEdit',
         cwd: t.work,
-        tool_input: { notebook_path: 'SKILLS.md' },
+        tool_input: { notebook_path: 'package-lock.json' },
       }),
-      /generated/,
+      /lockfile/,
     );
     assert.equal(
       decide({

@@ -27,6 +27,6 @@ jobs:
             exit 1
           fi
           echo "private/ holds only its README."
-      - name: No keys or machine paths in skills, SKILLS.md up to date
+      - name: No keys or machine paths in skills, lessons in notes
         # Every skill is public; tools/skills.mjs fails on keys, tokens and /Users/… paths
         run: node tools/skills.mjs check

@@ -18,7 +18,7 @@ export const VIDEO_KINDS: CatalogKind[] = ['tutorial', 'course'];
 
 /**
  * Kinds that are always public. Every skill's files are committed in the
- * repo (.agents/skills, listed in SKILLS.md), so a skill item is never gated:
+ * repo (.agents/skills, listed in the skills.json registry), so a skill item is never gated:
  * no development, community, vault or release gate, and it opens for everyone
  * even while public releases are locked. Apps, MCPs and tutorials go through
  * the gated releases below.

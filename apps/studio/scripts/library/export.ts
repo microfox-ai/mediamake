@@ -7,7 +7,7 @@
  *   meta.json         { schema, generatedAt, counts }
  *   channels.json     [{ id, name, folder, projectId?, logo?, productions }]
  *   productions.json  [{ slug, title, artist?, channel?, song?, status, skills, deliverFolder?, thumbnail?, updatedAt, uses, deliveries }]
- *   skills.json       [{ ...the repo's skills.json entry, runs, lastRun?, productions, bestOutput? }]
+ *   skills.json       [{ ...the repo's registry entry (tools/skills.mjs registry()), runs, lastRun?, productions, bestOutput? }]
  *   media-<kind>.json [{ id, path, kind, subject?, title, tags, bytes, width?, height?, duration?, fps?, hasAudio?,
  *                        rating?, notes?, source?, lyrics?, preview?, related?, uses, thumb?, status, remote?, shared?, dupes? }]
  *   runs.json         [{ skill, session, at, production?, verdict? }]
@@ -19,6 +19,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { registry as skillsRegistry } from '../../../../tools/skills.mjs';
 import { REPO } from '../paths.ts';
 import { KINDS, extraOf, type Item } from './db.ts';
 import { absOf, type Lib } from './lib.ts';
@@ -158,8 +159,8 @@ export const exportLibrary = (lib: Lib) => {
     return { id, name: brand?.name ?? id, folder, projectId: lib.cfg.links[id], logo: rel(thumb), productions: productions.filter(p => p.channel === id).map(p => p.slug) };
   });
 
-  // ---- skills: the repo's registry (tools/skills.mjs index) plus what the runs say
-  const registry = readJson<{ skills?: SkillEntry[] }>(path.join(REPO, 'skills.json'))?.skills ?? [];
+  // ---- skills: the repo's registry (tools/skills.mjs, read here, never from a committed file) plus what the runs say
+  const registry: SkillEntry[] = skillsRegistry().skills;
   const drift = new Map(driftOf(dir).map(d => [d.skill, d]));
   const skills = registry.map(s => {
     const mine = runs.filter(r => r.skill === s.name);

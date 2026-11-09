@@ -6,7 +6,7 @@ people, then with your network, and finally goes public. The repository is publi
 the code for this; their content lives in private storage.
 
 **Skills are public by default.** Every skill's files are committed in the repo
-(`.agents/skills/`, listed in `SKILLS.md`), so nothing about a skill is hidden:
+(`.agents/skills/`, listed at `/skills`), so nothing about a skill is hidden:
 a `skill/…` item is always public and open to everyone, even while public
 releases are locked. It sits in the Public column of the dashboard, `release`
 publishes it as public, and `promote`, `schedule` and `vault` refuse it
@@ -424,7 +424,7 @@ it runs (by convention under `## First: check the MCPs`):
 
 `node tools/skills.mjs index` puts the table in `skills.json` as the skill's
 `mcps` (the catalog's `uses`, also for a skill released as a package that
-declares none of its own), SKILLS.md and each skill's page (`/skills/<name>`) show them, and `check`
+declares none of its own), and each skill's page (`/skills/<name>`) shows them; `check`
 (CI) fails on a table it can't read. Each MCP is one of ours or an item made
 by others; publishing a skill that names another one warns to list it in
 `third-party.json`.

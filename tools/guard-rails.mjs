@@ -7,6 +7,10 @@
  *   - Edit, Write, MultiEdit and NotebookEdit on any file git would track (a framework file), with
  *     where the change belongs instead. Files git ignores are your work and are never stopped.
  *   - `git commit` (commits belong on a branch).
+ *   - npm commands that rewrite package-lock.json (install with or without names, update, uninstall,
+ *     dedupe, prune, audit fix, version…): the lockfile changes only in a PR that changes
+ *     dependencies, and `npm ci` installs without touching it. Global installs, --no-save and
+ *     --dry-run go ahead, and so does a folder git ignores (a project of the user's).
  * On any branch, it stops `git clean` with -x or -X, which deletes the ignored files: your projects,
  * renders and brand kits.
  *
@@ -282,9 +286,70 @@ export function gitCalls(command, cwd) {
   return calls;
 }
 
+/** npm's subcommands (and their aliases) that write package-lock.json; audit only with `fix`. */
+const NPM_WRITES = new Set([
+  'install', 'i', 'in', 'ins', 'inst', 'insta', 'instal', 'isnt', 'isnta', 'isntal', 'isntall', 'add',
+  'install-test', 'it', 'uninstall', 'unlink', 'remove', 'rm', 'r', 'un', 'update', 'up', 'upgrade',
+  'udpate', 'dedupe', 'ddp', 'prune', 'version', 'audit',
+]);
+const NPM_SPARES = ['-g', '--global', '--location=global', '--no-save', '--no-package-lock', '--package-lock=false', '--dry-run'];
+
+/** The npm calls in a shell command that would write a lockfile: [{ dir, sub }], following `cd` and --prefix. */
+export function npmLockWrites(command, cwd) {
+  const calls = [];
+  let dir = cwd;
+  for (const segment of segments(command)) {
+    let w = words(segment.trim());
+    while (w.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(w[0])) w = w.slice(1);
+    if (w[0] === 'cd' && w[1]) {
+      dir = path.resolve(dir, w[1].replace(/^~(?=$|\/)/, process.env.HOME ?? '~'));
+      continue;
+    }
+    if (!/^npm(\.cmd)?$/.test(path.basename(w[0] ?? ''))) continue;
+    let ndir = dir;
+    let sub = null;
+    const rest = [];
+    for (let i = 1; i < w.length; i++) {
+      const a = w[i];
+      if (a === '--prefix' || a === '-C') {
+        if (w[i + 1] !== undefined) ndir = path.resolve(ndir, w[++i]);
+      } else if (a.startsWith('--prefix=')) {
+        ndir = path.resolve(ndir, a.slice('--prefix='.length));
+      } else if (!sub && ['-w', '--workspace', '--userconfig', '--cache', '--registry'].includes(a)) {
+        i++; // an option before the subcommand that takes the next word
+      } else if (!sub && !a.startsWith('-')) {
+        sub = a;
+      } else {
+        rest.push(a);
+      }
+    }
+    if (!sub || !NPM_WRITES.has(sub)) continue;
+    if (sub === 'audit' && !rest.includes('fix')) continue;
+    if (sub === 'unlink' && !rest.some(a => !a.startsWith('-'))) continue;
+    if (rest.some(a => NPM_SPARES.includes(a))) continue;
+    calls.push({ dir: ndir, sub });
+  }
+  return calls;
+}
+
 /** Whether a Bash command may go ahead: null to allow, else the reason it is stopped. */
 export function checkBash(command, cwd = process.cwd()) {
-  if (!command || !/\bgit\b/.test(command)) return null;
+  if (!command || !/\b(git|npm)\b/.test(command)) return null;
+  for (const call of npmLockWrites(command, cwd)) {
+    const co = checkoutOf(call.dir);
+    if (!isProtected(co)) continue;
+    const rel = path.relative(co.top, realish(call.dir)).split(path.sep).join('/');
+    // a folder git ignores is the user's own (a project with its own package.json)
+    if (rel && !rel.startsWith('..') && git(['check-ignore', '-q', '--', rel], co.top).code === 0) continue;
+    return [
+      `MediaMake guard: \`npm ${call.sub}\` rewrites package-lock.json, and this checkout (${co.top}) is on ${co.branch}. The lockfile changes only in a PR that changes dependencies, so pulls never stop on it.`,
+      'To install what the lockfile says, run `npm ci`: it never writes the lockfile.',
+      `To add, remove or update a dependency, start a branch first (\`git switch -c deps/<what>\`), then run it there and commit package.json and package-lock.json together in a PR.`,
+      `If the user didn't ask for a dependency change, use \`npm ci\` and don't branch.`,
+      OFF,
+    ].join('\n');
+  }
+  if (!/\bgit\b/.test(command)) return null;
   for (const call of gitCalls(command, cwd)) {
     if (call.sub === 'clean') {
       const flags = call.args.filter(a => /^-[A-Za-z]+$/.test(a)).join('');

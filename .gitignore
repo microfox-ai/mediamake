@@ -44,7 +44,7 @@ env.json
 apps/mediamake/docs/random/*
 # Local Claude Code settings stay out of git (.claude/settings.local.json). Two exceptions:
 # skills are all public, so .claude/skills (links to .agents/skills/) is committed in full (see
-# SKILLS.md and tools/skills.mjs), and .claude/settings.json holds the guard rails every session
+# tools/skills.mjs), and .claude/settings.json holds the guard rails every session
 # runs (see tools/guard-rails.json).
 .claude/*
 !.claude/skills/
@@ -54,3 +54,13 @@ apps/mediamake/docs/random/*
 # storage with `npm run catalog -- release private/mcps/<name>.mcpb`.
 /private/*
 !/private/README.md
+
+# Built, never committed, so pulls and branch switches never meet an edited copy:
+# skills.json is the skills registry (node tools/skills.mjs index; the site's build and dev server
+# write it), and the studio's mediamake presets come from apps/mediamake (mm builds them when their
+# sources change: apps/studio/scripts/generated.mjs). SKILLS.md was the old committed index.
+/skills.json
+/SKILLS.md
+/apps/studio/src/mediamake/presets.json
+/apps/studio/src/mediamake/html-text.ts
+/apps/studio/src/mediamake/.presets.inputs.json

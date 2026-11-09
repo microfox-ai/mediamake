@@ -35,7 +35,11 @@ pulls. The guard rails in `.claude/settings.json` hold to this, with their paths
 - Never drop work without asking: no `reset --hard`, `checkout --` or `restore` on changed files, `stash drop`
   or `branch -D`, and never `git clean -x` or `-X`, which deletes the user's projects and renders (the guard
   stops it).
-- Update with `git pull --ff-only` on a clean main.
+- Update with `git pull --ff-only` on a clean main, then `npm ci`. On main, install only with `npm ci`:
+  `npm install`, `update` and the like rewrite `package-lock.json`, which changes only in a PR that
+  changes dependencies (`deps/<what>`; the guard stops them on main).
+- Generated files are built, never committed: `skills.json` (the skills registry, built by the app's
+  `build` and `dev`) and the studio's mediamake presets (`mm` builds them when their sources change).
 - Starting Claude with `MEDIAMAKE_GUARD=off` turns the guard off for one session; only the user decides that.
 
 ## Skill lessons: your notes, never the SKILL.md

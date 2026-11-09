@@ -3,19 +3,23 @@
  * videos render captions and waveforms with the exact code the mediamake editor runs.
  *
  * A preset's `presetFunction` is the source of a self-contained function (the editor runs it
- * with `new Function`), so the JSON holds everything needed to run it here. Run this again
- * after a preset changes in apps/mediamake.
+ * with `new Function`), so the JSON holds everything needed to run it here.
  *
  * It also copies the editor's caption htmlText helpers (lib/captions/html-text.ts → html-text.ts),
  * which the caption presets get on props.helpers.
  *
- * Usage: mm sync-presets
+ * Both are built, never committed (git ignores them): `mm` runs this before a command when they are
+ * missing or a file they were built from changed (scripts/generated.mjs), using the record of those
+ * files it writes to src/mediamake/.presets.inputs.json. Run it by hand to rebuild at once.
+ *
+ * Usage: mm sync-presets [--quiet]
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { build } from 'esbuild';
+import { build, version as esbuildVersion } from 'esbuild';
+import { PRESETS_INPUTS, PRESETS_OUT, sha } from './generated.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MEDIAMAKE = path.resolve(HERE, '../../mediamake');
@@ -43,7 +47,7 @@ const entry = Object.entries(PRESETS)
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-presets-'));
 const outfile = path.join(tmp, 'presets.mjs');
-await build({
+const result = await build({
   stdin: { contents: entry, resolveDir: MEDIAMAKE, loader: 'ts' },
   bundle: true,
   format: 'esm',
@@ -51,6 +55,9 @@ await build({
   outfile,
   alias: { '@': MEDIAMAKE },
   external: ['react', 'remotion'],
+  // the files it reads, so generated.mjs can tell when a rebuild is due
+  metafile: true,
+  absWorkingDir: MEDIAMAKE,
   plugins: [
     {
       // Presets only import types from these. The few runtime imports in shared preset files
@@ -115,5 +122,24 @@ fs.writeFileSync(
     fs.readFileSync(HTML_TEXT_SRC, 'utf8'),
 );
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`${Object.keys(presets).join(', ')} → ${path.relative(process.cwd(), OUT)}`);
-console.log(`caption htmlText helpers → ${path.relative(process.cwd(), HTML_TEXT_OUT)}`);
+
+// What it was built from (every real file esbuild read, the helpers, this script) and what it wrote,
+// by hash, paths relative to the studio folder
+const APP = path.resolve(HERE, '..');
+const relToApp = (abs: string) => path.relative(APP, abs).split(path.sep).join('/');
+const read = Object.keys(result.metafile!.inputs)
+  .filter(k => !/^[a-z-]+:/.test(k) && k !== '<stdin>')
+  .map(k => path.resolve(MEDIAMAKE, k));
+const inputs = Object.fromEntries(
+  [...new Set([...read, HTML_TEXT_SRC, fileURLToPath(import.meta.url)])]
+    .filter(f => fs.existsSync(f))
+    .sort()
+    .map(f => [relToApp(f), sha(f)]),
+);
+const outputs = Object.fromEntries(PRESETS_OUT.map(rel => [rel, sha(path.join(APP, rel))]));
+fs.writeFileSync(path.join(APP, PRESETS_INPUTS), `${JSON.stringify({ esbuild: esbuildVersion, inputs, outputs }, null, 2)}\n`);
+
+if (!process.argv.includes('--quiet')) {
+  console.log(`${Object.keys(presets).join(', ')} → ${path.relative(process.cwd(), OUT)}`);
+  console.log(`caption htmlText helpers → ${path.relative(process.cwd(), HTML_TEXT_OUT)}`);
+}
