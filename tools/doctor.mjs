@@ -577,17 +577,24 @@ export const fixAll = (list, { log = console.log } = {}) => {
   return ran;
 };
 
-/** The whole doctor: { list, failed }. With fix, fixes first and then checks again. */
+/**
+ * The whole doctor: { list, failed }. With fix, fixes first and then checks again; fixOnly limits the
+ * fixes to those check ids (mm update rebuilds what a pull made stale, and installs nothing new).
+ */
 export async function doctor({
   top,
   fetch = true,
   fix = false,
+  fixOnly = null,
   json = false,
   log = console.log,
 } = {}) {
   let list = await checks({ top, fetch });
-  if (fix && list.some(c => c.level !== 'ok' && c.auto)) {
-    fixAll(list, { log });
+  const todo = list.filter(
+    c => c.level !== 'ok' && c.auto && (!fixOnly || fixOnly.includes(c.id)),
+  );
+  if (fix && todo.length) {
+    fixAll(todo, { log });
     log('');
     list = await checks({ top, fetch: false });
   }

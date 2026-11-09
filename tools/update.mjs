@@ -5,8 +5,8 @@
  *   mm update            what it would do; when nothing of yours has to move (a clean main), it does it
  *   mm update --yes      also when edits or commits on main have to be set aside first
  *   --push               push the local/<date> branch your edits went to, and print its PR link
- *   --no-ci              skip npm ci (it runs only when package-lock.json or a package.json changed, or
- *                        node_modules is missing)
+ *   --no-ci              skip npm ci and the rebuilds (npm ci runs only when package-lock.json or a
+ *                        package.json changed, or node_modules is missing)
  *   --no-doctor          skip mm doctor at the end
  *   --dir=<path>         another checkout
  *
@@ -21,7 +21,8 @@
  *  4. npm ci, when the dependencies changed (it never rewrites package-lock.json; npm install would).
  *  5. mm migrate: with a workspace set, what a new version moves into it (moved with --yes); with none
  *     yet, how to move your work out of the checkout.
- *  6. mm doctor.
+ *  6. mm doctor, which first rebuilds @microfox/remotion and the studio's presets when the pull made
+ *     them stale.
  * On another branch your branch is left as it is: local main fast-forwards to GitHub's, and the report
  * says how to bring it in (`git merge origin/main`). npm ci and migrate wait until you are on main.
  */
@@ -337,7 +338,7 @@ export async function runUpdate(
           migrate(top, true);
         } else {
           log(
-            `\nThis version moves more of your work into your workspace:\n${m.output.replace(/\nNothing has changed\. To do it: .*$/, '')}\n\nmm update --yes (or mm migrate --yes) moves it.`,
+            `\nThis version moves more of your work into your workspace:\n${m.output.replace(/\n+Nothing has changed\. To do it: .*$/, '')}\n\nmm update --yes (or mm migrate --yes) moves it.`,
           );
         }
       } else if (
@@ -354,7 +355,14 @@ export async function runUpdate(
   if (doctor) {
     log('');
     const { doctor: run } = await import('./doctor.mjs');
-    await run({ top, fetch: false, log });
+    // what the pull made stale: the built @microfox/remotion and the studio's presets
+    await run({
+      top,
+      fetch: false,
+      log,
+      fix: ci,
+      fixOnly: ['remotion', 'presets'],
+    });
   }
   return done;
 }
