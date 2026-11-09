@@ -26,6 +26,25 @@ never overwritten. When it's behind, its profile entry says so and lists `update
 then rebuild). Show them to the person and run them only if they agree; then call
 `update_browse_hack` again, which reloads Chrome on the new build.
 
+## The MediaMake repo, and the skills that came with it
+
+A checkout of `microfox-ai/mediamake` (usually `~/mediamake`), and every skill that runs from it
+(`~/.claude/skills/<name>` linking into the checkout, or `"source"` in `installed.json`), updates
+with `mm update` run in the checkout (`npm run mm -- update` until `mm` is linked). It has no version
+on MediaMake: its version is GitHub's main (`git log -1 --format='%h %cs'` in the checkout).
+
+- On a clean main it does it all: pulls, runs `npm ci` when the dependencies changed, shows what
+  `mm migrate` would move into the workspace, and runs `mm doctor`. Report the commits it brought in
+  and anything doctor flags.
+- Edits or commits on main stop it, and it lists them without changing anything. Show the person
+  that list and run `mm update --yes` only once they agree: it keeps them on a `local/<date>` branch
+  (`--push` sends that branch to GitHub so it can become a PR), then updates main. Never discard
+  them yourself.
+- On another branch it updates only the local main and says how to bring it into the branch.
+- Work `mm migrate` lists for the workspace moves with `mm migrate --yes`, once they agree.
+- A checkout too old to have the command (npm or mm says there is no such script or command):
+  `git pull --ff-only` in it, then `mm update`.
+
 ## Anything else (or Browse Hack without its tools)
 
 Fetch and follow the **Update an installed item** section of

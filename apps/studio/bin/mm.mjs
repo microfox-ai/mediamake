@@ -55,6 +55,8 @@ const ABOUT = {
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
   engine: 'the engine by name (@mediamake/engine): its version, your pins; codemod gives old imports its names',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
+  update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
+  doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
 
 const help = () => {
@@ -103,7 +105,7 @@ const HINT_FILE = path.join(os.homedir(), '.mediamake', '.migrate-hint');
  * in apps/studio with no workspace set yet.
  */
 const remindMigrate = cmd => {
-  if (cmd === 'migrate' || cmd === 'workspace') return;
+  if (['migrate', 'workspace', 'update', 'doctor'].includes(cmd)) return;
   if (withWork(path.join(REPO, 'apps', 'lyrics_videos'), ['projects', 'out', 'brands']).length) {
     console.error('⚠ Your projects, renders or brand kits are still in apps/lyrics_videos, which is now apps/studio.');
     console.error('  Move them: mm migrate (shows what moves), then mm migrate --yes.\n');
@@ -144,7 +146,8 @@ const main = () => {
   }
   remindMigrate(cmd);
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
-  if (script !== 'sync-presets') ensurePresets(APP, { soft: true });
+  // (not for update, which builds them after it pulls, or doctor, which reports them)
+  if (!['sync-presets', 'update', 'doctor'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)

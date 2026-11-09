@@ -42,6 +42,8 @@
     "preflight": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/preflight.ts",
     "golden": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/golden.ts",
     "migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/migrate.ts",
+    "update": "node ../../tools/update.mjs",
+    "doctor": "node ../../tools/doctor.mjs",
     "notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/notes.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",

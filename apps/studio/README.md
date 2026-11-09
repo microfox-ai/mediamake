@@ -7,7 +7,10 @@ It was `apps/lyrics_videos` until November 2026.
 
 Its scripts run from any folder as `mm <command>` (`mm help` lists them). Run `npm run mm -- link`
 once from the repo root to put `mm` on your PATH; until then, `npm run mm -- <command>` from the
-repo root does the same.
+repo root does the same. `mm update` brings the checkout up to GitHub without losing your edits (then
+`npm ci`, `mm migrate` and `mm doctor`), and `mm doctor` checks this machine: Node 22.6 or newer, uv,
+ffmpeg, the dependencies, the built engine and presets, the render browser, git, your workspace and
+library, and an ElevenLabs key (`--fix` repairs what it can).
 
 Your projects, renders and brand kits belong outside the checkout, in your workspace (below).
 `mm migrate` shows what would move there; `mm migrate --yes` moves them. After pulling the rename it

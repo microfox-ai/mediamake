@@ -29,5 +29,7 @@ export function ownSkillsDir(): string;
 export function userSkillsDir(): string;
 export function ownSkills(): (SkillInfo & { own: true })[];
 export function linkOwn(name: string): string;
+/** What `skills.mjs tidy` would do to your own skills and links (each step's run() does it), and what it leaves for you. */
+export function tidySteps(): { steps: { what: string; run: () => void }[]; notes: string[] };
 /** The registry skills.json is built from (mediamake.skills/v1): every skill in the repo, as the site reads them. */
 export function registry(skills?: SkillInfo[]): { schema: string; categories: { id: string; about: string; prefix?: string; suffix?: string; internal?: boolean }[]; skills: { name: string; [k: string]: unknown }[] };

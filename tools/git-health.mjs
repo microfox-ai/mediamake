@@ -311,7 +311,7 @@ function issuesOf(r) {
       add(
         'warn',
         `On ${r.branch}: ${what}. These are framework edits, and they stop \`git pull\` once GitHub changes the same files.`,
-        `Keep them on a branch: \`git switch -c ${local}\`, commit, push and open a PR. Discard them only if the user says so.`,
+        `\`mm update --yes\` keeps them on a branch (${local}) and brings ${r.branch} up to GitHub (\`--push\` sends the branch for a PR); by hand: \`git switch -c ${local}\`, commit, push and open a PR. Discard them only if the user says so.`,
       );
     } else if (r.branch) {
       add('info', `On ${r.branch}: ${what}, not committed yet.`);
@@ -324,15 +324,15 @@ function issuesOf(r) {
       add(
         'warn',
         `${r.branch} has ${plural(ahead, 'commit')} that ${ahead === 1 ? "isn't" : "aren't"} on GitHub${behind ? ` and is ${behind} behind it (diverged)` : ''}.`,
-        `Move them to a branch so ${r.branch} can follow GitHub: \`git branch ${local}\`, push it and open a PR; then \`git reset --keep origin/${r.main}\` puts ${r.branch} back (with the user's OK).`,
+        `Move them to a branch so ${r.branch} can follow GitHub (with the user's OK): \`mm update --yes\` does it all; by hand, \`git branch ${local}\`, push it and open a PR, then \`git reset --keep origin/${r.main}\` puts ${r.branch} back.`,
       );
     } else if (behind) {
       add(
         'warn',
         `${r.branch} is ${plural(behind, 'commit')} behind GitHub.`,
         edits
-          ? `Once the edits above are committed on their branch: \`git switch ${r.branch} && git pull --ff-only\`.`
-          : '`git pull --ff-only`.',
+          ? `Once the edits above are committed on their branch: \`git switch ${r.branch} && git pull --ff-only\` (\`mm update --yes\` does both).`
+          : '`mm update` (`git pull --ff-only`, then `npm ci` when the dependencies changed, `mm migrate` and `mm doctor`).',
       );
     }
   }
