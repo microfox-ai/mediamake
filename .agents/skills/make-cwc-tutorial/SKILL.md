@@ -191,11 +191,11 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
 7. **Stills** at every beat's busiest moment and on every new word (`mm stills
    -- <slug> <t,…> --only`), tiled into sheets: words on their beats, text clear of objects and
    faces, nothing private, loops clear of their boxes.
-8. **Review render** at half size (`mm render <slug> --proxy
-   --concurrency=3`), `mm preflight <slug>` (answer the meant holds
+8. **Preview** for review, 10 s stretches at half size around what changed (`mm render <slug> --preview
+   --concurrency=3`), `mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4` (answer the meant holds
    `--intended`: the blank-page pause, the typed ask, the breath after "Voice.", the 20 s end card),
    `tools/place_check.py` for the voice, then the link
-   `https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4` and the background
+   `mm render` prints (`?folder=<slug>/preview&video=<slug>.mp4`) and the background
    watcher (`mm wait-revision <slug>`). Work every revision with
    `revise-video`.
 9. **Master** once the user signs off (`render-project` without `--proxy`), preflight it, then
