@@ -224,7 +224,7 @@ function EmptyState() {
     <div className="max-w-md space-y-3 text-center">
       <h2 className="text-lg font-semibold">Review files</h2>
       <p className="text-sm text-muted-foreground">
-        Open any folder of images, videos or audio, or <code>apps/studio/out</code> (every thumbnail and poster set in it is listed). Select some, then pick
+        Open any folder of images, videos or audio, or your <code>out</code> folder (<code>~/MediaMake/out</code>, or <code>apps/studio/out</code> before <code>mm migrate</code>: every thumbnail and poster set in it is listed). Select some, then pick
         finals, keep, drop or comment. Everything saves next to the files as a revision Claude reads.
       </p>
       {pendingJob && (

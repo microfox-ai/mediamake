@@ -3,7 +3,7 @@
 The starting points for a waveform lyric video (the `make-waveform-lyric-video` skill), one file
 per storyboard step, and a screenshot of every entry shot on this machine:
 
-| Step | Entries | Shots (`apps/studio/out/`, not committed) |
+| Step | Entries | Shots (`out/` in the workspace, not committed) |
 | --- | --- | --- |
 | 1 · Waves | `waves.ts` (`WAVES`) | `waveform-catalog/waves/` |
 | 2 · Font sets | `fonts.ts` (`FONTS`) | `waveform-catalog/fonts/` |

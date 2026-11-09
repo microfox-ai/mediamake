@@ -1,8 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 /**
- * Recently opened image sets and source folders (e.g.
- * apps/studio/out), kept in IndexedDB like the video
+ * Recently opened image sets and source folders (e.g. the
+ * workspace's out, ~/MediaMake/out), kept in IndexedDB like the video
  * revisions' history but in their own database. Chrome still asks for
  * permission again unless the user chose "Allow on every visit".
  */

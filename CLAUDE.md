@@ -5,13 +5,17 @@
 Every video is made in `apps/studio` (it was `apps/lyrics_videos` until 2026-11). Its scripts run from
 any folder as `mm <command>` (`mm help` lists them; `mm render` and `mm prepare` are the `render-project`
 and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- link` once from the repo
-root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
-the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
+root (or use `npm run mm -- <command>` there). If `mm` or the session-start check says the user's work
+is still in `apps/lyrics_videos` or inside the checkout (`apps/studio`), show the user `mm migrate` (it
+only lists what would move into their workspace, `~/MediaMake`) and run `mm migrate --yes` once they agree.
 
 Projects, renders (`out/`), brand kits, thumbnail jobs and overlays are the user's workspace, not the
-framework: `mm workspace` says where each is on this machine (apps/studio until a workspace is set in
-`~/.mediamake/config.json`, then e.g. `~/MediaMake`). Code takes these folders from `DIRS` in
+framework: `mm workspace` says where each is on this machine (apps/studio until `mm migrate` moves them
+and sets `workspace` in `~/.mediamake/config.json`, usually `~/MediaMake`). In skills and docs,
+`projects/…`, `out/…`, `brands/…`, `thumbnails/jobs/…` and `overlays/…` mean those folders of the
+workspace: take the full path from `mm workspace`. Code takes these folders from `DIRS` in
 `apps/studio/scripts/paths.ts` (resolver: `scripts/workspace.ts`), never `apps/studio/projects` by hand.
+`mm type-check` checks the studio and the workspace's projects.
 
 Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
 has the rest). The whole video is rendered only when the user asks to review all of it, and the master
@@ -20,8 +24,8 @@ once, after they sign off.
 ## Git: main stays a clean copy of GitHub
 
 What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
-`overlays/`, `.claude/settings.local.json`); every file git tracks is the framework, shared by everyone who
-pulls. The guard rails in `.claude/settings.json` hold to this, with their paths and hints in one list,
+`overlays/` until `mm migrate` moves them out of the checkout, and `.claude/settings.local.json`); every
+file git tracks is the framework, shared by everyone who pulls. The guard rails in `.claude/settings.json` hold to this, with their paths and hints in one list,
 `tools/guard-rails.json` (change it there when a folder moves).
 
 - On main, never edit a framework file or commit: the change goes on a branch (`git switch -c <type>/<what>`,

@@ -1,6 +1,6 @@
 ---
 name: pack-brand-kit
-description: Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/studio/brands/ or to the shared engine in apps/studio/logoGraphics/. New user feedback goes in your notes (mm notes add), never in this file.
+description: Build a brand kit in brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under brands/ or to the shared engine in apps/studio/logoGraphics/. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: revise-image
 ---
@@ -485,7 +485,7 @@ the MP4 (exact `-ss` seeks). Fix clipping, unreadable text and overlaps first.
 - **Sound is sultry, not spooky.** No horror-trailer language: no reverse swells into deep boomy
   hits with long reverb tails, no haunting drones, no hissy neon hums or electric sizzles. Under
   the logo's draw, use something playful and musical: soft pops on the letters, or a short beat.
-- The user's own lyric-video taste (anime edits) is in `apps/studio/projects/amz-inexorablemaster2/prefs.md`; it
+- The user's own lyric-video taste (anime edits) is in `projects/amz-inexorablemaster2/prefs.md`; it
   overlaps (dark, glowing, type as hero) but brand work is calmer and more restrained.
 
 ## Feedback log

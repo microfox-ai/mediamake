@@ -9,9 +9,9 @@ Its scripts run from any folder as `mm <command>` (`mm help` lists them). Run `n
 once from the repo root to put `mm` on your PATH; until then, `npm run mm -- <command>` from the
 repo root does the same.
 
-After pulling the rename, your projects, renders and brand kits are still in `apps/lyrics_videos`
-(git only moves the files it tracks). `mm migrate` shows what would move; `mm migrate --yes` moves
-them into `apps/studio` and points the media library at the new folder.
+Your projects, renders and brand kits belong outside the checkout, in your workspace (below).
+`mm migrate` shows what would move there; `mm migrate --yes` moves them. After pulling the rename it
+also brings what git left in `apps/lyrics_videos` (git only moves the files it tracks).
 
 ### Where your work lives: the workspace
 
@@ -23,19 +23,29 @@ and the Python analysis ask `scripts/workspace.ts` (or its twins: `analysis/work
 
 - Until a workspace is set, projects, `out/`, `brands/`, `thumbnails/jobs/` and `overlays/` stay
   here in `apps/studio`, as they always were; `notes/`, `skills/` and `extensions/` are in
-  `~/MediaMake`.
-- A workspace is set by `"workspace": "~/MediaMake"` in `~/.mediamake/config.json` (next to
-  `library`), or `MEDIAMAKE_WORKSPACE` for one shell. Then every folder is inside it, laid out like
-  this one: `~/MediaMake/projects/<slug>`, `~/MediaMake/out/<slug>`, `~/MediaMake/thumbnails/jobs/<job>`.
-  A project there still imports the engine as `../../../src/kit`: the bundles lay the workspace over
-  this folder (`scripts/workspace-webpack.ts`) until projects import it by name.
+  `~/MediaMake`. `mm` and the session-start check remind you to move them.
+- `mm migrate` (a dry run, then `--yes`) moves them into `~/MediaMake` and sets `"workspace"` in
+  `~/.mediamake/config.json` (next to `library`; `MEDIAMAKE_WORKSPACE` overrides it for one shell).
+  Then every folder is inside it, laid out like this one: `~/MediaMake/projects/<slug>`,
+  `~/MediaMake/out/<slug>`, `~/MediaMake/thumbnails/jobs/<job>`. Pulls, branch switches, `git clean`
+  and fresh clones can't touch your work there, and every worktree of the repo sees the same work.
+  - It is a rename on one disk, so it takes a moment. When your home folder is on another disk than
+    the checkout, the workspace is `MediaMake/` next to the checkout instead (the library's clones
+    need one disk too); `--to=<folder>` names another, or moves the workspace you have.
+  - Files git tracks stay (the `sample-pulse` example, which is also copied to the workspace so it
+    renders there). Each folder it empties keeps a `MOVED.md`.
+  - The media library's catalog, your text files (job JSON, notes) and links that name the old folders
+    are pointed at the new ones. `.claude/settings.local.json` lists the workspace in
+    `additionalDirectories`, so Claude Code sessions started in the repo can open it.
+- A project in the workspace still imports the engine as `../../../src/kit`: the bundles lay the
+  workspace over this folder (`scripts/workspace-webpack.ts`), and the workspace's `tsconfig.json`
+  (`rootDirs`) and `node_modules` link do the same for TypeScript and editors
+  (`scripts/workspace-setup.ts`), until projects import it by name. `mm type-check` checks the studio,
+  then the workspace's projects.
 - Logs, review links and the library keep naming files as the studio does (`out/<slug>/<slug>.mp4`),
   so they mean the same file wherever the workspace is.
 - In code: take folders from `DIRS` in `scripts/paths.ts` (`DIRS.projects`, `DIRS.out`, …), never
   `apps/studio/projects` by hand.
-
-Moving existing work out of the repo is the next step (`mm migrate` to `~/MediaMake`); a fresh,
-empty workspace can be set today.
 
 The rest of this page is about lyric videos, the first kind it made.
 
@@ -93,19 +103,19 @@ mm loop-stats                      # rounds, notes and renders per video, from t
 mm cleanup-out scan                # what fills the disk; clean, archive to a hard disk, restore (cleanup-out skill)
 mm yt-grab @handle | <playlist|video URL> | --search "…" [--popular --limit 40 --out <dir>]
                                    # every video's title, description + transcript into one folder (yt-dlp; no key needed; research/<channel>/ style)
-mm migrate [--yes]                 # after pulling the rename: your work from apps/lyrics_videos into apps/studio
+mm migrate [--yes] [--to=<dir>]    # your projects, renders and brand kits into your workspace (~/MediaMake), out of the checkout
 mm golden check                    # fixed frames of fixtures/ vs origin/main (--against=<ref>): a refactor changed no picture
 mm golden check --outside          # the same, with the fixtures in a workspace outside the repo
 mm workspace                       # where your projects, renders, brand kits and notes are on this machine
 mm notes <skill>                   # your lessons for a skill, outside the repo (add, list, promote as a PR: mm notes help)
-mm type-check
+mm type-check                      # the studio, then your workspace's projects (--studio: the studio only)
 ```
 
 ## Render
 
 `mm render` needs a manifest (`mm prepare` first). The composition id is the slug.
 Anything after the slug is passed through to `remotion render`. Output is
-`apps/studio/out/<slug>/<slug>.mp4`. A full render takes minutes.
+`out/<slug>/<slug>.mp4` in your workspace (`mm workspace`). A full render takes minutes.
 
 Each render also writes `<slug>.map.json` beside the MP4: every shot from
 `projects/<slug>/video/shots.json` with its ID and time range (one shot per lyric line when the

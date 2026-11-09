@@ -1,9 +1,9 @@
 ---
 name: make-cwc-tutorial
-description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/studio/projects. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under projects/. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: revise-video, create-thumbnail, pack-youtube
-  reference: apps/studio/projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
+  reference: projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
 ---
 
 # make-cwc-tutorial
@@ -13,8 +13,8 @@ metadata:
 of its story and three rounds of review notes, was signed off on 2 Nov 2026 ("yup this is final") and
 went up on YouTube on 3 Nov. This skill is its formula; `reference/ep01.md` tells the episode from
 brief to upload. `template/` holds its code, `tools/` the voice and checking scripts, and the finished
-project is `apps/studio/projects/cookwithclaude-pack-brand-kit` on the user's machine (projects
-are gitignored; the template is the committed copy).
+project is `projects/cookwithclaude-pack-brand-kit` in the user's workspace (`mm workspace`; projects
+are never committed; the template is the committed copy).
 
 ## The rules (the user's own notes, turned into practice)
 

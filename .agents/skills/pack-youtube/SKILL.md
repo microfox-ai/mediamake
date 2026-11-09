@@ -1,6 +1,6 @@
 ---
 name: pack-youtube
-description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/studio/out/youtube/<slug>/, ready to paste into YouTube Studio, with an info.json that Browse Hack's youtube_fill_uploads uses to switch to the channel and fill Studio's upload form. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", "upload it to YouTube", or gives a song title, lyrics.json and audio and wants it ready for YouTube. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, out/youtube/<slug>/, ready to paste into YouTube Studio, with an info.json that Browse Hack's youtube_fill_uploads uses to switch to the channel and fill Studio's upload form. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", "upload it to YouTube", or gives a song title, lyrics.json and audio and wants it ready for YouTube. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # pack-youtube
@@ -10,7 +10,7 @@ One folder with everything a song's YouTube upload needs, made by running two sk
 with the thumbnail's words, so the thumbnail comes first). This skill only gathers the inputs,
 hands them over, and assembles the pack; the work is done by those skills, following their steps.
 
-**Pack folder:** `apps/studio/out/youtube/<slug>/` (gitignored), `<slug>` from the song
+**Pack folder:** `out/youtube/<slug>/` (gitignored), `<slug>` from the song
 title (`you-can-have-the-kingdom`). The thumbnail job uses the same slug.
 
 ```
@@ -80,9 +80,9 @@ if it doesn't, the lyrics probably belong to another take or song. Say so and as
 Ask in **one** `AskUserQuestion` call (recommended option first; skip what the request or the
 files already answer, and say what you assumed):
 
-1. **The channel:** one of the brands under `apps/studio/brands/` (or another channel).
+1. **The channel:** one of the brands under `brands/` (or another channel).
 2. **The picture** for the thumbnail: their image, frames from the lyric video if one exists
-   (`apps/studio/out/` or the project's render), a concept to generate, or type only.
+   (`out/` or the project's render), a concept to generate, or type only.
 3. **The title on the thumbnail:** must be on it · optional · never (create-thumbnail's question 4).
 4. **Fonts** for the thumbnail: the brand's, a family they name, or a mood (question 5).
 5. **The lyrics in the description:** keep the full lyrics, or leave them out. Always ask; never
@@ -108,7 +108,7 @@ write down the hero words of each style (the metadata step needs them).
 Invoke the `write-youtube-metadata` skill and follow it with: the song title, the lyrics
 file, the channel, the pack folder as the output folder, the thumbnail's words, and the project's
 `project.json` for stanza breaks when the song has a lyric video project
-(`apps/studio/projects/<slug>/input/project.json`). It writes `lyrics.txt`, `title.txt`,
+(`projects/<slug>/input/project.json`). It writes `lyrics.txt`, `title.txt`,
 `description.txt` and `metadata.json` into the pack and checks them.
 
 ## 4. Show the pack, then finish it
@@ -135,7 +135,7 @@ Then, as the answers come:
 **End screen (outro) on a finished video.** When the pack is for a finished video, check that it
 ends on the channel's end screen (YouTube's end-screen cards need its last 5–20 s), and offer to add
 one if it doesn't.
-- **Several outros in the brand kit** (`apps/studio/brands/<brand>/outros/*.mp4`): don't list
+- **Several outros in the brand kit** (`brands/<brand>/outros/*.mp4`): don't list
   them in chat. Let the user pick in a review screen. Make the outros a reviewable set: a clone
   of each outro MP4 (`cp -c`) with a still of it at ~8 s of the same name (`outro-a.mp4` +
   `outro-a.jpg`), so each plays in the zoom view

@@ -184,7 +184,7 @@ saves comments **next to the video**. On a paused frame the user can draw (penci
 circle; red fix, green add, yellow move) and pin the exact spot, with a magnifier for small detail;
 the comment keeps the marks and a 2× crop of the spot. A **General** comment (G) is about the
 whole video and has no time. Browsers can't open a local folder from a
-link, so the user links `apps/studio/out` once as a **source** (the link's page offers "Link
+link, so the user links the workspace's `out` folder (`mm workspace` gives its path) once as a **source** (the link's page offers "Link
 your out folder"; or Sources → +). Every link's `folder` is its path under `out/`
 (`<slug>`, `<slug>/v5`, `<channel>/shorts/s01`), so from then on every link opens straight from
 that source, with one "Reconnect out" click per visit, or none once they choose Chrome's "Allow on

@@ -1,6 +1,6 @@
 ---
 name: make-lyrics-video
-description: Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/studio — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use when the user says "make a lyric video from <folder>", "/make-lyrics-video <slug>", or asks to add/edit scenes of a project under apps/studio/projects.
+description: Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/studio — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use when the user says "make a lyric video from <folder>", "/make-lyrics-video <slug>", or asks to add/edit scenes of a project under projects/.
 ---
 
 # make-lyrics-video
@@ -482,7 +482,7 @@ check `df -h /`; if space is short, look in the temp folder for `remotion-webpac
 your own failed runs left (match their creation times to your runs, and check `lsof` shows nothing
 using them) and delete only those. `scripts/stills.ts` now removes its bundle on exit, even on failure.
 
-Open the JPEGs in `apps/studio/out/<slug>/stills/` with the Read tool and check: text fits the frame
+Open the JPEGs in `out/<slug>/stills/` with the Read tool and check: text fits the frame
 and is readable, lyrics match what's sung at that time, nothing is blank or clipped, the brief's
 palette is followed. For motion, extract a few frames of the clip with ffmpeg and check consecutive
 frames. Fix and re-run until clean.

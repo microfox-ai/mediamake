@@ -21,6 +21,8 @@ export function ConnectPanel() {
   const source = useEditor(s => s.source);
   const folders = useEditor(s => s.folders);
   const pending = useEditor(s => s.pendingFolder);
+  const pendingEngine = useEditor(s => s.pendingEngine);
+  const pickEngine = useEditor(s => s.pickEngine);
   const projectsError = useEditor(s => s.projectsError);
   const noProjects = useEditor(s => !!s.source && !s.projectsError && s.projects.length === 0);
   const pickFolder = useEditor(s => s.pickFolder);
@@ -31,7 +33,22 @@ export function ConnectPanel() {
   const unsupported = support && !support.supported;
   return (
     <div className="max-w-md space-y-5 px-6 text-center text-sm text-neutral-300">
-      {pending && !source ? (
+      {pendingEngine && !source ? (
+        <div>
+          <p className="mb-4">
+            <span className="font-medium text-white">{pendingEngine.name}</span> has your projects. Their
+            engine (<code className="text-neutral-200">src/kit</code>) is in the studio: pick{' '}
+            <code className="text-neutral-200">apps/studio</code> (or the repo) once, and it opens with
+            this folder from then on.
+          </p>
+          <Button
+            className="bg-white text-neutral-950 hover:bg-neutral-200"
+            onClick={() => void pickEngine()}
+          >
+            <FolderOpenIcon className="size-4" /> Choose the studio folder…
+          </Button>
+        </div>
+      ) : pending && !source ? (
         <div>
           <p className="mb-4">
             Chrome needs one click to let this page read{' '}
@@ -50,7 +67,9 @@ export function ConnectPanel() {
             {source ? `No lyric projects in ${source.label}` : 'Open your studio folder'}
           </p>
           <p className="mb-5 text-neutral-400">
-            Pick <code className="text-neutral-200">apps/studio</code> (or the repo). Projects
+            Pick your workspace (<code className="text-neutral-200">~/MediaMake</code>, where{' '}
+            <code className="text-neutral-200">mm migrate</code> puts your projects) or{' '}
+            <code className="text-neutral-200">apps/studio</code> (or the repo). Projects
             compile here in the browser; nothing is uploaded. Edits are saved beside each project as{' '}
             <code className="text-neutral-200">video/edits.json</code>, and renders pick them up.
           </p>

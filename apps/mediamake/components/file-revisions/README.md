@@ -111,7 +111,8 @@ version). Editing a resolved revision starts a new one.
 
 ## Flow
 
-1. **Open a folder**: pick any folder of images, videos or audio, or `apps/studio/out`, which is kept as a
+1. **Open a folder**: pick any folder of images, videos or audio, or the workspace's `out` (`~/MediaMake/out`, or
+   `apps/studio/out` before `mm migrate`; `mm workspace` says where), which is kept as a
    **source**: every set in it (folders with an `index.json`) is listed on each visit (one
    "Reconnect" click per visit unless Chrome's "Allow on every visit" was chosen). Recent sets are
    remembered in IndexedDB.

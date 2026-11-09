@@ -209,7 +209,7 @@ cite them.
 ## 1. Set up the project folder
 
 - Slug: kebab-case, `[a-z0-9-]`, not starting with `_` (underscore folders are ignored by discovery).
-- If the user gave an outside folder, copy its files into `apps/studio/projects/<slug>/input/`:
+- If the user gave an outside folder, copy its files into `projects/<slug>/input/`:
   copies, never symlinks, so the project owns its sources and the user can move or delete the
   originals once it is done (`cp -c` clones a big video at no disk cost on the same disk).
   Never edit or delete files in `input/` after that — it is the user's source of truth.
@@ -556,7 +556,7 @@ check `df -h /`; if space is short, look in the temp folder for `remotion-webpac
 your own failed runs left (match their creation times to your runs, and check `lsof` shows nothing
 using them) and delete only those. `scripts/stills.ts` now removes its bundle on exit, even on failure.
 
-Open the JPEGs in `apps/studio/out/<slug>/stills/` with the Read tool and check: text fits the frame
+Open the JPEGs in `out/<slug>/stills/` with the Read tool and check: text fits the frame
 and is readable, lyrics match what's sung at that time, nothing is blank or clipped, the brief's
 palette is followed. For motion, extract a few frames of the clip with ffmpeg and check consecutive
 frames. Fix and re-run until clean.

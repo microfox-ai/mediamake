@@ -9,6 +9,11 @@ export interface FolderEntry {
   id: string;
   name: string;
   handle: FileSystemDirectoryHandle;
+  /**
+   * For a workspace (~/MediaMake: projects without the engine beside them): the studio folder the
+   * user picked for its engine (apps/studio, or the repo), opened with it every time.
+   */
+  engine?: FileSystemDirectoryHandle;
   openedAt: number;
 }
 
@@ -39,8 +44,11 @@ export async function loadFolders(): Promise<FolderEntry[]> {
   return all.sort((a, b) => b.openedAt - a.openedAt);
 }
 
-/** Records the folder as just opened, reusing its entry when it was opened before. */
-export async function rememberFolder(handle: FileSystemDirectoryHandle): Promise<FolderEntry> {
+/** Records the folder as just opened, reusing its entry (and its engine, unless one is given) when it was opened before. */
+export async function rememberFolder(
+  handle: FileSystemDirectoryHandle,
+  engine?: FileSystemDirectoryHandle,
+): Promise<FolderEntry> {
   const db = await getDb();
   const all = await loadFolders();
   let existing: FolderEntry | undefined;
@@ -51,6 +59,7 @@ export async function rememberFolder(handle: FileSystemDirectoryHandle): Promise
     id: existing?.id ?? crypto.randomUUID(),
     name: handle.name,
     handle,
+    engine: engine ?? existing?.engine,
     openedAt: Date.now(),
   };
   await db.put('folders', entry);
@@ -61,4 +70,14 @@ export async function rememberFolder(handle: FileSystemDirectoryHandle): Promise
 
 export async function forgetFolder(id: string): Promise<void> {
   await (await getDb()).delete('folders', id);
+}
+
+/** The studio folder remembered for a workspace's engine, if it was opened before with one. */
+export async function rememberedEngine(
+  handle: FileSystemDirectoryHandle,
+): Promise<FileSystemDirectoryHandle | undefined> {
+  for (const entry of await loadFolders().catch(() => [] as FolderEntry[])) {
+    if (entry.engine && (await entry.handle.isSameEntry(handle).catch(() => false))) return entry.engine;
+  }
+  return undefined;
 }

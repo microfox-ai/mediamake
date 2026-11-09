@@ -72,7 +72,7 @@ Kits and packs that bundle several outputs
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation… MCPs: elevenlabs (required), elevenlabs-connector (optional), browse-hack (recommended), fal (optional). |
+| [`pack-brand-kit`](.agents/skills/pack-brand-kit/SKILL.md) | public | Build a brand kit in brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intr… MCPs: elevenlabs (required), elevenlabs-connector (optional), browse-hack (recommended), fal (optional). |
 | [`pack-youtube`](.agents/skills/pack-youtube/SKILL.md) | public | Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the descriptio… MCPs: browse-hack (recommended). |
 
 ## revise
@@ -98,7 +98,7 @@ Text: titles, descriptions, metadata
 
 | Skill | Visibility | What it does |
 |---|---|---|
-| [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/studio/brands/, e.g. INVERTED Devils, Subhodayam) from the s… |
+| [`write-youtube-metadata`](.agents/skills/write-youtube-metadata/SKILL.md) | public | Write the YouTube title and description for a song on one of the user's music channels (a brand under brands/, e.g. INVERTED Devils, Subhodayam) from the song's title… |
 
 ## cleanup
 
