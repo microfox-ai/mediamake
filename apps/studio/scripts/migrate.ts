@@ -609,7 +609,8 @@ const main = () => {
   claudeAccess(ws, true);
   if (lib) {
     catalogPaths(lib.db, pairsNow, true);
-    exportLibrary(lib);
+    // the library's folders as they are now (lib was opened with the old ones)
+    exportLibrary({ ...lib, projects: path.join(ws, 'projects'), out: path.join(ws, 'out'), brands: path.join(ws, 'brands'), overlays: path.join(ws, 'overlays') });
   }
   if (watcher) {
     const r = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts', 'media.ts'), 'init', '--watch'], {
