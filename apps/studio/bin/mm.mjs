@@ -6,6 +6,7 @@
  *   mm help                 every command
  *   mm <command> [args…]    a studio script; paths you type are relative to the folder you are in
  *   mm where                the studio folder (apps/studio in this checkout)
+ *   mm workspace            where your work is: projects, renders, brand kits, notes… (scripts/workspace.ts)
  *   mm link [--dir=<bin>]   puts `mm` on your PATH (in npm's global bin folder), once per machine
  *
  * Without the link, run it from the repo as `npm run mm -- <command> [args…]`.
@@ -48,6 +49,7 @@ const ABOUT = {
   media: 'the shared media library (mm media help)',
   golden: 'fixed frames of the fixtures compared with another commit',
   migrate: 'moves your work from apps/lyrics_videos into apps/studio (dry run; --yes to move)',
+  workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
 };
 

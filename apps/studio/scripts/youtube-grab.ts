@@ -24,6 +24,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { DIRS } from './paths.ts';
 
 type Video = {
   id: string;
@@ -461,7 +462,7 @@ async function main() {
   const first = sources[0];
   const label =
     first.kind === 'channel' ? `@${first.handle ?? first.id}` : first.kind === 'playlist' ? `playlist ${first.id}` : first.kind === 'search' ? `search: ${first.query}` : `${sources.length} video${sources.length === 1 ? '' : 's'}`;
-  const outDir = path.resolve(expandHome(opts.out ?? path.join('out', 'youtube-grab', slugify(label))));
+  const outDir = path.resolve(expandHome(opts.out ?? path.join(DIRS.out, 'youtube-grab', slugify(label))));
   const videosDir = path.join(outDir, 'videos');
   await mkdir(videosDir, { recursive: true });
 

@@ -44,6 +44,7 @@ import { aimOf, frameCuts, inkOf, LUMA_BANDS, placeCaps, type Faces, type Luma }
 import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
 import { solveLockup, type Lockup } from '../src/lyricshorts/lockup.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -53,7 +54,7 @@ if (!slug || !cmd) {
   console.error('usage: mm lyric-shorts <slug> pick | new <letter | from-to> | clips <id> | render <id …> | all');
   process.exit(1);
 }
-const dir = path.join(ROOT, 'projects', slug);
+const dir = path.join(DIRS.projects, slug);
 const shortsDir = path.join(dir, 'shorts');
 const manifestFile = path.join(dir, 'manifest.json');
 if (!fs.existsSync(manifestFile)) throw new Error(`No manifest. Run: mm prepare ${slug}`);
@@ -241,9 +242,9 @@ if (cmd === 'pick') {
   }));
   fs.mkdirSync(shortsDir, { recursive: true });
   fs.writeFileSync(prev, `${JSON.stringify({ run, date: today(), n, picks }, null, 1)}\n`);
-  const out = path.join(ROOT, 'out', slug, 'shorts', `lyric-picks-${run}`);
+  const out = path.join(DIRS.out, slug, 'shorts', `lyric-picks-${run}`);
   fs.mkdirSync(out, { recursive: true });
-  const audio = path.join(ROOT, 'projects', m.audio.src);
+  const audio = path.join(DIRS.projects, m.audio.src);
   for (const p of picks) {
     const d = p.to - p.from;
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', `${p.from}`, '-t', `${d}`, '-i', audio, '-af', `afade=t=out:st=${(d - 0.4).toFixed(2)}:d=0.4`, '-b:a', '192k', path.join(out, `${p.letter}.mp3`)]);
@@ -361,7 +362,7 @@ if (cmd === 'brand') {
   // bottom-right · bottom-left), --width (fraction of the frame's width)
   const brand = what;
   if (!brand) throw new Error('brand <name> [--logo=logo/<file>] [--label="Music by"] [--at=top-right] [--width=0.2]');
-  const kit = path.join(ROOT, 'brands', brand);
+  const kit = path.join(DIRS.brands, brand);
   if (!fs.existsSync(path.join(kit, 'thumbnail.json'))) throw new Error(`no brands/${brand}/thumbnail.json (pack-brand-kit writes it)`);
   type Profile = { name: string; logos: { file: string; as?: string }[]; fonts?: { family: string; weight: number; file: string; role?: string }[]; palette?: Record<string, string> };
   const prof = JSON.parse(fs.readFileSync(path.join(kit, 'thumbnail.json'), 'utf8')) as Profile;
@@ -438,9 +439,9 @@ if (cmd === 'clips') {
 
   // timeline, with each stack laid out as the render will (rows, vertical word, how far the letters stretch)
   const { THEME } = (await import(pathToFileURL(path.join(shortsDir, 'theme.ts')).href)) as { THEME: { type: TypeStyle } };
-  const fontBuf = fs.readFileSync(path.join(ROOT, 'projects', THEME.type.font));
+  const fontBuf = fs.readFileSync(path.join(DIRS.projects, THEME.type.font));
   const font = opentype.parse(fontBuf.buffer.slice(fontBuf.byteOffset, fontBuf.byteOffset + fontBuf.byteLength));
-  const smallBuf = THEME.type.small ? fs.readFileSync(path.join(ROOT, 'projects', THEME.type.small)) : fontBuf;
+  const smallBuf = THEME.type.small ? fs.readFileSync(path.join(DIRS.projects, THEME.type.small)) : fontBuf;
   const smallFont = opentype.parse(smallBuf.buffer.slice(smallBuf.byteOffset, smallBuf.byteOffset + smallBuf.byteLength));
   const b = (t: number) => beatAt(m, t).toFixed(1).padStart(6);
   console.log(`${m.title} · ${id} · ${mmss(short.from)}–${mmss(short.to)} (${(short.to - short.from).toFixed(1)} s)\n`);
@@ -590,7 +591,7 @@ if (cmd === 'clips') {
   fs.writeFileSync(path.join(sd, 'shots.json'), `${JSON.stringify(shotList, null, 1)}\n`);
 
   // cuts.jpg: every cut's middle frame as framed, numbered
-  const sheetDir = path.join(ROOT, 'out', slug, 'shorts', id);
+  const sheetDir = path.join(DIRS.out, slug, 'shorts', id);
   fs.mkdirSync(sheetDir, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lyricshorts-'));
   cuts.forEach((c, i) => {
@@ -649,7 +650,7 @@ if (cmd === 'render') {
 
   process.env.ONLY_PROJECT = slug;
   // the project's kept bundle (scripts/project-bundle.ts), then this machine's render slot (scripts/render-queue.ts)
-  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'src/index.ts'), publicDir: path.join(ROOT, 'projects'), webpackOverride: enableTailwind });
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'src/index.ts'), publicDir: DIRS.projects, webpackOverride: enableTailwind });
   const { queueDisabled, renderSlot } = await import('./render-queue.ts');
   await renderSlot(`${slug} lyric shorts ${ids.join(',')}`, { disabled: queueDisabled(args) });
   // as remotion.config.ts sets for the CLI (the Node API doesn't read it): ANGLE for WebGL, a long delayRender
@@ -662,7 +663,7 @@ if (cmd === 'render') {
       const short = JSON.parse(fs.readFileSync(path.join(shortsDir, id, 'short.json'), 'utf8')) as { from: number; formats: string[] };
       for (const f of opt('format') ? [opt('format')!] : short.formats) {
         const name = `${slug}-${id}-${f}`;
-        const outDir = path.join(ROOT, 'out', slug, 'shorts', id);
+        const outDir = path.join(DIRS.out, slug, 'shorts', id);
         const output = frames ? path.join(outDir, 'clips', `${name}-${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}.mp4`) : path.join(outDir, `${name}.mp4`);
         const part = output.replace(/\.mp4$/, '.part.mp4');
         fs.mkdirSync(path.dirname(output), { recursive: true });
@@ -692,7 +693,7 @@ if (cmd === 'render') {
         if (!fs.existsSync(part)) continue;
         if (!frames) keepPrevious(outDir, name);
         fs.renameSync(part, output);
-        console.log(`✔ ${path.relative(ROOT, output)} in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+        console.log(`✔ ${shown(output)} in ${((Date.now() - t) / 1000).toFixed(0)} s`);
         try {
           const shots = fs.existsSync(path.join(shortsDir, id, 'shots.json')) ? `shorts/${id}/shots.json` : 'video/shots.json';
           writeVideoMap(slug, output, frames, { shots, offset: short.from });
@@ -701,7 +702,7 @@ if (cmd === 'render') {
         }
         const dark = darkSpans(output, fps);
         console.log(`  dark frames (YMAX < 40${crop ? ', watermark corner cropped' : ''}): ${dark.count}${dark.count ? ` at ${dark.spans.slice(0, 8).join(', ')}${dark.spans.length > 8 ? ' …' : ''}` : ''}`);
-        done.push(`${path.relative(ROOT, output)}${dark.count ? ` (${dark.count} dark frames)` : ''}`);
+        done.push(`${shown(output)}${dark.count ? ` (${dark.count} dark frames)` : ''}`);
       }
     }
   } finally {

@@ -45,10 +45,9 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { lastRender } from './render-log.ts';
+import { DIRS } from './paths.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const [slug, cmd, what] = args.filter(a => !a.startsWith('--'));
 const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
@@ -57,7 +56,7 @@ if (!slug || !cmd) {
   process.exit(1);
 }
 
-const dir = path.join(ROOT, 'projects', slug);
+const dir = path.join(DIRS.projects, slug);
 const shortsDir = path.join(dir, 'shorts');
 const manifestFile = path.join(dir, 'manifest.json');
 if (!fs.existsSync(manifestFile)) throw new Error(`No manifest. Run: mm prepare ${slug}`);
@@ -78,7 +77,7 @@ type Pick = { letter: string; from: number; to: number; fromBeat: number; toBeat
 const historyFile = path.join(shortsDir, 'history.json');
 /** the finished render's length (a rotate short may run into its end screen, past the song) */
 const finalSeconds = () => {
-  const f = path.join(ROOT, 'out', slug, `${slug}.mp4`);
+  const f = path.join(DIRS.out, slug, `${slug}.mp4`);
   return fs.existsSync(f) ? Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim()) : m.audio.duration;
 };
 const picksFile = path.join(shortsDir, 'picks.json');
@@ -318,9 +317,9 @@ if (cmd === 'pick') {
   fs.writeFileSync(picksFile, `${JSON.stringify({ run, date: today(), n: chosen.length, picks }, null, 1)}\n`);
 
   // listen and look: an mp3 per pick, the song's waveform with its sections and the picks marked
-  const out = path.join(ROOT, 'out', slug, 'shorts', `picks-${run}`);
+  const out = path.join(DIRS.out, slug, 'shorts', `picks-${run}`);
   fs.mkdirSync(out, { recursive: true });
-  const audio = path.join(ROOT, 'projects', m.audio.src);
+  const audio = path.join(DIRS.projects, m.audio.src);
   for (const p of picks) {
     const dur = p.to - p.from;
     // asetnsamples pads the last frame: ffmpeg 8's lame refuses a short one (a stretch running to the song's end)
@@ -360,10 +359,10 @@ if (cmd === 'pick') {
   const parentEdl = fs.existsSync(path.join(dir, 'video/edl.ts'));
   const mode = opt('mode') === 'rotate' ? 'rotate' : 'recast';
   // a rotate short's 16:9 picture: the finished render, or the stretch cut fresh for the short
-  const source = opt('source') === 'fresh' || (mode === 'rotate' && !fs.existsSync(path.join(ROOT, 'out', slug, `${slug}.mp4`))) ? 'fresh' : 'edit';
+  const source = opt('source') === 'fresh' || (mode === 'rotate' && !fs.existsSync(path.join(DIRS.out, slug, `${slug}.mp4`))) ? 'fresh' : 'edit';
   if (mode === 'rotate' && source === 'edit') {
     // the finished 16:9 edit, served from the project folder (a hard link: no second copy on disk)
-    const src = path.join(ROOT, 'out', slug, `${slug}.mp4`);
+    const src = path.join(DIRS.out, slug, `${slug}.mp4`);
     const dst = path.join(dir, 'derived', 'final-16x9.mp4');
     if (!fs.existsSync(src)) throw new Error(`no finished render at out/${slug}/${slug}.mp4: render the long edit first`);
     const last = lastRender(src);

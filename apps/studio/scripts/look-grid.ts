@@ -15,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ffmpegLog, probeMedia } from './ff.ts';
 import { baseName, reviewLink } from './revision-files.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -118,7 +119,6 @@ if (isMain) {
     labels: opt('labels')?.split(',').map(s => s.trim()),
     out: opt('out') ? path.resolve(ROOT, opt('out')!) : undefined,
   });
-  const rel = path.relative(ROOT, out);
-  console.log(`✔ ${rel.startsWith('..') ? out : rel}`);
-  if (!path.relative(path.join(ROOT, 'out'), out).startsWith('..')) console.log(`Review link: ${reviewLink(out)}`);
+  console.log(`✔ ${shown(out)}`);
+  if (!path.relative(DIRS.out, out).startsWith('..')) console.log(`Review link: ${reviewLink(out)}`);
 }

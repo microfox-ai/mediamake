@@ -10,11 +10,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { DIRS, shown } from './paths.ts';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const BRANDS = path.join(ROOT, 'brands');
+export const BRANDS = DIRS.brands;
 /** Everything the brand scripts write: out/brands/<brand>/{renders,stills,stills-alpha,checks}/ */
-export const OUT_BRANDS = path.join(ROOT, 'out', 'brands');
+export const OUT_BRANDS = path.join(DIRS.out, 'brands');
 export const PUBLIC = path.join(OUT_BRANDS, '.public');
 
 /** Brand folders that have graphics (brands/<brand>/graphics/index.tsx). */
@@ -34,5 +35,5 @@ export const assemblePublic = () => {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   assemblePublic();
-  console.log(`✔ ${path.relative(ROOT, PUBLIC)} (${brandFolders().join(', ') || 'no brands'})`);
+  console.log(`✔ ${shown(PUBLIC)} (${brandFolders().join(', ') || 'no brands'})`);
 }

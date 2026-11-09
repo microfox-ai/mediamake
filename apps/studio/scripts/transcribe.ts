@@ -35,7 +35,7 @@ import { getItem, type Item } from './library/db.ts';
 import { absOf, openLibrary, resolveItem, userPath } from './library/lib.ts';
 import { sha256File } from './library/sys.ts';
 import { cacheGet, cachePut } from './library/use.ts';
-import { DIRS, ROOT } from './paths.ts';
+import { DIRS, shown } from './paths.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => args.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -52,10 +52,6 @@ const CREDITS_PER_MINUTE = 40;
 const COMPRESSED = /\.(mp3|m4a|aac|ogg|opus)$/i;
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac|webm|aiff?)$/i;
 
-const shown = (file: string) => {
-  const rel = path.relative(ROOT, file);
-  return rel.startsWith('..') ? file.replace(os.homedir(), '~') : rel;
-};
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 const mb = (file: string) => `${(fs.statSync(file).size / 1048576).toFixed(1)} MB`;
 const fail = (message: string, code = 1): never => {

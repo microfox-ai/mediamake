@@ -19,6 +19,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { DIRS } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, ...flags] = process.argv.slice(2);
@@ -26,7 +27,7 @@ if (!slug) {
   console.error('Usage: mm amv <slug> [--stills] [--matte] [--list]');
   process.exit(1);
 }
-const dir = path.join(ROOT, 'projects', slug);
+const dir = path.join(DIRS.projects, slug);
 const read = (f: string) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
 const footage = read('video/footage.json');
 const timing = read('video/timing.json');

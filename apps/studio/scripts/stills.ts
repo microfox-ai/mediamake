@@ -24,6 +24,7 @@ import { removeBundle, tempBundle } from './bundle.ts';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { renderStill, selectComposition } from '@remotion/renderer';
 import { ManifestSchema } from '../src/kit/manifest.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -40,7 +41,7 @@ const main = async () => {
     );
     process.exit(1);
   }
-  const manifestPath = path.join(ROOT, 'projects', slug, 'manifest.json');
+  const manifestPath = path.join(DIRS.projects, slug, 'manifest.json');
   if (!fs.existsSync(manifestPath))
     throw new Error(
       `No manifest. Run: mm prepare ${slug}`,
@@ -50,13 +51,13 @@ const main = async () => {
   );
 
   const short = shortId
-    ? (JSON.parse(fs.readFileSync(path.join(ROOT, 'projects', slug, 'shorts', shortId, 'short.json'), 'utf8')) as { from: number; to: number; formats: string[]; videoFrom?: number; hook?: { from: number } })
+    ? (JSON.parse(fs.readFileSync(path.join(DIRS.projects, slug, 'shorts', shortId, 'short.json'), 'utf8')) as { from: number; to: number; formats: string[]; videoFrom?: number; hook?: { from: number } })
     : null;
   const format = flags.find(f => f.startsWith('--format='))?.split('=')[1] ?? short?.formats[0];
   // a rotate short starts at its hook, before the stretch; its own 16:9 stretch at `videoFrom`
   if (short?.hook) short.from = format === '16x9' && short.videoFrom !== undefined ? short.videoFrom : short.hook.from;
   const cuts = flags.includes('--cuts');
-  const shotsFile = path.join(ROOT, 'projects', slug, shortId ? `shorts/${shortId}/shots.json` : 'video/shots.json');
+  const shotsFile = path.join(DIRS.projects, slug, shortId ? `shorts/${shortId}/shots.json` : 'video/shots.json');
   const points = cuts
     ? (JSON.parse(fs.readFileSync(shotsFile, 'utf8')) as { id: string; from: number; to: number }[])
         .filter(c => !short || (c.to > short.from + 0.02 && c.from < short.to - 0.02))
@@ -81,7 +82,7 @@ const main = async () => {
   process.env.ONLY_PROJECT ??= slug;
   const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
-    publicDir: path.join(ROOT, 'projects'),
+    publicDir: DIRS.projects,
     // same as remotion.config.ts: mediamake presets and atoms use Tailwind classes
     webpackOverride: enableTailwind,
   });
@@ -95,7 +96,7 @@ const main = async () => {
     chromiumOptions,
   });
 
-  const outDir = path.join(ROOT, 'out', slug, ...(short ? ['shorts', shortId!, `stills-${format}${cuts ? '-cuts' : ''}`] : [cuts ? 'stills-cuts' : 'stills']));
+  const outDir = path.join(DIRS.out, slug, ...(short ? ['shorts', shortId!, `stills-${format}${cuts ? '-cuts' : ''}`] : [cuts ? 'stills-cuts' : 'stills']));
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -119,7 +120,7 @@ const main = async () => {
       chromiumOptions,
       timeoutInMilliseconds: 120000,
     });
-    console.log(`✔ ${path.relative(ROOT, output)}`);
+    console.log(`✔ ${shown(output)}`);
   }
   removeBundle(serveUrl);
   if (cuts && points.length) {
@@ -132,7 +133,7 @@ const main = async () => {
       '-vf', `scale=${w}:-2,drawtext=text='%{metadata\\:lavf.image2dec.source_basename}':x=4:y=4:fontsize=${tall ? 11 : 12}:fontcolor=yellow:box=1:boxcolor=black@0.6,tile=${cols}x${Math.ceil(points.length / cols)}:padding=4:color=white`,
       '-frames:v', '1', '-update', '1', path.join(outDir, 'sheet.jpg'),
     ]);
-    console.log(`✔ ${path.relative(ROOT, path.join(outDir, 'sheet.jpg'))} (${points.length} cuts)`);
+    console.log(`✔ ${shown(path.join(outDir, 'sheet.jpg'))} (${points.length} cuts)`);
   }
 };
 

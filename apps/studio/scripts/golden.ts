@@ -5,7 +5,8 @@
  *
  * Usage (from the repo root):
  *   mm golden check [--against=<git ref>]   # this checkout vs <ref> (default origin/main)
- *   mm golden shoot [--out=<dir>] [--root=<app folder>]
+ *   mm golden check --outside               # the same, with this checkout's fixtures in a workspace outside the repo
+ *   mm golden shoot [--out=<dir>] [--root=<app folder>] [--outside]
  *   mm golden compare <dir A> <dir B>
  *   flags: --only=<fixture,…>  --scale=0.5 (default)  --keep (keep the staged fixtures and the worktree)
  *
@@ -17,6 +18,10 @@
  *   this checkout's node_modules, so a built @microfox/remotion comes from here) with the fixtures of
  *   this checkout, then compares: byte-equal frames pass at once, others by PSNR (ffmpeg), and a
  *   failing frame gets a difference picture beside it. Exit 1 when any frame differs.
+ * - --outside stages this checkout's fixtures in a workspace in the temp folder instead
+ *   (<tmp>/mediamake-golden-workspace/projects/<name>), bundled the way a workspace outside the repo is
+ *   (scripts/workspace-webpack.ts): it shows a project renders the same frames from there. <ref> is
+ *   still shot the usual way.
  * - Frames are PNG at half size by default. Compare on one machine: fonts and GPU differ between
  *   machines, so goldens are never committed.
  */
@@ -30,6 +35,8 @@ import { renderStill, selectComposition } from '@remotion/renderer';
 import webpack from 'webpack';
 import { removeBundle, tempBundle } from './bundle.ts';
 import { FFMPEG, FFPROBE } from './ff.ts';
+import { DIRS } from './paths.ts';
+import { workspaceWebpack } from './workspace-webpack.ts';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(HERE, '..', '..');
@@ -59,9 +66,12 @@ const readFixtures = (): Fixture[] => {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Copies the fixtures into <root>/.golden/<name>/ (taken from this checkout, whatever <root> is). */
-const stage = (root: string, fixtures: Fixture[]) => {
-  const dir = path.join(root, STAGE);
+/** A workspace outside the repo, for --outside: its projects/ holds the staged fixtures. */
+const OUTSIDE = path.join(os.tmpdir(), 'mediamake-golden-workspace');
+
+/** Copies the fixtures into <root>/.golden/<name>/, or with --outside into OUTSIDE/projects/<name> (taken from this checkout, whatever <root> is). */
+const stage = (root: string, fixtures: Fixture[], outside = false) => {
+  const dir = outside ? path.join(OUTSIDE, 'projects') : path.join(root, STAGE);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fixtures) {
@@ -74,8 +84,8 @@ const stage = (root: string, fixtures: Fixture[]) => {
 };
 
 /** Renders every fixture's seconds with the engine in <root> (an app folder: src/index.ts, src/kit, …). */
-const shoot = async (root: string, out: string, fixtures: Fixture[], scale: number): Promise<Shot[]> => {
-  const staged = stage(root, fixtures);
+const shoot = async (root: string, out: string, fixtures: Fixture[], scale: number, outside = false): Promise<Shot[]> => {
+  const staged = stage(root, fixtures, outside);
   // webpack sees real paths (macOS's temp folder is a link into /private), so match both spellings
   const projectsDir = path.join(root, 'projects');
   const projectsRe = new RegExp(`^(${[...new Set([projectsDir, fs.existsSync(projectsDir) ? fs.realpathSync(projectsDir) : projectsDir, path.join(fs.realpathSync(root), 'projects')])].map(escapeRegExp).join('|')})$`);
@@ -87,8 +97,17 @@ const shoot = async (root: string, out: string, fixtures: Fixture[], scale: numb
   const serveUrl = await tempBundle({
     entryPoint: path.join(root, 'src', 'index.ts'),
     publicDir: staged,
+    // the contexts are pointed at the fixtures here, never at the user's workspace
+    workspace: false,
     webpackOverride: async config => {
       const styled = await enableTailwind(config);
+      // a workspace outside the repo, laid over the engine in <root>, with only the fixtures in it
+      if (outside)
+        return workspaceWebpack(styled, {
+          studio: root,
+          root: OUTSIDE,
+          dirs: { projects: staged, brands: path.join(root, 'brands'), thumbnailJobs: path.join(root, 'thumbnails', 'jobs') },
+        });
       // `as`: the CLI's webpack and @remotion/bundler's own copy have different types (only-project.ts)
       return {
         ...styled,
@@ -223,9 +242,9 @@ const main = async () => {
   const scale = Number(flag('scale') ?? 0.5);
   if (command === 'shoot') {
     const root = flag('root') ? path.resolve(flag('root')!) : HERE;
-    const out = path.resolve(flag('out') ?? path.join(HERE, 'out', '.golden', 'here'));
+    const out = path.resolve(flag('out') ?? path.join(DIRS.out, '.golden', 'here'));
     fs.rmSync(out, { recursive: true, force: true });
-    await shoot(root, out, readFixtures(), scale);
+    await shoot(root, out, readFixtures(), scale, has('outside'));
     console.log(`\nFrames in ${out}`);
     return;
   }
@@ -237,22 +256,22 @@ const main = async () => {
   if (command === 'check') {
     const ref = flag('against') ?? 'origin/main';
     const fixtures = readFixtures();
-    const base = path.join(HERE, 'out', '.golden');
+    const base = path.join(DIRS.out, '.golden');
     const { dir, sha } = worktree(ref);
     const theirs = path.join(base, `ref-${sha.slice(0, 12)}`);
     const ours = path.join(base, 'here');
     for (const d of [theirs, ours]) fs.rmSync(d, { recursive: true, force: true });
     console.log(`Shooting ${ref} (${sha.slice(0, 12)}) …`);
     await shoot(appIn(dir), theirs, fixtures, scale);
-    console.log('Shooting this checkout …');
-    await shoot(HERE, ours, fixtures, scale);
+    console.log(`Shooting this checkout${has('outside') ? `, its fixtures in ${OUTSIDE}` : ''} …`);
+    await shoot(HERE, ours, fixtures, scale, has('outside'));
     console.log(`\nComparing this checkout with ${ref}:`);
     const ok = compare(theirs, ours);
     if (!has('keep')) execFileSync('git', ['-C', REPO, 'worktree', 'remove', '--force', dir], { stdio: 'ignore' });
     console.log(ok ? `\nEvery frame matches ${ref}.` : `\nSome frames differ from ${ref}: look at the .diff.png files in ${path.relative(process.cwd(), ours)}.`);
     process.exit(ok ? 0 : 1);
   }
-  console.error('Usage: mm golden check [--against=<ref>] | shoot [--out=<dir>] [--root=<app>] | compare <a> <b>');
+  console.error('Usage: mm golden check [--against=<ref>] [--outside] | shoot [--out=<dir>] [--root=<app>] [--outside] | compare <a> <b>');
   process.exit(1);
 };
 

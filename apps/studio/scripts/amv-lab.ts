@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { removeBundle, tempBundle } from './bundle.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -27,13 +28,13 @@ const main = async () => {
   const jobs: Job[] = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
   const video = args.includes('--video');
   const slug = jobs[0].props.slug;
-  const outDir = path.resolve(args.find(a => a.startsWith('--out='))?.slice(6) ?? path.join(ROOT, 'out', slug, 'lab'));
+  const outDir = path.resolve(args.find(a => a.startsWith('--out='))?.slice(6) ?? path.join(DIRS.out, slug, 'lab'));
   fs.mkdirSync(outDir, { recursive: true });
 
   process.env.ONLY_PROJECT ??= slug;
   const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
-    publicDir: path.join(ROOT, 'projects'),
+    publicDir: DIRS.projects,
     webpackOverride: enableTailwind,
   });
   const chromiumOptions = { gl: 'angle' as const };
@@ -60,11 +61,11 @@ const main = async () => {
         .join('|')}:fill=black`,
       '-frames:v', '1', '-q:v', '3', sheet,
     ].filter(Boolean) as string[]);
-    console.log(`✔ ${path.relative(ROOT, sheet)}`);
+    console.log(`✔ ${shown(sheet)}`);
     if (video) {
       const mp4 = path.join(outDir, `${job.name}.mp4`);
       await renderMedia({ serveUrl, composition, codec: 'h264', outputLocation: mp4, inputProps, chromiumOptions, muted: true, concurrency: 4, timeoutInMilliseconds: 120000 });
-      console.log(`✔ ${path.relative(ROOT, mp4)}`);
+      console.log(`✔ ${shown(mp4)}`);
     }
   }
   removeBundle(serveUrl);

@@ -41,13 +41,14 @@ import {
   type Storyboard,
   type WaveDesign,
 } from '../src/mediamake/look.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(ROOT, '../..');
 const STEPS: Step[] = ['waves', 'fonts', 'captions'];
 const DEMO = '_wave-catalog';
 /** The catalog's shots and gallery: made on this machine, not committed. */
-const CATALOG_SHOTS = path.join(ROOT, 'out', 'waveform-catalog');
+const CATALOG_SHOTS = path.join(DIRS.out, 'waveform-catalog');
 const SCALE = 0.5;
 
 type Shot = {
@@ -76,7 +77,7 @@ if (!target) {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const tmpdirFor = (dir: string) => fs.mkdtempSync(path.join(os.tmpdir(), `wave-lab-${path.basename(dir)}-`));
 const readManifest = (slug: string) =>
-  ManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(ROOT, 'projects', slug, 'manifest.json'), 'utf8')));
+  ManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(DIRS.projects, slug, 'manifest.json'), 'utf8')));
 
 // ---------- moments ----------
 
@@ -136,7 +137,7 @@ const download = async (url: string, file: string) => {
 
 const ensureDemo = async (): Promise<Manifest> => {
   const demo = JSON.parse(fs.readFileSync(path.join(ROOT, 'catalog/demo/demo.json'), 'utf8'));
-  const input = path.join(ROOT, 'projects', DEMO, 'input');
+  const input = path.join(DIRS.projects, DEMO, 'input');
   fs.mkdirSync(input, { recursive: true });
   const song = path.join(input, 'song.mp3');
   if (!fs.existsSync(song)) {
@@ -188,8 +189,8 @@ const catalogShots = async (steps: Step[]): Promise<Shot[]> => {
 };
 
 const storyboardShots = async (slug: string, step: Step | 'final'): Promise<Shot[]> => {
-  const file = path.join(ROOT, 'projects', slug, 'video', 'storyboard.ts');
-  if (!fs.existsSync(file)) throw new Error(`No ${path.relative(ROOT, file)}: write the storyboard first`);
+  const file = path.join(DIRS.projects, slug, 'video', 'storyboard.ts');
+  if (!fs.existsSync(file)) throw new Error(`No ${shown(file)}: write the storyboard first`);
   const sb = (await import(pathToFileURL(file).href)).default as Storyboard;
   const m = readManifest(slug);
   const loud = loudest(m);
@@ -320,7 +321,7 @@ const main = async () => {
     if (missing.length) {
       throw new Error(`No shot for: ${missing.map(f => path.basename(f, '.jpg')).join(', ')}. Shoot them: mm wave-lab catalog ${stepArg}`);
     }
-    const out = path.resolve(process.env.INIT_CWD ?? process.cwd(), flag('out') ?? path.join(ROOT, 'out', 'catalog-menus', `${stepArg}.jpg`));
+    const out = path.resolve(process.env.INIT_CWD ?? process.cwd(), flag('out') ?? path.join(DIRS.out, 'catalog-menus', `${stepArg}.jpg`));
     fs.mkdirSync(path.dirname(out), { recursive: true });
     contactSheet(files, out);
     console.log(`✔ ${path.relative(process.cwd(), out)}`);
@@ -333,11 +334,11 @@ const main = async () => {
   const shots = isCatalog ? await catalogShots(steps) : await storyboardShots(target, stepArg as Step | 'final');
   const outRoot = isCatalog
     ? CATALOG_SHOTS
-    : path.join(ROOT, 'out', target, `${target}-storyboard`);
+    : path.join(DIRS.out, target, `${target}-storyboard`);
 
   const serveUrl = await tempBundle({
     entryPoint: path.join(ROOT, 'src/index.ts'),
-    publicDir: path.join(ROOT, 'projects'),
+    publicDir: DIRS.projects,
     webpackOverride: enableTailwind,
   });
   const chromiumOptions = { gl: 'angle' as const };
@@ -388,10 +389,10 @@ const main = async () => {
           chromiumOptions,
           timeoutInMilliseconds: 120000,
         });
-        console.log(`✔ ${path.relative(ROOT, path.join(dir, `${shot.id}.mp4`))}  (${clipSeconds} s from ${r2(f0 / composition.fps)} s)`);
+        console.log(`✔ ${shown(path.join(dir, `${shot.id}.mp4`))}  (${clipSeconds} s from ${r2(f0 / composition.fps)} s)`);
       }
       done.push(shot);
-      console.log(`✔ ${path.relative(ROOT, path.join(dir, `${shot.id}.jpg`))}  (${shot.at.join(', ')} s)`);
+      console.log(`✔ ${shown(path.join(dir, `${shot.id}.jpg`))}  (${shot.at.join(', ')} s)`);
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -404,7 +405,7 @@ const main = async () => {
     const dir = path.join(outRoot, step);
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.jpg') && f !== 'sheet.jpg').sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     contactSheet(files.map(f => path.join(dir, f)), path.join(dir, 'sheet.jpg'));
-    console.log(`✔ ${path.relative(ROOT, path.join(dir, 'sheet.jpg'))}  (${files.length})`);
+    console.log(`✔ ${shown(path.join(dir, 'sheet.jpg'))}  (${files.length})`);
     if (clipSeconds > 0) {
       // this run's clips back to back in one reel (same encoder settings, so a stream copy)
       const clips = done.filter(s => s.step === step).map(s => path.join(dir, `${s.id}.mp4`));
@@ -412,13 +413,13 @@ const main = async () => {
       fs.writeFileSync(list, clips.map(c => `file '${c.replace(/'/g, "'\\''")}'`).join('\n'));
       const reel = path.join(dir, `reel-${done.filter(s => s.step === step).map(s => s.id).join('-')}.mp4`);
       ffmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', reel]);
-      console.log(`✔ ${path.relative(ROOT, reel)}`);
+      console.log(`✔ ${shown(reel)}`);
       // two to four looks side by side, labelled with their IDs, so a pick is named by what is on screen
       if (clips.length >= 2 && clips.length <= 4) {
         const ids = done.filter(s => s.step === step).map(s => s.id);
         try {
           const grid = lookGrid(clips, { labels: ids, out: path.join(dir, `grid-${ids.join('-')}.mp4`) });
-          console.log(`✔ ${path.relative(ROOT, grid)}  ${reviewLink(grid)}`);
+          console.log(`✔ ${shown(grid)}  ${reviewLink(grid)}`);
         } catch (err) {
           console.warn(`No grid (the reel still has every look): ${err instanceof Error ? err.message : err}`);
         }
@@ -442,10 +443,10 @@ const main = async () => {
         })),
     })),
   });
-  console.log(`✔ ${path.relative(ROOT, path.join(outRoot, 'index.json'))}`);
+  console.log(`✔ ${shown(path.join(outRoot, 'index.json'))}`);
   if (isCatalog) {
     writeGallery(outRoot);
-    console.log(`✔ ${path.relative(ROOT, path.join(outRoot, 'README.md'))}`);
+    console.log(`✔ ${shown(path.join(outRoot, 'README.md'))}`);
   }
 };
 

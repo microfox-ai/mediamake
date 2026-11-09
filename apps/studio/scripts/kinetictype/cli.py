@@ -43,7 +43,9 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]  # apps/studio
-PROJ = ROOT / "projects"
+sys.path.append(str(ROOT / "analysis"))
+from workspace import workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
+PROJ = workspace_dir("projects")
 
 
 def die(msg):

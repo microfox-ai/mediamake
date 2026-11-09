@@ -98,12 +98,12 @@ def main():
             edges = np.linspace(a, b, n + 1)
             for k in range(n):
                 zoom(edges[k], edges[k + 1] + 0.15, f"zl_{li:03d}_{k}")
-        print(f"zoom plots: {proj.qa.relative_to(common.APP)}/zl_*.png")
+        print(f"zoom plots: {common.shown(proj.qa)}/zl_*.png")
     else:
         t0, t1 = float(args[0]), float(args[1])
         name = args[2] if len(args) > 2 else f"zoom_{t0:.1f}"
         zoom(t0, t1, name)
-        print(f"{(proj.qa / name).relative_to(common.APP)}.png")
+        print(f"{common.shown(proj.qa / name)}.png")
 
 
 if __name__ == "__main__":

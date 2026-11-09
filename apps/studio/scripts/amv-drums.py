@@ -21,7 +21,9 @@ from pathlib import Path
 import librosa
 import numpy as np
 
-proj = Path(__file__).resolve().parent.parent / "projects" / sys.argv[1]
+sys.path.append(str(Path(__file__).resolve().parent.parent / "analysis"))
+from workspace import workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
+proj = workspace_dir("projects") / sys.argv[1]
 t = json.load(open(proj / 'video/timing.json'))
 beats = np.array(t['beats']); bpm = t['bpm']
 y, sr = librosa.load(proj / 'analysis/stems/drums.wav', sr=22050, mono=True)

@@ -25,7 +25,6 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import ffmpeg from '@ffmpeg-installer/ffmpeg';
 import ffprobe from '@ffprobe-installer/ffprobe';
 import { z } from 'zod';
@@ -37,12 +36,9 @@ import {
   type Manifest,
   type Section,
 } from '../src/kit/manifest.ts';
-import { danglingLinks } from './paths.ts';
+import { DIRS, danglingLinks } from './paths.ts';
 
-const PROJECTS_DIR = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../projects',
-);
+const PROJECTS_DIR = DIRS.projects;
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac|webm)$/i;
 const RESERVED = new Set(['lyrics.json', 'project.json', 'brief.md']);
 const SAMPLE_RATE = 22050;

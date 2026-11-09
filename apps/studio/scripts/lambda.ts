@@ -79,6 +79,7 @@ import { keepPrevious, writeVideoMap, type MapShort } from './map.ts';
 import { onlyProject } from './only-project.ts';
 import { appendRender } from './render-log.ts';
 import { timestampSnapshots } from './snapshots.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MEDIAMAKE = path.resolve(ROOT, '..', 'mediamake');
@@ -209,14 +210,14 @@ const codeStrings = (projectDir: string): Set<string> => {
 };
 
 /** `out/<slug>/.lambda` */
-export const lambdaDir = (slug: string) => path.join(ROOT, 'out', slug, '.lambda');
+export const lambdaDir = (slug: string) => path.join(DIRS.out, slug, '.lambda');
 
 /**
  * Clones the files the project needs on Lambda into out/<slug>/.lambda/public/<slug>/ (the site's
  * public folder, so staticFile('<slug>/…') finds them there) and returns what went in.
  */
 export const stageProject = (slug: string): Staged => {
-  const projectDir = path.join(ROOT, 'projects', slug);
+  const projectDir = path.join(DIRS.projects, slug);
   const manifestFile = path.join(projectDir, 'manifest.json');
   if (!fs.existsSync(manifestFile)) {
     throw new Error(`No manifest. Run: mm prepare ${slug}`);
@@ -246,7 +247,7 @@ export const stageProject = (slug: string): Staged => {
     for (const file of walk(path.join(projectDir, dir))) wanted.add(`${slug}/${path.relative(projectDir, file).split(path.sep).join('/')}`);
   }
   // any other '<slug>/…' path written in the code
-  for (const s of strings) if (s.startsWith(`${slug}/`) && fs.existsSync(path.join(ROOT, 'projects', s))) add(s);
+  for (const s of strings) if (s.startsWith(`${slug}/`) && fs.existsSync(path.join(DIRS.projects, s))) add(s);
 
   const named = new Set<string>();
   for (const [key, p] of Object.entries(manifest.assets ?? {})) if (strings.has(key) || strings.has(p)) named.add(p);
@@ -256,7 +257,7 @@ export const stageProject = (slug: string): Staged => {
   const replaced = new Map<string, { file: string; rel: string }>();
   const audioRel = manifest.audio?.src;
   if (audioRel && rules?.audio && rules.audio !== 'keep' && wanted.has(audioRel)) {
-    const src = path.join(ROOT, 'projects', audioRel);
+    const src = path.join(DIRS.projects, audioRel);
     if (fs.existsSync(src)) {
       const info = probe(src);
       if (LOSSLESS_AUDIO.test(info.codec)) {
@@ -269,7 +270,7 @@ export const stageProject = (slug: string): Staged => {
   }
   for (const [p, opts] of Object.entries(rules?.videos ?? {})) {
     const rel = `${slug}/input/${p.replace(/^input\//, '')}`;
-    const src = path.join(ROOT, 'projects', rel);
+    const src = path.join(DIRS.projects, rel);
     if (!wanted.has(rel) || !fs.existsSync(src)) continue;
     const info = probe(src);
     if (info.kind !== 'video' || info.alpha) continue;
@@ -293,7 +294,7 @@ export const stageProject = (slug: string): Staged => {
   const sourceOf = (rel: string) => [...replaced.entries()].find(([, d]) => d.rel === rel);
   for (const rel of [...wanted].sort()) {
     const replacement = sourceOf(rel);
-    const src = replacement ? replacement[1].file : path.join(ROOT, 'projects', rel);
+    const src = replacement ? replacement[1].file : path.join(DIRS.projects, rel);
     if (!fs.existsSync(src) || fs.statSync(src).isDirectory()) {
       missing.push(rel);
       continue;
@@ -340,11 +341,11 @@ export type LambdaRules = {
   notes?: string;
 };
 export const RULES_SCHEMA = 'lyrics_videos.lambda/v1';
-const rulesFile = (slug: string) => path.join(ROOT, 'projects', slug, 'lambda.json');
+const rulesFile = (slug: string) => path.join(DIRS.projects, slug, 'lambda.json');
 export const readRules = (slug: string): LambdaRules | null => {
   if (!fs.existsSync(rulesFile(slug))) return null;
   const rules = JSON.parse(fs.readFileSync(rulesFile(slug), 'utf8')) as LambdaRules;
-  if (rules.schema !== RULES_SCHEMA) throw new Error(`${path.relative(ROOT, rulesFile(slug))}: schema must be ${RULES_SCHEMA}`);
+  if (rules.schema !== RULES_SCHEMA) throw new Error(`${shown(rulesFile(slug))}: schema must be ${RULES_SCHEMA}`);
   return rules;
 };
 
@@ -386,7 +387,7 @@ export const probe = (file: string): Probe => {
 
 /** the export size from projects/<slug>/video/index.tsx (defineProject({ width, height })), else 1080p */
 export const exportSize = (slug: string): { width: number; height: number; fps: number; guessed: boolean } => {
-  const file = path.join(ROOT, 'projects', slug, 'video', 'index.tsx');
+  const file = path.join(DIRS.projects, slug, 'video', 'index.tsx');
   const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   // a frame size has 3–5 digits; a stroke width or a column width is not it
   const w = text.match(/\bwidth:\s*(\d{3,5})\b/)?.[1];
@@ -434,7 +435,7 @@ export type Measurement = {
   frames?: [number, number | null];
 };
 export const measuredSecondsPerFrame = (slug: string): Measurement | undefined => {
-  const log = path.join(ROOT, 'out', slug, '.renders.jsonl');
+  const log = path.join(DIRS.out, slug, '.renders.jsonl');
   if (!fs.existsSync(log)) return undefined;
   const entries = fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) as { at: string; ok: boolean; scale: number; frames?: [number, number | null]; lambda?: { slowestChunkSecondsPerFrame?: number; functionName: string; costUsd?: number; config?: { concurrencyPerLambda?: number } } }[];
   const last = entries.filter(e => e.ok && e.scale >= 1 && e.lambda?.slowestChunkSecondsPerFrame).at(-1);
@@ -536,7 +537,7 @@ export const packReport = (staged: Staged): { advice: PackAdvice[]; suggested: L
   const needed = staged.bytes > PACK_WARN_BYTES;
   const later = ' (not needed while the pack is under ' + formatBytes(PACK_WARN_BYTES) + ': it would not cut the cost, the render is render-bound)';
   for (const f of staged.files) {
-    const src = path.join(ROOT, 'projects', f.rel);
+    const src = path.join(DIRS.projects, f.rel);
     const isMedia = AUDIO_EXT.test(f.rel) || VIDEO_EXT.test(f.rel);
     if (f.from) {
       const d = staged.derived.find(x => x.to === f.rel)!;
@@ -946,7 +947,7 @@ export const renderOnLambda = async (req: LambdaRenderRequest): Promise<string |
   const seconds = Math.round((Date.now() - started) / 100) / 10;
   const cost = progress.costs.accruedSoFar;
   const slowest = progress.mostExpensiveFrameRanges?.[0];
-  endLine(ok ? `  ✔ ${path.relative(ROOT, output)} (${formatBytes(progress.outputSizeInBytes ?? fs.statSync(output).size)}, ${seconds} s)` : `  ✗ render failed after ${seconds} s`);
+  endLine(ok ? `  ✔ ${shown(output)} (${formatBytes(progress.outputSizeInBytes ?? fs.statSync(output).size)}, ${seconds} s)` : `  ✗ render failed after ${seconds} s`);
 
   try {
     appendRender(output, {
@@ -1224,7 +1225,7 @@ if (isMain) {
       if (changes.length) {
         if (rest.includes('--write') || slug === '--write') {
           const file = writeRules(slug, suggested);
-          console.log(`Wrote ${path.relative(ROOT, file)}: ${changes.length} rule${changes.length === 1 ? '' : 's'}. Run \`lambda pack ${slug}\` again to see the pack with it applied.`);
+          console.log(`Wrote ${shown(file)}: ${changes.length} rule${changes.length === 1 ? '' : 's'}. Run \`lambda pack ${slug}\` again to see the pack with it applied.`);
         } else console.log(`${changes.length} suggestion${changes.length === 1 ? '' : 's'} above. --write puts them in projects/${slug}/lambda.json (then every Lambda render applies them; local renders don't).`);
       } else console.log('Nothing to change.');
     } else if (command === 'deploy') {

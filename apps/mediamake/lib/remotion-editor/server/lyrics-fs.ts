@@ -1,34 +1,40 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { allowedRoots, fromStudioPath, toStudioPath, workspaceDir } from './workspace';
 
 /*
  * File access to apps/studio for /remotion-editor, development only (`next dev`). The
  * browser compiles the project itself; these routes only list, read and serve files, and write a
- * project's video/edits.json. Nothing outside the lyrics folder, under node_modules or starting
- * with a dot is reachable.
+ * project's video/edits.json. Paths are named as the studio names them (projects/<slug>/…, src/…):
+ * projects/ and the other work folders are wherever the workspace keeps them (./workspace.ts), the
+ * engine is in the studio. Nothing outside those folders, under node_modules or starting with a dot
+ * is reachable.
  */
 
 export const LYRICS_ROOT = path.resolve(
   process.env.STUDIO_DIR ?? process.env.LYRICS_VIDEOS_DIR ?? path.join(process.cwd(), '..', 'studio'),
 );
 
+/** The folder of every project (apps/studio/projects until a workspace is set). */
+export const projectsDir = () => workspaceDir('projects', LYRICS_ROOT);
+
 export const isDevFilesEnabled = () => process.env.NODE_ENV === 'development';
 
 export const notFound = () =>
   Response.json({ message: 'Not found' }, { status: 404 });
 
-/** Absolute path for a path relative to the lyrics folder, or null when it isn't allowed. */
+/** Absolute path for a path as the studio names it, or null when it isn't allowed. */
 export function resolveLyricsPath(rel: string): string | null {
-  if (!rel || rel.includes('\0')) return null;
-  const abs = path.resolve(LYRICS_ROOT, rel);
-  if (!abs.startsWith(LYRICS_ROOT + path.sep)) return null;
-  const parts = path.relative(LYRICS_ROOT, abs).split(path.sep);
-  if (parts.some(p => p === 'node_modules' || p.startsWith('.'))) return null;
+  if (!rel || rel.includes('\0') || path.isAbsolute(rel)) return null;
+  const parts = path.posix.normalize(rel.replace(/\\/g, '/')).split('/').filter(p => p && p !== '.');
+  if (!parts.length || parts.some(p => p === '..' || p === 'node_modules' || p.startsWith('.'))) return null;
+  const abs = fromStudioPath(parts.join('/'), LYRICS_ROOT);
+  // the folder itself is never a file to serve: only what is under the studio or a workspace folder
+  if (!allowedRoots(LYRICS_ROOT).some(root => abs.startsWith(root + path.sep))) return null;
   return abs;
 }
 
-const toRel = (abs: string) =>
-  path.relative(LYRICS_ROOT, abs).split(path.sep).join('/');
+const toRel = (abs: string) => toStudioPath(abs, LYRICS_ROOT);
 
 export const CODE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'];
 const isCode = (name: string) => CODE_EXTENSIONS.includes(path.extname(name));
@@ -83,7 +89,7 @@ export type ProjectEntry = {
 
 /** Every projects/<slug> with a video/index.tsx, the way Root.tsx finds them ("_" folders skipped). */
 export async function listProjects(): Promise<ProjectEntry[]> {
-  const dir = path.join(LYRICS_ROOT, 'projects');
+  const dir = projectsDir();
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   const projects = await Promise.all(
     entries
@@ -181,7 +187,7 @@ export async function listMediaFiles(slug: string): Promise<MediaFile[]> {
         const kind = MEDIA_KINDS.find(([re]) => re.test(e.name))?.[1];
         if (!kind || !e.isFile()) return;
         const stat = await fs.stat(abs);
-        out.push({ path: path.relative(path.join(LYRICS_ROOT, 'projects'), abs).split(path.sep).join('/'), kind, size: stat.size });
+        out.push({ path: path.relative(projectsDir(), abs).split(path.sep).join('/'), kind, size: stat.size });
       }),
     );
   };
