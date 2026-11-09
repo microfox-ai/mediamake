@@ -57,8 +57,9 @@ apps/mediamake/docs/random/*
 
 # Built, never committed, so pulls and branch switches never meet an edited copy:
 # skills.json is the skills registry (node tools/skills.mjs index; the site's build and dev server
-# write it), and the studio's mediamake presets come from apps/mediamake (mm builds them when their
-# sources change: apps/studio/scripts/generated.mjs). SKILLS.md was the old committed index.
+# write it, and turbo's uncached skills-index task before every build), and the studio's mediamake
+# presets come from apps/mediamake (mm builds them when their sources change:
+# apps/studio/scripts/generated.mjs). SKILLS.md was the old committed index.
 /skills.json
 /SKILLS.md
 /apps/studio/src/mediamake/presets.json
