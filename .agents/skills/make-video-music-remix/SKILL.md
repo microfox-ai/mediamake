@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix
-description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat, paced by the song's feel (long takes and slow motion for a slow, stylish track; a fast pulse for a hard one); the hero is always the subject and the cut takes his tone (comedy for a funny character); the footage's scenes run in order through every section and the lyrics only punctuate them; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/studio/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.
+description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat, paced by the song's feel (long takes and slow motion for a slow, stylish track; a fast pulse for a hard one); the hero is always the subject and the cut takes his tone (comedy for a funny character); the footage's scenes run in order through every section and the lyrics only punctuate them; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/studio/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-video-music-remix
@@ -27,7 +27,7 @@ the F1 examples below come from it, the rules are meant for any footage and any 
 
 **Taste comes from the user.** Keep `projects/<slug>/prefs.md`: intake answers, the style rules for
 this look, and a dated log of every piece of feedback, numbered as the user wrote it. Read the
-lessons log at the bottom before planning. Keep what the user praised; recast around it.
+lessons log at the bottom and your notes (`mm notes make-video-music-remix`) before planning. Keep what the user praised; recast around it.
 
 ## The user's standing rules (read first)
 
@@ -462,7 +462,7 @@ picture: render the audio and mux it onto the video (`-c:v copy`).
 
 Review with the **`revise-video`** skill (preflight, the `/video-revision` link, the background
 watcher, reading and closing the user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
-every comment in `prefs.md` and the general rule in the lessons log here. When the user approves the
+every comment in `prefs.md` and the general rule in your notes (`mm notes add make-video-music-remix "…"`). When the user approves the
 final, deliver it to the channel's folder: `media deliver <slug> --what=video` (a dry run), then
 `--yes`. It goes to `Downloads/<CHANNEL>/<slug>/` and an older delivery moves to `previous/`; give
 the `open -R` line it prints. Footage the user rejected: `media rate <id> bad --note="…" --production=<slug>`.
@@ -608,7 +608,15 @@ render ~1 min. Start the slow steps first and run renders in the background.
 
 ## Lessons log
 
-Append dated entries: what the user asked to change and the general rule behind it.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-video-music-remix "<what the user asked to change> → <the general rule behind it>"   # a new lesson, dated for you
+mm notes make-video-music-remix                                                                        # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-video-music-remix` offers them to this log as a pull request.
 
 - 2026-10-24 — First project (hitixf1, a rap song × F1 footage). Edits that live on masks change the
   picture without cuts: study the inspo with dense frame sheets. Derived lyric sections fail on rap:

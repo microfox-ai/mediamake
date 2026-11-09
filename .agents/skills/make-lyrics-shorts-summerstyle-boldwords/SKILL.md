@@ -1,6 +1,6 @@
 ---
 name: make-lyrics-shorts-summerstyle-boldwords
-description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/studio/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). Append new user feedback to the log at the bottom.
+description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under apps/studio/projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-lyrics-shorts-summerstyle-boldwords
@@ -49,7 +49,8 @@ Worked example: `projects/eyesofpink` ("Eyes of Pink", a Nezuko song, ~136 BPM) 
 edit; short `s01` = the final chorus into the outro hit.
 
 **Taste comes from the user.** Keep `projects/<slug>/prefs.md` (intake answers, the look, a dated log
-of every note, numbered as the user wrote it). Read the lessons log at the bottom before planning.
+of every note, numbered as the user wrote it). Read the lessons log at the bottom and your notes
+(`mm notes make-lyrics-shorts-summerstyle-boldwords`) before planning.
 
 ## Principles (v4 after the user's notes on the JJK twelve, 2026-10-28 — they will keep refining them)
 
@@ -424,7 +425,7 @@ scan doesn't cover) and fix or answer what it finds. Review with
 **`revise-video`**: `/video-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` on
 mediamake (the user picks `out/<slug>/shorts/<id>/` the first time), then start the watcher
 (`mm wait-revision <slug>` covers every short). Log every note in `prefs.md`, the
-general rule in the lessons log here. A liked or rejected stretch:
+general rule in your notes (`mm notes add make-lyrics-shorts-summerstyle-boldwords "…"`). A liked or rejected stretch:
 `mm shorts <slug> mark <id> liked|bad`. Footage the user called wrong or bad
 ("the twixtors look bad"): `media rate <id> bad --note="…" --production=<slug>`. Approved shorts go
 to the channel's folder: `media deliver <slug> --what=shorts` (a dry run), then `--yes`, and give the
@@ -642,7 +643,15 @@ the dives on a frame sheet of the render (every 2nd frame across each dive), not
 
 ## Lessons log
 
-Append dated entries: what the user asked to change and the general rule behind it.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-lyrics-shorts-summerstyle-boldwords "<what the user asked to change> → <the general rule behind it>"   # a new lesson, dated for you
+mm notes make-lyrics-shorts-summerstyle-boldwords                                                                        # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-lyrics-shorts-summerstyle-boldwords` offers them to this log as a pull request.
 
 - 2026-10-26 — Skill created from the "summer leaves quietly" reel for "Eyes of Pink" × a Nezuko twixtor
   edit (s01: the final chorus, 31.5 s, a full-frame drum fill pulling back into `eyes`, a crimson

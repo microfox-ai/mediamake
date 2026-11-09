@@ -1,6 +1,6 @@
 ---
 name: make-loudness-remaster
-description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder in REAPER (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else), measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. Append new user feedback to the log at the bottom.
+description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder in REAPER (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else), measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
 ---
@@ -136,7 +136,15 @@ PY="$(uv tool dir)/reaper-mcp-server/bin/python"; SK=.claude/skills/make-loudnes
 
 ## Log
 
-User feedback, newest last. Add an entry whenever the user corrects or confirms how this skill works.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-loudness-remaster "<what the user corrected or confirmed> → <the rule>"   # a new lesson, dated for you
+mm notes make-loudness-remaster                                                             # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-loudness-remaster` offers them to this log as a pull request.
 
 - 2026-10-30 (Honored One): v1 rebuilt the song from Suno's 12 stems (EQ per track, buses, glue
   comp, -12 LUFS). User: louder, it's "a grand workout song, loud volume is better", and "there is

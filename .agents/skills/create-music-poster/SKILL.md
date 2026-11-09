@@ -1,6 +1,6 @@
 ---
 name: create-music-poster
-description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options for a poster job under apps/studio/thumbnails/jobs/. Append new user feedback to the log at the bottom.
+description: Make a music poster / album artwork (single, EP or album cover) for DistroKid and the streaming services from the user's picture(s), in Remotion with the thumbnail engine. It sizes the job to the release (a quick cover for a small single, a fuller exploration for a big one), crops the picture to a correct 1:1 square (outcropping only when the subject doesn't fit, upscaling only when the crop is too small), and explores real alternatives — crops, placements and scale, graphic devices and ideas drawn from the lyrics' meaning and the music's mood — shown first as a small direction board of captioned pictures for the user to pick from, before developing the picked directions into 3000×3000 RGB JPEG covers. Finishing looks (grade, duotone, grain, VHS…) are optional and must never cost the picture its clarity. The art with no text always comes first; well exposed for the song's mood; DistroKid's artwork rules checked. No logo unless asked. Use when the user says "make a music poster", "album art / cover art / single artwork for <song>", "DistroKid cover", "/create-music-poster", or asks for more cover options for a poster job under apps/studio/thumbnails/jobs/. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # create-music-poster
@@ -185,7 +185,8 @@ pick).
   `out/posters/<job>/final/<job>-<ID>.jpg` and `cover.jpg` in the release folder (ask before replacing
   one). Then `pack-distrokid` takes over. The picked cover is also delivered to the channel's folder:
   `mm media deliver <slug> --what=poster` (a dry run, then `--yes`).
-- Log what you learned in `brief.md` (this job) and the feedback log below (general taste).
+- Log what you learned in `brief.md` (this job) and in your notes (general taste:
+  `mm notes add create-music-poster "…"`, see the feedback log below).
 
 ## 7. Spotify Canvas (only when asked)
 
@@ -219,7 +220,15 @@ SSIM, ~0.97+ reads as seamless). Put them in `out/posters/<job>/canvas/` with a 
 
 ## Feedback log
 
-Add entries at the bottom: date · release · what they said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add create-music-poster "<release> · <what they said> → <the rule>"   # a new lesson, dated for you
+mm notes create-music-poster                                                   # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote create-music-poster` offers them to this log as a pull request.
 
 - 2026-10-24 · engine · Asked for the skill: like the thumbnails; a correct 1:1 crop (outcrop with Midjourney or fal when needed); the poster with different texture and filter effects (brightness, saturation…), up to 10 plus one plain; logo optional, off by default; DistroKid's album-artwork rules → this skill, treatments.ts, square presets, 3000×3000 renders, the artwork lint.
 - 2026-10-24 · You Can Have the Kingdom · First test: the lifted-black looks (film, matte) and the paper texture washed the art grey. Cause: a style helper reset every effect's blend mode (fixed in layers/Graphics.tsx); then film/matte lifts toned down and noir/riso/vintage brightened. Rule: check every treatment on a dark picture before shipping a new one.

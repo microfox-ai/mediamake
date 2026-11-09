@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix-shorts
-description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song set to footage, in Remotion, in make-video-music-remix's edit style — from either a finished song edit (a make-video-music-remix project with its 16:9 render) or just footage + a song (the shorts' stretches are cast fresh from the footage, each rendered in 16:9 for its short). Every run picks the three coolest different stretches of the song (energy, hits, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose: "rotate your phone" shorts, whose opening cue is the key — the film's own stand-in for the phone (a coffin for Dracula, Deadpool's mask for Deadpool) does a beat of its character and tips onto its side, the plea and the title appear already turned, and the 16:9 edit plays turned from the stretch's hit — or recast for the vertical frame (reframed on the subject, stacked splits and boxes where a crop would be soft); reviewed through Revisions (revise-video). Use when the user says "make shorts / reels / tiktoks of <edit or footage + song>", "vertical cuts of this song edit", "rotate your phone shorts", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/studio/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.
+description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song set to footage, in Remotion, in make-video-music-remix's edit style — from either a finished song edit (a make-video-music-remix project with its 16:9 render) or just footage + a song (the shorts' stretches are cast fresh from the footage, each rendered in 16:9 for its short). Every run picks the three coolest different stretches of the song (energy, hits, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose: "rotate your phone" shorts, whose opening cue is the key — the film's own stand-in for the phone (a coffin for Dracula, Deadpool's mask for Deadpool) does a beat of its character and tips onto its side, the plea and the title appear already turned, and the 16:9 edit plays turned from the stretch's hit — or recast for the vertical frame (reframed on the subject, stacked splits and boxes where a crop would be soft); reviewed through Revisions (revise-video). Use when the user says "make shorts / reels / tiktoks of <edit or footage + song>", "vertical cuts of this song edit", "rotate your phone shorts", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/studio/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-video-music-remix-shorts
@@ -35,9 +35,10 @@ where the song soars, meaning first, real speed, one use per shot, motion not co
 sound on its picture), its cut-list language, its checks and render. Read that skill once; this file
 covers what is different. Reviews go through `revise-video`.
 
-Taste comes from the user: read the project's `prefs.md` and the lessons log at the bottom before
-planning; log every piece of feedback on a short in `prefs.md` (under a "Shorts" heading) and the
-general rule here.
+Taste comes from the user: read the project's `prefs.md`, the lessons log at the bottom and your notes
+(`mm notes make-video-music-remix-shorts`) before planning; log every piece of feedback on a short in
+`prefs.md` (under a "Shorts" heading) and the general rule in your notes
+(`mm notes add make-video-music-remix-shorts "…"`).
 
 ## The user's rules (2026-10-26)
 
@@ -525,7 +526,15 @@ s01: 40 s → 86 s at 1080p).
 
 ## Lessons log
 
-Append dated entries: what the user asked to change and the general rule behind it.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-video-music-remix-shorts "<what the user asked to change> → <the general rule behind it>"   # a new lesson, dated for you
+mm notes make-video-music-remix-shorts                                                                        # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-video-music-remix-shorts` offers them to this log as a pull request.
 
 - 2026-10-26 — Created from make-video-music-remix. The user's rules: three different stretches per run,
   checked with them before editing; three finished shorts per run; the formats chosen by the user every

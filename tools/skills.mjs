@@ -28,6 +28,11 @@
  *            of date or a skill holds a key, a token or a path on this machine (exit 1; as a Claude
  *            Code hook: a SessionStart note, or exit 2 after a tool changed a skill). CI runs it on every PR.
  *
+ * Lessons: a skill's `## Feedback log` or `## Lessons log` is shared and changes only in a PR. New
+ * lessons go in the user's notes, outside the repo (`mm notes add <skill> "…"`, apps/studio/scripts/
+ * notes.ts); `mm notes promote` brings them to the log as a PR. `check` fails on a log that doesn't
+ * say so, or on an old "append to the log at the bottom" rule.
+ *
  * Names are <verb>-<thing>, the verb is the category (see CATEGORIES); a variant is
  * <base>-like-<ref> (or <base>-v<N> for a frozen older version) and says `variant-of` in its
  * frontmatter metadata, plus `forked-from: <base>@<commit>` when `fork` made it. `metadata.category`
@@ -283,6 +288,30 @@ const list = () => {
 /** The files a skill's checks read, and the only ones `media sync` shares: text, never binaries. */
 export const TEXT_FILE = /\.(md|mjs|js|ts|tsx|py|json|txt|sh|ya?ml|env)$/;
 
+/** What in one line of a skill must not be committed: a path on this machine, a key or a token. */
+export const lineProblems = line => {
+  const problems = [];
+  if (/\/Users\/[^/\s…]+|\/home\/[^/\s…]+|C:\\Users\\/.test(line)) problems.push('has a path on this machine');
+  if (/(sk-[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[a-zA-Z0-9]{30,}|xox[bap]-[a-zA-Z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[a-zA-Z0-9_-]{30,}\.)/.test(line)) problems.push('looks like an API key or token');
+  return problems;
+};
+
+/**
+ * Lessons go in the user's notes (`mm notes add <skill>`, apps/studio/scripts/notes.ts), never in a
+ * committed SKILL.md: a skill with a Feedback or Lessons log says so in it, and no skill still tells
+ * a session to append to its own log.
+ */
+const LOG_HEADING = /^## (Feedback log|Lessons log|Log)\s*$/m;
+const OLD_LOG_RULES = /Append dated entries|Add entries at the bottom|Append new user feedback|Add an entry whenever/;
+export const lessonProblems = skill => {
+  const text = fs.readFileSync(path.join(skill.dir, 'SKILL.md'), 'utf8');
+  const problems = [];
+  const old = text.split('\n').findIndex(l => OLD_LOG_RULES.test(l));
+  if (old >= 0) problems.push(`SKILL.md:${old + 1} tells sessions to write lessons into the skill: they go in the user's notes (mm notes add ${skill.name} "…")`);
+  if (LOG_HEADING.test(text) && !text.includes(`mm notes add ${skill.name} `)) problems.push(`its log doesn't say where new lessons go: \`mm notes add ${skill.name} "…"\` (see publish-skill)`);
+  return problems;
+};
+
 /** What must not be committed (problems) or deserves a look (notes): every skill is public on GitHub. */
 export const checks = skill => {
   const problems = [];
@@ -302,8 +331,7 @@ export const checks = skill => {
     const lines = fs.readFileSync(file, 'utf8').split('\n');
     lines.forEach((line, i) => {
       const at = `${rel(file)}:${i + 1}`;
-      if (/\/Users\/[^/\s…]+|\/home\/[^/\s…]+|C:\\Users\\/.test(line)) problems.push(`${at} has a path on this machine`);
-      if (/(sk-[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[a-zA-Z0-9]{30,}|xox[bap]-[a-zA-Z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[a-zA-Z0-9_-]{30,}\.)/.test(line)) problems.push(`${at} looks like an API key or token`);
+      for (const p of lineProblems(line)) problems.push(`${at} ${p}`);
       if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(line) && !/noreply@|example\.(com|org)/.test(line)) notes.push(`${at} has an email address`);
     });
   }
@@ -438,6 +466,12 @@ const leaks = () => {
   return found.length ? `Every skill is public, and these must not be committed:\n${found.map(f => `  ✖ ${f}`).join('\n')}\nUse a repo-relative path or an env var name instead.` : null;
 };
 
+/** Skills that would have a session edit them to log a lesson, as one message, or null. */
+const lessonLogs = () => {
+  const found = allSkills().flatMap(s => lessonProblems(s).map(p => `${s.name}: ${p}`));
+  return found.length ? `Lessons go in the user's notes, never in a committed skill:\n${found.map(f => `  ✖ ${f}`).join('\n')}` : null;
+};
+
 /** Malformed MCP tables in any skill, as one message, or null. */
 const mcpTables = () => {
   const found = allSkills().flatMap(s => s.mcpErrors.map(e => `${s.name}/${e}`));
@@ -447,7 +481,7 @@ const mcpTables = () => {
 const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
-  const stale = [staleness(), leaks(), mcpTables()].filter(Boolean).join('\n') || null;
+  const stale = [staleness(), leaks(), mcpTables(), lessonLogs()].filter(Boolean).join('\n') || null;
   if (!stale) return hook ? undefined : console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} are up to date`);
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
@@ -471,7 +505,7 @@ const add = () => {
   for (const skill of skills) {
     if (skill.moved) throw new Error(`${skill.name} is in .agents/skills already`);
     const { problems: leaked, notes } = checks(skill);
-    const problems = [...leaked, ...skill.mcpErrors];
+    const problems = [...leaked, ...skill.mcpErrors, ...lessonProblems(skill)];
     for (const p of problems) console.log(`✖ ${skill.name}: ${p}`);
     for (const n of notes) console.log(`⚠ ${skill.name}: ${n}`);
     if (problems.length) {
@@ -492,6 +526,9 @@ const add = () => {
   if (!flags.includes('--dry-run')) index();
   if (failed) throw new Error('Fix the ✖ lines, then run add again');
 };
+
+/** The last sentence of a description that keeps a log: where new feedback goes. */
+export const NOTES_LINE = 'New user feedback goes in your notes (mm notes add), never in this file.';
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 }).trim();
 
@@ -521,14 +558,17 @@ const fork = () => {
   // keep what the base does, drop its triggers ("Use when…"), so the variant never competes with it
   front = front.replace(/^description:\s*(.*)$/m, (_, d) => {
     const what = unquote(d).split(/\s+Use (?:when|this)\b/)[0].trim();
-    const log = /Append new user feedback/.test(d) ? ' Append new user feedback to the log at the bottom.' : '';
+    const log = /mm notes add/.test(d) ? ` ${NOTES_LINE}` : '';
     return `description: Variant of ${base.name} in the style of ${ref}: <what is different, one sentence>. ${what} Use only when the user names this variant or asks for the ${ref} style; otherwise ${base.name}.${log}`;
   });
   const meta = `  variant-of: ${base.name}\n  forked: ${today}${sha ? `\n  forked-from: ${base.name}@${sha.slice(0, 12)}` : ''}`;
   front = /^metadata:\s*$/m.test(front) ? front.replace(/^metadata:\s*$/m, `metadata:\n${meta}`) : `${front}\nmetadata:\n${meta}`;
   const h1 = body.match(/^# .*$/m);
   const note = `\n\n> **Variant of \`${base.name}\`** (forked ${today}), modelled on **${ref}**. Everything below is ${base.name} as it was that day, plus what this variant changes. Improvements to ${base.name} don't flow in by themselves: port the ones that fit (\`node tools/skills.mjs diff ${name}\` shows them).\n\n## This variant\n\n<What is different from ${base.name} and why: pacing, devices, type, sound, the reference project's prefs.md rules that define the look.>\n`;
-  const newBody = h1 ? body.replace(h1[0], `# ${name}${note}`) : `# ${name}${note}\n${body}`;
+  let newBody = h1 ? body.replace(h1[0], `# ${name}${note}`) : `# ${name}${note}\n${body}`;
+  // its notes are its own: `mm notes add <base>` → `mm notes add <variant>` (the base's notes stay
+  // the base's, and `mm notes <variant>` shows both)
+  newBody = newBody.replace(new RegExp(`(\\bmm notes(?: add| promote)? )${base.name}(?![\\w-])`, 'g'), `$1${name}`);
   fs.writeFileSync(file, `---\n${front}\n---\n${newBody}`);
   console.log(`✔ ${rel(to)} from ${base.name}${sha ? `@${sha.slice(0, 12)}` : ''}; now fill in its description and "This variant"`);
   index();

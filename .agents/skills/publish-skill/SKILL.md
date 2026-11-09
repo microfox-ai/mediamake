@@ -73,6 +73,11 @@ missing one costs, and offer its MediaMake install prompt ("Set up mcp/<name> fr
 following https://github.com/microfox-ai/mediamake/blob/main/install.md"), as `pack-brand-kit`
 does. An MCP that isn't ours goes in `third-party.json` first (who makes it, and how it installs).
 
+**Lessons go in notes, not the skill.** A skill that keeps a `## Feedback log` (or `## Lessons log`)
+says in it where new lessons go, so sessions never edit the committed file: the block every skill
+uses (copy one from `pack-brand-kit`), with `mm notes add <name> "…"` and `mm notes <name>`.
+`add` and `check` fail on a log without it, or on an old "append to the log at the bottom" rule.
+
 ## 3. Add
 
 `node tools/skills.mjs add <name>` (or `--all`). Then show `git status --short` for
@@ -105,7 +110,15 @@ makes the brand's thumbnail.json); the other skill doesn't mention it back. `lis
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add publish-skill "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes publish-skill                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote publish-skill` offers them to this log as a pull request.
 
 - 2026-10-25 · "create a skill call it publish skill which will list out all the private skills still available of particular category and user can choose which skill to publish… public skills are committed and hence visible on github and also in the application" → this skill, `tools/skills.mjs`, public skills in `.agents/skills/` with committed symlinks (`.gitignore` ignores only real folders under `.claude/skills/`), `SKILLS.md` listing every skill.
 - 2026-10-27 · "create-thumbnail has a dependency of pack-brand-kit, but not the pack-brand-kit for create-thumbnails" → dependencies are declared one-way in `metadata.depends-on`; the skill depended on doesn't name the one that uses it.

@@ -22,7 +22,8 @@ pulls. The guard rails in `.claude/settings.json` hold to this, with their paths
 - On main, never edit a framework file or commit: the change goes on a branch (`git switch -c <type>/<what>`,
   or a worktree when other sessions share the checkout) and a PR. The pre-edit guard (`tools/guard-rails.mjs`)
   stops edits and commits on main and says where each change belongs; a production's own feedback goes in
-  its `projects/<slug>/prefs.md`.
+  its `projects/<slug>/prefs.md`, and a lesson for a skill in the user's notes (`mm notes add <skill> "…"`,
+  below).
 - Every session starts with `tools/git-health.mjs` (`npm run git-health`): a half-done merge or rebase, edits
   or local commits on main, a checkout behind GitHub, stashes and branches not on GitHub. Tell the user what
   it found before starting, and fix it only with their OK.
@@ -31,6 +32,16 @@ pulls. The guard rails in `.claude/settings.json` hold to this, with their paths
   stops it).
 - Update with `git pull --ff-only` on a clean main.
 - Starting Claude with `MEDIAMAKE_GUARD=off` turns the guard off for one session; only the user decides that.
+
+## Skill lessons: your notes, never the SKILL.md
+
+What a session learns from the user goes in the user's notes for that skill, outside the repo, so no
+session edits a committed file: `mm notes add <skill> "<what the user said> → <the rule>"` (dated for
+you, in `~/MediaMake/notes/<skill>.md`, or the `workspace` that `~/.mediamake/config.json` names).
+Before planning, read them with `mm notes <skill>` beside the skill's own Feedback or Lessons log. That
+log is shared and changes only in a pull request: when the user wants their notes shared,
+`mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
+touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
 ## Media files: the shared library
 

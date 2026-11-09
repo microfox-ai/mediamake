@@ -1,6 +1,6 @@
 ---
 name: revise-video
-description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders 10-second previews for review, around what changed (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/ (or out/<slug>/live.revisions/ when the user reviewed the project live, before any render: /video-revision?live=<slug>), fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). Append new user feedback to the log at the bottom.
+description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders 10-second previews for review, around what changed (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/ (or out/<slug>/live.revisions/ when the user reviewed the project live, before any render: /video-revision?live=<slug>), fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: revise
 ---
@@ -32,8 +32,8 @@ list in its own file):
   its `.revisions/` folder are copied into `out/<slug>/v<N>/` (`render-project` does it; a `--frames`
   clip goes to `out/<slug>/clips/`). Never write into `out/<slug>/` by hand.
 - **Stable shot IDs** across renders, so notes from one revision stay comparable with the next.
-- A project **`prefs.md`** for style lessons, and a lessons/feedback log in the making skill for
-  general ones.
+- A project **`prefs.md`** for style lessons, and your notes for the making skill
+  (`mm notes add <skill> "…"`) for general ones.
 - At intake, the **previews or whole video** question below.
 
 ## Previews or the whole video (asked at intake)
@@ -326,8 +326,9 @@ Remotion render loads Chrome and the whole bundle and eats RAM that the other se
 
 Every comment teaches something. Style-specific lessons (this look, this footage, this song) go in
 the project's `prefs.md`, dated and numbered as the user wrote them; general ones (true for any
-project) go in the making skill's lessons/feedback log; lessons about the review loop itself go in
-the log below.
+project) go in your notes for the making skill (`mm notes add <making skill> "…"`); lessons about
+the review loop itself in your notes for this one (`mm notes add revise-video "…"`). Never edit a
+SKILL.md to log a lesson: the skills' logs change only in pull requests (`mm notes promote`).
 
 **How the loop is going:** `mm loop-stats [slug …] [--since=<date>]` prints,
 per video, the rounds, the user's notes per round (point / range / general, how many done; live
@@ -337,7 +338,15 @@ minutes. Run it when the user asks how reviewing is going, or before and after a
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add revise-video "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes revise-video                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote revise-video` offers them to this log as a pull request.
 
 - 2026-10-25 · split out of make-lyrics-video step 10 and make-video-music-remix step 10 ("both make videos, and both use the revision page to revise: separate the revising with the revision window into a separate skill, used by all similar video-make skills in future") → this skill; the making skills point here after their render step.
 - 2026-10-26 · quicksilverxkingpin ("are you only rendering changed chunks and replacing them in the video? … write that down in the revision skill: if it's just minor changes, save time by doing that") → step 3's "Minor revisions": render only the changed frame ranges and splice them into the previous cut; full renders only when the changes are global or spread across the video.

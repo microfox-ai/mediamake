@@ -44,6 +44,7 @@ const ABOUT = {
   media: 'the shared media library (mm media help)',
   golden: 'fixed frames of the fixtures compared with another commit',
   migrate: 'moves your work from apps/lyrics_videos into apps/studio (dry run; --yes to move)',
+  notes: "your lessons for each skill, outside the repo (mm notes help)",
 };
 
 const help = () => {
